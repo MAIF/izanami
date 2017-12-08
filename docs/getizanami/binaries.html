@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Architecture · Izanami</title>
+<title>From Binaries · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -39,10 +39,10 @@
   <li><a href="../about.html" class="page">About Izanami</a></li>
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
   <li><a href="../features.html" class="page">Features</a></li>
-  <li><a href="../architecture/index.html" class="active page">Architecture</a></li>
+  <li><a href="../architecture/index.html" class="page">Architecture</a></li>
   <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
-    <li><a href="../getizanami/binaries.html" class="page">From Binaries</a></li>
+    <li><a href="../getizanami/binaries.html" class="active page">From Binaries</a></li>
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
@@ -99,10 +99,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../about.html" class="page">About Izanami</a></li>
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
   <li><a href="../features.html" class="page">Features</a></li>
-  <li><a href="../architecture/index.html" class="active page">Architecture</a></li>
+  <li><a href="../architecture/index.html" class="page">Architecture</a></li>
   <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
-    <li><a href="../getizanami/binaries.html" class="page">From Binaries</a></li>
+    <li><a href="../getizanami/binaries.html" class="active page">From Binaries</a></li>
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
@@ -133,7 +133,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li>Architecture</li>
+  <li><a href="../getizanami/index.html">Get Izanami</a></li>
+  <li>From Binaries</li>
 </ul>
 </div>
 </div>
@@ -141,15 +142,52 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#architecture" name="architecture" class="anchor"><span class="anchor-link"></span></a>Architecture</h1>
+<h1><a href="#from-binaries" name="from-binaries" class="anchor"><span class="anchor-link"></span></a>From Binaries</h1>
+<p>Binaries are the recommended way to run Izanami. Grab them from Izanami release page on the github repository. </p>
+<p>You can get </p>
 <ul>
-  <li>TODO</li>
+  <li>izanami.jar: a fat jar</li>
+  <li>izanami.zip: <a href="http://www.scala-sbt.org/sbt-native-packager/formats/universal.html" target="_blanck">&ldquo;a native java package&rdquo;</a></li>
 </ul>
+<h2><a href="#run-izanami-jar" name="run-izanami-jar" class="anchor"><span class="anchor-link"></span></a>Run izanami.jar</h2>
+<p>To run izanami.jar, you will need JDK 8. </p>
+<p>Then just use :</p>
+<pre class="prettyprint"><code class="language-bash">java -jar izanami.jar 
+</code></pre>
+<h2><a href="#run-izanami-zip" name="run-izanami-zip" class="anchor"><span class="anchor-link"></span></a>Run izanami.zip</h2>
+<p>To run izanami.zip, you will need JDK 8.</p>
+<p>First unzip the archive : </p>
+<pre class="prettyprint"><code class="language-bash">unzip izanami.zip 
+</code></pre>
+<p>And then </p>
+<pre class="prettyprint"><code class="language-bash">cd izanami/
+
+bin/izanami
+</code></pre>
+<p>Or with windows</p>
+<pre class="prettyprint"><code class="language-dos">cd izanami/
+
+./bin/izanami.bat  
+</code></pre>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../getizanami/index.html">Get Izanami</a></p>
+<p><strong>Next:</strong> <a href="../getizanami/docker.html">From Docker</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../getizanami/binaries.html#from-binaries" class="header">From Binaries</a>
+  <ul>
+    <li><a href="../getizanami/binaries.html#run-izanami-jar" class="header">Run izanami.jar</a></li>
+    <li><a href="../getizanami/binaries.html#run-izanami-zip" class="header">Run izanami.zip</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

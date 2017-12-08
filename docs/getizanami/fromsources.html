@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Architecture · Izanami</title>
+<title>From sources · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -39,12 +39,12 @@
   <li><a href="../about.html" class="page">About Izanami</a></li>
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
   <li><a href="../features.html" class="page">Features</a></li>
-  <li><a href="../architecture/index.html" class="active page">Architecture</a></li>
+  <li><a href="../architecture/index.html" class="page">Architecture</a></li>
   <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
     <li><a href="../getizanami/binaries.html" class="page">From Binaries</a></li>
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
-    <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
+    <li><a href="../getizanami/fromsources.html" class="active page">From sources</a></li>
   </ul></li>
   <li><a href="../configuration/index.html" class="page">Configuration</a>
   <ul>
@@ -99,12 +99,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../about.html" class="page">About Izanami</a></li>
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
   <li><a href="../features.html" class="page">Features</a></li>
-  <li><a href="../architecture/index.html" class="active page">Architecture</a></li>
+  <li><a href="../architecture/index.html" class="page">Architecture</a></li>
   <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
     <li><a href="../getizanami/binaries.html" class="page">From Binaries</a></li>
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
-    <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
+    <li><a href="../getizanami/fromsources.html" class="active page">From sources</a></li>
   </ul></li>
   <li><a href="../configuration/index.html" class="page">Configuration</a>
   <ul>
@@ -133,7 +133,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li>Architecture</li>
+  <li><a href="../getizanami/index.html">Get Izanami</a></li>
+  <li>From sources</li>
 </ul>
 </div>
 </div>
@@ -141,15 +142,54 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#architecture" name="architecture" class="anchor"><span class="anchor-link"></span></a>Architecture</h1>
+<h1><a href="#from-sources" name="from-sources" class="anchor"><span class="anchor-link"></span></a>From sources</h1>
+<p>To run izanami from sources, you will need : </p>
 <ul>
-  <li>TODO</li>
+  <li>git</li>
+  <li>JDK 8</li>
+  <li>SBT</li>
+  <li>yarn or npm</li>
 </ul>
+<p>First get the sources : </p>
+<pre class="prettyprint"><code class="language-bash">git clone https://github.com/MAIF/izanami.git --depth=1
+</code></pre>
+<h2><a href="#build-the-javascript" name="build-the-javascript" class="anchor"><span class="anchor-link"></span></a>Build the javascript</h2>
+<p>Then go to the js folder : </p>
+<pre class="prettyprint"><code class="language-bash">cd izanami-server/javascript
+</code></pre>
+<p>And then </p>
+<pre class="prettyprint"><code class="language-bash">yarn install 
+yarn build 
+</code></pre>
+<h2><a href="#package-the-server" name="package-the-server" class="anchor"><span class="anchor-link"></span></a>Package the server</h2>
+<p>From the root folder </p>
+<h3><a href="#build-the-native-package" name="build-the-native-package" class="anchor"><span class="anchor-link"></span></a>Build the native package</h3>
+<pre class="prettyprint"><code class="language-bash">sbt &#39;izanami-server/dist&#39;
+</code></pre>
+<p>The build package is located on the folder <code>izanami-server/target/universal/</code></p>
+<h3><a href="#build-the-fat-jar" name="build-the-fat-jar" class="anchor"><span class="anchor-link"></span></a>Build the fat jar</h3>
+<pre class="prettyprint"><code class="language-bash">sbt &#39;izanami-server/assembly&#39;
+</code></pre>
+<p>The build package is located on the folder <code>izanami-server/scala-2.12/izanami/</code></p>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../getizanami/index.html">Get Izanami</a></p>
+<p><strong>Next:</strong> <a href="../configuration/index.html">Configuration</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../getizanami/fromsources.html#from-sources" class="header">From sources</a>
+  <ul>
+    <li><a href="../getizanami/fromsources.html#build-the-javascript" class="header">Build the javascript</a></li>
+    <li><a href="../getizanami/fromsources.html#package-the-server" class="header">Package the server</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

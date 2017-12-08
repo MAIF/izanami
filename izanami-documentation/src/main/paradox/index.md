@@ -3,14 +3,16 @@
 
 @@@ index
 
+ * [Quick start](quickstart.md)
  * [About](about.md)
  * [Philosophy](philosophy.md)
  * [Features](features.md)
- * [Quick run](quickstart.md)
  * [Architecture](architecture/index.md)
- * [Installation](installation/index.md)
+ * [Installation](getizanami/index.md)
  * [Configuration](configuration/index.md)
- * [Using the UI](ui/index.md)
+ * [UI usage](ui/index.md)
+ * [API usage](api/index.md)
+ * [Clients](clients/index.md)
 
 @@@ 
 
@@ -23,4 +25,20 @@ Izanami also provides first class integration. We provide Java, Scala, Node and 
 ![izanami](img/izanami.png)   
 
 @@@
+
+
+Download it : 
+
+
+```zsh
+wget --quiet 'https://github.com/MAIF/izanami/releases/download/v1.0.0/izanami.jar'
+```
+
+Run it 
+
+```zsh
+java -jar izanami.jar 
+```
+
+And then go to http://localhost:9000
 

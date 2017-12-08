@@ -9,6 +9,7 @@ Izanami provide a couple of features :
 * Feature flipping 
     * Activation strategy: by date, by script 
 * A/B testing 
+* Scalable 
 * Real time event publication
     * Webhook  
     * Server sent event 
