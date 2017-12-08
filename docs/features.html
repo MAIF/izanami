@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Izanami</title>
+<title>Features · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -26,7 +26,7 @@
 <div class="off-canvas position-left" id="off-canvas-menu" data-off-canvas>
 <nav class="off-canvas-nav">
 <div class="nav-home">
-<a href="index.html" class="active">
+<a href="index.html" >
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
@@ -37,7 +37,7 @@
 <ul>
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="features.html" class="page">Features</a></li>
+  <li><a href="features.html" class="active page">Features</a></li>
   <li><a href="quickstart.html" class="page">Quick start</a></li>
   <li><a href="architecture/index.html" class="page">architecture/index.html</a></li>
   <li><a href="installation/index.html" class="page">installation/index.html</a></li>
@@ -57,7 +57,7 @@
 H3.6C3.048,13,3,13.447,3,14c0,0.553,0.048,1,0.6,1H16.4c0.552,0,0.6-0.447,0.6-1C17,13.447,16.952,13,16.4,13z M3.6,7H16.4
 C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.048,7,3.6,7z"/></svg>
 </a>
-<div class="title"><a href="index.html" class="active">Izanami</a></div>
+<div class="title"><a href="index.html">Izanami</a></div>
 
 <!--
 <a href="https://www.example.com" class="logo show-for-medium">logo</a>
@@ -70,7 +70,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="medium-3 large-2 show-for-medium column">
 <nav class="site-nav">
 <div class="nav-home">
-<a href="index.html" class="active">
+<a href="index.html" >
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
@@ -81,7 +81,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="features.html" class="page">Features</a></li>
+  <li><a href="features.html" class="active page">Features</a></li>
   <li><a href="quickstart.html" class="page">Quick start</a></li>
   <li><a href="architecture/index.html" class="page">architecture/index.html</a></li>
   <li><a href="installation/index.html" class="page">installation/index.html</a></li>
@@ -98,17 +98,64 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-header row">
 <div class="medium-12 show-for-medium column">
+<div class="nav-breadcrumbs">
+<ul>
+  <li><a href="index.html">Izanami</a></li>
+  <li>Features</li>
+</ul>
+</div>
 </div>
 </div>
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#izanami" name="izanami" class="anchor"><span class="anchor-link"></span></a>Izanami</h1>
-<p>Izanami is a shared configuration service well-suited for micro-service architecture implementation. In addition to shared configuration, Izanami provides feature flipping and A/B Testing. Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.</p>
-<p>Izanami also provides first class integration. We provide Java, Scala, Node and React clients to integrate with your apps. We also provide webhook integration.</p><div class="izanami-logo">
-<p><img src="img/izanami.png" alt="izanami" /> </p></div>
+<h1><a href="#features" name="features" class="anchor"><span class="anchor-link"></span></a>Features</h1>
+<p>Izanami provide a couple of features : </p>
+<ul>
+  <li>Simple UI and/or API driven</li>
+  <li>Easy to implement toggling rules</li>
+  <li>Real time conversion rate statistics to evaluate A/B testing</li>
+  <li>Shared configuration</li>
+  <li>Feature flipping
+    <ul>
+      <li>Activation strategy: by date, by script</li>
+    </ul>
+  </li>
+  <li>A/B testing</li>
+  <li>Real time event publication
+    <ul>
+      <li>Webhook</li>
+      <li>Server sent event</li>
+    </ul>
+  </li>
+  <li>Dedicated client
+    <ul>
+      <li>Java, Scala, Node and React clients</li>
+    </ul>
+  </li>
+  <li>Multi-datastores support
+    <ul>
+      <li>Redis</li>
+      <li>LevelDB</li>
+      <li>In-memory</li>
+      <li>Cassandra</li>
+      <li>Elastic search</li>
+      <li>more to come</li>
+    </ul>
+  </li>
+  <li>Multi event store support
+    <ul>
+      <li>redis</li>
+      <li>kafka</li>
+      <li>akka distributed pub sub</li>
+    </ul>
+  </li>
+  <li>Advandced Clever-Cloud integration</li>
+  <li>Advandced Otoroshi integration</li>
+  <li>Made with love</li>
+</ul>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="about.html">About Izanami</a></p>
+<p><strong>Next:</strong> <a href="quickstart.html">Quick start</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>

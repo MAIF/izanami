@@ -5,6 +5,10 @@ lazy val `izanami-documentation` = (project in file("."))
   .settings(
     name := "Izanami",
     paradoxTheme := Some(builtinParadoxTheme("generic")),
+    paradoxProperties in Compile ++= Map(
+      "download_zip.base_url" -> s"https://github.com/maif/izanami/release/download/v-${version}/izanami.zip",
+      "download_jar.base_url" -> s"https://github.com/maif/izanami/release/download/v-${version}/izanami.jar"
+    )
 //    target in Compile := {
 //      project.base.getParentFile / "docs"
 //    }

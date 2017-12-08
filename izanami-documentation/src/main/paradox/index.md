@@ -3,7 +3,14 @@
 
 @@@ index
 
- * [Getting started](quickstart/index.md)
+ * [About](about.md)
+ * [Philosophy](philosophy.md)
+ * [Features](features.md)
+ * [Quick run](quickstart.md)
+ * [Architecture](architecture/index.md)
+ * [Installation](installation/index.md)
+ * [Configuration](configuration/index.md)
+ * [Using the UI](ui/index.md)
 
 @@@ 
 

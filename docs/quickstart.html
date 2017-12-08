@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Izanami</title>
+<title>Quick start · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -26,7 +26,7 @@
 <div class="off-canvas position-left" id="off-canvas-menu" data-off-canvas>
 <nav class="off-canvas-nav">
 <div class="nav-home">
-<a href="index.html" class="active">
+<a href="index.html" >
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
@@ -38,7 +38,7 @@
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
   <li><a href="features.html" class="page">Features</a></li>
-  <li><a href="quickstart.html" class="page">Quick start</a></li>
+  <li><a href="quickstart.html" class="active page">Quick start</a></li>
   <li><a href="architecture/index.html" class="page">architecture/index.html</a></li>
   <li><a href="installation/index.html" class="page">installation/index.html</a></li>
   <li><a href="configuration/index.html" class="page">configuration/index.html</a></li>
@@ -57,7 +57,7 @@
 H3.6C3.048,13,3,13.447,3,14c0,0.553,0.048,1,0.6,1H16.4c0.552,0,0.6-0.447,0.6-1C17,13.447,16.952,13,16.4,13z M3.6,7H16.4
 C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.048,7,3.6,7z"/></svg>
 </a>
-<div class="title"><a href="index.html" class="active">Izanami</a></div>
+<div class="title"><a href="index.html">Izanami</a></div>
 
 <!--
 <a href="https://www.example.com" class="logo show-for-medium">logo</a>
@@ -70,7 +70,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="medium-3 large-2 show-for-medium column">
 <nav class="site-nav">
 <div class="nav-home">
-<a href="index.html" class="active">
+<a href="index.html" >
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
@@ -82,7 +82,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
   <li><a href="features.html" class="page">Features</a></li>
-  <li><a href="quickstart.html" class="page">Quick start</a></li>
+  <li><a href="quickstart.html" class="active page">Quick start</a></li>
   <li><a href="architecture/index.html" class="page">architecture/index.html</a></li>
   <li><a href="installation/index.html" class="page">installation/index.html</a></li>
   <li><a href="configuration/index.html" class="page">configuration/index.html</a></li>
@@ -98,17 +98,82 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-header row">
 <div class="medium-12 show-for-medium column">
+<div class="nav-breadcrumbs">
+<ul>
+  <li><a href="index.html">Izanami</a></li>
+  <li>Quick start</li>
+</ul>
+</div>
 </div>
 </div>
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#izanami" name="izanami" class="anchor"><span class="anchor-link"></span></a>Izanami</h1>
-<p>Izanami is a shared configuration service well-suited for micro-service architecture implementation. In addition to shared configuration, Izanami provides feature flipping and A/B Testing. Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.</p>
-<p>Izanami also provides first class integration. We provide Java, Scala, Node and React clients to integrate with your apps. We also provide webhook integration.</p><div class="izanami-logo">
-<p><img src="img/izanami.png" alt="izanami" /> </p></div>
+<h1><a href="#quick-start" name="quick-start" class="anchor"><span class="anchor-link"></span></a>Quick start</h1>
+<p>what you will need :</p>
+<ul>
+  <li>JDK 8</li>
+  <li>wget</li>
+</ul>
+<p>First download the executable jar : </p>
+<pre class="prettyprint"><code class="language-zsh">wget --quiet https://github.com/MAIF/izanami/releases/download/v1.0.0/izanami.jar
+</code></pre>
+<p>And then run it </p>
+<pre class="prettyprint"><code class="language-zsh">java -jar izanami.jar 
+</code></pre>
+<p>Go to <a href="http://localhost:9000">http://localhost:9000</a> </p>
+<p>First login! When you&rsquo;ve just started the server, the login password is admin/admin123 (of course you can change it :) ) : </p>
+<img src="img/quickstart/1-login.png" width="60%" />
+<p>Ok, now you&rsquo;ve reached the home page </p>
+<img src="img/quickstart/2-home.png" width="80%" />
+<p>Izanami encourage you to create a real user but let&rsquo;s ignore that for the moment and close the pop up. </p>
+<p>Now we will an create API key to use the API : </p>
+<img src="img/quickstart/3-apikey.png" width="50%" />
+<p>And then click add key </p>
+<img src="img/quickstart/4-addkey.png" width="80%" />
+<p>You can change the client id and client secret if you need it. Hit the create button </p>
+<img src="img/quickstart/5-createkey.png" width="80%" />
+<p>Ok that cool now let&rsquo;s create a feature. Click to the &ldquo;features&rdquo; menu and then click to &ldquo;Add item&rdquo; : </p>
+<img src="img/quickstart/6-features.png" width="80%" />
+<p>You can create a new feature with a dedicated strategy : </p>
+<img src="img/quickstart/7-addfeature.png" width="80%" />
+<p>Let&rsquo;s keep this simple and choose &ldquo;NO_STRATEGY&rdquo;. Hit the &ldquo;Create feature button&rdquo; and that it ! </p>
+<p>Now we will call the API to get the state of the feature using the client id and client secret that we&rsquo;ve created before : </p>
+<pre class="prettyprint"><code class="language-bash"><br/>curl -X GET \
+  &#39;http://localhost:9000/api/features/project:env:feature1/check&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: client&#39; \
+  -H &#39;Izanami-Client-Secret: client1234&#39; --include 
+ 
+# And the result is  
+# HTTP/1.1 200 OK
+# Date: Fri, 08 Dec 2017 10:25:53 GMT
+# Content-Type: application/json
+# Content-Length: 15
+# 
+# {&quot;active&quot;:true}%
+ 
+</code></pre>
+<p>Now we can deactivate the feature using the toggle button : </p>
+<img src="img/quickstart/8-deactivatefeature.png" width="80%" />
+<pre class="prettyprint"><code class="language-bash"><br/>curl -X GET \
+  &#39;http://localhost:9000/api/features/project:env:feature1/check&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: client&#39; \
+  -H &#39;Izanami-Client-Secret: client1234&#39; --include 
+ 
+# And the result is  
+# HTTP/1.1 200 OK
+# Date: Fri, 08 Dec 2017 10:30:09 GMT
+# Content-Type: application/json
+# Content-Length: 15
+# 
+# {&quot;active&quot;:false}%
+ 
+</code></pre>
+<p>Ok not so hard, so now let&rsquo;s go deeper !</p>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="about.html">About Izanami</a></p>
+<p><strong>Next:</strong> <a href="architecture/index.html">architecture/index.html</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>

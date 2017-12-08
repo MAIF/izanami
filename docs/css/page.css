@@ -1,5 +1,18 @@
 @charset "UTF-8";
 
+/* Izanami styles */
+
+.izanami-logo {
+    text-align: center;
+}
+
+.izanami-logo p img {
+    width: 60%;
+}
+
+/* */
+
+
 /* fonts */
 
 @font-face {
@@ -13,13 +26,6 @@
     font-style: normal;
 }
 
-.izanami-logo {
-    text-align: center;
-}
-
-.izanami-logo p img {
-    width: 400px;
-}
 
 /* body */
 
