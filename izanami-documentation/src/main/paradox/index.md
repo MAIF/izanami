@@ -22,7 +22,7 @@ Izanami also provides first class integration. We provide Java, Scala, Node and 
 
 @@@ div { .izanami-logo }
 
-![izanami](img/izanami.png)   
+![izanami](img/izanami.gif)   
 
 @@@
 
