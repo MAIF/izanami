@@ -1,4 +1,4 @@
-# Features
+# What's in the box
 
 Izanami provide a couple of features : 
 

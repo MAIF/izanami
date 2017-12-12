@@ -38,7 +38,7 @@
   <li><a href="../quickstart.html" class="page">Quick start</a></li>
   <li><a href="../about.html" class="page">About Izanami</a></li>
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="../features.html" class="page">Features</a></li>
+  <li><a href="../features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="../architecture/index.html" class="active page">Architecture</a></li>
   <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
@@ -51,8 +51,22 @@
     <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="../ui/index.html" class="page">UI usage</a></li>
-  <li><a href="../api/index.html" class="page">API usage</a></li>
+  <li><a href="../api.html" class="page">Use the APIs</a></li>
+  <li><a href="../configs/index.html" class="page">Configs</a>
+  <ul>
+    <li><a href="../configs/api.html" class="page">Configs API</a></li>
+    <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
+  </ul></li>
+  <li><a href="../features/index.html" class="page">Features</a>
+  <ul>
+    <li><a href="../features/api.html" class="page">APIs</a></li>
+    <li><a href="../features/ui.html" class="page">The UI</a></li>
+  </ul></li>
+  <li><a href="../experiments/index.html" class="page">Experiments</a>
+  <ul>
+    <li><a href="../experiments/api.html" class="page">APIs</a></li>
+    <li><a href="../experiments/ui.html" class="page">The UI</a></li>
+  </ul></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -98,7 +112,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../quickstart.html" class="page">Quick start</a></li>
   <li><a href="../about.html" class="page">About Izanami</a></li>
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="../features.html" class="page">Features</a></li>
+  <li><a href="../features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="../architecture/index.html" class="active page">Architecture</a></li>
   <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
@@ -111,8 +125,22 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="../ui/index.html" class="page">UI usage</a></li>
-  <li><a href="../api/index.html" class="page">API usage</a></li>
+  <li><a href="../api.html" class="page">Use the APIs</a></li>
+  <li><a href="../configs/index.html" class="page">Configs</a>
+  <ul>
+    <li><a href="../configs/api.html" class="page">Configs API</a></li>
+    <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
+  </ul></li>
+  <li><a href="../features/index.html" class="page">Features</a>
+  <ul>
+    <li><a href="../features/api.html" class="page">APIs</a></li>
+    <li><a href="../features/ui.html" class="page">The UI</a></li>
+  </ul></li>
+  <li><a href="../experiments/index.html" class="page">Experiments</a>
+  <ul>
+    <li><a href="../experiments/api.html" class="page">APIs</a></li>
+    <li><a href="../experiments/ui.html" class="page">The UI</a></li>
+  </ul></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -142,26 +170,33 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#architecture" name="architecture" class="anchor"><span class="anchor-link"></span></a>Architecture</h1>
-<h2><a href="#the-big-picture" name="the-big-picture" class="anchor"><span class="anchor-link"></span></a>The big picture</h2>
+<p>As said before, Izanami provide different features : </p>
+<ul>
+  <li>API first</li>
+  <li>Multi data store (In Memeory, Level DB, redis, cassandra, elasticsearch)</li>
+  <li>Listenable events (SSE, webhooks)</li>
+  <li>Multi event store (In Memory, Redis, Kafka, Akka distributed pub / sub)</li>
+</ul>
 <p><img src="../img/diagrams/architecture.png" alt="diagram" /> </p>
+<p>The data of each domains (features, configs, experiments &hellip;) are compartmentalized in buckets. Izanami can be plugged with 2 or more databases at the same time where each database store on or more bucket. </p>
+<p>Izanami contains the following buckets : </p>
+<ul>
+  <li>features: to store features</li>
+  <li>configs: to store configs</li>
+  <li>experiments: to store A / B testing experiments</li>
+  <li>variant binding: to store the association between a user and an experiment&rsquo;s variant</li>
+  <li>experiment events: to store the event about an experiment (displayed, won)</li>
+  <li>global scripts: to store script used by features</li>
+  <li>api keys: to store api keys</li>
+  <li>web hooks: to store registered webhook</li>
+  <li>users: to store users</li>
+</ul>
+<p>You can see how to configure buckets on the <a href="../configuration/settings.html">settings</a> page. </p>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../getizanami/index.html">Get Izanami</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
-<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
-<div class="page-nav">
-<div class="nav-title">On this page:</div>
-<div class="nav-toc">
-<ul>
-  <li><a href="../architecture/index.html#architecture" class="header">Architecture</a>
-  <ul>
-    <li><a href="../architecture/index.html#the-big-picture" class="header">The big picture</a></li>
-  </ul></li>
-</ul>
-</div>
-</div>
-</nav>
 </div>
 </div>
 

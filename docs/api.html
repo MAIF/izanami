@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Whats in the box · Izanami</title>
+<title>Use the APIs · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -38,7 +38,7 @@
   <li><a href="quickstart.html" class="page">Quick start</a></li>
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="features.html" class="active page">What&rsquo;s in the box</a></li>
+  <li><a href="features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="architecture/index.html" class="page">Architecture</a></li>
   <li><a href="getizanami/index.html" class="page">Get Izanami</a>
   <ul>
@@ -51,7 +51,7 @@
     <li><a href="configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="api.html" class="page">Use the APIs</a></li>
+  <li><a href="api.html" class="active page">Use the APIs</a></li>
   <li><a href="configs/index.html" class="page">Configs</a>
   <ul>
     <li><a href="configs/api.html" class="page">Configs API</a></li>
@@ -112,7 +112,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="quickstart.html" class="page">Quick start</a></li>
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="features.html" class="active page">What&rsquo;s in the box</a></li>
+  <li><a href="features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="architecture/index.html" class="page">Architecture</a></li>
   <li><a href="getizanami/index.html" class="page">Get Izanami</a>
   <ul>
@@ -125,7 +125,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="api.html" class="page">Use the APIs</a></li>
+  <li><a href="api.html" class="active page">Use the APIs</a></li>
   <li><a href="configs/index.html" class="page">Configs</a>
   <ul>
     <li><a href="configs/api.html" class="page">Configs API</a></li>
@@ -161,7 +161,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="index.html">Izanami</a></li>
-  <li>What&rsquo;s in the box</li>
+  <li>Use the APIs</li>
 </ul>
 </div>
 </div>
@@ -169,57 +169,63 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#whats-in-the-box" name="whats-in-the-box" class="anchor"><span class="anchor-link"></span></a>What&rsquo;s in the box</h1>
-<p>Izanami provide a couple of features : </p>
-<ul>
-  <li>Simple UI and/or API driven</li>
-  <li>Easy to implement toggling rules</li>
-  <li>Real time conversion rate statistics to evaluate A/B testing</li>
-  <li>Shared configuration</li>
-  <li>Feature flipping
-    <ul>
-      <li>Activation strategy: by date, by script</li>
-    </ul>
-  </li>
-  <li>A/B testing</li>
-  <li>Scalable</li>
-  <li>Real time event publication
-    <ul>
-      <li>Webhook</li>
-      <li>Server sent event</li>
-    </ul>
-  </li>
-  <li>Dedicated client
-    <ul>
-      <li>Java, Scala, Node and React clients</li>
-    </ul>
-  </li>
-  <li>Multi-datastores support
-    <ul>
-      <li>Redis</li>
-      <li>LevelDB</li>
-      <li>In-memory</li>
-      <li>Cassandra</li>
-      <li>Elastic search</li>
-      <li>more to come</li>
-    </ul>
-  </li>
-  <li>Multi event store support
-    <ul>
-      <li>redis</li>
-      <li>kafka</li>
-      <li>akka distributed pub sub</li>
-    </ul>
-  </li>
-  <li>Advandced Clever-Cloud integration</li>
-  <li>Advandced Otoroshi integration</li>
-  <li>Made with love</li>
-</ul>
+<h1><a href="#use-the-apis" name="use-the-apis" class="anchor"><span class="anchor-link"></span></a>Use the APIs</h1>
+<h2><a href="#identification" name="identification" class="anchor"><span class="anchor-link"></span></a>Identification</h2>
+<p>All the APIs needs to be be identified. Identification could be done with a cookie (from the UI) or using headers (random services). </p>
+<p>To use header identification, you first need to generate client id and client secret using the UI : </p>
+<img src="img/quickstart/3-apikey.png" width="50%" />
+<p>And then click add key </p>
+<img src="img/quickstart/4-addkey.png" width="80%" />
+<p>You can change the client id and client secret if you need it. Hit the create button to finish the creation </p>
+<img src="img/quickstart/5-createkey.png" width="80%" />
+<p>You can add restriction on keys using a pattern. For example, you set patterns to <code>mykeys:*</code> so the client using this credentials will only see data where the key starts with <code>mykeys:</code>. </p>
+<p>When it&rsquo;s done you can use the client id and secret using the headers <code>Izanami-Client-Id</code> and <code>Izanami-Client-Secret</code> : </p>
+<pre class="prettyprint"><code class="language-bash"><br/>curl -X GET \
+  &#39;http://localhost:9000/api/configs/my:config&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: client&#39; \
+  -H &#39;Izanami-Client-Secret: client1234&#39; --include 
+ 
+# And the result is  
+# HTTP/1.1 200 OK
+# Date: Tue, 12 Dec 2017 16:06:46 GMT
+# Content-Type: application/json
+# Content-Length: 76
+# 
+# {&quot;id&quot;:&quot;my:config&quot;,&quot;value&quot;:&quot;{\n  \&quot;message\&quot;: \&quot;Hello World!\&quot;\n}&quot;}
+ 
+</code></pre>
+<p>Header names can be change, see the <a href="configuration/settings.html">settings</a> page. </p>
+<h2><a href="#error-response" name="error-response" class="anchor"><span class="anchor-link"></span></a>Error response</h2>
+<p>The format of the errors is always the same. </p>
+<h2><a href="#configs-api" name="configs-api" class="anchor"><span class="anchor-link"></span></a>Configs API</h2>
+<p>Go to the <a href="configs/api.html">configs API doc</a> </p>
+<h2><a href="#features-api" name="features-api" class="anchor"><span class="anchor-link"></span></a>Features API</h2>
+<p>Go to the <a href="features/api.html">features API doc</a></p>
+<h2><a href="#experiments-api" name="experiments-api" class="anchor"><span class="anchor-link"></span></a>Experiments API</h2>
+<p>Go to the <a href="experiments/api.html">experiments API doc</a></p>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="architecture/index.html">Architecture</a></p>
+<p><strong>Next:</strong> <a href="configs/index.html">Configs</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="api.html#use-the-apis" class="header">Use the APIs</a>
+  <ul>
+    <li><a href="api.html#identification" class="header">Identification</a></li>
+    <li><a href="api.html#error-response" class="header">Error response</a></li>
+    <li><a href="api.html#configs-api" class="header">Configs API</a></li>
+    <li><a href="api.html#features-api" class="header">Features API</a></li>
+    <li><a href="api.html#experiments-api" class="header">Experiments API</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

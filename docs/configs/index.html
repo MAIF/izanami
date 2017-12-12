@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Configuration · Izanami</title>
+<title>Configs · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -46,13 +46,13 @@
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
-  <li><a href="../configuration/index.html" class="active page">Configuration</a>
+  <li><a href="../configuration/index.html" class="page">Configuration</a>
   <ul>
     <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
   <li><a href="../api.html" class="page">Use the APIs</a></li>
-  <li><a href="../configs/index.html" class="page">Configs</a>
+  <li><a href="../configs/index.html" class="active page">Configs</a>
   <ul>
     <li><a href="../configs/api.html" class="page">Configs API</a></li>
     <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
@@ -120,13 +120,13 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
-  <li><a href="../configuration/index.html" class="active page">Configuration</a>
+  <li><a href="../configuration/index.html" class="page">Configuration</a>
   <ul>
     <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
   <li><a href="../api.html" class="page">Use the APIs</a></li>
-  <li><a href="../configs/index.html" class="page">Configs</a>
+  <li><a href="../configs/index.html" class="active page">Configs</a>
   <ul>
     <li><a href="../configs/api.html" class="page">Configs API</a></li>
     <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
@@ -161,7 +161,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li>Configuration</li>
+  <li>Configs</li>
 </ul>
 </div>
 </div>
@@ -169,17 +169,26 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#configuration" name="configuration" class="anchor"><span class="anchor-link"></span></a>Configuration</h1>
-<p>Izanami is based on <a href="https://www.playframework.com">play framework</a> where configuration is based on <a href="https://github.com/lightbend/config">hocon</a>. </p>
-<p>Izanami is highly configurable either by environment variable or java system properties. You can also override the entire configuration file if needed. </p>
-<p>You can override any property with </p>
-<pre><code>java -Dizanami.db.default=Redis -jar izanami.jar 
-</code></pre>
-<p>Or the entire configuration file with</p>
-<pre><code>java -Dconfig.file=/path/to/my/config.conf -jar izanami.jar 
+<h1><a href="#configs" name="configs" class="anchor"><span class="anchor-link"></span></a>Configs</h1>
+<p>Izanami provide the ability to share configuration. The configuration could be a text or a json. The value is store as text in the database. </p>
+<p>To get config just call the api : </p>
+<pre class="prettyprint"><code class="language-bash"><br/>curl -X GET \
+  &#39;http://localhost:9000/api/configs/my:config&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: client&#39; \
+  -H &#39;Izanami-Client-Secret: client1234&#39; --include 
+ 
+# And the result is  
+# HTTP/1.1 200 OK
+# Date: Tue, 12 Dec 2017 16:06:46 GMT
+# Content-Type: application/json
+# Content-Length: 76
+# 
+# {&quot;id&quot;:&quot;my:config&quot;,&quot;value&quot;:&quot;{\n  \&quot;message\&quot;: \&quot;Hello World!\&quot;\n}&quot;}
+ 
 </code></pre>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../configuration/database.html">Choose the database</a></p>
+<p><strong>Next:</strong> <a href="../configs/api.html">Configs API</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>

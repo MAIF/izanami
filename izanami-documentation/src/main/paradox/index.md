@@ -10,8 +10,10 @@
  * [Architecture](architecture/index.md)
  * [Installation](getizanami/index.md)
  * [Configuration](configuration/index.md)
- * [UI usage](ui/index.md)
- * [API usage](api/index.md)
+ * [Api](api.md)
+ * [Configs](configs/index.md)
+ * [Features](features/index.md)
+ * [Experiments](experiments/index.md)
  * [Clients](clients/index.md)
 
 @@@ 
