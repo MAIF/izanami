@@ -10,6 +10,11 @@
     width: 80%;
 }
 
+table {
+    table-layout: fixed;
+    word-break: break-word;
+}
+
 /* */
 
 

@@ -1,3 +1,7 @@
 # Architecture
 
-* TODO 
+
+## The big picture 
+
+![diagram](../img/diagrams/architecture.png) 
+

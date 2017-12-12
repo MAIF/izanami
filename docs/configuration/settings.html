@@ -142,12 +142,519 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#all-the-settings" name="all-the-settings" class="anchor"><span class="anchor-link"></span></a>All the settings</h1>
+<h1><a href="#all-the-settings" name="all-the-settings" class="anchor"><span class="anchor-link"></span></a>All the settings</h1><div class="callout note "><div class="callout-title">Note</div>
+<p>Izanami is written with play and akka. You can fin additional configuration information here <a href="https://www.playframework.com/documentation/2.6.x/Configuration">https://www.playframework.com/documentation/2.6.x/Configuration</a>. </p></div>
+<h2><a href="#events" name="events" class="anchor"><span class="anchor-link"></span></a>Events</h2>
+<p>Here, you can find settings about the event store configuration. </p>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+      <th>Default value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.mode</code> </td>
+      <td><code>IZANAMI_MODE</code> </td>
+      <td>Use <code>dev</code> when developing. Could be <code>prod</code> or <code>dev</code> </td>
+      <td><code>prod</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.events.store</code> </td>
+      <td><code>IZANAMI_EVENT_STORE</code> </td>
+      <td>Type of the event store. Could be <code>InMemory</code>, <code>Kafka</code>, <code>Redis</code>, <code>Distributed</code>. </td>
+      <td><code>InMemory</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.events.distributed.topic</code> </td>
+      <td><code>DISTRIBUTED_TOPIC</code> </td>
+      <td>Name of the topic when <code>izanami.events.store</code>=<code>Distributed</code> </td>
+      <td><code>izanami</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.events.redis.topic</code> </td>
+      <td><code>REDIS_TOPIC</code> </td>
+      <td>Name of the topic when <code>izanami.events.store</code>=<code>Redis</code> </td>
+      <td><code>izanami:events</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.events.kafka.topic</code> </td>
+      <td><code>KAFKA_TOPIC</code> </td>
+      <td>Name of the topic when <code>izanami.events.store</code>=<code>Kafka</code> </td>
+      <td><code>izanami</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.cluster.seed-node-host</code> </td>
+      <td><code>AKKA_CLUSTER SEED_NODE_HOST</code> </td>
+      <td>The host of the seed used to form a cluster </td>
+      <td><code>127.0.0.1</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.cluster.seed-node-port</code> </td>
+      <td><code>AKKA_CLUSTER SEED_NODE_PORT</code> </td>
+      <td>The port of the seed used to form a cluster </td>
+      <td>2551 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.cluster.akka.remote.netty.tcp.hostname</code> </td>
+      <td><code>AKKA_CLUSTER_HOST</code> </td>
+      <td>The host of the current node </td>
+      <td><code>127.0.0.1</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.cluster.akka.remote.netty.tcp.port</code> </td>
+      <td><code>AKKA_CLUSTER_PORT</code> </td>
+      <td>The port of the current node </td>
+      <td><code>127.0.0.1</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.cluster.akka.remote.netty.tcp.bind-hostname</code> </td>
+      <td><code>AKKA_CLUSTER_HOST</code> </td>
+      <td>The internal host of the current node (eg docker) </td>
+      <td><code>127.0.0.1</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.cluster.akka.remote.netty.tcp.bind-port</code> </td>
+      <td><code>AKKA_CLUSTER_BIND_PORT</code> </td>
+      <td>The internal port of the current node (eg docker) </td>
+      <td><code>${cluster.akka.remote.netty.tcp.port}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.cluster.akka.cluster.seed-nodes</code> </td>
+      <td><code>AKKA_CLUSTER_SEED_NODES</code> </td>
+      <td>An array of seeds </td>
+      <td><code>[&quot;akka.tcp://&quot;${cluster.system-name}&quot;@&quot;${izanami.cluster.seed-node-host}&quot;:&quot;${izanami.cluster.seed-node-port}]</code> </td>
+    </tr>
+  </tbody>
+</table><div class="callout note "><div class="callout-title">Note</div>
+<p>The distributed event store rely on akka cluster and akka distributed pub/sub. You can find more information here <a href="https://doc.akka.io/docs/akka/current/cluster-usage.html">https://doc.akka.io/docs/akka/current/cluster-usage.html</a>. </p></div>
+<h2><a href="#db-config" name="db-config" class="anchor"><span class="anchor-link"></span></a>Db config</h2>
+<p>Here, you can find the settings to configure the different data stores. </p>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+      <th>Default value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.db.default</code> </td>
+      <td><code>IZANAMI_DATABASE</code> </td>
+      <td>Type of the default datastore. Could be <code>InMemory</code>, <code>LevelDb</code>, <code>Redis</code>, <code>Cassandra</code>, <code>Elastic</code>. </td>
+      <td><code>LevelDb</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.leveldb.parentPath</code> </td>
+      <td><code>LEVEL_DB_PARENT_PATH</code> </td>
+      <td>The root folder when data are stored by level db </td>
+      <td><code>target/leveldb</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.cassandra.host</code> </td>
+      <td><code>CASSANDRA_HOST</code> </td>
+      <td>The host name of the cassandra server </td>
+      <td><code>localhost</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.cassandra.port</code> </td>
+      <td><code>CASSANDRA_PORT</code> </td>
+      <td>The port of the cassandra server </td>
+      <td>9042 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.cassandra.addresses</code> </td>
+      <td><code>CASSANDRA_HOSTS_AND_PORTS</code> </td>
+      <td>An array of host and port </td>
+      <td><code>[${izanami.db.cassandra.host}&quot;:&quot;${izanami.db.cassandra.port}]</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.cassandra.replicationFactor</code> </td>
+      <td><code>CASSANDRA_REPLICATION_FACTOR</code> </td>
+      <td>The replication factor for the data </td>
+      <td>1 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.cassandra.keyspace</code> </td>
+      <td><code>CASSANDRA_KEYSPACE</code> </td>
+      <td>the name of the keyspace for datas </td>
+      <td><code>izanami</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.host</code> </td>
+      <td><code>REDIS_HOST</code> </td>
+      <td>The host of the redis server </td>
+      <td><code>localhost</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.port</code> </td>
+      <td><code>REDIS_PORT</code> </td>
+      <td>The port of the redis server </td>
+      <td>6379 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.password</code> </td>
+      <td><code>REDIS_PASSWORD</code> </td>
+      <td>The password for the redis server </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.slaves</code> </td>
+      <td> </td>
+      <td>An array of redis config for slaves. For example: <code>izanami.db.redis.slaves=[{ host = localhost, port = 6380 }]</code> </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.host</code> </td>
+      <td><code>KAFKA_HOST</code> </td>
+      <td>The host of the kafka server </td>
+      <td>localhost </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.port</code> </td>
+      <td><code>KAFKA_PORT</code> </td>
+      <td>The port of the kafka server </td>
+      <td>9092 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.servers</code> </td>
+      <td><code>KAFKA_HOSTS_AND_PORTS</code> </td>
+      <td>A string with host and port separated by &lsquo;,&rsquo; </td>
+      <td><code>${izanami.db.kafka.host}&quot;:&quot;${izanami.db.kafka.port}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.keyPass</code> </td>
+      <td><code>KAFKA_PASSWORD</code> </td>
+      <td>The password for ssl certificate </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.keystore.location</code> </td>
+      <td><code>KAFKA_KEYSTORE_LOCATION</code> </td>
+      <td>The absolute location of the keystore if ssl is used </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.truststore.location</code> </td>
+      <td><code>KAFKA_TRUSTORE_LOCATION</code> </td>
+      <td>The absolute location of the truststore,if ssl is used </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.elastic.host</code> </td>
+      <td><code>ELASTIC_HOST</code> </td>
+      <td>The host of the elastic server </td>
+      <td><code>127.0.0.1</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.elastic.port</code> </td>
+      <td><code>ELASTIC_PORT</code> </td>
+      <td>The port of the elastic server </td>
+      <td>9200 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.elastic.scheme</code> </td>
+      <td><code>ELASTIC_SCHEME</code> </td>
+      <td>The scheme used for the elastic server </td>
+      <td><code>http</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.elastic.user</code> </td>
+      <td><code>ELASTIC_USER</code> </td>
+      <td>The user if elastic is secured </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.elastic.password</code> </td>
+      <td><code>ELASTIC_PASSWORD</code> </td>
+      <td>The password if elastic is secured </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.elastic.automaticRefresh</code> </td>
+      <td> </td>
+      <td>Force refresh on each insert, update or delete. For dev only </td>
+      <td>false </td>
+    </tr>
+  </tbody>
+</table>
+<h2><a href="#threads-configuration" name="threads-configuration" class="anchor"><span class="anchor-link"></span></a>Threads configuration</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+      <th>Default value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.script-dispatcher.thread-pool-executor.fixed-pool-size</code> </td>
+      <td><code>SCRIPT_EXECUTION_POOLSIZE</code> </td>
+      <td>The size of the threapool to execute scripts with nashorn </td>
+      <td>32 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.level-db-dispatcher.thread-pool-executor.fixed-pool-size</code> </td>
+      <td><code>LEVEL_DB_POOLSIZE</code> </td>
+      <td>The size of the threapool for leveldb blocking calls. </td>
+      <td>1 </td>
+    </tr>
+  </tbody>
+</table>
+<h2><a href="#filters" name="filters" class="anchor"><span class="anchor-link"></span></a>Filters</h2>
+<p>Here, you can find the settings to configure the security filter. </p>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+      <th>Default value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.filter.type</code> </td>
+      <td><code>IZANAMI_FILTER_TYPE</code> </td>
+      <td>The type of the http filter used for security and identification. Izanami provide first class support for Otoroshi reverse proxy so you can set to Otoroshi if you already work with that product. Could be <code>Default</code> or <code>Otoroshi</code>. </td>
+      <td><code>Default</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.otoroshi.sharedKey</code> </td>
+      <td><code>CLAIM_SHAREDKEY</code> </td>
+      <td>Shared key used to encrypt jwt token </td>
+      <td><code>none</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.otoroshi.headerClaim</code> </td>
+      <td><code>FILTER_CLAIM_HEADER_NAME</code> </td>
+      <td>The name of the claim header </td>
+      <td><code>Opun-Gateway-Claim</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.otoroshi.headerRequestId</code> </td>
+      <td><code>FILTER_REQUEST_ID_HEADER_NAME</code> </td>
+      <td>The name of the requestId header </td>
+      <td><code>Opun-Gateway-Request-Id</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.otoroshi.headerGatewayState</code> </td>
+      <td><code>FILTER_GATEWAY_STATE HEADER_NAME</code> </td>
+      <td>The name of the state header </td>
+      <td><code>Opun-Gateway-State</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.otoroshi.headerGatewayStateResp</code> </td>
+      <td><code>FILTER_GATEWAY_STATE RESP_HEADER_NAME</code> </td>
+      <td>The name of the state resp header </td>
+      <td><code>Opun-Gateway-State-Resp</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.default.sharedKey</code> </td>
+      <td><code>FILTER_CLAIM_SHAREDKEY</code> </td>
+      <td>The shared key used to encrypt jwt token. It should be the same value between each Izanami nodes in case of a cluster. </td>
+      <td><code>none</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.default.cookieClaim</code> </td>
+      <td><code>FILTER_COOKIE_NAME</code> </td>
+      <td>The name of the cookie used to store the user session. </td>
+      <td><code>Izanami</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.default.issuer</code> </td>
+      <td><code>FILTER_ISSUER</code> </td>
+      <td>The issuer for jwt token </td>
+      <td><code>Izanami</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.default.apiKeys.headerClientId</code> </td>
+      <td><code>FILTER_CLAIM_HEADER CLIENT_ID_NAME</code> </td>
+      <td>The name of the header for clientId </td>
+      <td><code>Izanami-Client-Id</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.filter.default.apiKeys.headerClientSecret</code> </td>
+      <td><code>FILTER_CLAIM_HEADER CLIENT_SECRET_NAME</code> </td>
+      <td>The name of the header of clientSecret </td>
+      <td><code>Izanami-Client-Secret</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.logout.url</code> </td>
+      <td><code>LOGOUT_URL</code> </td>
+      <td>The logout url </td>
+      <td><code>/api/logout</code> </td>
+    </tr>
+  </tbody>
+</table>
+<h2><a href="#domains" name="domains" class="anchor"><span class="anchor-link"></span></a>Domains</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+      <th>Default value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.config.db.type</code> </td>
+      <td><code>CONFIG_DATABASE</code> </td>
+      <td>The db used to store configs </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.config.db.conf.namespace</code> </td>
+      <td><code>CONFIG_NAMESPACE</code> </td>
+      <td>The namespace used for configs </td>
+      <td><code>izanami:configuration</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.features.db.type</code> </td>
+      <td><code>FEATURE_DATABASE</code> </td>
+      <td>The db used to store features </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.features.db.conf.namespace</code> </td>
+      <td><code>FEATURE_NAMESPACE</code> </td>
+      <td>The namespace used for features </td>
+      <td><code>izanami:features</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.globalScript.db.type</code> </td>
+      <td><code>SCRIPT_DATABASE</code> </td>
+      <td>The db used to store scripts </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.globalScript.db.conf.namespace</code> </td>
+      <td><code>SCRIPT_NAMESPACE</code> </td>
+      <td>The namespace used for scripts </td>
+      <td><code>izanami:globalscripts</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.experiment.db.type</code> </td>
+      <td><code>EXPERIMENT_DATABASE</code> </td>
+      <td>The db used to store experiments </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.experiment.db.conf.namespace</code> </td>
+      <td><code>EXPERIMENT_NAMESPACE</code> </td>
+      <td>The namespace used for experiments </td>
+      <td><code>izanami:experiment</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.variantBinding.db.type</code> </td>
+      <td><code>EXPERIMENT_VARIANT BINDING_DATABASE</code> </td>
+      <td>The db used to store variant bindings </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.variantBinding.db.conf.namespace</code> </td>
+      <td><code>EXPERIMENT_VARIANT BINDING_NAMESPACE</code> </td>
+      <td>The namespace used for variant bindings </td>
+      <td><code>izanami:variantbinding</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.experimentEvent.db.type</code> </td>
+      <td><code>EXPERIMENT_EVENT DATABASE</code> </td>
+      <td>The db used to store experiment events </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.experimentEvent.db.conf.namespace</code> </td>
+      <td><code>EXPERIMENT_EVENT NAMESPACE</code> </td>
+      <td>The namespace used for experiment events </td>
+      <td><code>izanami:experimentevent</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.webhook.db.type</code> </td>
+      <td><code>WEBHOOK_DATABASE</code> </td>
+      <td>The db used to store webhooks </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.webhook.db.conf.namespace</code> </td>
+      <td><code>WEBHOOK_NAMESPACE</code> </td>
+      <td>The namespace used for webhooks </td>
+      <td><code>izanami:webhook</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.webhook.ttl</code> </td>
+      <td><code>WEB_HOOK_TTL</code> </td>
+      <td>The time to live of webhooks </td>
+      <td><code>5 minutes</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.user.db.type</code> </td>
+      <td><code>USER_DATABASE</code> </td>
+      <td>The db used to store users </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.user.db.conf.namespace</code> </td>
+      <td><code>USER_NAMESPACE</code> </td>
+      <td>The namespace used for users </td>
+      <td><code>izanami:user</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.user.initialize.userId</code> </td>
+      <td><code>INITIAL_USER_ID</code> </td>
+      <td>The login to use for the first connection </td>
+      <td><code>admin</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.user.initialize.password</code> </td>
+      <td><code>INITIAL_USER_PASSWORD</code> </td>
+      <td>The password to use for the first connection </td>
+      <td><code>admin123</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.apikey.db.type</code> </td>
+      <td><code>APIKEY_DATABASE</code> </td>
+      <td>The db used to store api keys </td>
+      <td><code>${izanami.db.default}</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.apikey.db.conf.namespace</code> </td>
+      <td><code>APIKEY_NAMESPACE</code> </td>
+      <td>The namespace used for api keys </td>
+      <td><code>izanami:apikey</code> </td>
+    </tr>
+  </tbody>
+</table>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../ui/index.html">UI usage</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../configuration/settings.html#all-the-settings" class="header">All the settings</a>
+  <ul>
+    <li><a href="../configuration/settings.html#events" class="header">Events</a></li>
+    <li><a href="../configuration/settings.html#db-config" class="header">Db config</a></li>
+    <li><a href="../configuration/settings.html#threads-configuration" class="header">Threads configuration</a></li>
+    <li><a href="../configuration/settings.html#filters" class="header">Filters</a></li>
+    <li><a href="../configuration/settings.html#domains" class="header">Domains</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

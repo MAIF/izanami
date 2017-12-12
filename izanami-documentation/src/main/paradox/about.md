@@ -18,7 +18,7 @@ And here come **Izanami**, our feature flipping, shared configuration and A/B te
 
 @@@ div { .izanami-logo }
 
-![izanami](img/izanami.png)   
+![izanami](img/izanami.png)    
 
 @@@
 
