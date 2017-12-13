@@ -170,13 +170,47 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#configuration" name="configuration" class="anchor"><span class="anchor-link"></span></a>Configuration</h1>
+<div class="toc ">
+<ul>
+  <li><a href="../configuration/database.html" class="page">Choose the database</a>
+  <ul>
+    <li><a href="../configuration/database.html#databases" class="header">Databases</a>
+    <ul>
+      <li><a href="../configuration/database.html#in-memory-store" class="header">In memory store</a></li>
+      <li><a href="../configuration/database.html#level-db" class="header">Level DB</a></li>
+      <li><a href="../configuration/database.html#redis" class="header">Redis</a></li>
+      <li><a href="../configuration/database.html#cassandra" class="header">Cassandra</a></li>
+      <li><a href="../configuration/database.html#elasticsearch" class="header">Elasticsearch</a></li>
+      <li><a href="../configuration/database.html#mix-databases" class="header">Mix Databases</a></li>
+    </ul></li>
+    <li><a href="../configuration/database.html#event-stores" class="header">Event stores</a>
+    <ul>
+      <li><a href="../configuration/database.html#in-memory" class="header">In memory</a></li>
+      <li><a href="../configuration/database.html#redis-pub-sub" class="header">Redis pub sub</a></li>
+      <li><a href="../configuration/database.html#kafka" class="header">Kafka</a></li>
+      <li><a href="../configuration/database.html#distributed-pub-sub" class="header">Distributed pub sub</a></li>
+    </ul></li>
+  </ul></li>
+  <li><a href="../configuration/settings.html" class="page">All the settings</a>
+  <ul>
+    <li><a href="../configuration/settings.html#events" class="header">Events</a></li>
+    <li><a href="../configuration/settings.html#db-config" class="header">Db config</a></li>
+    <li><a href="../configuration/settings.html#threads-configuration" class="header">Threads configuration</a></li>
+    <li><a href="../configuration/settings.html#filters" class="header">Filters</a></li>
+    <li><a href="../configuration/settings.html#domains" class="header">Domains</a></li>
+  </ul></li>
+</ul>
+</div>
 <p>Izanami is based on <a href="https://www.playframework.com">play framework</a> where configuration is based on <a href="https://github.com/lightbend/config">hocon</a>. </p>
 <p>Izanami is highly configurable either by environment variable or java system properties. You can also override the entire configuration file if needed. </p>
 <p>You can override any property with </p>
-<pre><code>java -Dizanami.db.default=Redis -jar izanami.jar 
+<pre class="prettyprint"><code class="language-bash">java -Dizanami.db.default=Redis -jar izanami.jar 
 </code></pre>
-<p>Or the entire configuration file with</p>
-<pre><code>java -Dconfig.file=/path/to/my/config.conf -jar izanami.jar 
+<p>Or with environment variable </p>
+<pre class="prettyprint"><code class="language-bash">IZANAMI_DATABASE=Redis java -jar izanami.jar 
+</code></pre>
+<p>Or change the entire configuration file with</p>
+<pre class="prettyprint"><code class="language-bash">java -Dconfig.file=/path/to/my/config.conf -jar izanami.jar 
 </code></pre>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../configuration/database.html">Choose the database</a></p>

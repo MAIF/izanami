@@ -8,7 +8,7 @@
 
 @@@
 
-@@toc { depth=2 }
+@@toc { depth=3 }
 
 Izanami provide the ability to share configuration between your applications and change this configuration in real time.  
 The configuration is just a regular json :   

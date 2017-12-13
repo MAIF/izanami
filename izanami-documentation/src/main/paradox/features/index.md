@@ -8,7 +8,7 @@
 
 @@@ 
 
-@@toc { depth=2 }
+@@toc { depth=3 }
 
 One of the main feature of Izanami is feature flipping. Feature flipping allow you to activate or passivate a feature in real time. 
 

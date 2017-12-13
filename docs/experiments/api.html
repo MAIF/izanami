@@ -171,11 +171,379 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#apis" name="apis" class="anchor"><span class="anchor-link"></span></a>APIs</h1>
+<div class="toc ">
+<ul>
+  <li><a href="../experiments/api.html#basic-workflow" class="header">Basic workflow</a></li>
+  <li><a href="../experiments/api.html#data-model" class="header">Data model</a></li>
+  <li><a href="../experiments/api.html#basic-crud-operations" class="header">Basic CRUD operations</a>
+  <ul>
+    <li><a href="../experiments/api.html#list-all" class="header">List all</a></li>
+    <li><a href="../experiments/api.html#create-an-experiment" class="header">Create an experiment</a></li>
+    <li><a href="../experiments/api.html#get-an-experiment" class="header">Get an experiment</a></li>
+    <li><a href="../experiments/api.html#update-an-experiment" class="header">Update an experiment</a></li>
+    <li><a href="../experiments/api.html#delete-an-experiment" class="header">Delete an experiment</a></li>
+  </ul></li>
+  <li><a href="../experiments/api.html#operations-on-variants" class="header">Operations on Variants</a>
+  <ul>
+    <li><a href="../experiments/api.html#mark-variant-as-displayed" class="header">Mark variant as displayed</a></li>
+    <li><a href="../experiments/api.html#mark-variant-as-won" class="header">Mark variant as won</a></li>
+    <li><a href="../experiments/api.html#the-tree-api" class="header">The tree API</a></li>
+  </ul></li>
+</ul>
+</div>
+<h2><a href="#basic-workflow" name="basic-workflow" class="anchor"><span class="anchor-link"></span></a>Basic workflow</h2>
+<p>In order to run an experimentation you have to do the following actions </p>
+<ul>
+  <li>create an experiment with variant</li>
+  <li>when a user interact with your application
+    <ul>
+      <li>mark variant displayed for the user</li>
+      <li>mark variant won for the user if the variant is a success</li>
+    </ul>
+  </li>
+</ul>
+<h2><a href="#data-model" name="data-model" class="anchor"><span class="anchor-link"></span></a>Data model</h2>
+<p>An experiment has the following structure : </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:example:button&quot;,
+  &quot;name&quot;: &quot;My experiment&quot;,
+  &quot;description&quot;: &quot;The description ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Variant A&quot;,
+      &quot;description&quot;: &quot;Variant A is about ...&quot;,
+      &quot;traffic&quot;: 0.5
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is about ...&quot;,
+      &quot;traffic&quot;: 0.5   
+    }
+  ]
+}
+</code></pre>
+<h2><a href="#basic-crud-operations" name="basic-crud-operations" class="anchor"><span class="anchor-link"></span></a>Basic CRUD operations</h2>
+<h3><a href="#list-all" name="list-all" class="anchor"><span class="anchor-link"></span></a>List all</h3>
+<p>The query params are optional and the value used in this example are the default one.</p>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/experiments?pattern=*&amp;page=1&amp;pageSize=15&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;results&quot;: [
+    {
+      &quot;id&quot;: &quot;izanami:example:button&quot;,
+      &quot;name&quot;: &quot;My First experiment&quot;,
+      &quot;description&quot;: &quot;See what people like the most about ...&quot;,
+      &quot;enabled&quot;: true,
+      &quot;variants&quot;: [
+        {
+          &quot;id&quot;: &quot;A&quot;,
+          &quot;name&quot;: &quot;Variant A&quot;,
+          &quot;description&quot;: &quot;Variant A is about ...&quot;,
+          &quot;traffic&quot;: 0.5,
+          &quot;currentPopulation&quot;: 3
+        },
+        {
+          &quot;id&quot;: &quot;B&quot;,
+          &quot;name&quot;: &quot;Variant B&quot;,
+          &quot;description&quot;: &quot;Variant B is about ...&quot;,
+          &quot;traffic&quot;: 0.5,
+          &quot;currentPopulation&quot;: 3
+        }
+      ]
+    }
+  ],
+  &quot;metadata&quot;: {
+    &quot;page&quot;: 1,
+    &quot;pageSize&quot;: 15,
+    &quot;count&quot;: 1,
+    &quot;nbPages&quot;: 1
+  }
+}
+</code></pre>
+<h3><a href="#create-an-experiment" name="create-an-experiment" class="anchor"><span class="anchor-link"></span></a>Create an experiment</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/experiments&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;
+    {
+      &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+      &quot;name&quot;: &quot;Red button or Blue Button&quot;,
+      &quot;description&quot;: &quot;Which button is the best ...&quot;,
+      &quot;enabled&quot;: true,
+      &quot;variants&quot;: [
+        {
+          &quot;id&quot;: &quot;A&quot;,
+          &quot;name&quot;: &quot;Red button&quot;,
+          &quot;description&quot;: &quot;Variant A is the red button&quot;,
+          &quot;traffic&quot;: 0.5        
+        },
+        {
+          &quot;id&quot;: &quot;B&quot;,
+          &quot;name&quot;: &quot;Variant B&quot;,
+          &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+          &quot;traffic&quot;: 0.5
+        }
+      ]
+    }
+  &#39; | jq
+</code></pre>
+<p>Will respond with a 201 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;name&quot;: &quot;Red button or Blue Button&quot;,
+  &quot;description&quot;: &quot;Which button is the best ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Red button&quot;,
+      &quot;description&quot;: &quot;Variant A is the red button&quot;,
+      &quot;traffic&quot;: 0.5
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+      &quot;traffic&quot;: 0.5
+    }
+  ]
+}
+</code></pre>
+<h3><a href="#get-an-experiment" name="get-an-experiment" class="anchor"><span class="anchor-link"></span></a>Get an experiment</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/experiments/izanami:test:button:color&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;name&quot;: &quot;Red button or Blue Button&quot;,
+  &quot;description&quot;: &quot;Which button is the best ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Red button&quot;,
+      &quot;description&quot;: &quot;Variant A is the red button&quot;,
+      &quot;traffic&quot;: 0.5
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+      &quot;traffic&quot;: 0.5
+    }
+  ]
+}
+</code></pre>
+<h3><a href="#update-an-experiment" name="update-an-experiment" class="anchor"><span class="anchor-link"></span></a>Update an experiment</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X PUT \
+  &#39;http://localhost:9000/api/experiments/izanami:test:button:color&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;
+      {
+        &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+        &quot;name&quot;: &quot;Red button or Blue Button&quot;,
+        &quot;description&quot;: &quot;Which button is the better ...&quot;,
+        &quot;enabled&quot;: true,
+        &quot;variants&quot;: [
+          {
+            &quot;id&quot;: &quot;A&quot;,
+            &quot;name&quot;: &quot;Red button&quot;,
+            &quot;description&quot;: &quot;Variant A is the red button&quot;,
+            &quot;traffic&quot;: 0.5        
+          },
+          {
+            &quot;id&quot;: &quot;B&quot;,
+            &quot;name&quot;: &quot;Variant B&quot;,
+            &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+            &quot;traffic&quot;: 0.5
+          }
+        ]
+      }
+    &#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;name&quot;: &quot;Red button or Blue Button&quot;,
+  &quot;description&quot;: &quot;Which button is the better ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Red button&quot;,
+      &quot;description&quot;: &quot;Variant A is the red button&quot;,
+      &quot;traffic&quot;: 0.5
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+      &quot;traffic&quot;: 0.5
+    }
+  ]
+}
+</code></pre>
+<h3><a href="#delete-an-experiment" name="delete-an-experiment" class="anchor"><span class="anchor-link"></span></a>Delete an experiment</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X DELETE \
+  &#39;http://localhost:9000/api/experiments/izanami:test:button:color&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  | jq 
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;name&quot;: &quot;Red button or Blue Button&quot;,
+  &quot;description&quot;: &quot;Which button is the better ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Red button&quot;,
+      &quot;description&quot;: &quot;Variant A is the red button&quot;,
+      &quot;traffic&quot;: 0.5
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+      &quot;traffic&quot;: 0.5
+    }
+  ]
+}
+</code></pre>
+<h2><a href="#operations-on-variants" name="operations-on-variants" class="anchor"><span class="anchor-link"></span></a>Operations on Variants</h2>
+<p>A variant is associated to an end user. To get the variant to display you have to provide a &ldquo;clientId&rdquo;. </p>
+<h3><a href="#mark-variant-as-displayed" name="mark-variant-as-displayed" class="anchor"><span class="anchor-link"></span></a>Mark variant as displayed</h3>
+<p>The mark variant as displayed operation will generate an event of type <code>VariantDisplayedEvent</code>. It will also bind a variant to a user if it&rsquo;as called for the first time. </p>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/experiments/izanami:test:button:color/displayed?clientId=ragnar.lodbrock@gmail.com&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq 
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:test:button:color:A:ragnar.lodbrock@gmail.com:displayed:940975692945817657&quot;,
+  &quot;experimentId&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;clientId&quot;: &quot;ragnar.lodbrock@gmail.com&quot;,
+  &quot;variant&quot;: {
+    &quot;id&quot;: &quot;A&quot;,
+    &quot;name&quot;: &quot;Red button&quot;,
+    &quot;description&quot;: &quot;Variant A is the red button&quot;,
+    &quot;traffic&quot;: 0.5,
+    &quot;currentPopulation&quot;: 1
+  },
+  &quot;date&quot;: &quot;2017-12-13T17:04:22.338&quot;,
+  &quot;transformation&quot;: 0,
+  &quot;variantId&quot;: &quot;A&quot;,
+  &quot;@type&quot;: &quot;VariantDisplayedEvent&quot;
+}
+</code></pre>
+<p>The following end point return the variant associated to a user : </p>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/experiments/izanami:test:button:color/variant?clientId=ragnar.lodbrock@gmail.com&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  | jq
+</code></pre>
+<p>A response with a 200 status code is returned if the variant was marked as displayed at least once. A 404 status code is return if not :</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;A&quot;,
+  &quot;name&quot;: &quot;Red button&quot;,
+  &quot;description&quot;: &quot;Variant A is the red button&quot;,
+  &quot;traffic&quot;: 0.5,
+  &quot;currentPopulation&quot;: 1
+}
+</code></pre>
+<h3><a href="#mark-variant-as-won" name="mark-variant-as-won" class="anchor"><span class="anchor-link"></span></a>Mark variant as won</h3>
+<p>The mark variant as won operation will generate an event of type <code>VariantWonEvent</code>. This action should be call if the corresponding user &ldquo;validate&rdquo; the variant displayed. </p>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/experiments/izanami:test:button:color/won?clientId=ragnar.lodbrock@gmail.com&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq 
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:test:button:color:A:ragnar.lodbrock@gmail.com:won:940978218122346556&quot;,
+  &quot;experimentId&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;clientId&quot;: &quot;ragnar.lodbrock@gmail.com&quot;,
+  &quot;variant&quot;: {
+    &quot;id&quot;: &quot;A&quot;,
+    &quot;name&quot;: &quot;Red button&quot;,
+    &quot;description&quot;: &quot;Variant A is the red button&quot;,
+    &quot;traffic&quot;: 0.5,
+    &quot;currentPopulation&quot;: 1
+  },
+  &quot;date&quot;: &quot;2017-12-13T17:14:24.387&quot;,
+  &quot;transformation&quot;: 100,
+  &quot;variantId&quot;: &quot;A&quot;,
+  &quot;@type&quot;: &quot;VariantWonEvent&quot;
+}
+</code></pre>
+<h3><a href="#the-tree-api" name="the-tree-api" class="anchor"><span class="anchor-link"></span></a>The tree API</h3>
+<p>The tree api will return a set of experiment as a tree form based on a pattern. If the binding between a user and a variant is not done, the association will be done but no event will be generated.</p>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/tree/experiments?pattern=izanami:test:*&amp;clientId=ragnar.lodbrock@gmail.com&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;izanami&quot;: {
+    &quot;test&quot;: {
+      &quot;button&quot;: {
+        &quot;color&quot;: {
+          &quot;variant&quot;: &quot;A&quot;
+        }
+      }
+    }
+  }
+}
+</code></pre>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../experiments/ui.html">The UI</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../experiments/api.html#apis" class="header">APIs</a>
+  <ul>
+    <li><a href="../experiments/api.html#basic-workflow" class="header">Basic workflow</a></li>
+    <li><a href="../experiments/api.html#data-model" class="header">Data model</a></li>
+    <li><a href="../experiments/api.html#basic-crud-operations" class="header">Basic CRUD operations</a></li>
+    <li><a href="../experiments/api.html#operations-on-variants" class="header">Operations on Variants</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

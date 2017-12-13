@@ -1,5 +1,7 @@
 # Choose the database 
 
+@@toc { depth=3 }
+
 Izanami provide an integration with several databases : 
 
 * Level DB (by default)
@@ -163,15 +165,15 @@ For example, use redis for all except the A/B testing events stored in ES :
 ```bash
 bin/izanami \ 
     -Dizanami.db.default=Redis \
-    -D-Dizanami.db.redis.host=localhost \
-    -D-Dizanami.db.redis.port=6379 \  
-    -D-Dizanami.db.redis.password=xxxx \
-    -D-Dizanami.db.elastic.host=localhost \
-    -D-Dizanami.db.elastic.port=9200 \  
-    -D-Dizanami.db.elastic.user=xxxx \
-    -D-Dizanami.db.elastic.password=xxxx \
-    -D-Dizanami.variantBinding.db.type=Elastic \
-    -D-Dizanami.experimentEvent.db.type=Elastic
+    -Dizanami.db.redis.host=localhost \
+    -Dizanami.db.redis.port=6379 \  
+    -Dizanami.db.redis.password=xxxx \
+    -Dizanami.db.elastic.host=localhost \
+    -Dizanami.db.elastic.port=9200 \  
+    -Dizanami.db.elastic.user=xxxx \
+    -Dizanami.db.elastic.password=xxxx \
+    -Dizanami.variantBinding.db.type=Elastic \
+    -Dizanami.experimentEvent.db.type=Elastic
 ```
 
 Or 
