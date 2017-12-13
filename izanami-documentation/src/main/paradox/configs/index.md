@@ -1,4 +1,4 @@
-# Configs
+# Shared Configs
 
 
 @@@ index
@@ -9,7 +9,8 @@
 @@@
 
 
-Izanami provide the ability to share configuration. The configuration could be a text or a json. The value is store as text in the database.   
+Izanami provide the ability to share configuration between your applications. And then the configuration can be change in real time.  
+The configuration is a json. The value is store as text in the database.   
 
 To get config just call the api : 
 

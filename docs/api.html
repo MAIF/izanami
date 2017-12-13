@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Use the APIs · Izanami</title>
+<title>APIs usage · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -51,18 +51,18 @@
     <li><a href="configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="api.html" class="active page">Use the APIs</a></li>
-  <li><a href="configs/index.html" class="page">Configs</a>
+  <li><a href="api.html" class="active page">APIs usage</a></li>
+  <li><a href="configs/index.html" class="page">Shared Configs</a>
   <ul>
     <li><a href="configs/api.html" class="page">Configs API</a></li>
     <li><a href="configs/ui.html" class="page">Configs UI</a></li>
   </ul></li>
-  <li><a href="features/index.html" class="page">Features</a>
+  <li><a href="features/index.html" class="page">Feature flipping</a>
   <ul>
     <li><a href="features/api.html" class="page">APIs</a></li>
     <li><a href="features/ui.html" class="page">The UI</a></li>
   </ul></li>
-  <li><a href="experiments/index.html" class="page">Experiments</a>
+  <li><a href="experiments/index.html" class="page">A/B testing</a>
   <ul>
     <li><a href="experiments/api.html" class="page">APIs</a></li>
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
@@ -125,18 +125,18 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="api.html" class="active page">Use the APIs</a></li>
-  <li><a href="configs/index.html" class="page">Configs</a>
+  <li><a href="api.html" class="active page">APIs usage</a></li>
+  <li><a href="configs/index.html" class="page">Shared Configs</a>
   <ul>
     <li><a href="configs/api.html" class="page">Configs API</a></li>
     <li><a href="configs/ui.html" class="page">Configs UI</a></li>
   </ul></li>
-  <li><a href="features/index.html" class="page">Features</a>
+  <li><a href="features/index.html" class="page">Feature flipping</a>
   <ul>
     <li><a href="features/api.html" class="page">APIs</a></li>
     <li><a href="features/ui.html" class="page">The UI</a></li>
   </ul></li>
-  <li><a href="experiments/index.html" class="page">Experiments</a>
+  <li><a href="experiments/index.html" class="page">A/B testing</a>
   <ul>
     <li><a href="experiments/api.html" class="page">APIs</a></li>
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
@@ -161,7 +161,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="index.html">Izanami</a></li>
-  <li>Use the APIs</li>
+  <li>APIs usage</li>
 </ul>
 </div>
 </div>
@@ -169,7 +169,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#use-the-apis" name="use-the-apis" class="anchor"><span class="anchor-link"></span></a>Use the APIs</h1>
+<h1><a href="#apis-usage" name="apis-usage" class="anchor"><span class="anchor-link"></span></a>APIs usage</h1>
 <h2><a href="#identification" name="identification" class="anchor"><span class="anchor-link"></span></a>Identification</h2>
 <p>All the APIs needs to be be identified. Identification could be done with a cookie (from the UI) or using headers (random services). </p>
 <p>To use header identification, you first need to generate client id and client secret using the UI : </p>
@@ -197,7 +197,39 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </code></pre>
 <p>Header names can be change, see the <a href="configuration/settings.html">settings</a> page. </p>
 <h2><a href="#error-response" name="error-response" class="anchor"><span class="anchor-link"></span></a>Error response</h2>
-<p>The format of the errors is always the same. </p>
+<p>The format of the errors is consistent across all Izanami APIs. </p>
+<p>The error format has the following structure : </p>
+<pre class="prettyprint"><code class="language-json ">{
+    &quot;errors&quot;: [
+        { 
+            &quot;message&quot;: &quot;pattern.invalid&quot;,  
+            &quot;args&quot;: [&quot;ragnar.lodbrok.gmail.com&quot;] 
+        }
+    ], 
+    &quot;fieldErrors&quot;: {
+        &quot;obj.email&quot;: [
+                { 
+                    &quot;message&quot;: &quot;pattern.invalid&quot;,  
+                    &quot;args&quot;: [&quot;ragnar.lodbrok.gmail.com&quot;] 
+                }
+        ] 
+    }
+}
+</code></pre>
+<ul>
+  <li><code>errors</code> is an array of object error. Each error has
+    <ul>
+      <li>a <code>message</code> : a key corresponding to a type of error</li>
+      <li><code>args</code> : an array of additional information that can be used to build the appropriate error message</li>
+    </ul>
+  </li>
+  <li><code>fieldErrors</code> represent validation errors on an object. The resulting structure is an object where
+    <ul>
+      <li>keys represent the path of the field of invalid object</li>
+      <li>value is an array of message and args as explained above</li>
+    </ul>
+  </li>
+</ul>
 <h2><a href="#configs-api" name="configs-api" class="anchor"><span class="anchor-link"></span></a>Configs API</h2>
 <p>Go to the <a href="configs/api.html">configs API doc</a> </p>
 <h2><a href="#features-api" name="features-api" class="anchor"><span class="anchor-link"></span></a>Features API</h2>
@@ -205,7 +237,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <h2><a href="#experiments-api" name="experiments-api" class="anchor"><span class="anchor-link"></span></a>Experiments API</h2>
 <p>Go to the <a href="experiments/api.html">experiments API doc</a></p>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="configs/index.html">Configs</a></p>
+<p><strong>Next:</strong> <a href="configs/index.html">Shared Configs</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
@@ -214,7 +246,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-title">On this page:</div>
 <div class="nav-toc">
 <ul>
-  <li><a href="api.html#use-the-apis" class="header">Use the APIs</a>
+  <li><a href="api.html#apis-usage" class="header">APIs usage</a>
   <ul>
     <li><a href="api.html#identification" class="header">Identification</a></li>
     <li><a href="api.html#error-response" class="header">Error response</a></li>

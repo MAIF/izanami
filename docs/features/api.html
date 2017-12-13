@@ -51,18 +51,18 @@
     <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="../api.html" class="page">Use the APIs</a></li>
-  <li><a href="../configs/index.html" class="page">Configs</a>
+  <li><a href="../api.html" class="page">APIs usage</a></li>
+  <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
     <li><a href="../configs/api.html" class="page">Configs API</a></li>
     <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
   </ul></li>
-  <li><a href="../features/index.html" class="page">Features</a>
+  <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
     <li><a href="../features/api.html" class="active page">APIs</a></li>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
   </ul></li>
-  <li><a href="../experiments/index.html" class="page">Experiments</a>
+  <li><a href="../experiments/index.html" class="page">A/B testing</a>
   <ul>
     <li><a href="../experiments/api.html" class="page">APIs</a></li>
     <li><a href="../experiments/ui.html" class="page">The UI</a></li>
@@ -125,18 +125,18 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
     <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
   </ul></li>
-  <li><a href="../api.html" class="page">Use the APIs</a></li>
-  <li><a href="../configs/index.html" class="page">Configs</a>
+  <li><a href="../api.html" class="page">APIs usage</a></li>
+  <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
     <li><a href="../configs/api.html" class="page">Configs API</a></li>
     <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
   </ul></li>
-  <li><a href="../features/index.html" class="page">Features</a>
+  <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
     <li><a href="../features/api.html" class="active page">APIs</a></li>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
   </ul></li>
-  <li><a href="../experiments/index.html" class="page">Experiments</a>
+  <li><a href="../experiments/index.html" class="page">A/B testing</a>
   <ul>
     <li><a href="../experiments/api.html" class="page">APIs</a></li>
     <li><a href="../experiments/ui.html" class="page">The UI</a></li>
@@ -161,7 +161,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li><a href="../features/index.html">Features</a></li>
+  <li><a href="../features/index.html">Feature flipping</a></li>
   <li>APIs</li>
 </ul>
 </div>
@@ -171,11 +171,170 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#apis" name="apis" class="anchor"><span class="anchor-link"></span></a>APIs</h1>
+<h2><a href="#data-model" name="data-model" class="anchor"><span class="anchor-link"></span></a>Data model</h2>
+<p>The feature structure depends on the type of the strategy. A feature can have the following strategies: </p>
+<ul>
+  <li><code>NO_STRATEGY</code>: active or inactive</li>
+  <li><code>RELEASE_DATE</code>: active on a specific date</li>
+  <li><code>SCRIPT</code>: Activation depends on the execution of a js script</li>
+  <li><code>GLOBAL_SCRIPT</code>: Activation depends on the execution of a js script shared across feature</li>
+</ul>
+<h3><a href="#no-strategy-format" name="no-strategy-format" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY format</h3>
+<h3><a href="#release-date-format" name="release-date-format" class="anchor"><span class="anchor-link"></span></a>RELEASE_DATE format</h3>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;feature:with:date&quot;,
+  &quot;enabled&quot;: true,
+  &quot;parameters&quot;: {
+    &quot;releaseDate&quot;: &quot;13/12/2017 10:29:04&quot;
+  },
+  &quot;activationStrategy&quot;: &quot;RELEASE_DATE&quot;
+}
+</code></pre>
+<h3><a href="#no-strategy-format" name="no-strategy-format" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY format</h3>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;my:id&quot;, 
+  &quot;value&quot;: &quot;A value&quot;
+}
+</code></pre>
+<h2><a href="#crud-api" name="crud-api" class="anchor"><span class="anchor-link"></span></a>CRUD API</h2>
+<p>Configs expose a classic CRUD REST api : </p>
+<h3><a href="#list-all" name="list-all" class="anchor"><span class="anchor-link"></span></a>List all</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/configs?pattern=*&amp;page=1&amp;pageSize=15&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code: </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;results&quot;: [
+    {
+      &quot;id&quot;: &quot;ragnar:lodbrok:email&quot;,
+      &quot;value&quot;: &quot;{\n  \&quot;email\&quot;: \&quot;ragnar.lodbrok@gmail.com\&quot;\n}&quot;
+    }
+  ],
+  &quot;metadata&quot;: {
+    &quot;page&quot;: 1,
+    &quot;pageSize&quot;: 15,
+    &quot;count&quot;: 1,
+    &quot;nbPages&quot;: 1
+  }
+}
+</code></pre>
+<p>The query params are optional and the value used in this example are the default one. </p>
+<h3><a href="#create-a-config" name="create-a-config" class="anchor"><span class="anchor-link"></span></a>Create a config</h3>
+<pre class="prettyprint"><code class="language-bash">curl -XPOST \
+    &#39;http://localhost:9000/api/configs&#39; \
+    -H &#39;Content-Type: application/json&#39; \
+    -H &#39;Izanami-Client-Id: xxxx&#39; \
+    -H &#39;Izanami-Client-Secret: xxxx&#39; \
+    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot; }&#39; | jq  
+</code></pre>
+<p>Will respond with a 201 status code: </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
+  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+}
+</code></pre>
+<h3><a href="#get-a-config" name="get-a-config" class="anchor"><span class="anchor-link"></span></a>Get a config</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
+  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+}
+</code></pre>
+<h3><a href="#update-a-config" name="update-a-config" class="anchor"><span class="anchor-link"></span></a>Update a config</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X PUT \
+  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot; }&#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
+  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+}
+</code></pre>
+<h3><a href="#delete-a-config" name="delete-a-config" class="anchor"><span class="anchor-link"></span></a>Delete a config</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X DELETE \
+  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq 
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
+  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+}
+</code></pre>
+<h2><a href="#tree-api" name="tree-api" class="anchor"><span class="anchor-link"></span></a>Tree API</h2>
+<p>The tree api format the reponse as a tree. Be careful using this API because the results are not paged so be sure to use an appropriate pattern : </p>
+<p>For example if we create this datas : </p>
+<pre class="prettyprint"><code class="language-bash">curl -XPOST \
+    &#39;http://localhost:9000/api/configs&#39; \
+    -H &#39;Content-Type: application/json&#39; \
+    -H &#39;Izanami-Client-Id: xxxx&#39; \
+    -H &#39;Izanami-Client-Secret: xxxx&#39; \
+    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot; }&#39; | jq
+
+curl -XPOST \
+    &#39;http://localhost:9000/api/configs&#39; \
+    -H &#39;Content-Type: application/json&#39; \
+    -H &#39;Izanami-Client-Id: xxxx&#39; \
+    -H &#39;Izanami-Client-Secret: xxxx&#39; \
+    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:email&quot;, &quot;value&quot;: &quot;\&quot;ragnar.lodbrok@gmail.com\&quot;&quot; }&#39; | jq
+</code></pre>
+<p>And then use the tree APIs </p>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/tree/configs?pattern=ragnar:*&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>We will get the following response: </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;ragnar&quot;: {
+    &quot;lodbrok&quot;: {
+      &quot;city&quot;: {
+        &quot;city&quot;: &quot;Kattegat&quot;
+      },
+      &quot;email&quot;: {
+        &quot;email&quot;: &quot;ragnar.lodbrok@gmail.com&quot;
+      }
+    }
+  }
+}
+</code></pre>
+<p>As you can see, the keys are split with <code>:</code> and the json and the json values are expended into a tree representation.</p>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../features/ui.html">The UI</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../features/api.html#apis" class="header">APIs</a>
+  <ul>
+    <li><a href="../features/api.html#data-model" class="header">Data model</a></li>
+    <li><a href="../features/api.html#crud-api" class="header">CRUD API</a></li>
+    <li><a href="../features/api.html#tree-api" class="header">Tree API</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

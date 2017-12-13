@@ -1,4 +1,4 @@
-# Use the APIs
+# APIs usage
 
 ## Identification
 
@@ -42,8 +42,36 @@ Header names can be change, see the @ref[settings](configuration/settings.md) pa
 
 ## Error response 
 
-The format of the errors is always the same. 
+The format of the errors is consistent across all Izanami APIs.  
 
+The error format has the following structure :  
+
+```json 
+{
+    "errors": [
+        { 
+            "message": "pattern.invalid",  
+            "args": ["ragnar.lodbrok.gmail.com"] 
+        }
+    ], 
+    "fieldErrors": {
+        "obj.email": [
+                { 
+                    "message": "pattern.invalid",  
+                    "args": ["ragnar.lodbrok.gmail.com"] 
+                }
+        ] 
+    }
+}
+```
+
+* `errors` is an array of object error. Each error has 
+    * a `message` : a key corresponding to a type of error  
+    * `args` : an array of additional information that can be used to build the appropriate error message 
+* `fieldErrors` represent validation errors on an object. The resulting structure is an object where 
+    * keys represent the path of the field of invalid object
+    * value is an array of message and args as explained above 
+      
 
 ## Configs API
 
