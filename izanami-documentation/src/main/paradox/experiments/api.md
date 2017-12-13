@@ -404,3 +404,177 @@ Will respond with a 200 status code:
   }
 }
 ```
+
+## Download and Upload 
+
+Download and upload is done using the [nd-json](http://ndjson.org/) format. 
+
+### Download experiments
+
+```bash
+curl -X GET \
+  'http://localhost:9000/api/experiments.ndjson' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' | jq
+```
+
+Will return each item separated by a `\n`.
+
+```nd-json
+{
+  "id": "izanami:example:button",
+  "name": "My First experiment",
+  "description": "See what people like the most about ...",
+  "enabled": true,
+  "variants": [
+    {
+      "id": "A",
+      "name": "Variant A",
+      "description": "Variant A is about ...",
+      "traffic": 0.5,
+      "currentPopulation": 3
+    },
+    {
+      "id": "B",
+      "name": "Variant B",
+      "description": "Variant B is about ...",
+      "traffic": 0.5,
+      "currentPopulation": 3
+    }
+  ]
+}
+{
+  "id": "izanami:test:button:color",
+  "name": "Red button or Blue Button",
+  "description": "Which button is the best ...",
+  "enabled": true,
+  "variants": [
+    {
+      "id": "A",
+      "name": "Red button",
+      "description": "Variant A is the red button",
+      "traffic": 0.5,
+      "currentPopulation": 1
+    },
+    {
+      "id": "B",
+      "name": "Variant B",
+      "description": "Variant B is the blue button",
+      "traffic": 0.5
+    }
+  ]
+}
+``` 
+
+### Upload experiments
+
+```bash
+curl -X POST \
+  'http://localhost:9000/api/experiments.ndjson' \
+  -H 'Content-Type: application/nd-json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '...' \
+   | jq 
+```
+
+Will return 
+
+```json
+{
+  "success": 2,
+  "errors": {
+    "errors": [],
+    "fieldErrors": {}
+  }
+}
+```
+
+### Download bindings
+
+```bash
+curl -X GET \
+  'http://localhost:9000/api/experiments/bindings.ndjson' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' | jq
+```
+
+```nd-json
+{
+  "variantBindingKey": "izanami:example:button:adelegue@yopmail.com",
+  "variantId": "A"
+}
+{
+  "variantBindingKey": "izanami:example:button:ragnar.lodbrock@gmail.com",
+  "variantId": "B"
+}
+```
+
+### Upload bindings
+
+```bash
+curl -X POST \
+  'http://localhost:9000/api/experiments/bindings.ndjson' \
+  -H 'Content-Type: application/nd-json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '...' \
+   | jq 
+``` 
+
+### Download events
+
+```bash
+curl -X GET \
+  'http://localhost:9000/api/experiments/events.ndjson' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' | jq
+```
+
+```nd-json
+{
+  "id": "izanami:example:button:A:adelegue@yopmail.com:displayed:940960339163349002",
+  "experimentId": "izanami:example:button",
+  "clientId": "adelegue@yopmail.com",
+  "variant": {
+    "id": "A",
+    "name": "Variant A",
+    "description": "Variant A is about ...",
+    "traffic": 0.5,
+    "currentPopulation": 3
+  },
+  "date": "2017-12-13T16:03:21.711",
+  "transformation": 50,
+  "variantId": "A",
+  "@type": "VariantDisplayedEvent"
+}
+{
+  "id": "izanami:example:button:A:adelegue@yopmail.com:won:940960356812980243",
+  "experimentId": "izanami:example:button",
+  "clientId": "adelegue@yopmail.com",
+  "variant": {
+    "id": "A",
+    "name": "Variant A",
+    "description": "Variant A is about ...",
+    "traffic": 0.5,
+    "currentPopulation": 3
+  },
+  "date": "2017-12-13T16:03:25.919",
+  "transformation": 100,
+  "variantId": "A",
+  "@type": "VariantWonEvent"
+}
+```
+
+### Upload bindings
+
+```bash
+curl -X POST \
+  'http://localhost:9000/api/experiments/events.ndjson' \
+  -H 'Content-Type: application/nd-json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '...' \
+   | jq 
+``` 
+

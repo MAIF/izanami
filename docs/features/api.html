@@ -196,6 +196,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../features/api.html#list-features-with-the-active-attribute-without-context" class="header">List features with the active attribute without context</a></li>
     <li><a href="../features/api.html#list-features-with-the-active-attribute-with-context" class="header">List features with the active attribute with context</a></li>
   </ul></li>
+  <li><a href="../features/api.html#download-and-upload" class="header">Download and Upload</a>
+  <ul>
+    <li><a href="../features/api.html#download" class="header">Download</a></li>
+    <li><a href="../features/api.html#upload" class="header">Upload</a></li>
+  </ul></li>
 </ul>
 </div>
 <h2><a href="#data-model" name="data-model" class="anchor"><span class="anchor-link"></span></a>Data model</h2>
@@ -556,6 +561,45 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   }
 }
 </code></pre>
+<h2><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h2>
+<p>Download and upload is done using the <a href="http://ndjson.org/">nd-json</a> format. </p>
+<h3><a href="#download" name="download" class="anchor"><span class="anchor-link"></span></a>Download</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/features.ndjson&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>Will return each item separated by a <code>\n</code>.</p>
+<pre class="prettyprint"><code class="language-nd-json">{
+  &quot;id&quot;: &quot;feature:simple1&quot;,
+  &quot;enabled&quot;: true,
+  &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;
+}
+{
+  &quot;id&quot;: &quot;feature:simple2&quot;,
+  &quot;enabled&quot;: true,
+  &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;
+}
+</code></pre>
+<h3><a href="#upload" name="upload" class="anchor"><span class="anchor-link"></span></a>Upload</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/features.ndjson&#39; \
+  -H &#39;Content-Type: application/nd-json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;{&quot;id&quot;: &quot;feature:simple1&quot;,&quot;enabled&quot;: true,&quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;,&quot;active&quot;: true} 
+      {&quot;id&quot;: &quot;feature:simple2&quot;,&quot;enabled&quot;: true,&quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;,&quot;active&quot;: true}&#39; \
+   | jq 
+</code></pre>
+<p>Will return </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;success&quot;: 2,
+  &quot;errors&quot;: {
+    &quot;errors&quot;: [],
+    &quot;fieldErrors&quot;: {}
+  }
+}
+</code></pre>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../features/ui.html">The UI</a></p>
 </div>
@@ -571,6 +615,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../features/api.html#data-model" class="header">Data model</a></li>
     <li><a href="../features/api.html#crud-api" class="header">CRUD API</a></li>
     <li><a href="../features/api.html#check-features" class="header">Check features</a></li>
+    <li><a href="../features/api.html#download-and-upload" class="header">Download and Upload</a></li>
   </ul></li>
 </ul>
 </div>

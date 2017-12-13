@@ -189,6 +189,15 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../experiments/api.html#mark-variant-as-won" class="header">Mark variant as won</a></li>
     <li><a href="../experiments/api.html#the-tree-api" class="header">The tree API</a></li>
   </ul></li>
+  <li><a href="../experiments/api.html#download-and-upload" class="header">Download and Upload</a>
+  <ul>
+    <li><a href="../experiments/api.html#download-experiments" class="header">Download experiments</a></li>
+    <li><a href="../experiments/api.html#upload-experiments" class="header">Upload experiments</a></li>
+    <li><a href="../experiments/api.html#download-bindings" class="header">Download bindings</a></li>
+    <li><a href="../experiments/api.html#upload-bindings" class="header">Upload bindings</a></li>
+    <li><a href="../experiments/api.html#download-events" class="header">Download events</a></li>
+    <li><a href="../experiments/api.html#upload-bindings" class="header">Upload bindings</a></li>
+  </ul></li>
 </ul>
 </div>
 <h2><a href="#basic-workflow" name="basic-workflow" class="anchor"><span class="anchor-link"></span></a>Basic workflow</h2>
@@ -523,6 +532,149 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   }
 }
 </code></pre>
+<h2><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h2>
+<p>Download and upload is done using the <a href="http://ndjson.org/">nd-json</a> format. </p>
+<h3><a href="#download-experiments" name="download-experiments" class="anchor"><span class="anchor-link"></span></a>Download experiments</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/experiments.ndjson&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>Will return each item separated by a <code>\n</code>.</p>
+<pre class="prettyprint"><code class="language-nd-json">{
+  &quot;id&quot;: &quot;izanami:example:button&quot;,
+  &quot;name&quot;: &quot;My First experiment&quot;,
+  &quot;description&quot;: &quot;See what people like the most about ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Variant A&quot;,
+      &quot;description&quot;: &quot;Variant A is about ...&quot;,
+      &quot;traffic&quot;: 0.5,
+      &quot;currentPopulation&quot;: 3
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is about ...&quot;,
+      &quot;traffic&quot;: 0.5,
+      &quot;currentPopulation&quot;: 3
+    }
+  ]
+}
+{
+  &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;name&quot;: &quot;Red button or Blue Button&quot;,
+  &quot;description&quot;: &quot;Which button is the best ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Red button&quot;,
+      &quot;description&quot;: &quot;Variant A is the red button&quot;,
+      &quot;traffic&quot;: 0.5,
+      &quot;currentPopulation&quot;: 1
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+      &quot;traffic&quot;: 0.5
+    }
+  ]
+}
+</code></pre>
+<h3><a href="#upload-experiments" name="upload-experiments" class="anchor"><span class="anchor-link"></span></a>Upload experiments</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/experiments.ndjson&#39; \
+  -H &#39;Content-Type: application/nd-json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;...&#39; \
+   | jq 
+</code></pre>
+<p>Will return </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;success&quot;: 2,
+  &quot;errors&quot;: {
+    &quot;errors&quot;: [],
+    &quot;fieldErrors&quot;: {}
+  }
+}
+</code></pre>
+<h3><a href="#download-bindings" name="download-bindings" class="anchor"><span class="anchor-link"></span></a>Download bindings</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/experiments/bindings.ndjson&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<pre class="prettyprint"><code class="language-nd-json">{
+  &quot;variantBindingKey&quot;: &quot;izanami:example:button:adelegue@yopmail.com&quot;,
+  &quot;variantId&quot;: &quot;A&quot;
+}
+{
+  &quot;variantBindingKey&quot;: &quot;izanami:example:button:ragnar.lodbrock@gmail.com&quot;,
+  &quot;variantId&quot;: &quot;B&quot;
+}
+</code></pre>
+<h3><a href="#upload-bindings" name="upload-bindings" class="anchor"><span class="anchor-link"></span></a>Upload bindings</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/experiments/bindings.ndjson&#39; \
+  -H &#39;Content-Type: application/nd-json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;...&#39; \
+   | jq 
+</code></pre>
+<h3><a href="#download-events" name="download-events" class="anchor"><span class="anchor-link"></span></a>Download events</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/experiments/events.ndjson&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<pre class="prettyprint"><code class="language-nd-json">{
+  &quot;id&quot;: &quot;izanami:example:button:A:adelegue@yopmail.com:displayed:940960339163349002&quot;,
+  &quot;experimentId&quot;: &quot;izanami:example:button&quot;,
+  &quot;clientId&quot;: &quot;adelegue@yopmail.com&quot;,
+  &quot;variant&quot;: {
+    &quot;id&quot;: &quot;A&quot;,
+    &quot;name&quot;: &quot;Variant A&quot;,
+    &quot;description&quot;: &quot;Variant A is about ...&quot;,
+    &quot;traffic&quot;: 0.5,
+    &quot;currentPopulation&quot;: 3
+  },
+  &quot;date&quot;: &quot;2017-12-13T16:03:21.711&quot;,
+  &quot;transformation&quot;: 50,
+  &quot;variantId&quot;: &quot;A&quot;,
+  &quot;@type&quot;: &quot;VariantDisplayedEvent&quot;
+}
+{
+  &quot;id&quot;: &quot;izanami:example:button:A:adelegue@yopmail.com:won:940960356812980243&quot;,
+  &quot;experimentId&quot;: &quot;izanami:example:button&quot;,
+  &quot;clientId&quot;: &quot;adelegue@yopmail.com&quot;,
+  &quot;variant&quot;: {
+    &quot;id&quot;: &quot;A&quot;,
+    &quot;name&quot;: &quot;Variant A&quot;,
+    &quot;description&quot;: &quot;Variant A is about ...&quot;,
+    &quot;traffic&quot;: 0.5,
+    &quot;currentPopulation&quot;: 3
+  },
+  &quot;date&quot;: &quot;2017-12-13T16:03:25.919&quot;,
+  &quot;transformation&quot;: 100,
+  &quot;variantId&quot;: &quot;A&quot;,
+  &quot;@type&quot;: &quot;VariantWonEvent&quot;
+}
+</code></pre>
+<h3><a href="#upload-bindings" name="upload-bindings" class="anchor"><span class="anchor-link"></span></a>Upload bindings</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/experiments/events.ndjson&#39; \
+  -H &#39;Content-Type: application/nd-json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;...&#39; \
+   | jq 
+</code></pre>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../experiments/ui.html">The UI</a></p>
 </div>
@@ -539,6 +691,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../experiments/api.html#data-model" class="header">Data model</a></li>
     <li><a href="../experiments/api.html#basic-crud-operations" class="header">Basic CRUD operations</a></li>
     <li><a href="../experiments/api.html#operations-on-variants" class="header">Operations on Variants</a></li>
+    <li><a href="../experiments/api.html#download-and-upload" class="header">Download and Upload</a></li>
   </ul></li>
 </ul>
 </div>

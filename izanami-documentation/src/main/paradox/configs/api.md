@@ -178,4 +178,57 @@ We will get the following response:
 }
 ```
 
-As you can see, the keys are split with `:` and the json and the json values are expended into a tree representation. 
+As you can see, the keys are split with `:` and the json and the json values are expended into a tree representation.
+
+
+## Download and Upload 
+
+Download and upload is done using the [nd-json](http://ndjson.org/) format. 
+
+### Download 
+
+```bash
+curl -X GET \
+  'http://localhost:9000/api/configs.ndjson' \
+  -H 'Content-Type: application/json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' | jq
+```
+
+Will return each item separated by a `\n`.
+
+```nd-json
+{
+  "id": "ragnar:lodbrok:city",
+  "value": "{\"city\": \"Northumbria\"}"
+}
+{
+  "id": "ragnar:lodbrok:email",
+  "value": "{\n  \"email\": \"ragnar.lodbrok@gmail.com\"\n}"
+}
+``` 
+
+### Upload 
+
+```bash
+curl -X POST \
+  'http://localhost:9000/api/configs.ndjson' \
+  -H 'Content-Type: application/nd-json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '{ "id": "ragnar:lodbrok:city", "value": "{\"city\": \"Northumbria\"}" } 
+      {"id": "ragnar:lodbrok:email", "value": "{\n  \"email\": \"ragnar.lodbrok@gmail.com\"\n}"}' \
+   | jq 
+```
+
+Will return 
+
+```json
+{
+  "success": 2,
+  "errors": {
+    "errors": [],
+    "fieldErrors": {}
+  }
+}
+```

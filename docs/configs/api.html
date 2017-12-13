@@ -183,6 +183,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../configs/api.html#delete-a-config" class="header">Delete a config</a></li>
   </ul></li>
   <li><a href="../configs/api.html#tree-api" class="header">Tree API</a></li>
+  <li><a href="../configs/api.html#download-and-upload" class="header">Download and Upload</a>
+  <ul>
+    <li><a href="../configs/api.html#download" class="header">Download</a></li>
+    <li><a href="../configs/api.html#upload" class="header">Upload</a></li>
+  </ul></li>
 </ul>
 </div>
 <h2><a href="#data-model" name="data-model" class="anchor"><span class="anchor-link"></span></a>Data model</h2>
@@ -310,7 +315,45 @@ curl -XPOST \
   }
 }
 </code></pre>
-<p>As you can see, the keys are split with <code>:</code> and the json and the json values are expended into a tree representation. </p>
+<p>As you can see, the keys are split with <code>:</code> and the json and the json values are expended into a tree representation.</p>
+<h2><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h2>
+<p>Download and upload is done using the <a href="http://ndjson.org/">nd-json</a> format. </p>
+<h3><a href="#download" name="download" class="anchor"><span class="anchor-link"></span></a>Download</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/configs.ndjson&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>Will return each item separated by a <code>\n</code>.</p>
+<pre class="prettyprint"><code class="language-nd-json">{
+  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
+  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+}
+{
+  &quot;id&quot;: &quot;ragnar:lodbrok:email&quot;,
+  &quot;value&quot;: &quot;{\n  \&quot;email\&quot;: \&quot;ragnar.lodbrok@gmail.com\&quot;\n}&quot;
+}
+</code></pre>
+<h3><a href="#upload" name="upload" class="anchor"><span class="anchor-link"></span></a>Upload</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/configs.ndjson&#39; \
+  -H &#39;Content-Type: application/nd-json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot; } 
+      {&quot;id&quot;: &quot;ragnar:lodbrok:email&quot;, &quot;value&quot;: &quot;{\n  \&quot;email\&quot;: \&quot;ragnar.lodbrok@gmail.com\&quot;\n}&quot;}&#39; \
+   | jq 
+</code></pre>
+<p>Will return </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;success&quot;: 2,
+  &quot;errors&quot;: {
+    &quot;errors&quot;: [],
+    &quot;fieldErrors&quot;: {}
+  }
+}
+</code></pre>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../configs/ui.html">UI</a></p>
 </div>
@@ -326,6 +369,7 @@ curl -XPOST \
     <li><a href="../configs/api.html#data-model" class="header">Data model</a></li>
     <li><a href="../configs/api.html#crud-api" class="header">CRUD API</a></li>
     <li><a href="../configs/api.html#tree-api" class="header">Tree API</a></li>
+    <li><a href="../configs/api.html#download-and-upload" class="header">Download and Upload</a></li>
   </ul></li>
 </ul>
 </div>

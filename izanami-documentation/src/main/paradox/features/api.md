@@ -445,3 +445,57 @@ The result is the following
 }
 ```
 
+
+## Download and Upload 
+
+Download and upload is done using the [nd-json](http://ndjson.org/) format. 
+
+### Download 
+
+```bash
+curl -X GET \
+  'http://localhost:9000/api/features.ndjson' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' | jq
+```
+
+Will return each item separated by a `\n`.
+
+```nd-json
+{
+  "id": "feature:simple1",
+  "enabled": true,
+  "activationStrategy": "NO_STRATEGY"
+}
+{
+  "id": "feature:simple2",
+  "enabled": true,
+  "activationStrategy": "NO_STRATEGY"
+}
+``` 
+
+### Upload 
+
+```bash
+curl -X POST \
+  'http://localhost:9000/api/features.ndjson' \
+  -H 'Content-Type: application/nd-json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '{"id": "feature:simple1","enabled": true,"activationStrategy": "NO_STRATEGY","active": true} 
+      {"id": "feature:simple2","enabled": true,"activationStrategy": "NO_STRATEGY","active": true}' \
+   | jq 
+```
+
+Will return 
+
+```json
+{
+  "success": 2,
+  "errors": {
+    "errors": [],
+    "fieldErrors": {}
+  }
+}
+```
+
