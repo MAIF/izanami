@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Configs API · Izanami</title>
+<title>APIs · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -54,8 +54,8 @@
   <li><a href="../api.html" class="page">APIs usage</a></li>
   <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="../configs/api.html" class="active page">Configs API</a></li>
-    <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
+    <li><a href="../configs/api.html" class="active page">APIs</a></li>
+    <li><a href="../configs/ui.html" class="page">UI</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
@@ -128,8 +128,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../api.html" class="page">APIs usage</a></li>
   <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="../configs/api.html" class="active page">Configs API</a></li>
-    <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
+    <li><a href="../configs/api.html" class="active page">APIs</a></li>
+    <li><a href="../configs/ui.html" class="page">UI</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
@@ -162,7 +162,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../index.html">Izanami</a></li>
   <li><a href="../configs/index.html">Shared Configs</a></li>
-  <li>Configs API</li>
+  <li>APIs</li>
 </ul>
 </div>
 </div>
@@ -170,7 +170,21 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#configs-api" name="configs-api" class="anchor"><span class="anchor-link"></span></a>Configs API</h1>
+<h1><a href="#apis" name="apis" class="anchor"><span class="anchor-link"></span></a>APIs</h1>
+<div class="toc ">
+<ul>
+  <li><a href="../configs/api.html#data-model" class="header">Data model</a></li>
+  <li><a href="../configs/api.html#crud-api" class="header">CRUD API</a>
+  <ul>
+    <li><a href="../configs/api.html#list-all" class="header">List all</a></li>
+    <li><a href="../configs/api.html#create-a-config" class="header">Create a config</a></li>
+    <li><a href="../configs/api.html#get-a-config" class="header">Get a config</a></li>
+    <li><a href="../configs/api.html#update-a-config" class="header">Update a config</a></li>
+    <li><a href="../configs/api.html#delete-a-config" class="header">Delete a config</a></li>
+  </ul></li>
+  <li><a href="../configs/api.html#tree-api" class="header">Tree API</a></li>
+</ul>
+</div>
 <h2><a href="#data-model" name="data-model" class="anchor"><span class="anchor-link"></span></a>Data model</h2>
 <p>A config is just an String id and a json value : </p>
 <pre class="prettyprint"><code class="language-json">{
@@ -259,7 +273,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 }
 </code></pre>
 <h2><a href="#tree-api" name="tree-api" class="anchor"><span class="anchor-link"></span></a>Tree API</h2>
-<p>The tree api format the reponse as a tree. Be careful using this API because the results are not paged so be sure to use an appropriate pattern : </p>
+<p>The tree api format the response as tree. Be careful using this API because the results are not paged so be sure to use an appropriate pattern : </p>
 <p>For example if we create this datas : </p>
 <pre class="prettyprint"><code class="language-bash">curl -XPOST \
     &#39;http://localhost:9000/api/configs&#39; \
@@ -298,7 +312,7 @@ curl -XPOST \
 </code></pre>
 <p>As you can see, the keys are split with <code>:</code> and the json and the json values are expended into a tree representation. </p>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../configs/ui.html">Configs UI</a></p>
+<p><strong>Next:</strong> <a href="../configs/ui.html">UI</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
@@ -307,7 +321,7 @@ curl -XPOST \
 <div class="nav-title">On this page:</div>
 <div class="nav-toc">
 <ul>
-  <li><a href="../configs/api.html#configs-api" class="header">Configs API</a>
+  <li><a href="../configs/api.html#apis" class="header">APIs</a>
   <ul>
     <li><a href="../configs/api.html#data-model" class="header">Data model</a></li>
     <li><a href="../configs/api.html#crud-api" class="header">CRUD API</a></li>

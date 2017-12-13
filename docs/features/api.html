@@ -54,8 +54,8 @@
   <li><a href="../api.html" class="page">APIs usage</a></li>
   <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="../configs/api.html" class="page">Configs API</a></li>
-    <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
+    <li><a href="../configs/api.html" class="page">APIs</a></li>
+    <li><a href="../configs/ui.html" class="page">UI</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
@@ -128,8 +128,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../api.html" class="page">APIs usage</a></li>
   <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="../configs/api.html" class="page">Configs API</a></li>
-    <li><a href="../configs/ui.html" class="page">Configs UI</a></li>
+    <li><a href="../configs/api.html" class="page">APIs</a></li>
+    <li><a href="../configs/ui.html" class="page">UI</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
@@ -171,6 +171,33 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#apis" name="apis" class="anchor"><span class="anchor-link"></span></a>APIs</h1>
+<div class="toc ">
+<ul>
+  <li><a href="../features/api.html#data-model" class="header">Data model</a>
+  <ul>
+    <li><a href="../features/api.html#no-strategy-format" class="header">NO_STRATEGY format</a></li>
+    <li><a href="../features/api.html#release-date-format" class="header">RELEASE_DATE format</a></li>
+    <li><a href="../features/api.html#script-format" class="header">SCRIPT format</a></li>
+    <li><a href="../features/api.html#global-script-format" class="header">GLOBAL_SCRIPT format</a></li>
+  </ul></li>
+  <li><a href="../features/api.html#crud-api" class="header">CRUD API</a>
+  <ul>
+    <li><a href="../features/api.html#list-all" class="header">List all</a></li>
+    <li><a href="../features/api.html#create-a-feature" class="header">Create a feature</a></li>
+    <li><a href="../features/api.html#get-a-feature" class="header">Get a feature</a></li>
+    <li><a href="../features/api.html#update-a-feature" class="header">Update a feature</a></li>
+    <li><a href="../features/api.html#delete-a-feature" class="header">Delete a feature</a></li>
+  </ul></li>
+  <li><a href="../features/api.html#check-features" class="header">Check features</a>
+  <ul>
+    <li><a href="../features/api.html#check-a-feature-without-context" class="header">Check a feature without context</a></li>
+    <li><a href="../features/api.html#check-a-feature-with-context" class="header">Check a feature with context</a></li>
+    <li><a href="../features/api.html#the-tree-api" class="header">The Tree API</a></li>
+    <li><a href="../features/api.html#list-features-with-the-active-attribute-without-context" class="header">List features with the active attribute without context</a></li>
+    <li><a href="../features/api.html#list-features-with-the-active-attribute-with-context" class="header">List features with the active attribute with context</a></li>
+  </ul></li>
+</ul>
+</div>
 <h2><a href="#data-model" name="data-model" class="anchor"><span class="anchor-link"></span></a>Data model</h2>
 <p>The feature structure depends on the type of the strategy. A feature can have the following strategies: </p>
 <ul>
@@ -180,6 +207,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><code>GLOBAL_SCRIPT</code>: Activation depends on the execution of a js script shared across feature</li>
 </ul>
 <h3><a href="#no-strategy-format" name="no-strategy-format" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY format</h3>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;basic:feature&quot;,
+  &quot;enabled&quot;: true,
+  &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;
+}
+</code></pre>
 <h3><a href="#release-date-format" name="release-date-format" class="anchor"><span class="anchor-link"></span></a>RELEASE_DATE format</h3>
 <pre class="prettyprint"><code class="language-json">{
   &quot;id&quot;: &quot;feature:with:date&quot;,
@@ -190,17 +223,31 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   &quot;activationStrategy&quot;: &quot;RELEASE_DATE&quot;
 }
 </code></pre>
-<h3><a href="#no-strategy-format" name="no-strategy-format" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY format</h3>
+<h3><a href="#script-format" name="script-format" class="anchor"><span class="anchor-link"></span></a>SCRIPT format</h3>
 <pre class="prettyprint"><code class="language-json">{
-  &quot;id&quot;: &quot;my:id&quot;, 
-  &quot;value&quot;: &quot;A value&quot;
+  &quot;id&quot;: &quot;feature:with:script&quot;,
+  &quot;enabled&quot;: true,
+  &quot;parameters&quot;: {
+    &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
+  },
+  &quot;activationStrategy&quot;: &quot;SCRIPT&quot;
+}
+</code></pre>
+<h3><a href="#global-script-format" name="global-script-format" class="anchor"><span class="anchor-link"></span></a>GLOBAL_SCRIPT format</h3>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;feature:with:global:script&quot;,
+  &quot;enabled&quot;: false,
+  &quot;parameters&quot;: {
+    &quot;ref&quot;: &quot;project:script:ref&quot;
+  },
+  &quot;activationStrategy&quot;: &quot;GLOBAL_SCRIPT&quot;
 }
 </code></pre>
 <h2><a href="#crud-api" name="crud-api" class="anchor"><span class="anchor-link"></span></a>CRUD API</h2>
-<p>Configs expose a classic CRUD REST api : </p>
+<p>Features expose a classic CRUD REST api : </p>
 <h3><a href="#list-all" name="list-all" class="anchor"><span class="anchor-link"></span></a>List all</h3>
 <pre class="prettyprint"><code class="language-bash">curl -X GET \
-  &#39;http://localhost:9000/api/configs?pattern=*&amp;page=1&amp;pageSize=15&#39; \
+  &#39;http://localhost:9000/api/features?pattern=feature:*&amp;page=1&amp;pageSize=15&#39; \
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
@@ -209,112 +256,306 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <pre class="prettyprint"><code class="language-json">{
   &quot;results&quot;: [
     {
-      &quot;id&quot;: &quot;ragnar:lodbrok:email&quot;,
-      &quot;value&quot;: &quot;{\n  \&quot;email\&quot;: \&quot;ragnar.lodbrok@gmail.com\&quot;\n}&quot;
+      &quot;id&quot;: &quot;feature:with:date&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;releaseDate&quot;: &quot;13/12/2017 10:29:04&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;RELEASE_DATE&quot;
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:script&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;SCRIPT&quot;
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:global:script&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;ref&quot;: &quot;project:script2&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;GLOBAL_SCRIPT&quot;
     }
   ],
   &quot;metadata&quot;: {
     &quot;page&quot;: 1,
     &quot;pageSize&quot;: 15,
-    &quot;count&quot;: 1,
+    &quot;count&quot;: 3,
     &quot;nbPages&quot;: 1
   }
 }
 </code></pre>
 <p>The query params are optional and the value used in this example are the default one. </p>
-<h3><a href="#create-a-config" name="create-a-config" class="anchor"><span class="anchor-link"></span></a>Create a config</h3>
+<h3><a href="#create-a-feature" name="create-a-feature" class="anchor"><span class="anchor-link"></span></a>Create a feature</h3>
 <pre class="prettyprint"><code class="language-bash">curl -XPOST \
-    &#39;http://localhost:9000/api/configs&#39; \
+    &#39;http://localhost:9000/api/features&#39; \
     -H &#39;Content-Type: application/json&#39; \
     -H &#39;Izanami-Client-Id: xxxx&#39; \
     -H &#39;Izanami-Client-Secret: xxxx&#39; \
-    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot; }&#39; | jq  
+    -d &#39;{ &quot;id&quot;: &quot;really:basic:feature&quot;, &quot;enabled&quot;: true, &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot; }&#39; | jq  
 </code></pre>
 <p>Will respond with a 201 status code: </p>
 <pre class="prettyprint"><code class="language-json">{
-  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+  &quot;id&quot;: &quot;really:basic:feature&quot;,
+  &quot;enabled&quot;: true,
+  &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;
 }
 </code></pre>
-<h3><a href="#get-a-config" name="get-a-config" class="anchor"><span class="anchor-link"></span></a>Get a config</h3>
+<h3><a href="#get-a-feature" name="get-a-feature" class="anchor"><span class="anchor-link"></span></a>Get a feature</h3>
 <pre class="prettyprint"><code class="language-bash">curl -X GET \
-  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
+  &#39;http://localhost:9000/api/features/really:basic:feature&#39; \
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
 </code></pre>
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
-  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+  &quot;id&quot;: &quot;really:basic:feature&quot;,
+  &quot;enabled&quot;: true,
+  &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;
 }
 </code></pre>
-<h3><a href="#update-a-config" name="update-a-config" class="anchor"><span class="anchor-link"></span></a>Update a config</h3>
+<h3><a href="#update-a-feature" name="update-a-feature" class="anchor"><span class="anchor-link"></span></a>Update a feature</h3>
 <pre class="prettyprint"><code class="language-bash">curl -X PUT \
-  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
+  &#39;http://localhost:9000/api/features/really:basic:feature&#39; \
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; \
-  -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot; }&#39; | jq
+  -d &#39;{ &quot;id&quot;: &quot;really:basic:feature&quot;, &quot;enabled&quot;: false, &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot; }&#39; | jq
 </code></pre>
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
-  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+  &quot;id&quot;: &quot;really:basic:feature&quot;,
+  &quot;enabled&quot;: false,
+  &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;
 }
 </code></pre>
-<h3><a href="#delete-a-config" name="delete-a-config" class="anchor"><span class="anchor-link"></span></a>Delete a config</h3>
+<h3><a href="#delete-a-feature" name="delete-a-feature" class="anchor"><span class="anchor-link"></span></a>Delete a feature</h3>
 <pre class="prettyprint"><code class="language-bash">curl -X DELETE \
-  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
+  &#39;http://localhost:9000/api/features/really:basic:feature&#39; \
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; | jq 
 </code></pre>
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
-  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+  &quot;id&quot;: &quot;really:basic:feature&quot;,
+  &quot;enabled&quot;: false,
+  &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;
 }
 </code></pre>
-<h2><a href="#tree-api" name="tree-api" class="anchor"><span class="anchor-link"></span></a>Tree API</h2>
-<p>The tree api format the reponse as a tree. Be careful using this API because the results are not paged so be sure to use an appropriate pattern : </p>
-<p>For example if we create this datas : </p>
-<pre class="prettyprint"><code class="language-bash">curl -XPOST \
-    &#39;http://localhost:9000/api/configs&#39; \
-    -H &#39;Content-Type: application/json&#39; \
-    -H &#39;Izanami-Client-Id: xxxx&#39; \
-    -H &#39;Izanami-Client-Secret: xxxx&#39; \
-    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot; }&#39; | jq
-
-curl -XPOST \
-    &#39;http://localhost:9000/api/configs&#39; \
-    -H &#39;Content-Type: application/json&#39; \
-    -H &#39;Izanami-Client-Id: xxxx&#39; \
-    -H &#39;Izanami-Client-Secret: xxxx&#39; \
-    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:email&quot;, &quot;value&quot;: &quot;\&quot;ragnar.lodbrok@gmail.com\&quot;&quot; }&#39; | jq
-</code></pre>
-<p>And then use the tree APIs </p>
+<p>As you can see, the keys are split with <code>:</code> and the values are </p>
+<h2><a href="#check-features" name="check-features" class="anchor"><span class="anchor-link"></span></a>Check features</h2>
+<p>We can divide the feature in two kind : </p>
+<ul>
+  <li>feature without context:
+    <ul>
+      <li><code>NO_STRATEGY</code> features</li>
+      <li><code>RELEASE_DATE</code> features</li>
+    </ul>
+  </li>
+  <li>feature needing context:
+    <ul>
+      <li><code>SCRIPT</code> features</li>
+      <li><code>GLOBAL_SCRIPT</code> features</li>
+    </ul>
+  </li>
+</ul>
+<h3><a href="#check-a-feature-without-context" name="check-a-feature-without-context" class="anchor"><span class="anchor-link"></span></a>Check a feature without context</h3>
 <pre class="prettyprint"><code class="language-bash">curl -X GET \
-  &#39;http://localhost:9000/api/tree/configs?pattern=ragnar:*&#39; \
+  &#39;http://localhost:9000/api/features/really:basic:feature/check&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;active&quot;: true
+}
+</code></pre>
+<h3><a href="#check-a-feature-with-context" name="check-a-feature-with-context" class="anchor"><span class="anchor-link"></span></a>Check a feature with context</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/features/feature:with:script/check&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;{ &quot;user&quot;: &quot;ragnar.lodbrok@gmail.com&quot; }&#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;active&quot;: true
+}
+</code></pre>
+<h3><a href="#the-tree-api" name="the-tree-api" class="anchor"><span class="anchor-link"></span></a>The Tree API</h3>
+<p>With the tree api you can check the features and get the results as tree. Be careful using this API because the results are not paged so be sure to use an appropriate pattern : </p>
+<p>Check the features without context </p>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/tree/features?pattern=feature:*&#39; \
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
 </code></pre>
 <p>We will get the following response: </p>
 <pre class="prettyprint"><code class="language-json">{
-  &quot;ragnar&quot;: {
-    &quot;lodbrok&quot;: {
-      &quot;city&quot;: {
-        &quot;city&quot;: &quot;Kattegat&quot;
+  &quot;feature&quot;: {
+    &quot;simple&quot;: {
+      &quot;active&quot;: true
+    },
+    &quot;with&quot;: {
+      &quot;date&quot;: {
+        &quot;active&quot;: true
       },
-      &quot;email&quot;: {
-        &quot;email&quot;: &quot;ragnar.lodbrok@gmail.com&quot;
+      &quot;script&quot;: {
+        &quot;active&quot;: false
+      },
+      &quot;global&quot;: {
+        &quot;script&quot;: {
+          &quot;active&quot;: false
+        }
       }
     }
   }
 }
 </code></pre>
-<p>As you can see, the keys are split with <code>:</code> and the json and the json values are expended into a tree representation.</p>
+<p>Or with context: </p>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/tree/features?pattern=feature:*&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;{ &quot;user&quot;: &quot;ragnar.lodbrok@gmail.com&quot; }&#39; \
+  | jq
+</code></pre>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;feature&quot;: {
+    &quot;simple&quot;: {
+      &quot;active&quot;: true
+    },
+    &quot;with&quot;: {
+      &quot;date&quot;: {
+        &quot;active&quot;: true
+      },
+      &quot;script&quot;: {
+        &quot;active&quot;: false
+      },
+      &quot;global&quot;: {
+        &quot;script&quot;: {
+          &quot;active&quot;: true
+        }
+      }
+    }
+  }
+}
+</code></pre>
+<h3><a href="#list-features-with-the-active-attribute-without-context" name="list-features-with-the-active-attribute-without-context" class="anchor"><span class="anchor-link"></span></a>List features with the active attribute without context</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/features?pattern=feature:*&amp;active=true&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>The result is the following </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;results&quot;: [
+    {
+      &quot;id&quot;: &quot;feature:simple&quot;,
+      &quot;enabled&quot;: true,
+      &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;,
+      &quot;active&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:date&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;releaseDate&quot;: &quot;13/12/2017 10:29:04&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;RELEASE_DATE&quot;,
+      &quot;active&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:script&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;SCRIPT&quot;,
+      &quot;active&quot;: false
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:global:script&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;ref&quot;: &quot;project:script2&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;GLOBAL_SCRIPT&quot;,
+      &quot;active&quot;: false
+    }
+  ],
+  &quot;metadata&quot;: {
+    &quot;page&quot;: 1,
+    &quot;pageSize&quot;: 15,
+    &quot;count&quot;: 4,
+    &quot;nbPages&quot;: 1
+  }
+}
+</code></pre>
+<h3><a href="#list-features-with-the-active-attribute-with-context" name="list-features-with-the-active-attribute-with-context" class="anchor"><span class="anchor-link"></span></a>List features with the active attribute with context</h3>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/features/_checks?pattern=feature:*&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;{ &quot;user&quot;: &quot;ragnar.lodbrok@gmail.com&quot; }&#39; \
+  | jq
+</code></pre>
+<p>The result is the following </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;results&quot;: [
+    {
+      &quot;id&quot;: &quot;feature:simple&quot;,
+      &quot;enabled&quot;: true,
+      &quot;activationStrategy&quot;: &quot;NO_STRATEGY&quot;,
+      &quot;active&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:date&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;releaseDate&quot;: &quot;13/12/2017 10:29:04&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;RELEASE_DATE&quot;,
+      &quot;active&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:script&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;SCRIPT&quot;,
+      &quot;active&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;feature:with:global:script&quot;,
+      &quot;enabled&quot;: true,
+      &quot;parameters&quot;: {
+        &quot;ref&quot;: &quot;project:script2&quot;
+      },
+      &quot;activationStrategy&quot;: &quot;GLOBAL_SCRIPT&quot;,
+      &quot;active&quot;: false
+    }
+  ],
+  &quot;metadata&quot;: {
+    &quot;page&quot;: 1,
+    &quot;pageSize&quot;: 15,
+    &quot;count&quot;: 4,
+    &quot;nbPages&quot;: 1
+  }
+}
+</code></pre>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../features/ui.html">The UI</a></p>
 </div>
@@ -329,7 +570,7 @@ curl -XPOST \
   <ul>
     <li><a href="../features/api.html#data-model" class="header">Data model</a></li>
     <li><a href="../features/api.html#crud-api" class="header">CRUD API</a></li>
-    <li><a href="../features/api.html#tree-api" class="header">Tree API</a></li>
+    <li><a href="../features/api.html#check-features" class="header">Check features</a></li>
   </ul></li>
 </ul>
 </div>

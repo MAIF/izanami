@@ -1,4 +1,6 @@
-# Configs API
+# APIs
+
+@@toc { depth=3 }
 
 ## Data model 
 
@@ -128,7 +130,7 @@ Will respond with a 200 status code:
 
 ## Tree API 
 
-The tree api format the reponse as a tree. 
+The tree api format the response as tree. 
 Be careful using this API because the results are not paged so be sure to use an appropriate pattern : 
 
 For example if we create this datas : 
