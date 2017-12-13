@@ -170,22 +170,31 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#shared-configs" name="shared-configs" class="anchor"><span class="anchor-link"></span></a>Shared Configs</h1>
-<p>Izanami provide the ability to share configuration between your applications and change this configuration in real time.<br/>The configuration is just a json. The value is store as text in the database. </p>
-<p>To get config just call the api : </p>
-<pre class="prettyprint"><code class="language-bash"><br/>curl -X GET \
-  &#39;http://localhost:9000/api/configs/my:config&#39; \
+<div class="toc ">
+<ul>
+  <li><a href="../configs/api.html" class="page">APIs</a>
+  <ul>
+    <li><a href="../configs/api.html#data-model" class="header">Data model</a></li>
+    <li><a href="../configs/api.html#crud-api" class="header">CRUD API</a></li>
+    <li><a href="../configs/api.html#tree-api" class="header">Tree API</a></li>
+  </ul></li>
+  <li><a href="../configs/ui.html" class="page">UI</a></li>
+</ul>
+</div>
+<p>Izanami provide the ability to share configuration between your applications and change this configuration in real time.<br/>The configuration is just a regular json : </p>
+<img src="../img/configs/config.png" width="60%" />
+<p>Then just call the api : </p>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
   -H &#39;Content-Type: application/json&#39; \
-  -H &#39;Izanami-Client-Id: client&#39; \
-  -H &#39;Izanami-Client-Secret: client1234&#39; --include 
- 
-# And the result is  
-# HTTP/1.1 200 OK
-# Date: Tue, 12 Dec 2017 16:06:46 GMT
-# Content-Type: application/json
-# Content-Length: 76
-# 
-# {&quot;id&quot;:&quot;my:config&quot;,&quot;value&quot;:&quot;{\n  \&quot;message\&quot;: \&quot;Hello World!\&quot;\n}&quot;}
- 
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; | jq
+</code></pre>
+<p>And get the config:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
+  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+}
 </code></pre>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../configs/api.html">APIs</a></p>
