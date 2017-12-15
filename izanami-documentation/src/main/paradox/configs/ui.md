@@ -32,4 +32,6 @@ In this example, we've search configs filtering on pattern `*first*`. The result
 
 ## Download and Upload
 
-* TODO 
+If you're admin you have the right to download or upload. 
+
+<img src="../img/download-upload.png" width="50%" />

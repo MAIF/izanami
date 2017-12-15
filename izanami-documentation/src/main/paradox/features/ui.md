@@ -57,4 +57,6 @@ We have also specified a context to test the feature. The tested feature is a fe
 
 ## Download and Upload
 
-* TODO 
+If you're admin you have the right to download or upload. 
+
+<img src="../img/download-upload.png" width="50%" />
