@@ -68,6 +68,7 @@
     <li><a href="../experiments/api.html" class="page">APIs</a></li>
     <li><a href="../experiments/ui.html" class="active page">The UI</a></li>
   </ul></li>
+  <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -143,6 +144,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../experiments/api.html" class="page">APIs</a></li>
     <li><a href="../experiments/ui.html" class="active page">The UI</a></li>
   </ul></li>
+  <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -173,11 +175,51 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#the-ui" name="the-ui" class="anchor"><span class="anchor-link"></span></a>The UI</h1>
+<p>You can access to the experiments clicking &ldquo;experiments&rdquo; on the left menu. </p>
+<img src="../img/experiments/all.png" width="100%" />
+<p>You can then </p>
+<ul>
+  <li>Search using a pattern on experiment key</li>
+  <li>add a experiment</li>
+  <li>update a experiment</li>
+  <li>delete a experiment</li>
+</ul>
+<p>If you&rsquo;re admin, you can also</p>
+<ul>
+  <li>Download experiments</li>
+  <li>Upload experiments</li>
+</ul>
+<h2><a href="#edit-a-experiment" name="edit-a-experiment" class="anchor"><span class="anchor-link"></span></a>Edit a experiment</h2>
+<p>Add or Update an experiment is really simple on the UI. </p>
+<img src="../img/experiments/experiment.png" width="80%" />
+<h2><a href="#evaluate-experiments" name="evaluate-experiments" class="anchor"><span class="anchor-link"></span></a>Evaluate experiments</h2>
+<p>The explorer allows you to find which variant is associated to a user: </p>
+<img src="../img/experiments/explorer.png" width="100%" />
+<p>In this example, we&rsquo;ve search experiments filtering on pattern <code>izanami:*</code> and for the user <code>ragnar.lodbrock@gmail.com</code>. </p>
+<p>The variant associated to this user is the A variant.</p>
+<h2><a href="#consult-the-results" name="consult-the-results" class="anchor"><span class="anchor-link"></span></a>Consult the results</h2>
+<p>You can consult which is the winning variant clicking the <code>See report</code> button.</p>
+<img src="../img/experiments/results.png" width="100%" />
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../clients/index.html">Clients</a></p>
+<p><strong>Next:</strong> <a href="../events.html">Listen to events</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../experiments/ui.html#the-ui" class="header">The UI</a>
+  <ul>
+    <li><a href="../experiments/ui.html#edit-a-experiment" class="header">Edit a experiment</a></li>
+    <li><a href="../experiments/ui.html#evaluate-experiments" class="header">Evaluate experiments</a></li>
+    <li><a href="../experiments/ui.html#consult-the-results" class="header">Consult the results</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

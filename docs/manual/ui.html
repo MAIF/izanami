@@ -68,6 +68,7 @@
     <li><a href="experiments/api.html" class="page">APIs</a></li>
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
   </ul></li>
+  <li><a href="events.html" class="page">Listen to events</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -143,6 +144,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="experiments/api.html" class="page">APIs</a></li>
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
   </ul></li>
+  <li><a href="events.html" class="page">Listen to events</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -178,10 +180,19 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="ui.html#features" class="header">Features</a></li>
   <li><a href="ui.html#configurations" class="header">Configurations</a></li>
   <li><a href="ui.html#experiments-a-b-testing-" class="header">Experiments (A/B testing)</a></li>
-  <li><a href="ui.html#scripts" class="header">Scripts</a></li>
+  <li><a href="ui.html#scripts" class="header">Scripts</a>
+  <ul>
+    <li><a href="ui.html#create-or-update-a-script" class="header">Create or update a script</a></li>
+  </ul></li>
   <li><a href="ui.html#webhooks" class="header">Webhooks</a></li>
-  <li><a href="ui.html#manage-users" class="header">Manage users</a></li>
-  <li><a href="ui.html#manage-api-keys" class="header">Manage API keys</a></li>
+  <li><a href="ui.html#manage-users" class="header">Manage users</a>
+  <ul>
+    <li><a href="ui.html#edit-a-user" class="header">Edit a user</a></li>
+  </ul></li>
+  <li><a href="ui.html#manage-api-keys" class="header">Manage API keys</a>
+  <ul>
+    <li><a href="ui.html#edit-a-api-key" class="header">Edit a api key</a></li>
+  </ul></li>
 </ul>
 </div>
 <h2><a href="#global-search" name="global-search" class="anchor"><span class="anchor-link"></span></a>Global search</h2>
@@ -196,21 +207,92 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <h2><a href="#experiments-a-b-testing-" name="experiments-a-b-testing-" class="anchor"><span class="anchor-link"></span></a>Experiments (A/B testing)</h2>
 <p>Visit to the <a href="experiments/ui.html">experiments UI doc</a></p>
 <h2><a href="#scripts" name="scripts" class="anchor"><span class="anchor-link"></span></a>Scripts</h2>
+<p>You can write script once and reuse it between strategies. Just click to the <code>Global Scripts</code> menu. </p>
+<p><img src="img/scripts/list.png" alt="Scripts" /></p>
+<h3><a href="#create-or-update-a-script" name="create-or-update-a-script" class="anchor"><span class="anchor-link"></span></a>Create or update a script</h3>
+<p>Hit the <code>Add item</code> or the pencil button to edit a script </p>
+<p><img src="img/scripts/script.png" alt="Scripts" /></p>
+<p>When writing a script, you have access to </p>
 <ul>
-  <li>TODO</li>
+  <li><code>context</code>: A json object send by the client</li>
+  <li><code>enabled</code>: A function to call, the feature is enabled</li>
+  <li><code>disabled</code>: A function to call, the feature is disabled</li>
+  <li><code>http</code>: An http client that can be used to request an API.</li>
 </ul>
+<p>The http client expose the call method that take two args :</p>
+<ul>
+  <li><code>options</code>, an object with the following possible attributes
+    <ul>
+      <li><code>url</code> (required): The url to call.</li>
+      <li><code>method</code> (default get): The http method betwwen <code>get</code>, <code>post</code>, <code>put</code>, <code>delete</code>, <code>option</code>, <code>patch</code></li>
+      <li><code>headers</code> : A object with headerName -&gt; Value</li>
+      <li><code>body</code> : An optional json string</li>
+    </ul>
+  </li>
+  <li><code>callback</code>: A bifunction with failure or success.</li>
+</ul>
+<pre class="prettyprint"><code class="language-javascript">function enabled(context, enabled, disabled, http) {
+    http.call({
+      url: &quot;http://localhost:9000/api/features/feature:with:script/check&quot;, 
+      method: &quot;post&quot;, 
+      headers: {
+        &quot;Izanami-Client-Id&quot;: &quot;xxxx&quot;,
+        &quot;Izanami-Client-Secret&quot;: &quot;xxxx&quot;, 
+        &quot;Content-Type&quot;: &quot;application/json&quot;
+      }, 
+      body: JSON.stringify({
+        user: context.user
+      })
+    }, 
+    function (error, success) {
+      if (error) {
+        return enabled()
+      } else {
+        var resp = JSON.parse(success)
+        if (resp.active) {
+          return enabled(); 
+        } else {
+          return disabled();
+        }
+      }
+    }
+  )
+}
+</code></pre>
 <h2><a href="#webhooks" name="webhooks" class="anchor"><span class="anchor-link"></span></a>Webhooks</h2>
 <ul>
   <li>TODO</li>
 </ul>
 <h2><a href="#manage-users" name="manage-users" class="anchor"><span class="anchor-link"></span></a>Manage users</h2>
+<p>You can manage user if you&rsquo;re an admin. </p>
+<p><img src="img/users/access-users.png" alt="Users" /></p>
+<p>Like the other screen you can see the existing users on a table: </p>
+<p><img src="img/users/all.png" alt="Users" /></p>
+<h3><a href="#edit-a-user" name="edit-a-user" class="anchor"><span class="anchor-link"></span></a>Edit a user</h3>
+<p>To create or edit a user, you have to </p>
 <ul>
-  <li>TODO</li>
+  <li>an Id</li>
+  <li>A name</li>
+  <li>An email</li>
+  <li>A password</li>
+  <li>Specified if the user is admin</li>
+  <li>Patterns to apply restriction on user</li>
 </ul>
+<p><img src="img/users/user.png" alt="Edit user" /></p>
 <h2><a href="#manage-api-keys" name="manage-api-keys" class="anchor"><span class="anchor-link"></span></a>Manage API keys</h2>
+<p>You can manage api keys if you&rsquo;re an admin. </p>
+<p><img src="img/apikeys/access-apikeys.png" alt="Apikeys" /></p>
+<p>Like the other screen you can see the existing api keys on a table: </p>
+<p><img src="img/apikeys/all.png" alt="Apikeys" /></p>
+<h3><a href="#edit-a-api-key" name="edit-a-api-key" class="anchor"><span class="anchor-link"></span></a>Edit a api key</h3>
+<p>To create or edit a api key, you have to </p>
 <ul>
-  <li>TODO</li>
+  <li>A name</li>
+  <li>A client id</li>
+  <li>A client secret</li>
+  <li>Patterns to apply restriction on api key</li>
 </ul>
+<p><img src="img/apikeys/apikey.png" alt="Edit an api key" /></p>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="api.html">APIs usage</a></p>
 </div>
