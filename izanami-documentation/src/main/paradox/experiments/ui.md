@@ -42,4 +42,8 @@ You can consult which is the winning variant clicking the `See report` button.
 
 ## Download and Upload
 
-* TODO 
+If you're admin you have the right to download or upload.
+
+Because experiments are stored into multiple buckets, there is 3 files to download or upload to get all the datas.  
+
+<img src="../img/exp-upload-download.png" width="50%" />

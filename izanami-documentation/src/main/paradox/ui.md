@@ -86,15 +86,21 @@ function enabled(context, enabled, disabled, http) {
 
 ## Web hooks
 
-* TODO
+Like the other screen you can see the existing hooks on a table: 
+
+![Hooks](img/hooks/all.png)
 
 ## Manage web hooks 
 
-* TODO
+![Hook](img/hooks/hook.png)
+
+The registered hooks will be called when new events occur
 
 ### Download and Upload
 
-* TODO 
+If you're admin you have the right to download or upload. 
+
+<img src="img/download-upload.png" width="50%" />
 
 ## Manage users  
 
@@ -121,7 +127,9 @@ To create or edit a user, you have to
 
 ### Download and Upload
 
-* TODO 
+If you're admin you have the right to download or upload. 
+
+<img src="img/download-upload.png" width="50%" />
 
 ## Manage API keys  
 
@@ -146,4 +154,7 @@ To create or edit a api key, you have to
 
 ### Download and Upload
 
-* TODO 
+If you're admin you have the right to download or upload. 
+
+<img src="img/download-upload.png" width="50%" />
+
