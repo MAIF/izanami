@@ -32,10 +32,15 @@ this kind of strategy allow you to enable a feature on a date value in addition 
 
 this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not. 
 
-In this example, the feature is active if the user send in the context is `ragnar.lodbrock@gmail.com` : 
+In this example, the feature is active if the user sent in the context is `ragnar.lodbrock@gmail.com` : 
 
 <img src="../img/features/script.png" width="80%" />
+
+You can find more details about script @ref[on this page](../ui.md#create-or-update-a-script).
 
 ## GLOBAL SCRIPT 
 
 Global script strategy is the same as script except that the script are shared between features. 
+
+You can find more details about global scripts @ref[on this page](../ui.md#create-or-update-a-script).
+

@@ -19,9 +19,9 @@ different variant of a same object, measure the interest for each variant in ord
 With Izanami, you can easily run experiments in order to validate variants. 
 
 
-<img src="../img/experiments/experiments-list.png" width="60%" />
+<img src="../img/experiments/all.png" width="60%" />
 
 A nice dashboard allow you to see the results on each variants
 
-<img src="../img/experiments/experiments-result.png" width="60%" />
+<img src="../img/experiments/results.png" width="60%" />
  
