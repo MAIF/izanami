@@ -26,7 +26,7 @@ generateDoc := {
   (ditaa in Compile).value
   (paradox in Compile).value
   val paradoxFile = target.value / "paradox" / "site" / "main"
-  val targetDocs = p.base.getParentFile / "docs"
+  val targetDocs = p.base.getParentFile / "docs" / "manual"
   IO.delete(targetDocs)
   IO.copyDirectory(paradoxFile, targetDocs)
 }
