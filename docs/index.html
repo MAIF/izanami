@@ -35,10 +35,14 @@
         <p>coming soon ...</p>
     </body>
     <script type="application/javascript">
-        if ((Math.random() * 10) > 5) {
-          document.getElementById("quote").innerText = "\"Don't deactivate a feature just kill it\""
-        } else {
-          document.getElementById("quote").innerText = "\"Don't deactivate a feature, resurrect it\""
-        }
+
+        const quotes = [
+          "Don't deactivate a feature just kill it",
+          "Don't activate a feature, resurrect it",
+          "Don't deploy it, just toggle it on"
+        ];
+        const index = Math.round(Math.random() * 10) % quotes.length;
+        const quote = quotes[index];
+        document.getElementById("quote").innerText = "\""+quote+"\"";
     </script>
 </html>

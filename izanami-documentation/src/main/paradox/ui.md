@@ -4,8 +4,11 @@
 
 ## Features 
 
-<img src="img/features/menu.png" width="50%" />
-<img src="img/features/list.png" width="80%" />
+You can access to the features clicking "features" on the left menu. 
+
+<img src="img/features/full.png" width="100%" />
+
+
 
 ## Configurations 
 
