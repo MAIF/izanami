@@ -73,15 +73,26 @@ The error format has the following structure :
     * value is an array of message and args as explained above 
       
 
-## Configs API
+## Shared config API
 
 Go to the @ref[configs API doc](configs/api.md) 
 
-## Features API
+## Feature flipping API
 
 Go to the @ref[features API doc](features/api.md)
 
-## Experiments API
+## Experiments (A/B testing) API
 
 Go to the @ref[experiments API doc](experiments/api.md)
 
+## Webhooks API
+
+* TODO
+
+## Users API
+
+* TODO
+
+## Api keys API
+
+* TODO
