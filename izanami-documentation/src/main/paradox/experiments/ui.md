@@ -40,3 +40,6 @@ You can consult which is the winning variant clicking the `See report` button.
 
 <img src="../img/experiments/results.png" width="100%" />
 
+## Download and Upload
+
+* TODO 

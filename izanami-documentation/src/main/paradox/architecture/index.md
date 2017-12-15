@@ -24,5 +24,5 @@ Izanami contains the following buckets :
 * web hooks: to store registered webhook
 * users: to store users 
 
-You can see how to configure buckets on the @ref[settings](../configuration/settings.md) page. 
+You can see how to configure buckets on the @ref[settings](../settings/settings.md) page. 
  

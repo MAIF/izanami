@@ -46,27 +46,27 @@
     <li><a href="getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
-  <li><a href="configuration/index.html" class="page">Configuration</a>
+  <li><a href="settings/index.html" class="page">Settings</a>
   <ul>
-    <li><a href="configuration/database.html" class="page">Choose the database</a></li>
-    <li><a href="configuration/settings.html" class="page">All the settings</a></li>
+    <li><a href="settings/database.html" class="page">Choose the database</a></li>
+    <li><a href="settings/settings.html" class="page">All the settings</a></li>
   </ul></li>
   <li><a href="ui.html" class="active page">UI usage</a></li>
   <li><a href="api.html" class="page">APIs usage</a></li>
   <li><a href="configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="configs/api.html" class="page">APIs</a></li>
     <li><a href="configs/ui.html" class="page">The UI</a></li>
+    <li><a href="configs/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="features/api.html" class="page">APIs</a></li>
     <li><a href="features/ui.html" class="page">The UI</a></li>
+    <li><a href="features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="experiments/index.html" class="page">A/B testing</a>
   <ul>
-    <li><a href="experiments/api.html" class="page">APIs</a></li>
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
+    <li><a href="experiments/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="events.html" class="page">Listen to events</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
@@ -122,27 +122,27 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
-  <li><a href="configuration/index.html" class="page">Configuration</a>
+  <li><a href="settings/index.html" class="page">Settings</a>
   <ul>
-    <li><a href="configuration/database.html" class="page">Choose the database</a></li>
-    <li><a href="configuration/settings.html" class="page">All the settings</a></li>
+    <li><a href="settings/database.html" class="page">Choose the database</a></li>
+    <li><a href="settings/settings.html" class="page">All the settings</a></li>
   </ul></li>
   <li><a href="ui.html" class="active page">UI usage</a></li>
   <li><a href="api.html" class="page">APIs usage</a></li>
   <li><a href="configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="configs/api.html" class="page">APIs</a></li>
     <li><a href="configs/ui.html" class="page">The UI</a></li>
+    <li><a href="configs/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="features/api.html" class="page">APIs</a></li>
     <li><a href="features/ui.html" class="page">The UI</a></li>
+    <li><a href="features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="experiments/index.html" class="page">A/B testing</a>
   <ul>
-    <li><a href="experiments/api.html" class="page">APIs</a></li>
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
+    <li><a href="experiments/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="events.html" class="page">Listen to events</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
@@ -184,14 +184,20 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="ui.html#create-or-update-a-script" class="header">Create or update a script</a></li>
   </ul></li>
-  <li><a href="ui.html#webhooks" class="header">Webhooks</a></li>
+  <li><a href="ui.html#web-hooks" class="header">Web hooks</a></li>
+  <li><a href="ui.html#manage-web-hooks" class="header">Manage web hooks</a>
+  <ul>
+    <li><a href="ui.html#download-and-upload" class="header">Download and Upload</a></li>
+  </ul></li>
   <li><a href="ui.html#manage-users" class="header">Manage users</a>
   <ul>
     <li><a href="ui.html#edit-a-user" class="header">Edit a user</a></li>
+    <li><a href="ui.html#download-and-upload" class="header">Download and Upload</a></li>
   </ul></li>
   <li><a href="ui.html#manage-api-keys" class="header">Manage API keys</a>
   <ul>
     <li><a href="ui.html#edit-a-api-key" class="header">Edit a api key</a></li>
+    <li><a href="ui.html#download-and-upload" class="header">Download and Upload</a></li>
   </ul></li>
 </ul>
 </div>
@@ -259,7 +265,15 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   )
 }
 </code></pre>
-<h2><a href="#webhooks" name="webhooks" class="anchor"><span class="anchor-link"></span></a>Webhooks</h2>
+<h2><a href="#web-hooks" name="web-hooks" class="anchor"><span class="anchor-link"></span></a>Web hooks</h2>
+<ul>
+  <li>TODO</li>
+</ul>
+<h2><a href="#manage-web-hooks" name="manage-web-hooks" class="anchor"><span class="anchor-link"></span></a>Manage web hooks</h2>
+<ul>
+  <li>TODO</li>
+</ul>
+<h3><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h3>
 <ul>
   <li>TODO</li>
 </ul>
@@ -279,6 +293,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li>Patterns to apply restriction on user</li>
 </ul>
 <p><img src="img/users/user.png" alt="Edit user" /></p>
+<h3><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h3>
+<ul>
+  <li>TODO</li>
+</ul>
 <h2><a href="#manage-api-keys" name="manage-api-keys" class="anchor"><span class="anchor-link"></span></a>Manage API keys</h2>
 <p>You can manage api keys if you&rsquo;re an admin. </p>
 <p><img src="img/apikeys/access-apikeys.png" alt="Apikeys" /></p>
@@ -293,6 +311,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li>Patterns to apply restriction on api key</li>
 </ul>
 <p><img src="img/apikeys/apikey.png" alt="Edit an api key" /></p>
+<h3><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h3>
+<ul>
+  <li>TODO</li>
+</ul>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="api.html">APIs usage</a></p>
 </div>
@@ -310,7 +332,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="ui.html#configurations" class="header">Configurations</a></li>
     <li><a href="ui.html#experiments-a-b-testing-" class="header">Experiments (A/B testing)</a></li>
     <li><a href="ui.html#scripts" class="header">Scripts</a></li>
-    <li><a href="ui.html#webhooks" class="header">Webhooks</a></li>
+    <li><a href="ui.html#web-hooks" class="header">Web hooks</a></li>
+    <li><a href="ui.html#manage-web-hooks" class="header">Manage web hooks</a></li>
     <li><a href="ui.html#manage-users" class="header">Manage users</a></li>
     <li><a href="ui.html#manage-api-keys" class="header">Manage API keys</a></li>
   </ul></li>

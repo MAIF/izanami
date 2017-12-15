@@ -9,7 +9,7 @@
  * [Features](features.md)
  * [Architecture](architecture/index.md)
  * [Installation](getizanami/index.md)
- * [Configuration](configuration/index.md)
+ * [Settings](settings/index.md)
  * [UI](ui.md)
  * [Api](api.md)
  * [Configs](configs/index.md)
