@@ -84,9 +84,17 @@ function enabled(context, enabled, disabled, http) {
 ```
 
 
-## Webhooks
+## Web hooks
 
 * TODO
+
+## Manage web hooks 
+
+* TODO
+
+### Download and Upload
+
+* TODO 
 
 ## Manage users  
 
@@ -111,6 +119,10 @@ To create or edit a user, you have to
 
 ![Edit user](img/users/user.png)
 
+### Download and Upload
+
+* TODO 
+
 ## Manage API keys  
 
 You can manage api keys if you're an admin. 
@@ -131,3 +143,7 @@ To create or edit a api key, you have to
 * Patterns to apply restriction on api key
 
 ![Edit an api key](img/apikeys/apikey.png)
+
+### Download and Upload
+
+* TODO 

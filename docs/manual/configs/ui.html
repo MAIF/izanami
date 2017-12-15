@@ -46,27 +46,27 @@
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
-  <li><a href="../configuration/index.html" class="page">Configuration</a>
+  <li><a href="../settings/index.html" class="page">Settings</a>
   <ul>
-    <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
-    <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
+    <li><a href="../settings/database.html" class="page">Choose the database</a></li>
+    <li><a href="../settings/settings.html" class="page">All the settings</a></li>
   </ul></li>
   <li><a href="../ui.html" class="page">UI usage</a></li>
   <li><a href="../api.html" class="page">APIs usage</a></li>
   <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="../configs/api.html" class="page">APIs</a></li>
     <li><a href="../configs/ui.html" class="active page">The UI</a></li>
+    <li><a href="../configs/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="../features/api.html" class="page">APIs</a></li>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
   <ul>
-    <li><a href="../experiments/api.html" class="page">APIs</a></li>
     <li><a href="../experiments/ui.html" class="page">The UI</a></li>
+    <li><a href="../experiments/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
@@ -122,27 +122,27 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
     <li><a href="../getizanami/fromsources.html" class="page">From sources</a></li>
   </ul></li>
-  <li><a href="../configuration/index.html" class="page">Configuration</a>
+  <li><a href="../settings/index.html" class="page">Settings</a>
   <ul>
-    <li><a href="../configuration/database.html" class="page">Choose the database</a></li>
-    <li><a href="../configuration/settings.html" class="page">All the settings</a></li>
+    <li><a href="../settings/database.html" class="page">Choose the database</a></li>
+    <li><a href="../settings/settings.html" class="page">All the settings</a></li>
   </ul></li>
   <li><a href="../ui.html" class="page">UI usage</a></li>
   <li><a href="../api.html" class="page">APIs usage</a></li>
   <li><a href="../configs/index.html" class="page">Shared Configs</a>
   <ul>
-    <li><a href="../configs/api.html" class="page">APIs</a></li>
     <li><a href="../configs/ui.html" class="active page">The UI</a></li>
+    <li><a href="../configs/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="../features/api.html" class="page">APIs</a></li>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
   <ul>
-    <li><a href="../experiments/api.html" class="page">APIs</a></li>
     <li><a href="../experiments/ui.html" class="page">The UI</a></li>
+    <li><a href="../experiments/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
@@ -176,10 +176,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#the-ui" name="the-ui" class="anchor"><span class="anchor-link"></span></a>The UI</h1>
 <p>You can access to the configurations clicking &ldquo;configurations&rdquo; on the left menu. </p>
-<img src="../img/configs/all.png" width="100%" />
+<p><img src="../img/configs/all.png" alt="All config" /></p>
 <p>You can then </p>
 <ul>
-  <li>Search using a pattern on configuration key</li>
+  <li>Search using a pattern on configuration keys</li>
   <li>add a configuration</li>
   <li>update a configuration</li>
   <li>delete a configuration</li>
@@ -191,13 +191,17 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </ul>
 <h2><a href="#edit-a-configuration" name="edit-a-configuration" class="anchor"><span class="anchor-link"></span></a>Edit a configuration</h2>
 <p>Add or Update a config is really simple. Configs are just key / value pairs where the value is a regular json (text, number, array or object). </p>
-<img src="../img/configs/config.png" width="80%" />
+<p><img src="../img/configs/editconfig.png" alt="Edit config" /></p>
 <h2><a href="#evaluate-configs" name="evaluate-configs" class="anchor"><span class="anchor-link"></span></a>Evaluate configs</h2>
 <p>You can evaluate configs as a tree using the explorer : </p>
-<img src="../img/configs/explorer.png" width="100%" />
+<p><img src="../img/configs/explorer.png" alt="Explorer" /></p>
 <p>In this example, we&rsquo;ve search configs filtering on pattern <code>*first*</code>. The results is tree where key are expended and configs are merge in a json object. </p>
+<h2><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h2>
+<ul>
+  <li>TODO</li>
+</ul>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../features/index.html">Feature flipping</a></p>
+<p><strong>Next:</strong> <a href="../configs/api.html">APIs</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
@@ -210,6 +214,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../configs/ui.html#edit-a-configuration" class="header">Edit a configuration</a></li>
     <li><a href="../configs/ui.html#evaluate-configs" class="header">Evaluate configs</a></li>
+    <li><a href="../configs/ui.html#download-and-upload" class="header">Download and Upload</a></li>
   </ul></li>
 </ul>
 </div>

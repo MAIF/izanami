@@ -38,7 +38,7 @@ curl -X GET \
 # {"id":"my:config","value":"{\n  \"message\": \"Hello World!\"\n}"}
  
 ```   
-Header names can be change, see the @ref[settings](configuration/settings.md) page.  
+Header names can be change, see the @ref[settings](settings/settings.md) page.  
 
 ## Error response 
 
