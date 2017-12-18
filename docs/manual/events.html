@@ -174,11 +174,281 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#listen-to-events" name="listen-to-events" class="anchor"><span class="anchor-link"></span></a>Listen to events</h1>
+<p>Izanami provide a way to listen what is happening inside. There is two to achieve that : </p>
 <ul>
-  <li>TODO</li>
+  <li>SSE</li>
+  <li>Webhooks</li>
 </ul>
-<h2><a href="#webhooks" name="webhooks" class="anchor"><span class="anchor-link"></span></a>Webhooks</h2>
+<h2><a href="#events-model" name="events-model" class="anchor"><span class="anchor-link"></span></a>Events model</h2>
+<p>An event is json with the following structure : </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;_id&quot;: 942711288101863450,
+  &quot;type&quot;: &quot;CONFIG_UPDATED&quot;,
+  &quot;key&quot;: &quot;opun:demo:title&quot;,
+  &quot;domain&quot;: &quot;Config&quot;,
+  &quot;payload&quot;: {
+    &quot;id&quot;: &quot;opun:demo:title&quot;,
+    &quot;value&quot;: &quot;{\n \&quot;title\&quot;: \&quot;Changed title\&quot;\n}&quot;
+  },
+  &quot;oldValue&quot;: {
+    &quot;id&quot;: &quot;opun:demo:title&quot;,
+    &quot;value&quot;: &quot;{\n \&quot;title\&quot;: \&quot;Changed title\&quot;\n}&quot;
+  },
+  &quot;timestamp&quot;: &quot;2017-12-18T11:01:00.469&quot;
+}	
+</code></pre>
+<table>
+  <thead>
+    <tr>
+      <th>Field </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>_id</code> </td>
+      <td>Unique id of the event. A recent id is greater than a previous </td>
+    </tr>
+    <tr>
+      <td><code>type</code> </td>
+      <td>The type of the event (see the chapter below) </td>
+    </tr>
+    <tr>
+      <td><code>key</code> </td>
+      <td>The key of the modified object. </td>
+    </tr>
+    <tr>
+      <td><code>domain</code> </td>
+      <td>The domain concerned by the event (see the chapter below) </td>
+    </tr>
+    <tr>
+      <td><code>payload</code> </td>
+      <td>The json of the updated object </td>
+    </tr>
+    <tr>
+      <td><code>oldValue</code> </td>
+      <td>The oldValue is optional and only present during an update. </td>
+    </tr>
+    <tr>
+      <td><code>timestamp</code> </td>
+      <td>The timestamp of the event </td>
+    </tr>
+  </tbody>
+</table>
+<p>The field <code>oldValue</code> is optional and only present during an update. </p>
+<h3><a href="#domains" name="domains" class="anchor"><span class="anchor-link"></span></a>Domains</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Domain </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Experiment </td>
+      <td>Events from experiments, bindings and experiment events </td>
+    </tr>
+    <tr>
+      <td>ApiKey </td>
+      <td>Events from api keys </td>
+    </tr>
+    <tr>
+      <td>Config </td>
+      <td>Events from configs </td>
+    </tr>
+    <tr>
+      <td>Feature </td>
+      <td>Events from features </td>
+    </tr>
+    <tr>
+      <td>User </td>
+      <td>Events from users </td>
+    </tr>
+    <tr>
+      <td>Script </td>
+      <td>Events from scripts </td>
+    </tr>
+    <tr>
+      <td>Webhook </td>
+      <td>Events from web hooks </td>
+    </tr>
+  </tbody>
+</table>
+<h3><a href="#types" name="types" class="anchor"><span class="anchor-link"></span></a>Types</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Types </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>CONFIG_CREATED</code> </td>
+      <td>When a config is created </td>
+    </tr>
+    <tr>
+      <td><code>CONFIG_UPDATED</code> </td>
+      <td>When a config is updated </td>
+    </tr>
+    <tr>
+      <td><code>CONFIG_DELETED</code> </td>
+      <td>When a config is deleted </td>
+    </tr>
+    <tr>
+      <td><code>CONFIGS_DELETED</code> </td>
+      <td>When configs are deleted </td>
+    </tr>
+    <tr>
+      <td><code>FEATURE_CREATED</code> </td>
+      <td>When a feature is created </td>
+    </tr>
+    <tr>
+      <td><code>FEATURE_UPDATED</code> </td>
+      <td>When a feature is updated </td>
+    </tr>
+    <tr>
+      <td><code>FEATURE_DELETED</code> </td>
+      <td>When a feature is deleted </td>
+    </tr>
+    <tr>
+      <td><code>FEATURES_DELETED</code> </td>
+      <td>When features are deleted </td>
+    </tr>
+    <tr>
+      <td><code>GLOBALSCRIPT_CREATED</code> </td>
+      <td>When a global script is created </td>
+    </tr>
+    <tr>
+      <td><code>GLOBALSCRIPT_UPDATED</code> </td>
+      <td>When a global script is updated </td>
+    </tr>
+    <tr>
+      <td><code>GLOBALSCRIPT_DELETED</code> </td>
+      <td>When a global script is deleted </td>
+    </tr>
+    <tr>
+      <td><code>GLOBALSCRIPTS_DELETED</code> </td>
+      <td>When global scripts are deleted </td>
+    </tr>
+    <tr>
+      <td><code>USER_CREATED</code> </td>
+      <td>When a user is created </td>
+    </tr>
+    <tr>
+      <td><code>USER_UPDATED</code> </td>
+      <td>When a user is updates </td>
+    </tr>
+    <tr>
+      <td><code>USER_DELETED</code> </td>
+      <td>When a user is deleted </td>
+    </tr>
+    <tr>
+      <td><code>USERS_DELETED</code> </td>
+      <td>When users are deleted </td>
+    </tr>
+    <tr>
+      <td><code>WEBHOOK_CREATED</code> </td>
+      <td>When a webhook is created </td>
+    </tr>
+    <tr>
+      <td><code>WEBHOOK_UPDATED</code> </td>
+      <td>When a webhook is updated </td>
+    </tr>
+    <tr>
+      <td><code>WEBHOOK_DELETED</code> </td>
+      <td>When a webhook is deleted </td>
+    </tr>
+    <tr>
+      <td><code>WEBHOOKS_DELETED</code> </td>
+      <td>When webhooks are deleted </td>
+    </tr>
+    <tr>
+      <td><code>APIKEY_CREATED</code> </td>
+      <td>When an apikey is created </td>
+    </tr>
+    <tr>
+      <td><code>APIKEY_UPDATED</code> </td>
+      <td>When an apikey is updated </td>
+    </tr>
+    <tr>
+      <td><code>APIKEY_DELETED</code> </td>
+      <td>When an apikey is deleted </td>
+    </tr>
+    <tr>
+      <td><code>APIKEYS_DELETED</code> </td>
+      <td>When apikeys are created </td>
+    </tr>
+    <tr>
+      <td><code>EXPERIMENT_CREATED</code> </td>
+      <td>When an experiment is created </td>
+    </tr>
+    <tr>
+      <td><code>EXPERIMENT_UPDATED</code> </td>
+      <td>When an experiment is updated </td>
+    </tr>
+    <tr>
+      <td><code>EXPERIMENT_DELETED</code> </td>
+      <td>When an experiment is deleted </td>
+    </tr>
+    <tr>
+      <td><code>EXPERIMENTS_DELETED</code> </td>
+      <td>When experiments are deleted </td>
+    </tr>
+    <tr>
+      <td><code>VARIANT_BINDING_CREATED</code> </td>
+      <td>When an binding is created </td>
+    </tr>
+    <tr>
+      <td><code>EXPERIMENT_VARIANT_EVENT_CREATED</code> </td>
+      <td>When an experiment event is created </td>
+    </tr>
+    <tr>
+      <td><code>EXPERIMENT_VARIANT_EVENT_DELETED</code> </td>
+      <td>When an experiment event is deleted </td>
+    </tr>
+  </tbody>
+</table>
+<h2><a href="#web-hooks" name="web-hooks" class="anchor"><span class="anchor-link"></span></a>Web hooks</h2>
+<p><img src="img/diagrams/events-webhooks.png" alt="Webooks" /></p>
+<p>Web hooks allow you to get notified when events occured in izanami. You have to register an endpoint in izanami, the endpoint needs to be a POST api handling a json payload of the form : </p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;objectsEdited&quot;: [
+    {...}, 
+    {...}
+  ]
+}
+</code></pre>
+<p>If the call to the registered endpoint failed too much, the registered web hook will be deactivated. </p>
 <h2><a href="#server-sent-event" name="server-sent-event" class="anchor"><span class="anchor-link"></span></a>Server sent event</h2>
+<p>Server sent event allow the server to push event to a client. The server keep a connection opened to send notifications. The <a href="https://en.wikipedia.org/wiki/Server-sent_events">Server-Sent Events</a> EventSource API is standardized as part of <a href="https://en.wikipedia.org/wiki/HTML5">HTML5</a> by the <a href="https://en.wikipedia.org/wiki/World_Wide_Web_Consortium">W3C</a>.</p>
+<p>Izanami expose server sent events endpoint to listen what is happening. There is two endpoint: </p>
+<ul>
+  <li><code>/api/events?domains=Config,Feature&amp;patterns=*</code> : a global listener</li>
+  <li><code>/api/events/Config?patterns=*</code> : a listener for a specific domain</li>
+</ul>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/events?domains=Config,Feature&amp;patterns=*&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; 
+</code></pre>
+<p>Will return </p>
+<pre><code>id: 942740804979392517
+data: {&quot;_id&quot;:942740804979392517,&quot;type&quot;:&quot;FEATURE_UPDATED&quot;,&quot;key&quot;:&quot;drop:hbomb:in:random:place&quot;,&quot;domain&quot;:&quot;Feature&quot;,&quot;payload&quot;:{&quot;id&quot;:&quot;drop:hbomb:in:random:place&quot;,&quot;enabled&quot;:false,&quot;parameters&quot;:{&quot;releaseDate&quot;:&quot;11/01/2018 09:58:00&quot;},&quot;activationStrategy&quot;:&quot;RELEASE_DATE&quot;},&quot;timestamp&quot;:&quot;2017-12-18T13:58:17.841&quot;,&quot;oldValue&quot;:{&quot;id&quot;:&quot;drop:hbomb:in:random:place&quot;,&quot;enabled&quot;:false,&quot;parameters&quot;:{&quot;releaseDate&quot;:&quot;11/01/2018 09:58:00&quot;},&quot;activationStrategy&quot;:&quot;RELEASE_DATE&quot;}}
+</code></pre>
+<h3><a href="#replay-events" name="replay-events" class="anchor"><span class="anchor-link"></span></a>Replay Events</h3>
+<p>If you&rsquo;re using kafka as a data store for events, you can replay events from the last day using the <code>Last-Event-Id</code> header. </p>
+<p>With this request, the event after the id <code>942740804979392517</code> will be replayed. </p>
+<pre class="prettyprint"><code class="language-bash">curl -X GET \
+  &#39;http://localhost:9000/api/events?domains=Config,Feature&amp;patterns=*&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -H &#39;Last-Event-Id: 942740804979392517&#39; 
+</code></pre>
+<p>The replay can be used for failure handling while listening to events. If the client lose the connection or crash, it can specify the last event id to get the event that append since the failure. </p>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="clients/index.html">Clients</a></p>
 </div>
@@ -191,7 +461,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="events.html#listen-to-events" class="header">Listen to events</a>
   <ul>
-    <li><a href="events.html#webhooks" class="header">Webhooks</a></li>
+    <li><a href="events.html#events-model" class="header">Events model</a></li>
+    <li><a href="events.html#web-hooks" class="header">Web hooks</a></li>
     <li><a href="events.html#server-sent-event" class="header">Server sent event</a></li>
   </ul></li>
 </ul>
