@@ -13,15 +13,15 @@ An event is json with the following structure :
 {
   "_id": 942711288101863450,
   "type": "CONFIG_UPDATED",
-  "key": "opun:demo:title",
+  "key": "demo:title",
   "domain": "Config",
   "payload": {
-    "id": "opun:demo:title",
+    "id": "demo:title",
     "value": "{\n \"title\": \"Changed title\"\n}"
   },
   "oldValue": {
-    "id": "opun:demo:title",
-    "value": "{\n \"title\": \"Changed title\"\n}"
+    "id": "demo:title",
+    "value": "{\n \"title\": \"Title\"\n}"
   },
   "timestamp": "2017-12-18T11:01:00.469"
 }	

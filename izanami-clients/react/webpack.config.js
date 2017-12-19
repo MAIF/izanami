@@ -1,0 +1,69 @@
+const webpack = require('webpack');
+const path = require('path');
+
+const plugins = [
+  //webpack.optimize.OccurenceOrderPlugin(),
+  new webpack.DefinePlugin({
+    '__DEV__': process.env.NODE_ENV === 'production',
+    'process.env': {
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'dev')
+    }
+  })
+];
+
+if (process.env.NODE_ENV === 'production') {
+  plugins.push(new webpack.optimize.UglifyJsPlugin({
+    compress: {
+      screw_ie8: true, // React doesn't support IE8
+      warnings: false
+    },
+    mangle: {
+      screw_ie8: true
+    },
+    output: {
+      comments: false,
+      screw_ie8: true
+    }
+  }));
+} else {
+  plugins.push(new webpack.HotModuleReplacementPlugin());
+  plugins.push(new webpack.NoEmitOnErrorsPlugin());
+}
+
+module.exports = {
+  output: {
+    path: path.resolve(__dirname, './dist/'),
+    publicPath: '/assets/',
+    filename: 'izanami-[name].js',
+    library: 'Izanami',
+    libraryTarget: 'umd'
+  },
+  entry: {
+    test: './src/test.js',
+    client: './src/index.js'
+  },
+  resolve: {
+    extensions: ['*', '.js']
+  },
+  devServer: {
+    port: process.env.DEV_SERVER_PORT || 3000,
+    proxy: {
+      '/api/*': {
+        target: 'http://localhost:3200',
+        pathRewrite: { '^/api': '' },
+        secure: false,
+        logLevel: 'debug'
+      }
+    }
+  },
+  module: {
+    loaders: [
+      {
+        test: /\.js|\.jsx|\.es6$/,
+        exclude: /node_modules/,
+        loader: 'babel-loader'
+      }
+    ]
+  },
+  plugins: plugins
+};
