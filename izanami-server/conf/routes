@@ -1,0 +1,129 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# https://www.playframework.com/documentation/latest/ScalaRouting
+# ~~~~
+
+# An example controller showing a sample home page
+GET     /                                   controllers.HomeController.index
+
+#Configs old
+GET     /api/config                         controllers.ConfigControllerOld.list(keyConfig: String ?= "*", page: Int ?= 1, nbElementPerPage: Int ?= 15)
+POST    /api/config                         controllers.ConfigControllerOld.create()
+GET     /api/config/:id                     controllers.ConfigControllerOld.get(id)
+PUT     /api/config/:id                     controllers.ConfigControllerOld.update(id)
+DELETE  /api/config/:id                     controllers.ConfigControllerOld.delete(id)
+GET     /api/tree/config                    controllers.ConfigControllerOld.tree(pattern: String ?= "*")
+GET     /api/counts/config                  controllers.ConfigControllerOld.count()
+
+#Configs
+GET     /api/configs                        controllers.ConfigController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+POST    /api/configs                        controllers.ConfigController.create()
+GET     /api/configs/:id                    controllers.ConfigController.get(id)
+PUT     /api/configs/:id                    controllers.ConfigController.update(id)
+DELETE  /api/configs/:id                    controllers.ConfigController.delete(id)
+GET     /api/tree/configs                   controllers.ConfigController.tree(pattern: String ?= "*")
+GET     /api/configs.ndjson                 controllers.ConfigController.download()
+POST    /api/configs.ndjson                 controllers.ConfigController.upload()
+GET     /api/counts/configs                 controllers.ConfigController.count()
+
+#Features
+GET     /api/features                       controllers.FeatureController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false)
+POST    /api/features/_checks               controllers.FeatureController.listWithContext(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+POST    /api/features                       controllers.FeatureController.create()
+DELETE  /api/features                       controllers.FeatureController.deleteAll(pattern: String ?= "*")
+GET     /api/features/:id                   controllers.FeatureController.get(id: String)
+PUT     /api/features/:id                   controllers.FeatureController.update(id)
+DELETE  /api/features/:id                   controllers.FeatureController.delete(id)
+GET     /api/features/:id/check             controllers.FeatureController.check(id)
+POST    /api/features/:id/check             controllers.FeatureController.checkWithContext(id)
+GET     /api/features.ndjson                controllers.FeatureController.download()
+POST    /api/features.ndjson                controllers.FeatureController.upload()
+POST    /api/tree/features                  controllers.FeatureController.tree(pattern: String ?= "*", flat: Boolean = false)
+GET     /api/tree/features                  controllers.FeatureController.treeGet(pattern: String ?= "*", flat: Boolean = false)
+GET     /api/counts/features                controllers.FeatureController.count()
+
+#GlobalScript
+GET     /api/scripts                        controllers.GlobalScriptController.list(pattern: String ?= "*", name_only: Option[Boolean], page: Int ?= 1, pageSize: Int ?= 15)
+POST    /api/scripts                        controllers.GlobalScriptController.create()
+DELETE  /api/scripts                        controllers.GlobalScriptController.deleteAll(pattern: String ?= "*")
+GET     /api/scripts/:id                    controllers.GlobalScriptController.get(id)
+PUT     /api/scripts/:id                    controllers.GlobalScriptController.update(id)
+DELETE  /api/scripts/:id                    controllers.GlobalScriptController.delete(id)
+GET     /api/scripts.ndjson                 controllers.GlobalScriptController.download()
+POST    /api/scripts.ndjson                 controllers.GlobalScriptController.upload()
+
+#Experiments
+GET     /api/experiments                    controllers.ExperimentController.list(pattern: String ?= "*")
+GET     /api/tree/experiments               controllers.ExperimentController.tree(pattern: String ?= "*", clientId: String)
+POST    /api/experiments                    controllers.ExperimentController.create()
+GET     /api/experiments.ndjson             controllers.ExperimentController.downloadExperiments()
+POST    /api/experiments.ndjson             controllers.ExperimentController.uploadExperiments()
+GET     /api/experiments/bindings.ndjson    controllers.ExperimentController.downloadBindings()
+POST    /api/experiments/bindings.ndjson    controllers.ExperimentController.uploadBindings()
+GET     /api/experiments/events.ndjson      controllers.ExperimentController.downloadEvents()
+POST    /api/experiments/events.ndjson      controllers.ExperimentController.uploadEvents()
+DELETE  /api/experiments                    controllers.ExperimentController.deleteAll(pattern: String ?= "*")
+GET     /api/experiments/:id                controllers.ExperimentController.get(id, clientId: Option[String])
+PUT     /api/experiments/:id                controllers.ExperimentController.update(id)
+DELETE  /api/experiments/:id                controllers.ExperimentController.delete(id)
+GET     /api/experiments/:id/variant        controllers.ExperimentController.getVariantForClient(id: String, clientId: String)
+POST    /api/experiments/:id/displayed      controllers.ExperimentController.variantDisplayed(id: String, clientId: String)
+POST    /api/experiments/:id/won            controllers.ExperimentController.variantWon(id: String, clientId: String)
+GET     /api/experiments/:id/results        controllers.ExperimentController.results(id: String)
+GET     /api/counts/experiments             controllers.ExperimentController.count()
+
+#Webhooks
+GET     /api/webhooks                       controllers.WebhookController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+GET     /api/webhooks.ndjson                controllers.WebhookController.download()
+POST    /api/webhooks.ndjson                controllers.WebhookController.upload()
+POST    /api/webhooks                       controllers.WebhookController.create()
+GET     /api/webhooks/:id                   controllers.WebhookController.get(id)
+PUT     /api/webhooks/:id                   controllers.WebhookController.update(id)
+DELETE  /api/webhooks/:id                   controllers.WebhookController.delete(id)
+GET     /api/counts/webhooks                controllers.WebhookController.count()
+
+#Users
+GET     /api/users                          controllers.UserController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+GET     /api/users.ndjson                   controllers.UserController.download()
+POST    /api/users.ndjson                   controllers.UserController.upload()
+POST    /api/users                          controllers.UserController.create()
+GET     /api/users/:id                      controllers.UserController.get(id)
+PUT     /api/users/:id                      controllers.UserController.update(id)
+DELETE  /api/users/:id                      controllers.UserController.delete(id)
+GET     /api/counts/users                   controllers.UserController.count()
+
+#Apikeys
+GET     /api/apikeys                        controllers.ApikeyController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+GET     /api/apikeys.ndjson                 controllers.ApikeyController.download()
+POST    /api/apikeys.ndjson                 controllers.ApikeyController.upload()
+POST    /api/apikeys                        controllers.ApikeyController.create()
+GET     /api/apikeys/:id                    controllers.ApikeyController.get(id)
+PUT     /api/apikeys/:id                    controllers.ApikeyController.update(id)
+DELETE  /api/apikeys/:id                    controllers.ApikeyController.delete(id)
+GET     /api/counts/apikeys                 controllers.ApikeyController.count()
+
+
+GET     /api/events                         controllers.EventsController.allEvents(pattern: String ?= "*", domains: String ?= "")
+GET     /api/events/:domain                 controllers.EventsController.eventsForADomain(domain: String, patterns: String ?= "")
+
+# Search
+GET     /api/_search                        controllers.SearchController.search(patterns: String, features: Boolean ?= true, configs: Boolean ?= true, experiments: Boolean ?= true, scripts: Boolean ?= true)
+
+#Authentication
+POST    /api/login                          controllers.AuthController.authenticate()
+GET     /api/logout                         controllers.AuthController.logout()
+
+GET     /api/bo/loggers/:name/level         controllers.BackOfficeController.getLogLevel(name)
+PUT     /api/bo/loggers/:name/level         controllers.BackOfficeController.changeLogLevel(name, newLevel: Option[String])
+GET     /api/bo/loggers                     controllers.BackOfficeController.getAllLoggers()
+
+GET     /api/swagger.json                   controllers.SwaggerController.swagger()
+GET     /api/swagger/ui                     controllers.SwaggerController.swaggerUi()
+
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file                       controllers.Assets.versioned(file: String)
+
+GET     /login                              controllers.HomeController.login()
+
+GET     /*other                             controllers.HomeController.otherRoutes(other)

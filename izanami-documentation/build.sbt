@@ -5,7 +5,11 @@ lazy val `izanami-documentation` = (project in file("."))
   .settings(
     name := "Izanami",
     paradoxTheme := Some(builtinParadoxTheme("generic")),
+    paradoxGroups := Map("Language" -> Seq("Scala", "Java")),
     paradoxProperties in Compile ++= Map(
+      "version" -> version.value,
+      "scalaVersion" -> scalaVersion.value,
+      "scalaBinaryVersion" -> scalaBinaryVersion.value,
       "download_zip.base_url" -> s"https://github.com/maif/izanami/release/download/v-${version}/izanami.zip",
       "download_jar.base_url" -> s"https://github.com/maif/izanami/release/download/v-${version}/izanami.jar",
       "extref.diagram.base_url" -> s"${(target.value / "ditaa").getAbsolutePath}/%s"
@@ -16,7 +20,6 @@ lazy val `izanami-documentation` = (project in file("."))
       sourceDirectory.value / "main" / "paradox"
     )
   )
-
 
 lazy val generateDoc = taskKey[Unit]("Copy doc")
 
@@ -30,4 +33,3 @@ generateDoc := {
   IO.delete(targetDocs)
   IO.copyDirectory(paradoxFile, targetDocs)
 }
-
