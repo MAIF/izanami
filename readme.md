@@ -6,5 +6,5 @@ Izanami is a shared configuration service well-suited for micro-service architec
 Izanami also provides first class integration. We provide Java, Scala, Node and React clients to integrate with your apps. We also provide webhook integration.
 
 
-<img src="https://github.com/MAIF/otoroshi/raw/master/izanami-documentation/src/main/paradox/img/izanami.png"></img>
+<img src="https://github.com/MAIF/izanami/raw/master/izanami-documentation/src/main/paradox/img/izanami.png"></img>
 
