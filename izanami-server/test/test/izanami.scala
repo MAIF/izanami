@@ -1,6 +1,5 @@
 package test
 
-
 import controllers.actions.AuthContext
 import domains.user.User
 import modules.IzanamiComponentsInstances
@@ -13,59 +12,88 @@ import play.api.mvc.{ActionBuilder, _}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-
 trait IzanamiSpec extends WordSpec with MustMatchers with OptionValues
 
-class TestAuthAction(user: => User, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
+class TestAuthAction(user: => User, val parser: BodyParser[AnyContent])(
+    implicit val executionContext: ExecutionContext)
     extends ActionBuilder[AuthContext, AnyContent]
     with ActionFunction[Request, AuthContext] {
 
-  override def invokeBlock[A](request: Request[A], block: (AuthContext[A]) => Future[Result]): Future[Result] =
+  override def invokeBlock[A](
+      request: Request[A],
+      block: (AuthContext[A]) => Future[Result]): Future[Result] =
     block(AuthContext(request, Some(user)))
 }
 
-class IzanamiTestComponentsInstances(context: Context, user: => User, conf: Configuration => Configuration)
+class IzanamiTestComponentsInstances(context: Context,
+                                     user: => User,
+                                     conf: Configuration => Configuration)
     extends IzanamiComponentsInstances(context) {
   override def configuration = conf(super.configuration)
 
-  override def authAction: ActionBuilder[AuthContext, AnyContent] = new TestAuthAction(user, defaultBodyParser)
+  override def authAction: ActionBuilder[AuthContext, AnyContent] =
+    new TestAuthAction(user, defaultBodyParser)
 }
 
 trait AddConfiguration {
   def getConfiguration(configuration: Configuration) = configuration
 }
 
-trait OneAppPerTestWithMyComponents extends OneAppPerTestWithComponents with ScalaFutures with AddConfiguration {
+trait OneAppPerTestWithMyComponents
+    extends OneAppPerTestWithComponents
+    with ScalaFutures
+    with AddConfiguration {
   this: TestSuite =>
 
   def user =
-    User(id = "id", name = "Ragnar Lodbrok", email = "ragnar.lodbrok@gmail.com", admin = true, authorizedPattern = "*")
+    User(id = "id",
+         name = "Ragnar Lodbrok",
+         email = "ragnar.lodbrok@gmail.com",
+         admin = true,
+         authorizedPattern = "*")
 
-  def izanamiComponents = new IzanamiTestComponentsInstances(context, user, getConfiguration)
+  def izanamiComponents =
+    new IzanamiTestComponentsInstances(context, user, getConfiguration)
 
   override def components: BuiltInComponents = izanamiComponents
 
 }
 
-trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with ScalaFutures with AddConfiguration {
+trait OneAppPerSuiteWithMyComponents
+    extends OneAppPerSuiteWithComponents
+    with ScalaFutures
+    with AddConfiguration {
   this: TestSuite =>
 
   def user =
-    User(id = "id", name = "Ragnar Lodbrok", email = "ragnar.lodbrok@gmail.com", admin = true, authorizedPattern = "*")
+    User(id = "id",
+         name = "Ragnar Lodbrok",
+         email = "ragnar.lodbrok@gmail.com",
+         admin = true,
+         authorizedPattern = "*")
 
-  def izanamiComponents = new IzanamiTestComponentsInstances(context, user, getConfiguration)
+  def izanamiComponents =
+    new IzanamiTestComponentsInstances(context, user, getConfiguration)
 
   override def components: BuiltInComponents = izanamiComponents
 
 }
 
-trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents with ScalaFutures with AddConfiguration {
+trait OneServerPerTestWithMyComponents
+    extends OneServerPerTestWithComponents
+    with ScalaFutures
+    with AddConfiguration {
   this: TestSuite =>
 
   def user =
-    User(id = "id", name = "Ragnar Lodbrok", email = "ragnar.lodbrok@gmail.com", admin = true, authorizedPattern = "*")
+    User(id = "id",
+         name = "Ragnar Lodbrok",
+         email = "ragnar.lodbrok@gmail.com",
+         admin = true,
+         authorizedPattern = "*")
 
-  def izanamiComponents = new IzanamiTestComponentsInstances(context, user, getConfiguration)
+  def izanamiComponents =
+    new IzanamiTestComponentsInstances(context, user, getConfiguration)
 
   override def components: BuiltInComponents = izanamiComponents
 
@@ -77,9 +105,14 @@ trait OneServerPerSuiteWithMyComponents
     with AddConfiguration { this: TestSuite =>
 
   def user =
-    User(id = "id", name = "Ragnar Lodbrok", email = "ragnar.lodbrok@gmail.com", admin = true, authorizedPattern = "*")
+    User(id = "id",
+         name = "Ragnar Lodbrok",
+         email = "ragnar.lodbrok@gmail.com",
+         admin = true,
+         authorizedPattern = "*")
 
-  def izanamiComponents = new IzanamiTestComponentsInstances(context, user, getConfiguration)
+  def izanamiComponents =
+    new IzanamiTestComponentsInstances(context, user, getConfiguration)
 
   override def components: BuiltInComponents = izanamiComponents
 }

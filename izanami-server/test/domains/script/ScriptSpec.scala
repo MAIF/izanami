@@ -9,14 +9,23 @@ import org.scalatestplus.play.components.OneServerPerSuiteWithComponents
 import play.api.ApplicationLoader.Context
 import play.api.libs.json.Json
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.{BuiltInComponents, BuiltInComponentsFromContext, Configuration, NoHttpFiltersComponents}
+import play.api.{
+  BuiltInComponents,
+  BuiltInComponentsFromContext,
+  Configuration,
+  NoHttpFiltersComponents
+}
 
 import scala.concurrent.duration.DurationInt
 
 /**
- * Created by adelegue on 18/07/2017.
- */
-class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with ScalaFutures with IntegrationPatience {
+  * Created by adelegue on 18/07/2017.
+  */
+class ScriptSpec
+    extends PlaySpec
+    with OneServerPerSuiteWithComponents
+    with ScalaFutures
+    with IntegrationPatience {
 
   case class TestComponent(context: Context)
       extends BuiltInComponentsFromContext(context)
@@ -75,7 +84,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     WebhookConfig(DbDomainConfig("", DbDomainConfigDetails("")),
                   1.second,
                   WebhookEventsConfig(5, 1.second, 1, 1.second)),
-    UserConfig(DbDomainConfig("", DbDomainConfigDetails("")), InitialUserConfig("", "")),
+    UserConfig(DbDomainConfig("", DbDomainConfigDetails("")),
+               InitialUserConfig("", "")),
     ApikeyConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     InMemoryEvents(InMemoryEventsConfig())
   )
@@ -84,7 +94,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
     "a script executed must return true" in {
 
-      implicit val ec: ScriptExecutionContext = ScriptExecutionContext(testComponents.actorSystem)
+      implicit val ec: ScriptExecutionContext =
+        ScriptExecutionContext(testComponents.actorSystem)
 
       val result: Boolean = Script
         .executeScript(
@@ -105,7 +116,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     }
     "a script executed must return false" in {
 
-      implicit val ec: ScriptExecutionContext = ScriptExecutionContext(testComponents.actorSystem)
+      implicit val ec: ScriptExecutionContext =
+        ScriptExecutionContext(testComponents.actorSystem)
 
       val result: Boolean = Script
         .executeScript(

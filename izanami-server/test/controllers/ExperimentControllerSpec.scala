@@ -28,18 +28,25 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
     "create read update delete deleteAll" in {
       val key = "my:path"
       /* First check */
-      ws.url(s"$rootPath/api/experiments/$key").get().futureValue.status must be(404)
+      ws.url(s"$rootPath/api/experiments/$key")
+        .get()
+        .futureValue
+        .status must be(404)
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
-        Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
+        Json.parse(
+          """{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
       /* Create */
       val experiment = Json.obj("id" -> key,
-                                "name"        -> "a name",
+                                "name" -> "a name",
                                 "description" -> "A description",
-                                "enabled"     -> false,
-                                "variants"    -> Json.arr())
-      ws.url(s"$rootPath/api/experiments").post(experiment).futureValue.status must be(201)
+                                "enabled" -> false,
+                                "variants" -> Json.arr())
+      ws.url(s"$rootPath/api/experiments")
+        .post(experiment)
+        .futureValue
+        .status must be(201)
 
       /* Verify */
       val getById = ws.url(s"$rootPath/api/experiments/$key").get().futureValue
@@ -47,42 +54,64 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
       getById.json must be(experiment)
 
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
-        Json.obj("results"  -> Json.arr(experiment),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
+        Json.obj("results" -> Json.arr(experiment),
+                 "metadata" -> Json.obj("page" -> 1,
+                                        "pageSize" -> 15,
+                                        "count" -> 1,
+                                        "nbPages" -> 1))
       )
 
       /* Update */
       val experimentUpdated = Json.obj("id" -> key,
-                                       "name"        -> "a name",
+                                       "name" -> "a name",
                                        "description" -> "A description",
-                                       "enabled"     -> true,
-                                       "variants"    -> Json.arr())
-      ws.url(s"$rootPath/api/experiments/$key").put(experimentUpdated).futureValue.status must be(200)
+                                       "enabled" -> true,
+                                       "variants" -> Json.arr())
+      ws.url(s"$rootPath/api/experiments/$key")
+        .put(experimentUpdated)
+        .futureValue
+        .status must be(200)
 
       /* Verify */
-      val getByIdUpdated = ws.url(s"$rootPath/api/experiments/$key").get().futureValue
+      val getByIdUpdated =
+        ws.url(s"$rootPath/api/experiments/$key").get().futureValue
       getByIdUpdated.status must be(200)
       getByIdUpdated.json must be(experimentUpdated)
 
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
-        Json.obj("results"  -> Json.arr(experimentUpdated),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
+        Json.obj("results" -> Json.arr(experimentUpdated),
+                 "metadata" -> Json.obj("page" -> 1,
+                                        "pageSize" -> 15,
+                                        "count" -> 1,
+                                        "nbPages" -> 1))
       )
 
       /* Delete */
-      ws.url(s"$rootPath/api/experiments/$key").delete().futureValue.status must be(200)
+      ws.url(s"$rootPath/api/experiments/$key")
+        .delete()
+        .futureValue
+        .status must be(200)
 
       /* Verify */
-      ws.url(s"$rootPath/api/experiments/$key").get().futureValue.status must be(404)
+      ws.url(s"$rootPath/api/experiments/$key")
+        .get()
+        .futureValue
+        .status must be(404)
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
-        Json.obj("results"  -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+        Json.obj("results" -> Json.arr(),
+                 "metadata" -> Json.obj("page" -> 1,
+                                        "pageSize" -> 15,
+                                        "count" -> 0,
+                                        "nbPages" -> 0))
       )
 
       /* Delete all */
-      ws.url(s"$rootPath/api/experiments").addQueryStringParameters("patterns" -> "id*").delete()
+      ws.url(s"$rootPath/api/experiments")
+        .addQueryStringParameters("patterns" -> "id*")
+        .delete()
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
-        Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
+        Json.parse(
+          """{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
     }
 
@@ -91,16 +120,25 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
       /* Create */
       val key = "test1:ab:scenario"
       val experiment = Json.obj(
-        "id"          -> key,
-        "name"        -> "a name",
+        "id" -> key,
+        "name" -> "a name",
         "description" -> "A description",
-        "enabled"     -> true,
+        "enabled" -> true,
         "variants" -> Json.arr(
-          Json.obj("id" -> "A", "name" -> "A", "description" -> "A scenario", "traffic" -> 0.4),
-          Json.obj("id" -> "B", "name" -> "B", "description" -> "B scenario", "traffic" -> 0.6)
+          Json.obj("id" -> "A",
+                   "name" -> "A",
+                   "description" -> "A scenario",
+                   "traffic" -> 0.4),
+          Json.obj("id" -> "B",
+                   "name" -> "B",
+                   "description" -> "B scenario",
+                   "traffic" -> 0.6)
         )
       )
-      ws.url(s"$rootPath/api/experiments").post(experiment).futureValue.status must be(201)
+      ws.url(s"$rootPath/api/experiments")
+        .post(experiment)
+        .futureValue
+        .status must be(201)
 
       var variants = Seq.empty[String]
 
@@ -248,16 +286,25 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
       /* Create */
       val key = "test2:ab:scenario"
       val experiment = Json.obj(
-        "id"          -> key,
-        "name"        -> "a name",
+        "id" -> key,
+        "name" -> "a name",
         "description" -> "A description",
-        "enabled"     -> true,
+        "enabled" -> true,
         "variants" -> Json.arr(
-          Json.obj("id" -> "A", "name" -> "A", "description" -> "A scenario", "traffic" -> 0.5),
-          Json.obj("id" -> "B", "name" -> "B", "description" -> "B scenario", "traffic" -> 0.5)
+          Json.obj("id" -> "A",
+                   "name" -> "A",
+                   "description" -> "A scenario",
+                   "traffic" -> 0.5),
+          Json.obj("id" -> "B",
+                   "name" -> "B",
+                   "description" -> "B scenario",
+                   "traffic" -> 0.5)
         )
       )
-      ws.url(s"$rootPath/api/experiments").post(experiment).futureValue.status must be(201)
+      ws.url(s"$rootPath/api/experiments")
+        .post(experiment)
+        .futureValue
+        .status must be(201)
 
       // Client 1 displayed and won
       ws.url(s"$rootPath/api/experiments/$key/displayed")
@@ -331,15 +378,19 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
         .futureValue
         .json \ "id").as[String] must be("B")
 
-      val results = ws.url(s"$rootPath/api/experiments/$key/results").get().futureValue
+      val results =
+        ws.url(s"$rootPath/api/experiments/$key/results").get().futureValue
       results.status must be(200)
 
-      val eResult: ExperimentResult = ExperimentResult.format.reads(results.json).get
+      val eResult: ExperimentResult =
+        ExperimentResult.format.reads(results.json).get
 
       eResult.results.size must be(2)
 
-      val variantA: VariantResult = eResult.results.find(v => v.variant.get.id == "A").get
-      val variantB: VariantResult = eResult.results.find(v => v.variant.get.id == "B").get
+      val variantA: VariantResult =
+        eResult.results.find(v => v.variant.get.id == "A").get
+      val variantB: VariantResult =
+        eResult.results.find(v => v.variant.get.id == "B").get
 
       variantA.displayed must be(3)
       variantA.won must be(2)
@@ -347,7 +398,8 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
       val eventsA: Seq[ExperimentVariantEvent] = variantA.events
       eventsA.size must be(5)
       eventsA(0).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-      val eventA0: ExperimentVariantDisplayed = eventsA(0).asInstanceOf[ExperimentVariantDisplayed]
+      val eventA0: ExperimentVariantDisplayed =
+        eventsA(0).asInstanceOf[ExperimentVariantDisplayed]
       eventA0.variantId must be("A")
       eventA0.variant.id must be("A")
       eventA0.transformation must be(0)
@@ -355,7 +407,8 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
       eventsA(2).isInstanceOf[ExperimentVariantWon] must be(true)
       eventsA(3).isInstanceOf[ExperimentVariantDisplayed] must be(true)
       eventsA(4).isInstanceOf[ExperimentVariantWon] must be(true)
-      val eventA4: ExperimentVariantWon = eventsA(4).asInstanceOf[ExperimentVariantWon]
+      val eventA4: ExperimentVariantWon =
+        eventsA(4).asInstanceOf[ExperimentVariantWon]
       eventA4.transformation must be(66.66666666666667)
 
       variantB.displayed must be(2)
@@ -364,13 +417,15 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
       val eventsB: Seq[ExperimentVariantEvent] = variantB.events
       eventsB.size must be(3)
       eventsB(0).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-      val eventB0: ExperimentVariantDisplayed = eventsB(0).asInstanceOf[ExperimentVariantDisplayed]
+      val eventB0: ExperimentVariantDisplayed =
+        eventsB(0).asInstanceOf[ExperimentVariantDisplayed]
       eventB0.variantId must be("B")
       eventB0.variant.id must be("B")
       eventB0.transformation must be(0)
       eventsB(1).isInstanceOf[ExperimentVariantWon] must be(true)
       eventsB(2).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-      val eventsB2: ExperimentVariantDisplayed = eventsB(2).asInstanceOf[ExperimentVariantDisplayed]
+      val eventsB2: ExperimentVariantDisplayed =
+        eventsB(2).asInstanceOf[ExperimentVariantDisplayed]
       eventsB2.transformation must be(50)
     }
   }

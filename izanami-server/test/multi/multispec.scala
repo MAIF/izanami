@@ -24,7 +24,7 @@ object Configs {
   val cassandraPort: Int = 9042
 
   val elasticHttpPort: Int = 9210
-  val elasticTcpPort: Int  = 9300
+  val elasticTcpPort: Int = 9300
 
   val elasticConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
@@ -134,7 +134,8 @@ object Configs {
   )
 
   val inMemoryConfiguration: Configuration = Configuration(
-    ConfigFactory.parseString("""
+    ConfigFactory
+      .parseString("""
         |izanami.db.default="InMemory"
         |
         |izanami.mode= "test"
@@ -147,7 +148,8 @@ object Configs {
         |izanami.webhook.db.type=${izanami.db.default}
         |izanami.user.db.type=${izanami.db.default}
         |izanami.apikey.db.type=${izanami.db.default}
-      """.stripMargin).resolve()
+      """.stripMargin)
+      .resolve()
   )
 
   def folderConfig = s"data-${Random.nextInt(1000)}"
@@ -212,7 +214,8 @@ class ElasticTests
 class CassandraTests
     extends Suites(
       new ConfigControllerSpec(Configs.cassandraConfiguration("config")),
-      new ExperimentControllerSpec(Configs.cassandraConfiguration("experiment")),
+      new ExperimentControllerSpec(
+        Configs.cassandraConfiguration("experiment")),
       new FeatureControllerSpec(Configs.cassandraConfiguration("features")),
       new GlobalScriptControllerSpec(Configs.cassandraConfiguration("script")),
       new WebhookControllerSpec(Configs.cassandraConfiguration("webhook")),
@@ -222,13 +225,20 @@ class CassandraTests
 
 class LevelDBTests
     extends Suites(
-      new ConfigControllerSpec(Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ExperimentControllerSpec(Configs.levelDBConfiguration(Configs.folderConfig)),
-      new FeatureControllerSpec(Configs.levelDBConfiguration(Configs.folderConfig)),
-      new GlobalScriptControllerSpec(Configs.levelDBConfiguration(Configs.folderConfig)),
-      new WebhookControllerSpec(Configs.levelDBConfiguration(Configs.folderConfig)),
-      new UserControllerSpec(Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ApikeyControllerSpec(Configs.levelDBConfiguration(Configs.folderConfig))
+      new ConfigControllerSpec(
+        Configs.levelDBConfiguration(Configs.folderConfig)),
+      new ExperimentControllerSpec(
+        Configs.levelDBConfiguration(Configs.folderConfig)),
+      new FeatureControllerSpec(
+        Configs.levelDBConfiguration(Configs.folderConfig)),
+      new GlobalScriptControllerSpec(
+        Configs.levelDBConfiguration(Configs.folderConfig)),
+      new WebhookControllerSpec(
+        Configs.levelDBConfiguration(Configs.folderConfig)),
+      new UserControllerSpec(
+        Configs.levelDBConfiguration(Configs.folderConfig)),
+      new ApikeyControllerSpec(
+        Configs.levelDBConfiguration(Configs.folderConfig))
     )
     with BeforeAndAfterAll {
 
