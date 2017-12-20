@@ -198,12 +198,18 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <ul>
       <li><a href="../clients/jvm.html#the-smart-cache-strategy" class="header">The smart cache strategy</a></li>
     </ul></li>
-    <li><a href="../clients/jvm.html#client-usage" class="header">Client usage</a></li>
+    <li><a href="../clients/jvm.html#client-usage" class="header">Client usage</a>
+    <ul>
+      <li><a href="../clients/jvm.html#list-features" class="header">List features</a></li>
+      <li><a href="../clients/jvm.html#check-feature" class="header">Check feature</a></li>
+      <li><a href="../clients/jvm.html#conditional-code-on-feature" class="header">Conditional code on feature</a></li>
+    </ul></li>
   </ul></li>
   <li><a href="../clients/jvm.html#experiments-client" class="header">Experiments client</a>
   <ul>
     <li><a href="../clients/jvm.html#setup-the-client" class="header">Setup the client</a></li>
   </ul></li>
+  <li><a href="../clients/jvm.html#exposing-izanami-with-a-proxy" class="header">Exposing izanami with a Proxy</a></li>
 </ul>
 </div>
 <p>It&rsquo;s simple to build your client using the APIs. If you&rsquo;re application is built on jvm you can also use the built-in Izanami client. </p>
@@ -249,21 +255,23 @@ import izanami.scaladsl._
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-java">IzanamiClient izanamiClient = IzanamiClient.client(
-    system,
-    ClientConfig.create(&quot;http://localhost:8089&quot;)
-        .withClientId(&quot;xxxx&quot;)
-        .withClientIdHeaderName(&quot;Another-Client-Id-Header&quot;)
-        .withClientSecret(&quot;xxxx&quot;)
-        .withClientSecretHeaderName(&quot;Another-Client-Secret-Header&quot;)
-        .sseBackend()
-        .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;)
-        .withPageSize(50)
-        .withZoneId(ZoneId.of(&quot;Europe/Paris&quot;))
+  <pre class="prettyprint"><code class="language-java">izanamiClient = IzanamiClient.client(
+        system,
+        ClientConfig.create(&quot;http://localhost:8089&quot;)
+                .withClientId(&quot;xxxx&quot;)
+                .withClientIdHeaderName(&quot;Another-Client-Id-Header&quot;)
+                .withClientSecret(&quot;xxxx&quot;)
+                .withClientSecretHeaderName(&quot;Another-Client-Secret-Header&quot;)
+                .sseBackend()
+                .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;)
+                .withPageSize(50)
+                .withZoneId(ZoneId.of(&quot;Europe/Paris&quot;))
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">implicit val system = ActorSystem(&quot;izanami-client&quot;, ConfigFactory.parseString(&quot;&quot;&quot;
+  <pre class="prettyprint"><code class="language-scala">implicit val system = ActorSystem(
+  &quot;izanami-client&quot;,
+  ConfigFactory.parseString(&quot;&quot;&quot;
     izanami-example.blocking-io-dispatcher {
       type = Dispatcher
       executor = &quot;thread-pool-executor&quot;
@@ -272,7 +280,8 @@ import izanami.scaladsl._
       }
       throughput = 1
     }
-  &quot;&quot;&quot;))
+  &quot;&quot;&quot;)
+)
 
 val client = IzanamiClient(
   ClientConfig(
@@ -513,7 +522,7 @@ futureConfig.onComplete {
     patterns = Seq(&quot;*&quot;),
     pollingInterval = 3.second
   ),
-  fallback = Features(fallback:_*)
+  fallback = Features(fallback: _*)
 )</code></pre></dd>
 </dl>
 <p>The client will cache all the configs matching this patterns. </p>
@@ -524,8 +533,99 @@ futureConfig.onComplete {
 <p>The feature that need a context to be evaluated are not cached. The cache is used only for simple features or feature with release date. </p></div><div class="callout warning "><div class="callout-title">Warning</div>
 <p>There is no TTL using this strategy so you have to choose the right patterns to be sure that all datas fit in memory. </p></div>
 <h3><a href="#client-usage" name="client-usage" class="anchor"><span class="anchor-link"></span></a>Client usage</h3>
+<h4><a href="#list-features" name="list-features" class="anchor"><span class="anchor-link"></span></a>List features</h4>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Features&gt; futureFeatures = featureClient.features(&quot;my:feature:*&quot;);
+
+futureFeatures.onSuccess(features -&gt; {
+    boolean active = features.isActive(&quot;my:feature:test&quot;);
+    if (active) {
+        System.out.println(&quot;Feature my:feature:test is active&quot;);
+    } else {
+        System.out.println(&quot;Feature my:feature:test is active&quot;);
+    }
+    JsObject tree = features.tree();
+    System.out.println(&quot;Tree is &quot; + Json.prettyPrint(tree));
+});</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val futureFeatures: Future[Features] = featureClient.features(&quot;*&quot;)
+futureFeatures.onComplete {
+  case Success(features) =&gt;
+    val active: Boolean = features.isActive(&quot;test&quot;)
+    if (active)
+      println(s&quot;Feature test is active&quot;)
+    else
+      println(s&quot;Feature test is not active&quot;)
+
+    val tree: JsObject = features.tree()
+    println(s&quot;All features: ${Json.prettyPrint(tree)}&quot;)
+
+  case Failure(e) =&gt;
+    e.printStackTrace()
+}</code></pre></dd>
+</dl>
+<h4><a href="#check-feature" name="check-feature" class="anchor"><span class="anchor-link"></span></a>Check feature</h4>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Boolean&gt; futureCheck = featureClient.checkFeature(&quot;my:feature&quot;);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val futureCheck: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;)</code></pre></dd>
+</dl>
+<p>If the feature needs a context to be evaluated: </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Boolean&gt; futureCheckContext = featureClient.checkFeature(&quot;my:feature&quot;, Json.obj(
+        $(&quot;context&quot;, true)
+));</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val context = Json.obj(&quot;context&quot; -&gt; true)
+val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;, context)</code></pre></dd>
+</dl>
+<h4><a href="#conditional-code-on-feature" name="conditional-code-on-feature" class="anchor"><span class="anchor-link"></span></a>Conditional code on feature</h4>
+<p>This execute a code and return a value if a feature is active: </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;String&gt; conditonal = featureClient.featureOrElse(&quot;my:feature&quot;,
+        () -&gt; &quot;Feature is active&quot;,
+        () -&gt; &quot;Feature is not active&quot;
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val conditonal: Future[String] = featureClient.featureOrElse(&quot;test&quot;) {
+  &quot;Feature is active&quot;
+} {
+  &quot;Feature is not active&quot;
+}</code></pre></dd>
+</dl>
+<p>Or with a context </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;String&gt; conditonalContext = featureClient.featureOrElse(
+        &quot;my:feature&quot;,
+        Json.obj($(&quot;context&quot;, true)),
+        () -&gt; &quot;Feature is active&quot;,
+        () -&gt; &quot;Feature is not active&quot;
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val conditonalWithContext: Future[String] = featureClient.featureOrElse(&quot;test&quot;, context) {
+  &quot;Feature is active&quot;
+} {
+  &quot;Feature is not active&quot;
+}</code></pre></dd>
+</dl>
 <h2><a href="#experiments-client" name="experiments-client" class="anchor"><span class="anchor-link"></span></a>Experiments client</h2>
 <h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
+<h2><a href="#exposing-izanami-with-a-proxy" name="exposing-izanami-with-a-proxy" class="anchor"><span class="anchor-link"></span></a>Exposing izanami with a Proxy</h2>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../clients/react.html">React</a></p>
 </div>
@@ -542,6 +642,7 @@ futureConfig.onComplete {
     <li><a href="../clients/jvm.html#configs-client" class="header">Configs client</a></li>
     <li><a href="../clients/jvm.html#features-client" class="header">Features client</a></li>
     <li><a href="../clients/jvm.html#experiments-client" class="header">Experiments client</a></li>
+    <li><a href="../clients/jvm.html#exposing-izanami-with-a-proxy" class="header">Exposing izanami with a Proxy</a></li>
   </ul></li>
 </ul>
 </div>
