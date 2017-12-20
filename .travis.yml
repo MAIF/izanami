@@ -22,7 +22,7 @@ before_install:
   - docker-compose up -d
 
 script:
-  - sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";compile"
+  - sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";compile;"
 
 
 after_failure:
