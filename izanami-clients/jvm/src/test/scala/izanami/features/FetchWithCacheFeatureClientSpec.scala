@@ -12,7 +12,11 @@ import play.api.libs.json.Json
 
 import scala.concurrent.duration.DurationInt
 
-class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll with MockitoSugar with FeatureServer {
+class FetchWithCacheFeatureClientSpec
+    extends IzanamiSpec
+    with BeforeAndAfterAll
+    with MockitoSugar
+    with FeatureServer {
 
   implicit val system = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
@@ -42,7 +46,7 @@ class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll
         strategy.features("*").futureValue
         strategy.features("*").futureValue
 
-        features.featuresSeq must be (initialFeatures)
+        features.featuresSeq must be(initialFeatures)
         ctx.calls.size must be(1)
 
         features.isActive("test1") must be(true)
@@ -55,11 +59,10 @@ class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll
       runServer { ctx =>
         val strategy = IzanamiClient(
           ClientConfig(ctx.host)
-        ).featureClient(
-          strategy = FetchWithCacheStrategy(2, 1.second),
-          fallback = Features(
-            DefaultFeature("test4", true)
-          ))
+        ).featureClient(strategy = FetchWithCacheStrategy(2, 1.second),
+                        fallback = Features(
+                          DefaultFeature("test4", true)
+                        ))
 
         val initialFeatures = Seq(
           DefaultFeature("test1", true),
@@ -71,14 +74,20 @@ class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll
 
         strategy.checkFeature("test1").futureValue must be(true)
         ctx.calls must have size 1
-        strategy.checkFeature("test1", Json.obj("context" -> true)).futureValue must be(true)
+        strategy
+          .checkFeature("test1", Json.obj("context" -> true))
+          .futureValue must be(true)
         ctx.calls must have size 2
         strategy.checkFeature("test1").futureValue must be(true)
-        strategy.checkFeature("test1", Json.obj("context" -> true)).futureValue must be(true)
+        strategy
+          .checkFeature("test1", Json.obj("context" -> true))
+          .futureValue must be(true)
         ctx.calls must have size 2
 
         strategy.checkFeature("test1").futureValue must be(true)
-        strategy.checkFeature("test1", Json.obj("context" -> true)).futureValue must be(true)
+        strategy
+          .checkFeature("test1", Json.obj("context" -> true))
+          .futureValue must be(true)
         ctx.calls must have size 2
 
         strategy.checkFeature("test2").futureValue must be(true)

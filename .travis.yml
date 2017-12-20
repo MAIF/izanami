@@ -1,0 +1,46 @@
+language: scala
+
+sudo: false
+
+scala:
+  - "2.12.4"
+
+jdk:
+  - oraclejdk8
+
+services:
+  - docker
+
+before_install:
+  - sudo apt-get install wget curl
+  - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh | bash
+  - export NVM_DIR="/home/travis/.nvm"
+  - sh $NVM_DIR/nvm.sh
+  - nvm install 8.6.0
+  - nvm use 8.6.0
+  - curl -o- -L https://yarnpkg.com/install.sh | bash
+  - docker-compose up -d
+
+script:
+  - sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";compile"
+
+
+after_failure:
+  - docker-compose logs cassandra
+
+before_cache:
+  - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt  -name "*.lock"               -print -delete
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt/boot
+    - $HOME/.sbt
+    - $HOME/.nvm
+    - $HOME/.yarn
+    - $HOME/.yarn-cache
+
+env:
+  matrix:
+    - AKKA_SERIES=2.5

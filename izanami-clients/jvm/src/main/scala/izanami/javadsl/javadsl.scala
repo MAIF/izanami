@@ -22,39 +22,50 @@ import scala.util.{Failure, Success}
 object IzanamiClient {
 
   def client(actorSystem: ActorSystem, config: ClientConfig): IzanamiClient =
-    new IzanamiClient(config, izanami.scaladsl.IzanamiClient(config)(actorSystem))
+    new IzanamiClient(config,
+                      izanami.scaladsl.IzanamiClient(config)(actorSystem))
 }
 
-class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scaladsl.IzanamiClient) {
+class IzanamiClient(clientConfig: ClientConfig,
+                    underlyingClient: izanami.scaladsl.IzanamiClient) {
 
   import underlyingClient._
 
   def featureClient(strategy: izanami.Strategy): FeatureClient =
     featureClient(strategy, Features.features())
 
-  def featureClient(strategy: izanami.Strategy, fallback: ClientConfig => Features): FeatureClient =
-    new FeatureClient(underlyingClient.actorSystem,
-                      underlyingClient.featureClient(strategy, fallback.andThen(_.underlying)))
+  def featureClient(strategy: izanami.Strategy,
+                    fallback: ClientConfig => Features): FeatureClient =
+    new FeatureClient(
+      underlyingClient.actorSystem,
+      underlyingClient.featureClient(strategy, fallback.andThen(_.underlying)))
 
   def configClient(strategy: izanami.Strategy): ConfigClient =
-    new ConfigClient(underlyingClient.actorSystem,
-                     clientConfig,
-                     underlyingClient.configClient(strategy, izanami.scaladsl.Configs(Seq.empty)))
+    new ConfigClient(
+      underlyingClient.actorSystem,
+      clientConfig,
+      underlyingClient.configClient(strategy,
+                                    izanami.scaladsl.Configs(Seq.empty)))
 
-  def configClient(strategy: izanami.Strategy, fallback: Configs): ConfigClient =
-    new ConfigClient(underlyingClient.actorSystem,
-                     clientConfig,
-                     underlyingClient.configClient(strategy, fallback.underlying))
+  def configClient(strategy: izanami.Strategy,
+                   fallback: Configs): ConfigClient =
+    new ConfigClient(
+      underlyingClient.actorSystem,
+      clientConfig,
+      underlyingClient.configClient(strategy, fallback.underlying))
 
   def experimentClient(strategy: izanami.Strategy): ExperimentsClient =
     new ExperimentsClient(underlyingClient.experimentClient(strategy))
 
-  def experimentClient(strategy: izanami.Strategy, fallback: izanami.Experiments): ExperimentsClient =
+  def experimentClient(strategy: izanami.Strategy,
+                       fallback: izanami.Experiments): ExperimentsClient =
     new ExperimentsClient(underlyingClient.experimentClient(strategy, fallback))
 
   def proxy(): Proxy = new Proxy(underlyingClient.proxy())
 
-  def proxy(featureClient: FeatureClient, configClient: ConfigClient, experimentClient: ExperimentsClient): Proxy =
+  def proxy(featureClient: FeatureClient,
+            configClient: ConfigClient,
+            experimentClient: ExperimentsClient): Proxy =
     new Proxy(
       underlyingClient.proxy(
         featureClient.underlying,
@@ -69,19 +80,23 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
 ////////////////////////////   Proxy   ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: ActorSystem,
-                                                     izanamiDispatcher: IzanamiDispatcher) {
+case class Proxy(underlying: izanami.scaladsl.Proxy)(
+    implicit actorSystem: ActorSystem,
+    izanamiDispatcher: IzanamiDispatcher) {
 
   import izanamiDispatcher._
   import JsonConv._
   import Vavr._
 
   def withFeatureClient(featureClient: FeatureClient) =
-    this.copy(underlying = underlying.withFeatureClient(featureClient.underlying))
+    this.copy(
+      underlying = underlying.withFeatureClient(featureClient.underlying))
   def withConfigClient(configClient: ConfigClient) =
     this.copy(underlying = underlying.withConfigClient(configClient.underlying))
   def withExperimentsClient(experimentsClient: ExperimentsClient) =
-    this.copy(underlying = underlying.withExperimentsClient(experimentsClient.underlying))
+    this.copy(
+      underlying =
+        underlying.withExperimentsClient(experimentsClient.underlying))
   def withFeaturePattern(pattern: String) =
     this.copy(underlying = underlying.withFeaturePattern(pattern))
   def withConfigPattern(pattern: String) =
@@ -89,13 +104,17 @@ case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: Actor
   def withExperimentPattern(pattern: String) =
     this.copy(underlying = underlying.withExperimentPattern(pattern))
 
-  def statusAndJsonResponse(pattern: String, context: JsObject, userId: String): Future[Tuple2[Integer, JsValue]] =
+  def statusAndJsonResponse(pattern: String,
+                            context: JsObject,
+                            userId: String): Future[Tuple2[Integer, JsValue]] =
     statusAndJsonResponse(Option.some(context), Option.some(userId))
 
   def statusAndJsonResponse(pattern: String): Future[Tuple2[Integer, JsValue]] =
     statusAndJsonResponse(Option.none[JsObject](), Option.none[String]())
 
-  def statusAndJsonResponse(context: Option[JsObject], userId: Option[String]): Future[Tuple2[Integer, JsValue]] = {
+  def statusAndJsonResponse(
+      context: Option[JsObject],
+      userId: Option[String]): Future[Tuple2[Integer, JsValue]] = {
     underlying
       .statusAndJsonResponse(
         context.toScala().map(_.toScala().as[play.api.libs.json.JsObject]),
@@ -106,28 +125,35 @@ case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: Actor
       }
   }.toJava
 
-  def statusAndStringResponse(context: JsObject, userId: String): Future[Tuple2[Integer, String]] =
+  def statusAndStringResponse(context: JsObject,
+                              userId: String): Future[Tuple2[Integer, String]] =
     statusAndStringResponse(Option.some(context), Option.some(userId))
 
   def statusAndStringResponse(): Future[Tuple2[Integer, String]] =
     statusAndStringResponse(Option.none[JsObject](), Option.none[String]())
 
-  def statusAndStringResponse(context: Option[JsObject], userId: Option[String]): Future[Tuple2[Integer, String]] =
+  def statusAndStringResponse(
+      context: Option[JsObject],
+      userId: Option[String]): Future[Tuple2[Integer, String]] =
     statusAndJsonResponse(context, userId).map {
       new function.Function[Tuple2[Integer, JsValue], Tuple2[Integer, String]] {
-        override def apply(t: Tuple2[Integer, JsValue]): Tuple2[Integer, String] =
+        override def apply(
+            t: Tuple2[Integer, JsValue]): Tuple2[Integer, String] =
           Tuple.of(t._1, Json.stringify(t._2))
       }
     }
 
-  def markVariantDisplayed(experimentId: String, clientId: String): Future[Tuple2[Integer, JsValue]] =
+  def markVariantDisplayed(experimentId: String,
+                           clientId: String): Future[Tuple2[Integer, JsValue]] =
     underlying
       .markVariantDisplayed(experimentId, clientId)
       .map {
         case (status, json) => Tuple.of(Int.box(status), json.toJava())
       }
       .toJava
-  def markVariantDisplayedStringResponse(experimentId: String, clientId: String): Future[Tuple2[Integer, String]] =
+  def markVariantDisplayedStringResponse(
+      experimentId: String,
+      clientId: String): Future[Tuple2[Integer, String]] =
     underlying
       .markVariantDisplayedStringResp(experimentId, clientId)
       .map {
@@ -135,14 +161,17 @@ case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: Actor
       }
       .toJava
 
-  def markVariantWon(experimentId: String, clientId: String): Future[Tuple2[Integer, JsValue]] =
+  def markVariantWon(experimentId: String,
+                     clientId: String): Future[Tuple2[Integer, JsValue]] =
     underlying
       .markVariantWon(experimentId, clientId)
       .map {
         case (status, json) => Tuple.of(Int.box(status), json.toJava())
       }
       .toJava
-  def markVariantWonStringResponse(experimentId: String, clientId: String): Future[Tuple2[Integer, String]] =
+  def markVariantWonStringResponse(
+      experimentId: String,
+      clientId: String): Future[Tuple2[Integer, String]] =
     underlying
       .markVariantWonStringResp(experimentId, clientId)
       .map {
@@ -166,7 +195,8 @@ object Features {
     Features(izanami.scaladsl.Features(clientConfig, Seq.empty, Seq.empty))
   }
 
-  def features(features: java.lang.Iterable[Feature]): ClientConfig => Features = {
+  def features(
+      features: java.lang.Iterable[Feature]): ClientConfig => Features = {
     import scala.collection.JavaConverters._
     clientConfig =>
       Features(
@@ -201,7 +231,8 @@ case class Features(underlying: izanami.scaladsl.Features) {
 
 }
 
-class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureClient)(
+class FeatureClient(actorSystem: ActorSystem,
+                    val underlying: scaladsl.FeatureClient)(
     implicit izanamiDispatcher: IzanamiDispatcher
 ) {
 
@@ -218,7 +249,9 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
       .map(Features.apply _)
       .toJava
 
-  def featureOrElse[T](key: String, ok: Function0[T], ko: Function0[T]): Future[T] =
+  def featureOrElse[T](key: String,
+                       ok: Function0[T],
+                       ko: Function0[T]): Future[T] =
     checkFeature(key).map {
       new java.util.function.Function[java.lang.Boolean, T] {
         override def apply(t: lang.Boolean): T = t match {
@@ -228,7 +261,10 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
       }
     }
 
-  def featureOrElse[T](key: String, context: JsObject, ok: Function0[T], ko: Function0[T]): Future[T] =
+  def featureOrElse[T](key: String,
+                       context: JsObject,
+                       ok: Function0[T],
+                       ko: Function0[T]): Future[T] =
     checkFeature(key, context).map {
       new java.util.function.Function[java.lang.Boolean, T] {
         override def apply(t: lang.Boolean): T = t match {
@@ -280,7 +316,7 @@ object Config {
 case class Config(underlying: izanami.scaladsl.Config) {
   import JsonConv._
   def value(): JsValue = underlying.value.toJava()
-  def id(): String     = underlying.id
+  def id(): String = underlying.id
 }
 
 object Configs {
@@ -321,7 +357,7 @@ object Configs {
 case class Configs(underlying: izanami.scaladsl.Configs) {
   import JsonConv._
   def config(key: String) = underlying.get(key).toJava()
-  def tree(): JsObject    = underlying.tree().toJava().asObject()
+  def tree(): JsObject = underlying.tree().toJava().asObject()
 }
 
 sealed trait ConfigEvent {
@@ -329,12 +365,15 @@ sealed trait ConfigEvent {
 }
 
 object ConfigEvent {
-  case class ConfigCreated(id: String, config: Config)                    extends ConfigEvent
-  case class ConfigUpdated(id: String, config: Config, oldConfig: Config) extends ConfigEvent
-  case class ConfigDeleted(id: String)                                    extends ConfigEvent
+  case class ConfigCreated(id: String, config: Config) extends ConfigEvent
+  case class ConfigUpdated(id: String, config: Config, oldConfig: Config)
+      extends ConfigEvent
+  case class ConfigDeleted(id: String) extends ConfigEvent
 }
 
-class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val underlying: izanami.scaladsl.ConfigClient)(
+class ConfigClient(actorSystem: ActorSystem,
+                   clientConfig: ClientConfig,
+                   val underlying: izanami.scaladsl.ConfigClient)(
     implicit izanamiDispatcher: IzanamiDispatcher
 ) {
 
@@ -345,7 +384,9 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   import izanamiDispatcher.ec
 
   private val materializer =
-    ActorMaterializer(ActorMaterializerSettings(actorSystem).withDispatcher(clientConfig.dispatcher))(actorSystem)
+    ActorMaterializer(
+      ActorMaterializerSettings(actorSystem).withDispatcher(
+        clientConfig.dispatcher))(actorSystem)
 
   def configs(pattern: String = "*"): Future[Configs] =
     underlying
@@ -432,7 +473,8 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
 
 }
 
-class ExperimentClient(underlying: izanami.scaladsl.ExperimentClient)(implicit izanamiDispatcher: IzanamiDispatcher) {
+class ExperimentClient(underlying: izanami.scaladsl.ExperimentClient)(
+    implicit izanamiDispatcher: IzanamiDispatcher) {
   import izanamiDispatcher.ec
   import Vavr._
 
@@ -442,7 +484,8 @@ class ExperimentClient(underlying: izanami.scaladsl.ExperimentClient)(implicit i
       .map(_.map(v => Option.of(v)).getOrElse(Option.none()))
       .toJava
 
-  def markVariantDisplayed(clientId: String): Future[ExperimentVariantDisplayed] =
+  def markVariantDisplayed(
+      clientId: String): Future[ExperimentVariantDisplayed] =
     underlying.markVariantDisplayed(clientId).toJava
 
   def markVariantWon(clientId: String): Future[ExperimentVariantWon] =

@@ -22,7 +22,9 @@ libraryDependencies ++= Seq(
   "com.novocode" % "junit-interface" % "0.11" % Test,
   "org.scalatest" %% "scalatest" % "3.0.1" % Test,
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-  "org.mockito" % "mockito-core" % "2.12.0" % Test
+  "org.mockito" % "mockito-core" % "2.12.0" % Test,
+  "com.github.tomakehurst" % "wiremock" % "2.12.0" % Test,
+  "org.assertj" % "assertj-core" % "3.8.0" % Test
 )
 
 resolvers ++= Seq(

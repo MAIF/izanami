@@ -177,15 +177,355 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#java-scala" name="java-scala" class="anchor"><span class="anchor-link"></span></a>Java &amp; Scala</h1>
+<div class="toc ">
+<ul>
+  <li><a href="../clients/jvm.html#setup-the-izanami-client" class="header">Setup the Izanami client</a></li>
+  <li><a href="../clients/jvm.html#configs-client" class="header">Configs client</a>
+  <ul>
+    <li><a href="../clients/jvm.html#setup-the-client" class="header">Setup the client</a>
+    <ul>
+      <li><a href="../clients/jvm.html#the-smart-cache-strategy" class="header">The smart cache strategy</a></li>
+    </ul></li>
+    <li><a href="../clients/jvm.html#client-usage" class="header">Client usage</a>
+    <ul>
+      <li><a href="../clients/jvm.html#get-configs-for-a-pattern" class="header">Get configs for a pattern</a></li>
+      <li><a href="../clients/jvm.html#get-one-config" class="header">Get one config</a></li>
+    </ul></li>
+  </ul></li>
+  <li><a href="../clients/jvm.html#features-client" class="header">Features client</a>
+  <ul>
+    <li><a href="../clients/jvm.html#setup-the-client" class="header">Setup the client</a>
+    <ul>
+      <li><a href="../clients/jvm.html#the-smart-cache-strategy" class="header">The smart cache strategy</a></li>
+    </ul></li>
+    <li><a href="../clients/jvm.html#client-usage" class="header">Client usage</a></li>
+  </ul></li>
+  <li><a href="../clients/jvm.html#experiments-client" class="header">Experiments client</a>
+  <ul>
+    <li><a href="../clients/jvm.html#setup-the-client" class="header">Setup the client</a></li>
+  </ul></li>
+</ul>
+</div>
 <p>It&rsquo;s simple to build your client using the APIs. If you&rsquo;re application is built on jvm you can also use the built-in Izanami client. </p>
 <p>This client offer nice strategies for better performances. </p>
-<h2><a href="#get-the-java-scala-client" name="get-the-java-scala-client" class="anchor"><span class="anchor-link"></span></a>Get the Java / Scala client</h2><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "0.1-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
+<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "0.1-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
   &lt;groupId&gt;fr.maif&lt;/groupId&gt;
   &lt;artifactId&gt;izanami-client_2.12&lt;/artifactId&gt;
   &lt;version&gt;0.1-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
   compile group: 'fr.maif', name: 'izanami-client_2.12', version: '0.1-SNAPSHOT'
 }</code></pre></dd></dl>
+<p>The client can be used in java or scala. There is two distinct dsl. Be sure to import the correct one : </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">import izanami.*;
+import izanami.javadsl.*;
+</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">import izanami._
+import izanami.scaladsl._
+</code></pre></dd>
+</dl>
+<p>Izanami client is built with </p>
+<ul>
+  <li><a href="https://www.scala-lang.org/">Scala</a>: As programming language</li>
+  <li><a href="https://akka.io/docs/">Akka</a>: to handle global state, scheduler &hellip;</li>
+  <li><a href="https://doc.akka.io/docs/akka-http/current/scala/http/index.html">Akka http</a>: for http request, sse &hellip;</li>
+</ul>
+<p>The scaladsl rely on :</p>
+<ul>
+  <li><a href="https://github.com/playframework/play-json">play json</a>: for json handling</li>
+</ul>
+<p>The javadsl rely on : </p>
+<ul>
+  <li><a href="http://www.vavr.io/">vavr</a>: For functional structures like future, either, option &hellip;</li>
+  <li><a href="https://github.com/mathieuancelin/json-lib-javaslang">play json java</a>: For json handling</li>
+</ul>
+<h2><a href="#setup-the-izanami-client" name="setup-the-izanami-client" class="anchor"><span class="anchor-link"></span></a>Setup the Izanami client</h2>
+<p>The first thing to do is to create a client. The client own the shared http client between config client, feature client and the experiment client.</p>
+<p>You need to create a single client for all your application. </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">IzanamiClient izanamiClient = IzanamiClient.client(
+    system,
+    ClientConfig.create(&quot;http://localhost:8089&quot;)
+        .withClientId(&quot;xxxx&quot;)
+        .withClientIdHeaderName(&quot;Another-Client-Id-Header&quot;)
+        .withClientSecret(&quot;xxxx&quot;)
+        .withClientSecretHeaderName(&quot;Another-Client-Secret-Header&quot;)
+        .sseBackend()
+        .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;)
+        .withPageSize(50)
+        .withZoneId(ZoneId.of(&quot;Europe/Paris&quot;))
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">implicit val system = ActorSystem(&quot;izanami-client&quot;, ConfigFactory.parseString(&quot;&quot;&quot;
+    izanami-example.blocking-io-dispatcher {
+      type = Dispatcher
+      executor = &quot;thread-pool-executor&quot;
+      thread-pool-executor {
+        fixed-pool-size = 32
+      }
+      throughput = 1
+    }
+  &quot;&quot;&quot;))
+
+val client = IzanamiClient(
+  ClientConfig(
+    host = &quot;http://localhost:9000&quot;,
+    clientId = Some(&quot;xxxx&quot;),
+    clientIdHeaderName = &quot;Another-Client-Id-Header&quot;,
+    clientSecret = Some(&quot;xxxx&quot;),
+    clientSecretHeaderName = &quot;Another-Client-Id-Header&quot;,
+    backend = SseBackend,
+    pageSize = 50,
+    zoneId = ZoneId.of(&quot;Europe/Paris&quot;),
+    dispatcher = &quot;izanami-example.blocking-io-dispatcher&quot;
+  )
+)</code></pre></dd>
+</dl>
+<table>
+  <thead>
+    <tr>
+      <th>Field </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>clientId</code> </td>
+      <td>The client id to access izanami APIs see <a href="../ui.html#manage-api-keys">Manage APIs keys</a> </td>
+    </tr>
+    <tr>
+      <td><code>clientSecretIdName</code> </td>
+      <td>A custom header for the client id </td>
+    </tr>
+    <tr>
+      <td><code>clientSecret</code> </td>
+      <td>The client secret to access izanami APIs see <a href="../ui.html#manage-api-keys">Manage APIs keys</a> </td>
+    </tr>
+    <tr>
+      <td><code>clientSecretHeaderName</code> </td>
+      <td>A custom header for the client secret </td>
+    </tr>
+    <tr>
+      <td><code>sseBackend</code> </td>
+      <td>Enable sse to get events from the server </td>
+    </tr>
+    <tr>
+      <td><code>dispatcher</code> </td>
+      <td>Reference a dispatcher to manage thread pool </td>
+    </tr>
+    <tr>
+      <td><code>pageSize</code> </td>
+      <td>Change the size of the pages when fetching from the server </td>
+    </tr>
+    <tr>
+      <td><code>zoneId</code> </td>
+      <td>Zone Id to handle date </td>
+    </tr>
+  </tbody>
+</table>
+<h2><a href="#configs-client" name="configs-client" class="anchor"><span class="anchor-link"></span></a>Configs client</h2>
+<p>The config client is used to access the shared config in Izanami. </p>
+<h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">ConfigClient configClient = izanamiClient.configClient(
+        Strategies.fetchStrategy(),
+        Configs.configs(
+                Config.config(&quot;my:config&quot;, Json.obj(
+                        $(&quot;value&quot;, &quot;Fallback value&quot;)
+                ))
+        )
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val configClient = client.configClient(
+  strategy = Strategies.fetchStrategy(),
+  fallback = Configs(
+    &quot;test2&quot; -&gt; Json.obj(&quot;value&quot; -&gt; 2)
+  )
+)</code></pre></dd>
+</dl>
+<p>When you set up a client you have to choose a strategy : </p>
+<table>
+  <thead>
+    <tr>
+      <th>Strategy </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Fetch </td>
+      <td>Call izanami for each request </td>
+    </tr>
+    <tr>
+      <td>Fetch with cache </td>
+      <td>Keep response in cache </td>
+    </tr>
+    <tr>
+      <td>Smart cache with polling </td>
+      <td>Keep data in memory and poll izanami to refresh the cache asynchronously. </td>
+    </tr>
+    <tr>
+      <td>Smart cache with sse </td>
+      <td>Keep data in memory and refresh the cache with the events from the izanami server. </td>
+    </tr>
+  </tbody>
+</table>
+<h4><a href="#the-smart-cache-strategy" name="the-smart-cache-strategy" class="anchor"><span class="anchor-link"></span></a>The smart cache strategy</h4>
+<p>When you choose the smart cache, you have to provide patterns : </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">ConfigClient configClient = izanamiClient.configClient(
+        Strategies.smartCacheWithPollingStrategy(
+                FiniteDuration.create(20, TimeUnit.SECONDS),
+                &quot;my:configs:*&quot;, &quot;other:pattern&quot;
+        ),
+        Configs.configs(
+                Config.config(&quot;my:config&quot;, Json.obj(
+                        $(&quot;value&quot;, &quot;Fallback value&quot;)
+                ))
+        )
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val configClient = client.configClient(
+  strategy = CacheWithPollingStrategy(
+    patterns = Seq(&quot;*&quot;),
+    pollingInterval = 3.second
+  ),
+  fallback = fallback
+)</code></pre></dd>
+</dl>
+<p>The client will cache all the configs matching this patterns. </p>
+<ul>
+  <li>With a poll strategy, the client will request the server to get change so you have to set a delay.</li>
+  <li>With a SSE strategy, the client will listen events from the server to refresh the cache.</li>
+</ul><div class="callout warning "><div class="callout-title">Warning</div>
+<p>There is no TTL using this strategy so you have to choose the right patterns to be sure that all datas fit in memory. </p></div>
+<h3><a href="#client-usage" name="client-usage" class="anchor"><span class="anchor-link"></span></a>Client usage</h3>
+<h4><a href="#get-configs-for-a-pattern" name="get-configs-for-a-pattern" class="anchor"><span class="anchor-link"></span></a>Get configs for a pattern</h4>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Configs&gt; futureConfigs = configClient.configs(&quot;my:*&quot;);
+futureConfigs.onSuccess( (Configs configs) -&gt; {
+    JsValue config = configs.config(&quot;my:config&quot;);
+    System.out.println(config.field(&quot;value&quot;).asString());
+});</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val configs: Future[Configs] = izanamiClient.configs(&quot;*&quot;)
+configs.onComplete {
+  case Success(c) =&gt; println(c)
+  case Failure(e) =&gt; e.printStackTrace()
+}</code></pre></dd>
+</dl>
+<h4><a href="#get-one-config" name="get-one-config" class="anchor"><span class="anchor-link"></span></a>Get one config</h4>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;JsValue&gt; futureConfig = configClient.config(&quot;my:config&quot;);
+futureConfig.onSuccess( (JsValue config) -&gt; {
+    System.out.println(config.field(&quot;value&quot;).asString());
+});</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val futureConfig: Future[JsValue] = izanamiClient.config(&quot;test&quot;)
+futureConfig.onComplete {
+  case Success(c) =&gt; println(c)
+  case Failure(e) =&gt; e.printStackTrace()
+}</code></pre></dd>
+</dl>
+<h2><a href="#features-client" name="features-client" class="anchor"><span class="anchor-link"></span></a>Features client</h2>
+<h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
+        Strategies.fetchStrategy(),
+        Features.features(
+                Features.feature(&quot;my:feature&quot;, false)
+        )
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val featureClient = client.featureClient(
+  strategy = Strategies.fetchStrategy(),
+  fallback = Features(
+    DefaultFeature(&quot;test2&quot;, true)
+  )
+)</code></pre></dd>
+</dl>
+<p>When you set up a client you have to choose a strategy : </p>
+<table>
+  <thead>
+    <tr>
+      <th>Strategy </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Fetch </td>
+      <td>Call izanami for each request </td>
+    </tr>
+    <tr>
+      <td>Fetch with cache </td>
+      <td>Keep response in cache </td>
+    </tr>
+    <tr>
+      <td>Smart cache with polling </td>
+      <td>Keep data in memory and poll izanami to refresh the cache asynchronously. The features that need a context are not cached because it can needs a huge amount of memory </td>
+    </tr>
+    <tr>
+      <td>Smart cache with sse </td>
+      <td>Keep data in memory and refresh the cache with the events from the izanami server. The features that need a context are not cached because it can needs a huge amount of memory </td>
+    </tr>
+  </tbody>
+</table>
+<h4><a href="#the-smart-cache-strategy" name="the-smart-cache-strategy" class="anchor"><span class="anchor-link"></span></a>The smart cache strategy</h4>
+<p>When you choose the smart cache, you have to provide patterns : </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
+        Strategies.smartCacheWithSseStrategy(
+        &quot;my:features:*&quot;, &quot;other:pattern&quot;
+        ),
+        Features.features(
+                Features.feature(&quot;my:feature&quot;, false)
+        )
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val featureClient = client.featureClient(
+  strategy = CacheWithPollingStrategy(
+    patterns = Seq(&quot;*&quot;),
+    pollingInterval = 3.second
+  ),
+  fallback = Features(fallback:_*)
+)</code></pre></dd>
+</dl>
+<p>The client will cache all the configs matching this patterns. </p>
+<ul>
+  <li>With a poll strategy, the client will request the server to get change so you have to set a delay.</li>
+  <li>With a SSE strategy, the client will listen events from the server to refresh the cache.</li>
+</ul><div class="callout note "><div class="callout-title">Note</div>
+<p>The feature that need a context to be evaluated are not cached. The cache is used only for simple features or feature with release date. </p></div><div class="callout warning "><div class="callout-title">Warning</div>
+<p>There is no TTL using this strategy so you have to choose the right patterns to be sure that all datas fit in memory. </p></div>
+<h3><a href="#client-usage" name="client-usage" class="anchor"><span class="anchor-link"></span></a>Client usage</h3>
+<h2><a href="#experiments-client" name="experiments-client" class="anchor"><span class="anchor-link"></span></a>Experiments client</h2>
+<h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../clients/react.html">React</a></p>
 </div>
@@ -198,7 +538,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../clients/jvm.html#java-scala" class="header">Java &amp; Scala</a>
   <ul>
-    <li><a href="../clients/jvm.html#get-the-java-scala-client" class="header">Get the Java / Scala client</a></li>
+    <li><a href="../clients/jvm.html#setup-the-izanami-client" class="header">Setup the Izanami client</a></li>
+    <li><a href="../clients/jvm.html#configs-client" class="header">Configs client</a></li>
+    <li><a href="../clients/jvm.html#features-client" class="header">Features client</a></li>
+    <li><a href="../clients/jvm.html#experiments-client" class="header">Experiments client</a></li>
   </ul></li>
 </ul>
 </div>

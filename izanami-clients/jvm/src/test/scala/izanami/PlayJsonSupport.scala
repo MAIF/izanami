@@ -38,7 +38,8 @@ trait PlayJsonSupport {
         case (data, charset)       => data.decodeString(charset.nioCharset.name)
       }
 
-  private val jsonStringMarshaller = Marshaller.stringMarshaller(`application/json`)
+  private val jsonStringMarshaller =
+    Marshaller.stringMarshaller(`application/json`)
 
   /**
     * HTTP entity => `A`
@@ -52,7 +53,8 @@ trait PlayJsonSupport {
         .reads(json)
         .recoverTotal { e =>
           throw RejectionError(
-            ValidationRejection(JsError.toJson(e).toString, Some(PlayJsonError(e)))
+            ValidationRejection(JsError.toJson(e).toString,
+                                Some(PlayJsonError(e)))
           )
         }
     jsonStringUnmarshaller.map(data => read(Json.parse(data)))
@@ -65,8 +67,8 @@ trait PlayJsonSupport {
     * @return marshaller for any `A` value
     */
   implicit def marshaller[A](
-                              implicit writes: Writes[A],
-                              printer: JsValue => String = Json.prettyPrint
-                            ): ToEntityMarshaller[A] =
+      implicit writes: Writes[A],
+      printer: JsValue => String = Json.prettyPrint
+  ): ToEntityMarshaller[A] =
     jsonStringMarshaller.compose(printer).compose(writes.writes)
 }
