@@ -15,6 +15,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import izanami.javadsl.*;
 import org.junit.Test;
+import org.reactivecouchbase.json.JsObject;
 import org.reactivecouchbase.json.JsValue;
 import org.reactivecouchbase.json.Json;
 import scala.concurrent.duration.FiniteDuration;
@@ -31,6 +32,8 @@ public class IzanamiTest {
 
     private final static Integer PORT = 8089;
 
+    IzanamiClient izanamiClient;
+
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(PORT); // No-args constructor defaults to port 8080
 
@@ -44,6 +47,25 @@ public class IzanamiTest {
                 "  throughput = 1\n" +
                 "}"
     ));
+
+    @Before
+    public void initCLient() {
+        //#configure-client
+        izanamiClient = IzanamiClient.client(
+                system,
+                ClientConfig.create("http://localhost:8089")
+                        .withClientId("xxxx")
+                        .withClientIdHeaderName("Another-Client-Id-Header")
+                        .withClientSecret("xxxx")
+                        .withClientSecretHeaderName("Another-Client-Secret-Header")
+                        .sseBackend()
+                        .withDispatcher("izanami-example.blocking-io-dispatcher")
+                        .withPageSize(50)
+                        .withZoneId(ZoneId.of("Europe/Paris"))
+        );
+        //#configure-client
+    }
+
 
     public void smartCache() {
 
@@ -118,26 +140,10 @@ public class IzanamiTest {
                                     $("count", 1),
                                     $("nbPages", 1)
                                 ))
-
-                        )
+                            )
                     ))
                 )
         );
-
-        //#configure-client
-        IzanamiClient izanamiClient = IzanamiClient.client(
-            system,
-            ClientConfig.create("http://localhost:8089")
-                .withClientId("xxxx")
-                .withClientIdHeaderName("Another-Client-Id-Header")
-                .withClientSecret("xxxx")
-                .withClientSecretHeaderName("Another-Client-Secret-Header")
-                .sseBackend()
-                .withDispatcher("izanami-example.blocking-io-dispatcher")
-                .withPageSize(50)
-                .withZoneId(ZoneId.of("Europe/Paris"))
-        );
-        //#configure-client
 
         //#configure-config-client
         ConfigClient configClient = izanamiClient.configClient(
@@ -172,7 +178,7 @@ public class IzanamiTest {
 
 
     @Test
-    public void features() {
+    public void feature() {
 
         stubFor(
                 post(urlEqualTo("/api/features/my:feature/check"))
@@ -186,19 +192,6 @@ public class IzanamiTest {
                         )
         );
 
-        IzanamiClient izanamiClient = IzanamiClient.client(
-                system,
-                ClientConfig.create("http://localhost:8089")
-                        .withClientId("xxxx")
-                        .withClientIdHeaderName("Another-Client-Id-Header")
-                        .withClientSecret("xxxx")
-                        .withClientSecretHeaderName("Another-Client-Secret-Header")
-                        .sseBackend()
-                        .withDispatcher("izanami-example.blocking-io-dispatcher")
-                        .withPageSize(50)
-                        .withZoneId(ZoneId.of("Europe/Paris"))
-        );
-
         //#configure-feature-client
         FeatureClient featureClient = izanamiClient.featureClient(
                 Strategies.fetchStrategy(),
@@ -208,16 +201,95 @@ public class IzanamiTest {
         );
         //#configure-feature-client
 
-        Future<Boolean> futureConfig = featureClient.checkFeature("my:feature");
+        //#features-check
+        Future<Boolean> futureCheck = featureClient.checkFeature("my:feature");
+        //#features-check
 
-        futureConfig.onSuccess(config ->
-                System.out.println(config)
+        //#features-check-context
+        Future<Boolean> futureCheckContext = featureClient.checkFeature("my:feature", Json.obj(
+                $("context", true)
+        ));
+        //#features-check-context
+
+        //#features-check-conditional
+        Future<String> conditonal = featureClient.featureOrElse("my:feature",
+                () -> "Feature is active",
+                () -> "Feature is not active"
         );
+        //#features-check-conditional
 
-        assertThat(futureConfig.get()).isTrue();
+        //#features-check-conditional-context
+        Future<String> conditonalContext = featureClient.featureOrElse(
+                "my:feature",
+                Json.obj($("context", true)),
+                () -> "Feature is active",
+                () -> "Feature is not active"
+        );
+        //#features-check-conditional-context
+
+        assertThat(futureCheck.get()).isTrue();
         verify(postRequestedFor(urlMatching("/api/features/my:feature/check")));
         //wireMockRule.findAllUnmatchedRequests().forEach(System.out::println);
     }
+
+
+    @Test
+    public void features() {
+
+        stubFor(
+                get(urlPathEqualTo("/api/features"))
+                        .withQueryParam("pattern", equalTo("my:feature:*"))
+                        .withQueryParam("page", equalTo("1"))
+                        .withQueryParam("active", equalTo("true"))
+                        .withQueryParam("pageSize", equalTo("50"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withBody(Json.stringify(
+                                        Json.obj(
+                                                $("results", Json.arr(Json.obj(
+                                                        $("id", "my:feature:test"),
+                                                        $("activationStrategy", "NO_STRATEGY"),
+                                                        $("enabled", true)
+                                                ))),
+                                                $("metadata", Json.obj(
+                                                        $("page", 1),
+                                                        $("pageSize", 50),
+                                                        $("count", 1),
+                                                        $("nbPages", 1)
+                                                ))
+                                        )
+                                ))
+                        )
+        );
+
+        FeatureClient featureClient = izanamiClient.featureClient(
+                Strategies.fetchStrategy(),
+                Features.features(
+                        Features.feature("my:feature", false)
+                )
+        );
+
+        //#features-list
+        Future<Features> futureFeatures = featureClient.features("my:feature:*");
+
+        futureFeatures.onSuccess(features -> {
+            boolean active = features.isActive("my:feature:test");
+            if (active) {
+                System.out.println("Feature my:feature:test is active");
+            } else {
+                System.out.println("Feature my:feature:test is active");
+            }
+            JsObject tree = features.tree();
+            System.out.println("Tree is " + Json.prettyPrint(tree));
+        });
+        //#features-list
+
+        boolean active = futureFeatures.get().isActive("my:feature:test");
+        assertThat(active).isTrue();
+
+        verify(getRequestedFor(urlPathEqualTo("/api/features")));
+    }
+
 
     @After
     public void stopAll() {

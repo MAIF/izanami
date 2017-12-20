@@ -13,7 +13,10 @@ import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
-import play.api.libs.json.{JsArray, Json}
+import play.api.libs.json.{JsArray, JsObject, Json}
+
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 class FetchFeatureClientSpec
     extends IzanamiSpec
@@ -24,6 +27,8 @@ class FetchFeatureClientSpec
 
   implicit val system = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
+
+  import system.dispatcher
 
   "FetchFeatureStrategy" should {
     "List features" in {
@@ -47,7 +52,25 @@ class FetchFeatureClientSpec
 
       registerPage(group = initialFeatures)
 
-      val features: Features = featureClient.features("*").futureValue
+      //#list
+      val futureFeatures: Future[Features] = featureClient.features("*")
+      futureFeatures.onComplete {
+        case Success(features) =>
+          val active: Boolean = features.isActive("test")
+          if (active)
+            println(s"Feature test is active")
+          else
+            println(s"Feature test is not active")
+
+          val tree: JsObject = features.tree()
+          println(s"All features: ${Json.prettyPrint(tree)}")
+
+        case Failure(e) =>
+          e.printStackTrace()
+      }
+      //#list
+
+      val features: Features = futureFeatures.futureValue
 
       features.featuresSeq must be(initialFeatures)
 
@@ -84,31 +107,73 @@ class FetchFeatureClientSpec
     }
 
     "Test feature active" in {
-      runServer { ctx =>
-        val strategy = IzanamiClient(
-          ClientConfig(ctx.host)
-        ).featureClient(
-          strategy = Strategies.fetchStrategy(),
-          fallback = Features(
-            DefaultFeature("test2", true)
-          )
-        )
 
-        val initialFeatures = Seq(
-          DefaultFeature("test", true)
+      val featureClient = IzanamiClient(
+        ClientConfig(host)
+      ).featureClient(
+        strategy = Strategies.fetchStrategy(),
+        fallback = Features(
+          DefaultFeature("test2", true)
         )
-        ctx.setValues(initialFeatures)
+      )
 
-        strategy.checkFeature("test").futureValue must be(true)
-        strategy
-          .checkFeature("test", Json.obj("context" -> true))
-          .futureValue must be(true)
-        strategy.checkFeature("test2").futureValue must be(true)
-        strategy
-          .checkFeature("test2", Json.obj("context" -> true))
-          .futureValue must be(true)
-        strategy.checkFeature("other").futureValue must be(false)
+      val initialFeatures = Seq(
+        DefaultFeature("test", true)
+      )
+
+      registerCheckFeature("test")
+
+      //#check
+      val futureCheck: Future[Boolean] = featureClient.checkFeature("test")
+      //#check
+
+      futureCheck.futureValue must be(true)
+      mock.verifyThat(
+        postRequestedFor(urlPathEqualTo("/api/features/test/check"))
+          .withRequestBody(equalTo("{}"))
+      )
+
+      registerCheckFeature("test2")
+
+      //#check-context
+      val context = Json.obj("context" -> true)
+      val checkWithContext: Future[Boolean] = featureClient.checkFeature("test", context)
+      //#check-context
+
+      //#check-conditional
+      val conditonal: Future[String] = featureClient.featureOrElse("test") {
+        "Feature is active"
+      } {
+        "Feature is not active"
       }
+      //#check-conditional
+
+      //#check-conditional-context
+      val conditonalWithContext: Future[String] = featureClient.featureOrElse("test", context) {
+        "Feature is active"
+      } {
+        "Feature is not active"
+      }
+      //#check-conditional-context
+
+      conditonal.futureValue must be ("Feature is active")
+      conditonalWithContext.futureValue must be ("Feature is active")
+      checkWithContext.futureValue must be(true)
+
+      mock.verifyThat(
+          postRequestedFor(urlPathEqualTo("/api/features/test/check"))
+        .withRequestBody(equalTo(Json.stringify(context)))
+
+      )
+
+      featureClient.checkFeature("test2").futureValue must be(true)
+
+      featureClient
+        .checkFeature("test2", Json.obj("context" -> true))
+        .futureValue must be(true)
+
+      featureClient.checkFeature("other").futureValue must be(false)
+
     }
 
     "Stream event" in {
