@@ -1,4 +1,4 @@
-# Izanami [![scaladex-badge][]][scaladex] [![travis-badge][]][travis]
+# Izanami [![gitter-badge][]][gitter] [![travis-badge][]][travis]
 
 [travis]:                https://travis-ci.org/MAIF/izanami
 [travis-badge]:          https://travis-ci.org/MAIF/izanami.svg?branch=master
