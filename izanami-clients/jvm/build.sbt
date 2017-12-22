@@ -29,7 +29,7 @@ libraryDependencies ++= Seq(
 
 resolvers ++= Seq(
   "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
-  Resolver.bintrayRepo("larousso", "maven")
+  Resolver.jcenterRepo
 )
 
 scalafmtOnCompile in ThisBuild := true

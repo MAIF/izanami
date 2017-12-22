@@ -1,4 +1,4 @@
-resolvers += "ditaa-repo" at "https://raw.githubusercontent.com/larousso/sbt-ditaa/master/repository/releases/"
+resolvers += Resolver.bintrayIvyRepo("larousso", "sbt-plugins")
 
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.6") // Apache 2.0
 
