@@ -471,6 +471,18 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
   def tree(pattern: String, clientId: String): Future[JsValue] =
     underlying.tree(pattern, clientId).map(_.toJava()).toJava
 
+  def getVariantFor(id: String, clientId: String): Future[Option[Variant]] =
+    underlying.getVariantFor(id, clientId)
+      .map(_.map(v => Option.of(v)).getOrElse(Option.none()))
+      .toJava
+
+  def markVariantDisplayed(id: String,
+                           clientId: String): Future[ExperimentVariantDisplayed] =
+    underlying.markVariantDisplayed(id, clientId).toJava
+
+  def markVariantWon(id: String, clientId: String): Future[ExperimentVariantWon] =
+    underlying.markVariantWon(id, clientId).toJava
+
 }
 
 class ExperimentClient(underlying: izanami.scaladsl.ExperimentClient)(

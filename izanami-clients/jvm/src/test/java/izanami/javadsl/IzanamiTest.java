@@ -8,8 +8,10 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.typesafe.config.ConfigFactory;
 import io.vavr.concurrent.Future;
+import io.vavr.control.Option;
 import izanami.ClientConfig;
 import izanami.Strategies;
+import izanami.Variant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -288,6 +290,18 @@ public class IzanamiTest {
         assertThat(active).isTrue();
 
         verify(getRequestedFor(urlPathEqualTo("/api/features")));
+    }
+
+    @Test
+    public void experiments() {
+        //#experiment-client
+        ExperimentsClient experimentsClient = izanamiClient.experimentClient(Strategies.fetchStrategy());
+        //#experiment-client
+
+        //#get-variant
+        Future<Option<Variant>> futureVariant = experimentsClient.getVariantFor("my:experiment", "clientId");
+        //#get-variant
+
     }
 
 

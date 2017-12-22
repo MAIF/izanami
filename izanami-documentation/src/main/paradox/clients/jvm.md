@@ -235,8 +235,28 @@ Scala
  
 ## Experiments client
  
- 
 ### Setup the client  
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #experiment-client }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #experiment-client }
+
+For experiments, there is only two strategies available : fetch or dev.
+
+### Mark variants 
+
+#### Get a variant for a client 
+
+Setup the client  
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #get-variant }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #get-variant }
+
 
 
 ## Exposing izanami with a Proxy 
