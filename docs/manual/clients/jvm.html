@@ -210,6 +210,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../clients/jvm.html#experiments-client" class="header">Experiments client</a>
   <ul>
     <li><a href="../clients/jvm.html#setup-the-client" class="header">Setup the client</a></li>
+    <li><a href="../clients/jvm.html#mark-variants" class="header">Mark variants</a>
+    <ul>
+      <li><a href="../clients/jvm.html#get-a-variant-for-a-client" class="header">Get a variant for a client</a></li>
+    </ul></li>
   </ul></li>
   <li><a href="../clients/jvm.html#exposing-izanami-with-a-proxy" class="header">Exposing izanami with a Proxy</a></li>
 </ul>
@@ -627,6 +631,27 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
 </dl>
 <h2><a href="#experiments-client" name="experiments-client" class="anchor"><span class="anchor-link"></span></a>Experiments client</h2>
 <h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">ExperimentsClient experimentsClient = izanamiClient.experimentClient(Strategies.fetchStrategy());</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val client = IzanamiClient(ClientConfig(ctx.host))
+  .experimentClient(Strategies.fetchStrategy())</code></pre></dd>
+</dl>
+<p>For experiments, there is only two strategies available : fetch or dev.</p>
+<h3><a href="#mark-variants" name="mark-variants" class="anchor"><span class="anchor-link"></span></a>Mark variants</h3>
+<h4><a href="#get-a-variant-for-a-client" name="get-a-variant-for-a-client" class="anchor"><span class="anchor-link"></span></a>Get a variant for a client</h4>
+<p>Setup the client </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Option&lt;Variant&gt;&gt; futureVariant = experimentsClient.getVariantFor(&quot;my:experiment&quot;, &quot;clientId&quot;);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val futureVariant: Future[Option[Variant]] = experiment.getVariantFor(&quot;client1&quot;)</code></pre></dd>
+</dl>
 <h2><a href="#exposing-izanami-with-a-proxy" name="exposing-izanami-with-a-proxy" class="anchor"><span class="anchor-link"></span></a>Exposing izanami with a Proxy</h2>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../clients/react.html">React</a></p>

@@ -8,6 +8,8 @@ import izanami._
 import org.scalatest.BeforeAndAfterAll
 import play.api.libs.json.Json
 
+import scala.concurrent.Future
+
 class FetchExperimentsClientStrategySpec
     extends IzanamiSpec
     with BeforeAndAfterAll
@@ -24,8 +26,11 @@ class FetchExperimentsClientStrategySpec
     "List experiments" in {
 
       runServer { ctx =>
+
+        //#experiment-client
         val client = IzanamiClient(ClientConfig(ctx.host))
           .experimentClient(Strategies.fetchStrategy())
+        //#experiment-client
 
         val variantA = Variant("A", "Variant A", "The A variant")
         val variantB = Variant("B", "Variant B", "The B variant")
@@ -51,7 +56,11 @@ class FetchExperimentsClientStrategySpec
         experiment.enabled must be(expectedExperiments.enabled)
         experiment.variants must be(expectedExperiments.variants)
 
-        experiment.getVariantFor("client1").futureValue must be(None)
+        //#get-variant
+        val futureVariant: Future[Option[Variant]] = experiment.getVariantFor("client1")
+        //#get-variant
+
+        futureVariant.futureValue must be(None)
         experiment.markVariantDisplayed("client1").futureValue.variant must be(
           variantA)
         experiment.getVariantFor("client1").futureValue must be(Some(variantA))
