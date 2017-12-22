@@ -8,7 +8,7 @@ scalaVersion := "2.12.4"
 val akkaVersion = "2.5.8"
 
 resolvers ++= Seq(
-  Resolver.bintrayRepo("larousso", "maven")
+  Resolver.jcenterRepo
 )
 
 libraryDependencies ++= Seq(
