@@ -19,6 +19,7 @@ before_install:
 - curl -o- -L https://yarnpkg.com/install.sh | bash
 - docker-compose up -d
 script:
+- sh ./scripts/build-javascript.sh
 - sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";compile"
 - sbt docker:publishLocal
 - sh ./scripts/publish-binaries.sh
