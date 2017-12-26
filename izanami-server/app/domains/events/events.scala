@@ -12,13 +12,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.kafka.scaladsl.Consumer
 import akka.kafka.{ConsumerSettings, ManualSubscription, Subscriptions}
 import akka.serialization.SerializerWithStringManifest
-import akka.stream.scaladsl.{
-  BroadcastHub,
-  Flow,
-  Keep,
-  Source,
-  SourceQueueWithComplete
-}
+import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, Source, SourceQueueWithComplete}
 import akka.stream.{ActorMaterializer, Materializer, OverflowStrategy}
 import akka.util.ByteString
 import akka.{Done, NotUsed}
@@ -44,18 +38,9 @@ import env._
 import libs.IdGenerator
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
-import org.apache.kafka.clients.producer.{
-  Callback,
-  KafkaProducer,
-  ProducerRecord,
-  RecordMetadata
-}
+import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.serialization.{
-  ByteArraySerializer,
-  StringDeserializer,
-  StringSerializer
-}
+import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeserializer, StringSerializer}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.{Environment, Logger}
@@ -79,11 +64,11 @@ object Events {
     def timestamp: LocalDateTime
     def payload: JsValue
     def toJson: JsValue =
-      Json.obj("_id" -> _id,
-               "type" -> `type`,
-               "key" -> Key.writes.writes(key),
-               "domain" -> Json.toJson(domain),
-               "payload" -> payload,
+      Json.obj("_id"       -> _id,
+               "type"      -> `type`,
+               "key"       -> Key.writes.writes(key),
+               "domain"    -> Json.toJson(domain),
+               "payload"   -> payload,
                "timestamp" -> timestamp)
   }
 
@@ -93,229 +78,226 @@ object Events {
       //CONFIGS
       case o: JsObject if (o \ "type").as[String] == "CONFIG_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Config]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield ConfigCreated(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "CONFIG_UPDATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Config]
-          key <- (o \ "key").validate[Key]
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Config]
+          key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Config]
         } yield ConfigUpdated(key, oldValue, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "CONFIG_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Config]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield ConfigDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "CONFIGS_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id   <- (o \ "_id").validate[Long]
+          ts    <- (o \ "timestamp").validate[LocalDateTime]
           count <- (o \ "payload").validate[Long]
         } yield ConfigsDeleted(count, _id, ts)
       //FEATURES
       case o: JsObject if (o \ "type").as[String] == "FEATURE_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Feature]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield FeatureCreated(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "FEATURE_UPDATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Feature]
-          key <- (o \ "key").validate[Key]
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Feature]
+          key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Feature]
         } yield FeatureUpdated(key, oldValue, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "FEATURE_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Feature]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield FeatureDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "FEATURES_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id   <- (o \ "_id").validate[Long]
+          ts    <- (o \ "timestamp").validate[LocalDateTime]
           count <- (o \ "payload").validate[Long]
         } yield FeaturesDeleted(count, _id, ts)
       //SCRIPTS
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPT_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[GlobalScript]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield GlobalScriptCreated(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPT_UPDATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[GlobalScript]
-          key <- (o \ "key").validate[Key]
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[GlobalScript]
+          key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[GlobalScript]
         } yield GlobalScriptUpdated(key, oldValue, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPT_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[GlobalScript]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield GlobalScriptDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPTS_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id   <- (o \ "_id").validate[Long]
+          ts    <- (o \ "timestamp").validate[LocalDateTime]
           count <- (o \ "payload").validate[Long]
         } yield GlobalScriptsDeleted(count, _id, ts)
       //USER
       case o: JsObject if (o \ "type").as[String] == "USER_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[User]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield UserCreated(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "USER_UPDATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[User]
-          key <- (o \ "key").validate[Key]
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[User]
+          key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[User]
         } yield UserUpdated(key, oldValue, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "USER_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[User]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield UserDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "USERS_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id   <- (o \ "_id").validate[Long]
+          ts    <- (o \ "timestamp").validate[LocalDateTime]
           count <- (o \ "payload").validate[Long]
         } yield UsersDeleted(count)
       //WEBHOOK
       case o: JsObject if (o \ "type").as[String] == "WEBHOOK_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Webhook]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield WebhookCreated(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "WEBHOOK_UPDATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Webhook]
-          key <- (o \ "key").validate[Key]
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Webhook]
+          key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Webhook]
         } yield WebhookUpdated(key, oldValue, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "WEBHOOK_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Webhook]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield WebhookDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "WEBHOOKS_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id   <- (o \ "_id").validate[Long]
+          ts    <- (o \ "timestamp").validate[LocalDateTime]
           count <- (o \ "payload").validate[Long]
         } yield WebhooksDeleted(count, _id, ts)
       //APIKEY
       case o: JsObject if (o \ "type").as[String] == "APIKEY_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Apikey]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield ApikeyCreated(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "APIKEY_UPDATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Apikey]
-          key <- (o \ "key").validate[Key]
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Apikey]
+          key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Apikey]
         } yield ApikeyUpdated(key, oldValue, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "APIKEY_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Apikey]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield ApikeyDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "APIKEYS_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id   <- (o \ "_id").validate[Long]
+          ts    <- (o \ "timestamp").validate[LocalDateTime]
           count <- (o \ "payload").validate[Long]
         } yield ApikeysDeleted(count, _id, ts)
       //EXPERIMENT
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Experiment]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield ExperimentCreated(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_UPDATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Experiment]
-          key <- (o \ "key").validate[Key]
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Experiment]
+          key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Experiment]
         } yield ExperimentUpdated(key, oldValue, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Experiment]
-          key <- (o \ "key").validate[Key]
+          key     <- (o \ "key").validate[Key]
         } yield ExperimentDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENTS_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id   <- (o \ "_id").validate[Long]
+          ts    <- (o \ "timestamp").validate[LocalDateTime]
           count <- (o \ "payload").validate[Long]
         } yield ExperimentsDeleted(count, _id, ts)
       //VARIANT BINDING
-      case o: JsObject
-          if (o \ "type").as[String] == "VARIANT_BINDING_CREATED" =>
+      case o: JsObject if (o \ "type").as[String] == "VARIANT_BINDING_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[VariantBinding]
-          key <- (o \ "key").validate[VariantBindingKey]
+          key     <- (o \ "key").validate[VariantBindingKey]
         } yield VariantBindingCreated(key, payload, _id, ts)
       //VARIANT BINDING EVENT
-      case o: JsObject
-          if (o \ "type").as[String] == "EXPERIMENT_VARIANT_EVENT_CREATED" =>
+      case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_VARIANT_EVENT_CREATED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[ExperimentVariantEvent]
-          key <- (o \ "key").validate[ExperimentVariantEventKey]
+          key     <- (o \ "key").validate[ExperimentVariantEventKey]
         } yield ExperimentVariantEventCreated(key, payload, _id, ts)
-      case o: JsObject
-          if (o \ "type").as[String] == "EXPERIMENT_VARIANT_EVENT_DELETED" =>
+      case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_VARIANT_EVENT_DELETED" =>
         for {
-          _id <- (o \ "_id").validate[Long]
-          ts <- (o \ "timestamp").validate[LocalDateTime]
+          _id     <- (o \ "_id").validate[Long]
+          ts      <- (o \ "timestamp").validate[LocalDateTime]
           payload <- (o \ "payload").validate[Experiment]
         } yield ExperimentVariantEventsDeleted(payload, _id, ts)
       case _ =>
@@ -341,7 +323,7 @@ object Events {
                            _id: Long = gen.nextId(),
                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ConfigEvent {
-    val `type`: String = "CONFIG_CREATED"
+    val `type`: String   = "CONFIG_CREATED"
     val payload: JsValue = Json.toJson(config)
   }
   case class ConfigUpdated(key: ConfigKey,
@@ -350,7 +332,7 @@ object Events {
                            _id: Long = gen.nextId(),
                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ConfigEvent {
-    val `type`: String = "CONFIG_UPDATED"
+    val `type`: String   = "CONFIG_UPDATED"
     val payload: JsValue = Json.toJson(config)
     override def toJson: JsValue =
       super.toJson.as[JsObject] ++ Json.obj("oldValue" -> Json.toJson(oldValue))
@@ -360,15 +342,13 @@ object Events {
                            _id: Long = gen.nextId(),
                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ConfigEvent {
-    val `type`: String = "CONFIG_DELETED"
+    val `type`: String   = "CONFIG_DELETED"
     val payload: JsValue = Json.toJson(config)
   }
-  case class ConfigsDeleted(_id: Long = gen.nextId(),
-                            count: Long,
-                            timestamp: LocalDateTime = LocalDateTime.now())
+  case class ConfigsDeleted(_id: Long = gen.nextId(), count: Long, timestamp: LocalDateTime = LocalDateTime.now())
       extends ConfigEvent {
-    val `type`: String = "CONFIGS_DELETED"
-    val key: ConfigKey = Key.Empty
+    val `type`: String   = "CONFIGS_DELETED"
+    val key: ConfigKey   = Key.Empty
     val payload: JsValue = JsNumber(count)
   }
 
@@ -388,7 +368,7 @@ object Events {
                             _id: Long = gen.nextId(),
                             timestamp: LocalDateTime = LocalDateTime.now())
       extends FeatureEvent {
-    val `type`: String = "FEATURE_CREATED"
+    val `type`: String   = "FEATURE_CREATED"
     val payload: JsValue = Json.toJson(feature)
   }
   case class FeatureUpdated(key: FeatureKey,
@@ -397,7 +377,7 @@ object Events {
                             _id: Long = gen.nextId(),
                             timestamp: LocalDateTime = LocalDateTime.now())
       extends FeatureEvent {
-    val `type`: String = "FEATURE_UPDATED"
+    val `type`: String   = "FEATURE_UPDATED"
     val payload: JsValue = Json.toJson(feature)
 
     override def toJson: JsValue =
@@ -408,15 +388,13 @@ object Events {
                             _id: Long = gen.nextId(),
                             timestamp: LocalDateTime = LocalDateTime.now())
       extends FeatureEvent {
-    val `type`: String = "FEATURE_DELETED"
+    val `type`: String   = "FEATURE_DELETED"
     val payload: JsValue = Json.toJson(feature)
   }
-  case class FeaturesDeleted(count: Long,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now())
+  case class FeaturesDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
       extends FeatureEvent {
-    val key: FeatureKey = Key.Empty
-    val `type`: String = "FEATURES_DELETED"
+    val key: FeatureKey  = Key.Empty
+    val `type`: String   = "FEATURES_DELETED"
     val payload: JsValue = JsNumber(count)
   }
 
@@ -436,7 +414,7 @@ object Events {
                                  _id: Long = gen.nextId(),
                                  timestamp: LocalDateTime = LocalDateTime.now())
       extends GlobalScriptEvent {
-    val `type`: String = "GLOBALSCRIPT_CREATED"
+    val `type`: String   = "GLOBALSCRIPT_CREATED"
     val payload: JsValue = Json.toJson(globalScript)
   }
   case class GlobalScriptUpdated(key: GlobalScriptKey,
@@ -445,7 +423,7 @@ object Events {
                                  _id: Long = gen.nextId(),
                                  timestamp: LocalDateTime = LocalDateTime.now())
       extends GlobalScriptEvent {
-    val `type`: String = "GLOBALSCRIPT_UPDATED"
+    val `type`: String   = "GLOBALSCRIPT_UPDATED"
     val payload: JsValue = Json.toJson(globalScript)
     override def toJson: JsValue =
       super.toJson.as[JsObject] ++ Json.obj("oldValue" -> Json.toJson(oldValue))
@@ -455,16 +433,13 @@ object Events {
                                  _id: Long = gen.nextId(),
                                  timestamp: LocalDateTime = LocalDateTime.now())
       extends GlobalScriptEvent {
-    val `type`: String = "GLOBALSCRIPT_DELETED"
+    val `type`: String   = "GLOBALSCRIPT_DELETED"
     val payload: JsValue = Json.toJson(globalScript)
   }
-  case class GlobalScriptsDeleted(
-      count: Long,
-      _id: Long = gen.nextId(),
-      timestamp: LocalDateTime = LocalDateTime.now())
+  case class GlobalScriptsDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
       extends GlobalScriptEvent {
-    val key = Key.Empty
-    val `type`: String = "GLOBALSCRIPTS_DELETED"
+    val key              = Key.Empty
+    val `type`: String   = "GLOBALSCRIPTS_DELETED"
     val payload: JsValue = JsNumber(count)
   }
 
@@ -479,7 +454,7 @@ object Events {
                          _id: Long = gen.nextId(),
                          timestamp: LocalDateTime = LocalDateTime.now())
       extends UserEvent {
-    val `type`: String = "USER_CREATED"
+    val `type`: String   = "USER_CREATED"
     val payload: JsValue = Json.toJson(user)
   }
 
@@ -489,7 +464,7 @@ object Events {
                          _id: Long = gen.nextId(),
                          timestamp: LocalDateTime = LocalDateTime.now())
       extends UserEvent {
-    val `type`: String = "USER_UPDATED"
+    val `type`: String   = "USER_UPDATED"
     val payload: JsValue = Json.toJson(user)
     override def toJson: JsValue =
       super.toJson.as[JsObject] ++ Json.obj("oldValue" -> Json.toJson(oldValue))
@@ -500,16 +475,14 @@ object Events {
                          _id: Long = gen.nextId(),
                          timestamp: LocalDateTime = LocalDateTime.now())
       extends UserEvent {
-    val `type`: String = "USER_DELETED"
+    val `type`: String   = "USER_DELETED"
     val payload: JsValue = Json.toJson(user)
   }
 
-  case class UsersDeleted(count: Long,
-                          _id: Long = gen.nextId(),
-                          timestamp: LocalDateTime = LocalDateTime.now())
+  case class UsersDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
       extends UserEvent {
-    val `type`: String = "USERS_DELETED"
-    val key: UserKey = Key.Empty
+    val `type`: String   = "USERS_DELETED"
+    val key: UserKey     = Key.Empty
     val payload: JsValue = JsNumber(count)
   }
 
@@ -529,7 +502,7 @@ object Events {
                             _id: Long = gen.nextId(),
                             timestamp: LocalDateTime = LocalDateTime.now())
       extends WebhookEvent {
-    val `type`: String = "WEBHOOK_CREATED"
+    val `type`: String   = "WEBHOOK_CREATED"
     val payload: JsValue = Json.toJson(webhook)
   }
   case class WebhookUpdated(key: WebhookKey,
@@ -538,7 +511,7 @@ object Events {
                             _id: Long = gen.nextId(),
                             timestamp: LocalDateTime = LocalDateTime.now())
       extends WebhookEvent {
-    val `type`: String = "WEBHOOK_UPDATED"
+    val `type`: String   = "WEBHOOK_UPDATED"
     val payload: JsValue = Json.toJson(webhook)
     override def toJson: JsValue =
       super.toJson.as[JsObject] ++ Json.obj("oldValue" -> Json.toJson(oldValue))
@@ -548,15 +521,13 @@ object Events {
                             _id: Long = gen.nextId(),
                             timestamp: LocalDateTime = LocalDateTime.now())
       extends WebhookEvent {
-    val `type`: String = "WEBHOOK_DELETED"
+    val `type`: String   = "WEBHOOK_DELETED"
     val payload: JsValue = Json.toJson(webhook)
   }
-  case class WebhooksDeleted(count: Long,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now())
+  case class WebhooksDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
       extends WebhookEvent {
-    val key = Key.Empty
-    val `type`: String = "WEBHOOKS_DELETED"
+    val key              = Key.Empty
+    val `type`: String   = "WEBHOOKS_DELETED"
     val payload: JsValue = JsNumber(count)
   }
 
@@ -576,7 +547,7 @@ object Events {
                            _id: Long = gen.nextId(),
                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ApikeyEvent {
-    val `type`: String = "APIKEY_CREATED"
+    val `type`: String   = "APIKEY_CREATED"
     val payload: JsValue = Json.toJson(apikey)
   }
 
@@ -586,7 +557,7 @@ object Events {
                            _id: Long = gen.nextId(),
                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ApikeyEvent {
-    val `type`: String = "APIKEY_UPDATED"
+    val `type`: String   = "APIKEY_UPDATED"
     val payload: JsValue = Json.toJson(apikey)
     override def toJson: JsValue =
       super.toJson.as[JsObject] ++ Json.obj("oldValue" -> Json.toJson(oldValue))
@@ -597,16 +568,14 @@ object Events {
                            _id: Long = gen.nextId(),
                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ApikeyEvent {
-    val `type`: String = "APIKEY_DELETED"
+    val `type`: String   = "APIKEY_DELETED"
     val payload: JsValue = Json.toJson(apikey)
   }
 
-  case class ApikeysDeleted(count: Long,
-                            _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+  case class ApikeysDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
       extends ApikeyEvent {
-    val `type`: String = "APIKEYS_DELETED"
-    val key: ApikeyKey = Key.Empty
+    val `type`: String   = "APIKEYS_DELETED"
+    val key: ApikeyKey   = Key.Empty
     val payload: JsValue = JsNumber(count)
   }
 
@@ -620,7 +589,7 @@ object Events {
                                _id: Long = gen.nextId(),
                                timestamp: LocalDateTime = LocalDateTime.now())
       extends ExperimentEvent {
-    val `type`: String = "EXPERIMENT_CREATED"
+    val `type`: String   = "EXPERIMENT_CREATED"
     val payload: JsValue = Json.toJson(experiment)
   }
 
@@ -630,7 +599,7 @@ object Events {
                                _id: Long = gen.nextId(),
                                timestamp: LocalDateTime = LocalDateTime.now())
       extends ExperimentEvent {
-    val `type`: String = "EXPERIMENT_UPDATED"
+    val `type`: String   = "EXPERIMENT_UPDATED"
     val payload: JsValue = Json.toJson(experiment)
     override def toJson: JsValue =
       super.toJson.as[JsObject] ++ Json.obj("oldValue" -> Json.toJson(oldValue))
@@ -641,16 +610,14 @@ object Events {
                                _id: Long = gen.nextId(),
                                timestamp: LocalDateTime = LocalDateTime.now())
       extends ExperimentEvent {
-    val `type`: String = "EXPERIMENT_DELETED"
+    val `type`: String   = "EXPERIMENT_DELETED"
     val payload: JsValue = Json.toJson(experiment)
   }
 
-  case class ExperimentsDeleted(count: Long,
-                                _id: Long = gen.nextId(),
-                                timestamp: LocalDateTime = LocalDateTime.now())
+  case class ExperimentsDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
       extends ExperimentEvent {
-    val `type`: String = "EXPERIMENTS_DELETED"
-    val payload: JsValue = JsNumber(count)
+    val `type`: String     = "EXPERIMENTS_DELETED"
+    val payload: JsValue   = JsNumber(count)
     val key: ExperimentKey = Key.Empty
   }
 
@@ -659,12 +626,11 @@ object Events {
   case class VariantBindingCreated(variantBindingKey: VariantBindingKey,
                                    variantBinding: VariantBinding,
                                    _id: Long = gen.nextId(),
-                                   timestamp: LocalDateTime =
-                                     LocalDateTime.now())
+                                   timestamp: LocalDateTime = LocalDateTime.now())
       extends VariantBindingEvent {
-    val `type`: String = "VARIANT_BINDING_CREATED"
+    val `type`: String     = "VARIANT_BINDING_CREATED"
     val key: ExperimentKey = variantBindingKey.key
-    val payload: JsValue = Json.toJson(variantBinding)
+    val payload: JsValue   = Json.toJson(variantBinding)
   }
 
   sealed trait ExperimentVariantEventEvent extends ExperimentEvent
@@ -672,20 +638,18 @@ object Events {
   case class ExperimentVariantEventCreated(id: ExperimentVariantEventKey,
                                            data: ExperimentVariantEvent,
                                            _id: Long = gen.nextId(),
-                                           timestamp: LocalDateTime =
-                                             LocalDateTime.now())
+                                           timestamp: LocalDateTime = LocalDateTime.now())
       extends ExperimentVariantEventEvent {
-    override def `type`: String = "EXPERIMENT_VARIANT_EVENT_CREATED"
+    override def `type`: String     = "EXPERIMENT_VARIANT_EVENT_CREATED"
     override def key: ExperimentKey = id.key
-    override def payload: JsValue = Json.toJson(data)
+    override def payload: JsValue   = Json.toJson(data)
   }
 
   case class ExperimentVariantEventsDeleted(experiment: Experiment,
                                             _id: Long = gen.nextId(),
-                                            timestamp: LocalDateTime =
-                                              LocalDateTime.now())
+                                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ExperimentVariantEventEvent {
-    override def `type`: String = "EXPERIMENT_VARIANT_EVENT_DELETED"
+    override def `type`: String     = "EXPERIMENT_VARIANT_EVENT_DELETED"
     override def key: ExperimentKey = experiment.id
     override def payload: JsValue =
       Json.toJson("experimentId" -> experiment.id.key)
@@ -701,15 +665,13 @@ import domains.events.EventLogger._
 
 trait EventStore extends Closeable {
 
-  private[events] def eventMatch(patterns: Seq[String], domains: Seq[Domain])(
-      e: IzanamiEvent): Boolean =
+  private[events] def eventMatch(patterns: Seq[String], domains: Seq[Domain])(e: IzanamiEvent): Boolean =
     (domains.isEmpty || domains.contains(e.domain)) && (patterns.isEmpty || e.key
       .matchPatterns(
         patterns: _*
       ))
 
-  def dropUntilLastId(
-      lastId: Option[Long]): Flow[IzanamiEvent, IzanamiEvent, NotUsed] =
+  def dropUntilLastId(lastId: Option[Long]): Flow[IzanamiEvent, IzanamiEvent, NotUsed] =
     lastId.map { id =>
       Flow[IzanamiEvent].dropWhile(_._id < id)
     } getOrElse {
@@ -726,7 +688,7 @@ trait EventStore extends Closeable {
 
 class BasicEventStore(system: ActorSystem) extends EventStore {
 
-  private implicit val s = system
+  private implicit val s                 = system
   private implicit val mat: Materializer = ActorMaterializer()
 
   logger.info("Starting default event store")
@@ -743,10 +705,9 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
     //Already published
     FastFuture.successful(Done)
 
-  override def events(
-      domains: Seq[Domain],
-      patterns: Seq[String],
-      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
+  override def events(domains: Seq[Domain],
+                      patterns: Seq[String],
+                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
     source
       .via(dropUntilLastId(lastEventId))
       .filter { eventMatch(patterns, domains) }
@@ -760,9 +721,7 @@ private[events] object EventStreamActor {
     Props(new EventStreamActor(queue))
 }
 
-private[events] class EventStreamActor(
-    queue: SourceQueueWithComplete[IzanamiEvent])
-    extends Actor {
+private[events] class EventStreamActor(queue: SourceQueueWithComplete[IzanamiEvent]) extends Actor {
 
   import context.dispatcher
 
@@ -789,14 +748,12 @@ private[events] class EventStreamActor(
 ///////////////////////////////////////////////////////   REDIS   //////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class RedisEventStore(client: RedisClientMasterSlaves,
-                      config: RedisEventsConfig,
-                      system: ActorSystem)
+class RedisEventStore(client: RedisClientMasterSlaves, config: RedisEventsConfig, system: ActorSystem)
     extends EventStore {
 
   import system.dispatcher
 
-  implicit private val s = system
+  implicit private val s   = system
   implicit private val mat = ActorMaterializer()
 
   logger.info(s"Starting redis event store")
@@ -826,10 +783,9 @@ class RedisEventStore(client: RedisClientMasterSlaves,
     publish
   }
 
-  override def events(
-      domains: Seq[Domain],
-      patterns: Seq[String],
-      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
+  override def events(domains: Seq[Domain],
+                      patterns: Seq[String],
+                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
     source
       .via(dropUntilLastId(lastEventId))
       .filter(eventMatch(patterns, domains))
@@ -837,10 +793,9 @@ class RedisEventStore(client: RedisClientMasterSlaves,
   override def close() = actor ! PoisonPill
 }
 
-private[events] class SubscribeActor(
-    client: RedisClientMasterSlaves,
-    config: RedisEventsConfig,
-    queue: SourceQueueWithComplete[IzanamiEvent])
+private[events] class SubscribeActor(client: RedisClientMasterSlaves,
+                                     config: RedisEventsConfig,
+                                     queue: SourceQueueWithComplete[IzanamiEvent])
     extends RedisSubscriberActor(
       new InetSocketAddress(client.master.host, client.master.port),
       Seq(config.topic),
@@ -860,7 +815,7 @@ private[events] class SubscribeActor(
     sendMessage(pm.data)
 
   private def sendMessage(bs: ByteString) = {
-    val json = Json.parse(bs.utf8String)
+    val json                           = Json.parse(bs.utf8String)
     val result: JsResult[IzanamiEvent] = json.validate[IzanamiEvent]
     result match {
       case JsSuccess(e, _) =>
@@ -870,8 +825,7 @@ private[events] class SubscribeActor(
           case r          => Logger.debug(s"Event published to queue $r")
         }
       case JsError(errors) =>
-        logger.error(
-          s"Error deserializing event of type ${json \ "type"} : $errors")
+        logger.error(s"Error deserializing event of type ${json \ "type"} : $errors")
     }
   }
 
@@ -900,10 +854,9 @@ object KafkaSettings {
   import org.apache.kafka.common.config.SslConfigs
   import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
-  def consumerSettings(
-      _env: Environment,
-      system: ActorSystem,
-      config: KafkaConfig): ConsumerSettings[Array[Byte], String] = {
+  def consumerSettings(_env: Environment,
+                       system: ActorSystem,
+                       config: KafkaConfig): ConsumerSettings[Array[Byte], String] = {
 
     val settings = ConsumerSettings
       .create(system, new ByteArrayDeserializer, new StringDeserializer())
@@ -929,10 +882,9 @@ object KafkaSettings {
     s.getOrElse(settings)
   }
 
-  def producerSettings(
-      _env: Environment,
-      system: ActorSystem,
-      config: KafkaConfig): ProducerSettings[Array[Byte], String] = {
+  def producerSettings(_env: Environment,
+                       system: ActorSystem,
+                       config: KafkaConfig): ProducerSettings[Array[Byte], String] = {
     val settings = ProducerSettings
       .create(system, new ByteArraySerializer(), new StringSerializer())
       .withBootstrapServers(config.servers)
@@ -976,15 +928,11 @@ class KafkaEventStore(_env: Environment,
     .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
 
-
-
   override def publish(event: IzanamiEvent): Future[Done] = {
     val promise: Promise[RecordMetadata] = Promise[RecordMetadata]
     try {
       val message = Json.stringify(event.toJson)
-      producer.send(
-        new ProducerRecord[Array[Byte], String](eventsConfig.topic, message),
-        callback(promise))
+      producer.send(new ProducerRecord[Array[Byte], String](eventsConfig.topic, message), callback(promise))
     } catch {
       case NonFatal(e) =>
         promise.failure(e)
@@ -994,10 +942,9 @@ class KafkaEventStore(_env: Environment,
     }
   }
 
-  override def events(
-      domains: Seq[Domain],
-      patterns: Seq[String],
-      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] = {
+  override def events(domains: Seq[Domain],
+                      patterns: Seq[String],
+                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] = {
 
     import scala.collection.JavaConverters._
 
@@ -1029,8 +976,7 @@ class KafkaEventStore(_env: Environment,
             .validate[IzanamiEvent]
             .fold(
               err => {
-                logger.error(
-                  s"Error deserializing event of type ${json \ "type"} : $err")
+                logger.error(s"Error deserializing event of type ${json \ "type"} : $err")
                 List.empty[IzanamiEvent]
               },
               e => List(e)
@@ -1040,6 +986,7 @@ class KafkaEventStore(_env: Environment,
         case (control, done) =>
           done.onComplete { _ =>
             control.shutdown()
+            kafkaConsumer.close()
           }
       }
       .via(dropUntilLastId(lastEventId))
@@ -1048,7 +995,6 @@ class KafkaEventStore(_env: Environment,
   }
 
   override def close() = {
-    kafkaConsumer.close()
     producer.close()
   }
 
@@ -1073,8 +1019,7 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
                                   lifecycle: ApplicationLifecycle)
     extends EventStore {
 
-  Logger.info(
-    s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}")
+  Logger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}")
 
   private val actorSystemName: String =
     globalConfig.getString("cluster.system-name")
@@ -1097,10 +1042,9 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
     FastFuture.successful(Done)
   }
 
-  override def events(
-      domains: Seq[Domain],
-      patterns: Seq[String],
-      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
+  override def events(domains: Seq[Domain],
+                      patterns: Seq[String],
+                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
     source
       .via(dropUntilLastId(lastEventId))
       .filter(eventMatch(patterns, domains))
@@ -1129,8 +1073,7 @@ class CustomSerializer extends SerializerWithStringManifest {
       case DistributedEventsPublisherActor.Message(json) =>
         Json.stringify(json).getBytes(UTF_8)
       case other =>
-        throw new IllegalStateException(
-          s"MessageSerializer : Unknow object $other")
+        throw new IllegalStateException(s"MessageSerializer : Unknow object $other")
     }
 
   def fromBinary(bytes: Array[Byte], manifest: String): AnyRef =
@@ -1144,14 +1087,12 @@ object DistributedEventsPublisherActor {
   case class Publish(event: IzanamiEvent)
   case class Message(event: JsValue)
 
-  def props(queue: SourceQueueWithComplete[IzanamiEvent],
-            config: DistributedEventsConfig): Props =
+  def props(queue: SourceQueueWithComplete[IzanamiEvent], config: DistributedEventsConfig): Props =
     Props(new DistributedEventsPublisherActor(queue, config))
 }
 
-private[events] class DistributedEventsPublisherActor(
-    queue: SourceQueueWithComplete[IzanamiEvent],
-    config: DistributedEventsConfig)
+private[events] class DistributedEventsPublisherActor(queue: SourceQueueWithComplete[IzanamiEvent],
+                                                      config: DistributedEventsConfig)
     extends Actor {
   import context.dispatcher
 
@@ -1160,17 +1101,13 @@ private[events] class DistributedEventsPublisherActor(
 
   override def receive = {
     case DistributedEventsPublisherActor.Publish(event) =>
-      mediator ! Publish(
-        config.topic,
-        DistributedEventsPublisherActor.Message(Json.toJson(event)))
+      mediator ! Publish(config.topic, DistributedEventsPublisherActor.Message(Json.toJson(event)))
     case DistributedEventsPublisherActor.Message(json) =>
       logger.debug(s"New event $json")
       json
         .validate[IzanamiEvent]
         .fold(
-          err =>
-            logger.error(
-              s"Error deserializing event of type ${json \ "type"} : $err"),
+          err => logger.error(s"Error deserializing event of type ${json \ "type"} : $err"),
           e => queue.offer(e)
         )
   }
