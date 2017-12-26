@@ -38,6 +38,8 @@ You can join these groups and chats to discuss and ask Izanami related questions
 - Latest dist zip [![dist-badge][]][dist]  
 - Latest jar [![jar-badge][]][jar] 
 - Latest client [![jar-badge][]][jar] 
+- Latest node client [![nodeclient-badge][]][nodeclient] 
+- Latest react client [![reactclient-badge][]][reactclient] 
 
 ## Contribution & Maintainers 
 
