@@ -41,30 +41,40 @@ lazy val jvm = (project in file("."))
 
 lazy val githubRepo = "maif/izanami"
 
-lazy val publishSettings =
-  Seq(
+lazy val publishCommonsSettings = Seq(
+  homepage := Some(url(s"https://github.com/$githubRepo")),
+  startYear := Some(2017),
+  licenses := Seq(("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))),
+  scmInfo := Some(
+    ScmInfo(
+      url(s"https://github.com/$githubRepo"),
+      s"scm:git:https://github.com/$githubRepo.git",
+      Some(s"scm:git:git@github.com:$githubRepo.git")
+    )
+  ),
+  developers := List(
+    Developer("alexandre.delegue", "Alexandre Delègue", "", url(s"https://github.com/larousso"))
+  ),
+  publishMavenStyle := true,
+  publishArtifact in Test := false,
+  bintrayVcsUrl := Some(s"scm:git:git@github.com:$githubRepo.git")
+)
+
+lazy val publishSettings = if (sys.env.get("TRAVIS_TAG").isEmpty) {
+  publishCommonsSettings ++ Seq(
+    publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"),
+    bintrayReleaseOnPublish := false,
+    credentials := List(new File(".artifactory")).filter(_.exists).map(Credentials(_))
+  )
+} else {
+  publishCommonsSettings ++ Seq(
     bintrayOrganization := Some("maif"),
-    homepage := Some(url(s"https://github.com/$githubRepo")),
-    startYear := Some(2017),
-    licenses := Seq(("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))),
-    scmInfo := Some(
-      ScmInfo(
-        url(s"https://github.com/$githubRepo"),
-        s"scm:git:https://github.com/$githubRepo.git",
-        Some(s"scm:git:git@github.com:$githubRepo.git")
-      )
-    ),
-    developers := List(
-      Developer("alexandre.delegue", "Alexandre Delègue", "", url(s"https://github.com/larousso"))
-    ),
-    publishMavenStyle := true,
-    publishArtifact in Test := false,
-    bintrayVcsUrl := Some(s"scm:git:git@github.com:$githubRepo.git"),
     bintrayCredentialsFile := file(".credentials"),
     pomIncludeRepository := { _ =>
       false
     }
   )
+}
 
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
