@@ -976,8 +976,7 @@ class KafkaEventStore(_env: Environment,
     .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
 
-  val kafkaConsumer: KafkaConsumer[Array[Byte], String] =
-    settings.createKafkaConsumer()
+
 
   override def publish(event: IzanamiEvent): Future[Done] = {
     val promise: Promise[RecordMetadata] = Promise[RecordMetadata]
@@ -1001,6 +1000,9 @@ class KafkaEventStore(_env: Environment,
       lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] = {
 
     import scala.collection.JavaConverters._
+
+    val kafkaConsumer: KafkaConsumer[Array[Byte], String] =
+      settings.createKafkaConsumer()
 
     val subscription: ManualSubscription = lastEventId.map { id =>
       val lastDate: Long = System.currentTimeMillis() - (1000 * 60 * 60 * 24)
