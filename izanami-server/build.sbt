@@ -13,6 +13,10 @@ scalaVersion := "2.12.4"
 
 val akkaVersion = "2.5.8"
 
+resolvers ++= Seq(
+  Resolver.jcenterRepo
+)
+
 libraryDependencies ++= Seq(
   ws,
   "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
