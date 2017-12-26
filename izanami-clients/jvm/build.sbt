@@ -5,7 +5,6 @@ val akkaVersion = "2.5.6"
 
 lazy val jvm = (project in file("."))
   .disablePlugins(RevolverPlugin)
-  .enablePlugins(BuildInfoPlugin, GitVersioning, GitBranchPrompt)
   .settings(
     organization := "fr.maif",
     name := "izanami-client",

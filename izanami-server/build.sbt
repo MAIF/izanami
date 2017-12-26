@@ -1,6 +1,10 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
-name := """izanami-server"""
+name := """izanami"""
+
+packageName in Universal := "izanami"
+
+name in Universal := "izanami"
 
 lazy val `izanami-server` = (project in file("."))
   .enablePlugins(PlayScala, DockerPlugin)
@@ -8,10 +12,6 @@ lazy val `izanami-server` = (project in file("."))
 scalaVersion := "2.12.4"
 
 val akkaVersion = "2.5.8"
-
-resolvers ++= Seq(
-  Resolver.jcenterRepo
-)
 
 libraryDependencies ++= Seq(
   ws,
@@ -49,32 +49,32 @@ scalacOptions ++= Seq(
   "-language:existentials"
 )
 
-// Adds additional packages into Twirl
-//TwirlKeys.templateImports += "org.maifx.controllers._"
-
-// Adds additional packages into conf/routes
-// play.sbt.routes.RoutesKeys.routesImport += "org.maifx.binders._"
-
 scalafmtOnCompile in ThisBuild := true
 
 scalafmtTestOnCompile in ThisBuild := true
 
-scalafmtVersion in ThisBuild := "1.2.0" // all projects
+scalafmtVersion in ThisBuild := "1.2.0"
+
+/// ASSEMBLY CONFIG
 
 mainClass in assembly := Some("play.core.server.ProdServerStart")
 test in assembly := {}
 assemblyJarName in assembly := "izanami.jar"
 fullClasspath in assembly += Attributed.blank(PlayKeys.playPackageAssets.value)
 assemblyMergeStrategy in assembly := {
-  //case PathList("org", "apache", "commons", "logging", xs @ _*)       => MergeStrategy.first
+  //case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case PathList(ps @ _*) if ps.last == "io.netty.versions.properties" =>
     MergeStrategy.first
   case PathList(ps @ _*) if ps.contains("reference-overrides.conf") =>
     MergeStrategy.concat
   case PathList(ps @ _*) if ps.last endsWith ".conf" => MergeStrategy.concat
+  case PathList(ps @ _*) if ps.contains("buildinfo") =>
+    println(s"VALUE $ps")
+    MergeStrategy.discard
   case o =>
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(o)
+
 }
 
 lazy val packageAll = taskKey[Unit]("PackageAll")
@@ -82,6 +82,8 @@ packageAll := {
   (dist in Compile).value
   (assembly in Compile).value
 }
+
+/// DOCKER CONFIG
 
 dockerExposedPorts := Seq(
   2551,

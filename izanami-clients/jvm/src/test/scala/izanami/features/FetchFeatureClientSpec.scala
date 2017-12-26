@@ -25,7 +25,7 @@ class FetchFeatureClientSpec
     with FeatureServer
     with FeatureMockServer {
 
-  implicit val system = ActorSystem("test")
+  implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
 
   import system.dispatcher
@@ -136,7 +136,7 @@ class FetchFeatureClientSpec
       registerCheckFeature("test2")
 
       //#check-context
-      val context = Json.obj("context" -> true)
+      val context                           = Json.obj("context" -> true)
       val checkWithContext: Future[Boolean] = featureClient.checkFeature("test", context)
       //#check-context
 
@@ -156,14 +156,13 @@ class FetchFeatureClientSpec
       }
       //#check-conditional-context
 
-      conditonal.futureValue must be ("Feature is active")
-      conditonalWithContext.futureValue must be ("Feature is active")
+      conditonal.futureValue must be("Feature is active")
+      conditonalWithContext.futureValue must be("Feature is active")
       checkWithContext.futureValue must be(true)
 
       mock.verifyThat(
-          postRequestedFor(urlPathEqualTo("/api/features/test/check"))
-        .withRequestBody(equalTo(Json.stringify(context)))
-
+        postRequestedFor(urlPathEqualTo("/api/features/test/check"))
+          .withRequestBody(equalTo(Json.stringify(context)))
       )
 
       featureClient.checkFeature("test2").futureValue must be(true)
@@ -186,11 +185,8 @@ class FetchFeatureClientSpec
 
         val expectedEvents = Seq(
           FeatureCreated("id1", DefaultFeature("id1", true)),
-          FeatureUpdated("filter:id2",
-                         DefaultFeature("id2", true),
-                         DefaultFeature("id2", false)),
-          FeatureCreated("filter:id3",
-                         ScriptFeature("id3", true, Some(true), "script")),
+          FeatureUpdated("filter:id2", DefaultFeature("id2", true), DefaultFeature("id2", false)),
+          FeatureCreated("filter:id3", ScriptFeature("id3", true, Some(true), "script")),
           FeatureDeleted("id4"),
           FeatureDeleted("id5")
         )
@@ -209,8 +205,7 @@ class FetchFeatureClientSpec
         expectedEvents.foreach(e => ctx.queue.offer(e))
 
         fEvents.futureValue must be(expectedEvents)
-        fEvents2.futureValue must be(
-          expectedEvents.filter(_.id.startsWith("filter:")))
+        fEvents2.futureValue must be(expectedEvents.filter(_.id.startsWith("filter:")))
       }
     }
   }
