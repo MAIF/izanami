@@ -10,6 +10,11 @@
 [jar-badge]:            https://api.bintray.com/packages/maif/binaries/izanami.jar/images/download.svg
 [client]:               https://bintray.com/maif/maven/izanami-client/_latestVersion
 [client-badge]:         https://api.bintray.com/packages/maif/maven/izanami-client/images/download.svg
+[nodeclient]:           https://bintray.com/maif/npm/izanami-client/_latestVersion
+[nodeclient-badge]:     https://api.bintray.com/packages/maif/npm/izanami-client/images/download.svg
+[reactclient]:          https://bintray.com/maif/npm/react-izanami/_latestVersion
+[reactclient-badge]:    https://api.bintray.com/packages/maif/npm/react-izanami/images/download.svg
+
 
 **Izanami** is a shared configuration service well-suited for micro-service architecture implementation. In addition to shared configuration, Izanami provides feature flipping and A/B Testing. Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.
 
