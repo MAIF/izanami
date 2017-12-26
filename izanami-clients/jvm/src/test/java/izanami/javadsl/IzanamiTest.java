@@ -9,9 +9,7 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.typesafe.config.ConfigFactory;
 import io.vavr.concurrent.Future;
 import io.vavr.control.Option;
-import izanami.ClientConfig;
-import izanami.Strategies;
-import izanami.Variant;
+import izanami.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -300,8 +298,24 @@ public class IzanamiTest {
 
         //#get-variant
         Future<Option<Variant>> futureVariant = experimentsClient.getVariantFor("my:experiment", "clientId");
+        futureVariant.onSuccess(mayBeVariant ->
+                System.out.println(mayBeVariant)
+        );
         //#get-variant
 
+        //#displayed-variant
+        Future<ExperimentVariantDisplayed> futureDisplayed = experimentsClient.markVariantDisplayed("my:experiment", "clientId");
+        futureDisplayed.onSuccess(event ->
+                System.out.println(event)
+        );
+        //#displayed-variant
+
+        //#won-variant
+        Future<ExperimentVariantWon> futureWon = experimentsClient.markVariantWon("my:experiment", "clientId");
+        futureWon.onSuccess(event ->
+                System.out.println(event)
+        );
+        //#won-variant
     }
 
 

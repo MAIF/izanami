@@ -73,10 +73,10 @@
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="active page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="page">React</a></li>
-    <li><a href="../clients/node.html" class="page">Node</a></li>
+    <li><a href="../clients/react.html" class="page">React client</a></li>
+    <li><a href="../clients/node.html" class="page">Node js client</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="page">Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -151,10 +151,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="active page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="page">React</a></li>
-    <li><a href="../clients/node.html" class="page">Node</a></li>
+    <li><a href="../clients/react.html" class="page">React client</a></li>
+    <li><a href="../clients/node.html" class="page">Node js client</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="page">Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -210,10 +210,17 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../clients/jvm.html#experiments-client" class="header">Experiments client</a>
   <ul>
     <li><a href="../clients/jvm.html#setup-the-client" class="header">Setup the client</a></li>
-    <li><a href="../clients/jvm.html#mark-variants" class="header">Mark variants</a>
+    <li><a href="../clients/jvm.html#variants" class="header">Variants</a>
     <ul>
       <li><a href="../clients/jvm.html#get-a-variant-for-a-client" class="header">Get a variant for a client</a></li>
+      <li><a href="../clients/jvm.html#mark-variant-displayed" class="header">Mark variant displayed</a></li>
+      <li><a href="../clients/jvm.html#mark-variant-won" class="header">Mark variant won</a></li>
     </ul></li>
+    <li><a href="../clients/jvm.html#work-with-experiment" class="header">Work with experiment</a>
+    <ul>
+      <li><a href="../clients/jvm.html#get-the-experiment" class="header">Get the experiment</a></li>
+    </ul></li>
+    <li><a href="../clients/jvm.html#experiment-tree" class="header">Experiment tree</a></li>
   </ul></li>
   <li><a href="../clients/jvm.html#exposing-izanami-with-a-proxy" class="header">Exposing izanami with a Proxy</a></li>
 </ul>
@@ -346,7 +353,7 @@ val client = IzanamiClient(
   </tbody>
 </table>
 <h2><a href="#configs-client" name="configs-client" class="anchor"><span class="anchor-link"></span></a>Configs client</h2>
-<p>The config client is used to access the shared config in Izanami. </p>
+<p>The config client is used to access the shared config in Izanami. To understand how configs work, just visit this </p>
 <h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
 <dl>
   <dt>Java</dt>
@@ -462,6 +469,7 @@ futureConfig.onComplete {
 }</code></pre></dd>
 </dl>
 <h2><a href="#features-client" name="features-client" class="anchor"><span class="anchor-link"></span></a>Features client</h2>
+<p>To understand how features work, just visit this </p>
 <h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
 <dl>
   <dt>Java</dt>
@@ -630,6 +638,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
 }</code></pre></dd>
 </dl>
 <h2><a href="#experiments-client" name="experiments-client" class="anchor"><span class="anchor-link"></span></a>Experiments client</h2>
+<p>To understand how experiments work, just visit this  </p>
 <h3><a href="#setup-the-client" name="setup-the-client" class="anchor"><span class="anchor-link"></span></a>Setup the client</h3>
 <dl>
   <dt>Java</dt>
@@ -637,24 +646,65 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <pre class="prettyprint"><code class="language-java">ExperimentsClient experimentsClient = izanamiClient.experimentClient(Strategies.fetchStrategy());</code></pre></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val client = IzanamiClient(ClientConfig(ctx.host))
+  <pre class="prettyprint"><code class="language-scala">val experimentClient = IzanamiClient(ClientConfig(ctx.host))
   .experimentClient(Strategies.fetchStrategy())</code></pre></dd>
 </dl>
 <p>For experiments, there is only two strategies available : fetch or dev.</p>
-<h3><a href="#mark-variants" name="mark-variants" class="anchor"><span class="anchor-link"></span></a>Mark variants</h3>
+<h3><a href="#variants" name="variants" class="anchor"><span class="anchor-link"></span></a>Variants</h3>
 <h4><a href="#get-a-variant-for-a-client" name="get-a-variant-for-a-client" class="anchor"><span class="anchor-link"></span></a>Get a variant for a client</h4>
-<p>Setup the client </p>
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-java">Future&lt;Option&lt;Variant&gt;&gt; futureVariant = experimentsClient.getVariantFor(&quot;my:experiment&quot;, &quot;clientId&quot;);</code></pre></dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Option&lt;Variant&gt;&gt; futureVariant = experimentsClient.getVariantFor(&quot;my:experiment&quot;, &quot;clientId&quot;);
+futureVariant.onSuccess(mayBeVariant -&gt;
+        System.out.println(mayBeVariant)
+);</code></pre></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val futureVariant: Future[Option[Variant]] = experiment.getVariantFor(&quot;client1&quot;)</code></pre></dd>
+  <pre class="prettyprint"><code class="language-scala">val mayBeFutureVariant: Future[Option[Variant]] = experimentClient.getVariantFor(&quot;test&quot;, &quot;client1&quot;)
+mayBeFutureVariant.onComplete {
+  case Success(mayBeVariant) =&gt; println(mayBeVariant)
+  case Failure(e) =&gt; e.printStackTrace()
+}</code></pre></dd>
 </dl>
+<h4><a href="#mark-variant-displayed" name="mark-variant-displayed" class="anchor"><span class="anchor-link"></span></a>Mark variant displayed</h4>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;ExperimentVariantDisplayed&gt; futureDisplayed = experimentsClient.markVariantDisplayed(&quot;my:experiment&quot;, &quot;clientId&quot;);
+futureDisplayed.onSuccess(event -&gt;
+        System.out.println(event)
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val futureDisplayed: Future[ExperimentVariantDisplayed] = experimentClient.markVariantDisplayed(&quot;test&quot;, &quot;client1&quot;)
+futureDisplayed.onComplete {
+  case Success(event) =&gt; println(event)
+  case Failure(e) =&gt; e.printStackTrace()
+}</code></pre></dd>
+</dl>
+<h4><a href="#mark-variant-won" name="mark-variant-won" class="anchor"><span class="anchor-link"></span></a>Mark variant won</h4>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;ExperimentVariantWon&gt; futureWon = experimentsClient.markVariantWon(&quot;my:experiment&quot;, &quot;clientId&quot;);
+futureWon.onSuccess(event -&gt;
+        System.out.println(event)
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val futureWon: Future[ExperimentVariantWon] = experimentClient.markVariantWon(&quot;test&quot;, &quot;client1&quot;)
+futureWon.onComplete {
+  case Success(event) =&gt; println(event)
+  case Failure(e) =&gt; e.printStackTrace()
+}</code></pre></dd>
+</dl>
+<h3><a href="#work-with-experiment" name="work-with-experiment" class="anchor"><span class="anchor-link"></span></a>Work with experiment</h3>
+<h4><a href="#get-the-experiment" name="get-the-experiment" class="anchor"><span class="anchor-link"></span></a>Get the experiment</h4>
+<h3><a href="#experiment-tree" name="experiment-tree" class="anchor"><span class="anchor-link"></span></a>Experiment tree</h3>
 <h2><a href="#exposing-izanami-with-a-proxy" name="exposing-izanami-with-a-proxy" class="anchor"><span class="anchor-link"></span></a>Exposing izanami with a Proxy</h2>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../clients/react.html">React</a></p>
+<p><strong>Next:</strong> <a href="../clients/react.html">React client</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>

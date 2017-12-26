@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Node · Izanami</title>
+<title>Node js client · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -73,10 +73,10 @@
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="page">React</a></li>
-    <li><a href="../clients/node.html" class="active page">Node</a></li>
+    <li><a href="../clients/react.html" class="page">React client</a></li>
+    <li><a href="../clients/node.html" class="active page">Node js client</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="page">Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -151,10 +151,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="page">React</a></li>
-    <li><a href="../clients/node.html" class="active page">Node</a></li>
+    <li><a href="../clients/react.html" class="page">React client</a></li>
+    <li><a href="../clients/node.html" class="active page">Node js client</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="page">Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -170,7 +170,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../index.html">Izanami</a></li>
   <li><a href="../clients/index.html">Clients</a></li>
-  <li>Node</li>
+  <li>Node js client</li>
 </ul>
 </div>
 </div>
@@ -178,9 +178,55 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#node" name="node" class="anchor"><span class="anchor-link"></span></a>Node</h1>
+<h1><a href="#node-js-client" name="node-js-client" class="anchor"><span class="anchor-link"></span></a>Node js client</h1>
+<pre class="prettyprint"><code class="language-javascript">const Izanami = require(&#39;izanami&#39;);
+
+const featClient = Izanami.featureClient(Object.assign({}, Izanami.defaultConfig, {
+  clientId: &quot;xxxx&quot;,
+  clientSecret: &quot;xxxx&quot;,
+  fallbackConfig: {
+    &quot;test&quot; : {
+      &quot;deepMerge&quot; : {
+        &quot;key1&quot; : {
+          &quot;active&quot;: false
+        },
+        &quot;key2&quot; : {
+          &quot;active&quot;: false
+        },
+        &quot;key3&quot; : {
+          &quot;active&quot;: false
+        },
+        &quot;key4&quot; : {
+          &quot;active&quot;: true
+        }
+      }
+    }
+  }
+}));
+
+featClient.features(&quot;test.deepMerge.*&quot;).then(tree =&gt; {
+  tree.should.be.deep.equal({
+    &quot;test&quot;: {
+      &quot;deepMerge&quot;: {
+        &quot;key1&quot;: {
+          &quot;active&quot;: true
+        },
+        &quot;key2&quot;: {
+          &quot;active&quot;: false
+        },
+        &quot;key3&quot;: {
+          &quot;active&quot;: true
+        },
+        &quot;key4&quot;: {
+          &quot;active&quot;: true
+        }
+      }
+    }
+  });
+});
+</code></pre>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../developers/index.html">Developers</a></p>
+<p><strong>Next:</strong> <a href="../developers/index.html">For Developers</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>

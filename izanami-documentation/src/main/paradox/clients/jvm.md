@@ -75,7 +75,7 @@ Scala
 
 ## Configs client
 
-The config client is used to access the shared config in Izanami. 
+The config client is used to access the shared config in Izanami. To understand how configs work, just visit this @see[page](../configs/index.md)
 
 ### Setup the client  
 
@@ -139,6 +139,7 @@ Scala
  
 ## Features client
 
+To understand how features work, just visit this @see[page](../features/index.md)
 
 ### Setup the client
 
@@ -235,6 +236,8 @@ Scala
  
 ## Experiments client
  
+To understand how experiments work, just visit this @see[page](../experiments/index.md) 
+ 
 ### Setup the client  
 
 Java
@@ -245,17 +248,39 @@ Scala
 
 For experiments, there is only two strategies available : fetch or dev.
 
-### Mark variants 
+### Variants 
 
 #### Get a variant for a client 
-
-Setup the client  
 
 Java
 :   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #get-variant }
 
 Scala
 :   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #get-variant }
+
+#### Mark variant displayed
+
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #displayed-variant }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #displayed-variant }
+
+#### Mark variant won
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #won-variant }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #won-variant }
+
+### Work with experiment 
+
+#### Get the experiment 
+
+
+### Experiment tree 
 
 
 
