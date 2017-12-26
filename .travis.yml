@@ -1,46 +1,44 @@
 language: scala
-
 sudo: false
-
 scala:
-  - "2.12.4"
-
+- 2.12.4
 jdk:
-  - oraclejdk8
-
+- oraclejdk8
 services:
-  - docker
-
+- docker
 before_install:
-  - sudo apt-get install wget curl
-  - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh | bash
-  - export NVM_DIR="/home/travis/.nvm"
-  - sh $NVM_DIR/nvm.sh
-  - nvm install 8.6.0
-  - nvm use 8.6.0
-  - curl -o- -L https://yarnpkg.com/install.sh | bash
-  - docker-compose up -d
-
+- openssl aes-256-cbc -K $encrypted_24ee00bdadc8_key -iv $encrypted_24ee00bdadc8_iv
+  -in .credentials.enc -out .credentials -d
+- sudo apt-get install wget curl
+- wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh |
+  bash
+- export NVM_DIR="/home/travis/.nvm"
+- sh $NVM_DIR/nvm.sh
+- nvm install 8.6.0
+- nvm use 8.6.0
+- curl -o- -L https://yarnpkg.com/install.sh | bash
+- docker-compose up -d
 script:
-  - sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";compile"
-
-
+- sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";compile"
+- sbt docker:publishLocal
+- sh ./scripts/publish-binaries.sh
+- sh ./scripts/publish-docker.sh
 after_failure:
-  - docker-compose logs cassandra
-
+- docker-compose logs cassandra
 before_cache:
-  - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
-  - find $HOME/.sbt  -name "*.lock"               -print -delete
-
+- find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
+- find $HOME/.sbt  -name "*.lock"               -print -delete
 cache:
   directories:
-    - $HOME/.ivy2/cache
-    - $HOME/.sbt/boot
-    - $HOME/.sbt
-    - $HOME/.nvm
-    - $HOME/.yarn
-    - $HOME/.yarn-cache
-
+  - "$HOME/.ivy2/cache"
+  - "$HOME/.sbt/boot"
+  - "$HOME/.sbt"
+  - "$HOME/.nvm"
+  - "$HOME/.yarn"
+  - "$HOME/.yarn-cache"
 env:
   matrix:
-    - AKKA_SERIES=2.5
+  - AKKA_SERIES=2.5
+  global:
+  - secure: VGMBySogUPNO1MLJwzLmbWNnKPQ2R+IFfJpiFx5d2phAxef5X7yO5vS1ymzp33EC0TisadWqJ4buWwoVvj+HkzIvAgX8OngSWkyT+u80fR/8KHIfynSi62KVk3IiuxamZvQEfAaDSn7oux0Va65xaeNlKtVSe0tuSCt0J8hDQmdYTgtYq3tDPrRD2dsYpEYxklNnHa+krPyflPgXUIERqkIl3HmiLA0Ng818DErm0bYZ+sEgMQIe14596bptT4hUw6g/miWAMXhdVPJlNpcBUtWVyHpWrDQJKzADWCsNQ7RF2msdPJcOSxlbG82/UtrGp1s6dZJ7mUKjvU/FCpeWeqboYtBvMCJ9gsFRP6yI8nrjqTw3v2lOqjdPyKqSEDO1sWW4zqGu8yYOpo6RNGZPW8S723UYz0oaAmTg1CPIo9A8KSxcKk16Eqo5US+WrCZBxT2Gb+M01qfl2OEBQw6+RybqEoYUov0pmP38ACuSKe9ARxPQ+oWy8LzREJLofuuCJuyiuWkd3f7QhU9wNO4BegdB4tNuYoTTDamNIRKfFt6f1D26vy4o+xXhQPi0Cwoj+wYN93XTMGAocYJN0R3/rxquzog6PV6tqYCMIhxN2Pbwc3wGm/KGGVFz9Pabt3kc//RZMb6qovyQJ5KKUCSZB2xhiYf8pokhFQgk2/PCTcY=
+  - secure: YG596GRRItJnNuGcBFFBSmgLCg3q4T0UX+1oYXj9IgZ71MiuMNPPG8iqRK9/hHBz63Aj7gBrR/IXga/nJaQg8yyWcaRpaCS0fJYLCCAOJkdIsz1LA4NGoZ77UDDhsb1W2HZMVAAhsdGBtWwCbYOTse1Hi22mU3Z2nF3kqYNVcb6mKnNN2ldc1KyCtXATrcLgXH4x44WJ5PPWMQDwSsEHsdLzD5hPQ23085LFgdEDvEPj3Xf1TLqj7SDbyN1j66ZZBy3uDxelN6a9NaJ6qGEJK0ne314sA9ItwucJpbT6lo7YcTYjmpBJeUocxyOIqew5XrBw5L1U1spRW1iB/o29dxsHll/1uW3ETSuan+mqroY9bIQlx8GJ2oZaCcv9bTMrhzTpdQfJbYGVU2PWTkexnxUZqRPp9qAtPwD74e6ntEfULqEb90u5tmCadh5CIp7INJep0o0kRwODIywBVdCz7SDQQ5uFEK4H9RlNoWUIyB8AzhJp7Eo9kOrwfZWNl76IeXVzQQzYgiXWUz3df1wcquotySwOAVal76iJIMAyvXmP9fgdeE+SfOZbenmr3SsVbiHw+vyFUdFuNA4mLVhNe6YJC4hQpqOY0JF/R3QSlZBGsy3+M8il1qU2cAh2phdmp8fVMHmAxNFxY78t0i/CrM8NDZAdpEA1Rx3lsjKB7Pk=
