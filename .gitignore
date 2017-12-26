@@ -2,5 +2,6 @@
 target
 .credentials
 .dockercfg
-secrets.tar
 .npmrc
+.artifactory
+secrets.tar
