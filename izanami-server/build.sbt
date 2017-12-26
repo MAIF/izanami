@@ -93,9 +93,6 @@ maintainer in Docker := "MAIF Team <maif@maif.fr>"
 
 dockerBaseImage := "openjdk:8"
 
-//"export AKKA_CLUSTER_HOST=$(awk 'END{print $1}' /etc/hosts)" +
-//"export AKKA_CLUSTER_BIND_HOST=$(awk 'END{print $1}' /etc/hosts)"
-
 dockerCommands ++= Seq(
   Cmd("ENV", "APP_NAME izanami"),
   Cmd("ENV", "APP_VERSION 1.0.6-SNAPSHOT"),
@@ -111,8 +108,6 @@ dockerCommands ++= Seq(
   Cmd("ENV", "HTTP_PORT 8080"),
   Cmd("ENV", "APPLICATION_SECRET 123456")
 )
-
-dockerRepository := Some("https://dl.bintray.com/maif/docker")
 
 dockerExposedVolumes ++= Seq(
   "/leveldb"
