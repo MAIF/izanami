@@ -2,3 +2,4 @@
 target
 .credentials
 .dockercfg
+secrets.tar
