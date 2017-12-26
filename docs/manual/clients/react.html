@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>React · Izanami</title>
+<title>React client · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -73,10 +73,10 @@
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="active page">React</a></li>
-    <li><a href="../clients/node.html" class="page">Node</a></li>
+    <li><a href="../clients/react.html" class="active page">React client</a></li>
+    <li><a href="../clients/node.html" class="page">Node js client</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="page">Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -151,10 +151,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="active page">React</a></li>
-    <li><a href="../clients/node.html" class="page">Node</a></li>
+    <li><a href="../clients/react.html" class="active page">React client</a></li>
+    <li><a href="../clients/node.html" class="page">Node js client</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="page">Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -170,7 +170,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../index.html">Izanami</a></li>
   <li><a href="../clients/index.html">Clients</a></li>
-  <li>React</li>
+  <li>React client</li>
 </ul>
 </div>
 </div>
@@ -178,12 +178,141 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#react" name="react" class="anchor"><span class="anchor-link"></span></a>React</h1>
+<h1><a href="#react-client" name="react-client" class="anchor"><span class="anchor-link"></span></a>React client</h1>
+<p><code>react-izanami</code> is a simple set of React components to leverage the power of Opun Izanami feature flipping and experiments.</p>
+<h2><a href="#feature-flipping" name="feature-flipping" class="anchor"><span class="anchor-link"></span></a>Feature flipping</h2>
+<pre class="prettyprint"><code class="language-jsx">import ReactDOM from &#39;react-dom&#39;;
+import React, { Component } from &#39;react&#39;;
+
+import { Enabled, Disabled, Feature, FeatureProvider } from &#39;./features&#39;;
+
+const features = {
+  project: {
+    lang: {
+      french: {
+        active: true
+      }
+    },
+    feature1: {
+      active: true
+    }
+  }
+};
+
+const fallback = {
+  project: {
+    lang: {
+      french: {
+        active: false
+      }
+    },
+    feature1: {
+      active: false
+    }
+  }
+};
+
+class App extends Component {
+  render() {
+    return (
+      &lt;FeatureProvider features={features} fallback={fallback}&gt;
+        &lt;div&gt;
+          &lt;Feature path=&quot;project.lang.french&quot;&gt;
+            &lt;Enabled&gt;
+              &lt;h1&gt;Salut le monde !&lt;/h1&gt;
+            &lt;/Enabled&gt;
+            &lt;Disabled&gt;
+              &lt;h1&gt;Hello World!&lt;/h1&gt;
+            &lt;/Disabled&gt;
+          &lt;/Feature&gt;
+          &lt;div&gt;
+            &lt;Feature path=&quot;project.feature1&quot;&gt;
+              &lt;p&gt;
+                Lorem ipsum dolor sit amet, consectetur adipisicing elit,
+                sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                Ut enim ad minim veniam, quis nostrud exercitation ullamco
+                laboris nisi ut aliquip ex ea commodo consequat.
+                Duis aute irure dolor in reprehenderit in voluptate velit esse
+                cillum dolore eu fugiat nulla pariatur. Excepteur sint
+                occaecat cupidatat non proident, sunt in culpa qui officia
+                deserunt mollit anim id est laborum.
+              &lt;/p&gt;
+            &lt;/Feature&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/FeatureProvider&gt;
+    );
+  }
+}
+
+ReactDOM.render(&lt;App /&gt;, document.getElementById(&#39;app&#39;));
+</code></pre>
+<h2><a href="#experiments-a-b-testing-" name="experiments-a-b-testing-" class="anchor"><span class="anchor-link"></span></a>Experiments (A/B testing)</h2>
+<pre class="prettyprint"><code class="language-jsx">import ReactDOM from &#39;react-dom&#39;;
+import React, { Component } from &#39;react&#39;;
+
+import { Variant, Experiment, ExperimentsProvider } from &#39;./experiments&#39;;
+
+const experiments = {
+  project: {
+    lang: {
+      french: {
+        variant: &#39;A&#39;
+      }
+    }
+  }
+};
+
+const experimentsFallback = {
+  project: {
+    lang: {
+      french: {
+        variant: &#39;B&#39;
+      }
+    }
+  }
+};
+
+class AppAB extends Component {
+  render() {
+    return (
+      &lt;ExperimentsProvider experiments={experiments} fallback={experimentsFallback}&gt;
+        &lt;div&gt;
+          &lt;Experiment path=&quot;project.lang.french&quot;&gt;
+            &lt;Variant id=&quot;A&quot;&gt;
+              &lt;h1&gt;Salut le monde !&lt;/h1&gt;
+            &lt;/Variant&gt;
+            &lt;Variant id=&quot;B&quot;&gt;
+              &lt;h1&gt;Salut les biatchs !&lt;/h1&gt;
+            &lt;/Variant&gt;
+          &lt;/Experiment&gt;
+        &lt;/div&gt;
+      &lt;/ExperimentsProvider&gt;
+    );
+  }
+}
+
+ReactDOM.render(&lt;AppAB /&gt;, document.getElementById(&#39;app&#39;));
+</code></pre>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../clients/node.html">Node</a></p>
+<p><strong>Next:</strong> <a href="../clients/node.html">Node js client</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../clients/react.html#react-client" class="header">React client</a>
+  <ul>
+    <li><a href="../clients/react.html#feature-flipping" class="header">Feature flipping</a></li>
+    <li><a href="../clients/react.html#experiments-a-b-testing-" class="header">Experiments (A/B testing)</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

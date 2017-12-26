@@ -9,6 +9,7 @@ import org.scalatest.BeforeAndAfterAll
 import play.api.libs.json.Json
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 class FetchExperimentsClientStrategySpec
     extends IzanamiSpec
@@ -28,7 +29,7 @@ class FetchExperimentsClientStrategySpec
       runServer { ctx =>
 
         //#experiment-client
-        val client = IzanamiClient(ClientConfig(ctx.host))
+        val experimentClient = IzanamiClient(ClientConfig(ctx.host))
           .experimentClient(Strategies.fetchStrategy())
         //#experiment-client
 
@@ -44,7 +45,7 @@ class FetchExperimentsClientStrategySpec
         )
         ctx.setValues(experiments)
 
-        val experimentsList = client.list("*").futureValue
+        val experimentsList = experimentClient.list("*").futureValue
 
         experimentsList must have size 1
 
@@ -56,9 +57,16 @@ class FetchExperimentsClientStrategySpec
         experiment.enabled must be(expectedExperiments.enabled)
         experiment.variants must be(expectedExperiments.variants)
 
+
         //#get-variant
+        val mayBeFutureVariant: Future[Option[Variant]] = experimentClient.getVariantFor("test", "client1")
+        mayBeFutureVariant.onComplete {
+          case Success(mayBeVariant) => println(mayBeVariant)
+          case Failure(e) => e.printStackTrace()
+        }
+        //#get-variant
+
         val futureVariant: Future[Option[Variant]] = experiment.getVariantFor("client1")
-        //#get-variant
 
         futureVariant.futureValue must be(None)
         experiment.markVariantDisplayed("client1").futureValue.variant must be(
@@ -67,6 +75,20 @@ class FetchExperimentsClientStrategySpec
         experiment.markVariantWon("client1").futureValue.variant must be(
           variantA)
 
+        //#displayed-variant
+        val futureDisplayed: Future[ExperimentVariantDisplayed] = experimentClient.markVariantDisplayed("test", "client1")
+        futureDisplayed.onComplete {
+          case Success(event) => println(event)
+          case Failure(e) => e.printStackTrace()
+        }
+        //#displayed-variant
+        //#won-variant
+        val futureWon: Future[ExperimentVariantWon] = experimentClient.markVariantWon("test", "client1")
+        futureWon.onComplete {
+          case Success(event) => println(event)
+          case Failure(e) => e.printStackTrace()
+        }
+        //#won-variant
       }
     }
 
