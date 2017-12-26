@@ -8,6 +8,8 @@ services:
 - docker
 before_install:
 - openssl aes-256-cbc -K $encrypted_24ee00bdadc8_key -iv $encrypted_24ee00bdadc8_iv
+  -in .dockercfg.enc -out .dockercfg -d
+- openssl aes-256-cbc -K $encrypted_24ee00bdadc8_key -iv $encrypted_24ee00bdadc8_iv
   -in .credentials.enc -out .credentials -d
 - sudo apt-get install wget curl
 - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh |
