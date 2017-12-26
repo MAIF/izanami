@@ -3,3 +3,4 @@ target
 .credentials
 .dockercfg
 secrets.tar
+.npmrc
