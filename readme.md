@@ -1,9 +1,15 @@
-# Izanami [![gitter-badge][]][gitter] [![travis-badge][]][travis]
+# Izanami [![gitter-badge][]][gitter] [![travis-badge][]][travis] [![jar-badge][]][jar]
 
-[travis]:                https://travis-ci.org/MAIF/izanami
-[travis-badge]:          https://travis-ci.org/MAIF/izanami.svg?branch=master
-[gitter]:                    https://gitter.im/MAIF/izanami
-[gitter-badge]:       https://badges.gitter.im/MAIF/izanami.svg
+[travis]:               https://travis-ci.org/MAIF/izanami
+[travis-badge]:         https://travis-ci.org/MAIF/izanami.svg?branch=master
+[gitter]:               https://gitter.im/MAIF/izanami
+[gitter-badge]:         https://badges.gitter.im/MAIF/izanami.svg
+[dist]:                 https://bintray.com/maif/binaries/izanami-dist/_latestVersion
+[dist-badge]:           https://api.bintray.com/packages/maif/binaries/izanami-dist/images/download.svg
+[jar]:                  https://bintray.com/maif/binaries/izanami.jar/_latestVersion
+[jar-badge]:            https://api.bintray.com/packages/maif/binaries/izanami.jar/images/download.svg
+[client]:               https://bintray.com/maif/maven/izanami-client/_latestVersion
+[client-badge]:         https://api.bintray.com/packages/maif/maven/izanami-client/images/download.svg
 
 **Izanami** is a shared configuration service well-suited for micro-service architecture implementation. In addition to shared configuration, Izanami provides feature flipping and A/B Testing. Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.
 
@@ -24,7 +30,9 @@ You can join these groups and chats to discuss and ask Izanami related questions
 
 - Issue tracker: [![github: MAIF/izanami](https://img.shields.io/github/issues/MAIF/izanami.svg)](https://github.com/MAIF/izanami/issues)
 - Chat room: [![gitter-badge][]][gitter]
-
+- Latest dist zip [![dist-badge][]][dist]  
+- Latest jar [![jar-badge][]][jar] 
+- Latest client [![jar-badge][]][jar] 
 
 ## Contribution & Maintainers 
 
