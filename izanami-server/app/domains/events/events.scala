@@ -994,9 +994,8 @@ class KafkaEventStore(_env: Environment,
       .mapMaterializedValue(_ => NotUsed)
   }
 
-  override def close() = {
+  override def close() =
     producer.close()
-  }
 
   private def callback(promise: Promise[RecordMetadata]) = new Callback {
     override def onCompletion(metadata: RecordMetadata, exception: Exception) =

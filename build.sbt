@@ -8,8 +8,12 @@ lazy val root = (project in file("."))
     `izanami-server`,
     `izanami-clients`
   )
+  .enablePlugins(NoPublish)
+  .disablePlugins(BintrayPlugin)
 
 lazy val `izanami-documentation` = project
+  .enablePlugins(NoPublish)
+  .disablePlugins(BintrayPlugin)
 
 lazy val `izanami-server` = project
 

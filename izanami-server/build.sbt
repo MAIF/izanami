@@ -1,7 +1,9 @@
+import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
+
 name := """izanami-server"""
 
 lazy val `izanami-server` = (project in file("."))
-  .enablePlugins(PlayScala)
+  .enablePlugins(PlayScala, DockerPlugin)
 
 scalaVersion := "2.12.4"
 
@@ -80,3 +82,51 @@ packageAll := {
   (dist in Compile).value
   (assembly in Compile).value
 }
+
+dockerExposedPorts := Seq(
+  2551,
+  8080
+)
+packageName in Docker := "izanami"
+
+maintainer in Docker := "MAIF Team <maif@maif.fr>"
+
+dockerBaseImage := "openjdk:8"
+
+//"export AKKA_CLUSTER_HOST=$(awk 'END{print $1}' /etc/hosts)" +
+//"export AKKA_CLUSTER_BIND_HOST=$(awk 'END{print $1}' /etc/hosts)"
+
+dockerCommands ++= Seq(
+  Cmd("ENV", "APP_NAME izanami"),
+  Cmd("ENV", "APP_VERSION 1.0.6-SNAPSHOT"),
+  Cmd("ENV", "LEVEL_DB_PARENT_PATH /leveldb"),
+  Cmd("ENV", "REDIS_PORT 6379"),
+  Cmd("ENV", "REDIS_HOST redis"),
+  Cmd("ENV", "CASSANDRA_HOST cassandra"),
+  Cmd("ENV", "CASSANDRA_PORT 9042"),
+  Cmd("ENV", "CASSANDRA_REPLICATION_FACTOR 1"),
+  Cmd("ENV", "CASSANDRA_KEYSPACE izanami"),
+  Cmd("ENV", "KAFKA_HOST kafka"),
+  Cmd("ENV", "KAFKA_PORT 9092"),
+  Cmd("ENV", "HTTP_PORT 8080"),
+  Cmd("ENV", "APPLICATION_SECRET 123456")
+)
+
+dockerRepository := Some("https://dl.bintray.com/maif/docker")
+
+dockerExposedVolumes ++= Seq(
+  "/leveldb"
+)
+
+dockerCommands :=
+  dockerCommands.value.flatMap {
+    case ExecCmd("ENTRYPOINT", args @ _*) => Seq(Cmd("ENTRYPOINT", args.mkString(" ")))
+    case v                                => Seq(v)
+  }
+
+dockerEntrypoint ++= Seq(
+  """-Dcluster.akka.remote.netty.tcp.hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
+  """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """
+)
+
+dockerUpdateLatest := true
