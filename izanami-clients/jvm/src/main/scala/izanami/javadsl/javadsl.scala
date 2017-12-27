@@ -89,10 +89,10 @@ case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: Actor
   def withExperimentPattern(pattern: String) =
     this.copy(underlying = underlying.withExperimentPattern(pattern))
 
-  def statusAndJsonResponse(pattern: String, context: JsObject, userId: String): Future[Tuple2[Integer, JsValue]] =
+  def statusAndJsonResponse(context: JsObject, userId: String): Future[Tuple2[Integer, JsValue]] =
     statusAndJsonResponse(Option.some(context), Option.some(userId))
 
-  def statusAndJsonResponse(pattern: String): Future[Tuple2[Integer, JsValue]] =
+  def statusAndJsonResponse(): Future[Tuple2[Integer, JsValue]] =
     statusAndJsonResponse(Option.none[JsObject](), Option.none[String]())
 
   def statusAndJsonResponse(context: Option[JsObject], userId: Option[String]): Future[Tuple2[Integer, JsValue]] = {

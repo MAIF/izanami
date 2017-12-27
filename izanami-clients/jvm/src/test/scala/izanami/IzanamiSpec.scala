@@ -108,6 +108,129 @@ trait ConfigMockServer extends MockServer {
     )
   }
 }
+trait ExperimentMockServer extends MockServer {
+  import com.github.tomakehurst.wiremock.client.WireMock._
+
+
+  def getExperimentList(pattern: String, experiments: Seq[Experiment], page: Int = 1, pageSize: Int = 200): Unit = {
+    val count = experiments.size
+    val url = s"/api/experiments"
+    mock.register(
+      get(urlPathEqualTo(url))
+        .withQueryParam("pattern", equalTo(pattern))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(
+              Json.stringify(
+                Json.obj(
+                  "results" -> Json.toJson(experiments),
+                  "metadata" -> Json.obj(
+                    "page" -> page,
+                    "pageSize" -> pageSize,
+                    "count" -> count,
+                    "nbPages" -> Math.ceil(count.toFloat / pageSize)
+                  )
+                )
+              ))
+        ))
+  }
+
+
+  def getExperimentTree(pattern: String, clientId: String, variantId: String, experiments: Seq[Experiment]): Unit = {
+    val url = s"/api/tree/experiments"
+
+    val tree = experiments.map(_.id)
+      .map(id =>
+        (id.split(":").foldLeft[JsPath](JsPath)(_ \ _) \ "variant")
+          .write[String].writes(variantId)
+      )
+      .foldLeft(Json.obj())(_ deepMerge _)
+
+    mock.register(
+      get(urlPathEqualTo(url))
+        .withQueryParam("pattern", equalTo(pattern))
+        .withQueryParam("clientId", equalTo(clientId))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(
+              Json.stringify(tree))
+        ))
+  }
+
+
+  def getExperiment(experiment: Experiment): Unit = {
+    val url = s"/api/experiments/${experiment.id}"
+    mock.register(
+      get(urlPathEqualTo(url))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(
+              Json.stringify(
+                Json.toJson(experiment)
+            ))
+    ))
+  }
+
+  def getVariantNotFound(id: String, client: String): Unit = {
+    val url = s"/api/experiments/${id}/variant"
+    mock.register(
+      get(urlPathEqualTo(url)).withQueryParam("clientId", equalTo(client))
+        .willReturn(
+          aResponse()
+            .withStatus(404)
+        ))
+  }
+
+  def getVariant(id: String, client: String, variant: Variant): Unit = {
+    val url = s"/api/experiments/${id}/variant"
+    mock.register(
+      get(urlPathEqualTo(url))
+        .withQueryParam("clientId", equalTo(client))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(
+              Json.stringify(
+                Json.toJson(variant)
+              ))
+        ))
+  }
+
+
+  def variantWon(id: String, client: String, variant: Variant): Unit = {
+    val url = s"/api/experiments/${id}/won"
+    mock.register(
+      post(urlPathEqualTo(url))
+        .withQueryParam("clientId", equalTo(client))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(
+              Json.stringify(
+                Json.toJson(ExperimentVariantWon(s"$id:${variant.id}:$client:1", id, client, variant, LocalDateTime.now(), 0, variant.id))
+              ))
+        ))
+  }
+
+  def variantDisplayed(id: String, client: String, variant: Variant): Unit = {
+    val url = s"/api/experiments/${id}/displayed"
+    mock.register(
+      post(urlPathEqualTo(url))
+        .withQueryParam("clientId", equalTo(client))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(
+              Json.stringify(
+                Json.toJson(ExperimentVariantDisplayed(s"$id:${variant.id}:$client:1", id, client, variant, LocalDateTime.now(), 0, variant.id))
+              ))
+        ))
+  }
+
+}
 
 trait FeatureMockServer extends MockServer {
   import com.github.tomakehurst.wiremock.client.WireMock._
