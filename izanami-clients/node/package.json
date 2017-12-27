@@ -1,5 +1,5 @@
 {
-  "name": "izanami-client",
+  "name": "izanami",
   "version": "0.0.1",
   "description": "Client for Izanami",
   "main": "index.js",

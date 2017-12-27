@@ -234,6 +234,11 @@ const experimentsClient = Izanami.experimentsClient(izanamicConfig);
   console.log(&#39;The feature is &#39;, active);
 });
 </code></pre>
+<p>Or with a context: </p>
+<pre class="prettyprint"><code class="language-javascript">featureClient.checkFeature(&quot;my.feature.id&quot;, {client: &quot;ragnard.lodbrock@gmail.com&quot;}).then(active =&gt; {
+  console.log(&#39;The feature is &#39;, active);
+});
+</code></pre>
 <h4><a href="#get-the-features-tree" name="get-the-features-tree" class="anchor"><span class="anchor-link"></span></a>Get the features tree</h4>
 <pre class="prettyprint"><code class="language-javascript">featureClient.features(&quot;my.feature.*&quot;).then(tree =&gt; {
   tree.should.be.deep.equal({
@@ -250,7 +255,77 @@ const experimentsClient = Izanami.experimentsClient(izanamicConfig);
   });
 });
 </code></pre>
+<p>Or with a context: </p>
+<pre class="prettyprint"><code class="language-javascript">featureClient.features(&quot;my.feature.*&quot;, {client: &quot;ragnard.lodbrock@gmail.com&quot;}).then(tree =&gt; {
+  tree.should.be.deep.equal({
+    &quot;my&quot;: {
+      &quot;feature&quot;: {
+        &quot;id&quot;: {
+          &quot;active&quot;: true
+        },
+        &quot;id2&quot;: {
+          &quot;active&quot;: false
+        }
+      }
+    }
+  });
+});
+</code></pre>
 <h3><a href="#experiments" name="experiments" class="anchor"><span class="anchor-link"></span></a>Experiments</h3>
+<h4><a href="#get-an-experiment" name="get-an-experiment" class="anchor"><span class="anchor-link"></span></a>Get an experiment</h4>
+<pre class="prettyprint"><code class="language-javascript">experimentsClient.experiment(&quot;my.experiment.id&quot;).then(experiment =&gt; {
+  //Empty json if the experiment doesn&#39;t exists 
+  console.log(&#39;The experiment is &#39;, experiment);
+});
+</code></pre>
+<h4><a href="#get-experiments-as-tree" name="get-experiments-as-tree" class="anchor"><span class="anchor-link"></span></a>Get experiments as tree</h4>
+<pre class="prettyprint"><code class="language-javascript">experimentsClient.experiments(&quot;my.experiment.*&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(tree =&gt; {
+  //Empty json if the experiment doesn&#39;t exists 
+  console.log(&#39;The experiment is &#39;, experiment);
+  tree.should.be.deep.equal({
+    &quot;my&quot;: {
+      &quot;experiment&quot;: {
+        &quot;id&quot;: {
+          &quot;variant&quot;: &quot;A&quot;
+        },
+        &quot;id2&quot;: {
+          &quot;variant&quot;: &quot;B&quot;
+        }
+      }
+    }
+  })
+});
+</code></pre>
+<h4><a href="#get-a-variant" name="get-a-variant" class="anchor"><span class="anchor-link"></span></a>Get a variant</h4>
+<pre class="prettyprint"><code class="language-javascript">experimentsClient.variantFor(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(variant =&gt; {
+  //Empty json if the variant doesn&#39;t exists 
+  console.log(&#39;The variant is &#39;, variant);
+});
+</code></pre>
+<h4><a href="#mark-variant-displayed" name="mark-variant-displayed" class="anchor"><span class="anchor-link"></span></a>Mark variant displayed</h4>
+<pre class="prettyprint"><code class="language-javascript">experimentsClient.displayed(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(__ =&gt; {
+  console.log(&#39;The variant is marked displayed&#39;);
+});
+</code></pre>
+<h4><a href="#mark-variant-won" name="mark-variant-won" class="anchor"><span class="anchor-link"></span></a>Mark variant won</h4>
+<pre class="prettyprint"><code class="language-javascript">experimentsClient.won(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(__ =&gt; {
+  console.log(&#39;The variant is marked won&#39;);
+});
+</code></pre>
+<h2><a href="#express-proxy" name="express-proxy" class="anchor"><span class="anchor-link"></span></a>Express proxy</h2>
+<p>You use express as a proxy to expose Izanami to the client side. </p>
+<pre class="prettyprint"><code class="language-javascript">const app = express();
+
+Izanami.expressProxy({
+  sessionPath: &#39;/api/izanami&#39;, // default &#39;/api/me&#39;
+  featureClient, // Optional
+  experimentsClient, // Optional
+  configClient, // Optional
+  app, // Express app 
+  path: &#39;my.namespace.*&#39; // The pattern to filter experiments, configs and features
+});
+
+</code></pre>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/clients/node.md">here</a>.
 </div>
@@ -270,6 +345,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
     <li><a href="../clients/node.html#install" class="header">Install</a></li>
     <li><a href="../clients/node.html#import" class="header">Import</a></li>
     <li><a href="../clients/node.html#usage" class="header">Usage</a></li>
+    <li><a href="../clients/node.html#express-proxy" class="header">Express proxy</a></li>
   </ul></li>
 </ul>
 </div>
