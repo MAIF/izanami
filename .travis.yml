@@ -18,7 +18,7 @@ before_install:
   -in secrets.tar.enc -out secrets.tar -d
 - tar xvf secrets.tar
 - cp .npmrc ${HOME}/
-- docker login --username=${BINTRAY_USER} --password=${BINTRAY_PASSWORD} https://maif-docker-docker.bintray.io
+- docker login -u ${BINTRAY_USER} -p ${BINTRAY_PASSWORD} maif-docker-docker.bintray.io
 - sudo apt-get install wget curl
 - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh |
   bash

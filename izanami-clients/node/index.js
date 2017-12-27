@@ -30,7 +30,7 @@ class IzanamicFeatureClient {
     }).then(r => {
       try {
         if (r.status === 200) {
-          return r.text().then(t => t === 'true' ? true : false);
+          return r.json().then(t => !!t.active);
         } else if (r.status === 404) {
           return (_.get(this.config.fallbackConfig, dottyKey) || { active: false }).active;
         } else {
