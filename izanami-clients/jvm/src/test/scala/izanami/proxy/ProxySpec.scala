@@ -11,8 +11,7 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.Future
 import scala.util.Success
 
-class ProxySpec extends
-  IzanamiSpec with BeforeAndAfterAll {
+class ProxySpec extends IzanamiSpec with BeforeAndAfterAll {
 
   implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
@@ -44,11 +43,16 @@ class ProxySpec extends
       val experimentsClient: ExperimentsClient = client.experimentClient(
         strategy = Strategies.dev(),
         fallback = Experiments(
-          ExperimentFallback("experiments:id", "Experiment", "An experiment", true, Variant("A", "Variant A", "Variant A"))
+          ExperimentFallback("experiments:id",
+                             "Experiment",
+                             "An experiment",
+                             true,
+                             Variant("A", "Variant A", "Variant A"))
         )
       )
 
-      val proxy: Proxy = client.proxy()
+      val proxy: Proxy = client
+        .proxy()
         .withConfigClient(configClient)
         .withConfigPattern("configs:*")
         .withFeatureClient(featureClient)
@@ -76,18 +80,25 @@ class ProxySpec extends
 
       // Experiment proxy
 
-      val fDisplayed: Future[(Int, JsValue)] = proxy.markVariantDisplayed("experiments:id", "ragnard.lodbrock@gmail.com")
+      val fDisplayed: Future[(Int, JsValue)] =
+        proxy.markVariantDisplayed("experiments:id", "ragnard.lodbrock@gmail.com")
       val fWon: Future[(Int, JsValue)] = proxy.markVariantWon("experiments:id", "ragnard.lodbrock@gmail.com")
 
       //#proxy
 
       val (status, json): (Int, JsValue) = fResponseJson.futureValue
-      status must be (200)
-      json must be (Json.parse("""{"features":{"features":{"test1":{"active":true}}},"configurations":{"configs":{"test":{"value":2}}},"experiments":{}}"""))
+      status must be(200)
+      json must be(
+        Json.parse(
+          """{"features":{"features":{"test1":{"active":true}}},"configurations":{"configs":{"test":{"value":2}}},"experiments":{}}"""
+        )
+      )
 
       val (code, value): (Int, String) = fResponseString.futureValue
-      code must be (200)
-      value must be ("""{"features":{"features":{"test1":{"active":true}}},"configurations":{"configs":{"test":{"value":2}}},"experiments":{"experiments":{"id":{"variant":"A"}}}}""")
+      code must be(200)
+      value must be(
+        """{"features":{"features":{"test1":{"active":true}}},"configurations":{"configs":{"test":{"value":2}}},"experiments":{"experiments":{"id":{"variant":"A"}}}}"""
+      )
 
     }
   }
@@ -95,6 +106,5 @@ class ProxySpec extends
   override def afterAll {
     TestKit.shutdownActorSystem(system)
   }
-
 
 }

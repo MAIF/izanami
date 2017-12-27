@@ -148,10 +148,10 @@ class IzanamiExperimentsClient {
     this.experiments = this.experiments.bind(this);
   }
 
-  experiment(key, clientId) {
+  experiment(key) {
     const columnKey = key.replace(/\./g, ":");
     const dottyKey = key.replace(/:/g, ".");
-    const url = this.conf.host + "/api/experiments/" + columnKey; + "?clientId=" + clientId
+    const url = this.conf.host + "/api/experiments/" + columnKey;
     if (this.conf.env === 'DEV') {
       const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
       return new Promise((s, f) => s(value.active || {}));
