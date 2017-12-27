@@ -119,7 +119,7 @@ dockerExposedVolumes ++= Seq(
   "/leveldb"
 )
 
-dockerRepository := Some("maif-docker-docker.bintray.io/izanami")
+dockerRepository := Some("maif-docker-docker.bintray.io")
 
 dockerCommands :=
   dockerCommands.value.flatMap {
