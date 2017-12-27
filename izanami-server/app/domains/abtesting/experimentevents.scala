@@ -17,10 +17,7 @@ import domains.Key
 import domains.abtesting.ExperimentDataStoreActor._
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
-import domains.events.Events.{
-  ExperimentVariantEventCreated,
-  ExperimentVariantEventsDeleted
-}
+import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import env.{CassandraConfig, DbDomainConfig, ElasticConfig, LevelDbConfig}
 import libs.IdGenerator
 import org.iq80.leveldb.impl.Iq80DBFactory.factory
@@ -65,11 +62,7 @@ object ExperimentVariantEventKey {
   def apply(key: Key): ExperimentVariantEventKey = {
     val id :: pattern :: clientId :: variantId :: experimentId =
       key.segments.toList.reverse
-    ExperimentVariantEventKey(Key(experimentId.reverse),
-                              variantId,
-                              clientId,
-                              pattern,
-                              id)
+    ExperimentVariantEventKey(Key(experimentId.reverse), variantId, clientId, pattern, id)
   }
 
   def generateId: String = s"${idGenerator.nextId()}"
@@ -116,8 +109,7 @@ object ExperimentVariantEvent {
             .asOpt[String]
             .contains("VariantDisplayedEvent") =>
         ExperimentVariantDisplayed.format.reads(event)
-      case event
-          if (event \ "@type").asOpt[String].contains("VariantWonEvent") =>
+      case event if (event \ "@type").asOpt[String].contains("VariantWonEvent") =>
         ExperimentVariantWon.format.reads(event)
       case other => JsError("error.bad.format")
     }
@@ -125,11 +117,9 @@ object ExperimentVariantEvent {
   private val writes: Writes[ExperimentVariantEvent] =
     Writes[ExperimentVariantEvent] {
       case e: ExperimentVariantDisplayed =>
-        ExperimentVariantDisplayed.format.writes(e) ++ Json.obj(
-          "@type" -> "VariantDisplayedEvent")
+        ExperimentVariantDisplayed.format.writes(e) ++ Json.obj("@type" -> "VariantDisplayedEvent")
       case e: ExperimentVariantWon =>
-        ExperimentVariantWon.format.writes(e).as[JsObject] ++ Json.obj(
-          "@type" -> "VariantWonEvent")
+        ExperimentVariantWon.format.writes(e).as[JsObject] ++ Json.obj("@type" -> "VariantWonEvent")
     }
 
   implicit val format = Format(reads, writes)
@@ -137,16 +127,13 @@ object ExperimentVariantEvent {
 
 trait ExperimentVariantEventStore extends StoreOps {
 
-  def create(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]]
+  def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]]
 
   def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]]
 
   def findVariantResult(experiment: Experiment): FindResult[VariantResult]
 
-  def listAll(
-      patterns: Seq[String] = Seq("*")): Source[ExperimentVariantEvent, NotUsed]
+  def listAll(patterns: Seq[String] = Seq("*")): Source[ExperimentVariantEvent, NotUsed]
 
 }
 
@@ -160,11 +147,7 @@ object ExperimentVariantEventElasticStore {
             config: DbDomainConfig,
             eventStore: EventStore,
             actorSystem: ActorSystem): ExperimentVariantEventElasticStore =
-    new ExperimentVariantEventElasticStore(elastic,
-                                           elasticConfig,
-                                           config,
-                                           eventStore,
-                                           actorSystem)
+    new ExperimentVariantEventElasticStore(elastic, elasticConfig, config, eventStore, actorSystem)
 }
 
 class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
@@ -178,14 +161,14 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
   import elastic.codec.PlayJson._
   import actorSystem.dispatcher
 
-  private implicit val s = actorSystem
+  private implicit val s   = actorSystem
   private implicit val mat = ActorMaterializer()
-  private implicit val es = eventStore
+  private implicit val es  = eventStore
 
-  private val esIndex = dbDomainConfig.conf.namespace.replaceAll(":", "_")
-  private val esType = "type"
+  private val esIndex        = dbDomainConfig.conf.namespace.replaceAll(":", "_")
+  private val esType         = "type"
   private val displayedIndex = s"${esIndex}_counter_displayed"
-  private val wonIndex = s"${esIndex}_counter_won"
+  private val wonIndex       = s"${esIndex}_counter_won"
 
   private val counter = Json.parse("""
       |{
@@ -251,9 +234,9 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       client.createIndex(wonIndex, counter)
   }, 3.seconds)
 
-  private val index = client.index(esIndex / esType)
+  private val index     = client.index(esIndex / esType)
   private val displayed = client.index(displayedIndex / "type")
-  private val won = client.index(wonIndex / "type")
+  private val won       = client.index(wonIndex / "type")
 
   private val incrUpdateQuery =
     Json.parse("""
@@ -276,8 +259,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
     won.update(incrUpdateQuery, id, retry_on_conflict = Some(5)).map(_ => Done)
   }
 
-  private def incrDisplayed(experimentId: String,
-                            variantId: String): Future[Done] = {
+  private def incrDisplayed(experimentId: String, variantId: String): Future[Done] = {
     val id = s"$experimentId.$variantId"
     displayed
       .update(incrUpdateQuery, id, retry_on_conflict = Some(5))
@@ -295,8 +277,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
         case EsException(_, 404, _) => 0
       }
   }
-  private def getDisplayed(experimentId: String,
-                           variantId: String): Future[Long] = {
+  private def getDisplayed(experimentId: String, variantId: String): Future[Long] = {
     val id = s"$experimentId.$variantId"
     displayed
       .get(id)
@@ -307,27 +288,24 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
         case EsException(_, 404, _) => 0
       }
   }
-  private def incrAndGetDisplayed(experimentId: String,
-                                  variantId: String): Future[Long] =
+  private def incrAndGetDisplayed(experimentId: String, variantId: String): Future[Long] =
     incrDisplayed(experimentId, variantId)
       .flatMap { _ =>
         getDisplayed(experimentId, variantId)
       }
-  private def incrAndGetWon(experimentId: String,
-                            variantId: String): Future[Long] =
+  private def incrAndGetWon(experimentId: String, variantId: String): Future[Long] =
     incrWon(experimentId, variantId)
       .flatMap { _ =>
         getWon(experimentId, variantId)
       }
 
-  override def create(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
+  override def create(id: ExperimentVariantEventKey,
+                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
     val res: Future[Result[ExperimentVariantEvent]] = data match {
       case e: ExperimentVariantDisplayed =>
         for {
           displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
-          won <- getWon(id.experimentId.key, id.variantId) // get won counter
+          won       <- getWon(id.experimentId.key, id.variantId)              // get won counter
           transformation = if (displayed != 0) (won * 100.0) / displayed
           else 0.0
           toSave = e.copy(transformation = transformation)
@@ -335,8 +313,8 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
         } yield result
       case e: ExperimentVariantWon =>
         for {
-          won <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-          displayed <- getDisplayed(id.experimentId.key, id.variantId) // get display counter
+          won       <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
+          displayed <- getDisplayed(id.experimentId.key, id.variantId)  // get display counter
           transformation = if (displayed != 0) (won * 100.0) / displayed
           else 0.0
           toSave = e.copy(transformation = transformation)
@@ -346,9 +324,8 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
     res.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
   }
 
-  private def saveToEs(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
+  private def saveToEs(id: ExperimentVariantEventKey,
+                       data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
     index
       .index[ExperimentVariantEvent](
         data,
@@ -357,8 +334,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       )
       .map(_ => Result.ok(data))
 
-  override def deleteEventsForExperiment(
-      experiment: Experiment): Future[Result[Done]] =
+  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
     Source(experiment.variants.toList)
       .flatMapMerge(
         4, { v =>
@@ -367,7 +343,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
               "query" -> Json.obj(
                 "bool" -> Json.obj(
                   "must" -> Json.arr(
-                    Json.obj("term" -> Json.obj("id" -> experiment.id.key)),
+                    Json.obj("term" -> Json.obj("id"        -> experiment.id.key)),
                     Json.obj("term" -> Json.obj("variantId" -> v.id))
                   )
                 )
@@ -379,31 +355,27 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       )
       .mapConcat { _.hits.hits.map(_._id).toList }
       .map { id =>
-        Bulk[ExperimentVariantEvent](
-          BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))),
-          None)
+        Bulk[ExperimentVariantEvent](BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))), None)
       }
       .via(client.bulkFlow(batchSize = 500))
       .runWith(Sink.ignore)
       .map(_ => Result.ok(Done))
 
-  private def aggRequest(experimentId: String,
-                         variant: String,
-                         interval: String): JsObject =
+  private def aggRequest(experimentId: String, variant: String, interval: String): JsObject =
     Json.obj(
       "size" -> 0,
       "query" -> Json.obj(
         "bool" -> Json.obj(
           "must" -> Json.arr(
             Json.obj("term" -> Json.obj("experimentId" -> experimentId)),
-            Json.obj("term" -> Json.obj("variantId" -> variant))
+            Json.obj("term" -> Json.obj("variantId"    -> variant))
           )
         )
       ),
       "aggs" -> Json.obj(
         "dates" -> Json.obj(
           "date_histogram" -> Json.obj(
-            "field" -> "date",
+            "field"    -> "date",
             "interval" -> interval
           ),
           "aggs" -> Json.obj(
@@ -424,14 +396,12 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       )
     )
 
-  private def minOrMaxQuery(experimentId: String,
-                            order: String): Future[Option[LocalDateTime]] = {
+  private def minOrMaxQuery(experimentId: String, order: String): Future[Option[LocalDateTime]] = {
     val query = Json.obj(
-      "size" -> 1,
+      "size"    -> 1,
       "_source" -> Json.arr("date"),
-      "query" -> Json.obj(
-        "term" -> Json.obj("id" -> Json.obj("value" -> experimentId))),
-      "sort" -> Json.arr(Json.obj("date" -> Json.obj("order" -> order)))
+      "query"   -> Json.obj("term" -> Json.obj("id" -> Json.obj("value" -> experimentId))),
+      "sort"    -> Json.arr(Json.obj("date" -> Json.obj("order" -> order)))
     )
     Logger.debug(s"Querying ${Json.prettyPrint(query)}")
     index
@@ -475,9 +445,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
     }).value.map(_.getOrElse("second"))
   }
 
-  private def getVariantResult(
-      experimentId: String,
-      variant: Variant): Source[VariantResult, NotUsed] = {
+  private def getVariantResult(experimentId: String, variant: Variant): Source[VariantResult, NotUsed] = {
 
     val variantId: String = variant.id
 
@@ -492,8 +460,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
             case SearchResponse(_, _, _, _, _, Some(aggs)) =>
               (aggs \ "dates" \ "buckets").as[Seq[JsObject]].flatMap { dates =>
                 val date =
-                  LocalDateTime.parse((dates \ "key_as_string").as[String],
-                                      DateTimeFormatter.ISO_DATE_TIME)
+                  LocalDateTime.parse((dates \ "key_as_string").as[String], DateTimeFormatter.ISO_DATE_TIME)
 
                 (dates \ "events" \ "buckets").as[Seq[JsObject]].map { event =>
                   val transformation =
@@ -501,11 +468,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
                   (event \ "key").as[String] match {
                     case "VariantDisplayedEvent" =>
                       ExperimentVariantDisplayed(
-                        ExperimentVariantEventKey(Key(experimentId),
-                                                  variantId,
-                                                  "NA",
-                                                  "displayed",
-                                                  "NA"),
+                        ExperimentVariantEventKey(Key(experimentId), variantId, "NA", "displayed", "NA"),
                         Key(experimentId),
                         "NA",
                         variant,
@@ -514,18 +477,13 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
                         variantId
                       )
                     case "VariantWonEvent" =>
-                      ExperimentVariantWon(
-                        ExperimentVariantEventKey(Key(experimentId),
-                                                  variantId,
-                                                  "NA",
-                                                  "won",
-                                                  "NA"),
-                        Key(experimentId),
-                        "NA",
-                        variant,
-                        date,
-                        transformation,
-                        variantId)
+                      ExperimentVariantWon(ExperimentVariantEventKey(Key(experimentId), variantId, "NA", "won", "NA"),
+                                           Key(experimentId),
+                                           "NA",
+                                           variant,
+                                           date,
+                                           transformation,
+                                           variantId)
                   }
                 }
               }
@@ -551,8 +509,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
     }
   }
 
-  override def findVariantResult(
-      experiment: Experiment): FindResult[VariantResult] =
+  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] =
     SourceFindResult(
       Source(experiment.variants.toList)
         .flatMapMerge(4, v => getVariantResult(experiment.id.key, v))
@@ -575,11 +532,7 @@ object ExperimentVariantEventCassandreStore {
             cassandraConfig: CassandraConfig,
             eventStore: EventStore,
             actorSystem: ActorSystem): ExperimentVariantEventCassandreStore =
-    new ExperimentVariantEventCassandreStore(maybeCluster,
-                                             config,
-                                             cassandraConfig,
-                                             eventStore,
-                                             actorSystem)
+    new ExperimentVariantEventCassandreStore(maybeCluster, config, cassandraConfig, eventStore, actorSystem)
 }
 
 class ExperimentVariantEventCassandreStore(cluster: Cluster,
@@ -590,14 +543,14 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
     extends ExperimentVariantEventStore {
 
   private val namespaceFormatted = config.conf.namespace.replaceAll(":", "_")
-  private val keyspace = cassandraConfig.keyspace
+  private val keyspace           = cassandraConfig.keyspace
   import Cassandra._
   import domains.events.Events._
 
-  implicit private val s = actorSystem
+  implicit private val s   = actorSystem
   implicit private val mat = ActorMaterializer()
-  implicit private val c = cluster
-  implicit private val es = eventStore
+  implicit private val c   = cluster
+  implicit private val es  = eventStore
 
   import actorSystem.dispatcher
 
@@ -648,16 +601,14 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
          | """.stripMargin
     )
 
-  private def incrWon(experimentId: String, variantId: String)(
-      implicit session: Session): Future[Done] =
+  private def incrWon(experimentId: String, variantId: String)(implicit session: Session): Future[Done] =
     executeWithSession(
       s"UPDATE ${keyspace}.${namespaceFormatted}_won SET counter_value = counter_value + 1 WHERE experimentId = ? AND variantId = ? ",
       experimentId,
       variantId
     ).map(_ => Done)
 
-  private def getWon(experimentId: String, variantId: String)(
-      implicit session: Session): Future[Long] =
+  private def getWon(experimentId: String, variantId: String)(implicit session: Session): Future[Long] =
     executeWithSession(
       s"SELECT counter_value FROM ${keyspace}.${namespaceFormatted}_won WHERE experimentId = ? AND variantId = ? ",
       experimentId,
@@ -666,23 +617,20 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
       rs =>
         Option(rs.one())
           .flatMap(o => Option(o.getLong("counter_value")))
-          .getOrElse(0))
+          .getOrElse(0)
+    )
 
-  private def incrAndGetWon(experimentId: String, variantId: String)(
-      implicit session: Session): Future[Long] =
-    incrWon(experimentId, variantId).flatMap(_ =>
-      getWon(experimentId, variantId))
+  private def incrAndGetWon(experimentId: String, variantId: String)(implicit session: Session): Future[Long] =
+    incrWon(experimentId, variantId).flatMap(_ => getWon(experimentId, variantId))
 
-  private def incrDisplayed(experimentId: String, variantId: String)(
-      implicit session: Session): Future[Done] =
+  private def incrDisplayed(experimentId: String, variantId: String)(implicit session: Session): Future[Done] =
     executeWithSession(
       s"UPDATE ${keyspace}.${namespaceFormatted}_displayed SET counter_value = counter_value + 1 WHERE experimentId = ? AND variantId = ? ",
       experimentId,
       variantId
     ).map(_ => Done)
 
-  private def getDisplayed(experimentId: String, variantId: String)(
-      implicit session: Session): Future[Long] =
+  private def getDisplayed(experimentId: String, variantId: String)(implicit session: Session): Future[Long] =
     executeWithSession(
       s"SELECT counter_value FROM ${keyspace}.${namespaceFormatted}_displayed WHERE experimentId = ? AND variantId = ? ",
       experimentId,
@@ -691,16 +639,14 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
       rs =>
         Option(rs.one())
           .flatMap(o => Option(o.getLong("counter_value")))
-          .getOrElse(0))
+          .getOrElse(0)
+    )
 
-  private def incrAndGetDisplayed(experimentId: String, variantId: String)(
-      implicit session: Session): Future[Long] =
-    incrDisplayed(experimentId, variantId).flatMap(_ =>
-      getDisplayed(experimentId, variantId))
+  private def incrAndGetDisplayed(experimentId: String, variantId: String)(implicit session: Session): Future[Long] =
+    incrDisplayed(experimentId, variantId).flatMap(_ => getDisplayed(experimentId, variantId))
 
-  private def saveToCassandra(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent)(implicit session: Session) = {
+  private def saveToCassandra(id: ExperimentVariantEventKey,
+                              data: ExperimentVariantEvent)(implicit session: Session) = {
     val query =
       s"INSERT INTO ${keyspace}.$namespaceFormatted (experimentId, variantId, clientId, namespace, id, value) values (?, ?, ?, ?, ?, ?) IF NOT EXISTS "
     Logger.debug(s"Running query $query")
@@ -715,18 +661,15 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
     ).map(_ => Result.ok(data))
   }
 
-  override def create(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
+  override def create(id: ExperimentVariantEventKey,
+                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
     session()
       .flatMap { implicit session =>
         data match {
           case e: ExperimentVariantDisplayed =>
             for {
-              displayed <- incrAndGetDisplayed(
-                id.experimentId.key,
-                id.variantId) // increment display counter
-              won <- getWon(id.experimentId.key, id.variantId) // get won counter
+              displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
+              won       <- getWon(id.experimentId.key, id.variantId)              // get won counter
               transformation = if (displayed != 0) (won * 100.0) / displayed
               else 0.0
               toSave = e.copy(transformation = transformation)
@@ -734,8 +677,8 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
             } yield result
           case e: ExperimentVariantWon =>
             for {
-              won <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-              displayed <- getDisplayed(id.experimentId.key, id.variantId) // get display counter
+              won       <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
+              displayed <- getDisplayed(id.experimentId.key, id.variantId)  // get display counter
               transformation = if (displayed != 0) (won * 100.0) / displayed
               else 0.0
               toSave = e.copy(transformation = transformation)
@@ -745,15 +688,13 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
       }
       .andPublishEvent(e => ExperimentVariantEventCreated(id, e))
 
-  override def deleteEventsForExperiment(
-      experiment: Experiment): Future[Result[Done]] =
+  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
     session()
       .flatMap { implicit session =>
         Future.sequence(experiment.variants.map { variant =>
-          executeWithSession(
-            s" DELETE FROM ${keyspace}.$namespaceFormatted  WHERE experimentId = ? AND variantId = ?",
-            experiment.id.key,
-            variant.id)
+          executeWithSession(s" DELETE FROM ${keyspace}.$namespaceFormatted  WHERE experimentId = ? AND variantId = ?",
+                             experiment.id.key,
+                             variant.id)
             .map { r =>
               Result.ok(r.asInstanceOf[Any])
             }
@@ -762,8 +703,8 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
       .map(r => Result.ok(Done))
       .andPublishEvent(e => ExperimentVariantEventsDeleted(experiment))
 
-  def getVariantResult(experimentId: String, variant: Variant)(
-      implicit session: Session): Source[VariantResult, NotUsed] = {
+  def getVariantResult(experimentId: String,
+                       variant: Variant)(implicit session: Session): Source[VariantResult, NotUsed] = {
     val variantId: String = variant.id
     val events: Source[Seq[ExperimentVariantEvent], NotUsed] = CassandraSource(
       new SimpleStatement(
@@ -793,13 +734,11 @@ class ExperimentVariantEventCassandreStore(cluster: Cluster,
     }
   }
 
-  override def findVariantResult(
-      experiment: Experiment): FindResult[VariantResult] =
-    SourceFindResult(
-      Source.fromFuture(session()).flatMapConcat { implicit session =>
-        Source(experiment.variants.toList)
-          .flatMapMerge(4, v => getVariantResult(experiment.id.key, v))
-      })
+  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] =
+    SourceFindResult(Source.fromFuture(session()).flatMapConcat { implicit session =>
+      Source(experiment.variants.toList)
+        .flatMapMerge(4, v => getVariantResult(experiment.id.key, v))
+    })
 
   override def listAll(patterns: Seq[String]) =
     Source
@@ -827,23 +766,22 @@ object ExperimentVariantEventRedisStore {
     new ExperimentVariantEventRedisStore(maybeRedis, eventStore, actorSystem)
 }
 
-class ExperimentVariantEventRedisStore(
-    maybeRedis: Option[RedisClientMasterSlaves],
-    eventStore: EventStore,
-    actorSystem: ActorSystem)
+class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlaves],
+                                       eventStore: EventStore,
+                                       actorSystem: ActorSystem)
     extends ExperimentVariantEventStore {
 
   import actorSystem.dispatcher
   import domains.events.Events._
 
-  implicit private val es = eventStore
-  implicit private val s = actorSystem
+  implicit private val es   = eventStore
+  implicit private val s    = actorSystem
   implicit val materializer = ActorMaterializer()
 
   val experimentseventsdisplayedNamespace: String =
     "experimentseventsdisplayed:count"
   val experimentseventswonNamespace: String = "experimentseventswon:count"
-  val experimentseventsNamespace: String = "experimentsevents"
+  val experimentseventsNamespace: String    = "experimentsevents"
 
   val client: RedisClientMasterSlaves = maybeRedis.get
 
@@ -855,15 +793,13 @@ class ExperimentVariantEventRedisStore(
       (won * 100.0) / displayed
     } else 0.0
 
-  private def incrAndGetDisplayed(experimentId: String,
-                                  variantId: String): Future[Long] = {
+  private def incrAndGetDisplayed(experimentId: String, variantId: String): Future[Long] = {
     val displayedCounter: String =
       s"$experimentseventsdisplayedNamespace:$experimentId:$variantId"
     client.incr(displayedCounter)
   }
 
-  private def incrAndGetWon(experimentId: String,
-                            variantId: String): Future[Long] = {
+  private def incrAndGetWon(experimentId: String, variantId: String): Future[Long] = {
     val wonCounter: String =
       s"$experimentseventswonNamespace:$experimentId:$variantId"
     client.incr(wonCounter)
@@ -877,8 +813,7 @@ class ExperimentVariantEventRedisStore(
     }
   }
 
-  private def getDisplayed(experimentId: String,
-                           variantId: String): Future[Long] = {
+  private def getDisplayed(experimentId: String, variantId: String): Future[Long] = {
     val displayedCounter: String =
       s"$experimentseventsdisplayedNamespace:$experimentId:$variantId"
     client.get(displayedCounter).map { mayBeDisplayed =>
@@ -903,9 +838,8 @@ class ExperimentVariantEventRedisStore(
       }
       .mapConcat(_.toList)
 
-  override def create(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
+  override def create(id: ExperimentVariantEventKey,
+                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
 
     val eventsKey: String =
       s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}" // le sorted set des events
@@ -913,35 +847,33 @@ class ExperimentVariantEventRedisStore(
     data match {
       case e: ExperimentVariantDisplayed =>
         for {
-          displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
-          won <- getWon(id.experimentId.key, id.variantId) // get won counter
+          displayed      <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
+          won            <- getWon(id.experimentId.key, id.variantId) // get won counter
           transformation = calcTransformation(displayed, won)
-          dataToSave = e.copy(transformation = transformation)
+          dataToSave     = e.copy(transformation = transformation)
           result <- client
-            .zadd(
-              eventsKey,
-              (now(),
-               Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
-            )
-            .map { _ =>
-              Result.ok(dataToSave)
-            } // add event
+                     .zadd(
+                       eventsKey,
+                       (now(), Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
+                     )
+                     .map { _ =>
+                       Result.ok(dataToSave)
+                     } // add event
         } yield result
       case e: ExperimentVariantWon =>
         for {
-          won <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-          displayed <- getDisplayed(id.experimentId.key, id.variantId) // get display counter
+          won            <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
+          displayed      <- getDisplayed(id.experimentId.key, id.variantId) // get display counter
           transformation = calcTransformation(displayed, won)
-          dataToSave = e.copy(transformation = transformation)
+          dataToSave     = e.copy(transformation = transformation)
           result <- client
-            .zadd(
-              eventsKey,
-              (now(),
-               Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
-            )
-            .map { _ =>
-              Result.ok(dataToSave)
-            } // add event
+                     .zadd(
+                       eventsKey,
+                       (now(), Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
+                     )
+                     .map { _ =>
+                       Result.ok(dataToSave)
+                     } // add event
         } yield result
       case _ =>
         Logger.error("Event not recognized")
@@ -949,8 +881,7 @@ class ExperimentVariantEventRedisStore(
     }
   }.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
 
-  private def findEvents(
-      eventVariantKey: String): FindResult[ExperimentVariantEvent] = {
+  private def findEvents(eventVariantKey: String): FindResult[ExperimentVariantEvent] = {
     val source: Source[ExperimentVariantEvent, NotUsed] = Source
       .unfoldAsync(0L) { (lastPage: Long) =>
         val nextPage: Long = lastPage + 50
@@ -974,67 +905,59 @@ class ExperimentVariantEventRedisStore(
     SourceFindResult(source)
   }
 
-  override def findVariantResult(
-      experiment: Experiment): FindResult[VariantResult] = {
+  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] = {
     val eventualVariantResult: Future[List[VariantResult]] = for {
-      variantKeys <- findKeys(
-        s"$experimentseventsNamespace:${experiment.id.key}:*")
-        .runFold(Seq.empty[String])(_ :+ _)
+      variantKeys <- findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+                      .runFold(Seq.empty[String])(_ :+ _)
       variants <- Future.sequence {
-        variantKeys.map(
-          variantKey => {
-            val currentVariantId: String =
-              variantKey.replace(
-                s"$experimentseventsNamespace:${experiment.id.key}:",
-                "")
-            val maybeVariant: Option[Variant] =
-              experiment.variants.find(variant => {
-                variant.id == currentVariantId
-              })
+                   variantKeys.map(
+                     variantKey => {
+                       val currentVariantId: String =
+                         variantKey.replace(s"$experimentseventsNamespace:${experiment.id.key}:", "")
+                       val maybeVariant: Option[Variant] =
+                         experiment.variants.find(variant => {
+                           variant.id == currentVariantId
+                         })
 
-            import cats.instances.all._
-            import cats.syntax.cartesian._
+                       import cats.instances.all._
+                       import cats.syntax.cartesian._
 
-            (
-              findEvents(variantKey).list |@|
-                getDisplayed(experiment.id.key, currentVariantId) |@|
-                getWon(experiment.id.key, currentVariantId)
-            ).map { (events, displayed, won) =>
-              val transformation: Double = if (displayed != 0) {
-                (won * 100) / displayed
-              } else {
-                0.0
-              }
+                       (
+                         findEvents(variantKey).list |@|
+                         getDisplayed(experiment.id.key, currentVariantId) |@|
+                         getWon(experiment.id.key, currentVariantId)
+                       ).map { (events, displayed, won) =>
+                         val transformation: Double = if (displayed != 0) {
+                           (won * 100) / displayed
+                         } else {
+                           0.0
+                         }
 
-              VariantResult(
-                variant = maybeVariant,
-                events = events,
-                transformation = transformation,
-                displayed = displayed,
-                won = won
-              )
-            }
-          }
-        )
-      }
+                         VariantResult(
+                           variant = maybeVariant,
+                           events = events,
+                           transformation = transformation,
+                           displayed = displayed,
+                           won = won
+                         )
+                       }
+                     }
+                   )
+                 }
     } yield variants.toList
 
     SimpleFindResult(eventualVariantResult)
   }
 
-  override def deleteEventsForExperiment(
-      experiment: Experiment): Future[Result[Done]] =
+  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
     (
       for {
-        displayedCounterKey <- client.keys(
-          s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
-        wonCounterKey <- client.keys(
-          s"$experimentseventswonNamespace:${experiment.id.key}:*")
-        eventsKey <- client.keys(
-          s"$experimentseventsNamespace:${experiment.id.key}:*")
-        _ <- Future.sequence(displayedCounterKey.map(key => client.del(key))) // remove displayed counter
-        _ <- Future.sequence(wonCounterKey.map(key => client.del(key))) // remove won counter
-        _ <- Future.sequence(eventsKey.map(key => client.del(key))) // remove events list
+        displayedCounterKey <- client.keys(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
+        wonCounterKey       <- client.keys(s"$experimentseventswonNamespace:${experiment.id.key}:*")
+        eventsKey           <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+        _                   <- Future.sequence(displayedCounterKey.map(key => client.del(key))) // remove displayed counter
+        _                   <- Future.sequence(wonCounterKey.map(key => client.del(key))) // remove won counter
+        _                   <- Future.sequence(eventsKey.map(key => client.del(key))) // remove events list
       } yield Result.ok(Done)
     ).andPublishEvent(e => ExperimentVariantEventsDeleted(experiment))
 
@@ -1054,31 +977,25 @@ object ExperimentVariantEventLevelDBStore {
             configdb: DbDomainConfig,
             eventStore: EventStore,
             actorSystem: ActorSystem,
-            applicationLifecycle: ApplicationLifecycle)
-    : ExperimentVariantEventLevelDBStore =
-    new ExperimentVariantEventLevelDBStore(levelDbConfig,
-                                           configdb,
-                                           eventStore,
-                                           actorSystem,
-                                           applicationLifecycle)
+            applicationLifecycle: ApplicationLifecycle): ExperimentVariantEventLevelDBStore =
+    new ExperimentVariantEventLevelDBStore(levelDbConfig, configdb, eventStore, actorSystem, applicationLifecycle)
 }
 
-class ExperimentVariantEventLevelDBStore(
-    levelDbConfig: LevelDbConfig,
-    configdb: DbDomainConfig,
-    eventStore: EventStore,
-    actorSystem: ActorSystem,
-    applicationLifecycle: ApplicationLifecycle)
+class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
+                                         configdb: DbDomainConfig,
+                                         eventStore: EventStore,
+                                         actorSystem: ActorSystem,
+                                         applicationLifecycle: ApplicationLifecycle)
     extends ExperimentVariantEventStore {
 
   import actorSystem.dispatcher
   import domains.events.Events._
-  implicit private val s = actorSystem
+  implicit private val s            = actorSystem
   implicit private val materializer = ActorMaterializer()
-  implicit private val es = eventStore
+  implicit private val es           = eventStore
 
   private val client: LevelDBRedisCommand = {
-    val namespace = configdb.conf.namespace
+    val namespace  = configdb.conf.namespace
     val parentPath = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace
       .replaceAll(":", "_") + "_try_to_use_this_one"
@@ -1095,7 +1012,7 @@ class ExperimentVariantEventLevelDBStore(
   val experimentseventsdisplayedNamespace: String =
     "experimentseventsdisplayed:count"
   val experimentseventswonNamespace: String = "experimentseventswon:count"
-  val experimentseventsNamespace: String = "experimentsevents"
+  val experimentseventsNamespace: String    = "experimentsevents"
 
   private def buildData(
       eventsKey: String,
@@ -1113,17 +1030,14 @@ class ExperimentVariantEventLevelDBStore(
     val dataToSave = function(data, transformation)
 
     client
-      .sadd(
-        eventsKey,
-        Json.stringify(Json.format[ExperimentVariantEvent].writes(dataToSave)))
+      .sadd(eventsKey, Json.stringify(Json.format[ExperimentVariantEvent].writes(dataToSave)))
       .map { _ =>
         Result.ok(dataToSave)
       }
   }
 
-  override def create(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
+  override def create(id: ExperimentVariantEventKey,
+                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
     // le compteur des displayed
     val displayedCounter: String =
       s"$experimentseventsdisplayedNamespace:${id.experimentId.key}:${id.variantId}"
@@ -1134,9 +1048,7 @@ class ExperimentVariantEventLevelDBStore(
     val eventsKey: String =
       s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}" // le sorted set des events
 
-    def transformationDisplayed(
-        data: ExperimentVariantEvent,
-        transformation: Double): ExperimentVariantEvent = {
+    def transformationDisplayed(data: ExperimentVariantEvent, transformation: Double): ExperimentVariantEvent = {
       val dataToSave: ExperimentVariantDisplayed =
         data.asInstanceOf[ExperimentVariantDisplayed]
       dataToSave.copy(
@@ -1144,8 +1056,7 @@ class ExperimentVariantEventLevelDBStore(
       )
     }
 
-    def transformationWon(data: ExperimentVariantEvent,
-                          transformation: Double): ExperimentVariantEvent = {
+    def transformationWon(data: ExperimentVariantEvent, transformation: Double): ExperimentVariantEvent = {
       val dataToSave: ExperimentVariantWon =
         data.asInstanceOf[ExperimentVariantWon]
       dataToSave.copy(
@@ -1157,7 +1068,7 @@ class ExperimentVariantEventLevelDBStore(
       case _: ExperimentVariantDisplayed =>
         for {
           displayed <- client.incr(displayedCounter) // increment display counter
-          maybeWon <- client.get(wonCounter) // get won counter
+          maybeWon  <- client.get(wonCounter)        // get won counter
           result <- buildData(eventsKey,
                               displayed,
                               maybeWon.map(_.utf8String.toLong).getOrElse(0),
@@ -1166,14 +1077,13 @@ class ExperimentVariantEventLevelDBStore(
         } yield result
       case _: ExperimentVariantWon =>
         for {
-          won <- client.incr(wonCounter) // increment won counter
+          won            <- client.incr(wonCounter)      // increment won counter
           maybeDisplayed <- client.get(displayedCounter) // get display counter
-          result <- buildData(
-            eventsKey,
-            maybeDisplayed.map(_.utf8String.toLong).getOrElse(0),
-            won,
-            data,
-            transformationWon) // add event
+          result <- buildData(eventsKey,
+                              maybeDisplayed.map(_.utf8String.toLong).getOrElse(0),
+                              won,
+                              data,
+                              transformationWon) // add event
         } yield result
       case _ =>
         Logger.error("Event not recognized")
@@ -1181,8 +1091,7 @@ class ExperimentVariantEventLevelDBStore(
     }
   }.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
 
-  private def findEvents(
-      eventVariantKey: String): FindResult[ExperimentVariantEvent] =
+  private def findEvents(eventVariantKey: String): FindResult[ExperimentVariantEvent] =
     SimpleFindResult(
       client
         .smembers(eventVariantKey)
@@ -1197,72 +1106,61 @@ class ExperimentVariantEventLevelDBStore(
         )
     )
 
-  override def findVariantResult(
-      experiment: Experiment): FindResult[VariantResult] = {
+  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] = {
     val eventualVariantResult: Future[List[VariantResult]] = for {
-      variantKeys <- client.keys(
-        s"$experimentseventsNamespace:${experiment.id.key}:*")
+      variantKeys <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
       variants <- Future.sequence {
-        variantKeys.map(
-          variantKey => {
-            val currentVariantId: String =
-              variantKey.replace(
-                s"$experimentseventsNamespace:${experiment.id.key}:",
-                "")
-            val maybeVariant: Option[Variant] =
-              experiment.variants.find(variant => {
-                variant.id == currentVariantId
-              })
+                   variantKeys.map(
+                     variantKey => {
+                       val currentVariantId: String =
+                         variantKey.replace(s"$experimentseventsNamespace:${experiment.id.key}:", "")
+                       val maybeVariant: Option[Variant] =
+                         experiment.variants.find(variant => {
+                           variant.id == currentVariantId
+                         })
 
-            import cats.instances.all._
-            import cats.syntax.cartesian._
+                       import cats.instances.all._
+                       import cats.syntax.cartesian._
 
-            (
-              findEvents(variantKey).list |@|
-                client.get(
-                  s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId") |@|
-                client.get(
-                  s"$experimentseventswonNamespace:${experiment.id.key}:$currentVariantId")
-            ).map {
-              (events, maybeDisplayed, maybeWon) =>
-                val displayed: Long =
-                  maybeDisplayed.map(_.utf8String.toLong).getOrElse(0)
-                val won: Long = maybeWon.map(_.utf8String.toLong).getOrElse(0)
-                val transformation: Double = if (displayed != 0) {
-                  (won * 100) / displayed
-                } else {
-                  0.0
-                }
+                       (
+                         findEvents(variantKey).list |@|
+                         client.get(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId") |@|
+                         client.get(s"$experimentseventswonNamespace:${experiment.id.key}:$currentVariantId")
+                       ).map { (events, maybeDisplayed, maybeWon) =>
+                         val displayed: Long =
+                           maybeDisplayed.map(_.utf8String.toLong).getOrElse(0)
+                         val won: Long = maybeWon.map(_.utf8String.toLong).getOrElse(0)
+                         val transformation: Double = if (displayed != 0) {
+                           (won * 100) / displayed
+                         } else {
+                           0.0
+                         }
 
-                VariantResult(
-                  variant = maybeVariant,
-                  events = events,
-                  transformation = transformation,
-                  displayed = displayed,
-                  won = won
-                )
-            }
-          }
-        )
-      }
+                         VariantResult(
+                           variant = maybeVariant,
+                           events = events,
+                           transformation = transformation,
+                           displayed = displayed,
+                           won = won
+                         )
+                       }
+                     }
+                   )
+                 }
     } yield variants.toList
 
     SimpleFindResult(eventualVariantResult)
   }
 
-  override def deleteEventsForExperiment(
-      experiment: Experiment): Future[Result[Done]] =
+  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
     (
       for {
-        displayedCounterKey <- client.keys(
-          s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
-        wonCounterKey <- client.keys(
-          s"$experimentseventswonNamespace:${experiment.id.key}:*")
-        eventsKey <- client.keys(
-          s"$experimentseventsNamespace:${experiment.id.key}:*")
-        _ <- Future.sequence(displayedCounterKey.map(key => client.del(key))) // remove displayed counter
-        _ <- Future.sequence(wonCounterKey.map(key => client.del(key))) // remove won counter
-        _ <- Future.sequence(eventsKey.map(key => client.del(key))) // remove events list
+        displayedCounterKey <- client.keys(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
+        wonCounterKey       <- client.keys(s"$experimentseventswonNamespace:${experiment.id.key}:*")
+        eventsKey           <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+        _                   <- Future.sequence(displayedCounterKey.map(key => client.del(key))) // remove displayed counter
+        _                   <- Future.sequence(wonCounterKey.map(key => client.del(key))) // remove won counter
+        _                   <- Future.sequence(eventsKey.map(key => client.del(key))) // remove events list
       } yield Result.ok(Done)
     ).andPublishEvent(e => ExperimentVariantEventsDeleted(experiment))
 
@@ -1280,13 +1178,11 @@ class ExperimentVariantEventLevelDBStore(
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventInMemoryStore {
-  def apply(configdb: DbDomainConfig,
-            actorSystem: ActorSystem): ExperimentVariantEventInMemoryStore =
+  def apply(configdb: DbDomainConfig, actorSystem: ActorSystem): ExperimentVariantEventInMemoryStore =
     new ExperimentVariantEventInMemoryStore(configdb, actorSystem)
 }
 
-class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig,
-                                          actorSystem: ActorSystem)
+class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem: ActorSystem)
     extends ExperimentVariantEventStore {
 
   import actorSystem.dispatcher
@@ -1297,25 +1193,21 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig,
 
   private implicit val timeout = Timeout(1.second)
 
-  private val store = actorSystem.actorOf(
-    Props[ExperimentDataStoreActor](new ExperimentDataStoreActor()),
-    configdb.conf.namespace + "_try_to_use_this_one")
+  private val store = actorSystem.actorOf(Props[ExperimentDataStoreActor](new ExperimentDataStoreActor()),
+                                          configdb.conf.namespace + "_try_to_use_this_one")
 
-  override def create(
-      id: ExperimentVariantEventKey,
-      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
+  override def create(id: ExperimentVariantEventKey,
+                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
     (store ? AddEvent(id.experimentId.key, id.variantId, data))
       .mapTo[ExperimentVariantEvent]
       .map[Result[ExperimentVariantEvent]](res => Result.ok(res))
 
-  override def deleteEventsForExperiment(
-      experiment: Experiment): Future[Result[Done]] =
+  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
     (store ? DeleteEvents(experiment.id.key))
       .mapTo[Done]
       .map[Result[Done]](res => Result.ok(res))
 
-  override def findVariantResult(
-      experiment: Experiment): FindResult[VariantResult] =
+  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] =
     SimpleFindResult {
       Future.sequence {
         experiment.variants
@@ -1325,10 +1217,10 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig,
             (
               (store ? FindEvents(experiment.id.key, variant.id))
                 .mapTo[List[ExperimentVariantEvent]] |@|
-                (store ? FindCounterDisplayed(experiment.id.key, variant.id))
-                  .mapTo[Long] |@|
-                (store ? FindCounterWon(experiment.id.key, variant.id))
-                  .mapTo[Long]
+              (store ? FindCounterDisplayed(experiment.id.key, variant.id))
+                .mapTo[Long] |@|
+              (store ? FindCounterWon(experiment.id.key, variant.id))
+                .mapTo[Long]
             ).map { (events, displayed, won) =>
               {
                 val transformation: Double = if (displayed != 0) {
@@ -1364,7 +1256,7 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
   val experimentseventsdisplayedNamespace: String =
     "experimentseventsdisplayed:count"
   val experimentseventswonNamespace: String = "experimentseventswon:count"
-  val experimentseventsNamespace: String = "experimentsevents"
+  val experimentseventsNamespace: String    = "experimentsevents"
 
   def transformation(displayed: Long, won: Long): Double =
     if (displayed != 0) {
@@ -1383,22 +1275,22 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
       val events: List[ExperimentVariantEvent] =
         datas.getOrElse(eventKey, List.empty[ExperimentVariantEvent])
       val displayed: Long = counters.getOrElse(displayedCounterKey, 0)
-      val won: Long = counters.getOrElse(wonCounterKey, 0)
+      val won: Long       = counters.getOrElse(wonCounterKey, 0)
 
       event match {
         case e: ExperimentVariantDisplayed =>
           val transfo: Double = transformation(displayed + 1, won)
-          val eventToSave = e.copy(transformation = transfo)
+          val eventToSave     = e.copy(transformation = transfo)
 
           counters = counters + (displayedCounterKey -> (displayed + 1))
-          datas = datas + (eventKey -> (eventToSave :: events))
+          datas = datas + (eventKey                  -> (eventToSave :: events))
           sender() ! eventToSave
 
         case e: ExperimentVariantWon =>
           val transfo: Double = transformation(displayed, won + 1)
-          val eventToSave = e.copy(transformation = transfo)
+          val eventToSave     = e.copy(transformation = transfo)
           counters = counters + (wonCounterKey -> (won + 1))
-          datas = datas + (eventKey -> (eventToSave :: events))
+          datas = datas + (eventKey            -> (eventToSave :: events))
           sender() ! eventToSave
       }
 
@@ -1410,8 +1302,7 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
         .sortWith((e1, e2) => e1.date.isBefore(e2.date))
 
     case GetAll(patterns) =>
-      sender() ! datas.values.flatten.filter(e =>
-        e.id.key.matchPatterns(patterns: _*))
+      sender() ! datas.values.flatten.filter(e => e.id.key.matchPatterns(patterns: _*))
 
     case DeleteEvents(experimentId) =>
       val eventKey: String = s"$experimentseventsNamespace:$experimentId:"
@@ -1424,21 +1315,16 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
         .filter(key => key.startsWith(eventKey))
         .foreach(key => datas = datas - key)
       counters.keys
-        .filter(key =>
-          key.startsWith(displayedCounterKey) || key.startsWith(wonCounterKey))
+        .filter(key => key.startsWith(displayedCounterKey) || key.startsWith(wonCounterKey))
         .foreach(key => datas = datas - key)
 
       sender() ! Done
 
     case FindCounterDisplayed(experimentId, variantId) =>
-      sender() ! counters.getOrElse(
-        s"$experimentseventsdisplayedNamespace:$experimentId:$variantId",
-        0)
+      sender() ! counters.getOrElse(s"$experimentseventsdisplayedNamespace:$experimentId:$variantId", 0)
 
     case FindCounterWon(experimentId, variantId) =>
-      sender() ! counters.getOrElse(
-        s"$experimentseventswonNamespace:$experimentId:$variantId",
-        0)
+      sender() ! counters.getOrElse(s"$experimentseventswonNamespace:$experimentId:$variantId", 0)
 
     case m =>
       unhandled(m)
@@ -1449,22 +1335,17 @@ private[abtesting] object ExperimentDataStoreActor {
 
   sealed trait ExperimentDataMessages
 
-  case class AddEvent(experimentId: String,
-                      variantId: String,
-                      event: ExperimentVariantEvent)
+  case class AddEvent(experimentId: String, variantId: String, event: ExperimentVariantEvent)
       extends ExperimentDataMessages
 
-  case class FindEvents(experimentId: String, variantId: String)
-      extends ExperimentDataMessages
+  case class FindEvents(experimentId: String, variantId: String) extends ExperimentDataMessages
 
   case class GetAll(patterns: Seq[String]) extends ExperimentDataMessages
 
   case class DeleteEvents(experimentId: String) extends ExperimentDataMessages
 
-  case class FindCounterDisplayed(experimentId: String, variantId: String)
-      extends ExperimentDataMessages
+  case class FindCounterDisplayed(experimentId: String, variantId: String) extends ExperimentDataMessages
 
-  case class FindCounterWon(experimentId: String, variantId: String)
-      extends ExperimentDataMessages
+  case class FindCounterWon(experimentId: String, variantId: String) extends ExperimentDataMessages
 
 }
