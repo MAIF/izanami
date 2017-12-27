@@ -1,17 +1,34 @@
 package controllers
 
 import domains.abtesting._
+import elastic.client.ElasticClient
 import multi.Configs
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.JsonBodyWritables._
 import redis.embedded.RedisServer
 import test.OneServerPerSuiteWithMyComponents
 
-class ExperimentControllerSpec(configurationSpec: Configuration)
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationDouble
+import scala.concurrent.ExecutionContext.Implicits.global
+
+class ElasticExperimentControllerSpec extends ExperimentControllerSpec("Elastic", Configs.elasticConfiguration) with BeforeAndAfterAll {
+
+  override protected def beforeAll(): Unit = {
+    import elastic.codec.PlayJson._
+    val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
+    println("Cleaning ES indices")
+    Await.result(client.deleteIndex("izanami_*"), 5.seconds)
+  }
+
+  override protected def afterAll(): Unit = ()
+}
+
+class ExperimentControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -23,7 +40,7 @@ class ExperimentControllerSpec(configurationSpec: Configuration)
 
   private lazy val rootPath = s"http://localhost:$port"
 
-  "ExperimentController" should {
+  s"$name ExperimentController" should {
 
     "create read update delete deleteAll" in {
       val key = "my:path"

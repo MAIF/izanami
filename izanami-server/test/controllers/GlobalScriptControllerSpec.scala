@@ -7,7 +7,7 @@ import play.api.libs.json.Json
 import test.OneServerPerSuiteWithMyComponents
 import play.api.libs.ws.JsonBodyWritables._
 
-class GlobalScriptControllerSpec(configurationSpec: Configuration)
+class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -19,7 +19,7 @@ class GlobalScriptControllerSpec(configurationSpec: Configuration)
 
   private lazy val rootPath = s"http://localhost:$port"
 
-  "GlobalScriptController" should {
+  s"$name GlobalScriptController" should {
 
     "create read update delete deleteAll" in {
       val key = "my:path"

@@ -158,25 +158,25 @@ object Configs {
 
 class InMemoryTests
     extends Suites(
-      new ConfigControllerSpec(Configs.inMemoryConfiguration),
-      new ExperimentControllerSpec(Configs.inMemoryConfiguration),
-      new FeatureControllerSpec(Configs.inMemoryConfiguration),
-      new GlobalScriptControllerSpec(Configs.inMemoryConfiguration),
-      new WebhookControllerSpec(Configs.inMemoryConfiguration),
-      new UserControllerSpec(Configs.inMemoryConfiguration),
-      new ApikeyControllerSpec(Configs.inMemoryConfiguration)
+      new ConfigControllerSpec("InMemory", Configs.inMemoryConfiguration),
+      new ExperimentControllerSpec("InMemory", Configs.inMemoryConfiguration),
+      new FeatureControllerSpec("InMemory", Configs.inMemoryConfiguration),
+      new GlobalScriptControllerSpec("InMemory", Configs.inMemoryConfiguration),
+      new WebhookControllerSpec("InMemory", Configs.inMemoryConfiguration),
+      new UserControllerSpec("InMemory", Configs.inMemoryConfiguration),
+      new ApikeyControllerSpec("InMemory", Configs.inMemoryConfiguration)
     )
     with BeforeAndAfterAll {}
 
 class RedisTests
     extends Suites(
-      new ConfigControllerSpec(Configs.redisConfiguration),
-      new ExperimentControllerSpec(Configs.redisConfiguration),
-      new FeatureControllerSpec(Configs.redisConfiguration),
-      new GlobalScriptControllerSpec(Configs.redisConfiguration),
-      new WebhookControllerSpec(Configs.redisConfiguration),
-      new UserControllerSpec(Configs.redisConfiguration),
-      new ApikeyControllerSpec(Configs.redisConfiguration)
+      new ConfigControllerSpec("Redis", Configs.redisConfiguration),
+      new ExperimentControllerSpec("Redis", Configs.redisConfiguration),
+      new FeatureControllerSpec("Redis", Configs.redisConfiguration),
+      new GlobalScriptControllerSpec("Redis", Configs.redisConfiguration),
+      new WebhookControllerSpec("Redis", Configs.redisConfiguration),
+      new UserControllerSpec("Redis", Configs.redisConfiguration),
+      new ApikeyControllerSpec("Redis", Configs.redisConfiguration)
     )
     with BeforeAndAfterAll {
 
@@ -191,13 +191,13 @@ class RedisTests
 
 class ElasticTests
     extends Suites(
-      new ConfigControllerSpec(Configs.elasticConfiguration),
-      new ExperimentControllerSpec(Configs.elasticConfiguration),
-      new FeatureControllerSpec(Configs.elasticConfiguration),
-      new GlobalScriptControllerSpec(Configs.elasticConfiguration),
-      new WebhookControllerSpec(Configs.elasticConfiguration),
-      new UserControllerSpec(Configs.elasticConfiguration),
-      new ApikeyControllerSpec(Configs.elasticConfiguration)
+      new ConfigControllerSpec("Elastic", Configs.elasticConfiguration),
+      new ExperimentControllerSpec("Elastic", Configs.elasticConfiguration),
+      new FeatureControllerSpec("Elastic", Configs.elasticConfiguration),
+      new GlobalScriptControllerSpec("Elastic", Configs.elasticConfiguration),
+      new WebhookControllerSpec("Elastic", Configs.elasticConfiguration),
+      new UserControllerSpec("Elastic", Configs.elasticConfiguration),
+      new ApikeyControllerSpec("Elastic", Configs.elasticConfiguration)
     )
     with BeforeAndAfterAll {
 
@@ -213,31 +213,31 @@ class ElasticTests
 
 class CassandraTests
     extends Suites(
-      new ConfigControllerSpec(Configs.cassandraConfiguration("config")),
-      new ExperimentControllerSpec(
+      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration("config")),
+      new ExperimentControllerSpec("Cassandra",
         Configs.cassandraConfiguration("experiment")),
-      new FeatureControllerSpec(Configs.cassandraConfiguration("features")),
-      new GlobalScriptControllerSpec(Configs.cassandraConfiguration("script")),
-      new WebhookControllerSpec(Configs.cassandraConfiguration("webhook")),
-      new UserControllerSpec(Configs.cassandraConfiguration("user")),
-      new ApikeyControllerSpec(Configs.cassandraConfiguration("apikey"))
+      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration("features")),
+      new GlobalScriptControllerSpec("Cassandra", Configs.cassandraConfiguration("script")),
+      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration("webhook")),
+      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration("user")),
+      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration("apikey"))
     )
 
 class LevelDBTests
     extends Suites(
-      new ConfigControllerSpec(
+      new ConfigControllerSpec("LevelDb",
         Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ExperimentControllerSpec(
+      new ExperimentControllerSpec("LevelDb",
         Configs.levelDBConfiguration(Configs.folderConfig)),
-      new FeatureControllerSpec(
+      new FeatureControllerSpec("LevelDb",
         Configs.levelDBConfiguration(Configs.folderConfig)),
-      new GlobalScriptControllerSpec(
+      new GlobalScriptControllerSpec("LevelDb",
         Configs.levelDBConfiguration(Configs.folderConfig)),
-      new WebhookControllerSpec(
+      new WebhookControllerSpec("LevelDb",
         Configs.levelDBConfiguration(Configs.folderConfig)),
-      new UserControllerSpec(
+      new UserControllerSpec("LevelDb",
         Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ApikeyControllerSpec(
+      new ApikeyControllerSpec("LevelDb",
         Configs.levelDBConfiguration(Configs.folderConfig))
     )
     with BeforeAndAfterAll {

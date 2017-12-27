@@ -7,7 +7,7 @@ import play.api.libs.json.Json
 import test.OneServerPerSuiteWithMyComponents
 import play.api.libs.ws.JsonBodyWritables._
 
-class FeatureControllerSpec(configurationSpec: Configuration)
+class FeatureControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -18,7 +18,7 @@ class FeatureControllerSpec(configurationSpec: Configuration)
 
   private lazy val rootPath = s"http://localhost:$port"
 
-  "FeatureController" should {
+  s"$name FeatureController" should {
 
     "create read update delete deleteAll" in {
       val key = "my:path"

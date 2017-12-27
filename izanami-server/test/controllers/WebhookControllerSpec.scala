@@ -18,7 +18,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.DurationDouble
 import scala.concurrent.{Await, Future}
 
-class WebhookControllerSpec(configurationSpec: Configuration)
+class WebhookControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -41,7 +41,7 @@ class WebhookControllerSpec(configurationSpec: Configuration)
 
   private lazy val rootPath = s"http://localhost:$port"
 
-  "WebhookController" should {
+  s"$name WebhookController" should {
 
     "create read update delete" in {
       val key = "my:path"

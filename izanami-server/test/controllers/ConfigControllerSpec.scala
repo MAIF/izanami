@@ -7,7 +7,7 @@ import play.api.libs.json.Json
 import test.OneServerPerSuiteWithMyComponents
 import play.api.libs.ws.JsonBodyWritables._
 
-class ConfigControllerSpec(configurationSpec: Configuration)
+class ConfigControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -18,7 +18,7 @@ class ConfigControllerSpec(configurationSpec: Configuration)
   private lazy val ws = izanamiComponents.wsClient
   private lazy val rootPath = s"http://localhost:$port"
 
-  "ConfigController" should {
+  s"$name ConfigController" should {
 
     "create read update delete" in {
       val key = "my:path"
