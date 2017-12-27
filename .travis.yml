@@ -19,6 +19,7 @@ before_install:
 - openssl aes-256-cbc -K $encrypted_24ee00bdadc8_key -iv $encrypted_24ee00bdadc8_iv
   -in secrets.tar.enc -out secrets.tar -d
 - tar xvf secrets.tar
+- docker login -u ${BINTRAY_USER} -p ${BINTRAY_PASSWORD} maif-docker-docker.bintray.io
 - sudo apt-get install wget curl
 - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh |
   bash
@@ -30,8 +31,7 @@ before_install:
 - docker-compose up -d
 script:
 - sh ./scripts/build-javascript.sh
-- sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal"
-- sh ./scripts/publish-docker.sh
+- sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publish"
 - sh ./scripts/publish-binaries.sh
 - sh ./scripts/publish-npm.sh
 after_failure:
