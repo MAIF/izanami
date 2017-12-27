@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-echo 'Publishing docker package'
+echo 'Login to docker repository maif-docker-docker.bintray.io'
+docker login -u ${BINTRAY_USER} -p ${BINTRAY_PASSWORD} maif-docker-docker.bintray.io
 
-docker tag izanami maif-docker-docker.bintray.io/izanami
+echo 'Tagging docker package'
+docker tag izanami maif-docker-docker.bintray.io/izanami:latest
 
-docker push maif-docker-docker.bintray.io/izanami
+echo 'Pushing docker package'
+docker push maif-docker-docker.bintray.io/izanami:latest
