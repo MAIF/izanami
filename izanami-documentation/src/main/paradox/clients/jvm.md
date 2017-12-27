@@ -278,10 +278,50 @@ Scala
 ### Work with experiment 
 
 #### Get the experiment 
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #get-experiment }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #get-experiment }
+
+
+Once you get the experiment, you can get a variant for a client, mark variant displayed or mark variant won : 
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #an-experiment }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #an-experiment }
+
 
 
 ### Experiment tree 
 
+You can get the experiments tree with associated variant for a client : 
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #experiment-tree }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala) { #experiment-tree }
+
+ 
+
 
 
 ## Exposing izanami with a Proxy 
+
+When you have to use Izanami from the client side, you can't call Izanami directly from the browser because it means the API keys are exposed to anyone. 
+
+The best solution is to use your backend as a proxy. You can do this with the jvm client. 
+
+
+ 
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #proxy }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/proxy/ProxySpec.scala) { #proxy }
+
+ 

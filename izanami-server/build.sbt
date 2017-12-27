@@ -119,6 +119,8 @@ dockerExposedVolumes ++= Seq(
   "/leveldb"
 )
 
+dockerRepository := Some("maif-docker-docker.bintray.io/izanami")
+
 dockerCommands :=
   dockerCommands.value.flatMap {
     case ExecCmd("ENTRYPOINT", args @ _*) => Seq(Cmd("ENTRYPOINT", args.mkString(" ")))

@@ -4,16 +4,13 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
-import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
 import izanami.FeatureEvent.{FeatureCreated, FeatureDeleted, FeatureUpdated}
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
-import play.api.libs.json.{JsArray, JsObject, Json}
+import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -209,6 +206,7 @@ class FetchFeatureClientSpec
       }
     }
   }
+
   override def afterAll {
     _wireMockServer.stop()
     TestKit.shutdownActorSystem(system)

@@ -60,21 +60,22 @@ lazy val publishCommonsSettings = Seq(
   bintrayVcsUrl := Some(s"scm:git:git@github.com:$githubRepo.git")
 )
 
-lazy val publishSettings = if (sys.env.get("TRAVIS_TAG").isEmpty) {
-  publishCommonsSettings ++ Seq(
-    publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"),
-    bintrayReleaseOnPublish := false,
-    credentials := List(new File(".artifactory")).filter(_.exists).map(Credentials(_))
-  )
-} else {
-  publishCommonsSettings ++ Seq(
-    bintrayOrganization := Some("maif"),
-    bintrayCredentialsFile := file(".credentials"),
-    pomIncludeRepository := { _ =>
-      false
-    }
-  )
-}
+lazy val publishSettings =
+//  if (sys.env.get("TRAVIS_TAG").isEmpty) {
+//    publishCommonsSettings ++ Seq(
+//      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"),
+//      bintrayReleaseOnPublish := false,
+//      credentials := List(new File(".artifactory")).filter(_.exists).map(Credentials(_))
+//    )
+//  } else {
+publishCommonsSettings ++ Seq(
+  bintrayOrganization := Some("maif"),
+  bintrayCredentialsFile := file(".credentials"),
+  pomIncludeRepository := { _ =>
+    false
+  }
+)
+//  }
 
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,

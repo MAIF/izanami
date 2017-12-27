@@ -362,7 +362,7 @@ val client = IzanamiClient(
         Strategies.fetchStrategy(),
         Configs.configs(
                 Config.config(&quot;my:config&quot;, Json.obj(
-                        $(&quot;value&quot;, &quot;Fallback value&quot;)
+                        Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
                 ))
         )
 );</code></pre></dd>
@@ -414,7 +414,7 @@ val client = IzanamiClient(
         ),
         Configs.configs(
                 Config.config(&quot;my:config&quot;, Json.obj(
-                        $(&quot;value&quot;, &quot;Fallback value&quot;)
+                        Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
                 ))
         )
 );</code></pre></dd>
@@ -595,7 +595,7 @@ futureFeatures.onComplete {
   <dt>Java</dt>
   <dd>
   <pre class="prettyprint"><code class="language-java">Future&lt;Boolean&gt; futureCheckContext = featureClient.checkFeature(&quot;my:feature&quot;, Json.obj(
-        $(&quot;context&quot;, true)
+        Syntax.$(&quot;context&quot;, true)
 ));</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -625,7 +625,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <dd>
   <pre class="prettyprint"><code class="language-java">Future&lt;String&gt; conditonalContext = featureClient.featureOrElse(
         &quot;my:feature&quot;,
-        Json.obj($(&quot;context&quot;, true)),
+        Json.obj(Syntax.$(&quot;context&quot;, true)),
         () -&gt; &quot;Feature is active&quot;,
         () -&gt; &quot;Feature is not active&quot;
 );</code></pre></dd>
@@ -646,7 +646,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <pre class="prettyprint"><code class="language-java">ExperimentsClient experimentsClient = izanamiClient.experimentClient(Strategies.fetchStrategy());</code></pre></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val experimentClient = IzanamiClient(ClientConfig(ctx.host))
+  <pre class="prettyprint"><code class="language-scala">val experimentClient = IzanamiClient(ClientConfig(host))
   .experimentClient(Strategies.fetchStrategy())</code></pre></dd>
 </dl>
 <p>For experiments, there is only two strategies available : fetch or dev.</p>
@@ -657,7 +657,18 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <dd>
   <pre class="prettyprint"><code class="language-java">Future&lt;Option&lt;Variant&gt;&gt; futureVariant = experimentsClient.getVariantFor(&quot;my:experiment&quot;, &quot;clientId&quot;);
 futureVariant.onSuccess(mayBeVariant -&gt;
-        System.out.println(mayBeVariant)
+        Match(mayBeVariant).of(
+                Case($Some($()), exist -&gt; {
+                    String phrase = &quot;Variant is &quot; + exist;
+                    System.out.println(phrase);
+                    return phrase;
+                }),
+                Case($None(), __ -&gt; {
+                    String phrase = &quot;Variant not found&quot;;
+                    System.out.println(phrase);
+                    return phrase;
+                })
+        )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -702,8 +713,193 @@ futureWon.onComplete {
 </dl>
 <h3><a href="#work-with-experiment" name="work-with-experiment" class="anchor"><span class="anchor-link"></span></a>Work with experiment</h3>
 <h4><a href="#get-the-experiment" name="get-the-experiment" class="anchor"><span class="anchor-link"></span></a>Get the experiment</h4>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Option&lt;ExperimentClient&gt;&gt; futureExperiment = experimentsClient.experiment(&quot;my:experiment&quot;);
+futureExperiment.onSuccess(mayBeExperiment -&gt;
+    Match(mayBeExperiment).of(
+            Case($Some($()), exist -&gt; {
+                String phrase = &quot;Experiment is &quot; + exist;
+                System.out.println(phrase);
+                return phrase;
+            }),
+            Case($None(), __ -&gt; {
+                String phrase = &quot;Experiment not found&quot;;
+                System.out.println(phrase);
+                return phrase;
+            })
+    )
+);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val futureExperiment: Future[Option[ExperimentClient]] = experimentClient.experiment(&quot;test&quot;)
+futureExperiment.onComplete {
+  case Success(Some(exp)) =&gt; println(s&quot;Experiment is $exp&quot;)
+  case Success(None) =&gt; println(&quot;Experiment not Found&quot;)
+  case Failure(e) =&gt; e.printStackTrace()
+}</code></pre></dd>
+</dl>
+<p>Once you get the experiment, you can get a variant for a client, mark variant displayed or mark variant won : </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">ExperimentClient experiment = mayExperiment.get();
+Future&lt;Option&lt;Variant&gt;&gt; clientId = experiment.getVariantFor(&quot;clientId&quot;);
+Future&lt;ExperimentVariantDisplayed&gt; displayed = experiment.markVariantDisplayed(&quot;clientId&quot;);
+Future&lt;ExperimentVariantWon&gt; won = experiment.markVariantWon(&quot;clientId&quot;);</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val experiment: ExperimentClient = mayBeExperiment.get
+val futureVariant: Future[Option[Variant]] = experiment.getVariantFor(&quot;client1&quot;)
+val displayed: Future[ExperimentVariantDisplayed] = experiment.markVariantDisplayed(&quot;client1&quot;)
+val won: Future[ExperimentVariantWon] = experiment.markVariantWon(&quot;client1&quot;)</code></pre></dd>
+</dl>
 <h3><a href="#experiment-tree" name="experiment-tree" class="anchor"><span class="anchor-link"></span></a>Experiment tree</h3>
+<p>You can get the experiments tree with associated variant for a client : </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;JsValue&gt; futureTree = experimentsClient.tree(&quot;*&quot;, &quot;clientId&quot;);
+futureTree.onSuccess(tree -&gt; {
+    assertThat(tree).isEqualTo(
+            Json.obj(
+                    Syntax.$(&quot;my&quot;, Json.obj(
+                            Syntax.$(&quot;experiment&quot;, Json.obj(
+                                    Syntax.$(&quot;variant&quot;, &quot;A&quot;)
+                            ))
+                    ))
+            )
+    );
+});</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val experimentsTree = client.tree(&quot;*&quot;, &quot;client1&quot;).futureValue
+experimentsTree must be(
+  Json.obj(
+    &quot;izanami&quot; -&gt; Json.obj(
+      &quot;ab&quot; -&gt; Json.obj(
+        &quot;test&quot; -&gt; Json.obj(
+          &quot;variant&quot; -&gt; &quot;A&quot;
+        )
+      )
+    )
+  )
+)</code></pre></dd>
+</dl>
 <h2><a href="#exposing-izanami-with-a-proxy" name="exposing-izanami-with-a-proxy" class="anchor"><span class="anchor-link"></span></a>Exposing izanami with a Proxy</h2>
+<p>When you have to use Izanami from the client side, you can&rsquo;t call Izanami directly from the browser because it means the API keys are exposed to anyone. </p>
+<p>The best solution is to use your backend as a proxy. You can do this with the jvm client. </p>
+<dl>
+  <dt>Java</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-java">ConfigClient configClient = izanamiClient.configClient(
+        Strategies.dev(),
+        Configs.configs(
+                Config.config(&quot;configs:test&quot;, Json.obj(
+                        Syntax.$(&quot;value&quot;, 2)
+                ))
+        )
+);
+FeatureClient featureClient = izanamiClient.featureClient(
+        Strategies.dev(),
+        Features.features(
+                Features.feature(&quot;features:test1&quot;, true)
+        )
+);
+ExperimentsClient experimentsClient = izanamiClient.experimentClient(
+        Strategies.dev(),
+        Experiments.create(
+                ExperimentFallback.create(
+                        &quot;experiments:id&quot;,
+                        &quot;Experiment&quot;,
+                        &quot;An Experiment&quot;,
+                        true,
+                        Variant.create(&quot;A&quot;, &quot;Variant A&quot;, &quot;Variant A&quot;)
+                )));
+
+Proxy proxy = izanamiClient.proxy()
+        .withConfigClient(configClient)
+        .withConfigPattern(&quot;configs:*&quot;)
+        .withFeatureClient(featureClient)
+        .withFeaturePattern(&quot;features:*&quot;)
+        .withExperimentsClient(experimentsClient)
+        .withExperimentPattern(&quot;experiments:*&quot;);
+
+Future&lt;Tuple2&lt;Integer, JsValue&gt;&gt; fJsonResponse = proxy.statusAndJsonResponse();
+fJsonResponse.onSuccess(t -&gt;
+        System.out.println(&quot;Code = &quot;+t._1+&quot;, json body = &quot;+t._2)
+);
+
+//Or with string response and additional infos :
+Future&lt;Tuple2&lt;Integer, String&gt;&gt; fStringResponse = proxy.statusAndStringResponse(Json.obj().with(&quot;id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;), &quot;ragnard.lodbrock@gmail.com&quot;);
+fStringResponse.onSuccess(t -&gt;
+        System.out.println(&quot;Code = &quot;+t._1+&quot;, string body = &quot;+t._2)
+);
+// Experiment proxy
+
+Future&lt;Tuple2&lt;Integer, JsValue&gt;&gt; markVariantDisplayed = proxy.markVariantDisplayed(&quot;experiments:id&quot;, &quot;ragnars.lodbrock@gmail.com&quot;);
+Future&lt;Tuple2&lt;Integer, JsValue&gt;&gt; markVariantWon = proxy.markVariantWon(&quot;experiments:id&quot;, &quot;ragnars.lodbrock@gmail.com&quot;);
+</code></pre></dd>
+  <dt>Scala</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-scala">val client = IzanamiClient(
+  ClientConfig(&quot;&quot;)
+)
+
+val featureClient: FeatureClient = client.featureClient(
+  strategy = Strategies.dev(),
+  fallback = Features(
+    DefaultFeature(&quot;features:test1&quot;, true)
+  )
+)
+
+val configClient: ConfigClient = client.configClient(
+  Strategies.dev(),
+  fallback = Configs(
+    &quot;configs:test&quot; -&gt; Json.obj(&quot;value&quot; -&gt; 2)
+  )
+)
+
+val experimentsClient: ExperimentsClient = client.experimentClient(
+  strategy = Strategies.dev(),
+  fallback = Experiments(
+    ExperimentFallback(&quot;experiments:id&quot;, &quot;Experiment&quot;, &quot;An experiment&quot;, true, Variant(&quot;A&quot;, &quot;Variant A&quot;, &quot;Variant A&quot;))
+  )
+)
+
+val proxy: Proxy = client.proxy()
+  .withConfigClient(configClient)
+  .withConfigPattern(&quot;configs:*&quot;)
+  .withFeatureClient(featureClient)
+  .withFeaturePattern(&quot;features:*&quot;)
+  .withExperimentsClient(experimentsClient)
+  .withExperimentPattern(&quot;experiments:*&quot;)
+
+val fResponseJson: Future[(Int, JsValue)] = proxy.statusAndJsonResponse()
+fResponseJson.onComplete {
+  case Success((status, responseBody)) =&gt;
+    println(s&quot;Izanami respond with status $status and json body $responseBody&quot;)
+  case _ =&gt; println(&quot;Oups something wrong happened&quot;)
+}
+
+//Or for a string response and additional infos
+val fResponseString: Future[(Int, String)] = proxy.statusAndStringResponse(
+  context = Some(Json.obj(&quot;user&quot; -&gt; &quot;ragnard.lodbrock@gmail.com&quot;)),
+  userId = Some(&quot;ragnard.lodbrock@gmail.com&quot;)
+)
+fResponseString.onComplete {
+  case Success((status, responseBody)) =&gt;
+    println(s&quot;Izanami respond with status $status and string body $responseBody&quot;)
+  case _ =&gt; println(&quot;Oups something wrong happened&quot;)
+}
+
+// Experiment proxy
+
+val fDisplayed: Future[(Int, JsValue)] = proxy.markVariantDisplayed(&quot;experiments:id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
+val fWon: Future[(Int, JsValue)] = proxy.markVariantWon(&quot;experiments:id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
+</code></pre></dd>
+</dl>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/clients/jvm.md">here</a>.
 </div>

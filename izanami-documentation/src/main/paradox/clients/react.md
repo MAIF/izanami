@@ -2,6 +2,8 @@
 
 `react-izanami` is a simple set of React components to leverage the power of Opun Izanami feature flipping and experiments.
 
+## Install the client 
+
 
 ## Feature flipping
 
