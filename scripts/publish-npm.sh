@@ -6,10 +6,10 @@ LOCATION=`pwd`
 
 cd ${LOCATION}/izanami-clients/react
 npm unpublish --force
-yarn publish --new-version ${PACKAGE_VERSION}
+npm publish
 
 cd ${LOCATION}/izanami-clients/node
 npm unpublish --force
-yarn publish --new-version ${PACKAGE_VERSION}
+npm publish
 
 cd ${LOCATION}
