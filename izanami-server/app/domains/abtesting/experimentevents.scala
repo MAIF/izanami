@@ -219,6 +219,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       |         },
       |         "date": { "type": "date", "format" : "date_hour_minute_second_millis" },
       |         "transformation": { "type" : "double" },
+      |         "experimentId": { "type" : "keyword" },
       |         "variantId": { "type" : "keyword" }
       |       }
       |     }

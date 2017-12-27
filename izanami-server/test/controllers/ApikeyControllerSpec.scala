@@ -7,7 +7,7 @@ import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
 import test.OneServerPerSuiteWithMyComponents
 
-class ApikeyControllerSpec(configurationSpec: Configuration)
+class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -18,7 +18,7 @@ class ApikeyControllerSpec(configurationSpec: Configuration)
   private lazy val ws = izanamiComponents.wsClient
   private lazy val rootPath = s"http://localhost:$port"
 
-  "ApikeyController" should {
+  s"$name ApikeyController" should {
 
     "create read update delete" in {
       val key = "toto@maif.fr"

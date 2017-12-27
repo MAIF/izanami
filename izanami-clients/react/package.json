@@ -8,9 +8,6 @@
   "engines": {
     "node": "^8"
   },
-  "publishConfig":{
-    "registry":"https://api.bintray.com/npm/maif/npm"
-  },
   "scripts": {
     "lib": "babel src --out-dir lib",
     "bundle": "cross-env NODE_ENV=production webpack --colors --progress",
