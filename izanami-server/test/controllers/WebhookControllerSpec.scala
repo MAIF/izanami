@@ -151,7 +151,7 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
           .map { json =>
             (json \ "type").as[String]
           }
-        strings must be(Seq("CONFIG_CREATED", "FEATURE_CREATED"))
+        strings must contain theSameElementsAs Seq("CONFIG_CREATED", "FEATURE_CREATED")
       }
 
     }
