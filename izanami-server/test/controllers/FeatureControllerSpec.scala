@@ -23,17 +23,13 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
     "create read update delete deleteAll" in {
       val key = "my:path"
       /* First check */
-      ws.url(s"$rootPath/api/features/$key").get().futureValue.status must be(
-        404)
+      ws.url(s"$rootPath/api/features/$key").get().futureValue.status must be(404)
       ws.url(s"$rootPath/api/features").get().futureValue.json must be(
-        Json.parse(
-          """{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
+        Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
       /* Create */
-      val feature = Json.obj("id" -> key,
-                             "enabled" -> false,
-                             "activationStrategy" -> "NO_STRATEGY")
+      val feature = Json.obj("id" -> key, "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
       ws.url(s"$rootPath/api/features")
         .post(feature)
         .futureValue
@@ -45,17 +41,12 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       getById.json must be(feature)
 
       ws.url(s"$rootPath/api/features").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(feature),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 1,
-                                        "nbPages" -> 1))
+        Json.obj("results"  -> Json.arr(feature),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
       /* Update */
-      val featureUpdated = Json.obj("id" -> key,
-                                    "enabled" -> true,
-                                    "activationStrategy" -> "NO_STRATEGY")
+      val featureUpdated = Json.obj("id" -> key, "enabled" -> true, "activationStrategy" -> "NO_STRATEGY")
       ws.url(s"$rootPath/api/features/$key")
         .put(featureUpdated)
         .futureValue
@@ -68,11 +59,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       getByIdUpdated.json must be(featureUpdated)
 
       ws.url(s"$rootPath/api/features").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(featureUpdated),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 1,
-                                        "nbPages" -> 1))
+        Json.obj("results"  -> Json.arr(featureUpdated),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
       /* Delete */
@@ -82,14 +70,10 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
         .status must be(200)
 
       /* Verify */
-      ws.url(s"$rootPath/api/features/$key").get().futureValue.status must be(
-        404)
+      ws.url(s"$rootPath/api/features/$key").get().futureValue.status must be(404)
       ws.url(s"$rootPath/api/features").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 0,
-                                        "nbPages" -> 0))
+        Json.obj("results"  -> Json.arr(),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
 
       /* Delete all */
@@ -97,11 +81,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
       ws.url(s"$rootPath/api/features").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 0,
-                                        "nbPages" -> 0))
+        Json.obj("results"  -> Json.arr(),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 
@@ -109,9 +90,7 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       /* We start to prune all datas */
       ws.url(s"$rootPath/api/features").delete().futureValue
 
-      val feature = Json.obj("id" -> "my:path",
-                             "enabled" -> false,
-                             "activationStrategy" -> "NO_STRATEGY")
+      val feature = Json.obj("id" -> "my:path", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
       ws.url(s"$rootPath/api/features")
         .post(feature)
         .futureValue
@@ -127,9 +106,9 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
         |}
          """.stripMargin
       val feature2 = Json.obj("id" -> "my:path:withScript",
-                              "enabled" -> true,
+                              "enabled"            -> true,
                               "activationStrategy" -> "SCRIPT",
-                              "parameters" -> Json.obj("script" -> script))
+                              "parameters"         -> Json.obj("script" -> script))
       val feature2Created =
         ws.url(s"$rootPath/api/features").post(feature2).futureValue
       feature2Created.status must be(201)
@@ -181,11 +160,11 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
         |   }
         |}
          """.stripMargin
-      val key = "my:path:withScript2"
+      val key    = "my:path:withScript2"
       val feature2 = Json.obj("id" -> key,
-                              "enabled" -> true,
+                              "enabled"            -> true,
                               "activationStrategy" -> "SCRIPT",
-                              "parameters" -> Json.obj("script" -> script))
+                              "parameters"         -> Json.obj("script" -> script))
       val resp = ws.url(s"$rootPath/api/features").post(feature2).futureValue
       resp.status must be(201)
 

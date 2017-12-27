@@ -15,7 +15,7 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
   override def getConfiguration(configuration: Configuration) =
     configuration ++ configurationSpec
 
-  private lazy val ws = izanamiComponents.wsClient
+  private lazy val ws       = izanamiComponents.wsClient
   private lazy val rootPath = s"http://localhost:$port"
 
   s"$name ConfigController" should {
@@ -23,20 +23,15 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
     "create read update delete" in {
       val key = "my:path"
       /* First check */
-      ws.url(s"$rootPath/api/configs/$key").get().futureValue.status must be(
-        404)
+      ws.url(s"$rootPath/api/configs/$key").get().futureValue.status must be(404)
       ws.url(s"$rootPath/api/configs").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 0,
-                                        "nbPages" -> 0))
+        Json.obj("results"  -> Json.arr(),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
 
       /* Create */
       val config = Json.obj("id" -> key, "value" -> "value")
-      ws.url(s"$rootPath/api/configs").post(config).futureValue.status must be(
-        201)
+      ws.url(s"$rootPath/api/configs").post(config).futureValue.status must be(201)
 
       /* Verify */
       val getById = ws.url(s"$rootPath/api/configs/$key").get().futureValue
@@ -44,11 +39,8 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       getById.json must be(config)
 
       ws.url(s"$rootPath/api/configs").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(config),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 1,
-                                        "nbPages" -> 1))
+        Json.obj("results"  -> Json.arr(config),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
       /* Update */
@@ -65,26 +57,18 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       getByIdUpdated.json must be(configUpdated)
 
       ws.url(s"$rootPath/api/configs").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(configUpdated),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 1,
-                                        "nbPages" -> 1))
+        Json.obj("results"  -> Json.arr(configUpdated),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
       /* Delete */
-      ws.url(s"$rootPath/api/configs/$key").delete().futureValue.status must be(
-        200)
+      ws.url(s"$rootPath/api/configs/$key").delete().futureValue.status must be(200)
 
       /* Verify */
-      ws.url(s"$rootPath/api/configs/$key").get().futureValue.status must be(
-        404)
+      ws.url(s"$rootPath/api/configs/$key").get().futureValue.status must be(404)
       ws.url(s"$rootPath/api/configs").get().futureValue.json must be(
-        Json.obj("results" -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1,
-                                        "pageSize" -> 15,
-                                        "count" -> 0,
-                                        "nbPages" -> 0))
+        Json.obj("results"  -> Json.arr(),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 

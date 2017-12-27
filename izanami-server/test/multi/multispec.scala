@@ -24,7 +24,7 @@ object Configs {
   val cassandraPort: Int = 9042
 
   val elasticHttpPort: Int = 9210
-  val elasticTcpPort: Int = 9300
+  val elasticTcpPort: Int  = 9300
 
   val elasticConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
@@ -210,35 +210,27 @@ class ElasticTests
 
   override protected def afterAll(): Unit = ()
 }
-
-class CassandraTests
-    extends Suites(
-      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration("config")),
-      new ExperimentControllerSpec("Cassandra",
-        Configs.cassandraConfiguration("experiment")),
-      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration("features")),
-      new GlobalScriptControllerSpec("Cassandra", Configs.cassandraConfiguration("script")),
-      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration("webhook")),
-      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration("user")),
-      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration("apikey"))
-    )
+//
+//class CassandraTests
+//    extends Suites(
+//      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration("config")),
+//      new ExperimentControllerSpec("Cassandra", Configs.cassandraConfiguration("experiment")),
+//      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration("features")),
+//      new GlobalScriptControllerSpec("Cassandra", Configs.cassandraConfiguration("script")),
+//      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration("webhook")),
+//      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration("user")),
+//      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration("apikey"))
+//    )
 
 class LevelDBTests
     extends Suites(
-      new ConfigControllerSpec("LevelDb",
-        Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ExperimentControllerSpec("LevelDb",
-        Configs.levelDBConfiguration(Configs.folderConfig)),
-      new FeatureControllerSpec("LevelDb",
-        Configs.levelDBConfiguration(Configs.folderConfig)),
-      new GlobalScriptControllerSpec("LevelDb",
-        Configs.levelDBConfiguration(Configs.folderConfig)),
-      new WebhookControllerSpec("LevelDb",
-        Configs.levelDBConfiguration(Configs.folderConfig)),
-      new UserControllerSpec("LevelDb",
-        Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ApikeyControllerSpec("LevelDb",
-        Configs.levelDBConfiguration(Configs.folderConfig))
+      new ConfigControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
+      new ExperimentControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
+      new FeatureControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
+      new GlobalScriptControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
+      new WebhookControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
+      new UserControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
+      new ApikeyControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig))
     )
     with BeforeAndAfterAll {
 
