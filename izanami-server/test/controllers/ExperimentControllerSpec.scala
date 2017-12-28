@@ -1,20 +1,12 @@
 package controllers
 
 import domains.abtesting._
-import elastic.client.ElasticClient
-import multi.Configs
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
-import redis.embedded.RedisServer
 import test.OneServerPerSuiteWithMyComponents
-
-import scala.concurrent.Await
-import scala.concurrent.duration.DurationDouble
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
