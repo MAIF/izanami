@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-fe9d8532242624d951b2b55bdd44109626e72270
+8a377dd9451f0cc91e91bc042a8632888cef9c38*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -108,7 +108,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-fe9d8532242624d951b2b55bdd44109626e72270
+8a377dd9451f0cc91e91bc042a8632888cef9c38*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -227,12 +227,12 @@ fe9d8532242624d951b2b55bdd44109626e72270
 </div>
 <p>It&rsquo;s simple to build your client using the APIs. If you&rsquo;re application is built on jvm you can also use the built-in Izanami client. </p>
 <p>This client offer nice strategies for better performances. </p>
-<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "fe9d8532242624d951b2b55bdd44109626e72270"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
+<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "8a377dd9451f0cc91e91bc042a8632888cef9c38-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
   &lt;groupId&gt;fr.maif&lt;/groupId&gt;
   &lt;artifactId&gt;izanami-client_2.12&lt;/artifactId&gt;
-  &lt;version&gt;fe9d8532242624d951b2b55bdd44109626e72270&lt;/version&gt;
+  &lt;version&gt;8a377dd9451f0cc91e91bc042a8632888cef9c38-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  compile group: 'fr.maif', name: 'izanami-client_2.12', version: 'fe9d8532242624d951b2b55bdd44109626e72270'
+  compile group: 'fr.maif', name: 'izanami-client_2.12', version: '8a377dd9451f0cc91e91bc042a8632888cef9c38-SNAPSHOT'
 }</code></pre></dd></dl>
 <p>The client can be used in java or scala. There is two distinct dsl. Be sure to import the correct one : </p>
 <dl>
@@ -736,8 +736,8 @@ futureExperiment.onSuccess(mayBeExperiment -&gt;
   <pre class="prettyprint"><code class="language-scala">val futureExperiment: Future[Option[ExperimentClient]] = experimentClient.experiment(&quot;test&quot;)
 futureExperiment.onComplete {
   case Success(Some(exp)) =&gt; println(s&quot;Experiment is $exp&quot;)
-  case Success(None) =&gt; println(&quot;Experiment not Found&quot;)
-  case Failure(e) =&gt; e.printStackTrace()
+  case Success(None)      =&gt; println(&quot;Experiment not Found&quot;)
+  case Failure(e)         =&gt; e.printStackTrace()
 }</code></pre></dd>
 </dl>
 <p>Once you get the experiment, you can get a variant for a client, mark variant displayed or mark variant won : </p>
@@ -750,10 +750,10 @@ Future&lt;ExperimentVariantDisplayed&gt; displayed = experiment.markVariantDispl
 Future&lt;ExperimentVariantWon&gt; won = experiment.markVariantWon(&quot;clientId&quot;);</code></pre></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val experiment: ExperimentClient = mayBeExperiment.get
-val futureVariant: Future[Option[Variant]] = experiment.getVariantFor(&quot;client1&quot;)
+  <pre class="prettyprint"><code class="language-scala">val experiment: ExperimentClient                  = mayBeExperiment.get
+val futureVariant: Future[Option[Variant]]        = experiment.getVariantFor(&quot;client1&quot;)
 val displayed: Future[ExperimentVariantDisplayed] = experiment.markVariantDisplayed(&quot;client1&quot;)
-val won: Future[ExperimentVariantWon] = experiment.markVariantWon(&quot;client1&quot;)</code></pre></dd>
+val won: Future[ExperimentVariantWon]             = experiment.markVariantWon(&quot;client1&quot;)</code></pre></dd>
 </dl>
 <h3><a href="#experiment-tree" name="experiment-tree" class="anchor"><span class="anchor-link"></span></a>Experiment tree</h3>
 <p>You can get the experiments tree with associated variant for a client : </p>
@@ -864,11 +864,16 @@ val configClient: ConfigClient = client.configClient(
 val experimentsClient: ExperimentsClient = client.experimentClient(
   strategy = Strategies.dev(),
   fallback = Experiments(
-    ExperimentFallback(&quot;experiments:id&quot;, &quot;Experiment&quot;, &quot;An experiment&quot;, true, Variant(&quot;A&quot;, &quot;Variant A&quot;, &quot;Variant A&quot;))
+    ExperimentFallback(&quot;experiments:id&quot;,
+                       &quot;Experiment&quot;,
+                       &quot;An experiment&quot;,
+                       true,
+                       Variant(&quot;A&quot;, &quot;Variant A&quot;, &quot;Variant A&quot;))
   )
 )
 
-val proxy: Proxy = client.proxy()
+val proxy: Proxy = client
+  .proxy()
   .withConfigClient(configClient)
   .withConfigPattern(&quot;configs:*&quot;)
   .withFeatureClient(featureClient)
@@ -896,7 +901,8 @@ fResponseString.onComplete {
 
 // Experiment proxy
 
-val fDisplayed: Future[(Int, JsValue)] = proxy.markVariantDisplayed(&quot;experiments:id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
+val fDisplayed: Future[(Int, JsValue)] =
+  proxy.markVariantDisplayed(&quot;experiments:id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
 val fWon: Future[(Int, JsValue)] = proxy.markVariantWon(&quot;experiments:id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
 </code></pre></dd>
 </dl>

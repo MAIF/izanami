@@ -1,6 +1,17 @@
 # From Binaries
 
-Binaries are the recommended way to run Izanami. Grab them from Izanami release page on the github repository. 
+Binaries are the recommended way to run Izanami. 
+
+```
+wget --quiet 'https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar'
+``` 
+
+Or 
+
+```
+wget --quiet 'https://dl.bintray.com/maif/binaries/izanami-dist/latest/izanami-dist.zip'
+``` 
+
 
 You can get 
 
@@ -24,7 +35,7 @@ To run izanami.zip, you will need JDK 8.
 First unzip the archive : 
 
 ```bash
-unzip izanami.zip 
+unzip izanami-dist.zip 
 ```
 
 And then 

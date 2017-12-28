@@ -210,17 +210,19 @@ class ElasticTests
 
   override protected def afterAll(): Unit = ()
 }
-//
-//class CassandraTests
-//    extends Suites(
-//      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration("config")),
-//      new ExperimentControllerSpec("Cassandra", Configs.cassandraConfiguration("experiment")),
-//      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration("features")),
-//      new GlobalScriptControllerSpec("Cassandra", Configs.cassandraConfiguration("script")),
-//      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration("webhook")),
-//      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration("user")),
-//      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration("apikey"))
-//    )
+
+class CassandraTests
+    extends Suites(
+      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration(s"config${System.currentTimeMillis()}")),
+      new ExperimentControllerSpec("Cassandra",
+                                   Configs.cassandraConfiguration(s"experiment${System.currentTimeMillis()}")),
+      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration(s"features${System.currentTimeMillis()}")),
+      new GlobalScriptControllerSpec("Cassandra",
+                                     Configs.cassandraConfiguration(s"script${System.currentTimeMillis()}")),
+      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration(s"webhook${System.currentTimeMillis()}")),
+      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration(s"user${System.currentTimeMillis()}")),
+      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration(s"apikey${System.currentTimeMillis()}"))
+    )
 
 class LevelDBTests
     extends Suites(

@@ -35,8 +35,8 @@ Izanami also provides first class integration. We provide Java, Scala, Node and 
 Download it : 
 
 
-```zsh
-wget --quiet 'https://github.com/MAIF/izanami/releases/download/v1.0.0/izanami.jar'
+```bash
+wget --quiet 'https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar'
 ```
 
 Run it 

@@ -4,7 +4,7 @@
 You can get the official image from the docker repository : 
 
 ```bash 
-docker pull maif-docker-docker.bintray.io/izanami
+docker pull maif/izanami
 ```
 
 AND then run it 
