@@ -6,6 +6,7 @@ import domains.abtesting.{ExperimentVariantEventStore, _}
 import domains.apikey.ApikeyStore
 import domains.config.ConfigStore
 import domains.events._
+import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
 import domains.feature.FeatureStore
 import domains.script.GlobalScriptStore
 import domains.user.UserStore
