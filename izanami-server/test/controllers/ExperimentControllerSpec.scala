@@ -8,7 +8,7 @@ import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
 import test.OneServerPerSuiteWithMyComponents
 
-class ExperimentControllerSpec(name: String, configurationSpec: Configuration)
+class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -370,28 +370,46 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration)
       variantA.won must be(2)
       Math.floor(variantA.transformation) must be(66)
       val eventsA: Seq[ExperimentVariantEvent] = variantA.events
-      eventsA.size must be > 0
-      eventsA(0).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-      val eventA0: ExperimentVariantDisplayed =
-        eventsA(0).asInstanceOf[ExperimentVariantDisplayed]
-      eventA0.variantId must be("A")
-      eventA0.variant.id must be("A")
-      eventA0.transformation must be(0)
-      eventsA.last match {
-        case e: ExperimentVariantWon       => e.transformation must be(66.66666666666667)
-        case e: ExperimentVariantDisplayed => e.transformation must be(66.66666666666667)
+      if (strict) {
+        eventsA.size must be(5)
+      } else {
+        eventsA.size must be > 0
+      }
+      if (strict) {
+        eventsA(0).isInstanceOf[ExperimentVariantDisplayed] must be(true)
+        val eventA0: ExperimentVariantDisplayed =
+          eventsA(0).asInstanceOf[ExperimentVariantDisplayed]
+        eventA0.variantId must be("A")
+        eventA0.variant.id must be("A")
+        eventA0.transformation must be(0)
+        eventsA(1).isInstanceOf[ExperimentVariantDisplayed] must be(true)
+        eventsA(2).isInstanceOf[ExperimentVariantWon] must be(true)
+        eventsA(3).isInstanceOf[ExperimentVariantDisplayed] must be(true)
+        eventsA(4).isInstanceOf[ExperimentVariantWon] must be(true)
+        val eventA4: ExperimentVariantWon =
+          eventsA(4).asInstanceOf[ExperimentVariantWon]
+        eventA4.transformation must be(66.66666666666667)
+      } else {
+        eventsA.last match {
+          case e: ExperimentVariantWon       => e.transformation must be(66.66666666666667)
+          case e: ExperimentVariantDisplayed => e.transformation must be(66.66666666666667)
+        }
       }
       variantB.displayed must be(2)
       variantB.won must be(1)
       variantB.transformation must be(50)
       val eventsB: Seq[ExperimentVariantEvent] = variantB.events
       eventsB.size must be > 0
-      eventsB.head.isInstanceOf[ExperimentVariantDisplayed] must be(true)
-      val eventB0: ExperimentVariantDisplayed =
-        eventsB(0).asInstanceOf[ExperimentVariantDisplayed]
-      eventB0.variantId must be("B")
-      eventB0.variant.id must be("B")
-      eventB0.transformation must be(0)
+      if (strict) {
+        eventsB.head.isInstanceOf[ExperimentVariantDisplayed] must be(true)
+        val eventB0: ExperimentVariantDisplayed =
+          eventsB(0).asInstanceOf[ExperimentVariantDisplayed]
+        eventB0.variantId must be("B")
+        eventB0.variant.id must be("B")
+        eventB0.transformation must be(0)
+        eventsB(1).isInstanceOf[ExperimentVariantWon] must be(true)
+        eventsB(2).isInstanceOf[ExperimentVariantDisplayed] must be(true)
+      }
       eventsB.last match {
         case e: ExperimentVariantWon       => e.transformation must be(50)
         case e: ExperimentVariantDisplayed => e.transformation must be(50)
