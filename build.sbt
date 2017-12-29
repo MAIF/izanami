@@ -1,6 +1,5 @@
 import ReleaseTransformations._
 
-
 name := """izanami"""
 organization := "fr.maif"
 scalaVersion := "2.12.4"
@@ -21,7 +20,6 @@ lazy val `izanami-server` = project.enablePlugins(NoPublish)
 
 lazy val `izanami-clients` = project.enablePlugins(NoPublish)
 
-
 val setVersionToNpmProject = ReleaseStep(action = st => {
   import sys.process._
   // extract the build state
@@ -35,16 +33,16 @@ val setVersionToNpmProject = ReleaseStep(action = st => {
 })
 
 releaseProcess := Seq[ReleaseStep](
-  checkSnapshotDependencies,              // : ReleaseStep
-  inquireVersions,                        // : ReleaseStep
-  runClean,                               // : ReleaseStep
-  runTest,                                // : ReleaseStep
-  setReleaseVersion,                      // : ReleaseStep
+  checkSnapshotDependencies, // : ReleaseStep
+  inquireVersions, // : ReleaseStep
+  runClean, // : ReleaseStep
+  runTest, // : ReleaseStep
+  setReleaseVersion, // : ReleaseStep
   setVersionToNpmProject,
-  commitReleaseVersion,                   // : ReleaseStep, performs the initial git checks
-  tagRelease,                             // : ReleaseStep
+  commitReleaseVersion, // : ReleaseStep, performs the initial git checks
+  tagRelease,           // : ReleaseStep
   //publishArtifacts,                       // : ReleaseStep, checks whether `publishTo` is properly set up
-  setNextVersion,                         // : ReleaseStep
-  commitNextVersion,                      // : ReleaseStep
-  pushChanges                             // : ReleaseStep, also checks that an upstream branch is properly configured
+  setNextVersion, // : ReleaseStep
+  commitNextVersion, // : ReleaseStep
+  pushChanges // : ReleaseStep, also checks that an upstream branch is properly configured
 )
