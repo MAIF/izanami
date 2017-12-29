@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 
-echo 'Publishing npm packages'
+echo 'Publishing npm packages to bintray'
 
 LOCATION=`pwd`
 
-echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > ~/.npmrc
-echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> ~/.npmrc
-echo "//registry.npmjs.org/:username=adelegue" >> ~/.npmrc
-echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> ~/.npmrc
+echo "registry=https://api.bintray.com/npm/maif/npm" > ~/.npmrc
+echo "_auth=${BINTRAY_NPM_TOKEN}" > ~/.npmrc
+echo "always-auth=true" > ~/.npmrc
+echo "email=adelegue@hotmail.com" > ~/.npmrc
 
 cd ${LOCATION}/izanami-clients/react
-#npm unpublish --force
+npm unpublish --force
 npm publish
 
 cd ${LOCATION}/izanami-clients/node
-#npm unpublish --force
+npm unpublish --force
 npm publish
 
 cd ${LOCATION}
