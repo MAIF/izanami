@@ -8,8 +8,8 @@ then
     LOCATION=`pwd`
     cd ${LOCATION}/izanami-clients/react
     yarn install
-    PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-    echo "${PACKAGE_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}" | cut -d "v" -f 2 | yarn version
+    PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
+    echo "${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}" | yarn version
 
     echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
     echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
@@ -20,8 +20,8 @@ then
 
     cd ${LOCATION}/izanami-clients/node
 
-    PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-    echo "${PACKAGE_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}" | cut -d "v" -f 2 | yarn version
+    PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
+    echo "${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}" | yarn version
 
 
     echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
