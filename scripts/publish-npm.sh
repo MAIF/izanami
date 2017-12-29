@@ -7,7 +7,7 @@ then
     yarn config set version-git-tag false
     LOCATION=`pwd`
     cd ${LOCATION}/izanami-clients/react
-    yarn install
+    npm install
     PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
     echo "${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}" | yarn version
 
@@ -44,7 +44,7 @@ else
 
     cd ${LOCATION}/izanami-clients/react
     echo "${TRAVIS_TAG}" | cut -d "v" -f 2 | yarn version
-    yarn install
+    npm install
     npm publish
 
     cd ${LOCATION}/izanami-clients/node
