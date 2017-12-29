@@ -3,7 +3,7 @@
 ## Install 
 
 ```bash
-npm install izanami 
+npm install izanami-node
 ```
 
 ## Import 
