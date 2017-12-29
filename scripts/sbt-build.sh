@@ -2,7 +2,7 @@
 
 
 
-if [-z "$TRAVIS_TAG"];
+if [ -z "$TRAVIS_TAG" ];
 then
     echo 'Not a tag, just run test'
     sbt -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION "test"
