@@ -130,6 +130,8 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
           .futureValue
           .status must be(201)
 
+        Thread.sleep(1000)
+
         val config = Json.obj("id" -> key, "value" -> "value")
         ws.url(s"$rootPath/api/configs")
           .post(config)
@@ -141,7 +143,7 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
           .futureValue
           .status must be(201)
 
-        Thread.sleep(1000)
+        Thread.sleep(1500)
 
         val strings: Seq[String] = ctx.state
           .map(_.as[JsObject])
