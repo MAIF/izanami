@@ -9,7 +9,8 @@ then
     cd ${LOCATION}/izanami-clients/react
     npm install
     PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-    echo "${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}" | yarn version
+    PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}"
+    npm version ${PACKAGE_VERSION}
 
     echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
     echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
@@ -21,8 +22,8 @@ then
     cd ${LOCATION}/izanami-clients/node
 
     PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-    echo "${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}" | yarn version
-
+    PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}"
+    npm version ${PACKAGE_VERSION}
 
     echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
     echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
