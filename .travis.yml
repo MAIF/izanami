@@ -36,7 +36,6 @@ before_install:
 script:
 - sh ./scripts/build-javascript.sh
 - sh ./scripts/sbt-build.sh
-- sh ./scripts/publish-npm-bintray.sh
 - sh ./scripts/publish-npm.sh
 after_failure:
 - docker-compose logs cassandra
