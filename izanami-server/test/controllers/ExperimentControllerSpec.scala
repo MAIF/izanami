@@ -389,11 +389,6 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         val eventA4: ExperimentVariantWon =
           eventsA(4).asInstanceOf[ExperimentVariantWon]
         eventA4.transformation must be(66.66666666666667)
-      } else {
-        eventsA.last match {
-          case e: ExperimentVariantWon       => e.transformation must be(66.66666666666667)
-          case e: ExperimentVariantDisplayed => e.transformation must be(66.66666666666667)
-        }
       }
       variantB.displayed must be(2)
       variantB.won must be(1)
@@ -409,10 +404,10 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         eventB0.transformation must be(0)
         eventsB(1).isInstanceOf[ExperimentVariantWon] must be(true)
         eventsB(2).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-      }
-      eventsB.last match {
-        case e: ExperimentVariantWon       => e.transformation must be(50)
-        case e: ExperimentVariantDisplayed => e.transformation must be(50)
+        eventsB.last match {
+          case e: ExperimentVariantWon       => e.transformation must be(50)
+          case e: ExperimentVariantDisplayed => e.transformation must be(50)
+        }
       }
     }
   }
