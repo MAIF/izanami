@@ -7,6 +7,7 @@ LOCATION=`pwd`
 cd ${LOCATION}/izanami-clients/react
 cp ${LOCATION}/.npmrc ${LOCATION}/izanami-clients/react/
 echo 'Unpublishing izanami-react'
+yarn install
 npm unpublish --force --registry https://api.bintray.com/npm/maif/npm
 echo 'Publishing izanami-react'
 npm publish --registry https://api.bintray.com/npm/maif/npm
