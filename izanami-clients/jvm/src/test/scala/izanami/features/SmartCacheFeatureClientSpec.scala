@@ -1,21 +1,18 @@
 package izanami.features
 
-import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import com.github.tomakehurst.wiremock.client.WireMock._
 import izanami.FeatureEvent.FeatureUpdated
-import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy, FetchWithCacheStrategy}
+import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy}
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json.{JsObject, Json}
 
-import scala.collection.immutable
 import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 
@@ -141,12 +138,11 @@ class SmartCacheFeatureClientSpec
 
     "Features events" in {
       runServer { ctx =>
-        import akka.pattern
+
         //Init
         val initialFeatures = Seq(
           DefaultFeature("test1", true)
         )
-        ctx.setValues(initialFeatures)
 
         val strategy = IzanamiClient(
           ClientConfig(ctx.host)
@@ -165,6 +161,7 @@ class SmartCacheFeatureClientSpec
         }
 
         val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
+        ctx.setValues(initialFeatures)
 
         events.futureValue must be(
           Seq(FeatureUpdated("test1", DefaultFeature("test1", true), DefaultFeature("test1", false)))
