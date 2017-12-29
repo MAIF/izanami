@@ -1,14 +1,18 @@
 {
-  "name": "izanami",
+  "name": "izanami-node",
   "version": "0.0.1",
   "description": "Client for Izanami",
   "main": "index.js",
   "author": "MAIF Team",
   "license": "Apache-2.0",
+  "scripts": {},
   "engines": {
     "node": "^8"
   },
-  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/MAIF/izanami.git"
+  },
   "dependencies": {
     "deepmerge": "1.4.3",
     "isomorphic-fetch": "2.2.1",
