@@ -192,7 +192,7 @@ class RedisTests
 class ElasticTests
     extends Suites(
       new ConfigControllerSpec("Elastic", Configs.elasticConfiguration),
-      new ExperimentControllerSpec("Elastic", Configs.elasticConfiguration),
+      new ExperimentControllerSpec("Elastic", Configs.elasticConfiguration, strict = false),
       new FeatureControllerSpec("Elastic", Configs.elasticConfiguration),
       new GlobalScriptControllerSpec("Elastic", Configs.elasticConfiguration),
       new WebhookControllerSpec("Elastic", Configs.elasticConfiguration),
