@@ -1,10 +1,10 @@
 {
   "name": "react-izanami",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A set of React Component to use izanami idiomatically",
   "main": "lib/index.js",
   "author": "MAIF Team",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "engines": {
     "node": "^8"
   },
