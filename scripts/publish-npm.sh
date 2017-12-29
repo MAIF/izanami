@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-if [-z "$TRAVIS_TAG"];
+if [ -z "$TRAVIS_TAG" ];
 then
     echo 'Not a tag nothing to publish to npm registry'
 else
