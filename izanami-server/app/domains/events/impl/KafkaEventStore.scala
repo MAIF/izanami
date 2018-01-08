@@ -21,8 +21,6 @@ import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
 
-
-
 object KafkaSettings {
 
   import akka.kafka.{ConsumerSettings, ProducerSettings}
@@ -88,7 +86,7 @@ class KafkaEventStore(_env: Environment,
                       system: ActorSystem,
                       clusterConfig: KafkaConfig,
                       eventsConfig: KafkaEventsConfig)
-  extends EventStore {
+    extends EventStore {
 
   import system.dispatcher
 
@@ -156,7 +154,7 @@ class KafkaEventStore(_env: Environment,
                 List.empty[IzanamiEvent]
               },
               e => List(e)
-            )
+          )
       )
       .watchTermination() {
         case (control, done) =>

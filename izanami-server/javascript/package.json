@@ -9,7 +9,6 @@
     "build": "rm -f ../public/javascripts/bundle/* && npm run bundle",
     "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3333"
   },
-  "repository": "",
   "keywords": [],
   "author": "Your name here",
   "devDependencies": {
@@ -37,7 +36,6 @@
     "es6-shim": "0.35.3",
     "faker": "4.1.0",
     "font-awesome": "4.7.0",
-    "highcharts": "5.0.12",
     "jquery": "3.2.1",
     "lodash": "4.17.4",
     "moment": "2.18.1",
@@ -51,6 +49,7 @@
     "react-select-plus": "1.0.0-rc.5",
     "react-sparklines": "1.6.0",
     "react-table": "6.6.0",
+    "recharts": "^1.0.0-beta.7",
     "uuid": "3.1.0",
     "whatwg-fetch": "2.0.3"
   }

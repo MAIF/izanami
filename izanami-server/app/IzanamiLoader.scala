@@ -46,10 +46,7 @@ package object modules {
       extends BuiltInComponentsFromContext(context)
       with IzanamiMainComponents {}
 
-  trait IzanamiMainComponents
-      extends BuiltInComponentsFromContext
-      with AssetsComponents
-      with AhcWSComponents {
+  trait IzanamiMainComponents extends BuiltInComponentsFromContext with AssetsComponents with AhcWSComponents {
 
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
@@ -74,16 +71,11 @@ package object modules {
     lazy val eventStore: EventStore = izanamiConfig.events match {
       case InMemoryEvents(_) => new BasicEventStore(actorSystem)
       case KafkaEvents(c) =>
-        new KafkaEventStore(environment,
-                            actorSystem,
-                            izanamiConfig.db.kafka.get,
-                            c)
+        new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
       case RedisEvents(c) =>
         new RedisEventStore(redisClient.get, c, actorSystem)
       case DistributedEvents(c) =>
-        new DistributedPubSubEventStore(configuration.underlying,
-                                        c,
-                                        applicationLifecycle)
+        new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
       case other =>
         throw new IllegalArgumentException(s"Unknow event store $other")
     }

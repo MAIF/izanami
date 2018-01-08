@@ -20,6 +20,8 @@ lazy val `izanami-server` = project.enablePlugins(NoPublish)
 
 lazy val `izanami-clients` = project.enablePlugins(NoPublish)
 
+lazy val simulation = project.enablePlugins(NoPublish)
+
 val setVersionToNpmProject = ReleaseStep(action = st => {
   import sys.process._
   // extract the build state
