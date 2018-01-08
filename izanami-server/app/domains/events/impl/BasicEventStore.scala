@@ -31,7 +31,7 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
     .runWith(BroadcastHub.sink(1024))
 
   override def publish(event: IzanamiEvent): Future[Done] =
-  //Already published
+    //Already published
     FastFuture.successful(Done)
 
   override def events(domains: Seq[Domain],
@@ -72,4 +72,3 @@ private[events] class EventStreamActor(queue: SourceQueueWithComplete[IzanamiEve
     queue.complete()
   }
 }
-

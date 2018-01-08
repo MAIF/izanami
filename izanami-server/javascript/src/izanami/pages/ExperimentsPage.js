@@ -1,10 +1,9 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
-import { Table, SimpleBooleanInput, TextInput, NumberInput, LabelInput } from '../inputs';
-import Highcharts from 'highcharts';
+import { Table, SimpleBooleanInput, TextInput, NumberInput} from '../inputs';
+import {CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area} from 'recharts'
 import _ from 'lodash';
 import moment from 'moment';
-import {createTooltip} from '../inputs/tooltips';
 
 class Variant extends Component {
   render() {
@@ -36,6 +35,19 @@ class Variants extends Component {
 }
 
 export class ExperimentsPage extends Component {
+
+  colors = [
+    '#95cf3d',
+    '#027cc3',
+    '#ff8900',
+    '#d50200',
+    '#7cb5ec',
+    '#8085c9',
+    '#ffeb3b',
+    '#8a2be2',
+    '#a52a2a',
+    '#deb887',
+  ];
 
   state = {
     results: null
@@ -107,97 +119,41 @@ export class ExperimentsPage extends Component {
   showResults = (e, item) => {
     IzanamiServices.fetchExperimentResult(item.id).then(results => {
       this.props.setTitle("Results for " + results.experiment.name);
-      this.setState({ results, item }, () => {
-        this.mountChart(this.chartRef)
+      const [serieNames, data] = this.buildChartData(results);
+      console.log("Results", serieNames, data);
+      this.setState({ results, item, serieNames, data }, () => {
+        //this.mountChart(this.chartRef)
       });
     });
   };
 
-  mountChart = (ref) => {
-    if (!this.state.results) {
-      return;
-    }
-    if (!ref) {
-      return;
-    }
-    this.chartRef = ref;
+  buildChartData = ({results}) => {
+    let serieNames = results.map(res => [res.variant.id, `${res.variant.name} (${res.variant.id})`]);
 
-    let evts = [];
-    this.state.results.results.map(res => res.events.map(e => {
-      evts.push({
-        id: e.id,
-        variant: e.variantId,
-        date: e.date,
-        moment: moment(e.date),
-        transformation: parseFloat(e.transformation.toFixed(2)),
-      });
-    }));
+    let evts = results.flatMap(res =>
+      res.events.map(e => ({
+          variant: e.variantId,
+          name: moment(e.date).format('YYYY-MM-DD HH:mm'),
+          label: `${res.variant.name} (${res.variant.id})`,
+          date: e.date,
+          transformation: parseFloat(e.transformation.toFixed(2)),
+          [e.variantId]: parseFloat(e.transformation.toFixed(2))
+        }))
+    );
     evts = _.sortBy(evts, 'date');
-    const series = this.state.results.results.map(res => {
+
+    results.forEach(res => {
       let transfo = 0.0;
-      return {
-        name: `${res.variant.name} (${res.variant.id})`,
-        data: evts.map(e => {
-          if (e.variant !== res.variant.id) {
-            return parseFloat(transfo.toFixed(2));
-          } else {
-            transfo = e.transformation;
-            return parseFloat(e.transformation.toFixed(2));
-          }
-        })
-      };
+      evts.forEach(e => {
+        console.log(e, res);
+        if (e.variant !== res.variant.id) {
+          e[res.variant.id] = parseFloat(transfo.toFixed(2));
+        } else {
+          transfo = e.transformation;
+        }
+      });
     });
-    Highcharts.chart(ref, {
-      chart: {
-        min: 0,
-        max: 100,
-        type: 'line',
-        backgroundColor:'#494948',
-      },
-      colors: ['#95cf3d', '#027cc3', '#ff8900','#d50200'],
-      title: {
-        text: 'Conversion evolution',
-        style:{ "color": "#FFF" }
-      },
-      credits: {
-        enabled: false
-      },
-      yAxis: {
-        title: {
-          text: 'Conversion (%)',
-          style:{ "color": "#FFF" }
-        }
-      },
-      xAxis: {
-        categories: evts.map(d => d.date),
-        type: 'datetime',
-        labels: {
-          enabled: false
-        }
-      },
-      tooltip: {
-        pointFormat: '{series.name}: <b>{point.y}</b><br/>',
-        valueSuffix: ' %',
-        shared: true,
-        enabled: true,
-      },
-      labels: {
-        style: { "color": "#FFF" },
-      },
-      legend: {
-        backgroundColor: 'white'
-      },
-      plotOptions: {
-        line: {
-          dataLabels: {
-            enabled: false,
-            format: '{y} %',
-          },
-          enableMouseTracking: true
-        }
-      },
-      series: series
-    });
+    return [serieNames, evts];
   };
 
   componentDidMount() {
@@ -287,7 +243,23 @@ export class ExperimentsPage extends Component {
                 ))}
               </ul>
             </form>
-            <div ref={this.mountChart} />
+            <AreaChart width={800} height={400} data={this.state.data} >
+              {this.state.serieNames.map(([k, s], i) =>
+                <Area
+                  type="monotone"
+                  key={k}
+                  dataKey={k}
+                  unit={" %."}
+                  stroke={this.colors[i]}
+                  fillOpacity={0.6}
+                  fill={this.colors[i]}
+                />
+              )}
+              <Tooltip />
+              <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+              <XAxis dataKey="name" />
+              <YAxis />
+            </AreaChart>
             <div className="modal-footer">
               <button type="button" className="btn btn-default" onClick={e => this.showResults(e, this.state.item)}><i className="glyphicon glyphicon-refresh" /> Reload</button>
               <button type="button" className="btn btn-default" onClick={this.closeResults}>Close</button>

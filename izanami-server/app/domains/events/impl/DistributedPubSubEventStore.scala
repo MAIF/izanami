@@ -23,12 +23,10 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.Future
 import scala.util.Try
 
-
 class DistributedPubSubEventStore(globalConfig: TsConfig,
                                   config: DistributedEventsConfig,
                                   lifecycle: ApplicationLifecycle)
-  extends EventStore {
-
+    extends EventStore {
 
   logger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}")
 
@@ -107,7 +105,7 @@ object DistributedEventsPublisherActor {
 
 private[events] class DistributedEventsPublisherActor(queue: SourceQueueWithComplete[IzanamiEvent],
                                                       config: DistributedEventsConfig)
-  extends Actor {
+    extends Actor {
 
   import context.dispatcher
 
@@ -135,4 +133,3 @@ private[events] class DistributedEventsPublisherActor(queue: SourceQueueWithComp
   override def postStop(): Unit =
     queue.complete()
 }
-

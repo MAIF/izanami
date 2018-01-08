@@ -1,4 +1,5 @@
 
+
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.6") // Apache 2.0
 
 addSbtPlugin("com.lucidchart" % "sbt-scalafmt" % "1.12") // Apache 2.0
@@ -26,3 +27,5 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.9.3") // Apache 2.0
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.7") // Apache 2.0
 
 addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.3.3") // Apache 2.0
+
+addSbtPlugin("io.gatling" % "gatling-sbt" % "2.2.2") // Apache 2.0

@@ -661,7 +661,6 @@ object EventLogger {
   val logger = Logger("events")
 }
 
-
 trait EventStore extends Closeable {
 
   private[events] def eventMatch(patterns: Seq[String], domains: Seq[Domain])(e: IzanamiEvent): Boolean =
