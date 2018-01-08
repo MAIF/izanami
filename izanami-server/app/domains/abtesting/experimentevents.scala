@@ -10,7 +10,9 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Sink, Source}
+import akka.util.ByteString
 import akka.{Done, NotUsed}
+import cats.{Applicative, Apply}
 import cats.data.OptionT
 import com.datastax.driver.core.{Cluster, Session, SimpleStatement}
 import domains.Key
@@ -919,14 +921,15 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlave
                            variant.id == currentVariantId
                          })
 
-                       import cats.instances.all._
-                       import cats.syntax.cartesian._
+                       val fEvents: Future[Seq[ExperimentVariantEvent]] = findEvents(variantKey).list
+                       val fDisplayed: Future[Long]                     = getDisplayed(experiment.id.key, currentVariantId)
+                       val fWon: Future[Long]                           = getWon(experiment.id.key, currentVariantId)
 
-                       (
-                         findEvents(variantKey).list |@|
-                         getDisplayed(experiment.id.key, currentVariantId) |@|
-                         getWon(experiment.id.key, currentVariantId)
-                       ).map { (events, displayed, won) =>
+                       for {
+                         events    <- fEvents
+                         displayed <- fDisplayed
+                         won       <- fWon
+                       } yield {
                          val transformation: Double = if (displayed != 0) {
                            (won * 100) / displayed
                          } else {
@@ -1119,14 +1122,17 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
                            variant.id == currentVariantId
                          })
 
-                       import cats.instances.all._
-                       import cats.syntax.cartesian._
-
-                       (
-                         findEvents(variantKey).list |@|
-                         client.get(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId") |@|
+                       val fEvents: Future[Seq[ExperimentVariantEvent]] = findEvents(variantKey).list
+                       val fDisplayed: Future[Option[ByteString]] =
+                         client.get(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId")
+                       val fWon: Future[Option[ByteString]] =
                          client.get(s"$experimentseventswonNamespace:${experiment.id.key}:$currentVariantId")
-                       ).map { (events, maybeDisplayed, maybeWon) =>
+
+                       for {
+                         events         <- fEvents
+                         maybeDisplayed <- fDisplayed
+                         maybeWon       <- fWon
+                       } yield {
                          val displayed: Long =
                            maybeDisplayed.map(_.utf8String.toLong).getOrElse(0)
                          val won: Long = maybeWon.map(_.utf8String.toLong).getOrElse(0)
@@ -1212,29 +1218,32 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem:
       Future.sequence {
         experiment.variants
           .map(variant => {
-            import cats.instances.all._
-            import cats.syntax.cartesian._
-            (
-              (store ? FindEvents(experiment.id.key, variant.id))
-                .mapTo[List[ExperimentVariantEvent]] |@|
-              (store ? FindCounterDisplayed(experiment.id.key, variant.id))
-                .mapTo[Long] |@|
-              (store ? FindCounterWon(experiment.id.key, variant.id))
-                .mapTo[Long]
-            ).map { (events, displayed, won) =>
-              {
-                val transformation: Double = if (displayed != 0) {
-                  won * 100 / displayed
-                } else 0.0
 
-                VariantResult(
-                  variant = Some(variant),
-                  events = events,
-                  transformation = transformation,
-                  displayed = displayed,
-                  won = won
-                )
-              }
+            val fEvents: Future[List[ExperimentVariantEvent]] = (store ? FindEvents(experiment.id.key, variant.id))
+              .mapTo[List[ExperimentVariantEvent]]
+            val fDisplayed: Future[Long] = (store ? FindCounterDisplayed(experiment.id.key, variant.id))
+              .mapTo[Long]
+            val fWon: Future[Long] = (store ? FindCounterWon(experiment.id.key, variant.id))
+              .mapTo[Long]
+
+            for {
+              events    <- fEvents
+              displayed <- fDisplayed
+              won       <- fWon
+            } yield {
+
+              val transformation: Double = if (displayed != 0) {
+                won * 100 / displayed
+              } else 0.0
+
+              VariantResult(
+                variant = Some(variant),
+                events = events,
+                transformation = transformation,
+                displayed = displayed,
+                won = won
+              )
+
             }
           })
           .toList
