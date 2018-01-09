@@ -9,17 +9,17 @@ import scala.concurrent.duration.FiniteDuration
 
 object DbType {
   val cassandra = "Cassandra"
-  val redis = "Redis"
-  val levelDB = "LevelDB"
-  val inMemory = "InMemory"
-  val elastic = "Elastic"
+  val redis     = "Redis"
+  val levelDB   = "LevelDB"
+  val inMemory  = "InMemory"
+  val elastic   = "Elastic"
 }
 
 object EventStoreType {
-  val redis = "Redis"
-  val inMemory = "InMemory"
+  val redis       = "Redis"
+  val inMemory    = "InMemory"
   val distributed = "Distributed"
-  val kafka = "Kafka"
+  val kafka       = "Kafka"
 }
 
 object IzanamiConfig {
@@ -36,8 +36,7 @@ object IzanamiConfig {
   }
 
   implicit val inetAddressCC: ConfigConvert[InetAddress] =
-    viaString[InetAddress](catchReadError(InetAddress.getByName),
-                           _.getHostAddress)
+    viaString[InetAddress](catchReadError(InetAddress.getByName), _.getHostAddress)
   implicit val inetSocketAddressCC: ConfigConvert[InetSocketAddress] =
     viaString[InetSocketAddress](
       catchReadError { str =>
@@ -85,7 +84,7 @@ case class DefaultFilter(allowedPaths: Seq[String],
 
 sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
-case class Default(default: DefaultFilter) extends IzanamiFilter
+case class Default(default: DefaultFilter)          extends IzanamiFilter
 
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)
@@ -93,22 +92,16 @@ case class GlobalScriptConfig(db: DbDomainConfig)
 case class ExperimentConfig(db: DbDomainConfig)
 case class VariantBindingConfig(db: DbDomainConfig)
 case class ExperimentEventConfig(db: DbDomainConfig)
-case class WebhookConfig(db: DbDomainConfig,
-                         ttl: FiniteDuration,
-                         events: WebhookEventsConfig)
-case class WebhookEventsConfig(group: Int,
-                               within: FiniteDuration,
-                               nbMaxErrors: Int,
-                               errorReset: FiniteDuration)
+case class WebhookConfig(db: DbDomainConfig, ttl: FiniteDuration, events: WebhookEventsConfig)
+case class WebhookEventsConfig(group: Int, within: FiniteDuration, nbMaxErrors: Int, errorReset: FiniteDuration)
 case class UserConfig(db: DbDomainConfig, initialize: InitialUserConfig)
 case class ApikeyConfig(db: DbDomainConfig)
 
 sealed trait EventsConfig
-case class InMemoryEvents(inmemory: InMemoryEventsConfig) extends EventsConfig
-case class DistributedEvents(distributed: DistributedEventsConfig)
-    extends EventsConfig
-case class RedisEvents(redis: RedisEventsConfig) extends EventsConfig
-case class KafkaEvents(kafka: KafkaEventsConfig) extends EventsConfig
+case class InMemoryEvents(inmemory: InMemoryEventsConfig)          extends EventsConfig
+case class DistributedEvents(distributed: DistributedEventsConfig) extends EventsConfig
+case class RedisEvents(redis: RedisEventsConfig)                   extends EventsConfig
+case class KafkaEvents(kafka: KafkaEventsConfig)                   extends EventsConfig
 
 case class InMemoryEventsConfig()
 case class DistributedEventsConfig(topic: String)
@@ -134,12 +127,11 @@ case class LevelDbConfig(parentPath: String)
 case class CassandraConfig(addresses: Seq[String],
                            clusterName: Option[String],
                            replicationFactor: Int,
-                           keyspace: String)
+                           keyspace: String,
+                           username: Option[String] = None,
+                           password: Option[String] = None)
 
-case class KafkaConfig(servers: String,
-                       keyPass: Option[String],
-                       keystore: Location,
-                       truststore: Location)
+case class KafkaConfig(servers: String, keyPass: Option[String], keystore: Location, truststore: Location)
 
 case class Location(location: Option[String])
 
