@@ -16,13 +16,17 @@ object CassandraClient {
         val Array(host, port) = add.split(":")
         new InetSocketAddress(host, port.toInt)
       }
-      val builder = Cluster
-        .builder()
+      val builder: Cluster.Builder = Cluster.builder
         .addContactPointsWithPorts(adds: _*)
 
-      val b = config.clusterName.map(builder.withClusterName).getOrElse(builder)
+      val b: Cluster.Builder = config.clusterName.map(builder.withClusterName).getOrElse(builder)
 
-      val cluster = b.build()
+      val cluster: Cluster = (for {
+        username <- config.username
+        password <- config.password
+      } yield {
+        b.withCredentials(username, password)
+      }).getOrElse(b).build()
 
       cluster.connect().execute(s"""
                                    |CREATE KEYSPACE IF NOT EXISTS ${config.keyspace} WITH REPLICATION = {
