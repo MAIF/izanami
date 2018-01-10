@@ -2,9 +2,10 @@ language: scala
 sudo: false
 scala:
 - 2.12.4
+os:
+- linux
+- osx
 env:
-  matrix:
-  - AKKA_SERIES=2.5
   global:
   - PACKAGE_VERSION=0.0.1
   - secure: VGMBySogUPNO1MLJwzLmbWNnKPQ2R+IFfJpiFx5d2phAxef5X7yO5vS1ymzp33EC0TisadWqJ4buWwoVvj+HkzIvAgX8OngSWkyT+u80fR/8KHIfynSi62KVk3IiuxamZvQEfAaDSn7oux0Va65xaeNlKtVSe0tuSCt0J8hDQmdYTgtYq3tDPrRD2dsYpEYxklNnHa+krPyflPgXUIERqkIl3HmiLA0Ng818DErm0bYZ+sEgMQIe14596bptT4hUw6g/miWAMXhdVPJlNpcBUtWVyHpWrDQJKzADWCsNQ7RF2msdPJcOSxlbG82/UtrGp1s6dZJ7mUKjvU/FCpeWeqboYtBvMCJ9gsFRP6yI8nrjqTw3v2lOqjdPyKqSEDO1sWW4zqGu8yYOpo6RNGZPW8S723UYz0oaAmTg1CPIo9A8KSxcKk16Eqo5US+WrCZBxT2Gb+M01qfl2OEBQw6+RybqEoYUov0pmP38ACuSKe9ARxPQ+oWy8LzREJLofuuCJuyiuWkd3f7QhU9wNO4BegdB4tNuYoTTDamNIRKfFt6f1D26vy4o+xXhQPi0Cwoj+wYN93XTMGAocYJN0R3/rxquzog6PV6tqYCMIhxN2Pbwc3wGm/KGGVFz9Pabt3kc//RZMb6qovyQJ5KKUCSZB2xhiYf8pokhFQgk2/PCTcY=
@@ -32,11 +33,17 @@ before_install:
 - nvm install 8.6.0
 - nvm use 8.6.0
 - curl -o- -L https://yarnpkg.com/install.sh | bash
+- wget --quiet https://sh.rustup.rs -O rustupinstall.sh
+- sh ./rustupinstall.sh -y
+- export PATH=$PATH:$HOME/.cargo/bin
+- rustup update
+- rustup default stable
 - docker-compose up -d
 script:
 - sh ./scripts/build-javascript.sh
 - sh ./scripts/sbt-build.sh
 - sh ./scripts/publish-npm.sh
+- sh ./scripts/build-rust.sh
 after_failure:
 - docker-compose logs cassandra
 before_cache:
@@ -50,3 +57,6 @@ cache:
   - "$HOME/.nvm"
   - "$HOME/.yarn"
   - "$HOME/.yarn-cache"
+  - "$HOME/.rustup"
+  - "$HOME/.cargo"
+
