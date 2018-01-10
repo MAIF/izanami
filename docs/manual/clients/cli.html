@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title> · Izanami</title>
+<title>CLI · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -75,7 +75,7 @@
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
     <li><a href="../clients/react.html" class="page">React client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
-    <li><a href="../clients/cli.html" class="active page">clients/cli.html</a></li>
+    <li><a href="../clients/cli.html" class="active page">CLI</a></li>
   </ul></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
@@ -154,7 +154,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
     <li><a href="../clients/react.html" class="page">React client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
-    <li><a href="../clients/cli.html" class="active page">clients/cli.html</a></li>
+    <li><a href="../clients/cli.html" class="active page">CLI</a></li>
   </ul></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
@@ -172,7 +172,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../index.html">Izanami</a></li>
   <li><a href="../clients/index.html">Clients</a></li>
-  <li>clients/cli.html</li>
+  <li>CLI</li>
 </ul>
 </div>
 </div>
@@ -180,6 +180,61 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
+<h1><a href="#cli" name="cli" class="anchor"><span class="anchor-link"></span></a>CLI</h1>
+<p>Izanami provide a command line interface to interact with Izanami server. </p>
+<h2><a href="#download" name="download" class="anchor"><span class="anchor-link"></span></a>Download</h2>
+<p>First, odwnload the cli : </p>
+<pre class="prettyprint"><code class="language-bash ">#if you use linux
+wget --show-progress https://dl.bintray.com/maif/binaries/linux-izanamicli/latest/izanami-cli
+#if you use osx 
+wget --show-progress https://dl.bintray.com/maif/binaries/osx-izanamicli/latest/izanami-cli
+</code></pre>
+<p>And then </p>
+<pre class="prettyprint"><code class="language-bash ">chmod +x izanami-cli
+</code></pre>
+<h2><a href="#usage" name="usage" class="anchor"><span class="anchor-link"></span></a>Usage</h2>
+<pre class="prettyprint"><code class="language-bash">./izanami-cli -h
+</code></pre>
+<pre class="prettyprint"><code class="language-bash">izanami 0.0.1
+Alexandre Delègue &lt;aadelegue@gmail.com&gt;
+.___                                     .__
+|   |____________    ____ _____    _____ |__|
+|   \___   /\__  \  /    \__  \  /     \|  |
+|   |/    /  / __ \|   |  \/ __ \|  Y Y  \  |
+|___/_____ \(____  /___|  (____  /__|_|  /__|
+          \/     \/     \/     \/      \/
+    Izanami CLI to interact with server
+
+USAGE:
+    izanami-cli [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -f, --check_feature &lt;check_feature&gt;
+            Check if a feature is active. Can be used is combinaison with arg context.
+
+        --client_id &lt;client_id&gt;                          The client id to authenticate the client
+        --client_id_header &lt;client_id_header&gt;            The client id header name. Default value is Izanami-Client-Id.
+        --client_secret &lt;client_secret&gt;                  The client secret to authenticate the client
+        --client_secret_header &lt;client_secret_header&gt;
+            The client secret header name. Default value is Izanami-Client-Secret.
+
+    -v, --config_tree &lt;config_tree&gt;                      Return the tree of configs. A pattern must be specified.
+    -c, --context &lt;context&gt;
+            Used to check feature depending on context. The context is json like {&quot;user&quot;: &quot;ragnar.lodbrock@gmail.com&quot;}
+
+    -t, --feature_tree &lt;feature_tree&gt;
+            Return the tree of features. Can be used is combinaison with arg context.
+
+    -g, --get_config &lt;get_config&gt;                        Get a config. A pattern must be specified.
+    -s, --set &lt;set&gt;...
+            Set a config using the format key=value. Key must be a value in [&quot;client_id&quot;, &quot;client_id_header&quot;,
+            &quot;client_secret&quot;, &quot;client_secret_header&quot;, &quot;url&quot;]
+    -u, --url &lt;url&gt;                                      The url of the server. For example http://izanami.com.
+</code></pre>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/clients/cli.md">here</a>.
 </div>
@@ -189,6 +244,20 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../clients/cli.html#cli" class="header">CLI</a>
+  <ul>
+    <li><a href="../clients/cli.html#download" class="header">Download</a></li>
+    <li><a href="../clients/cli.html#usage" class="header">Usage</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 
