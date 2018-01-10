@@ -31,6 +31,13 @@ matrix:
       - rustup update
       - rustup default stable
       - docker-compose up -d
+      script:
+      - sh ./scripts/build-javascript.sh
+      - sh ./scripts/sbt-build.sh
+      - sh ./scripts/publish-npm.sh
+      - sh ./scripts/build-rust.sh
+      after_failure:
+      - docker-compose logs cassandra
     - os: osx
       osx_image: xcode8.3
       before_install:
@@ -39,6 +46,8 @@ matrix:
       - export PATH=$PATH:$HOME/.cargo/bin
       - rustup update
       - rustup default stable
+      script:
+      - sh ./scripts/build-rust.sh
 env:
   global:
   - PACKAGE_VERSION=0.0.1
@@ -49,13 +58,6 @@ env:
   - secure: FgyLWVZqUrNDSINYUSe9cFh/nlKtDtqVlCaHcAnPg/96juTFldaCFFR2s33XrQCruDvPkt121sX3a8QKVzfkWi5yxPCZqNogPAr7Fu0LIRpjt77syttVekNDLxsJBXvDB+xZTx+VgAKfAGTaA53aLoABdwBUclVxHc5vAUPblwhL358acaJa2HUffwIVIywJyb91VpmNr3bbeTeAhRTJaJRbbUritda7FgTmQmdDCj5ccjvX/3/YzuQ+9p13zoSumPAZ5lgV9RobbmSAfksQirYCULOTNPVTf9zsqFQ8uFrtqXMxY9q2AOyMIeBvTp/Jmh6Fq0imIDoggIYKfPl5gZnJV/nJpdA3rDiWjfIUaX278WyIk7XBahZ89/bsFibUc7dnQxaj2+aTrCr7tZN6HTUOt1PEeRv5tN+YOmU8aa92H9ONjZWkar/8elgORQiXIkCVyVDHP7LD72Pte/Ujh2un+sO6mr5NWEi5KhUnzSaN7XUlbkuyAyt/PR3DWI0sUnt74LkygM4KVj7HgByftdPJALRzHw8siAgfZifp2z5dPcJpK1AThYNyZiycGr7478dkodgRfOdwZQGCR4ohIspNMUJUStfIsa51I8KtyvwE8QhjONKIhBToDEfUbF6HYLRYiR553OkDm29sfe8EE6eorXnMD7nzDu9iVkawNfQ=
   - secure: IRUDBa58fVN1yGO2dq/L1g+Z2+4VGo4z38+SlHLQ7GvoeAr3V0y4AEIC6vMVPNxc3KdUY7XucV3yTlUMiSJgXk4WmqIM3J+jp0Sw4/TTiYo/zbg+hrBM1Tvl1iiMOuC1y3LOlWyr43Y43YUbYc9s6mbhtUQj4JjUS1E/DNpijt0ObojGX0p58zc1dvlnOG+DT+7uH23cpCiPix1KoeAppqeyYMpiqIprHQFBrVo0HWdAMcfg+XmUQUTS51mMSagoNSlClm/LdWtHmF3MDEx/q+6CplSNK61lo6CmvZ2mZjllaqgsaQUmud0WZuNAB0qaAi/gttQiirik2gi7VWpNbC0MJtUhHsj8hQ0wR8e54JTMf4iKa765FGuvUrZqmvdCM5f2rQHxwCg7hzEbarf8Be9j0tLH8WknGLk/OKA37IsfgbDu1H+JSx52u39Q2Z4amz/idKKNzt+QqM+cqBpk12o7/Ni0wL114dEykjuLQNRIbRK9xqywzYb5Ced0VUAelf3mfkwC2EO+hIF6dguc1KHwoGBPNiRuNU59wfQQibfM8zOPyUQAb3q4Kn5WnNsP+6DOUUFxa2Vor9qgnu+VxBK/X/sRZ/P5JCoP03d0W2kuvr+Sfocv59u2xiKEft5mv6HJIE1fw/DnetbWeWGGJn7bv15+iCcVMvud7qlBqCQ=
   - secure: arEzjTD3UHgRhrT6wEk3wPLSo9v65jp5/Vv8uDpO9VRQZVwy/p8ty6pp+11rnLdGFqH5+jIyXBlUFw4d8qn3FwTgTJShyhYNJdjyiDxN7m9R5paK6/Xg5o3utbVCg8MpLFVPmch1oECmu8BzzqA28cjBQNP4GyycyQpcUq8U27iMlRyreDCSjg4CNtfXzRiRpmLKOHwa8Q8T29MQs6U8/jkZhNa6DYydUL4WHV4iBPSezDsesjgg+lSqW+AXClt9U+g7cXg4olG7acyFT7E0RoWi38XvVQMZe+8B/PS2HaouM0z09ev4/DMSeHouVOgscZLGQek09WZMG5ymRST2O4bsyGf1pUR+WefiW8nEMctPb2Yc3fGGZQqqlb4q+Bi/bxdBcYXdSXmJF4VRPkaxXpCSvtZIGeCvWFbXqNT91/mtVfiJBqcU1yXRFwDeVws/vm4lIal7Y5uuHSAwe3kE4MDiPZ5u5+9eq3HSUFTa2GxsXoU0H1osAXCvzDdYUZS8GKPiJhN2PNLZngAiYhLr1mq33hj88BwGKdqf2B/u4lvaNK3YOlY3LBo+YZ3L711UGO7ifcHAcYM7DpiQD7xS1yrsA6+riuDqgKyQMepoWJFxv9A9iLIToMacdY1de0MIKxtS3iJPxDjGBobnuczhMBdSpokgzPX6cqnpOg2GAA0=
-script:
-- sh ./scripts/build-javascript.sh
-- sh ./scripts/sbt-build.sh
-- sh ./scripts/publish-npm.sh
-- sh ./scripts/build-rust.sh
-after_failure:
-- docker-compose logs cassandra
 before_cache:
 - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
 - find $HOME/.sbt  -name "*.lock"               -print -delete
