@@ -21,9 +21,13 @@
 
 @@@ 
 
-Izanami is a shared configuration service well-suited for micro-service architecture implementation. In addition to shared configuration, Izanami provides feature flipping and A/B Testing. Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.
+Izanami is a shared configuration, feature flipping and A/B testing service written in scala and developed by the <a href="https://maif.github.io/" target="_blank">MAIF OSS</a> team.
+                
+Izanami is perfectly well suited for micro services environment, it provides a UI to allow non-tech users to toggle features and to handle A/B testing.
 
-Izanami also provides first class integration. We provide Java, Scala, Node and React clients to integrate with your apps. We also provide webhook integration.
+You can interact with Izanami using REST APIs from you favorite language or listen to events by registering webhook or using server sent events.
+
+Izanami also provides first class integration. Java, Scala, Node and React and CLI clients are available to integrate Izanami with your application.
 
 @@@ div { .izanami-logo }
 

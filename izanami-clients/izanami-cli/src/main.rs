@@ -160,7 +160,13 @@ fn main() {
     let matches = App::new("izanami")
         .version("0.0.1")
         .author("Alexandre Delègue <aadelegue@gmail.com>")
-        .about("CLI for interaction with Izanami server")        
+        .about(".___                                     .__ 
+|   |____________    ____ _____    _____ |__|
+|   \\___   /\\__  \\  /    \\__  \\  /     \\|  |
+|   |/    /  / __ \\|   |  \\/ __ \\|  Y Y  \\  |
+|___/_____ \\(____  /___|  (____  /__|_|  /__|
+          \\/     \\/     \\/     \\/      \\/    
+    Izanami CLI to interact with server")        
         .arg(Arg::with_name("set")
             .long("set")            
             .short("s")            

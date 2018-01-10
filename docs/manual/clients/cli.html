@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>For Developers · Izanami</title>
+<title> · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -75,9 +75,9 @@
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
     <li><a href="../clients/react.html" class="page">React client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
-    <li><a href="../clients/cli.html" class="page">clients/cli.html</a></li>
+    <li><a href="../clients/cli.html" class="active page">clients/cli.html</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="active page">For Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -154,9 +154,9 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
     <li><a href="../clients/react.html" class="page">React client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
-    <li><a href="../clients/cli.html" class="page">clients/cli.html</a></li>
+    <li><a href="../clients/cli.html" class="active page">clients/cli.html</a></li>
   </ul></li>
-  <li><a href="../developers/index.html" class="active page">For Developers</a></li>
+  <li><a href="../developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
 
@@ -171,7 +171,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li>For Developers</li>
+  <li><a href="../clients/index.html">Clients</a></li>
+  <li>clients/cli.html</li>
 </ul>
 </div>
 </div>
@@ -179,76 +180,15 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#for-developers" name="for-developers" class="anchor"><span class="anchor-link"></span></a>For Developers</h1>
-<h2><a href="#starting-the-server-for-developers" name="starting-the-server-for-developers" class="anchor"><span class="anchor-link"></span></a>Starting the server for developers</h2>
-<pre class="prettyprint"><code class="language-bash ">git clone https://github.com/MAIF/izanami.git --depth=1
-</code></pre>
-<h3><a href="#starting-the-js-server" name="starting-the-js-server" class="anchor"><span class="anchor-link"></span></a>Starting the js server</h3>
-<p>Then go to the js folder : </p>
-<pre class="prettyprint"><code class="language-bash">cd izanami-server/javascript
-</code></pre>
-<p>And then </p>
-<pre class="prettyprint"><code class="language-bash">yarn install 
-yarn start  
-</code></pre>
-<h3><a href="#starting-play-server" name="starting-play-server" class="anchor"><span class="anchor-link"></span></a>Starting play server</h3>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run 
-</code></pre>
-<h3><a href="#use-a-specific-db" name="use-a-specific-db" class="anchor"><span class="anchor-link"></span></a>Use a specific DB</h3>
-<p>You use a specific data base using docker </p>
-<h4><a href="#cassandra" name="cassandra" class="anchor"><span class="anchor-link"></span></a>Cassandra</h4>
-<pre class="prettyprint"><code class="language-bash ">docker rm cassandra &amp;&amp; docker run --name cassandra -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 -p 9042:9042 -p 7000:7000 cassandra:3.11
-</code></pre>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run -Dizanami.db.default=Cassandra
-</code></pre>
-<h4><a href="#redis" name="redis" class="anchor"><span class="anchor-link"></span></a>Redis</h4>
-<pre class="prettyprint"><code class="language-bash ">docker rm redis-iznanami &amp;&amp; docker run --name redis-iznanami -v $(pwd)/redisdata:/data -p 6379:6379 redis
-</code></pre>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run -Dizanami.db.default=Redis
-</code></pre>
-<h4><a href="#elasticsearch" name="elasticsearch" class="anchor"><span class="anchor-link"></span></a>Elasticsearch</h4>
-<pre class="prettyprint"><code class="language-bash ">docker rm elasticsearch &amp;&amp; docker run --name elasticsearch -e &quot;xpack.security.enabled=false&quot; -e &quot;ES_JAVA_OPTS=-Xms512m -Xmx512m&quot; -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:5.5.3
-</code></pre>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run -Dizanami.db.default=Elastic
-</code></pre>
-<h3><a href="#kafka-as-event-store" name="kafka-as-event-store" class="anchor"><span class="anchor-link"></span></a>Kafka as Event store</h3>
-<pre class="prettyprint"><code class="language-bash">docker run -p 2181:2181 -p 9092:9092 --env ADVERTISED_HOST=127.0.0.1 --env ADVERTISED_PORT=9092 --env AUTO.CREATE.TOPICS.ENABLE spotify/kafka
-</code></pre>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run -Dizanami.events.store=Kafka 
-</code></pre>
-<h3><a href="#akka-as-event-store" name="akka-as-event-store" class="anchor"><span class="anchor-link"></span></a>Akka as Event store</h3>
-<p>First node </p>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run -Dizanami.events.store=Distributed 
-</code></pre>
-<p>Second node </p>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run -Dizanami.events.store=Distributed -Dcluster.akka.remote.netty.tcp.port=2552 -Dhttp.port=9001 
-</code></pre>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/developers/index.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/clients/cli.md">here</a>.
 </div>
 
+<div class="nav-next">
+<p><strong>Next:</strong> <a href="../developers/index.html">For Developers</a></p>
+</div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
-<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
-<div class="page-nav">
-<div class="nav-title">On this page:</div>
-<div class="nav-toc">
-<ul>
-  <li><a href="../developers/index.html#for-developers" class="header">For Developers</a>
-  <ul>
-    <li><a href="../developers/index.html#starting-the-server-for-developers" class="header">Starting the server for developers</a></li>
-  </ul></li>
-</ul>
-</div>
-</div>
-</nav>
 </div>
 </div>
 
