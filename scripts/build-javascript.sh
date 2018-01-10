@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-LOCATION=`pwd`
+if test "$TRAVIS_OS_NAME" = "linux"
+then
+    LOCATION=`pwd`
 
-cd $LOCATION/izanami-server/javascript
-yarn install
-yarn build
+    cd $LOCATION/izanami-server/javascript
+    yarn install
+    yarn build
+fi
