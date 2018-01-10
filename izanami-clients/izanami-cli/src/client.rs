@@ -1,5 +1,6 @@
 use reqwest;
 use reqwest::header::{Headers};
+use serde_json::{from_str, Value};
 
 pub struct IzanamiSettings {
     pub client_id: String, 
@@ -58,30 +59,30 @@ impl IzanamiClient {
         IzanamiClient { settings }
     }
 
-    pub fn check_feature_with_context(&self, name: &str, context: Option<String>) -> String {                
+    pub fn check_feature_with_context(&self, name: &str, context: Option<String>) -> Value {                
         let path = format!("{}/api/features/{}/check", &self.settings.url.clone(), name);
         match context {
-            Some(c) => post(&self.settings, path, c),
-            None =>  post(&self.settings, path, String::from("{}"))
+            Some(c) => from_str(&post(&self.settings, path, c)).unwrap(),
+            None =>  from_str(&post(&self.settings, path, String::from("{}"))).unwrap()
         }
     }
 
-    pub fn feature_tree(&self, pattern: &str, context: Option<String>) -> String {                
+    pub fn feature_tree(&self, pattern: &str, context: Option<String>) -> Value {                
         let path = format!("{}/api/tree/features?pattern={}", &self.settings.url.clone(), pattern);
         match context {
-            Some(c) => post(&self.settings, path, c),
-            None =>  post(&self.settings, path, String::from("{}"))
+            Some(c) => from_str(&post(&self.settings, path, c)).unwrap(),
+            None =>  from_str(&post(&self.settings, path, String::from("{}"))).unwrap()
         }
     }
 
-    pub fn get_config_tree(&self, pattern: &str) -> String {                
+    pub fn get_config_tree(&self, pattern: &str) -> Value {                
         let path = format!("{}/api/tree/configs?pattern={}", &self.settings.url.clone(), pattern);    
-        get(&self.settings, path)            
+        from_str(&get(&self.settings, path)).unwrap()            
     }
 
-    pub fn get_config(&self, name: &str) -> String {                
+    pub fn get_config(&self, name: &str) -> Value {                
         let path = format!("{}/api/configs/{}", &self.settings.url.clone(), name);    
-        get(&self.settings, path)            
+        from_str(&get(&self.settings, path)).unwrap()            
     }
 
 }

@@ -7,9 +7,11 @@ extern crate reqwest;
 extern crate hyper;
 #[macro_use] 
 extern crate frunk;
+extern crate serde_json;
 
 mod client;
 
+use serde_json::{to_string_pretty};
 use frunk::validated::*;
 use std::io::BufReader;
 use std::io::BufRead;
@@ -197,7 +199,7 @@ fn main() {
             .long("client_secret_header")       
             .required(false)
             .takes_value(true)        
-            .help("The client secret header name. Default value is Izanami-Client-Id.")
+            .help("The client secret header name. Default value is Izanami-Client-Secret.")
         )     
         .arg(Arg::with_name("check_feature")
             .long("check_feature")
@@ -290,21 +292,21 @@ fn main() {
         
         matches.value_of("check_feature").map(|c| {
             let context = matches.value_of("context").map(|c| String::from(c));
-            let checked = iza_client.check_feature_with_context(c, context);
-            println!("{}", checked);
+            let resp = iza_client.check_feature_with_context(c, context);
+            println!("{}", to_string_pretty(&resp).unwrap());
         });
         matches.value_of("feature_tree").map(|c| {
             let context = matches.value_of("context").map(|c| String::from(c));
-            let checked = iza_client.feature_tree(c, context);
-            println!("{}", checked);
+            let resp = iza_client.feature_tree(c, context);
+            println!("{}", to_string_pretty(&resp).unwrap());
         });
         matches.value_of("get_config").map(|c| {
-            let checked = iza_client.get_config(c);
-            println!("{}", checked);
+            let resp = iza_client.get_config(c);
+            println!("{}", to_string_pretty(&resp).unwrap());
         });   
-        matches.value_of("get_config_tree").map(|c| {
-            let checked = iza_client.get_config_tree(c);
-            println!("{}", checked);
+        matches.value_of("config_tree").map(|c| {
+            let resp = iza_client.get_config_tree(c);
+            println!("{}", to_string_pretty(&resp).unwrap());
         });   
     });
 
@@ -314,7 +316,7 @@ fn main() {
                 matches.is_present("check_feature") ||
                 matches.is_present("feature_tree")  || 
                 matches.is_present("get_config")  || 
-                matches.is_present("get_config_tree") {
+                matches.is_present("config_tree") {
                     println!("Error : \n{}", e.iter().fold(String::new(), |acc, s| format!("{} * {}\n", acc, s)))
             }
         },
