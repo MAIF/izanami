@@ -1,14 +1,11 @@
 language: scala
 sudo: false
-scala:
-- 2.12.4
-os:
-- linux
-- osx
 matrix:
   include:
     - os: linux
       jdk: oraclejdk8
+      scala:
+      - 2.12.4
       services:
       - docker
       before_install:
