@@ -44,36 +44,70 @@
               <li>simple</li>
             </ul>
             <p class="intro">
-              Izanami is a shared configuration service well-suited for micro-service architecture implementation. In addition to shared configuration, Izanami provides feature flipping and A/B Testing. Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.
-<br>
-Izanami also provides first class integration. We provide Java, Scala, Node and React clients to integrate with your apps. We also provide webhook integration.
+                Izanami is a shared configuration, feature flipping and A/B testing service well-suited for micro-service architecture implementation.
+                <br>
+                Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.
+                <br>
+                You can interact with Izanami using REST APIs from you favorite language or listen to events by registering webhook or using server sent events.
+                <br>
+                Izanami also provides first class integration. Java, Scala, Node and React and CLI clients are available to integrate Izanami with your application.
             </p>
             <div class="details">
 
               <h1>Features</h1>
-              <ul>
-					<li>Simple UI and/or API driven</li>
-					<li>Easy to implement toggling rules</li>
-					<li>Real time conversion rate statistics to evaluate A/B testing</li>
-					<li>Distributed configuration</li>
-					<li>Optional webhook for configuration changes</li>
-					<li>Java, Scala, Node and React <a href="https://github.com/MAIFX/opun-izanami-client">clients</a></li>
-					<li>Advandced <a href="https://www.clever-cloud.com">Clever-Cloud</a> integration</li>
-					<li>Advandced <a href="#otoroshi">Otoroshi</a> integration</li>
-					<li>Multi-datastores support
-						<ul>
-							<li>Redis</li>
-							<li>LevelDB</li>
-							<li>In-memory</li>
-							<li>Cassandra</li>
-							<li>MongoDB <b>(TODO)</b></li>
-							<li>PostgreSQL <b>(TODO)</b></li>
-						</ul>
-					</li>
+                <ul>
+                    <li>Shared configuration</li>
+                    <li>Feature flipping
+                        <ul>
+                            <li>Easy to implement toggling rules</li>
+                            <li>Activation strategy: by date, by script</li>
+                        </ul>
+                    </li>
+                    <li>A/B testing
+                        <ul>
+                            <li>Real time conversion rate statistics to evaluate A/B testing</li>
+                        </ul>
+                    </li>
+                    <li>Simple UI and/or API driven</li>
+                    <li>Scalable</li>
+                    <li>Real time event publication
+                        <ul>
+                            <li>Webhook</li>
+                            <li>Server sent event</li>
+                        </ul>
+                    </li>
+                    <li>Dedicated client
+                        <ul>
+                            <li>Java, Scala, Node and React and CLI</li>
+                        </ul>
+                    </li>
+                    <li>Multi-datastores support
+                        <ul>
+                            <li>Redis</li>
+                            <li>LevelDB</li>
+                            <li>In-memory</li>
+                            <li>Cassandra</li>
+                            <li>Elastic search</li>
+                            <li>more to come</li>
+                        </ul>
+                    </li>
+                    <li>Multi event store support
+                        <ul>
+                            <li>redis</li>
+                            <li>kafka</li>
+                            <li>akka distributed pub sub</li>
+                        </ul>
+                    </li>
+                    <li>Advandced Clever-Cloud integration</li>
+                    <li>Advandced Otoroshi integration</li>
+                    <li>Made with love</li>
 				</ul>
             </div>
           </div>
           <div class="col-md-6 col-xs-12 more-details">
+            <i class="fa fa-wrench fa-3x" aria-hidden="true"></i>
+            <h2>shared configuration</h2>
+            <p>Enable live config modification across your micro services</p>
             <i class="fa fa-toggle-on fa-3x" aria-hidden="true"></i>
             <h2>feature flipping</h2>
             <p>Feature flipping as simple as it needs to be with toggling UI</p>
