@@ -1,10 +1,25 @@
 .panel-heading {
-    text-align: right;
+  text-align: right;
+  .close {
+    font-size: 40px;
+    line-height: 0.4;
   }
+}
 
-  .panel, .panel-heading {
-    background-color: $fondBody;
-    h4 {
-      color: #fff;
-    }
+.panel,
+.panel-heading {
+  background-color: $fondBody;
+
+  h4 {
+    color: #fff;
   }
+}
+
+.panel-success > .panel-heading {
+  background-image: -webkit-linear-gradient(top,$savecolor 0,$savecolor 100%);
+  background-image: -o-linear-gradient(top,$savecolor 0,$savecolor 100%);
+  background-image: -webkit-gradient(linear,left top,left bottom,from($savecolor),to($savecolor));
+  background-image: linear-gradient(to bottom,$savecolor 0,$savecolor 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr= '$savecolor', endColorstr='$savecolor', GradientType=0);  
+  color:#fff;
+}
