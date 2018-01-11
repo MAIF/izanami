@@ -6,14 +6,6 @@
 # An example controller showing a sample home page
 GET     /                                   controllers.HomeController.index
 
-#Configs old
-GET     /api/config                         controllers.ConfigControllerOld.list(keyConfig: String ?= "*", page: Int ?= 1, nbElementPerPage: Int ?= 15)
-POST    /api/config                         controllers.ConfigControllerOld.create()
-GET     /api/config/:id                     controllers.ConfigControllerOld.get(id)
-PUT     /api/config/:id                     controllers.ConfigControllerOld.update(id)
-DELETE  /api/config/:id                     controllers.ConfigControllerOld.delete(id)
-GET     /api/tree/config                    controllers.ConfigControllerOld.tree(pattern: String ?= "*")
-GET     /api/counts/config                  controllers.ConfigControllerOld.count()
 
 #Configs
 GET     /api/configs                        controllers.ConfigController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)

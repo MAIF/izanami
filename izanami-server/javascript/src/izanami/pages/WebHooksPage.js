@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
-import { Table } from '../inputs';
+import { Table, SimpleBooleanInput } from '../inputs';
 import faker from 'faker';
 
 export class WebHooksPage extends Component {
@@ -18,6 +18,11 @@ export class WebHooksPage extends Component {
     { title: 'ID', content: item => item.clientId },
     { title: 'Pattern', notFilterable: true, style: { textAlign: 'center'}, content: item => item.notificationPattern },
     { title: 'URL', notFilterable: true, style: { textAlign: 'center'}, content: item => item.callbackUrl },
+    { title: 'Banned', notFilterable: true, style: { textAlign: 'center', width: 70 }, content: item => <SimpleBooleanInput value={!item.isBanned} onChange={v => {
+        IzanamiServices.fetchWebhook(item.clientId).then(webhook => {
+          IzanamiServices.updateWebHook(item.clientId, { ...webhook, isBanned: !v });
+        })
+      }} />},
   ];
 
   formFlow = [
@@ -35,7 +40,7 @@ export class WebHooksPage extends Component {
   };
 
   fetchItem = (id) => {
-    return IzanamiServices.fetchWebHook(id);
+    return IzanamiServices.fetchWebhook(id);
   };
 
   createItem = (webhook) => {
@@ -63,7 +68,8 @@ export class WebHooksPage extends Component {
               clientId: faker.random.alphaNumeric(32),
               callbackUrl: '',
               notificationPattern: "*",
-              headers: {}
+              headers: {},
+              isBanned: false
             })}
             parentProps={this.props}
             user={this.props.user}
