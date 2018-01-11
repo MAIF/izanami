@@ -72,12 +72,12 @@ export class ExperimentsPage extends Component {
         IzanamiServices.updateExperiment(item.id, { ...feature, enabled: v });
       })
     }} /> },
-    { 
-      title: 'Results', 
-      style: { textAlign: 'center', width: 150, height: '40px'}, 
+    {
+      title: 'Results',
+      style: { textAlign: 'center', width: 150, height: '40px'},
       notFilterable: true ,
-      content: item =>     
-        <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"></i> see report</button>      
+      content: item =>
+        <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"></i> see report</button>
     },
   ];
 
@@ -92,7 +92,7 @@ export class ExperimentsPage extends Component {
   fetchItems = (args) => {
     const {search = [], page, pageSize} = args;
     const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
-    return IzanamiServices.fetchExperiments({page, pageSize, search: pattern });  
+    return IzanamiServices.fetchExperiments({page, pageSize, search: pattern });
   };
 
   fetchItem = (id) => {
@@ -261,8 +261,8 @@ export class ExperimentsPage extends Component {
               <YAxis />
             </AreaChart>
             <div className="modal-footer">
-              <button type="button" className="btn btn-default" onClick={e => this.showResults(e, this.state.item)}><i className="glyphicon glyphicon-refresh" /> Reload</button>
-              <button type="button" className="btn btn-default" onClick={this.closeResults}>Close</button>
+              <button type="button" className="btn btn-primary" onClick={e => this.showResults(e, this.state.item)}><i className="glyphicon glyphicon-refresh" /> Reload</button>
+              <button type="button" className="btn btn-danger" onClick={this.closeResults}>Close</button>
             </div>
           </div>
         )}
