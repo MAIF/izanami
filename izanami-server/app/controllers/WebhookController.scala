@@ -105,7 +105,7 @@ class WebhookController(env: Env,
       updated <- Patch.patchAs(patch, current) |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
       event <- webhookStore
                 .update(key, current.clientId, updated) |> mapLeft(err => BadRequest(err.toJson))
-    } yield Ok(Json.toJson(current))
+    } yield Ok(Json.toJson(updated))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
