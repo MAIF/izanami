@@ -56,7 +56,7 @@ export class Table extends Component {
     firstSort: null,
   };
 
-  state = {  
+  state = {
     items: [],
     currentItem: null,
     currentItemOriginal: null,
@@ -69,7 +69,7 @@ export class Table extends Component {
     orderDir: true,
     loading: false,
     error: false,
-    errorList: [], 
+    errorList: [],
     nbPages: 1,
     justUpdated: false
   };
@@ -132,7 +132,7 @@ export class Table extends Component {
         this.showAddForm();
       } else if (action === 'edit') {
         const item = this.props.parentProps.params.titem;
-        this.props.fetchItem(item).then(data => {          
+        this.props.fetchItem(item).then(data => {
           this.showEditForm(null, data);
         });
       }
@@ -176,9 +176,9 @@ export class Table extends Component {
   update = (initialArgs = {}) => {
     this.setState({loading: true});
     const args = {
-      search: initialArgs.filtered, 
-      pageSize: initialArgs.pageSize || this.props.pageSize, 
-      page: initialArgs.page ? initialArgs.page + 1 : 1 
+      search: initialArgs.filtered,
+      pageSize: initialArgs.pageSize || this.props.pageSize,
+      page: initialArgs.page ? initialArgs.page + 1 : 1
     }
     return this.props.fetchItems(args).then(
       ({nbPages, results}) => {
@@ -366,7 +366,7 @@ export class Table extends Component {
   };
 
   render() {
-    
+
     const columns = this.props.columns.map(c => ({
         Header: c.title,
         id: c.title,
@@ -595,7 +595,7 @@ export class Table extends Component {
               onClick={e => this.deleteItem(e, this.state.currentItem)}>
               <i className="glyphicon glyphicon-trash"/> Delete
             </button>
-            <button type="button" className="btn btn-default" onClick={this.closeEditForm}>
+            <button type="button" className="btn btn-danger" onClick={this.closeEditForm}>
               Cancel
             </button>
             <button type="button" className="btn btn-success" onClick={this.updateItem}>
