@@ -58,6 +58,7 @@ class WebHooksActor(wSClient: WSClient, eventStore: EventStore, webhookStore: We
     case WebhookUpdated(_, _, hook, _, _) =>
       Logger.debug("WebHook updated event, creating webhook actor if missing")
       createWebhook(hook)
+      context.child(buildId(hook.clientId)).foreach(_ ! UpdateWebHook(hook))
     case WebhookDeleted(_, hook, _, _) =>
       Logger.info(s"Deleting webhook ${hook.clientId.key}")
       context.child(buildId(hook.clientId)).foreach(_ ! PoisonPill)
@@ -101,7 +102,7 @@ class WebHooksActor(wSClient: WSClient, eventStore: EventStore, webhookStore: We
 
   private def createWebhook(hook: Webhook): Unit = {
     val childName = buildId(hook.clientId)
-    if (context.child(childName).isEmpty) {
+    if (!hook.isBanned && context.child(childName).isEmpty) {
       Logger.info(s"Starting new webhook $childName")
       val ref = context.actorOf(WebHookActor.props(wSClient, webhookStore, hook, config), childName)
       context.watch(ref)
@@ -127,6 +128,7 @@ object WebHookActor {
   case object WebhookBanned
   case object SendEvents
   case object ResetErrors
+  case class UpdateWebHook(webhook: Webhook)
   case class WebhookBannedException(id: WebhookKey) extends RuntimeException(s"Too much error on webhook ${id.key}")
 
   def props(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webhook, config: WebhookConfig): Props =
@@ -139,43 +141,63 @@ class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webh
   import cats.syntax.option._
   import context.dispatcher
 
-  private val Webhook(id, callbackUrl, domains, patterns, types, JsObject(headers), _, _) = webhook
-
-  private val effectivesHeaders: Seq[(String, String)] = headers.flatMap {
-    case (name, JsString(value)) => (name, value).some
-    case _                       => none[(String, String)]
-  }.toSeq ++ Seq("Accept" -> "application/json", "Content-Type" -> "application/json")
-
   //Mutables vars
   private var scheduler: Option[Cancellable] = None
   private var reset: Option[Cancellable]     = None
   private var queue                          = Set.empty[IzanamiEvent]
   private var errorCount                     = 0
 
-  override def receive = {
-    case event: IzanamiEvent if keepEvent(event) =>
-      queue = queue + event
-      if (queue.size >= config.events.group) {
-        Logger.debug(s"Sending events by group ${config.events.group}")
-        sendEvents(queue)
-      }
+  override def receive = handleMessages(webhook)
 
-    case ResetErrors =>
-      errorCount = 0
-      reset = Some(
-        context.system.scheduler
-          .scheduleOnce(config.events.errorReset, self, ResetErrors)
-      )
+  def handleMessages(webhook: Webhook): Receive = {
+    val Webhook(id, callbackUrl, domains, patterns, types, JsObject(headers), _, _) = webhook
 
-    case SendEvents if queue.nonEmpty =>
-      Logger.debug(s"Sending events within ${config.events.within}")
-      sendEvents(queue)
+    def keepEvent(
+        event: IzanamiEvent
+    ): Boolean = {
+      def matchP = matchPattern(event) _
+      (domains.isEmpty || domains.contains(event.domain)) &&
+      (types.isEmpty || types.contains(event.`type`)) &&
+      (patterns.isEmpty || patterns.foldLeft(true) { (acc, p) =>
+        matchP(p) || acc
+      })
+    }
 
-    case WebhookBanned =>
-      throw WebhookBannedException(id)
+    val effectivesHeaders: Seq[(String, String)] = headers.flatMap {
+      case (name, JsString(value)) => (name, value).some
+      case _                       => none[(String, String)]
+    }.toSeq ++ Seq("Accept" -> "application/json", "Content-Type" -> "application/json")
+
+    {
+      case UpdateWebHook(wh) =>
+        context.become(handleMessages(wh), true)
+      case event: IzanamiEvent if keepEvent(event) =>
+        queue = queue + event
+        if (queue.size >= config.events.group) {
+          Logger.debug(s"Sending events by group ${config.events.group}")
+          sendEvents(queue, id, callbackUrl, effectivesHeaders)
+        }
+
+      case ResetErrors =>
+        errorCount = 0
+        reset = Some(
+          context.system.scheduler
+            .scheduleOnce(config.events.errorReset, self, ResetErrors)
+        )
+
+      case SendEvents if queue.nonEmpty =>
+        Logger.debug(s"Sending events within ${config.events.within}")
+        sendEvents(queue, id, callbackUrl, effectivesHeaders)
+
+      case WebhookBanned =>
+        throw WebhookBannedException(id)
+    }
   }
 
-  private def sendEvents(events: Set[Events.IzanamiEvent]): Unit = {
+  private def sendEvents(events: Set[Events.IzanamiEvent],
+                         id: WebhookKey,
+                         callbackUrl: String,
+                         effectivesHeaders: Seq[(String, String)]): Unit = {
     val json: JsValue =
       Json.obj("objectsEdited" -> JsArray(queue.map(_.toJson).toSeq))
     queue = Set.empty[IzanamiEvent]
@@ -191,14 +213,14 @@ class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webh
             .map { resp =>
               if (resp.status != 200) {
                 Logger.error(s"Error sending to webhook $callbackUrl : ${resp.body}")
-                handleErrors()
+                handleErrors(id)
               }
               Done
             }
             .recover {
               case e =>
                 Logger.error(s"Error sending to webhook $callbackUrl", e)
-                handleErrors()
+                handleErrors(id)
                 Done
             }
         case Success(_) =>
@@ -209,11 +231,11 @@ class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webh
     } catch {
       case e: Throwable =>
         Logger.error(s"Error sending to webhook $callbackUrl", e)
-        handleErrors()
+        handleErrors(id)
     }
   }
 
-  private def handleErrors(): Unit = {
+  private def handleErrors(id: WebhookKey): Unit = {
     errorCount += 1
     reset.foreach(_.cancel())
     reset = Some(
@@ -244,17 +266,6 @@ class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webh
   override def postStop(): Unit = {
     context.system.eventStream.unsubscribe(self)
     scheduler.foreach(_.cancel())
-  }
-
-  private def keepEvent(
-      event: IzanamiEvent
-  ): Boolean = {
-    def matchP = matchPattern(event) _
-    (domains.isEmpty || domains.contains(event.domain)) &&
-    (types.isEmpty || types.contains(event.`type`)) &&
-    (patterns.isEmpty || patterns.foldLeft(true) { (acc, p) =>
-      matchP(p) || acc
-    })
   }
 
   private def matchPattern(e: IzanamiEvent)(pattern: String): Boolean = {
