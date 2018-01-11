@@ -1,0 +1,40 @@
+
+.content-switch-button-on{
+  width: 35px;
+  height: 22px;
+  background-color: $colorRose;
+  border-radius: 20px;
+  border: 1px solid $colorRose;
+  display: flex;
+  justify-content: flex-end;
+  cursor: pointer;
+}
+
+.content-switch-button-off{
+  width: 35px;
+  height: 22px;
+  background-color: white;
+  border-radius: 20px;
+  border: 1px solid rgb(223, 223, 223);
+  display: flex;
+  justify-content: flex-start;
+
+}
+
+.switch-button-on{
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 20px;
+}
+
+.switch-button-off{
+  width: 22px;
+  height: 22px;
+  background-color: white;
+  border-radius: 20px;
+  margin-top: -1px;
+  margin-left: -1px;
+  border: 1px solid rgb(223, 223, 223);
+  box-shadow: 1px 0px 5px 0px rgba(0, 0, 0, 0.3);
+}
