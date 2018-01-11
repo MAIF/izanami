@@ -34,3 +34,6 @@ dist/
 
 # IDE/Editor data
 .idea/
+
+# OS generated files (Mac) #
+.DS_Store
