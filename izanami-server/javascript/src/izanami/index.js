@@ -238,65 +238,69 @@ export class LoggedApp extends Component {
                 </div>
 
               </div>
-              <div className="col-md-10 col-md-offset-2">
-                <DynamicTitle />
+              <div className="col-md-10 col-md-offset-2 main">
                 <div className="row">
-                  <Switch>
-                    <Route exact path="/" component={props => this.decorate(HomePage, props)} />
+                  <div className="izanami-container">
+                      <DynamicTitle />
+                      <div className="row">
+                        <Switch>
+                          <Route exact path="/" component={props => this.decorate(HomePage, props)} />
 
-                    <Route path="/features/:taction/:titem" component={props => this.decorate(FeaturesPage, props)} />
-                    <Route path="/features/:taction" component={props => this.decorate(FeaturesPage, props)} />
-                    <Route path="/features" component={props => this.decorate(FeaturesPage, props)} />
+                          <Route path="/features/:taction/:titem" component={props => this.decorate(FeaturesPage, props)} />
+                          <Route path="/features/:taction" component={props => this.decorate(FeaturesPage, props)} />
+                          <Route path="/features" component={props => this.decorate(FeaturesPage, props)} />
 
-                    <Route path="/configurations/:taction/:titem" component={props => this.decorate(ConfigurationsPage, props)} />
-                    <Route path="/configurations/:taction" component={props => this.decorate(ConfigurationsPage, props)} />
-                    <Route path="/configurations" component={props => this.decorate(ConfigurationsPage, props)} />
+                          <Route path="/configurations/:taction/:titem" component={props => this.decorate(ConfigurationsPage, props)} />
+                          <Route path="/configurations/:taction" component={props => this.decorate(ConfigurationsPage, props)} />
+                          <Route path="/configurations" component={props => this.decorate(ConfigurationsPage, props)} />
 
-                    <Route path="/webhooks/:taction/:titem" component={props => this.decorate(WebHooksPage, props)} />
-                    <Route path="/webhooks/:taction" component={props => this.decorate(WebHooksPage, props)} />
-                    <Route path="/webhooks" component={props => this.decorate(WebHooksPage, props)} />
+                          <Route path="/webhooks/:taction/:titem" component={props => this.decorate(WebHooksPage, props)} />
+                          <Route path="/webhooks/:taction" component={props => this.decorate(WebHooksPage, props)} />
+                          <Route path="/webhooks" component={props => this.decorate(WebHooksPage, props)} />
 
-                    <Route path="/scripts/:taction/:titem" component={props => this.decorate(GlobalScriptsPage, props)} />
-                    <Route path="/scripts/:taction" component={props => this.decorate(GlobalScriptsPage, props)} />
-                    <Route path="/scripts" component={props => this.decorate(GlobalScriptsPage, props)} />
+                          <Route path="/scripts/:taction/:titem" component={props => this.decorate(GlobalScriptsPage, props)} />
+                          <Route path="/scripts/:taction" component={props => this.decorate(GlobalScriptsPage, props)} />
+                          <Route path="/scripts" component={props => this.decorate(GlobalScriptsPage, props)} />
 
-                    <Route path="/experiments/:taction/:titem" component={props => this.decorate(ExperimentsPage, props)} />
-                    <Route path="/experiments/:taction" component={props => this.decorate(ExperimentsPage, props)} />
-                    <Route path="/experiments" component={props => this.decorate(ExperimentsPage, props)} />
-                    <Route path="/loggers" component={props => this.decorate(LoggersPage, props)} />
+                          <Route path="/experiments/:taction/:titem" component={props => this.decorate(ExperimentsPage, props)} />
+                          <Route path="/experiments/:taction" component={props => this.decorate(ExperimentsPage, props)} />
+                          <Route path="/experiments" component={props => this.decorate(ExperimentsPage, props)} />
+                          <Route path="/loggers" component={props => this.decorate(LoggersPage, props)} />
 
-                    {
-                      userManagementEnabled &&
-                      <Route path="/users/:taction/:titem" component={props => this.decorate(UserPage, props)}/>
-                    }
-                    {
-                      userManagementEnabled &&
-                      <Route path="/users/:taction" component={props => this.decorate(UserPage, props)} />
-                    }
-                    {
-                      userManagementEnabled &&
-                      <Route path="/users" component={props => this.decorate(UserPage, props)} />
-                    }
+                          {
+                            userManagementEnabled &&
+                            <Route path="/users/:taction/:titem" component={props => this.decorate(UserPage, props)}/>
+                          }
+                          {
+                            userManagementEnabled &&
+                            <Route path="/users/:taction" component={props => this.decorate(UserPage, props)} />
+                          }
+                          {
+                            userManagementEnabled &&
+                            <Route path="/users" component={props => this.decorate(UserPage, props)} />
+                          }
 
-                    {
-                      userManagementEnabled &&
-                      <Route path="/apikeys/:taction/:titem" component={props => this.decorate(ApikeyPage, props)}/>
-                    }
-                    {
-                      userManagementEnabled &&
-                      <Route path="/apikeys/:taction" component={props => this.decorate(ApikeyPage, props)} />
-                    }
-                    {
-                      userManagementEnabled &&
-                      <Route path="/apikeys" component={props => this.decorate(ApikeyPage, props)} />
-                    }
+                          {
+                            userManagementEnabled &&
+                            <Route path="/apikeys/:taction/:titem" component={props => this.decorate(ApikeyPage, props)}/>
+                          }
+                          {
+                            userManagementEnabled &&
+                            <Route path="/apikeys/:taction" component={props => this.decorate(ApikeyPage, props)} />
+                          }
+                          {
+                            userManagementEnabled &&
+                            <Route path="/apikeys" component={props => this.decorate(ApikeyPage, props)} />
+                          }
 
-                    <Route path="/explorer/configs" component={props => this.decorate(ConfigExplorerPage, props)} />
-                    <Route path="/explorer/features" component={props => this.decorate(FeaturesExplorerPage, props)} />
-                    <Route path="/explorer/experiments" component={props => this.decorate(ExperimentsExplorerPage, props)} />
-                    <Route component={props => this.decorate(NotFoundPage, props)} />
-                  </Switch>
-                </div>
+                          <Route path="/explorer/configs" component={props => this.decorate(ConfigExplorerPage, props)} />
+                          <Route path="/explorer/features" component={props => this.decorate(FeaturesExplorerPage, props)} />
+                          <Route path="/explorer/experiments" component={props => this.decorate(ExperimentsExplorerPage, props)} />
+                          <Route component={props => this.decorate(NotFoundPage, props)} />
+                        </Switch>
+                      </div>
+                      </div>
+                  </div>
               </div>
             </div>
           </div>
