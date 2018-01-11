@@ -6,6 +6,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.AuthContext
+import controllers.patch.Patch
+import controllers.patch.Patch.Patch
 import domains.{Import, ImportResult, Key}
 import domains.apikey.{Apikey, ApikeyStore}
 import env.Env
@@ -30,9 +32,7 @@ class ApikeyController(env: Env,
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def list(pattern: String,
-           page: Int = 1,
-           nbElementPerPage: Int = 15): Action[AnyContent] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
     AuthAction.async { ctx =>
       import Apikey._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
@@ -44,10 +44,10 @@ class ApikeyController(env: Env,
             Json.obj(
               "results" -> Json.toJson(r.results),
               "metadata" -> Json.obj(
-                "page" -> page,
+                "page"     -> page,
                 "pageSize" -> nbElementPerPage,
-                "count" -> r.count,
-                "nbPages" -> r.nbPages
+                "count"    -> r.count,
+                "nbPages"  -> r.nbPages
               )
             )
           )
@@ -58,12 +58,9 @@ class ApikeyController(env: Env,
     import Apikey._
 
     for {
-      apikey <- ctx.request.body.validate[Apikey] |> liftJsResult(
-        err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _ <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
-      event <- apikeyStore.create(Key(apikey.clientId), apikey) |> mapLeft(
-        err => BadRequest(err.toJson))
+      apikey <- ctx.request.body.validate[Apikey] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      _      <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event  <- apikeyStore.create(Key(apikey.clientId), apikey) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(apikey))
 
   }
@@ -72,37 +69,43 @@ class ApikeyController(env: Env,
     import Apikey._
     val key = Key(id)
     for {
-      apikey <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](
-        NotFound)
-      _ <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
+      apikey <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](NotFound)
+      _      <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
     } yield Ok(Json.toJson(apikey))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) {
-    ctx =>
-      import Apikey._
-      for {
-        apikey <- ctx.request.body.validate[Apikey] |> liftJsResult(
-          err => BadRequest(AppErrors.fromJsError(err).toJson))
-        _ <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(
-          Forbidden(AppErrors.error("error.forbidden").toJson))
-        event <- apikeyStore
-          .update(Key(id), Key(apikey.clientId), apikey) |> mapLeft(
-          err => BadRequest(err.toJson))
-      } yield Ok(Json.toJson(apikey))
+  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import Apikey._
+    for {
+      apikey <- ctx.request.body.validate[Apikey] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      _      <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event <- apikeyStore
+                .update(Key(id), Key(apikey.clientId), apikey) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(apikey))
+  }
+
+  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import Apikey._
+    val key = Key(id)
+    for {
+      patch <- ctx.request.body.validate[Seq[Patch]] |> liftJsResult(
+                err => BadRequest(AppErrors.fromJsError(err).toJson)
+              )
+      current <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](NotFound)
+      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated <- Patch.patchAs(patch, current) |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      event <- apikeyStore
+                .update(key, Key(current.clientId), updated) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(current))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
     import Apikey._
     val key = Key(id)
     for {
-      apikey <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](
-        NotFound)
-      _ <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
-      deleted <- apikeyStore.delete(key) |> mapLeft(
-        err => BadRequest(err.toJson))
+      apikey  <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](NotFound)
+      _       <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      deleted <- apikeyStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(apikey))
   }
 
@@ -110,8 +113,7 @@ class ApikeyController(env: Env,
     AuthAction.async { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       for {
-        deletes <- apikeyStore.deleteAll(allPatterns) |> mapLeft(
-          err => BadRequest(err.toJson))
+        deletes <- apikeyStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
@@ -131,9 +133,7 @@ class ApikeyController(env: Env,
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "apikeys.dnjson")),
+      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "apikeys.dnjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -147,8 +147,7 @@ class ApikeyController(env: Env,
             ImportResult.fromResult _
           }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {

@@ -7,9 +7,12 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import controllers.actions.AuthContext
+import controllers.patch.Patch
+import controllers.patch.Patch.Patch
 import domains.{Import, ImportResult, Key}
 import domains.abtesting._
 import domains.apikey.Apikey
+import domains.config.Config
 import env.Env
 import play.api.Logger
 import play.api.http.HttpEntity
@@ -35,11 +38,9 @@ class ExperimentController(env: Env,
   implicit val materializer = ActorMaterializer()(system)
 
   implicit val vbStore = variantBindingStore
-  implicit val eStore = experimentStore
+  implicit val eStore  = experimentStore
 
-  def list(pattern: String,
-           page: Int = 1,
-           nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       import Experiment._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
@@ -50,10 +51,10 @@ class ExperimentController(env: Env,
             Json.obj(
               "results" -> Json.toJson(r.results),
               "metadata" -> Json.obj(
-                "page" -> page,
+                "page"     -> page,
                 "pageSize" -> nbElementPerPage,
-                "count" -> r.count,
-                "nbPages" -> r.nbPages
+                "count"    -> r.count,
+                "nbPages"  -> r.nbPages
               )
             )
           )
@@ -62,8 +63,7 @@ class ExperimentController(env: Env,
 
   def tree(patterns: String, clientId: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(
-        ",")
+      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
 
       experimentStore
         .getByIdLike(patternsSeq)
@@ -80,12 +80,10 @@ class ExperimentController(env: Env,
     import Experiment._
     for {
       experiment <- ctx.request.body.validate[Experiment] |> liftJsResult(
-        err => BadRequest(AppErrors.fromJsError(err).toJson)
-      )
-      _ <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
-      event <- experimentStore.create(experiment.id, experiment) |> mapLeft(
-        err => BadRequest(err.toJson))
+                     err => BadRequest(AppErrors.fromJsError(err).toJson)
+                   )
+      _     <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event <- experimentStore.create(experiment.id, experiment) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(experiment))
   }
 
@@ -95,26 +93,39 @@ class ExperimentController(env: Env,
       val key = Key(id)
       for {
         _ <- Experiment.isAllowed(key)(ctx.auth) |> liftBooleanTrue(
-          Forbidden(AppErrors.error("error.forbidden").toJson))
+              Forbidden(AppErrors.error("error.forbidden").toJson)
+            )
         experiment <- experimentStore
-          .getById(key)
-          .one |> liftFOption[Result, Experiment](NotFound)
+                       .getById(key)
+                       .one |> liftFOption[Result, Experiment](NotFound)
       } yield Ok(Json.toJson(experiment))
     }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) {
-    ctx =>
-      import Experiment._
-      for {
-        experiment <- ctx.request.body.validate[Experiment] |> liftJsResult(
-          err => BadRequest(AppErrors.fromJsError(err).toJson)
-        )
-        _ <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(
-          Forbidden(AppErrors.error("error.forbidden").toJson))
-        event <- experimentStore
-          .update(Key(id), experiment.id, experiment) |> mapLeft(
-          err => BadRequest(err.toJson))
-      } yield Ok(Json.toJson(experiment))
+  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import Experiment._
+    for {
+      experiment <- ctx.request.body.validate[Experiment] |> liftJsResult(
+                     err => BadRequest(AppErrors.fromJsError(err).toJson)
+                   )
+      _ <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event <- experimentStore
+                .update(Key(id), experiment.id, experiment) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(experiment))
+  }
+
+  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import Experiment._
+    val key = Key(id)
+    for {
+      patch <- ctx.request.body.validate[Seq[Patch]] |> liftJsResult(
+                err => BadRequest(AppErrors.fromJsError(err).toJson)
+              )
+      current <- experimentStore.getById(key).one |> liftFOption[Result, Experiment](NotFound)
+      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated <- Patch.patchAs(patch, current) |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      event <- experimentStore
+                .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(current))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
@@ -122,18 +133,13 @@ class ExperimentController(env: Env,
     val key = Key(id)
     for {
       experiment <- experimentStore
-        .getById(key)
-        .one |> liftFOption[Result, Experiment](NotFound)
-      _ <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
-      deleted <- experimentStore.delete(key) |> mapLeft(
-        err => BadRequest(err.toJson))
+                     .getById(key)
+                     .one |> liftFOption[Result, Experiment](NotFound)
+      _       <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      deleted <- experimentStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
       _ <- variantBindingStore
-        .deleteAll(Seq(s"${experiment.id.key}*")) |> liftFuture[
-        Result,
-        store.Result.Result[Done]]
-      _ <- eVariantEventStore.deleteEventsForExperiment(experiment) |> mapLeft(
-        err => BadRequest(err.toJson))
+            .deleteAll(Seq(s"${experiment.id.key}*")) |> liftFuture[Result, store.Result.Result[Done]]
+      _ <- eVariantEventStore.deleteEventsForExperiment(experiment) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(experiment))
   }
 
@@ -146,55 +152,47 @@ class ExperimentController(env: Env,
       .flatMapMerge(
         4, { experiment =>
           Source
-            .fromFuture(
-              variantBindingStore.deleteAll(Seq(s"${experiment.id.key}*")))
+            .fromFuture(variantBindingStore.deleteAll(Seq(s"${experiment.id.key}*")))
             .merge(
-              Source.fromFuture(
-                eVariantEventStore.deleteEventsForExperiment(experiment))
+              Source.fromFuture(eVariantEventStore.deleteEventsForExperiment(experiment))
             )
         }
       )
       .runWith(Sink.ignore)
 
     for {
-      _ <- experimentsRelationsDeletes
-      deletes <- experimentStore.deleteAll(patternsSeq) |> mapLeft(
-        err => BadRequest(err.toJson))
+      _       <- experimentsRelationsDeletes
+      deletes <- experimentStore.deleteAll(patternsSeq) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok
   }
 
   /* Campaign */
 
-  def getVariantForClient(experimentId: String,
-                          clientId: String): Action[Unit] =
+  def getVariantForClient(experimentId: String, clientId: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       import VariantBinding._
       val query = VariantBindingKey(Key(experimentId), clientId)
       for {
         variantBinding <- variantBindingStore
-          .getById(query)
-          .one |> liftFOption[Result, VariantBinding](NotFound)
+                           .getById(query)
+                           .one |> liftFOption[Result, VariantBinding](NotFound)
         variantId = variantBinding.variantId
         experiment <- experimentStore
-          .getById(Key(experimentId))
-          .one |> liftFOption[Result, Experiment](NotFound)
-        variant <- experiment.variants.find(_.id == variantId) |> liftOption[
-          Result,
-          Variant](NotFound)
+                       .getById(Key(experimentId))
+                       .one |> liftFOption[Result, Experiment](NotFound)
+        variant <- experiment.variants.find(_.id == variantId) |> liftOption[Result, Variant](NotFound)
       } yield Ok(Json.toJson(variant))
     }
 
-  def variantDisplayed(experimentId: String,
-                       clientId: String): Action[AnyContent] =
+  def variantDisplayed(experimentId: String, clientId: String): Action[AnyContent] =
     AuthAction.async { ctx =>
       import ExperimentVariantEvent._
 
-      val experimentKey = Key(experimentId)
+      val experimentKey     = Key(experimentId)
       val variantBindingKey = VariantBindingKey(experimentKey, clientId)
 
       for {
-        variant <- VariantBinding.variantFor(experimentKey, clientId) |> mapLeft(
-          err => BadRequest(err.toJson))
+        variant <- VariantBinding.variantFor(experimentKey, clientId) |> mapLeft(err => BadRequest(err.toJson))
         key = ExperimentVariantEventKey(experimentKey,
                                         variant.id,
                                         clientId,
@@ -206,19 +204,17 @@ class ExperimentController(env: Env,
                                                       variant,
                                                       transformation = 0,
                                                       variantId = variant.id)
-        eventCreated <- eVariantEventStore.create(key, variantDisplayed) |> mapLeft(
-          err => BadRequest(err.toJson))
+        eventCreated <- eVariantEventStore.create(key, variantDisplayed) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok(Json.toJson(eventCreated))
     }
 
   def variantWon(experimentId: String, clientId: String): Action[AnyContent] =
     AuthAction.async { ctx =>
-      val experimentKey = Key(experimentId)
+      val experimentKey     = Key(experimentId)
       val variantBindingKey = VariantBindingKey(experimentKey, clientId)
 
       for {
-        variant <- VariantBinding.variantFor(experimentKey, clientId) |> mapLeft(
-          err => BadRequest(err.toJson))
+        variant <- VariantBinding.variantFor(experimentKey, clientId) |> mapLeft(err => BadRequest(err.toJson))
         key = ExperimentVariantEventKey(experimentKey,
                                         variant.id,
                                         clientId,
@@ -230,8 +226,7 @@ class ExperimentController(env: Env,
                                           variant,
                                           transformation = 0,
                                           variantId = variant.id)
-        eventCreated <- eVariantEventStore.create(key, variantWon) |> mapLeft(
-          err => BadRequest(err.toJson))
+        eventCreated <- eVariantEventStore.create(key, variantWon) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok(Json.toJson(Json.toJson(eventCreated)))
     }
 
@@ -250,8 +245,7 @@ class ExperimentController(env: Env,
               eVariantEventStore
                 .findVariantResult(experiment)
                 .list
-                .map(variantsResult =>
-                  ExperimentResult(experiment, variantsResult))
+                .map(variantsResult => ExperimentResult(experiment, variantsResult))
             )
             .orElse(Source.single(ExperimentResult(experiment, Seq.empty)))
         }
@@ -283,9 +277,7 @@ class ExperimentController(env: Env,
           ByteString("")
       }
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "experiments.dnjson")),
+      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments.dnjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -297,8 +289,7 @@ class ExperimentController(env: Env,
         case (_, JsSuccess(obj, _)) =>
           experimentStore.create(obj.id, obj) map { ImportResult.fromResult _ }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {
@@ -322,9 +313,8 @@ class ExperimentController(env: Env,
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "experiments_bindings.dnjson")),
+      header =
+        ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments_bindings.dnjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -338,8 +328,7 @@ class ExperimentController(env: Env,
             ImportResult.fromResult _
           }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {
@@ -362,9 +351,8 @@ class ExperimentController(env: Env,
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "experiments_events.dnjson")),
+      header =
+        ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments_events.dnjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -378,8 +366,7 @@ class ExperimentController(env: Env,
             ImportResult.fromResult _
           }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {

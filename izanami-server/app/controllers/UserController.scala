@@ -6,6 +6,9 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.AuthContext
+import controllers.patch.Patch
+import controllers.patch.Patch.Patch
+import domains.script.GlobalScript
 import domains.user.{User, UserNoPassword, UserStore}
 import domains.{Import, ImportResult, Key}
 import env.Env
@@ -29,38 +32,32 @@ class UserController(env: Env,
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def list(pattern: String,
-           page: Int = 1,
-           nbElementPerPage: Int = 15): Action[AnyContent] = AuthAction.async {
-    ctx =>
-      import UserNoPassword._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
-      userStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
-        .map { r =>
-          Ok(
-            Json.obj(
-              "results" -> Json.toJson(r.results),
-              "metadata" -> Json.obj(
-                "page" -> page,
-                "pageSize" -> nbElementPerPage,
-                "count" -> r.count,
-                "nbPages" -> r.nbPages
-              )
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] = AuthAction.async { ctx =>
+    import UserNoPassword._
+    val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+    userStore
+      .getByIdLike(patternsSeq, page, nbElementPerPage)
+      .map { r =>
+        Ok(
+          Json.obj(
+            "results" -> Json.toJson(r.results),
+            "metadata" -> Json.obj(
+              "page"     -> page,
+              "pageSize" -> nbElementPerPage,
+              "count"    -> r.count,
+              "nbPages"  -> r.nbPages
             )
           )
-        }
+        )
+      }
   }
 
   def create(): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
     import UserNoPassword._
     for {
-      user <- ctx.request.body.validate[User] |> liftJsResult(
-        err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _ <- user.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
-      event <- userStore.create(Key(user.id), user) |> mapLeft(
-        err => BadRequest(err.toJson))
+      user  <- ctx.request.body.validate[User] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      _     <- user.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event <- userStore.create(Key(user.id), user) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(user))
 
   }
@@ -73,26 +70,36 @@ class UserController(env: Env,
     } yield Ok(Json.toJson(user))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) {
-    ctx =>
-      import UserNoPassword._
-      for {
-        user <- ctx.request.body.validate[User] |> liftJsResult(
-          err => BadRequest(AppErrors.fromJsError(err).toJson))
-        _ <- user.isAllowed(ctx.auth) |> liftBooleanTrue(
-          Forbidden(AppErrors.error("error.forbidden").toJson))
-        event <- userStore.update(Key(id), Key(user.id), user) |> mapLeft(
-          err => BadRequest(err.toJson))
-      } yield Ok(Json.toJson(user))
+  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import UserNoPassword._
+    for {
+      user  <- ctx.request.body.validate[User] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      _     <- user.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event <- userStore.update(Key(id), Key(user.id), user) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(user))
+  }
+
+  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import User._
+    val key = Key(id)
+    for {
+      patch <- ctx.request.body.validate[Seq[Patch]] |> liftJsResult(
+                err => BadRequest(AppErrors.fromJsError(err).toJson)
+              )
+      current <- userStore.getById(key).one |> liftFOption[Result, User](NotFound)
+      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated <- Patch.patchAs(patch, current) |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      event <- userStore
+                .update(key, Key(current.id), updated) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(UserNoPassword.format.writes(updated))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
     import UserNoPassword._
     val key = Key(id)
     for {
-      user <- userStore.getById(key).one |> liftFOption[Result, User](NotFound)
-      _ <- user.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
+      user    <- userStore.getById(key).one |> liftFOption[Result, User](NotFound)
+      _       <- user.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- userStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(user))
   }
@@ -101,8 +108,7 @@ class UserController(env: Env,
     AuthAction.async { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       for {
-        deletes <- userStore.deleteAll(allPatterns) |> mapLeft(
-          err => BadRequest(err.toJson))
+        deletes <- userStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
@@ -122,9 +128,7 @@ class UserController(env: Env,
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "users.ndjson")),
+      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "users.ndjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -137,8 +141,7 @@ class UserController(env: Env,
         case (_, JsSuccess(obj, _)) =>
           userStore.create(Key(obj.id), obj) map { ImportResult.fromResult _ }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {

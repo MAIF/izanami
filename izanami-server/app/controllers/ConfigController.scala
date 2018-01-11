@@ -6,6 +6,9 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.AuthContext
+import controllers.patch.Patch
+import controllers.patch.Patch.Patch
+import domains.apikey.Apikey
 import domains.config.{Config, ConfigStore}
 import domains.{Import, ImportResult, Key}
 import env.Env
@@ -30,9 +33,7 @@ class ConfigController(env: Env,
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def list(pattern: String,
-           page: Int = 1,
-           nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       import Config._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
@@ -43,10 +44,10 @@ class ConfigController(env: Env,
             Json.obj(
               "results" -> Json.toJson(r.results),
               "metadata" -> Json.obj(
-                "page" -> page,
+                "page"     -> page,
                 "pageSize" -> nbElementPerPage,
-                "count" -> r.count,
-                "nbPages" -> r.nbPages
+                "count"    -> r.count,
+                "nbPages"  -> r.nbPages
               )
             )
           )
@@ -56,8 +57,7 @@ class ConfigController(env: Env,
   def tree(patterns: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       import Config._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(
-        ",")
+      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
       configStore
         .getByIdLike(patternsSeq)
         .stream
@@ -75,12 +75,9 @@ class ConfigController(env: Env,
     import Config._
 
     for {
-      config <- ctx.request.body.validate[Config] |> liftJsResult(
-        err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _ <- config.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Unauthorized(AppErrors.error("error.forbidden").toJson))
-      event <- configStore.create(config.id, config) |> mapLeft(
-        err => BadRequest(err.toJson))
+      config <- ctx.request.body.validate[Config] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      _      <- config.isAllowed(ctx.auth) |> liftBooleanTrue(Unauthorized(AppErrors.error("error.forbidden").toJson))
+      event  <- configStore.create(config.id, config) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(config))
 
   }
@@ -90,36 +87,43 @@ class ConfigController(env: Env,
     val key = Key(id)
     for {
       _ <- Config.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
-        Forbidden(AppErrors.error("error.forbidden").toJson)
-      )
-      config <- configStore.getById(key).one |> liftFOption[Result, Config](
-        NotFound)
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
+      config <- configStore.getById(key).one |> liftFOption[Result, Config](NotFound)
     } yield Ok(Json.toJson(config))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) {
-    ctx =>
-      import Config._
-      for {
-        config <- ctx.request.body.validate[Config] |> liftJsResult(
-          err => BadRequest(AppErrors.fromJsError(err).toJson))
-        _ <- config.isAllowed(ctx.auth) |> liftBooleanTrue(
-          Forbidden(AppErrors.error("error.forbidden").toJson))
-        event <- configStore.update(Key(id), config.id, config) |> mapLeft(
-          err => BadRequest(err.toJson))
-      } yield Ok(Json.toJson(config))
+  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import Config._
+    for {
+      config <- ctx.request.body.validate[Config] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      _      <- config.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event  <- configStore.update(Key(id), config.id, config) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(config))
+  }
+
+  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import Config._
+    val key = Key(id)
+    for {
+      patch <- ctx.request.body.validate[Seq[Patch]] |> liftJsResult(
+                err => BadRequest(AppErrors.fromJsError(err).toJson)
+              )
+      current <- configStore.getById(key).one |> liftFOption[Result, Config](NotFound)
+      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated <- Patch.patchAs(patch, current) |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      event <- configStore
+                .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(current))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
     import Config._
     val key = Key(id)
     for {
-      config <- configStore.getById(key).one |> liftFOption[Result, Config](
-        NotFound)
-      _ <- config.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
-      deleted <- configStore.delete(key) |> mapLeft(
-        err => BadRequest(err.toJson))
+      config  <- configStore.getById(key).one |> liftFOption[Result, Config](NotFound)
+      _       <- config.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      deleted <- configStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(config))
   }
 
@@ -127,8 +131,7 @@ class ConfigController(env: Env,
     AuthAction.async { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       for {
-        deletes <- configStore.deleteAll(allPatterns) |> mapLeft(
-          err => BadRequest(err.toJson))
+        deletes <- configStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
@@ -148,9 +151,7 @@ class ConfigController(env: Env,
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "configs.dnjson")),
+      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "configs.dnjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -162,8 +163,7 @@ class ConfigController(env: Env,
         case (_, JsSuccess(obj, _)) =>
           configStore.create(obj.id, obj) map { ImportResult.fromResult _ }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {
