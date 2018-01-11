@@ -36,7 +36,7 @@ export class Alerts extends Component {
       return (
         <div className={`panel panel-${type}`}>
           <div className="panel-heading">
-            <span>{title}</span>
+            <span>{title} </span>
             <button type="button" onClick={this.close} className="close cancel pull-right" >&times;</button>
           </div>
           <div className="panel-body">
