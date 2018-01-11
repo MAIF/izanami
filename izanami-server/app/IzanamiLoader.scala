@@ -2,6 +2,7 @@ import com.datastax.driver.core.Cluster
 import com.softwaremill.macwire.wire
 import controllers._
 import controllers.actions.{AuthAction, AuthContext}
+import domains.abtesting.impl._
 import domains.abtesting.{ExperimentVariantEventStore, _}
 import domains.apikey.ApikeyStore
 import domains.config.ConfigStore
@@ -11,7 +12,6 @@ import domains.feature.FeatureStore
 import domains.script.GlobalScriptStore
 import domains.user.UserStore
 import domains.webhook.WebhookStore
-import domains.webhook.notifications.WebHooksActor
 import elastic.api.Elastic
 import env._
 import filters.{IzanamiDefaultFilter, OtoroshiFilter}
@@ -112,8 +112,6 @@ package object modules {
     }
 
     lazy val configController: ConfigController = wire[ConfigController]
-    lazy val configControllerOld: ConfigControllerOld =
-      wire[ConfigControllerOld]
 
     /* Feature */
     lazy val featureStore: FeatureStore = {

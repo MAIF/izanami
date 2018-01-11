@@ -25,12 +25,10 @@ object Result {
     implicit val format = Json.format[ErrorMessage]
   }
 
-  case class AppErrors(
-      errors: Seq[ErrorMessage] = Seq.empty,
-      fieldErrors: Map[String, List[ErrorMessage]] = Map.empty) {
+  case class AppErrors(errors: Seq[ErrorMessage] = Seq.empty,
+                       fieldErrors: Map[String, List[ErrorMessage]] = Map.empty) {
     def ++(s: AppErrors) =
-      this.copy(errors = errors ++ s.errors,
-                fieldErrors = fieldErrors ++ s.fieldErrors)
+      this.copy(errors = errors ++ s.errors, fieldErrors = fieldErrors ++ s.fieldErrors)
     def addFieldError(field: String, errors: List[ErrorMessage]) =
       fieldErrors.get(field) match {
         case Some(err) =>
@@ -38,7 +36,7 @@ object Result {
         case None => AppErrors(errors, fieldErrors + (field -> errors))
       }
 
-    def toJson = Json.toJson(this)
+    def toJson  = Json.toJson(this)
     def isEmpty = errors.isEmpty && fieldErrors.isEmpty
   }
 
@@ -48,14 +46,10 @@ object Result {
 
     implicit val format = Json.format[AppErrors]
 
-    def fromJsError(
-        jsError: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
+    def fromJsError(jsError: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
       val fieldErrors = jsError.map {
         case (k, v) =>
-          (k.toJsonString,
-           v.map(err =>
-               ErrorMessage(err.message, err.args.map(_.toString): _*))
-             .toList)
+          (k.toJsonString, v.map(err => ErrorMessage(err.message, err.args.map(_.toString): _*)).toList)
       }.toMap
       AppErrors(fieldErrors = fieldErrors)
     }
@@ -66,8 +60,7 @@ object Result {
     private def optionCombine[A: Semigroup](a: A, opt: Option[A]): A =
       opt.map(a |+| _).getOrElse(a)
 
-    private def mergeMap[K, V: Semigroup](lhs: Map[K, V],
-                                          rhs: Map[K, V]): Map[K, V] =
+    private def mergeMap[K, V: Semigroup](lhs: Map[K, V], rhs: Map[K, V]): Map[K, V] =
       lhs.foldLeft(rhs) {
         case (acc, (k, v)) => acc.updated(k, optionCombine(v, acc.get(k)))
       }
@@ -75,7 +68,7 @@ object Result {
     implicit val monoid: Monoid[AppErrors] = new Monoid[AppErrors] {
       override def empty = AppErrors()
       override def combine(x: AppErrors, y: AppErrors) = {
-        val errors = x.errors ++ y.errors
+        val errors      = x.errors ++ y.errors
         val fieldErrors = mergeMap(x.fieldErrors, y.fieldErrors)
         AppErrors(errors, fieldErrors)
       }
@@ -84,7 +77,7 @@ object Result {
   }
 
   type Result[+E] = Either[AppErrors, E]
-  def ok[E](event: E): Result[E] = Right(event)
+  def ok[E](event: E): Result[E]            = Right(event)
   def error[E](error: AppErrors): Result[E] = Left(error)
   def error[E](messages: String*): Result[E] =
     Left(AppErrors(messages.map(m => ErrorMessage(m))))
@@ -102,27 +95,23 @@ object Result {
   }
 
   implicit class FResultOps[E](value: Future[Result[E]]) {
-    def mapResult[F](func: E => F)(
-        implicit ec: ExecutionContext): Future[Result[F]] = value.map {
+    def mapResult[F](func: E => F)(implicit ec: ExecutionContext): Future[Result[F]] = value.map {
       case Right(e)  => func(e).asRight
       case Left(err) => err.asLeft
     }
 
-    def flatMapResult[F](func: E => Result[F])(
-        implicit ec: ExecutionContext): Future[Result[F]] = value.map {
+    def flatMapResult[F](func: E => Result[F])(implicit ec: ExecutionContext): Future[Result[F]] = value.map {
       case Right(e)  => func(e)
       case Left(err) => err.asLeft
     }
-    def mapJsResult[F](func: E => Result[F])(
-        implicit ec: ExecutionContext): Future[Result[F]] = value.map {
+    def mapJsResult[F](func: E => Result[F])(implicit ec: ExecutionContext): Future[Result[F]] = value.map {
       case Right(e)  => func(e)
       case Left(err) => err.asLeft
     }
   }
 
   implicit class JsResultOps(r: Future[Result[JsValue]]) {
-    def to[E](implicit ec: ExecutionContext,
-              reads: Reads[E]): Future[Result[E]] =
+    def to[E](implicit ec: ExecutionContext, reads: Reads[E]): Future[Result[E]] =
       r.mapResult(json => json.validate[E]).flatMapResult {
         case JsSuccess(e, _) => e.asRight
         case JsError(err)    =>
@@ -135,10 +124,8 @@ object Result {
 
 trait FindResult[Data] {
 
-  def one(implicit ec: ExecutionContext,
-          format: Format[Data]): Future[Option[Data]]
-  def list(implicit ec: ExecutionContext,
-           format: Format[Data]): Future[Seq[Data]]
+  def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]]
+  def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]]
   def stream(implicit format: Format[Data]): Source[Data, NotUsed]
 
 }
@@ -151,56 +138,43 @@ trait PagingResult[Data] {
   def nbPages = Math.ceil(count.toFloat / pageSize)
 }
 
-case class JsonPagingResult[Data](jsons: PagingResult[JsValue])(
-    implicit reads: Reads[Data])
+case class JsonPagingResult[Data](jsons: PagingResult[JsValue])(implicit reads: Reads[Data])
     extends PagingResult[Data] {
-  override def results = jsons.results.flatMap(json => reads.reads(json).asOpt)
-  override def page = jsons.page
+  override def results  = jsons.results.flatMap(json => reads.reads(json).asOpt)
+  override def page     = jsons.page
   override def pageSize = jsons.pageSize
-  override def count = jsons.count
+  override def count    = jsons.count
 }
 
-case class DefaultPagingResult[Data](results: Seq[Data],
-                                     page: Int,
-                                     pageSize: Int,
-                                     count: Int)
+case class DefaultPagingResult[Data](results: Seq[Data], page: Int, pageSize: Int, count: Int)
     extends PagingResult[Data]
 
-case class SimpleFindResult[Data](datas: Future[List[Data]])
-    extends FindResult[Data] {
+case class SimpleFindResult[Data](datas: Future[List[Data]]) extends FindResult[Data] {
 
-  override def one(implicit ec: ExecutionContext,
-                   format: Format[Data]): Future[Option[Data]] =
+  override def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]] =
     datas.map(_.headOption)
 
-  override def list(implicit ec: ExecutionContext,
-                    format: Format[Data]): Future[Seq[Data]] = datas
+  override def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]] = datas
 
   override def stream(implicit format: Format[Data]): Source[Data, NotUsed] =
     Source.fromFuture(datas).mapConcat(d => d)
 }
 
-case class SourceFindResult[Data](datas: Source[Data, NotUsed])(
-    implicit mat: Materializer)
-    extends FindResult[Data] {
+case class SourceFindResult[Data](datas: Source[Data, NotUsed])(implicit mat: Materializer) extends FindResult[Data] {
 
-  override def one(implicit ec: ExecutionContext,
-                   format: Format[Data]): Future[Option[Data]] =
+  override def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]] =
     datas.runWith(Sink.headOption)
 
-  override def list(implicit ec: ExecutionContext,
-                    format: Format[Data]): Future[Seq[Data]] =
+  override def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]] =
     datas.runWith(Sink.seq)
 
   override def stream(implicit format: Format[Data]): Source[Data, NotUsed] =
     datas
 }
 
-case class JsonFindResult[Data](datas: FindResult[JsValue])
-    extends FindResult[Data] {
+case class JsonFindResult[Data](datas: FindResult[JsValue]) extends FindResult[Data] {
 
-  override def one(implicit ec: ExecutionContext,
-                   format: Format[Data]): Future[Option[Data]] =
+  override def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]] =
     datas.one
       .map(
         mayBeJson =>
@@ -214,8 +188,7 @@ case class JsonFindResult[Data](datas: FindResult[JsValue])
           }
       )
 
-  override def list(implicit ec: ExecutionContext,
-                    format: Format[Data]): Future[Seq[Data]] =
+  override def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]] =
     datas.list.map(
       l =>
         l.map(json => format.reads(json))
@@ -244,9 +217,7 @@ trait StoreOps {
   implicit class EventsOps[E](f: Future[Result[E]]) {
     def andPublishEvent[Event <: IzanamiEvent](
         func: E => Event
-    )(implicit ec: ExecutionContext,
-      actorSystem: ActorSystem,
-      eventStore: EventStore): Future[Result[E]] = {
+    )(implicit ec: ExecutionContext, actorSystem: ActorSystem, eventStore: EventStore): Future[Result[E]] = {
       f.foreach {
         case Right(v) =>
           eventStore.publish(func(v).asInstanceOf[IzanamiEvent])
@@ -264,21 +235,9 @@ trait DataStore[Key, Data] extends StoreOps {
   def delete(id: Key): Future[Result[Data]]
   def deleteAll(patterns: Seq[String]): Future[Result[Done]]
   def getById(id: Key): FindResult[Data]
-  def getByIdLike(patterns: Seq[String],
-                  page: Int = 1,
-                  nbElementPerPage: Int = 15): Future[PagingResult[Data]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): Future[PagingResult[Data]]
   def getByIdLike(patterns: Seq[String]): FindResult[Data]
   def count(patterns: Seq[String]): Future[Long]
 }
 
-trait DataStoreWithTTL[Key, Data] extends DataStore[Key, Data] {
-  def createWithTTL(id: Key,
-                    data: Data,
-                    ttl: FiniteDuration): Future[Result[Data]]
-  def updateWithTTL(oldId: Key,
-                    id: Key,
-                    data: Data,
-                    ttl: FiniteDuration): Future[Result[Data]]
-}
-
-trait JsonDataStore extends DataStoreWithTTL[Key, JsValue]
+trait JsonDataStore extends DataStore[Key, JsValue]
