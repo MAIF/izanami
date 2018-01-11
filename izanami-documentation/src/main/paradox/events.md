@@ -93,7 +93,7 @@ The field `oldValue` is optional and only present during an update.
 
 ![Webooks](img/diagrams/events-webhooks.png)
 
-Web hooks allow you to get notified when events occured in izanami. You have to register an endpoint in izanami, 
+Web hooks allow you to get notified when events occurred in izanami. You have to register an endpoint in izanami, 
 the endpoint needs to be a POST api handling a json payload of the form : 
 
 ```json

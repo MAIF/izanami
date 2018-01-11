@@ -1,7 +1,7 @@
 package store.memory
 
 import akka.Done
-import akka.actor.{Actor, ActorSystem, Cancellable, PoisonPill, Props}
+import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.util.Timeout
 import cats.syntax.option._
 import domains.Key
@@ -9,8 +9,8 @@ import env.DbDomainConfig
 import play.api.Logger
 import play.api.libs.json.{JsValue, _}
 import store.Result.{ErrorMessage, Result}
-import store.memory.JsonDataStoreActor._
 import store._
+import store.memory.JsonDataStoreActor._
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -19,8 +19,7 @@ object InMemoryJsonDataStore {
   def apply(system: ActorSystem, name: String): InMemoryJsonDataStore =
     new InMemoryJsonDataStore(system, name)
 
-  def apply(dbDomainConfig: DbDomainConfig,
-            actorSystem: ActorSystem): InMemoryJsonDataStore = {
+  def apply(dbDomainConfig: DbDomainConfig, actorSystem: ActorSystem): InMemoryJsonDataStore = {
     val namespace = dbDomainConfig.conf.namespace
 
     Logger.info(s"Load store InMemory for namespace $namespace")
@@ -28,41 +27,23 @@ object InMemoryJsonDataStore {
   }
 }
 
-class InMemoryJsonDataStore(system: ActorSystem, name: String)
-    extends JsonDataStore {
+class InMemoryJsonDataStore(system: ActorSystem, name: String) extends JsonDataStore {
 
   import akka.pattern._
   import system.dispatcher
 
-  private implicit val timeout = Timeout(1.second)
+  private implicit val timeout   = Timeout(1.second)
   private implicit val scheduler = system.scheduler
 
   private val store =
     system.actorOf(Props[JsonDataStoreActor](new JsonDataStoreActor()), name)
-
-  override def createWithTTL(id: Key,
-                             data: JsValue,
-                             ttl: FiniteDuration): Future[Result[JsValue]] =
-    applyCommand(CreateJsonDataWithTTL(id, data, ttl)).collect {
-      case CommandResponse(r) => r
-    }
-
-  override def updateWithTTL(oldId: Key,
-                             id: Key,
-                             data: JsValue,
-                             ttl: FiniteDuration): Future[Result[JsValue]] =
-    applyCommand(UpdateJsonDataWithTTL(oldId, id, data, ttl)).collect {
-      case CommandResponse(r) => r
-    }
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
     applyCommand(CreateJsonData(id, data)).collect {
       case CommandResponse(r) => r
     }
 
-  override def update(oldId: Key,
-                      id: Key,
-                      data: JsValue): Future[Result[JsValue]] =
+  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
     applyCommand(UpdateJsonData(oldId, id, data)).collect {
       case CommandResponse(r) => r
     }
@@ -80,10 +61,7 @@ class InMemoryJsonDataStore(system: ActorSystem, name: String)
   override def getById(id: Key): FindResult[JsValue] =
     find(GetById(id))
 
-  override def getByIdLike(
-      patterns: Seq[String],
-      page: Int,
-      nbElementPerPage: Int): Future[PagingResult[JsValue]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
     (store ? Find(patterns, page, nbElementPerPage))
       .mapTo[ActorStoreResponse]
       .collect {
@@ -113,8 +91,7 @@ class InMemoryJsonDataStore(system: ActorSystem, name: String)
     }
   }
 
-  def applyCommand[E](command: JsonDataCommand)(
-      implicit format: Format[JsValue]): Future[ActorStoreResponse] = {
+  def applyCommand[E](command: JsonDataCommand)(implicit format: Format[JsValue]): Future[ActorStoreResponse] = {
     val future: Future[ActorStoreResponse] =
       (store ? command.asInstanceOf[JsonDataMessages]).mapTo[ActorStoreResponse]
     future
@@ -127,16 +104,10 @@ class InMemoryJsonDataStore(system: ActorSystem, name: String)
 
 private[memory] class JsonDataStoreActor extends Actor {
 
-  private var scheduler: Option[Cancellable] = None
   private var datas: Map[Key, (JsValue, Long, Option[FiniteDuration])] =
     Map.empty[Key, (JsValue, Long, Option[FiniteDuration])]
-  import context.dispatcher
 
   override def receive: Receive = {
-    case CleanTTL =>
-      datas = datas.filter { d =>
-        isExpired(d._2).isDefined
-      }
 
     case cmd: JsonDataCommand =>
       cmd match {
@@ -144,8 +115,7 @@ private[memory] class JsonDataStoreActor extends Actor {
         case CreateJsonData(id, value) =>
           datas.get(id) match {
             case Some(_) =>
-              sender() ! CommandResponse(
-                Result.errors(ErrorMessage("error.data.exists", id.key)))
+              sender() ! CommandResponse(Result.errors(ErrorMessage("error.data.exists", id.key)))
 
             case None =>
               sender() ! CommandResponse(Result.ok(value))
@@ -157,8 +127,7 @@ private[memory] class JsonDataStoreActor extends Actor {
         case CreateJsonDataWithTTL(id, value, ttl) =>
           datas.get(id) match {
             case Some(_) =>
-              sender() ! CommandResponse(
-                Result.errors(ErrorMessage("error.data.exists", id.key)))
+              sender() ! CommandResponse(Result.errors(ErrorMessage("error.data.exists", id.key)))
             case None =>
               sender() ! CommandResponse(Result.ok(value))
               val storedData = (value, System.currentTimeMillis(), ttl.some)
@@ -187,7 +156,7 @@ private[memory] class JsonDataStoreActor extends Actor {
 
         case DeleteJsonDatasByPatterns(patterns) =>
           val keysToDelete = datas.keys.filter { matchPatterns(patterns) }.toList
-          val newDatas = keysToDelete.foldLeft(datas) { _ - _ }
+          val newDatas     = keysToDelete.foldLeft(datas) { _ - _ }
           sender() ! CommandResponseBatch(Result.ok(Done))
           datas = newDatas
       }
@@ -231,60 +200,39 @@ private[memory] class JsonDataStoreActor extends Actor {
       sender() ! CountResponse(datas.count(_ => true))
   }
 
-  override def preStart(): Unit =
-    scheduler = Some(
-      context.system.scheduler.schedule(1.minute, 1.minute, self, CleanTTL))
-
-  override def postStop(): Unit =
-    scheduler.foreach(_.cancel())
 }
 
 private[memory] object JsonDataStoreActor {
 
   case object TimerKey
 
-  case object CleanTTL
-
   sealed trait JsonDataMessages
-  sealed trait JsonDataCommand extends JsonDataMessages
-  case class CreateJsonData(id: Key, data: JsValue) extends JsonDataCommand
-  case class CreateJsonDataWithTTL(id: Key, data: JsValue, ttl: FiniteDuration)
-      extends JsonDataCommand
-  case class UpdateJsonData(oldId: Key, id: Key, data: JsValue)
-      extends JsonDataCommand
-  case class UpdateJsonDataWithTTL(oldId: Key,
-                                   id: Key,
-                                   data: JsValue,
-                                   ttl: FiniteDuration)
-      extends JsonDataCommand
-  case class DeleteJsonData(id: Key) extends JsonDataCommand
-  case class DeleteJsonDatasByPatterns(patterns: Seq[String])
-      extends JsonDataCommand
+  sealed trait JsonDataCommand                                                              extends JsonDataMessages
+  case class CreateJsonData(id: Key, data: JsValue)                                         extends JsonDataCommand
+  case class CreateJsonDataWithTTL(id: Key, data: JsValue, ttl: FiniteDuration)             extends JsonDataCommand
+  case class UpdateJsonData(oldId: Key, id: Key, data: JsValue)                             extends JsonDataCommand
+  case class UpdateJsonDataWithTTL(oldId: Key, id: Key, data: JsValue, ttl: FiniteDuration) extends JsonDataCommand
+  case class DeleteJsonData(id: Key)                                                        extends JsonDataCommand
+  case class DeleteJsonDatasByPatterns(patterns: Seq[String])                               extends JsonDataCommand
 
-  sealed trait JsonDataQuery extends JsonDataMessages
-  case class GetById(id: Key) extends JsonDataQuery
-  case class Find(patterns: Seq[String],
-                  page: Int = 1,
-                  nbElementPerPage: Int = 15)
-      extends JsonDataQuery
-  case class FindAll(patterns: Seq[String]) extends JsonDataQuery
+  sealed trait JsonDataQuery                                                        extends JsonDataMessages
+  case class GetById(id: Key)                                                       extends JsonDataQuery
+  case class Find(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15) extends JsonDataQuery
+  case class FindAll(patterns: Seq[String])                                         extends JsonDataQuery
 
   sealed trait JsonCountQuery extends JsonDataMessages
-  case object CountAll extends JsonCountQuery
+  case object CountAll        extends JsonCountQuery
 
   sealed trait ActorStoreResponse
-  case class CommandResponse(result: Result[JsValue]) extends ActorStoreResponse
-  case class CommandResponseBatch(result: Result[Done])
-      extends ActorStoreResponse
-  case class QueryResponse(configs: List[JsValue], count: Int)
-      extends ActorStoreResponse
-  case class CountResponse(count: Long) extends ActorStoreResponse
+  case class CommandResponse(result: Result[JsValue])          extends ActorStoreResponse
+  case class CommandResponseBatch(result: Result[Done])        extends ActorStoreResponse
+  case class QueryResponse(configs: List[JsValue], count: Int) extends ActorStoreResponse
+  case class CountResponse(count: Long)                        extends ActorStoreResponse
 
   private def matchPatterns(patterns: Seq[String])(key: Key) =
     patterns.forall(r => key.matchPattern(r))
 
-  private def isExpired(
-      storedData: (JsValue, Long, Option[FiniteDuration])): Option[JsValue] = {
+  private def isExpired(storedData: (JsValue, Long, Option[FiniteDuration])): Option[JsValue] = {
     val now = System.currentTimeMillis()
     storedData match {
       case (data, date, Some(ttl)) if (date + ttl.toMillis) < now =>

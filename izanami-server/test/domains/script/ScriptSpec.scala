@@ -82,7 +82,6 @@ class ScriptSpec
     VariantBindingConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     ExperimentEventConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     WebhookConfig(DbDomainConfig("", DbDomainConfigDetails("")),
-                  1.second,
                   WebhookEventsConfig(5, 1.second, 1, 1.second)),
     UserConfig(DbDomainConfig("", DbDomainConfigDetails("")),
                InitialUserConfig("", "")),
