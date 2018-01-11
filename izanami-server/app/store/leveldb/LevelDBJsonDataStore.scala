@@ -1,7 +1,6 @@
 package store.leveldb
 
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
@@ -24,31 +23,23 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 object LevelDBJsonDataStore {
-  def apply(system: ActorSystem,
-            dbPath: String,
-            applicationLifecycle: ApplicationLifecycle): LevelDBJsonDataStore =
+  def apply(system: ActorSystem, dbPath: String, applicationLifecycle: ApplicationLifecycle): LevelDBJsonDataStore =
     new LevelDBJsonDataStore(system, dbPath, applicationLifecycle)
 
-  def apply(
-      levelDbConfig: LevelDbConfig,
-      config: DbDomainConfig,
-      actorSystem: ActorSystem,
-      applicationLifecycle: ApplicationLifecycle): LevelDBJsonDataStore = {
+  def apply(levelDbConfig: LevelDbConfig,
+            config: DbDomainConfig,
+            actorSystem: ActorSystem,
+            applicationLifecycle: ApplicationLifecycle): LevelDBJsonDataStore = {
     val namespace = config.conf.namespace
     Logger.info(s"Load store LevelDB for namespace $namespace")
-    val parentPath = levelDbConfig.parentPath
+    val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
     LevelDBJsonDataStore(actorSystem, dbPath, applicationLifecycle)
   }
 }
 
-class LevelDBJsonDataStore(system: ActorSystem,
-                           dbPath: String,
-                           applicationLifecycle: ApplicationLifecycle)
+class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifecycle: ApplicationLifecycle)
     extends JsonDataStore {
-
-  import collection.JavaConverters._
-  import scala.concurrent.duration._
 
   private val client: DB =
     factory.open(new File(dbPath), new Options().createIfMissing(true))
@@ -61,19 +52,6 @@ class LevelDBJsonDataStore(system: ActorSystem,
   private implicit val ec: ExecutionContext =
     system.dispatchers.lookup("izanami.level-db-dispatcher")
 
-  private val expirations = new ConcurrentHashMap[String, Long]()
-
-  private val cancel = system.scheduler.schedule(0.millis, 10.millis) {
-    val time = System.currentTimeMillis()
-    expirations.entrySet().asScala.foreach { entry =>
-      if (entry.getValue < time) {
-        client.delete(bytes(entry.getKey))
-        expirations.remove(entry.getKey)
-      }
-    }
-    ()
-  }
-
   private def buildKey(key: Key) = Key.Empty / key
 
   private def getByKeyId(id: Key): Future[Option[JsValue]] = {
@@ -82,7 +60,7 @@ class LevelDBJsonDataStore(system: ActorSystem,
   }
 
   private def getByStringId(key: String): Future[Option[JsValue]] = Future {
-    val bytesValue = client.get(bytes(key))
+    val bytesValue          = client.get(bytes(key))
     val stringValue: String = asString(bytesValue)
     if (stringValue != null) {
       val jsValue: JsValue = Json.parse(stringValue)
@@ -140,37 +118,11 @@ class LevelDBJsonDataStore(system: ActorSystem,
       }
   }
 
-  override def createWithTTL(id: Key, data: JsValue, ttl: FiniteDuration) =
-    getByKeyId(id)
-      .flatMap {
-        case Some(_) =>
-          FastFuture.successful(
-            Result.errors(ErrorMessage("error.data.exists", id.key)))
-        case None =>
-          Future {
-            client.put(bytes(id.key), bytes(Json.stringify(data)))
-            expirations.put(id.key, System.currentTimeMillis() + ttl.toMillis)
-            Result.ok(data)
-          }
-      }
-
-  override def updateWithTTL(oldId: Key,
-                             id: Key,
-                             data: JsValue,
-                             ttl: FiniteDuration) =
-    Future {
-      client.delete(bytes(oldId.key))
-      client.put(bytes(id.key), bytes(Json.stringify(data)))
-      expirations.put(id.key, System.currentTimeMillis() + ttl.toMillis)
-      Result.ok(data)
-    }
-
   override def create(id: Key, data: JsValue) =
     getByKeyId(id)
       .flatMap {
         case Some(_) =>
-          FastFuture.successful(
-            Result.errors(ErrorMessage("error.data.exists", id.key)))
+          FastFuture.successful(Result.errors(ErrorMessage("error.data.exists", id.key)))
         case None =>
           Future {
             client.put(bytes(id.key), bytes(Json.stringify(data)))
@@ -215,9 +167,7 @@ class LevelDBJsonDataStore(system: ActorSystem,
         .mapConcat(_.toList)
     )
 
-  override def getByIdLike(patterns: Seq[String],
-                           page: Int,
-                           nbElementPerPage: Int) = {
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int) = {
     val position = (page - 1) * nbElementPerPage
     keys(patterns: _*) via Flows.count {
       Flow[Key]
@@ -235,9 +185,7 @@ class LevelDBJsonDataStore(system: ActorSystem,
   override def count(patterns: Seq[String]): Future[Long] =
     getByIdLike(patterns).list.map(_.size)
 
-  def stop() = {
+  def stop() =
     client.close()
-    cancel.cancel()
-  }
 
 }

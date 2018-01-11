@@ -30,11 +30,7 @@ class WebhookController(env: Env,
 
   implicit val materializer = ActorMaterializer()(system)
 
-  private lazy val ttl = env.izanamiConfig.webhook.ttl
-
-  def list(pattern: String,
-           page: Int = 1,
-           nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       import Webhook._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
@@ -46,10 +42,10 @@ class WebhookController(env: Env,
             Json.obj(
               "results" -> Json.toJson(r.results),
               "metadata" -> Json.obj(
-                "page" -> page,
+                "page"     -> page,
                 "pageSize" -> nbElementPerPage,
-                "count" -> r.count,
-                "nbPages" -> r.nbPages
+                "count"    -> r.count,
+                "nbPages"  -> r.nbPages
               )
             )
           )
@@ -61,13 +57,11 @@ class WebhookController(env: Env,
 
     for {
       webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
-        err => BadRequest(AppErrors.fromJsError(err).toJson)
-      )
-      _ <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
+                  err => BadRequest(AppErrors.fromJsError(err).toJson)
+                )
+      _ <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       event <- webhookStore
-        .createWithTTL(webhook.clientId, webhook, ttl) |> mapLeft(
-        err => BadRequest(err.toJson))
+                .create(webhook.clientId, webhook) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(webhook))
 
   }
@@ -77,41 +71,32 @@ class WebhookController(env: Env,
     val key = Key(id)
     for {
       _ <- Webhook.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
-        Forbidden(AppErrors.error("error.forbidden").toJson)
-      )
-      webhook <- webhookStore.getById(key).one |> liftFOption[Result, Webhook](
-        NotFound)
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
+      webhook <- webhookStore.getById(key).one |> liftFOption[Result, Webhook](NotFound)
     } yield Ok(Json.toJson(webhook))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) {
-    ctx =>
-      import Webhook._
-      for {
-        webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
-          err => BadRequest(AppErrors.fromJsError(err).toJson)
-        )
-        _ <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(
-          Forbidden(AppErrors.error("error.forbidden").toJson))
-        event <- webhookStore.updateWithTTL(Key(id),
-                                            webhook.clientId,
-                                            webhook,
-                                            ttl) |> mapLeft(
-          err => BadRequest(err.toJson)
-        )
-      } yield Ok(Json.toJson(webhook))
+  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import Webhook._
+    for {
+      webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
+                  err => BadRequest(AppErrors.fromJsError(err).toJson)
+                )
+      _ <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      event <- webhookStore.update(Key(id), webhook.clientId, webhook) |> mapLeft(
+                err => BadRequest(err.toJson)
+              )
+    } yield Ok(Json.toJson(webhook))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
     import Webhook._
     val key = Key(id)
     for {
-      webhook <- webhookStore.getById(key).one |> liftFOption[Result, Webhook](
-        NotFound)
-      _ <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(
-        Forbidden(AppErrors.error("error.forbidden").toJson))
-      deleted <- webhookStore.delete(key) |> mapLeft(
-        err => BadRequest(err.toJson))
+      webhook <- webhookStore.getById(key).one |> liftFOption[Result, Webhook](NotFound)
+      _       <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      deleted <- webhookStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(webhook))
   }
 
@@ -119,8 +104,7 @@ class WebhookController(env: Env,
     AuthAction.async { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       for {
-        deletes <- webhookStore.deleteAll(allPatterns) |> mapLeft(
-          err => BadRequest(err.toJson))
+        deletes <- webhookStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
@@ -140,9 +124,7 @@ class WebhookController(env: Env,
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "webhooks.ndjson")),
+      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "webhooks.ndjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -156,8 +138,7 @@ class WebhookController(env: Env,
             ImportResult.fromResult _
           }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {

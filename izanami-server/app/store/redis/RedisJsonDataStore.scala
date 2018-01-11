@@ -18,24 +18,17 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 object RedisJsonDataStore {
-  def apply(client: RedisClientMasterSlaves,
-            system: ActorSystem,
-            name: String): RedisJsonDataStore =
+  def apply(client: RedisClientMasterSlaves, system: ActorSystem, name: String): RedisJsonDataStore =
     new RedisJsonDataStore(client, system, name)
 
-  def apply(client: RedisClientMasterSlaves,
-            config: DbDomainConfig,
-            actorSystem: ActorSystem): RedisJsonDataStore = {
+  def apply(client: RedisClientMasterSlaves, config: DbDomainConfig, actorSystem: ActorSystem): RedisJsonDataStore = {
     val namespace = config.conf.namespace
     Logger.info(s"Load store Redis for namespace $namespace")
     RedisJsonDataStore(client, actorSystem, namespace)
   }
 }
 
-class RedisJsonDataStore(client: RedisClientMasterSlaves,
-                         system: ActorSystem,
-                         name: String)
-    extends JsonDataStore {
+class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, name: String) extends JsonDataStore {
 
   import system.dispatcher
 
@@ -91,32 +84,13 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves,
 
   override def create(id: Key, data: JsValue) = getByKeyId(id).flatMap {
     case Some(_) =>
-      FastFuture.successful(
-        Result.errors(ErrorMessage("error.data.exists", id.key)))
+      FastFuture.successful(Result.errors(ErrorMessage("error.data.exists", id.key)))
 
     case None =>
       client
         .set(buildKey(id).key, Json.stringify(data))
         .map(_ => Result.ok(data))
   }
-
-  override def createWithTTL(id: Key, data: JsValue, ttl: FiniteDuration) =
-    getByKeyId(id).flatMap {
-      case Some(_) =>
-        FastFuture.successful(
-          Result.errors(ErrorMessage("error.data.exists", id.key)))
-
-      case None =>
-        val key = buildKey(id).key
-        client
-          .set(key, Json.stringify(data))
-          .flatMap { _ =>
-            client.expire(key, ttl.toSeconds)
-          }
-          .map { _ =>
-            Result.ok(data)
-          }
-    }
 
   override def update(oldId: Key, id: Key, data: JsValue) =
     if (oldId == id) {
@@ -130,33 +104,6 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves,
           create(id, data)
         }
     }
-
-  override def updateWithTTL(oldId: Key,
-                             id: Key,
-                             data: JsValue,
-                             ttl: FiniteDuration) = {
-    val key = buildKey(id).key
-    if (oldId == id) {
-      client
-        .set(buildKey(id).key, Json.stringify(data))
-        .flatMap { _ =>
-          client.expire(key, ttl.toSeconds)
-        }
-        .map(_ => Result.ok(data))
-    } else {
-      client
-        .del(buildKey(id).key)
-        .flatMap { _ =>
-          client
-            .set(buildKey(id).key, Json.stringify(data))
-            .flatMap { _ =>
-              client.expire(key, ttl.toSeconds)
-            }
-            .map(_ => Result.ok(data))
-        }
-    }
-
-  }
 
   override def delete(id: Key) =
     getByKeyId(id).flatMap {
@@ -173,11 +120,11 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves,
     val patternKeys: Seq[Key] = patternsToKey(patterns)
     for {
       keys <- Future.sequence {
-        patternKeys.map(key => client.keys(key.key))
-      }
+               patternKeys.map(key => client.keys(key.key))
+             }
       _ <- Future.sequence {
-        keys.flatten(key => key.map(k => client.del(k)))
-      }
+            keys.flatten(key => key.map(k => client.del(k)))
+          }
     } yield Result.ok(Done)
   }
 
@@ -191,9 +138,7 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves,
       .mapConcat(_.toList)
   )
 
-  override def getByIdLike(patterns: Seq[String],
-                           page: Int,
-                           nbElementPerPage: Int) = {
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int) = {
     val position = (page - 1) * nbElementPerPage
     findKeys(patterns) via Flows.count {
       Flow[Key]
