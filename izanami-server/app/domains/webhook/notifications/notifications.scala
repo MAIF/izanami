@@ -3,23 +3,14 @@ package domains.webhook.notifications
 import java.util.Base64
 
 import akka.Done
-import akka.actor.{
-  Actor,
-  Cancellable,
-  OneForOneStrategy,
-  PoisonPill,
-  Props,
-  SupervisorStrategy,
-  Terminated
-}
+import akka.actor.{Actor, Cancellable, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy, Terminated}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import domains.Domain
-import domains.events.Events.{IzanamiEvent, WebhookCreated, WebhookDeleted}
+import domains.events.Events.{IzanamiEvent, WebhookCreated, WebhookDeleted, WebhookUpdated}
 import domains.events.{EventStore, Events}
 import domains.webhook.WebhookStore.WebhookKey
 import domains.webhook.notifications.WebHookActor._
-
 import domains.webhook.{Webhook, WebhookStore}
 import env.WebhookConfig
 import play.api.Logger
@@ -34,17 +25,11 @@ object WebHooksActor {
 
   case object RefreshWebhook
 
-  def props(wSClient: WSClient,
-            eventStore: EventStore,
-            webhookStore: WebhookStore,
-            config: WebhookConfig): Props =
+  def props(wSClient: WSClient, eventStore: EventStore, webhookStore: WebhookStore, config: WebhookConfig): Props =
     Props(new WebHooksActor(wSClient, eventStore, webhookStore, config))
 }
 
-class WebHooksActor(wSClient: WSClient,
-                    eventStore: EventStore,
-                    webhookStore: WebhookStore,
-                    config: WebhookConfig)
+class WebHooksActor(wSClient: WSClient, eventStore: EventStore, webhookStore: WebhookStore, config: WebhookConfig)
     extends Actor {
 
   import domains.webhook.notifications.WebHooksActor._
@@ -70,6 +55,9 @@ class WebHooksActor(wSClient: WSClient,
     case WebhookCreated(_, hook, _, _) =>
       Logger.debug("WebHook created event, creating webhook actor if missing")
       createWebhook(hook)
+    case WebhookUpdated(_, _, hook, _, _) =>
+      Logger.debug("WebHook updated event, creating webhook actor if missing")
+      createWebhook(hook)
     case WebhookDeleted(_, hook, _, _) =>
       Logger.info(s"Deleting webhook ${hook.clientId.key}")
       context.child(buildId(hook.clientId)).foreach(_ ! PoisonPill)
@@ -80,7 +68,8 @@ class WebHooksActor(wSClient: WSClient,
   override def preStart(): Unit = {
     scheduler = Some(
       context.system.scheduler
-        .schedule(5.minutes, 5.minutes, self, RefreshWebhook))
+        .schedule(5.minutes, 5.minutes, self, RefreshWebhook)
+    )
     setUpWebHooks().foreach { _ =>
       eventStore
         .events(domains = Seq(Domain.Webhook))
@@ -114,9 +103,7 @@ class WebHooksActor(wSClient: WSClient,
     val childName = buildId(hook.clientId)
     if (context.child(childName).isEmpty) {
       Logger.info(s"Starting new webhook $childName")
-      val ref = context.actorOf(
-        WebHookActor.props(wSClient, webhookStore, hook, config),
-        childName)
+      val ref = context.actorOf(WebHookActor.props(wSClient, webhookStore, hook, config), childName)
       context.watch(ref)
     }
   }
@@ -140,45 +127,30 @@ object WebHookActor {
   case object WebhookBanned
   case object SendEvents
   case object ResetErrors
-  case class WebhookBannedException(id: WebhookKey)
-      extends RuntimeException(s"Too much error on webhook ${id.key}")
+  case class WebhookBannedException(id: WebhookKey) extends RuntimeException(s"Too much error on webhook ${id.key}")
 
-  def props(wSClient: WSClient,
-            webhookStore: WebhookStore,
-            webhook: Webhook,
-            config: WebhookConfig): Props =
+  def props(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webhook, config: WebhookConfig): Props =
     Props(new WebHookActor(wSClient, webhookStore, webhook, config))
 }
 
-class WebHookActor(wSClient: WSClient,
-                   webhookStore: WebhookStore,
-                   webhook: Webhook,
-                   config: WebhookConfig)
+class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webhook, config: WebhookConfig)
     extends Actor {
 
   import cats.syntax.option._
   import context.dispatcher
 
-  private val Webhook(id,
-                      callbackUrl,
-                      domains,
-                      patterns,
-                      types,
-                      JsObject(headers),
-                      _,
-                      _) = webhook
+  private val Webhook(id, callbackUrl, domains, patterns, types, JsObject(headers), _, _) = webhook
 
   private val effectivesHeaders: Seq[(String, String)] = headers.flatMap {
     case (name, JsString(value)) => (name, value).some
     case _                       => none[(String, String)]
-  }.toSeq ++ Seq("Accept" -> "application/json",
-                 "Content-Type" -> "application/json")
+  }.toSeq ++ Seq("Accept" -> "application/json", "Content-Type" -> "application/json")
 
   //Mutables vars
   private var scheduler: Option[Cancellable] = None
-  private var reset: Option[Cancellable] = None
-  private var queue = Set.empty[IzanamiEvent]
-  private var errorCount = 0
+  private var reset: Option[Cancellable]     = None
+  private var queue                          = Set.empty[IzanamiEvent]
+  private var errorCount                     = 0
 
   override def receive = {
     case event: IzanamiEvent if keepEvent(event) =>
@@ -192,7 +164,8 @@ class WebHookActor(wSClient: WSClient,
       errorCount = 0
       reset = Some(
         context.system.scheduler
-          .scheduleOnce(config.events.errorReset, self, ResetErrors))
+          .scheduleOnce(config.events.errorReset, self, ResetErrors)
+      )
 
     case SendEvents if queue.nonEmpty =>
       Logger.debug(s"Sending events within ${config.events.within}")
@@ -217,8 +190,7 @@ class WebHookActor(wSClient: WSClient,
             .post(json)
             .map { resp =>
               if (resp.status != 200) {
-                Logger.error(
-                  s"Error sending to webhook $callbackUrl : ${resp.body}")
+                Logger.error(s"Error sending to webhook $callbackUrl : ${resp.body}")
                 handleErrors()
               }
               Done
@@ -229,8 +201,9 @@ class WebHookActor(wSClient: WSClient,
                 handleErrors()
                 Done
             }
-        case Success(None) =>
+        case Success(_) =>
           context.stop(self)
+        case _ =>
       }
 
     } catch {
@@ -245,14 +218,13 @@ class WebHookActor(wSClient: WSClient,
     reset.foreach(_.cancel())
     reset = Some(
       context.system.scheduler
-        .scheduleOnce(config.events.errorReset, self, ResetErrors))
-    Logger.error(
-      s"Increasing error to $errorCount/${config.events.nbMaxErrors} for $id")
+        .scheduleOnce(config.events.errorReset, self, ResetErrors)
+    )
+    Logger.error(s"Increasing error to $errorCount/${config.events.nbMaxErrors} for $id")
     if (errorCount > config.events.nbMaxErrors) {
       Logger.error(s"$id is banned, updating db")
-      webhookStore.update(id, id, webhook.copy(isBanned = true)).onComplete {
-        _ =>
-          self ! WebhookBanned
+      webhookStore.update(id, id, webhook.copy(isBanned = true)).onComplete { _ =>
+        self ! WebhookBanned
       }
     }
   }
@@ -261,10 +233,12 @@ class WebHookActor(wSClient: WSClient,
     context.system.eventStream.subscribe(self, classOf[IzanamiEvent])
     scheduler = Some(
       context.system.scheduler
-        .schedule(config.events.within, config.events.within, self, SendEvents))
+        .schedule(config.events.within, config.events.within, self, SendEvents)
+    )
     reset = Some(
       context.system.scheduler
-        .scheduleOnce(config.events.errorReset, self, ResetErrors))
+        .scheduleOnce(config.events.errorReset, self, ResetErrors)
+    )
   }
 
   override def postStop(): Unit = {
