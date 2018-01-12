@@ -456,7 +456,7 @@ export class Table extends Component {
                   {this.state.error && <Alerts display={this.state.error} messages={this.state.errorList}/>}
                   {this.state.successMessages &&
                     this.state.successMessages.length > 0 &&
-                     <Alerts type="success" display={true} messages={this.state.successMessages}/>
+                     <Alerts type="success" display={true} messages={this.state.successMessages} onClose={() => this.setState({successMessages:[]})}/>
                   }
                 </div>
               </div>

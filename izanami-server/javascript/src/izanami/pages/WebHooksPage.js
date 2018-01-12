@@ -90,6 +90,11 @@ export class WebHooksPage extends Component {
             uploadLinks={[{title: "Upload", link: "/api/webhooks.ndjson"}]}
             showActions={true}
             showLink={false}
+            eventNames={{
+              created: 'WEBHOOK_CREATED',
+              updated: 'WEBHOOK_UPDATED',
+              deleted: 'WEBHOOK_DELETED'
+            }}
             extractKey={item => item ? item.clientId : null}/>
         </div>
       </div>
