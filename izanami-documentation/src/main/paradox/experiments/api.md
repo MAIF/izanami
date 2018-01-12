@@ -252,7 +252,7 @@ curl -X PATCH \
   -H 'Content-Type: application/json' \
   -H 'Izanami-Client-Id: xxxx' \
   -H 'Izanami-Client-Secret: xxxx' \
-  -d '[{"op": "replace", "path": "/name", "value": "Orange button or Blue button"}]' | jq 
+  -d '[{"op": "replace", "path": "/name", "value": "Orange button or Blue button"}, {"op": "replace", "path": "/variants/0/name", "value": "Orange button"}]' | jq 
 ```
 
 Will respond with a 200 status code:
@@ -266,7 +266,7 @@ Will respond with a 200 status code:
   "variants": [
     {
       "id": "A",
-      "name": "Red button",
+      "name": "Orange button",
       "description": "Variant A is the red button",
       "traffic": 0.5
     },

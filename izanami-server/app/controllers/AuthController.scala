@@ -25,14 +25,14 @@ class AuthController(_env: Env,
                      cc: ControllerComponents)
     extends AbstractController(cc) {
 
-  import system.dispatcher
   import domains.user.UserNoPassword._
+  import system.dispatcher
 
   lazy val _config = _env.izanamiConfig.filter match {
     case env.Default(config) => config
     case _                   => throw new RuntimeException("Wrong config")
   }
-  lazy val cookieName = _config.cookieClaim
+  lazy val cookieName           = _config.cookieClaim
   lazy val algorithm: Algorithm = Algorithm.HMAC512(_config.sharedKey)
 
   def authenticate: Action[JsValue] = Action.async(parse.json) { req =>
@@ -44,8 +44,7 @@ class AuthController(_env: Env,
           case Some(user: User) =>
             FastFuture.successful {
               user match {
-                case User(_, _, _, Some(password), _, _)
-                    if password == Sha.hexSha512(auth.password) =>
+                case User(_, _, _, Some(password), _, _) if password == Sha.hexSha512(auth.password) =>
                   val token: String = buildToken(user)
 
                   Ok(Json.toJson(user).as[JsObject] - "password")
@@ -70,8 +69,7 @@ class AuthController(_env: Env,
 
                   val token: String = buildToken(user)
 
-                  Ok(Json.toJson(user).as[JsObject] ++ Json.obj(
-                    "changeme" -> true))
+                  Ok(Json.toJson(user).as[JsObject] ++ Json.obj("changeme" -> true))
                     .withCookies(Cookie(name = cookieName, value = token))
                 }
                 case _ =>
@@ -94,7 +92,6 @@ class AuthController(_env: Env,
       .sign(algorithm)
 
   def logout() = Action { _ =>
-    Redirect("/login").withCookies(
-      Cookie(name = cookieName, value = "", maxAge = Some(0)))
+    Redirect("/login").withCookies(Cookie(name = cookieName, value = "", maxAge = Some(0)))
   }
 }

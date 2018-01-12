@@ -13,12 +13,7 @@ import domains.script.GlobalScriptStore
 import domains.webhook.WebhookStore
 import env.Env
 import play.api.libs.json.{JsArray, JsValue, Json}
-import play.api.mvc.{
-  AbstractController,
-  ActionBuilder,
-  AnyContent,
-  ControllerComponents
-}
+import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import store.{DefaultPagingResult, PagingResult}
 
 import scala.concurrent.Future
@@ -47,11 +42,7 @@ class SearchController(env: Env,
         .mapConcat(_.results.toList)
   }
 
-  def search(pattern: String,
-             features: Boolean,
-             configs: Boolean,
-             experiments: Boolean,
-             scripts: Boolean) =
+  def search(pattern: String, features: Boolean, configs: Boolean, experiments: Boolean, scripts: Boolean) =
     AuthAction.async { ctx =>
       val allPatterns: Seq[String] = ctx.authorizedPatterns :+ pattern
 
@@ -63,8 +54,7 @@ class SearchController(env: Env,
             featureStore
               .getByIdLike(allPatterns, 1, 10)
               .source()
-              .map(value =>
-                Json.obj("type" -> "features", "id" -> Json.toJson(value.id)))
+              .map(value => Json.obj("type" -> "features", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]
 
         val configsRes: Source[JsValue, NotUsed] =
@@ -72,9 +62,7 @@ class SearchController(env: Env,
             configStore
               .getByIdLike(allPatterns, 1, 10)
               .source()
-              .map(value =>
-                Json.obj("type" -> "configurations",
-                         "id" -> Json.toJson(value.id)))
+              .map(value => Json.obj("type" -> "configurations", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]
 
         val experimentsRes: Source[JsValue, NotUsed] =
@@ -82,9 +70,7 @@ class SearchController(env: Env,
             experimentStore
               .getByIdLike(allPatterns, 1, 10)
               .source()
-              .map(value =>
-                Json.obj("type" -> "experiments",
-                         "id" -> Json.toJson(value.id)))
+              .map(value => Json.obj("type" -> "experiments", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]
 
         val scriptsRes: Source[JsValue, NotUsed] =
@@ -92,8 +78,7 @@ class SearchController(env: Env,
             globalScriptStore
               .getByIdLike(allPatterns, 1, 10)
               .source()
-              .map(value =>
-                Json.obj("type" -> "scripts", "id" -> Json.toJson(value.id)))
+              .map(value => Json.obj("type" -> "scripts", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]
 
         val interleave = builder.add(Interleave[JsValue](4, 1))

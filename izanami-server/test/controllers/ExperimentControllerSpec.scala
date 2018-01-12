@@ -9,8 +9,6 @@ import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
 import test.OneServerPerSuiteWithMyComponents
 
-class LdbExperimentControllerSpec extends ExperimentControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig))
-
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec
     with OneServerPerSuiteWithMyComponents
