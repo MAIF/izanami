@@ -190,6 +190,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../configs/api.html#create-a-config" class="header">Create a config</a></li>
     <li><a href="../configs/api.html#get-a-config" class="header">Get a config</a></li>
     <li><a href="../configs/api.html#update-a-config" class="header">Update a config</a></li>
+    <li><a href="../configs/api.html#patch-a-config" class="header">Patch a config</a></li>
     <li><a href="../configs/api.html#delete-a-config" class="header">Delete a config</a></li>
   </ul></li>
   <li><a href="../configs/api.html#tree-api" class="header">Tree API</a></li>
@@ -272,6 +273,21 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <pre class="prettyprint"><code class="language-json">{
   &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
   &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+}
+</code></pre>
+<h3><a href="#patch-a-config" name="patch-a-config" class="anchor"><span class="anchor-link"></span></a>Patch a config</h3>
+<p>Partial updates can be done using json patch : </p>
+<pre class="prettyprint"><code class="language-bash">curl -X PATCH \
+  &#39;http://localhost:9000/api/configs/ragnar:lodbrok:city&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;[{&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;value&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;}]&#39;
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
+  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
 }
 </code></pre>
 <h3><a href="#delete-a-config" name="delete-a-config" class="anchor"><span class="anchor-link"></span></a>Delete a config</h3>

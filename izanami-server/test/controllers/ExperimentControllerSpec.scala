@@ -1,12 +1,15 @@
 package controllers
 
 import domains.abtesting._
+import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
 import test.OneServerPerSuiteWithMyComponents
+
+class LdbExperimentControllerSpec extends ExperimentControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig))
 
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec

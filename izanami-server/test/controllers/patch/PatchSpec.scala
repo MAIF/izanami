@@ -171,6 +171,36 @@ class PatchSpec
       ))
     }
 
+    "replace in array" in {
+      val json = Json.obj(
+        "name" -> "Ragnar Lodbrock",
+        "path" -> Json.obj(
+          "in" -> Json.arr(Json.obj(
+            "json" -> Json.obj(
+              "test" -> "testOld",
+              "other" -> "otherField"
+            )
+          )
+        ))
+      )
+
+      val replace = Replace((JsPath \ "path" \ "in" \ "json")(0) \ "test", JsString("test"))
+      val result: JsResult[JsObject] = Patch.patch(Seq(replace), json)
+      println(result)
+      result.isSuccess must be (true)
+
+      result.get must be(Json.obj(
+        "name" -> "Ragnar Lodbrock",
+        "path" -> Json.obj(
+          "in" -> Json.arr(Json.obj(
+            "json" -> Json.obj(
+              "test" -> "test",
+              "other" -> "otherField"
+            )
+          )
+          ))
+      ))
+    }
 
     "copy" in {
       val json = Json.obj(
@@ -254,7 +284,6 @@ class PatchSpec
       )
 
       val result: JsResult[JsObject] = Patch.patch(Seq(test), json)
-      println(result)
       result.isSuccess must be (true)
 
       val result1: JsResult[JsObject] = Patch.patch(Seq(Test(JsPath \ "path" \ "in" \ "json", Json.obj("test" -> "test1"))), json)

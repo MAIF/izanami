@@ -74,7 +74,7 @@ object Patch {
   def patchOne(patch: Patch, toPatch: JsObject): JsResult[JsObject] =
     patch match {
       case Add(path, value) => JsSuccess(path.write[JsValue].writes(value).deepMerge(toPatch))
-      case Remove(path)     => path.json.prune.reads(toPatch)
+      case Remove(path)     => path.prune(toPatch)
       case Replace(path, value) =>
         patchOne(Remove(path), toPatch)
           .flatMap(res => patchOne(Add(path, value), res))
