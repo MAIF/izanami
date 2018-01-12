@@ -214,6 +214,11 @@ export class ExperimentsPage extends Component {
                 {title: "UL bindings", link: "/api/experiments/bindings.ndjson"},
                 {title: "UL events", link: "/api/experiments/events.ndjson"},
               ]}
+              eventNames={{
+                created: 'EXPERIMENT_CREATED',
+                updated: 'EXPERIMENT_UPDATED',
+                deleted: 'EXPERIMENT_DELETED'
+              }}
               showActions={true}
               showLink={false}
               extractKey={item => item.id} />

@@ -86,6 +86,11 @@ export class ApikeyPage extends Component {
             extractKey={item => item.clientId}
             downloadLinks={[{title: "Download", link: "/api/apikeys.ndjson"}]}
             uploadLinks={[{title: "Upload", link: "/api/apikeys.ndjson"}]}
+            eventNames={{
+              created: 'APIKEY_CREATED',
+              updated: 'APIKEY_UPDATED',
+              deleted: 'APIKEY_DELETED'
+            }}
           />
         </div>
       </div>

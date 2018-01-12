@@ -97,6 +97,11 @@ function enabled(context, enabled, disabled, http) {
             downloadLinks={[{title: "Download", link: "/api/scripts.ndjson"}]}
             uploadLinks={[{title: "Upload", link: "/api/scripts.ndjson"}]}
             showActions={true}
+            eventNames={{
+              created: 'GLOBALSCRIPT_CREATED',
+              updated: 'GLOBALSCRIPT_UPDATED',
+              deleted: 'GLOBALSCRIPT_DELETED'
+            }}
             showLink={false}
             extractKey={item => item.id} />
         </div>
