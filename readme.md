@@ -10,10 +10,10 @@
 [jar-badge]:            https://api.bintray.com/packages/maif/binaries/izanami.jar/images/download.svg
 [client]:               https://bintray.com/maif/maven/izanami-client/_latestVersion
 [client-badge]:         https://api.bintray.com/packages/maif/maven/izanami-client/images/download.svg
-[nodeclient]:           https://bintray.com/maif/npm/izanami-client/_latestVersion
-[nodeclient-badge]:     https://api.bintray.com/packages/maif/npm/izanami-client/images/download.svg
-[reactclient]:          https://bintray.com/maif/npm/react-izanami/_latestVersion
-[reactclient-badge]:    https://api.bintray.com/packages/maif/npm/react-izanami/images/download.svg
+[nodeclient]:           https://badge.fury.io/js/izanami-node
+[nodeclient-badge]:     https://badge.fury.io/js/izanami-node.svg
+[reactclient]:          https://badge.fury.io/js/react-izanami
+[reactclient-badge]:    https://badge.fury.io/js/react-izanami.svg
 [docker]:               https://bintray.com/maif/docker/izanami/_latestVersion
 [docker-badge]:         https://api.bintray.com/packages/maif/docker/izanami/images/download.svg
 
@@ -31,9 +31,9 @@
 - Latest dist zip [![dist-badge][]][dist]  
 - Latest jar [![jar-badge][]][jar] 
 - Latest client [![jar-badge][]][jar] 
+- Latest docker image [![docker-badge][]][docker]
 - Latest node client [![nodeclient-badge][]][nodeclient] 
 - Latest react client [![reactclient-badge][]][reactclient]
-- Latest docker image [![docker-badge][]][docker]
 
 ## Documentation 
 
