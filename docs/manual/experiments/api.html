@@ -427,7 +427,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; \
-  -d &#39;[{&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;/name&quot;, &quot;value&quot;: &quot;Orange button or Blue button&quot;}]&#39; | jq 
+  -d &#39;[{&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;/name&quot;, &quot;value&quot;: &quot;Orange button or Blue button&quot;}, {&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;/variants/0/name&quot;, &quot;value&quot;: &quot;Orange button&quot;}]&#39; | jq 
 </code></pre>
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
@@ -438,7 +438,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   &quot;variants&quot;: [
     {
       &quot;id&quot;: &quot;A&quot;,
-      &quot;name&quot;: &quot;Red button&quot;,
+      &quot;name&quot;: &quot;Orange button&quot;,
       &quot;description&quot;: &quot;Variant A is the red button&quot;,
       &quot;traffic&quot;: 0.5
     },
