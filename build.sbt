@@ -38,7 +38,7 @@ releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies, // : ReleaseStep
   inquireVersions, // : ReleaseStep
   runClean, // : ReleaseStep
-  runTest, // : ReleaseStep
+  //runTest, // : ReleaseStep
   setReleaseVersion, // : ReleaseStep
   setVersionToNpmProject,
   commitReleaseVersion, // : ReleaseStep, performs the initial git checks
