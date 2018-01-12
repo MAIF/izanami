@@ -6,12 +6,10 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.AuthContext
-import controllers.patch.Patch
-import controllers.patch.Patch.Patch
-import domains.feature.Feature
 import domains.script.{GlobalScript, GlobalScriptStore}
 import domains.{Import, ImportResult, Key}
 import env.Env
+import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
@@ -119,12 +117,11 @@ class GlobalScriptController(env: Env,
     import GlobalScript._
     val key = Key(id)
     for {
-      patch <- ctx.request.body.validate[Seq[Patch]] |> liftJsResult(
-                err => BadRequest(AppErrors.fromJsError(err).toJson)
-              )
       current <- globalScriptStore.getById(key).one |> liftFOption[Result, GlobalScript](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
-      updated <- Patch.patchAs(patch, current) |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
+                  err => BadRequest(AppErrors.fromJsError(err).toJson)
+                )
       event <- globalScriptStore
                 .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(updated))

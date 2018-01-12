@@ -6,12 +6,11 @@ import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import controllers.actions.AuthContext
-import controllers.patch.Patch
-import controllers.patch.Patch.Patch
 import domains.abtesting.Experiment
 import domains.feature.{Feature, FeatureStore}
 import domains.{AuthInfo, Import, ImportResult, Key}
 import env.Env
+import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json._
@@ -199,12 +198,11 @@ class FeatureController(env: Env,
     import Feature._
     val key = Key(id)
     for {
-      patch <- ctx.request.body.validate[Seq[Patch]] |> liftJsResult(
-                err => BadRequest(AppErrors.fromJsError(err).toJson)
-              )
       current <- featureStore.getById(key).one |> liftFOption[Result, Feature](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
-      updated <- Patch.patchAs(patch, current) |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
+                  err => BadRequest(AppErrors.fromJsError(err).toJson)
+                )
       event <- featureStore
                 .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(updated))
