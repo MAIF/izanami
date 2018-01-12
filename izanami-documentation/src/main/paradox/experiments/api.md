@@ -241,6 +241,45 @@ Will respond with a 200 status code:
 }
 ```
 
+
+### Patch an experiment  
+
+Partial updates can be done using json patch : 
+
+```bash
+curl -X PATCH \
+  'http://localhost:9000/api/experiments/izanami:test:button:color' \
+  -H 'Content-Type: application/json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '[{"op": "replace", "path": "/name", "value": "Orange button or Blue button"}]' | jq 
+```
+
+Will respond with a 200 status code:
+
+```json
+{
+  "id": "izanami:test:button:color",
+  "name": "Orange button or Blue button",
+  "description": "Which button is the best ...",
+  "enabled": true,
+  "variants": [
+    {
+      "id": "A",
+      "name": "Red button",
+      "description": "Variant A is the red button",
+      "traffic": 0.5
+    },
+    {
+      "id": "B",
+      "name": "Variant B",
+      "description": "Variant B is the blue button",
+      "traffic": 0.5
+    }
+  ]
+}
+```
+
 ### Delete an experiment
 
 
