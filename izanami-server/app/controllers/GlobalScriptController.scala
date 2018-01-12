@@ -9,6 +9,7 @@ import controllers.actions.AuthContext
 import domains.script.{GlobalScript, GlobalScriptStore}
 import domains.{Import, ImportResult, Key}
 import env.Env
+import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
@@ -30,10 +31,7 @@ class GlobalScriptController(env: Env,
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def list(pattern: String,
-           name_only: Option[Boolean],
-           page: Int = 1,
-           nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, name_only: Option[Boolean], page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       import GlobalScript._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
@@ -49,10 +47,10 @@ class GlobalScriptController(env: Env,
                       Json.obj("label" -> name, "value" -> id)
                   }),
                   "metadata" -> Json.obj(
-                    "page" -> page,
+                    "page"     -> page,
                     "pageSize" -> nbElementPerPage,
-                    "count" -> r.count,
-                    "nbPages" -> r.nbPages
+                    "count"    -> r.count,
+                    "nbPages"  -> r.nbPages
                   )
                 )
               )
@@ -61,10 +59,10 @@ class GlobalScriptController(env: Env,
                 Json.obj(
                   "results" -> Json.toJson(r.results),
                   "metadata" -> Json.obj(
-                    "page" -> page,
+                    "page"     -> page,
                     "pageSize" -> nbElementPerPage,
-                    "count" -> r.count,
-                    "nbPages" -> r.nbPages
+                    "count"    -> r.count,
+                    "nbPages"  -> r.nbPages
                   )
                 )
               )
@@ -77,14 +75,13 @@ class GlobalScriptController(env: Env,
     import GlobalScript._
     for {
       globalScript <- ctx.request.body.validate[GlobalScript] |> liftJsResult(
-        err => BadRequest(AppErrors.fromJsError(err).toJson)
-      )
+                       err => BadRequest(AppErrors.fromJsError(err).toJson)
+                     )
       _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
-        Forbidden(AppErrors.error("error.forbidden").toJson)
-      )
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       event <- globalScriptStore
-        .create(globalScript.id, globalScript) |> mapLeft(
-        err => BadRequest(err.toJson))
+                .create(globalScript.id, globalScript) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(globalScript))
   }
 
@@ -93,30 +90,41 @@ class GlobalScriptController(env: Env,
     val key = Key(id)
     for {
       _ <- GlobalScript.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
-        Forbidden(AppErrors.error("error.forbidden").toJson)
-      )
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       globalScript <- globalScriptStore
-        .getById(key)
-        .one |> liftFOption[Result, GlobalScript](NotFound)
+                       .getById(key)
+                       .one |> liftFOption[Result, GlobalScript](NotFound)
     } yield Ok(Json.toJson(globalScript))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) {
-    ctx =>
-      import GlobalScript._
-      for {
-        globalScript <- ctx.request.body.validate[GlobalScript] |> liftJsResult(
-          err => BadRequest(AppErrors.fromJsError(err).toJson)
-        )
-        _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
-          Forbidden(AppErrors.error("error.forbidden").toJson)
-        )
-        event <- globalScriptStore.update(Key(id),
-                                          globalScript.id,
-                                          globalScript) |> mapLeft(
-          err => BadRequest(err.toJson)
-        )
-      } yield Ok(Json.toJson(globalScript))
+  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import GlobalScript._
+    for {
+      globalScript <- ctx.request.body.validate[GlobalScript] |> liftJsResult(
+                       err => BadRequest(AppErrors.fromJsError(err).toJson)
+                     )
+      _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
+      event <- globalScriptStore.update(Key(id), globalScript.id, globalScript) |> mapLeft(
+                err => BadRequest(err.toJson)
+              )
+    } yield Ok(Json.toJson(globalScript))
+  }
+
+  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+    import GlobalScript._
+    val key = Key(id)
+    for {
+      current <- globalScriptStore.getById(key).one |> liftFOption[Result, GlobalScript](NotFound)
+      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
+                  err => BadRequest(AppErrors.fromJsError(err).toJson)
+                )
+      event <- globalScriptStore
+                .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
+    } yield Ok(Json.toJson(updated))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
@@ -124,21 +132,19 @@ class GlobalScriptController(env: Env,
     val key = Key(id)
     for {
       globalScript <- globalScriptStore
-        .getById(key)
-        .one |> liftFOption[Result, GlobalScript](NotFound)
+                       .getById(key)
+                       .one |> liftFOption[Result, GlobalScript](NotFound)
       _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
-        Forbidden(AppErrors.error("error.forbidden").toJson)
-      )
-      deleted <- globalScriptStore.delete(key) |> mapLeft(
-        err => BadRequest(err.toJson))
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
+      deleted <- globalScriptStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(globalScript))
   }
 
   def deleteAll(pattern: String): Action[AnyContent] = AuthAction.async { ctx =>
     val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
     for {
-      deletes <- globalScriptStore.deleteAll(patternsSeq) |> mapLeft(
-        err => BadRequest(err.toJson))
+      deletes <- globalScriptStore.deleteAll(patternsSeq) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok
   }
 
@@ -151,9 +157,7 @@ class GlobalScriptController(env: Env,
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(
-      header = ResponseHeader(200,
-                              Map("Content-Disposition" -> "attachment",
-                                  "filename" -> "scripts.dnjson")),
+      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "scripts.dnjson")),
       body = HttpEntity.Streamed(source, None, Some("application/json"))
     )
   }
@@ -167,8 +171,7 @@ class GlobalScriptController(env: Env,
             ImportResult.fromResult _
           }
         case (s, JsError(_)) =>
-          FastFuture.successful(
-            ImportResult.error(ErrorMessage("json.parse.error", s)))
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
       .map {
