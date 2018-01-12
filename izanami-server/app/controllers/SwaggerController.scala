@@ -568,13 +568,13 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
           "in"          -> "body",
           "name"        -> "body",
           "required"    -> true,
-          "schema"      -> Ref("Config"),
-          "description" -> "The config to create"
+          "schema"      -> Ref("Patch"),
+          "description" -> "The json patch payload to apply see : http://jsonpatch.com/"
         )
       ),
       goodResponse = Json.obj(
         "description" -> "Successful operation",
-        "schema"      -> Ref("Patch")
+        "schema"      -> Ref("Config")
       )
     ),
     "delete" -> Operation(
@@ -757,7 +757,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
           "name"        -> "body",
           "required"    -> true,
           "schema"      -> Ref("Patch"),
-          "description" -> "The json patch operations"
+          "description" -> "The json patch payload to apply see : http://jsonpatch.com/"
         )
       ),
       goodResponse = Json.obj(
@@ -944,13 +944,13 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
           "in"          -> "body",
           "name"        -> "body",
           "required"    -> true,
-          "schema"      -> Ref("Script"),
-          "description" -> "The script to create"
+          "schema"      -> Ref("Patch"),
+          "description" -> "The json patch payload to apply see : http://jsonpatch.com/"
         )
       ),
       goodResponse = Json.obj(
         "description" -> "Successful operation",
-        "schema"      -> Ref("Patch")
+        "schema"      -> Ref("Script")
       )
     ),
     "delete" -> Operation(
@@ -1110,13 +1110,13 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
           "in"          -> "body",
           "name"        -> "body",
           "required"    -> true,
-          "schema"      -> Ref("Experiment"),
-          "description" -> "The experiment to create"
+          "schema"      -> Ref("Patch"),
+          "description" -> "The json patch payload to apply see : http://jsonpatch.com/"
         )
       ),
       goodResponse = Json.obj(
         "description" -> "Successful operation",
-        "schema"      -> Ref("Patch")
+        "schema"      -> Ref("Experiment")
       )
     ),
     "delete" -> Operation(
@@ -1415,13 +1415,13 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
           "in"          -> "body",
           "name"        -> "body",
           "required"    -> true,
-          "schema"      -> Ref("User"),
-          "description" -> "The user to create"
+          "schema"      -> Ref("Patch"),
+          "description" -> "The json patch payload to apply see : http://jsonpatch.com/"
         )
       ),
       goodResponse = Json.obj(
         "description" -> "Successful operation",
-        "schema"      -> Ref("Patch")
+        "schema"      -> Ref("User")
       )
     ),
     "delete" -> Operation(
@@ -1581,13 +1581,13 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
           "in"          -> "body",
           "name"        -> "body",
           "required"    -> true,
-          "schema"      -> Ref("Webhook"),
-          "description" -> "The webhook to create"
+          "schema"      -> Ref("Patch"),
+          "description" -> "The json patch payload to apply see : http://jsonpatch.com/"
         )
       ),
       goodResponse = Json.obj(
         "description" -> "Successful operation",
-        "schema"      -> Ref("Patch")
+        "schema"      -> Ref("Webhook")
       )
     ),
     "delete" -> Operation(
@@ -1747,13 +1747,13 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
           "in"          -> "body",
           "name"        -> "body",
           "required"    -> true,
-          "schema"      -> Ref("ApiKey"),
-          "description" -> "The apiKey to create"
+          "schema"      -> Ref("Patch"),
+          "description" -> "The json patch payload to apply see : http://jsonpatch.com/"
         )
       ),
       goodResponse = Json.obj(
         "description" -> "Successful operation",
-        "schema"      -> Ref("Patch")
+        "schema"      -> Ref("ApiKey")
       )
     ),
     "delete" -> Operation(
