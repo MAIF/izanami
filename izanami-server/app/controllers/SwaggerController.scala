@@ -115,8 +115,8 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
         "url"         -> "https://www.opunmaif.fr/#izanami"
       ),
       "host"     -> "",
-      "basePath" -> "/api",
-      "schemes"  -> Json.arr("https"),
+      "basePath" -> "",
+      "schemes"  -> Json.arr("https", "http"),
       "paths" -> Json.obj(
         "/api/configs"                              -> AllConfigs,
         "/api/configs/{configId}"                   -> Configs,
@@ -455,7 +455,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       parameters = Json.arr(
         Json.obj(
           "in"          -> "query",
-          "name"        -> "keyConfig",
+          "name"        -> "pattern",
           "required"    -> false,
           "type"        -> "string",
           "description" -> "Patterns on config key"
@@ -643,7 +643,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       parameters = Json.arr(
         Json.obj(
           "in"          -> "query",
-          "name"        -> "keyFeature",
+          "name"        -> "pattern",
           "required"    -> false,
           "type"        -> "string",
           "description" -> "Patterns on feature key"
@@ -831,7 +831,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       parameters = Json.arr(
         Json.obj(
           "in"          -> "query",
-          "name"        -> "keyScript",
+          "name"        -> "pattern",
           "required"    -> false,
           "type"        -> "string",
           "description" -> "Patterns on script key"
@@ -997,7 +997,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       parameters = Json.arr(
         Json.obj(
           "in"          -> "query",
-          "name"        -> "keyExperiment",
+          "name"        -> "pattern",
           "required"    -> false,
           "type"        -> "string",
           "description" -> "Patterns on experiment key"
@@ -1302,7 +1302,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       parameters = Json.arr(
         Json.obj(
           "in"          -> "query",
-          "name"        -> "keyUser",
+          "name"        -> "pattern",
           "required"    -> false,
           "type"        -> "string",
           "description" -> "Patterns on user key"
@@ -1468,7 +1468,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       parameters = Json.arr(
         Json.obj(
           "in"          -> "query",
-          "name"        -> "keyWebhook",
+          "name"        -> "pattern",
           "required"    -> false,
           "type"        -> "string",
           "description" -> "Patterns on webhook key"
@@ -1634,7 +1634,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       parameters = Json.arr(
         Json.obj(
           "in"          -> "query",
-          "name"        -> "keyApiKey",
+          "name"        -> "pattern",
           "required"    -> false,
           "type"        -> "string",
           "description" -> "Patterns on apiKey key"

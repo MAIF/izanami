@@ -117,7 +117,7 @@ PUT     /api/bo/loggers/:name/level         controllers.BackOfficeController.cha
 GET     /api/bo/loggers                     controllers.BackOfficeController.getAllLoggers()
 
 GET     /api/swagger.json                   controllers.SwaggerController.swagger()
-GET     /api/swagger/ui                     controllers.SwaggerController.swaggerUi()
+GET     /swagger/ui                     controllers.SwaggerController.swaggerUi()
 
 
 # Map static resources from the /public folder to the /assets URL path
