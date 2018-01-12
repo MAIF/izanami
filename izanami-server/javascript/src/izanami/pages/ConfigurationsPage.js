@@ -74,6 +74,11 @@ export class ConfigurationsPage extends Component {
             uploadLinks={[{title: "Upload", link: "/api/configs.ndjson"}]}
             showActions={true}
             showLink={false}
+            eventNames={{
+              created: 'CONFIG_CREATED',
+              updated: 'CONFIG_UPDATED',
+              deleted: 'CONFIG_DELETED'
+            }}
             extractKey={item => item.id} />
         </div>
       </div>

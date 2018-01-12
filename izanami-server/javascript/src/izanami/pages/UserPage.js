@@ -90,6 +90,11 @@ export class UserPage extends Component {
             uploadLinks={[{title: "Upload", link: "/api/users.ndjson"}]}
             showActions={true}
             showLink={false}
+            eventNames={{
+              created: 'USER_CREATED',
+              updated: 'USER_UPDATED',
+              deleted: 'USER_DELETED'
+            }}
             extractKey={item => item.id} />
         </div>
       </div>
