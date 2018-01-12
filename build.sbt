@@ -37,7 +37,7 @@ val setVersionToNpmProject = ReleaseStep(action = st => {
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies, // : ReleaseStep
   inquireVersions, // : ReleaseStep
-  runClean, // : ReleaseStep
+  runClean,        // : ReleaseStep
   //runTest, // : ReleaseStep
   setReleaseVersion, // : ReleaseStep
   setVersionToNpmProject,
