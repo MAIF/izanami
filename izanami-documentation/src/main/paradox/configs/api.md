@@ -108,6 +108,28 @@ Will respond with a 200 status code:
 }
 ```
 
+### Patch a config 
+
+Partial updates can be done using json patch : 
+
+```bash
+curl -X PATCH \
+  'http://localhost:9000/api/configs/ragnar:lodbrok:city' \
+  -H 'Content-Type: application/json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '[{"op": "replace", "path": "value", "value": "{\"city\": \"Northumbria\"}"}]'
+```
+
+Will respond with a 200 status code:
+
+```json
+{
+  "id": "ragnar:lodbrok:city",
+  "value": "{\"city\": \"Kattegat\"}"
+}
+```
+
 ### Delete a config
 
  
