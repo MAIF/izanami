@@ -55,6 +55,7 @@ lazy val publishCommonsSettings = Seq(
   developers := List(
     Developer("alexandre.delegue", "Alexandre Delègue", "", url(s"https://github.com/larousso"))
   ),
+  releaseCrossBuild := true,
   publishMavenStyle := true,
   publishArtifact in Test := false,
   bintrayVcsUrl := Some(s"scm:git:git@github.com:$githubRepo.git")
