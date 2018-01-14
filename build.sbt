@@ -33,7 +33,13 @@ val setVersionToNpmProject = ReleaseStep(action = st => {
   // retrieve the value of the organization SettingKey
   val version = extracted.get(Keys.version)
 
-  s"sh release.sh $version" !
+  val regex = "(.*)-SNAPSHOT".r
+  version match {
+    case regex(v) =>
+      s"sh release.sh $v" !
+    case _ =>
+      s"sh release.sh $version" !
+  }
 
   st
 })
