@@ -18,10 +18,12 @@ lazy val `izanami-documentation` = project
 
 lazy val `izanami-server` = project.enablePlugins(NoPublish)
 
-lazy val `izanami-clients` = project.enablePlugins(NoPublish)
+lazy val `izanami-clients` = project
+  .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-lazy val simulation = project.enablePlugins(NoPublish)
+lazy val simulation = project
+  .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
 val setVersionToNpmProject = ReleaseStep(action = st => {
