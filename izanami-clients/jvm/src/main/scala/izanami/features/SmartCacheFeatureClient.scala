@@ -21,14 +21,10 @@ object SmartCacheFeatureClient {
   def apply(clientConfig: ClientConfig,
             underlyingStrategy: FeatureClient,
             fallback: Features,
-            config: SmartCacheStrategy)(
-      implicit izanamiDispatcher: IzanamiDispatcher,
-      actorSystem: ActorSystem,
-      materializer: Materializer): SmartCacheFeatureClient =
-    new SmartCacheFeatureClient(clientConfig,
-                                underlyingStrategy,
-                                fallback,
-                                config)
+            config: SmartCacheStrategy)(implicit izanamiDispatcher: IzanamiDispatcher,
+                                        actorSystem: ActorSystem,
+                                        materializer: Materializer): SmartCacheFeatureClient =
+    new SmartCacheFeatureClient(clientConfig, underlyingStrategy, fallback, config)
 }
 
 private[features] class SmartCacheFeatureClient(
@@ -36,9 +32,7 @@ private[features] class SmartCacheFeatureClient(
     underlyingStrategy: FeatureClient,
     fallback: Features,
     config: SmartCacheStrategy
-)(implicit val izanamiDispatcher: IzanamiDispatcher,
-  actorSystem: ActorSystem,
-  val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends FeatureClient {
 
   import akka.pattern._
@@ -65,13 +59,12 @@ private[features] class SmartCacheFeatureClient(
     .toMat(BroadcastHub.sink(1024))(Keep.both)
     .run()
 
-  def onValueUpdated(updates: Seq[CacheEvent[Feature]]): Unit = {
+  def onValueUpdated(updates: Seq[CacheEvent[Feature]]): Unit =
     updates.foreach {
       case ValueCreated(k, v)      => queue.offer(FeatureCreated(k, v))
       case ValueUpdated(k, v, old) => queue.offer(FeatureUpdated(k, v, old))
       case ValueDeleted(k, _)      => queue.offer(FeatureDeleted(k))
     }
-  }
 
   underlyingStrategy
     .featuresSource("*")
@@ -89,8 +82,7 @@ private[features] class SmartCacheFeatureClient(
       Option(pattern).map(_.replace(".", ":")).getOrElse("*")
     (ref ? GetByPattern(convertedPattern))
       .mapTo[Seq[Feature]]
-      .map(features =>
-        Features(clientConfig, features, fallback = fallback.featuresSeq))
+      .map(features => Features(clientConfig, features, fallback = fallback.featuresSeq))
   }
 
   override def features(pattern: String, context: JsObject): Future[Features] =
@@ -125,7 +117,8 @@ private[features] class SmartCacheFeatureClient(
       .map(
         f =>
           f.map(_.isActive(clientConfig))
-            .getOrElse(fallback.isActive(convertedKey)))
+            .getOrElse(fallback.isActive(convertedKey))
+      )
   }
 
   override def checkFeature(key: String, context: JsObject): Future[Boolean] =
@@ -135,8 +128,7 @@ private[features] class SmartCacheFeatureClient(
     underlyingStrategy
       .featuresSource(pattern)
       .merge(
-        internalEventSource.filter(f =>
-          PatternsUtil.matchPattern(pattern)(f.id))
+        internalEventSource.filter(f => PatternsUtil.matchPattern(pattern)(f.id))
       )
       .alsoTo(Sink.foreach { e =>
         logger.debug(s"Event $e")
@@ -145,8 +137,7 @@ private[features] class SmartCacheFeatureClient(
   override def featuresStream(pattern: String) =
     featuresSource(pattern).runWith(Sink.asPublisher(fanout = true))
 
-  private def fetchDatas[T](
-      patterns: Seq[String]): Future[Seq[(String, Feature)]] = {
+  private def fetchDatas[T](patterns: Seq[String]): Future[Seq[(String, Feature)]] = {
 
     val fetched: Future[immutable.Seq[(String, Feature)]] =
       Source(patterns.toList)

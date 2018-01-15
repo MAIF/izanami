@@ -23,10 +23,9 @@ object SmartCacheStrategyActor {
   case class GetByPattern(key: String)
 
   sealed trait CacheEvent[T]
-  case class ValueUpdated[T](key: String, newValue: T, oldValue: T)
-      extends CacheEvent[T]
-  case class ValueCreated[T](key: String, newValue: T) extends CacheEvent[T]
-  case class ValueDeleted[T](key: String, oldValue: T) extends CacheEvent[T]
+  case class ValueUpdated[T](key: String, newValue: T, oldValue: T) extends CacheEvent[T]
+  case class ValueCreated[T](key: String, newValue: T)              extends CacheEvent[T]
+  case class ValueDeleted[T](key: String, oldValue: T)              extends CacheEvent[T]
 
   def props[T](
       dispatcher: IzanamiDispatcher,
@@ -64,12 +63,11 @@ private[izanami] class SmartCacheStrategyActor[T](
   private implicit val mat =
     ActorMaterializer(
       ActorMaterializerSettings(context.system)
-        .withDispatcher(dispatcher.name))(context)
+        .withDispatcher(dispatcher.name)
+    )(context)
 
   override def receive =
-    logic(patterns = initialPatterns.toSet,
-          cache = fallback,
-          pollingScheduler = None)
+    logic(patterns = initialPatterns.toSet, cache = fallback, pollingScheduler = None)
 
   private def logic(
       patterns: Set[String],
@@ -80,8 +78,10 @@ private[izanami] class SmartCacheStrategyActor[T](
     case Init =>
       val scheduler = config match {
         case c: CacheWithPollingStrategy =>
-          Some(context.system.scheduler
-            .schedule(c.pollingInterval, c.pollingInterval, self, RefreshCache))
+          Some(
+            context.system.scheduler
+              .schedule(c.pollingInterval, c.pollingInterval, self, RefreshCache)
+          )
         case _ => None
       }
       context.become(
@@ -92,8 +92,7 @@ private[izanami] class SmartCacheStrategyActor[T](
         ),
         discardOld = true
       )
-      log.info(
-        s"Initializing smart cache actor with strategie $config and patterns $patterns")
+      log.info(s"Initializing smart cache actor with strategie $config and patterns $patterns")
       val initValues: Future[SetValues[T]] =
         fetchData(patterns.toSeq).map { r =>
           SetValues[T](r, triggerEvent = true)
@@ -154,8 +153,7 @@ private[izanami] class SmartCacheStrategyActor[T](
       log.debug(s"Refresh cache for patterns $patterns")
       val keysAndPatterns = resolvePatterns(patterns.toSeq, cache.keys.toSeq)
 
-      pipe(fetchData(keysAndPatterns).map(r =>
-        SetValues[T](r, triggerEvent = true))) to self
+      pipe(fetchData(keysAndPatterns).map(r => SetValues[T](r, triggerEvent = true))) to self
 
     case SetValues(values, triggerEvent) =>
       log.debug("Updating cache with values {}", values)
@@ -219,8 +217,7 @@ private[izanami] class SmartCacheStrategyActor[T](
   override def postStop(): Unit =
     self ! Stop
 
-  private def resolvePatterns(existingPatterns: Seq[String],
-                              keys: Seq[String]): Seq[String] =
+  private def resolvePatterns(existingPatterns: Seq[String], keys: Seq[String]): Seq[String] =
     keys.filterNot(PatternsUtil.matchOnePattern(existingPatterns)) ++ existingPatterns
 
 }

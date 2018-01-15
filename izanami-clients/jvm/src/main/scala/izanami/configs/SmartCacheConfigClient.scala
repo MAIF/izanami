@@ -7,11 +7,7 @@ import akka.stream.{Materializer, OverflowStrategy}
 import akka.util.Timeout
 import izanami._
 import izanami.commons.{PatternsUtil, SmartCacheStrategyActor}
-import izanami.scaladsl.ConfigEvent.{
-  ConfigCreated,
-  ConfigDeleted,
-  ConfigUpdated
-}
+import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import izanami.scaladsl._
 import org.reactivestreams.Publisher
 import play.api.libs.json.JsValue
@@ -24,23 +20,18 @@ object SmartCacheConfigClient {
   def apply(clientConfig: ClientConfig,
             underlyingStrategy: ConfigClient,
             fallback: Configs,
-            config: SmartCacheStrategy)(
-      implicit izanamiDispatcher: IzanamiDispatcher,
-      actorSystem: ActorSystem,
-      materializer: Materializer): SmartCacheConfigClient =
-    new SmartCacheConfigClient(clientConfig,
-                               underlyingStrategy,
-                               fallback,
-                               config)
+            config: SmartCacheStrategy)(implicit izanamiDispatcher: IzanamiDispatcher,
+                                        actorSystem: ActorSystem,
+                                        materializer: Materializer): SmartCacheConfigClient =
+    new SmartCacheConfigClient(clientConfig, underlyingStrategy, fallback, config)
 }
 
-class SmartCacheConfigClient(clientConfig: ClientConfig,
-                             underlyingStrategy: ConfigClient,
-                             fallback: Configs,
-                             config: SmartCacheStrategy)(
-    implicit val izanamiDispatcher: IzanamiDispatcher,
-    actorSystem: ActorSystem,
-    val materializer: Materializer)
+class SmartCacheConfigClient(
+    clientConfig: ClientConfig,
+    underlyingStrategy: ConfigClient,
+    fallback: Configs,
+    config: SmartCacheStrategy
+)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
   import akka.pattern._
@@ -76,13 +67,12 @@ class SmartCacheConfigClient(clientConfig: ClientConfig,
     .toMat(BroadcastHub.sink(1024))(Keep.both)
     .run()
 
-  def onValueUpdated(updates: Seq[CacheEvent[Config]]): Unit = {
+  def onValueUpdated(updates: Seq[CacheEvent[Config]]): Unit =
     updates.foreach {
       case ValueCreated(k, v)      => queue.offer(ConfigCreated(k, v))
       case ValueUpdated(k, v, old) => queue.offer(ConfigUpdated(k, v, old))
       case ValueDeleted(k, _)      => queue.offer(ConfigDeleted(k))
     }
-  }
   override def configs(pattern: String): Future[Configs] = {
     val convertedPattern: String =
       Option(pattern).map(_.replace(".", ":")).getOrElse("*")
@@ -103,8 +93,7 @@ class SmartCacheConfigClient(clientConfig: ClientConfig,
     underlyingStrategy
       .configsSource(pattern)
       .merge(
-        internalEventSource.filter(f =>
-          PatternsUtil.matchPattern(pattern)(f.id))
+        internalEventSource.filter(f => PatternsUtil.matchPattern(pattern)(f.id))
       )
 
   override def configsStream(pattern: String): Publisher[ConfigEvent] =
