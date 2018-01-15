@@ -10,32 +10,33 @@ then
 
     if [ -z "$TRAVIS_TAG" ];
     then
-        echo 'Not a tag publishing beta to npm registry'
-        cd ${LOCATION}/izanami-clients/react
-        npm install
-        PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-        PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-beta.${TRAVIS_BUILD_NUMBER}"
-        npm version ${PACKAGE_VERSION}
-
-        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
-        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
-        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
-        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
-
-        npm publish
-
-        cd ${LOCATION}/izanami-clients/node
-
-        PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-        PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}"
-        npm version ${PACKAGE_VERSION}
-
-        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
-        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
-        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
-        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
-
-        npm publish
+#        echo 'Not a tag publishing beta to npm registry'
+#        cd ${LOCATION}/izanami-clients/react
+#        npm install
+#        PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
+#        PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-beta.${TRAVIS_BUILD_NUMBER}"
+#        npm version ${PACKAGE_VERSION}
+#
+#        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
+#        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
+#        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
+#        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
+#
+#        npm publish
+#
+#        cd ${LOCATION}/izanami-clients/node
+#
+#        PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
+#        PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}"
+#        npm version ${PACKAGE_VERSION}
+#
+#        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
+#        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
+#        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
+#        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
+#
+#        npm publish
+        echo 'Not a release: nothing'
     else
         echo "Publishing npm packages for tag ${TRAVIS_TAG}"
 
