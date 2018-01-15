@@ -4,6 +4,7 @@ data
 .credentials
 .dockercfg
 .npmrc
+npmrc
 .artifactory
 secrets.tar
 logs
