@@ -16,11 +16,9 @@ lazy val `izanami-documentation` = project
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-lazy val `izanami-server` = project.enablePlugins(NoPublish)
+lazy val `izanami-server` = project
 
 lazy val `izanami-clients` = project
-  .enablePlugins(NoPublish)
-  .disablePlugins(BintrayPlugin)
 
 lazy val simulation = project
   .enablePlugins(NoPublish)
