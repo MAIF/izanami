@@ -36,7 +36,7 @@ then
 #        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
 #
 #        npm publish
-        echo 'Not a release: nothing'
+        sh $LOCATION/scripts/publish-npm-bintray.sh
     else
         echo "Publishing npm packages for tag ${TRAVIS_TAG}"
 
