@@ -369,7 +369,12 @@ object Config {
   import play.api.libs.functional.syntax._
   private val read = (
     (__ \ "id").read[String] and
-    (__ \ "value").read[String].map(s => Json.parse(s)).orElse {
+    (__ \ "value").read[String].flatMap(s => Reads[JsValue]{ _ =>
+        Try(Json.parse(s)).fold(
+          e => JsError("Error parsing json"),
+          json => JsSuccess(json)
+        )
+    }).orElse {
       (__ \ "value").read[JsValue]
     }
   )(Config.apply _)
