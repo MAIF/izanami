@@ -18,13 +18,14 @@ class IzanamicFeatureClient {
       const value = _.get(this.config.fallbackConfig, dottyKey) || { active: false };
       return new Promise((s, f) => s(value.active || false));
     }
+    const config = this.config;
     return fetch(url, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.config.clientId,
-        [this.config.clientSecretName]: this.config.clientSecret,
+        [config.clientIdName]: config.clientId,
+        [config.clientSecretName]: config.clientSecret,
       },
       body: JSON.stringify(context)
     }).then(r => {
@@ -49,13 +50,14 @@ class IzanamicFeatureClient {
     if (this.config.env === 'DEV') {
       return new Promise((s, f) => s(_.get(this.config.fallbackConfig, dottyKey)));
     }
+    const config = this.config;
     return fetch(url, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.config.clientId,
-        [this.config.clientSecretName]: this.config.clientSecret,
+        [config.clientIdName]: config.clientId,
+        [config.clientSecretName]: config.clientSecret,
       },
       body: JSON.stringify(context)
     }).then(r => {
@@ -86,13 +88,14 @@ class IzanamiConfigClient {
       const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
       return new Promise((s, f) => s(value.active || {}));
     }
+    const conf = this.conf;
     return fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.conf.clientId,
-        [this.config.clientSecretName]: this.conf.clientSecret,
+        [conf.clientIdName]: conf.clientId,
+        [conf.clientSecretName]: conf.clientSecret,
       }
     }).then(r => {
       try {
