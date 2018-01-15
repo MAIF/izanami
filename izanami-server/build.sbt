@@ -8,6 +8,7 @@ name in Universal := "izanami"
 
 lazy val `izanami-server` = (project in file("."))
   .enablePlugins(PlayScala, DockerPlugin)
+  .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
 scalaVersion := "2.12.4"
