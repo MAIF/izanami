@@ -128,8 +128,8 @@ class IzanamiConfigClient {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.conf.clientId,
-        [this.config.clientSecretName]: this.conf.clientSecret,
+        [this.conf.clientIdName]: this.conf.clientId,
+        [this.conf.clientSecretName]: this.conf.clientSecret,
       }
     }).then(r => {
       try {
@@ -164,8 +164,8 @@ class IzanamiExperimentsClient {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.conf.clientId,
-        [this.config.clientSecretName]: this.conf.clientSecret,
+        [this.conf.clientIdName]: this.conf.clientId,
+        [this.conf.clientSecretName]: this.conf.clientSecret,
       }
     }).then(r => {
       try {
@@ -198,8 +198,8 @@ class IzanamiExperimentsClient {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.conf.clientId,
-        [this.config.clientSecretName]: this.conf.clientSecret,
+        [this.conf.clientIdName]: this.conf.clientId,
+        [this.conf.clientSecretName]: this.conf.clientSecret,
       }
     }).then(r => {
       try {
@@ -225,8 +225,8 @@ class IzanamiExperimentsClient {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.conf.clientId,
-        [this.config.clientSecretName]: this.conf.clientSecret,
+        [this.conf.clientIdName]: this.conf.clientId,
+        [this.conf.clientSecretName]: this.conf.clientSecret,
       }
     }).then(r => {
       try {
@@ -255,8 +255,8 @@ class IzanamiExperimentsClient {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.conf.clientId,
-        [this.config.clientSecretName]: this.conf.clientSecret,
+        [this.conf.clientIdName]: this.conf.clientId,
+        [this.conf.clientSecretName]: this.conf.clientSecret,
       },
       body: '{}'
     }).then(r => {
@@ -283,8 +283,8 @@ class IzanamiExperimentsClient {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        [this.config.clientIdName]: this.conf.clientId,
-        [this.config.clientSecretName]: this.conf.clientSecret,
+        [this.conf.clientIdName]: this.conf.clientId,
+        [this.conf.clientSecretName]: this.conf.clientSecret,
       },
       body: '{}'
     }).then(r => {
