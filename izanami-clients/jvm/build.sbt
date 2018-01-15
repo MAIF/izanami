@@ -31,7 +31,8 @@ lazy val jvm = (project in file("."))
     ),
     resolvers ++= Seq(
       "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
-      Resolver.jcenterRepo
+      Resolver.jcenterRepo,
+      Resolver.bintrayRepo("larousso", "maven")
     ),
     scalafmtOnCompile in ThisBuild := true,
     scalafmtTestOnCompile in ThisBuild := true,
