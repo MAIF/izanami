@@ -3,7 +3,6 @@ lazy val `izanami-clients` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-
 lazy val jvm = project
 
 lazy val `example-spring` = project
