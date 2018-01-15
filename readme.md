@@ -24,8 +24,6 @@
 
 **Izanami** is written in [scala](https://www.scala-lang.org/) using the [playframework](https://www.playframework.com/) and developed by the <a href="https://maif.github.io" target="_blank">MAIF OSS</a> team. 
 
-<img src="https://github.com/MAIF/izanami/raw/master/izanami-documentation/src/main/paradox/img/izanami.png"></img>
-
 ## Izanami packages  
 
 - Latest dist zip [![dist-badge][]][dist]  
