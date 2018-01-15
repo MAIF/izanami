@@ -19,7 +19,7 @@ lazy val jvm = (project in file("."))
       "com.google.guava"       % "guava"                    % "22.0",
       "com.typesafe.play"      %% "play-json"               % "2.6.6",
       "com.chuusai"            %% "shapeless"               % "2.3.2",
-      "com.adelegue"           %% "playjson-extended"       % "0.0.3",
+      "com.adelegue"           %% "playjson-extended"       % "0.0.4",
       "junit"                  % "junit"                    % "4.12" % Test,
       "org.assertj"            % "assertj-core"             % "3.5.2" % Test,
       "com.novocode"           % "junit-interface"          % "0.11" % Test,
