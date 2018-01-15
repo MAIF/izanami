@@ -24,9 +24,7 @@ object FetchWithCacheFeatureClient {
   )(implicit izanamiDispatcher: IzanamiDispatcher,
     actorSystem: ActorSystem,
     materializer: Materializer): FetchWithCacheFeatureClient =
-    new FetchWithCacheFeatureClient(clientConfig,
-                                    underlyingStrategy,
-                                    cacheConfig)
+    new FetchWithCacheFeatureClient(clientConfig, underlyingStrategy, cacheConfig)
 }
 
 private[features] case class CacheKey(key: String, context: JsObject)
@@ -35,9 +33,7 @@ private[features] class FetchWithCacheFeatureClient(
     clientConfig: ClientConfig,
     underlyingStrategy: FeatureClient,
     cacheConfig: FetchWithCacheStrategy
-)(implicit val izanamiDispatcher: IzanamiDispatcher,
-  actorSystem: ActorSystem,
-  val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends FeatureClient {
 
   import izanamiDispatcher.ec
@@ -79,8 +75,7 @@ private[features] class FetchWithCacheFeatureClient(
     val convertedKey = key.replace(".", ":")
     Option(cache.getIfPresent(CacheKey(convertedKey, context))) match {
       case Some(features) =>
-        FastFuture.successful(
-          features.find(_.id == convertedKey).exists(_.isActive(clientConfig)))
+        FastFuture.successful(features.find(_.id == convertedKey).exists(_.isActive(clientConfig)))
       case None =>
         val futureFeatures = underlyingStrategy.features(convertedKey, context)
         futureFeatures.onComplete {
@@ -92,7 +87,8 @@ private[features] class FetchWithCacheFeatureClient(
         futureFeatures.map(
           _.featuresSeq
             .find(_.id == convertedKey)
-            .exists(_.isActive(clientConfig)))
+            .exists(_.isActive(clientConfig))
+        )
     }
   }
 

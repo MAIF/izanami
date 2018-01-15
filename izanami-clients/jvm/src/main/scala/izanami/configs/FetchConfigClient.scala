@@ -8,11 +8,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import izanami.commons.{HttpClient, IzanamiException, PatternsUtil}
-import izanami.scaladsl.ConfigEvent.{
-  ConfigCreated,
-  ConfigDeleted,
-  ConfigUpdated
-}
+import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import izanami.scaladsl._
 import izanami.{ClientConfig, IzanamiDispatcher, IzanamiEvent}
 import org.reactivestreams.Publisher
@@ -21,10 +17,7 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.Future
 
 object FetchConfigClient {
-  def apply(client: HttpClient,
-            clientConfig: ClientConfig,
-            fallback: Configs,
-            events: Source[IzanamiEvent, NotUsed])(
+  def apply(client: HttpClient, clientConfig: ClientConfig, fallback: Configs, events: Source[IzanamiEvent, NotUsed])(
       implicit izanamiDispatcher: IzanamiDispatcher,
       actorSystem: ActorSystem,
       materializer: Materializer
@@ -37,9 +30,7 @@ private[configs] class FetchConfigClient(
     clientConfig: ClientConfig,
     fallback: Configs,
     events: Source[IzanamiEvent, NotUsed]
-)(implicit val izanamiDispatcher: IzanamiDispatcher,
-  actorSystem: ActorSystem,
-  val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
   import client._
@@ -49,8 +40,7 @@ private[configs] class FetchConfigClient(
   private val configsSource = events
     .filter(_.domain == "Config")
     .map {
-      case evt @ IzanamiEvent(key, t, _, payload, _, _)
-          if t == "CONFIG_CREATED" =>
+      case evt @ IzanamiEvent(key, t, _, payload, _, _) if t == "CONFIG_CREATED" =>
         Config.format
           .reads(payload)
           .fold(
@@ -61,8 +51,7 @@ private[configs] class FetchConfigClient(
             },
             c => Some(ConfigCreated(key, c))
           )
-      case evt @ IzanamiEvent(key, t, _, payload, Some(oldValue), _)
-          if t == "CONFIG_UPDATED" =>
+      case evt @ IzanamiEvent(key, t, _, payload, Some(oldValue), _) if t == "CONFIG_UPDATED" =>
         val event = for {
           newOne <- Config.format.reads(payload)
           oldOne <- Config.format.reads(oldValue)
@@ -103,9 +92,7 @@ private[configs] class FetchConfigClient(
           .parse(body)
           .validate[Config]
           .fold(
-            err =>
-              FastFuture.failed(
-                IzanamiException(s"Error parsing config $body, err = $err")),
+            err => FastFuture.failed(IzanamiException(s"Error parsing config $body, err = $err")),
             c => {
               FastFuture.successful(c.value)
             }
@@ -113,8 +100,7 @@ private[configs] class FetchConfigClient(
       case (code, _) if code == StatusCodes.NotFound =>
         FastFuture.successful(fallback.get(convertedKey))
       case (code, body) =>
-        FastFuture.failed(
-          IzanamiException(s"Error getting config, code=$code, response=$body"))
+        FastFuture.failed(IzanamiException(s"Error getting config, code=$code, response=$body"))
     }
   }
 

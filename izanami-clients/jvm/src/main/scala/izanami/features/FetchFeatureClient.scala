@@ -9,12 +9,7 @@ import akka.stream.{KillSwitches, Materializer, UniqueKillSwitch}
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import izanami.FeatureEvent._
 import izanami.commons.{HttpClient, IzanamiException, PatternsUtil}
-import izanami.scaladsl.{
-  DefaultRegistration,
-  FeatureClient,
-  Features,
-  Registration
-}
+import izanami.scaladsl.{DefaultRegistration, FeatureClient, Features, Registration}
 import izanami._
 import org.reactivestreams.Publisher
 import play.api.libs.json.{JsObject, JsValue, Json}
@@ -22,13 +17,11 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import scala.concurrent.Future
 
 object FetchFeatureClient {
-  def apply(client: HttpClient,
-            clientConfig: ClientConfig,
-            fallback: Features,
-            events: Source[IzanamiEvent, NotUsed])(
+  def apply(client: HttpClient, clientConfig: ClientConfig, fallback: Features, events: Source[IzanamiEvent, NotUsed])(
       implicit izanamiDispatcher: IzanamiDispatcher,
       actorSystem: ActorSystem,
-      materializer: Materializer): FetchFeatureClient =
+      materializer: Materializer
+  ): FetchFeatureClient =
     new FetchFeatureClient(client, clientConfig, fallback, events)
 }
 
@@ -37,9 +30,7 @@ private[features] class FetchFeatureClient(
     clientConfig: ClientConfig,
     fallback: Features,
     events: Source[IzanamiEvent, NotUsed]
-)(implicit val izanamiDispatcher: IzanamiDispatcher,
-  actorSystem: ActorSystem,
-  val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends FeatureClient {
 
   import client._
@@ -49,8 +40,7 @@ private[features] class FetchFeatureClient(
   private val featuresSource = events
     .filter(_.domain == "Feature")
     .map {
-      case evt @ IzanamiEvent(key, t, _, payload, _, _)
-          if t == "FEATURE_CREATED" =>
+      case evt @ IzanamiEvent(key, t, _, payload, _, _) if t == "FEATURE_CREATED" =>
         Feature.format
           .reads(payload)
           .fold(
@@ -61,8 +51,7 @@ private[features] class FetchFeatureClient(
             },
             f => Some(FeatureCreated(key, f))
           )
-      case evt @ IzanamiEvent(key, t, _, payload, Some(oldValue), _)
-          if t == "FEATURE_UPDATED" =>
+      case evt @ IzanamiEvent(key, t, _, payload, Some(oldValue), _) if t == "FEATURE_UPDATED" =>
         val event = for {
           newOne <- Feature.format.reads(payload)
           oldOne <- Feature.format.reads(oldValue)
@@ -90,12 +79,10 @@ private[features] class FetchFeatureClient(
     val query = Seq("pattern" -> convertedPattern, "active" -> "true")
     client
       .fetchPages("/api/features", query)
-      .map(json =>
-        Features(clientConfig, parseFeatures(json), fallback.featuresSeq))
+      .map(json => Features(clientConfig, parseFeatures(json), fallback.featuresSeq))
   }
 
-  override def features(pattern: String,
-                        context: JsObject): Future[Features] = {
+  override def features(pattern: String, context: JsObject): Future[Features] = {
     val convertedPattern =
       Option(pattern).map(_.replace(".", ":")).getOrElse("*")
     val query = Seq("pattern" -> convertedPattern)
@@ -116,33 +103,28 @@ private[features] class FetchFeatureClient(
       .flatMap {
         case (status, json) if status == StatusCodes.OK =>
           val feature = Json.parse(json)
-          FastFuture.successful(
-            (feature \ "active").asOpt[Boolean].getOrElse(false))
+          FastFuture.successful((feature \ "active").asOpt[Boolean].getOrElse(false))
         case (status, _) if status == StatusCodes.NotFound =>
           FastFuture.successful(fallback.isActive(convertedKey))
         case (status, body) =>
-          logger.error(
-            "Error checking feature {}, with context {} : status={}, response={}",
-            key,
-            context,
-            status,
-            body)
+          logger.error("Error checking feature {}, with context {} : status={}, response={}",
+                       key,
+                       context,
+                       status,
+                       body)
           FastFuture
-            .failed(IzanamiException(
-              s"Error while checking feature $convertedKey, status: $status, response: $body"))
+            .failed(IzanamiException(s"Error while checking feature $convertedKey, status: $status, response: $body"))
       }
   }
 
-  override def featuresSource(
-      pattern: String): Source[izanami.FeatureEvent, NotUsed] = {
+  override def featuresSource(pattern: String): Source[izanami.FeatureEvent, NotUsed] = {
     val matchP = PatternsUtil.matchPattern(pattern) _
     featuresSource
       .filter(e => matchP(e.id))
       .alsoTo(Sink.foreach(e => logger.debug(s"Event $e")))
   }
 
-  override def featuresStream(
-      pattern: String): Publisher[izanami.FeatureEvent] =
+  override def featuresStream(pattern: String): Publisher[izanami.FeatureEvent] =
     featuresSource(pattern).runWith(Sink.asPublisher(true))
 
   def parseFeatures(featuresJson: Seq[JsValue]): Seq[Feature] =
