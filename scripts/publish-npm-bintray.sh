@@ -5,7 +5,7 @@ echo 'Publishing npm packages to bintray'
 LOCATION=`pwd`
 
 cd ${LOCATION}/izanami-clients/react
-yarn install
+npm install
 curl -u${BINTRAY_USER}:${BINTRAY_PASSWORD} https://api.bintray.com/npm/maif/npm/auth -o ${LOCATION}/izanami-clients/react/.npmrc
 echo 'Unpublishing izanami-react'
 npm unpublish --force --registry https://api.bintray.com/npm/maif/npm
