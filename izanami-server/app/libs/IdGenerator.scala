@@ -19,8 +19,8 @@ object IdGenerator {
   private[this] val INIT_STRING = for (i <- 0 to 15)
     yield Integer.toHexString(i)
 
-  private[this] val minus = 1288834974657L
-  private[this] val counter = new AtomicLong(-1L)
+  private[this] val minus         = 1288834974657L
+  private[this] val counter       = new AtomicLong(-1L)
   private[this] val lastTimestamp = new AtomicLong(-1L)
 
   def apply(generatorId: Long) = new IdGenerator(generatorId)
@@ -53,8 +53,8 @@ object IdGenerator {
       i <- 0 to size - 1
     } yield characters(Random.nextInt(characters.size))).mkString("")
 
-  def token(size: Int): String = token(CHARACTERS, size)
-  def token: String = token(64)
+  def token(size: Int): String         = token(CHARACTERS, size)
+  def token: String                    = token(64)
   def extendedToken(size: Int): String = token(EXTENDED_CHARACTERS, size)
-  def extendedToken: String = token(EXTENDED_CHARACTERS, 64)
+  def extendedToken: String            = token(EXTENDED_CHARACTERS, 64)
 }

@@ -34,8 +34,7 @@ object VariantBindingKey {
   }
 }
 
-case class VariantBinding(variantBindingKey: VariantBindingKey,
-                          variantId: String)
+case class VariantBinding(variantBindingKey: VariantBindingKey, variantId: String)
 
 object VariantBinding {
   implicit val format = Json.format[VariantBinding]
@@ -79,8 +78,8 @@ object VariantBinding {
       for {
         //Get experiment, if empty : StoreError
         experiment <- experimentStore.getById(experimentKey).one |> liftFOption(
-          AppErrors(Seq(ErrorMessage("error.experiment.missing")))
-        )
+                       AppErrors(Seq(ErrorMessage("error.experiment.missing")))
+                     )
         // Sum of the distinct client connected
         sum = experiment.variants.map { _.currentPopulation.getOrElse(0) }.sum
         // We find the variant with the less value
@@ -88,30 +87,24 @@ object VariantBinding {
           case v if sum == 0 => 0
           case v =>
             val pourcentReached = v.currentPopulation.getOrElse(0).toFloat / sum
-            val diff = v.traffic - pourcentReached
+            val diff            = v.traffic - pourcentReached
             //println(s"${v.id} => traffic: ${v.traffic} diff: $diff, reached: $pourcentReached, current ${v.currentPopulation.getOrElse(0).toFloat}, sum: $sum")
             v.traffic - v.currentPopulation.getOrElse(0).toFloat / sum
         }
         // Update of the variant
         newLeastChosenVariantSoFar = lastChosenSoFar.incrementPopulation
         // Update of the experiment
-        newExperiment = experiment.addOrReplaceVariant(
-          newLeastChosenVariantSoFar)
+        newExperiment = experiment.addOrReplaceVariant(newLeastChosenVariantSoFar)
         // Update OPS on store for experiment
-        experimentUpdated <- experimentStore.update(
-          experimentKey,
-          experimentKey,
-          newExperiment) |> liftFEither[
-          AppErrors,
-          Experiment
-        ]
+        experimentUpdated <- experimentStore.update(experimentKey, experimentKey, newExperiment) |> liftFEither[
+                              AppErrors,
+                              Experiment
+                            ]
         // Variant binding creation
-        variantBindingKey = VariantBindingKey(experimentKey, clientId)
-        binding: VariantBinding = VariantBinding(variantBindingKey,
-                                                 newLeastChosenVariantSoFar.id)
-        variantBindingCreated <- VariantBindingStore.create(
-          variantBindingKey,
-          binding) |> liftFEither[AppErrors, VariantBinding]
+        variantBindingKey       = VariantBindingKey(experimentKey, clientId)
+        binding: VariantBinding = VariantBinding(variantBindingKey, newLeastChosenVariantSoFar.id)
+        variantBindingCreated <- VariantBindingStore.create(variantBindingKey, binding) |> liftFEither[AppErrors,
+                                                                                                       VariantBinding]
       } yield newLeastChosenVariantSoFar
     ).value
   }
@@ -121,26 +114,21 @@ object VariantBinding {
 trait VariantBindingStore extends DataStore[VariantBindingKey, VariantBinding]
 
 object VariantBindingStore {
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            system: ActorSystem): VariantBindingStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): VariantBindingStore =
     new VariantBindingStoreImpl(jsonStore, eventStore, system)
 }
 
-class VariantBindingStoreImpl(jsonStore: JsonDataStore,
-                              eventStore: EventStore,
-                              system: ActorSystem)
+class VariantBindingStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
     extends VariantBindingStore {
   import domains.events.Events._
   import system.dispatcher
 
-  private implicit val s = system
+  private implicit val s  = system
   private implicit val es = eventStore
 
   import VariantBinding._
 
-  override def create(id: VariantBindingKey,
-                      data: VariantBinding): Future[Result[VariantBinding]] =
+  override def create(id: VariantBindingKey, data: VariantBinding): Future[Result[VariantBinding]] =
     jsonStore
       .create(id.key, format.writes(data))
       .to[VariantBinding]
@@ -161,10 +149,9 @@ class VariantBindingStoreImpl(jsonStore: JsonDataStore,
   override def getById(id: VariantBindingKey): FindResult[VariantBinding] =
     JsonFindResult[VariantBinding](jsonStore.getById(id.key))
 
-  override def getByIdLike(
-      patterns: Seq[String],
-      page: Int,
-      nbElementPerPage: Int): Future[PagingResult[VariantBinding]] =
+  override def getByIdLike(patterns: Seq[String],
+                           page: Int,
+                           nbElementPerPage: Int): Future[PagingResult[VariantBinding]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))

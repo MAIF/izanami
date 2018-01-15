@@ -16,10 +16,8 @@ class ErrorHandler(
     router: => Option[Router]
 ) extends DefaultHttpErrorHandler(env, config, sourceMapper, router) {
 
-  override def onProdServerError(request: RequestHeader,
-                                 exception: UsefulException) = {
-    Logger.error(s"Error serving request ${request.method} ${request.uri}",
-                 exception)
+  override def onProdServerError(request: RequestHeader, exception: UsefulException) = {
+    Logger.error(s"Error serving request ${request.method} ${request.uri}", exception)
     Future.successful(
       InternalServerError
     )

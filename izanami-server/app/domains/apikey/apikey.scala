@@ -10,11 +10,7 @@ import store._
 
 import scala.concurrent.Future
 
-case class Apikey(clientId: String,
-                  name: String,
-                  clientSecret: String,
-                  authorizedPattern: String)
-    extends AuthInfo {
+case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: String) extends AuthInfo {
   override def isAllowed(auth: Option[AuthInfo]): Boolean =
     Key.isAllowed(authorizedPattern)(auth)
 }
@@ -29,23 +25,18 @@ trait ApikeyStore extends DataStore[ApikeyKey, Apikey]
 object ApikeyStore {
   type ApikeyKey = Key
 
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            system: ActorSystem): ApikeyStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): ApikeyStore =
     new ApikeyStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class ApikeyStoreImpl(jsonStore: JsonDataStore,
-                      eventStore: EventStore,
-                      system: ActorSystem)
-    extends ApikeyStore {
+class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends ApikeyStore {
   import Apikey._
   import domains.events.Events._
   import store.Result._
   import system.dispatcher
 
-  implicit val s = system
+  implicit val s  = system
   implicit val es = eventStore
 
   override def create(id: ApikeyKey, data: Apikey): Future[Result[Apikey]] =
@@ -53,9 +44,7 @@ class ApikeyStoreImpl(jsonStore: JsonDataStore,
       ApikeyCreated(id, r)
     }
 
-  override def update(oldId: ApikeyKey,
-                      id: ApikeyKey,
-                      data: Apikey): Future[Result[Apikey]] =
+  override def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): Future[Result[Apikey]] =
     jsonStore
       .update(oldId, id, format.writes(data))
       .to[Apikey]
@@ -74,10 +63,7 @@ class ApikeyStoreImpl(jsonStore: JsonDataStore,
   override def getById(id: ApikeyKey): FindResult[Apikey] =
     JsonFindResult[Apikey](jsonStore.getById(id))
 
-  override def getByIdLike(
-      patterns: Seq[String],
-      page: Int,
-      nbElementPerPage: Int): Future[PagingResult[Apikey]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Apikey]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
