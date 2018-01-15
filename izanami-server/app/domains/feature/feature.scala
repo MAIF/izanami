@@ -25,8 +25,7 @@ sealed trait Feature {
 
   def isAllowed = Key.isAllowed(id) _
 
-  def isActive(context: JsObject, env: Env)(
-      implicit ec: ExecutionContext): Future[Boolean] =
+  def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] =
     FastFuture.successful(true)
 
   def toJson(active: Boolean) =
@@ -53,10 +52,8 @@ object DefaultFeature {
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
 }
 
-case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String)
-    extends Feature {
-  override def isActive(context: JsObject, env: Env)(
-      implicit ec: ExecutionContext): Future[Boolean] = {
+case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String) extends Feature {
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] = {
     import domains.script.GlobalScript._
     env.globalScriptStore.getById(Key(ref)).one.flatMap {
       case Some(gs: GlobalScript) =>
@@ -74,7 +71,7 @@ object GlobalScriptFeature {
 
   val writes: Writes[GlobalScriptFeature] = (
     Feature.commonWrite and
-      (__ \ "parameters" \ "ref").write[String]
+    (__ \ "parameters" \ "ref").write[String]
   )(unlift(GlobalScriptFeature.unapply))
     .transform { o: JsObject =>
       o ++ Json.obj("activationStrategy" -> "GLOBAL_SCRIPT")
@@ -88,10 +85,8 @@ object GlobalScriptFeature {
 
 }
 
-case class ScriptFeature(id: FeatureKey, enabled: Boolean, script: Script)
-    extends Feature {
-  override def isActive(context: JsObject, env: Env)(
-      implicit ec: ExecutionContext): Future[Boolean] =
+case class ScriptFeature(id: FeatureKey, enabled: Boolean, script: Script) extends Feature {
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] =
     script.run(context, env)
 
 }
@@ -104,7 +99,7 @@ object ScriptFeature {
 
   val writes: Writes[ScriptFeature] = (
     Feature.commonWrite and
-      (__ \ "parameters" \ "script").write[Script]
+    (__ \ "parameters" \ "script").write[Script]
   )(unlift(ScriptFeature.unapply))
     .transform { o: JsObject =>
       o ++ Json.obj("activationStrategy" -> "SCRIPT")
@@ -118,12 +113,8 @@ object ScriptFeature {
 
 }
 
-case class ReleaseDateFeature(id: FeatureKey,
-                              enabled: Boolean,
-                              date: LocalDateTime)
-    extends Feature {
-  override def isActive(context: JsObject, env: Env)(
-      implicit ec: ExecutionContext): Future[Boolean] = {
+case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, date: LocalDateTime) extends Feature {
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] = {
     val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
     FastFuture.successful(now.isAfter(date))
   }
@@ -137,18 +128,19 @@ object ReleaseDateFeature {
   import playjson.all._
   import syntax.singleton._
 
-  private[feature] val pattern = "dd/MM/yyyy HH:mm:ss"
+  private[feature] val pattern  = "dd/MM/yyyy HH:mm:ss"
+  private[feature] val pattern2 = "dd/MM/yyyy HH:mm"
 
   val reads: Reads[ReleaseDateFeature] = transform(
     (__ \ "parameters" \ "releaseDate") to (__ \ "date")
   ) andThen jsonRead[ReleaseDateFeature].withRules(
-    'date ->> read[LocalDateTime](localDateTimeReads(pattern))
+    'date ->> read[LocalDateTime](localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)))
   )
 
   val writes: Writes[ReleaseDateFeature] = (
     Feature.commonWrite and
-      (__ \ "parameters" \ "releaseDate")
-        .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern))
+    (__ \ "parameters" \ "releaseDate")
+      .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern))
   )(unlift(ReleaseDateFeature.unapply)).transform { o: JsObject =>
     o ++ Json.obj("activationStrategy" -> "RELEASE_DATE")
   }
@@ -164,17 +156,16 @@ object Feature {
   def isAllowed(key: FeatureKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
 
-  def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] {
-    feature =>
-      val path = feature.id.segments.foldLeft[JsPath](JsPath) { (path, seq) =>
-        path \ seq
-      }
-      val writer = (path \ "active").write[Boolean]
-      writer.writes(active)
+  def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] { feature =>
+    val path = feature.id.segments.foldLeft[JsPath](JsPath) { (path, seq) =>
+      path \ seq
+    }
+    val writer = (path \ "active").write[Boolean]
+    writer.writes(active)
   }
 
-  def withActive(context: JsObject, env: Env)(implicit ec: ExecutionContext)
-    : Flow[Feature, (Boolean, Feature), NotUsed] =
+  def withActive(context: JsObject,
+                 env: Env)(implicit ec: ExecutionContext): Flow[Feature, (Boolean, Feature), NotUsed] =
     Flow[Feature]
       .mapAsyncUnordered(2) { feature =>
         feature
@@ -187,8 +178,7 @@ object Feature {
           }
       }
 
-  def flat(context: JsObject, env: Env)(
-      implicit ec: ExecutionContext): Flow[Feature, JsValue, NotUsed] =
+  def flat(context: JsObject, env: Env)(implicit ec: ExecutionContext): Flow[Feature, JsValue, NotUsed] =
     Flow[Feature]
       .via(withActive(context, env))
       .map {
@@ -197,8 +187,7 @@ object Feature {
       .fold(Seq.empty[JsValue]) { _ :+ _ }
       .map(JsArray(_))
 
-  def toGraph(context: JsObject, env: Env)(
-      implicit ec: ExecutionContext): Flow[Feature, JsObject, NotUsed] =
+  def toGraph(context: JsObject, env: Env)(implicit ec: ExecutionContext): Flow[Feature, JsObject, NotUsed] =
     Flow[Feature]
       .via(withActive(context, env))
       .map {
@@ -208,29 +197,26 @@ object Feature {
         acc.deepMerge(js.as[JsObject])
       }
 
-  def tree(flatRepr: Boolean)(context: JsObject, env: Env)(
-      implicit ec: ExecutionContext): Flow[Feature, JsValue, NotUsed] =
+  def tree(flatRepr: Boolean)(context: JsObject,
+                              env: Env)(implicit ec: ExecutionContext): Flow[Feature, JsValue, NotUsed] =
     if (flatRepr) flat(context, env)
     else toGraph(context, env)
 
   private[feature] val commonWrite =
-    (__ \ "id").write[FeatureKey] and
-      (__ \ "enabled").write[Boolean]
+  (__ \ "id").write[FeatureKey] and
+  (__ \ "enabled").write[Boolean]
 
   val reads: Reads[Feature] = Reads[Feature] {
-    case o
-        if (o \ "activationStrategy").asOpt[String].contains("NO_STRATEGY") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains("NO_STRATEGY") =>
       import DefaultFeature._
       o.validate[DefaultFeature]
-    case o
-        if (o \ "activationStrategy").asOpt[String].contains("RELEASE_DATE") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains("RELEASE_DATE") =>
       import ReleaseDateFeature._
       o.validate[ReleaseDateFeature]
     case o if (o \ "activationStrategy").asOpt[String].contains("SCRIPT") =>
       import ScriptFeature._
       o.validate[ScriptFeature]
-    case o
-        if (o \ "activationStrategy").asOpt[String].contains("GLOBAL_SCRIPT") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains("GLOBAL_SCRIPT") =>
       import GlobalScriptFeature._
       o.validate[GlobalScriptFeature]
     case other =>
@@ -256,24 +242,19 @@ object FeatureStore {
 
   sealed trait FeatureMessages
 
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            system: ActorSystem): FeatureStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): FeatureStore =
     new FeatureStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class FeatureStoreImpl(jsonStore: JsonDataStore,
-                       eventStore: EventStore,
-                       system: ActorSystem)
-    extends FeatureStore {
+class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends FeatureStore {
 
   import Feature._
   import domains.events.Events._
   import store.Result._
   import system.dispatcher
 
-  implicit val s = system
+  implicit val s  = system
   implicit val es = eventStore
 
   override def create(id: FeatureKey, data: Feature): Future[Result[Feature]] =
@@ -281,9 +262,7 @@ class FeatureStoreImpl(jsonStore: JsonDataStore,
       FeatureCreated(id, r)
     }
 
-  override def update(oldId: FeatureKey,
-                      id: FeatureKey,
-                      data: Feature): Future[Result[Feature]] =
+  override def update(oldId: FeatureKey, id: FeatureKey, data: Feature): Future[Result[Feature]] =
     jsonStore
       .update(oldId, id, format.writes(data))
       .to[Feature]
@@ -301,10 +280,7 @@ class FeatureStoreImpl(jsonStore: JsonDataStore,
   override def getById(id: FeatureKey): FindResult[Feature] =
     JsonFindResult[Feature](jsonStore.getById(id))
 
-  override def getByIdLike(
-      patterns: Seq[String],
-      page: Int,
-      nbElementPerPage: Int): Future[PagingResult[Feature]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Feature]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))

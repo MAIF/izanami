@@ -15,11 +15,9 @@ object Import {
   import akka.stream.scaladsl.{Flow, Framing}
   val newLineSplit =
     Framing.delimiter(ByteString("\n"), 10000, allowTruncation = true)
-  val toJson = Flow[ByteString] via newLineSplit map (_.utf8String) filterNot (_.isEmpty) map (
-      l => (l, Json.parse(l)))
+  val toJson = Flow[ByteString] via newLineSplit map (_.utf8String) filterNot (_.isEmpty) map (l => (l, Json.parse(l)))
 
-  def ndJson(
-      implicit ec: ExecutionContext): BodyParser[Source[(String, JsValue), _]] =
+  def ndJson(implicit ec: ExecutionContext): BodyParser[Source[(String, JsValue), _]] =
     BodyParser { req =>
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
     }
@@ -63,12 +61,12 @@ trait Jsoneable {
 object Domain {
   sealed trait Domain
   case object Experiment extends Domain
-  case object ApiKey extends Domain
-  case object Config extends Domain
-  case object Feature extends Domain
-  case object User extends Domain
-  case object Script extends Domain
-  case object Webhook extends Domain
+  case object ApiKey     extends Domain
+  case object Config     extends Domain
+  case object Feature    extends Domain
+  case object User       extends Domain
+  case object Script     extends Domain
+  case object Webhook    extends Domain
 
   val reads: Reads[Domain] = Reads[Domain] {
     case JsString(s) if s == "Experiment" => JsSuccess(Experiment)

@@ -7,9 +7,7 @@ import env.Env
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 
-class HomeController(_env: Env,
-                     AuthAction: ActionBuilder[AuthContext, AnyContent],
-                     cc: ControllerComponents)
+class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)
     extends AbstractController(cc) {
 
   lazy val enabledUserManagement: Boolean = _env.izanamiConfig.filter match {
@@ -23,7 +21,8 @@ class HomeController(_env: Env,
       case Some(auth) =>
         Ok(
           views.html
-            .index(_env, logout, enabledUserManagement, toJson(ctx.auth)))
+            .index(_env, logout, enabledUserManagement, toJson(ctx.auth))
+        )
       case None =>
         Redirect("/login")
     }

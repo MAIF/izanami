@@ -19,8 +19,7 @@ import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
-case class ScriptExecutionContext(actorSystem: ActorSystem)
-    extends ExecutionContext {
+case class ScriptExecutionContext(actorSystem: ActorSystem) extends ExecutionContext {
   private val executionContext: ExecutionContext =
     actorSystem.dispatchers.lookup("izanami.script-dispatcher")
   override def execute(runnable: Runnable): Unit =
@@ -59,15 +58,11 @@ object Script {
     val reference = Promise[Boolean]()
     Future {
       engine.eval(script)
-      val enabled = () => reference.trySuccess(true)
-      val disabled = () => reference.trySuccess(false)
+      val enabled                                   = () => reference.trySuccess(true)
+      val disabled                                  = () => reference.trySuccess(false)
       val contextMap: java.util.Map[String, AnyRef] = jsObjectToMap(context)
       Try {
-        engine.invokeFunction("enabled",
-                              contextMap,
-                              enabled,
-                              disabled,
-                              new HttpClient(env, reference))
+        engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env, reference))
       } recover {
         case e => reference.failure(e)
       }
@@ -79,8 +74,7 @@ object Script {
     reference.future
   }
 
-  private def jsObjectToMap(
-      jsObject: JsObject): java.util.Map[String, AnyRef] = {
+  private def jsObjectToMap(jsObject: JsObject): java.util.Map[String, AnyRef] = {
     import scala.collection.JavaConverters._
     jsObject.value.mapValues(asMap).toMap.asJava
   }
@@ -100,16 +94,14 @@ object Script {
 
 }
 
-class HttpClient(env: Env, promise: Promise[Boolean])(
-    implicit ec: ScriptExecutionContext) {
-  def call(optionsMap: java.util.Map[String, AnyRef],
-           callback: BiConsumer[String, String]): Unit = {
+class HttpClient(env: Env, promise: Promise[Boolean])(implicit ec: ScriptExecutionContext) {
+  def call(optionsMap: java.util.Map[String, AnyRef], callback: BiConsumer[String, String]): Unit = {
     import play.api.libs.ws.JsonBodyWritables._
 
     import scala.collection.JavaConverters._
     val options: mutable.Map[String, AnyRef] = optionsMap.asScala
-    val url: String = options("url").asInstanceOf[String]
-    val method: String = options.getOrElse("method", "get").asInstanceOf[String]
+    val url: String                          = options("url").asInstanceOf[String]
+    val method: String                       = options.getOrElse("method", "get").asInstanceOf[String]
     val headers: mutable.Map[String, String] =
       options
         .getOrElse("headers", new java.util.HashMap[String, String]())
@@ -139,9 +131,7 @@ class HttpClient(env: Env, promise: Promise[Boolean])(
           case e => promise.failure(e)
         }
       case Failure(e) =>
-        Logger.debug(
-          s"Script call $url, method=[$method], headers: $headers, body=[$body], call failed",
-          e)
+        Logger.debug(s"Script call $url, method=[$method], headers: $headers, body=[$body], call failed", e)
         Try {
           callback.accept(e.getMessage, null)
         }.recover {
@@ -152,10 +142,7 @@ class HttpClient(env: Env, promise: Promise[Boolean])(
   }
 }
 
-case class GlobalScript(id: Key,
-                        name: String,
-                        description: String,
-                        source: Script) {
+case class GlobalScript(id: Key, name: String, description: String, source: Script) {
   def isAllowed = Key.isAllowed(id) _
 }
 
@@ -173,36 +160,28 @@ object GlobalScriptStore {
 
   type GlobalScriptKey = Key
 
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            system: ActorSystem): GlobalScriptStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): GlobalScriptStore =
     new GlobalScriptStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class GlobalScriptStoreImpl(jsonStore: JsonDataStore,
-                            eventStore: EventStore,
-                            system: ActorSystem)
+class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
     extends GlobalScriptStore {
 
   import system.dispatcher
-  private implicit val s = system
+  private implicit val s  = system
   private implicit val es = eventStore
 
   import GlobalScript._
   import GlobalScriptStore._
   import domains.events.Events._
 
-  override def create(id: GlobalScriptKey,
-                      data: GlobalScript): Future[Result[GlobalScript]] =
-    jsonStore.create(id, format.writes(data)).to[GlobalScript].andPublishEvent {
-      r =>
-        GlobalScriptCreated(id, r)
+  override def create(id: GlobalScriptKey, data: GlobalScript): Future[Result[GlobalScript]] =
+    jsonStore.create(id, format.writes(data)).to[GlobalScript].andPublishEvent { r =>
+      GlobalScriptCreated(id, r)
     }
 
-  override def update(oldId: GlobalScriptKey,
-                      id: GlobalScriptKey,
-                      data: GlobalScript): Future[Result[GlobalScript]] =
+  override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): Future[Result[GlobalScript]] =
     jsonStore
       .update(oldId, id, format.writes(data))
       .to[GlobalScript]
@@ -220,10 +199,9 @@ class GlobalScriptStoreImpl(jsonStore: JsonDataStore,
   override def getById(id: GlobalScriptKey): FindResult[GlobalScript] =
     JsonFindResult[GlobalScript](jsonStore.getById(id))
 
-  override def getByIdLike(
-      patterns: Seq[String],
-      page: Int,
-      nbElementPerPage: Int): Future[PagingResult[GlobalScript]] =
+  override def getByIdLike(patterns: Seq[String],
+                           page: Int,
+                           nbElementPerPage: Int): Future[PagingResult[GlobalScript]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
