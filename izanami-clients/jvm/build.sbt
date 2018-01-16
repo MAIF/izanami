@@ -70,7 +70,6 @@ lazy val publishCommonsSettings = Seq(
 
 lazy val publishSettings =
   if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
-    println("TRAVIS TAG")
     publishCommonsSettings ++ Seq(
       bintrayOrganization := Some("maif"),
       bintrayCredentialsFile := file(".credentials"),
@@ -79,7 +78,6 @@ lazy val publishSettings =
       }
     )
   } else {
-    println("SNAPSHOT")
     publishCommonsSettings ++ Seq(
       publishTo := Some(
         "Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"
