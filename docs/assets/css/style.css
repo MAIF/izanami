@@ -234,6 +234,9 @@ h2 {
   .more-details {
     text-align: left;
 }
+.contentCircle {
+    margin-right: 20px;
+}
   .titleOnLine li {
     text-align: left;
   }
