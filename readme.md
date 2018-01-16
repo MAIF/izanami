@@ -49,7 +49,7 @@ You can join these groups and chats to discuss and ask Izanami related questions
 
 Contributions are welcomed. 
 
-Refer to the [CONTRIBUTING.md](https://github.com/MAIF/otoroshi/blob/master/.github/CONTRIBUTING.md) file for more details about the workflow,
+Refer to the [CONTRIBUTING.md](https://github.com/MAIF/izanami/blob/master/.github/CONTRIBUTING.md) file for more details about the workflow,
 and general hints on how to prepare your pull request. You can also ask for clarifications or guidance in GitHub issues directly.
 
 ## License 
