@@ -65,7 +65,7 @@ lazy val publishCommonsSettings = Seq(
 lazy val publishSettings =
   if (sys.env.get("TRAVIS_TAG").isEmpty) {
     publishCommonsSettings ++ Seq(
-      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local;build.timestamp=" + new java.util.Date().getTime),
+      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-libs-snapshot;build.timestamp=" + new java.util.Date().getTime),
       bintrayReleaseOnPublish := false,
       credentials := List(Credentials("Artifactory Realm", "oss.jfrog.org", sys.env("BINTRAY_USER"), sys.env("BINTRAY_PASSWORD")))
     )
