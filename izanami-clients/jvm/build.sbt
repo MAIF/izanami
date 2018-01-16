@@ -63,17 +63,18 @@ lazy val publishCommonsSettings = Seq(
 )
 
 lazy val publishSettings =
-//  if (sys.env.get("TRAVIS_TAG").isEmpty) {
-//    publishCommonsSettings ++ Seq(
-//      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"),
-//      bintrayReleaseOnPublish := false,
-//      credentials := List(new File(".artifactory")).filter(_.exists).map(Credentials(_))
-//    )
-//  } else {
-publishCommonsSettings ++ Seq(
-  bintrayOrganization := Some("maif"),
-  bintrayCredentialsFile := file(".credentials"),
-  pomIncludeRepository := { _ =>
-    false
+  if (sys.env.get("TRAVIS_TAG").isEmpty) {
+    publishCommonsSettings ++ Seq(
+      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local;build.timestamp=" + new java.util.Date().getTime),
+      bintrayReleaseOnPublish := false,
+      credentials := List(Credentials("Artifactory Realm", "oss.jfrog.org", sys.env("BINTRAY_USER"), sys.env("BINTRAY_PASSWORD")))
+    )
+  } else {
+    publishCommonsSettings ++ Seq(
+      bintrayOrganization := Some("maif"),
+      bintrayCredentialsFile := file(".credentials"),
+      pomIncludeRepository := { _ =>
+        false
+      }
+    )
   }
-)
