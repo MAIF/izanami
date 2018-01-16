@@ -3,47 +3,48 @@ import sbtrelease.ReleaseStateTransformations._
 
 val akkaVersion = "2.5.6"
 
-val disabledPlugins = if (sys.env.get("TRAVIS_TAG").isEmpty) {
-  Seq(RevolverPlugin, BintrayPlugin)
-} else {
+val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
   Seq(RevolverPlugin)
+} else {
+  Seq(RevolverPlugin, BintrayPlugin)
 }
 
 lazy val jvm = (project in file("."))
-    .disablePlugins(disabledPlugins:_*)
-    .settings(
-      organization := "fr.maif",
-      name := "izanami-client",
-      scalaVersion := "2.12.4",
-      crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
-      libraryDependencies ++= Seq(
-        "com.typesafe.akka"      %% "akka-stream"             % akkaVersion,
-        "com.typesafe.akka"      %% "akka-http"               % "10.0.10",
-        "com.lightbend.akka"     %% "akka-stream-alpakka-sse" % "0.14",
-        "io.vavr"                % "vavr"                     % "0.9.1",
-        "org.reactivecouchbase"  % "json-lib-javaslang"       % "2.0.0",
-        "com.google.guava"       % "guava"                    % "22.0",
-        "com.typesafe.play"      %% "play-json"               % "2.6.6",
-        "com.chuusai"            %% "shapeless"               % "2.3.2",
-        "com.adelegue"           %% "playjson-extended"       % "0.0.4",
-        "junit"                  % "junit"                    % "4.12" % Test,
-        "org.assertj"            % "assertj-core"             % "3.5.2" % Test,
-        "com.novocode"           % "junit-interface"          % "0.11" % Test,
-        "org.scalatest"          %% "scalatest"               % "3.0.1" % Test,
-        "com.typesafe.akka"      %% "akka-testkit"            % akkaVersion % Test,
-        "org.mockito"            % "mockito-core"             % "2.12.0" % Test,
-        "com.github.tomakehurst" % "wiremock"                 % "2.12.0" % Test,
-        "org.assertj"            % "assertj-core"             % "3.8.0" % Test
-      ),
-      resolvers ++= Seq(
-        "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
-        Resolver.jcenterRepo,
-        Resolver.bintrayRepo("larousso", "maven")
-      ),
-      scalafmtOnCompile in ThisBuild := true,
-      scalafmtTestOnCompile in ThisBuild := true,
-      scalafmtVersion in ThisBuild := "1.2.0")
-    .settings(publishSettings: _*)
+  .disablePlugins(disabledPlugins: _*)
+  .settings(
+    organization := "fr.maif",
+    name := "izanami-client",
+    scalaVersion := "2.12.4",
+    crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
+    libraryDependencies ++= Seq(
+      "com.typesafe.akka"      %% "akka-stream"             % akkaVersion,
+      "com.typesafe.akka"      %% "akka-http"               % "10.0.10",
+      "com.lightbend.akka"     %% "akka-stream-alpakka-sse" % "0.14",
+      "io.vavr"                % "vavr"                     % "0.9.1",
+      "org.reactivecouchbase"  % "json-lib-javaslang"       % "2.0.0",
+      "com.google.guava"       % "guava"                    % "22.0",
+      "com.typesafe.play"      %% "play-json"               % "2.6.6",
+      "com.chuusai"            %% "shapeless"               % "2.3.2",
+      "com.adelegue"           %% "playjson-extended"       % "0.0.4",
+      "junit"                  % "junit"                    % "4.12" % Test,
+      "org.assertj"            % "assertj-core"             % "3.5.2" % Test,
+      "com.novocode"           % "junit-interface"          % "0.11" % Test,
+      "org.scalatest"          %% "scalatest"               % "3.0.1" % Test,
+      "com.typesafe.akka"      %% "akka-testkit"            % akkaVersion % Test,
+      "org.mockito"            % "mockito-core"             % "2.12.0" % Test,
+      "com.github.tomakehurst" % "wiremock"                 % "2.12.0" % Test,
+      "org.assertj"            % "assertj-core"             % "3.8.0" % Test
+    ),
+    resolvers ++= Seq(
+      "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
+      Resolver.jcenterRepo,
+      Resolver.bintrayRepo("larousso", "maven")
+    ),
+    scalafmtOnCompile in ThisBuild := true,
+    scalafmtTestOnCompile in ThisBuild := true,
+    scalafmtVersion in ThisBuild := "1.2.0"
+  )
+  .settings(publishSettings: _*)
 
 lazy val githubRepo = "maif/izanami"
 
@@ -68,18 +69,24 @@ lazy val publishCommonsSettings = Seq(
 )
 
 lazy val publishSettings =
-  if (sys.env.get("TRAVIS_TAG").isEmpty) {
-    publishCommonsSettings ++ Seq(
-      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-libs-snapshot;build.timestamp=" + new java.util.Date().getTime),
-      bintrayReleaseOnPublish := false,
-      credentials := List(Credentials("Artifactory Realm", "oss.jfrog.org", sys.env("BINTRAY_USER"), sys.env("BINTRAY_PASSWORD")))
-    )
-  } else {
+  if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+    println("TRAVIS TAG")
     publishCommonsSettings ++ Seq(
       bintrayOrganization := Some("maif"),
       bintrayCredentialsFile := file(".credentials"),
       pomIncludeRepository := { _ =>
         false
       }
+    )
+  } else {
+    println("SNAPSHOT")
+    publishCommonsSettings ++ Seq(
+      publishTo := Some(
+        "Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"
+      ),
+      bintrayReleaseOnPublish := false,
+      credentials := List(
+        Credentials("Artifactory Realm", "oss.jfrog.org", sys.env("BINTRAY_USER"), sys.env("BINTRAY_PASSWORD"))
+      )
     )
   }
