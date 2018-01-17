@@ -61,7 +61,7 @@ class ConfigController(env: Env,
         .getByIdLike(patternsSeq)
         .stream
         .map { config =>
-          config.id.jsPath.write[JsValue].writes(Json.parse(config.value))
+          config.id.jsPath.write[JsValue].writes(config.value)
         }
         .fold(Json.obj()) { (acc, js) =>
           acc.deepMerge(js.as[JsObject])
