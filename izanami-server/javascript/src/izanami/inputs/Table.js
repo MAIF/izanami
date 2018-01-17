@@ -47,13 +47,15 @@ export class Table extends Component {
     downloadLinks: PropTypes.array,
     uploadLinks: PropTypes.array,
     onEvent: PropTypes.func,
-    eventNames: PropTypes.object
+    eventNames: PropTypes.object,
+    convertItem: PropTypes.func,
   };
 
   static defaultProps = {
     rowNavigation: false,
     pageSize: 20,
     firstSort: null,
+    convertItem: e => e,
   };
 
   state = {
@@ -226,7 +228,8 @@ export class Table extends Component {
       `/${this.props.selfUrl}/edit/${this.props.extractKey(item)}`
     );
     this.props.parentProps.setTitle(`Update a ${this.props.itemName}`);
-    this.setState({currentItem: item, currentItemOriginal: item, showEditForm: true, error: false, errorList: []});
+    const currentItem = this.props.convertItem(item);
+    this.setState({currentItem, currentItemOriginal: currentItem, showEditForm: true, error: false, errorList: []});
   };
 
   deleteItem = (e, item) => {
@@ -288,7 +291,6 @@ export class Table extends Component {
     this.props.parentProps.setTitle(this.props.defaultTitle);
 
     this.setState({error: false, errorList: []});
-
 
     const currentItem = this.state.currentItem;
     const currentItemOriginal = this.state.currentItemOriginal;
