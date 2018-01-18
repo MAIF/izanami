@@ -28,21 +28,16 @@ object ConfigStore {
 
   type ConfigKey = Key
 
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            system: ActorSystem): ConfigStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): ConfigStore =
     new ConfigStoreImpl(jsonStore, eventStore, system)
 }
 
-class ConfigStoreImpl(jsonStore: JsonDataStore,
-                      eventStore: EventStore,
-                      system: ActorSystem)
-    extends ConfigStore {
+class ConfigStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends ConfigStore {
 
   import Config._
   import store.Result._
   import system.dispatcher
-  implicit val s = system
+  implicit val s  = system
   implicit val es = eventStore
   import domains.events.Events._
 
@@ -51,9 +46,7 @@ class ConfigStoreImpl(jsonStore: JsonDataStore,
       ConfigCreated(id, r)
     }
 
-  override def update(oldId: ConfigKey,
-                      id: ConfigKey,
-                      data: Config): Future[Result[Config]] =
+  override def update(oldId: ConfigKey, id: ConfigKey, data: Config): Future[Result[Config]] =
     jsonStore
       .update(oldId, id, format.writes(data))
       .to[Config]
@@ -72,10 +65,7 @@ class ConfigStoreImpl(jsonStore: JsonDataStore,
   override def getById(id: ConfigKey): FindResult[Config] =
     JsonFindResult[Config](jsonStore.getById(id))
 
-  override def getByIdLike(
-      patterns: Seq[String],
-      page: Int,
-      nbElementPerPage: Int): Future[PagingResult[Config]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Config]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))

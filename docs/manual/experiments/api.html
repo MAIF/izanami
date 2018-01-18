@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-0.0.1*
+0.0.6*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -92,8 +92,10 @@
 H3.6C3.048,13,3,13.447,3,14c0,0.553,0.048,1,0.6,1H16.4c0.552,0,0.6-0.447,0.6-1C17,13.447,16.952,13,16.4,13z M3.6,7H16.4
 C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.048,7,3.6,7z"/></svg>
 </a>
+<div class="title-wrapper">
+<div class="title-logo"></div>
 <div class="title"><a href="../index.html">Izanami</a></div>
-
+</div>
 <!--
 <a href="https://www.example.com" class="logo show-for-medium">logo</a>
 -->
@@ -109,7 +111,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-0.0.1*
+0.0.6*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -191,6 +193,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../experiments/api.html#create-an-experiment" class="header">Create an experiment</a></li>
     <li><a href="../experiments/api.html#get-an-experiment" class="header">Get an experiment</a></li>
     <li><a href="../experiments/api.html#update-an-experiment" class="header">Update an experiment</a></li>
+    <li><a href="../experiments/api.html#patch-an-experiment" class="header">Patch an experiment</a></li>
     <li><a href="../experiments/api.html#delete-an-experiment" class="header">Delete an experiment</a></li>
   </ul></li>
   <li><a href="../experiments/api.html#operations-on-variants" class="header">Operations on Variants</a>
@@ -407,6 +410,37 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     {
       &quot;id&quot;: &quot;A&quot;,
       &quot;name&quot;: &quot;Red button&quot;,
+      &quot;description&quot;: &quot;Variant A is the red button&quot;,
+      &quot;traffic&quot;: 0.5
+    },
+    {
+      &quot;id&quot;: &quot;B&quot;,
+      &quot;name&quot;: &quot;Variant B&quot;,
+      &quot;description&quot;: &quot;Variant B is the blue button&quot;,
+      &quot;traffic&quot;: 0.5
+    }
+  ]
+}
+</code></pre>
+<h3><a href="#patch-an-experiment" name="patch-an-experiment" class="anchor"><span class="anchor-link"></span></a>Patch an experiment</h3>
+<p>Partial updates can be done using json patch : </p>
+<pre class="prettyprint"><code class="language-bash">curl -X PATCH \
+  &#39;http://localhost:9000/api/experiments/izanami:test:button:color&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;[{&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;/name&quot;, &quot;value&quot;: &quot;Orange button or Blue button&quot;}, {&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;/variants/0/name&quot;, &quot;value&quot;: &quot;Orange button&quot;}]&#39; | jq 
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;izanami:test:button:color&quot;,
+  &quot;name&quot;: &quot;Orange button or Blue button&quot;,
+  &quot;description&quot;: &quot;Which button is the best ...&quot;,
+  &quot;enabled&quot;: true,
+  &quot;variants&quot;: [
+    {
+      &quot;id&quot;: &quot;A&quot;,
+      &quot;name&quot;: &quot;Orange button&quot;,
       &quot;description&quot;: &quot;Variant A is the red button&quot;,
       &quot;traffic&quot;: 0.5
     },
@@ -773,5 +807,16 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 <script type="text/javascript" src="../lib/prettify/prettify.js"></script>
 <script type="text/javascript" src="../lib/prettify/lang-scala.js"></script>
 <script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-112498312-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
 
+gtag('config', 'UA-112498312-1');
+</script>
 </html>
+
+
+
+

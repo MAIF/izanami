@@ -44,9 +44,9 @@ object User {
     import scala.collection.JavaConverters._
     val claims = jwt.getClaims.asScala
     for {
-      name <- claims.get("name").map(_.asString())
+      name   <- claims.get("name").map(_.asString())
       userId <- claims.get("user_id").map(_.asString())
-      email <- claims.get("email").map(_.asString())
+      email  <- claims.get("email").map(_.asString())
       patterns = claims
         .get("izanami_authorized_patterns")
         .map(_.asString())
@@ -56,12 +56,7 @@ object User {
         .map(_.asString)
         .flatMap(str => Try(str.toBoolean).toOption)
         .getOrElse(false)
-    } yield
-      User(id = userId,
-           name = name,
-           email = email,
-           admin = isAdmin,
-           authorizedPattern = patterns)
+    } yield User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = patterns)
   }
 }
 
@@ -69,23 +64,18 @@ trait UserStore extends DataStore[UserKey, User]
 object UserStore {
   type UserKey = Key
 
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            system: ActorSystem): UserStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): UserStore =
     new UserStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class UserStoreImpl(jsonStore: JsonDataStore,
-                    eventStore: EventStore,
-                    system: ActorSystem)
-    extends UserStore {
+class UserStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends UserStore {
   import User._
   import domains.events.Events._
   import store.Result._
   import system.dispatcher
 
-  implicit val s = system
+  implicit val s  = system
   implicit val es = eventStore
 
   override def create(id: UserKey, data: User): Future[Result[User]] = {
@@ -93,20 +83,16 @@ class UserStoreImpl(jsonStore: JsonDataStore,
     mayBePass match {
       case Some(p) =>
         val user = data.copy(password = Some(Sha.hexSha512(p)))
-        jsonStore.create(id, format.writes(user)).to[User].andPublishEvent {
-          r =>
-            UserCreated(id, r)
+        jsonStore.create(id, format.writes(user)).to[User].andPublishEvent { r =>
+          UserCreated(id, r)
         }
       case _ => FastFuture.successful(Result.error("password.missing"))
     }
   }
 
-  override def update(oldId: UserKey,
-                      id: UserKey,
-                      data: User): Future[Result[User]] =
-    jsonStore.update(oldId, id, format.writes(data)).to[User].andPublishEvent {
-      r =>
-        UserUpdated(id, data, r)
+  override def update(oldId: UserKey, id: UserKey, data: User): Future[Result[User]] =
+    jsonStore.update(oldId, id, format.writes(data)).to[User].andPublishEvent { r =>
+      UserUpdated(id, data, r)
     }
 
   override def delete(id: UserKey): Future[Result[User]] =
@@ -120,9 +106,7 @@ class UserStoreImpl(jsonStore: JsonDataStore,
   override def getById(id: UserKey): FindResult[User] =
     JsonFindResult[User](jsonStore.getById(id))
 
-  override def getByIdLike(patterns: Seq[String],
-                           page: Int,
-                           nbElementPerPage: Int): Future[PagingResult[User]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[User]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))

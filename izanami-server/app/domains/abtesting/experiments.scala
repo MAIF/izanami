@@ -25,11 +25,7 @@ object Variant {
   implicit val format = Json.format[Variant]
 }
 
-case class Experiment(id: ExperimentKey,
-                      name: String,
-                      description: String,
-                      enabled: Boolean,
-                      variants: Seq[Variant]) {
+case class Experiment(id: ExperimentKey, name: String, description: String, enabled: Boolean, variants: Seq[Variant]) {
   def isAllowed = Key.isAllowed(id) _
 
   def addOrReplaceVariant(variant: Variant): Experiment =
@@ -47,8 +43,7 @@ object Experiment {
 
   def toGraph(clientId: String)(implicit ec: ExecutionContext,
                                 experimentStore: ExperimentStore,
-                                variantBindingStore: VariantBindingStore)
-    : Flow[Experiment, JsObject, NotUsed] = {
+                                variantBindingStore: VariantBindingStore): Flow[Experiment, JsObject, NotUsed] = {
     import VariantBinding._
     Flow[Experiment]
       .mapAsyncUnordered(2) { experiment =>
@@ -60,7 +55,8 @@ object Experiment {
               FastFuture.successful(
                 (experiment.id.jsPath \ "variant")
                   .write[String]
-                  .writes(v.variantId))
+                  .writes(v.variantId)
+              )
             case None =>
               VariantBinding
                 .createVariantForClient(experiment.id, clientId)
@@ -86,39 +82,27 @@ object Experiment {
 trait ExperimentStore extends DataStore[ExperimentKey, Experiment]
 
 object ExperimentStore {
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            system: ActorSystem) =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) =
     new ExperimentStoreImpl(jsonStore, eventStore, system)
 }
 
-class ExperimentStoreImpl(jsonStore: JsonDataStore,
-                          eventStore: EventStore,
-                          system: ActorSystem)
+class ExperimentStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
     extends ExperimentStore {
 
   import Experiment._
-  import domains.events.Events.{
-    ExperimentCreated,
-    ExperimentDeleted,
-    ExperimentUpdated
-  }
+  import domains.events.Events.{ExperimentCreated, ExperimentDeleted, ExperimentUpdated}
   import store.Result._
   import system.dispatcher
 
-  implicit val s = system
+  implicit val s  = system
   implicit val es = eventStore
 
-  override def create(id: ExperimentKey,
-                      data: Experiment): Future[Result[Experiment]] =
-    jsonStore.create(id, format.writes(data)).to[Experiment].andPublishEvent {
-      r =>
-        ExperimentCreated(id, r)
+  override def create(id: ExperimentKey, data: Experiment): Future[Result[Experiment]] =
+    jsonStore.create(id, format.writes(data)).to[Experiment].andPublishEvent { r =>
+      ExperimentCreated(id, r)
     }
 
-  override def update(oldId: ExperimentKey,
-                      id: ExperimentKey,
-                      data: Experiment): Future[Result[Experiment]] =
+  override def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment): Future[Result[Experiment]] =
     jsonStore
       .update(oldId, id, format.writes(data))
       .to[Experiment]
@@ -137,10 +121,7 @@ class ExperimentStoreImpl(jsonStore: JsonDataStore,
   override def getById(id: ExperimentKey): FindResult[Experiment] =
     JsonFindResult[Experiment](jsonStore.getById(id))
 
-  override def getByIdLike(
-      patterns: Seq[String],
-      page: Int,
-      nbElementPerPage: Int): Future[PagingResult[Experiment]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Experiment]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
@@ -167,9 +148,7 @@ object VariantResult {
   }
 }
 
-case class ExperimentResult(experiment: Experiment,
-                            results: Seq[VariantResult] =
-                              Seq.empty[VariantResult])
+case class ExperimentResult(experiment: Experiment, results: Seq[VariantResult] = Seq.empty[VariantResult])
 
 object ExperimentResult {
   implicit val format = Json.format[ExperimentResult]

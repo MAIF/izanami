@@ -15,6 +15,16 @@ table {
     word-break: break-word;
 }
 
+.title-wrapper {
+    display: flex;
+}
+
+.title-logo {
+    content: url("../img/izanami-small-logo.png");
+    margin-right: 10px;
+    margin-top: 10px;
+}
+
 /* */
 
 

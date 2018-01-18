@@ -1,6 +1,6 @@
 
 
-addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.6") // Apache 2.0
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.11") // Apache 2.0
 
 addSbtPlugin("com.lucidchart" % "sbt-scalafmt" % "1.12") // Apache 2.0
 

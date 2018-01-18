@@ -22,37 +22,32 @@ object OtoroshiFilter {
     val AuthInfo: TypedKey[Option[AuthInfo]] = TypedKey("auth")
   }
 
-  def apply(env: Env, config: OtoroshiFilterConfig, apikeyStore: ApikeyStore)(
-      implicit ec: ExecutionContext,
-      mat: Materializer): OtoroshiFilter =
+  def apply(env: Env, config: OtoroshiFilterConfig, apikeyStore: ApikeyStore)(implicit ec: ExecutionContext,
+                                                                              mat: Materializer): OtoroshiFilter =
     new OtoroshiFilter(env, config)
 }
 
-class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(
-    implicit ec: ExecutionContext,
-    val mat: Materializer)
+class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: ExecutionContext, val mat: Materializer)
     extends Filter {
 
   private val logger = Logger("filter")
 
-  def apply(nextFilter: RequestHeader => Future[Result])(
-      requestHeader: RequestHeader): Future[Result] = {
-    val startTime = System.currentTimeMillis
+  def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
+    val startTime  = System.currentTimeMillis
     val maybeReqId = requestHeader.headers.get(config.headerRequestId)
     val maybeState = requestHeader.headers.get(config.headerGatewayState)
     val maybeClaim = requestHeader.headers.get(config.headerClaim)
 
     val t = Try(env.env match {
       case devOrTest if devOrTest == "dev" || devOrTest == "test" =>
-        nextFilter(requestHeader).map {
-          result =>
-            val requestTime = System.currentTimeMillis - startTime
-            logger.debug(
-              s"Request => ${requestHeader.method} ${requestHeader.uri} took ${requestTime}ms and returned ${result.header.status}"
-            )
-            result.withHeaders(
-              config.headerGatewayStateResp -> maybeState.getOrElse("--")
-            )
+        nextFilter(requestHeader).map { result =>
+          val requestTime = System.currentTimeMillis - startTime
+          logger.debug(
+            s"Request => ${requestHeader.method} ${requestHeader.uri} took ${requestTime}ms and returned ${result.header.status}"
+          )
+          result.withHeaders(
+            config.headerGatewayStateResp -> maybeState.getOrElse("--")
+          )
         }
       case "prod" if maybeClaim.isEmpty && maybeState.isEmpty =>
         Future.successful(
@@ -76,18 +71,15 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(
           val verifier =
             JWT.require(algorithm).withIssuer(config.issuer).build()
           val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
-          nextFilter(
-            requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo,
-                                  User.fromJwtToken(decoded))).map {
+          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, User.fromJwtToken(decoded))).map {
             result =>
               val requestTime = System.currentTimeMillis - startTime
-              maybeReqId.foreach {
-                id =>
-                  logger.debug(
-                    s"Request from Opun Gateway with id : $id => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                      .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                      .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
-                  )
+              maybeReqId.foreach { id =>
+                logger.debug(
+                  s"Request from Opun Gateway with id : $id => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+                    .map(h => s"""   "${h._1}": "${h._2}"\n""")
+                    .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+                )
               }
               result.withHeaders(
                 config.headerGatewayStateResp -> maybeState.getOrElse("--")
@@ -135,34 +127,24 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(
     val result: Future[Result] = t.get
     result.onComplete {
       case Success(resp) =>
-        logger.debug(
-          s" ${requestHeader.method} ${requestHeader.uri} resp : $resp")
+        logger.debug(s" ${requestHeader.method} ${requestHeader.uri} resp : $resp")
       case Failure(e) =>
-        logger.error(
-          s"Error for request ${requestHeader.method} ${requestHeader.uri}",
-          e)
-        logger.error(
-          s"Error for request ${requestHeader.method} ${requestHeader.uri}",
-          e.getCause)
+        logger.error(s"Error for request ${requestHeader.method} ${requestHeader.uri}", e)
+        logger.error(s"Error for request ${requestHeader.method} ${requestHeader.uri}", e.getCause)
     }
     result
   }
 }
 
-class IzanamiDefaultFilter(env: Env,
-                           config: DefaultFilter,
-                           apikeyStore: ApikeyStore)(
-    implicit ec: ExecutionContext,
-    val mat: Materializer)
+class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyStore: ApikeyStore)(implicit ec: ExecutionContext,
+                                                                                      val mat: Materializer)
     extends Filter {
 
   private val logger = Logger("filter")
 
-  def apply(nextFilter: RequestHeader => Future[Result])(
-      requestHeader: RequestHeader): Future[Result] = {
+  def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
     val startTime: Long = System.currentTimeMillis
-    val maybeClaim = Try(
-      requestHeader.cookies.get(config.cookieClaim).get.value).toOption
+    val maybeClaim      = Try(requestHeader.cookies.get(config.cookieClaim).get.value).toOption
 
     val maybeClientId = requestHeader.headers.get(config.apiKeys.headerClientId)
     val maybeClientSecret =
@@ -175,11 +157,7 @@ class IzanamiDefaultFilter(env: Env,
           requestHeader.addAttr(
             OtoroshiFilter.Attrs.AuthInfo,
             Some(
-              User(id = "id",
-                   name = "Ragnard",
-                   email = "ragnard@viking.com",
-                   admin = false,
-                   authorizedPattern = "*")
+              User(id = "id", name = "Ragnard", email = "ragnard@viking.com", admin = false, authorizedPattern = "*")
             )
           )
         ).map { result =>
@@ -190,21 +168,18 @@ class IzanamiDefaultFilter(env: Env,
           result
         }
       // Prod && Api key :
-      case prod
-          if prod == "prod" && maybeClientId.isDefined && maybeClientSecret.isDefined =>
+      case prod if prod == "prod" && maybeClientId.isDefined && maybeClientSecret.isDefined =>
         apikeyStore.getById(Key(maybeClientId.get)).one.flatMap {
           case Some(apikey) if apikey.clientSecret == maybeClientSecret.get =>
-            nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo,
-                                             Some(apikey)))
-              .map {
-                result =>
-                  val requestTime = System.currentTimeMillis - startTime
-                  logger.debug(
-                    s"Request api key => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                      .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                      .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
-                  )
-                  result
+            nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, Some(apikey)))
+              .map { result =>
+                val requestTime = System.currentTimeMillis - startTime
+                logger.debug(
+                  s"Request api key => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+                    .map(h => s"""   "${h._1}": "${h._2}"\n""")
+                    .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+                )
+                result
               }
           case _ =>
             FastFuture.successful(
@@ -224,17 +199,14 @@ class IzanamiDefaultFilter(env: Env,
             JWT.require(algorithm).withIssuer(config.issuer).build()
           val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
 
-          nextFilter(
-            requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo,
-                                  User.fromJwtToken(decoded))).map {
-            result =>
-              val requestTime = System.currentTimeMillis - startTime
-              logger.debug(
-                s"Request claim with exclusion => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                  .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                  .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
-              )
-              result
+          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
+            val requestTime = System.currentTimeMillis - startTime
+            logger.debug(
+              s"Request claim with exclusion => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+                .map(h => s"""   "${h._1}": "${h._2}"\n""")
+                .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+            )
+            result
           }
         } recoverWith {
           case e =>
@@ -249,9 +221,7 @@ class IzanamiDefaultFilter(env: Env,
         }
         tryDecode.get
       }
-      case prod
-          if prod == "prod" && config.allowedPaths.exists(path =>
-            requestHeader.path.matches(path)) => {
+      case prod if prod == "prod" && config.allowedPaths.exists(path => requestHeader.path.matches(path)) => {
         nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, None))
           .map {
             result =>
@@ -280,17 +250,14 @@ class IzanamiDefaultFilter(env: Env,
             JWT.require(algorithm).withIssuer(config.issuer).build()
           val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
 
-          nextFilter(
-            requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo,
-                                  User.fromJwtToken(decoded))).map {
-            result =>
-              val requestTime = System.currentTimeMillis - startTime
-              logger.debug(
-                s"Request claim => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                  .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                  .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
-              )
-              result
+          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
+            val requestTime = System.currentTimeMillis - startTime
+            logger.debug(
+              s"Request claim => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+                .map(h => s"""   "${h._1}": "${h._2}"\n""")
+                .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+            )
+            result
           }
         } recoverWith {
           case e =>
@@ -325,12 +292,9 @@ class IzanamiDefaultFilter(env: Env,
     val result: Future[Result] = t.get
     result.onComplete {
       case Success(resp) =>
-        logger.debug(
-          s" ${requestHeader.method} ${requestHeader.uri} resp : $resp")
+        logger.debug(s" ${requestHeader.method} ${requestHeader.uri} resp : $resp")
       case Failure(e) =>
-        logger.error(
-          s"Error for request ${requestHeader.method} ${requestHeader.uri}",
-          e)
+        logger.error(s"Error for request ${requestHeader.method} ${requestHeader.uri}", e)
     }
     result
   }

@@ -13,15 +13,13 @@ import play.api.libs.json.JsValue
 import scala.concurrent.Future
 
 object FallbackConfigStategy {
-  def apply(fallback: Configs)(
-      implicit izanamiDispatcher: IzanamiDispatcher,
-      materializer: Materializer): FallbackConfigStategy =
+  def apply(fallback: Configs)(implicit izanamiDispatcher: IzanamiDispatcher,
+                               materializer: Materializer): FallbackConfigStategy =
     new FallbackConfigStategy(fallback)
 }
 
-class FallbackConfigStategy(fallback: Configs)(
-    implicit val izanamiDispatcher: IzanamiDispatcher,
-    val materializer: Materializer)
+class FallbackConfigStategy(fallback: Configs)(implicit val izanamiDispatcher: IzanamiDispatcher,
+                                               val materializer: Materializer)
     extends ConfigClient {
 
   import izanamiDispatcher.ec

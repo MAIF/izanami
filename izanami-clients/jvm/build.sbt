@@ -3,8 +3,14 @@ import sbtrelease.ReleaseStateTransformations._
 
 val akkaVersion = "2.5.6"
 
+val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+  Seq(RevolverPlugin)
+} else {
+  Seq(RevolverPlugin, BintrayPlugin)
+}
+
 lazy val jvm = (project in file("."))
-  .disablePlugins(RevolverPlugin)
+  .disablePlugins(disabledPlugins: _*)
   .settings(
     organization := "fr.maif",
     name := "izanami-client",
@@ -19,7 +25,7 @@ lazy val jvm = (project in file("."))
       "com.google.guava"       % "guava"                    % "22.0",
       "com.typesafe.play"      %% "play-json"               % "2.6.6",
       "com.chuusai"            %% "shapeless"               % "2.3.2",
-      "com.adelegue"           %% "playjson-extended"       % "0.0.3",
+      "com.adelegue"           %% "playjson-extended"       % "0.0.4",
       "junit"                  % "junit"                    % "4.12" % Test,
       "org.assertj"            % "assertj-core"             % "3.5.2" % Test,
       "com.novocode"           % "junit-interface"          % "0.11" % Test,
@@ -31,7 +37,8 @@ lazy val jvm = (project in file("."))
     ),
     resolvers ++= Seq(
       "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
-      Resolver.jcenterRepo
+      Resolver.jcenterRepo,
+      Resolver.bintrayRepo("larousso", "maven")
     ),
     scalafmtOnCompile in ThisBuild := true,
     scalafmtTestOnCompile in ThisBuild := true,
@@ -55,23 +62,29 @@ lazy val publishCommonsSettings = Seq(
   developers := List(
     Developer("alexandre.delegue", "Alexandre Delègue", "", url(s"https://github.com/larousso"))
   ),
+  releaseCrossBuild := true,
   publishMavenStyle := true,
   publishArtifact in Test := false,
   bintrayVcsUrl := Some(s"scm:git:git@github.com:$githubRepo.git")
 )
 
 lazy val publishSettings =
-//  if (sys.env.get("TRAVIS_TAG").isEmpty) {
-//    publishCommonsSettings ++ Seq(
-//      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"),
-//      bintrayReleaseOnPublish := false,
-//      credentials := List(new File(".artifactory")).filter(_.exists).map(Credentials(_))
-//    )
-//  } else {
-publishCommonsSettings ++ Seq(
-  bintrayOrganization := Some("maif"),
-  bintrayCredentialsFile := file(".credentials"),
-  pomIncludeRepository := { _ =>
-    false
+  if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+    publishCommonsSettings ++ Seq(
+      bintrayOrganization := Some("maif"),
+      bintrayCredentialsFile := file(".credentials"),
+      pomIncludeRepository := { _ =>
+        false
+      }
+    )
+  } else {
+    publishCommonsSettings ++ Seq(
+      publishTo := Some(
+        "Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"
+      ),
+      bintrayReleaseOnPublish := false,
+      credentials := List(
+        Credentials("Artifactory Realm", "oss.jfrog.org", sys.env("BINTRAY_USER"), sys.env("BINTRAY_PASSWORD"))
+      )
+    )
   }
-)

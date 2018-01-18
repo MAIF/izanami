@@ -14,15 +14,13 @@ import play.api.libs.json.{JsObject, JsValue}
 import scala.concurrent.Future
 
 object FallbackFeatureStategy {
-  def apply(fallback: Features)(
-      implicit izanamiDispatcher: IzanamiDispatcher,
-      materializer: Materializer): FallbackFeatureStategy =
+  def apply(fallback: Features)(implicit izanamiDispatcher: IzanamiDispatcher,
+                                materializer: Materializer): FallbackFeatureStategy =
     new FallbackFeatureStategy(fallback)
 }
 
-class FallbackFeatureStategy(fallback: Features)(
-    implicit val izanamiDispatcher: IzanamiDispatcher,
-    val materializer: Materializer)
+class FallbackFeatureStategy(fallback: Features)(implicit val izanamiDispatcher: IzanamiDispatcher,
+                                                 val materializer: Materializer)
     extends FeatureClient {
 
   import izanamiDispatcher.ec
@@ -47,8 +45,7 @@ class FallbackFeatureStategy(fallback: Features)(
       fallback.isActive(key)
     }
 
-  override def onEvent(pattern: String)(
-      cb: FeatureEvent => Unit): Registration =
+  override def onEvent(pattern: String)(cb: FeatureEvent => Unit): Registration =
     FakeRegistration()
 
   override def featuresSource(pattern: String): Source[FeatureEvent, NotUsed] =

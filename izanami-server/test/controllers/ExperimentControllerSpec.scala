@@ -1,6 +1,7 @@
 package controllers
 
 import domains.abtesting._
+import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration

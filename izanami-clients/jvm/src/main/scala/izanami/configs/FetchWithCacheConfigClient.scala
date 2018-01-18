@@ -26,10 +26,7 @@ object FetchWithCacheConfigClient {
   )(implicit izanamiDispatcher: IzanamiDispatcher,
     actorSystem: ActorSystem,
     materializer: Materializer): FetchWithCacheConfigClient =
-    new FetchWithCacheConfigClient(clientConfig,
-                                   fallback,
-                                   underlyingStrategy,
-                                   cacheConfig)
+    new FetchWithCacheConfigClient(clientConfig, fallback, underlyingStrategy, cacheConfig)
 }
 
 private[configs] class FetchWithCacheConfigClient(
@@ -37,9 +34,7 @@ private[configs] class FetchWithCacheConfigClient(
     fallback: Configs,
     underlyingStrategy: ConfigClient,
     cacheConfig: FetchWithCacheStrategy
-)(implicit val izanamiDispatcher: IzanamiDispatcher,
-  actorSystem: ActorSystem,
-  val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
   import actorSystem.dispatcher
@@ -73,8 +68,7 @@ private[configs] class FetchWithCacheConfigClient(
     val convertedKey: String = key.replace(".", ":")
     Option(cache.getIfPresent(convertedKey)) match {
       case Some(configs) =>
-        FastFuture.successful(
-          configs.find(_.id == convertedKey).map(_.value).getOrElse(Json.obj()))
+        FastFuture.successful(configs.find(_.id == convertedKey).map(_.value).getOrElse(Json.obj()))
       case None =>
         val futureConfig: Future[Configs] =
           underlyingStrategy.configs(convertedKey)

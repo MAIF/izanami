@@ -14,10 +14,7 @@ import play.api.libs.json.{JsSuccess, Json}
 import play.api.{Configuration, Environment}
 import test.IzanamiSpec
 
-class FeatureSpec
-    extends IzanamiSpec
-    with ScalaFutures
-    with IntegrationPatience {
+class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
 
   "Feature Deserialisation" must {
 
@@ -89,10 +86,26 @@ class FeatureSpec
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(
-        ReleaseDateFeature(Key("id"),
-                           true,
-                           LocalDateTime.of(2017, 1, 1, 12, 12, 12)))
+      result.get must be(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 12)))
+
+    }
+
+    "Deserialize ReleaseDateFeature other format" in {
+      import Feature._
+      val json =
+        Json.parse("""
+                     |{
+                     |   "id": "id",
+                     |   "enabled": true,
+                     |   "activationStrategy": "RELEASE_DATE",
+                     |   "parameters": { "releaseDate": "01/01/2017 12:12" }
+                     |}
+                   """.stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 0)))
 
     }
   }
@@ -136,8 +149,7 @@ class FeatureSpec
           |   "parameters": { "script": "script" }
           |}
         """.stripMargin)
-      Json.toJson(ScriptFeature(Key("id"), true, Script("script"))) must be(
-        json)
+      Json.toJson(ScriptFeature(Key("id"), true, Script("script"))) must be(json)
     }
 
     "Deserialize ReleaseDateFeature" in {
@@ -151,11 +163,7 @@ class FeatureSpec
           |   "parameters": { "releaseDate": "01/01/2017 12:12:12" }
           |}
         """.stripMargin)
-      Json.toJson(
-        ReleaseDateFeature(Key("id"),
-                           true,
-                           LocalDateTime.of(2017, 1, 1, 12, 12, 12))) must be(
-        json)
+      Json.toJson(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 12))) must be(json)
     }
   }
 
@@ -181,8 +189,8 @@ class FeatureSpec
             "active" -> true,
             "b" -> Json.obj(
               "active" -> false,
-              "c" -> Json.obj("active" -> true),
-              "d" -> Json.obj("active" -> false)
+              "c"      -> Json.obj("active" -> true),
+              "d"      -> Json.obj("active" -> false)
             )
           )
         )
