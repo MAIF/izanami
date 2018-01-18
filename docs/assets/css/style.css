@@ -16,7 +16,20 @@ a {
 a:hover {
   color: #DC5F9F;
 }
+.home {
+  position: fixed;
+  z-index: 1001;
+  margin-left: 10px;
+  margin-top: 10px;
+}
 
+.home a {
+  color: #e58ab9;
+}
+
+.home a:hover {
+  color: #de91b9;
+}
 .tagN2 {
   width: 20%;
   display: block;
@@ -175,19 +188,21 @@ h2 {
   margin-left: -5%;
 }
 
-@media screen and (max-width: 1000px) {
-  .titleOnLine {
-    font-size: 26px;
+
+
+@media screen and (max-width: 991px) {
+  .home .fa-home {
+    font-size: 1.5em;
   }
   .intro {
     font-size: 16px;
   }
-}
-
-@media screen and (max-width: 991px) {
   .colDashRight {
     border: none;
     padding-right: 15px;
+  }
+  .titleOnLine {
+    font-size: 26px;
   }
   .titleOnLine li {
     text-align: center;
