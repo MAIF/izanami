@@ -12,16 +12,15 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import scala.concurrent.Future
 
 object FetchExperimentsStrategy {
-  def apply(httpClient: HttpClient, fallback: Experiments)(
-      implicit izanamiDispatcher: IzanamiDispatcher,
-      actorSystem: ActorSystem): FetchExperimentsStrategy =
+  def apply(httpClient: HttpClient, fallback: Experiments)(implicit izanamiDispatcher: IzanamiDispatcher,
+                                                           actorSystem: ActorSystem): FetchExperimentsStrategy =
     new FetchExperimentsStrategy(httpClient, fallback)
 }
 
 class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
     implicit izanamiDispatcher: IzanamiDispatcher,
-    actorSystem: ActorSystem)
-    extends ExperimentsClient {
+    actorSystem: ActorSystem
+) extends ExperimentsClient {
 
   import izanamiDispatcher.ec
   import izanami.Experiment._
@@ -56,12 +55,10 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
     }
   }
 
-  override def getVariantFor(experimentId: String,
-                             clientId: String): Future[Option[Variant]] = {
+  override def getVariantFor(experimentId: String, clientId: String): Future[Option[Variant]] = {
     require(clientId != null, "clientId should not be null")
     httpClient
-      .fetch(s"/api/experiments/${experimentId}/variant",
-             Seq("clientId" -> clientId))
+      .fetch(s"/api/experiments/${experimentId}/variant", Seq("clientId" -> clientId))
       .flatMap {
         case (status, body) if status == StatusCodes.OK =>
           Json
@@ -86,9 +83,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
       }
   }
 
-  override def markVariantDisplayed(
-      experimentId: String,
-      clientId: String): Future[ExperimentVariantDisplayed] = {
+  override def markVariantDisplayed(experimentId: String, clientId: String): Future[ExperimentVariantDisplayed] = {
     require(clientId != null, "clientId should not be null")
     val uri = s"/api/experiments/${experimentId}/displayed"
     httpClient
@@ -114,14 +109,10 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
       }
   }
 
-  override def markVariantWon(
-      experimentId: String,
-      clientId: String): Future[ExperimentVariantWon] = {
+  override def markVariantWon(experimentId: String, clientId: String): Future[ExperimentVariantWon] = {
     require(clientId != null, "clientId should not be null")
     httpClient
-      .fetch(s"/api/experiments/${experimentId}/won",
-             Seq("clientId" -> clientId),
-             method = HttpMethods.POST)
+      .fetch(s"/api/experiments/${experimentId}/won", Seq("clientId" -> clientId), method = HttpMethods.POST)
       .flatMap {
         case (status, body) if status == StatusCodes.OK =>
           Json
@@ -155,8 +146,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
             .validate[Experiment]
             .fold(
               err => {
-                logger.error(
-                  s"Error deserializing experiment for response $json : $err")
+                logger.error(s"Error deserializing experiment for response $json : $err")
                 None
               },
               exp => Some(ExperimentClient(this, exp))
@@ -164,7 +154,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
         }
       }
     for {
-      fetched <- fetchedList
+      fetched  <- fetchedList
       fallback <- fallbackStrategy.list(pattern)
     } yield fallback.filter(e => !fetched.exists(_.id == e.id)) ++ fetched
   }
@@ -174,18 +164,14 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
       Option(pattern).map(_.replace(".", ":")).getOrElse("*")
     for {
       fetched <- httpClient
-        .fetch(s"/api/tree/experiments",
-               Seq("pattern" -> effectivePattern, "clientId" -> clientId))
-        .flatMap {
-          case (status, body) if status == StatusCodes.OK =>
-            FastFuture.successful(Json.parse(body).as[JsObject])
-          case (status, body) =>
-            logger.error(
-              s"Error getting experiment: status=$status, body= $body")
-            FastFuture.failed(
-              IzanamiException(
-                s"Error getting experiment: status=$status, body= $body"))
-        }
+                  .fetch(s"/api/tree/experiments", Seq("pattern" -> effectivePattern, "clientId" -> clientId))
+                  .flatMap {
+                    case (status, body) if status == StatusCodes.OK =>
+                      FastFuture.successful(Json.parse(body).as[JsObject])
+                    case (status, body) =>
+                      logger.error(s"Error getting experiment: status=$status, body= $body")
+                      FastFuture.failed(IzanamiException(s"Error getting experiment: status=$status, body= $body"))
+                  }
       fallback <- fallbackStrategy.tree(pattern, clientId)
     } yield fallback deepMerge fetched
   }

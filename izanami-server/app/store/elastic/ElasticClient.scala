@@ -9,12 +9,11 @@ import play.api.libs.json.JsValue
 
 object ElasticClient {
 
-  def apply(elasticConfig: ElasticConfig,
-            actorSystem: ActorSystem): Elastic[JsValue] = {
+  def apply(elasticConfig: ElasticConfig, actorSystem: ActorSystem): Elastic[JsValue] = {
     Logger.info(s"Creating elastic client $elasticConfig")
     (
       for {
-        user <- elasticConfig.user
+        user     <- elasticConfig.user
         password <- elasticConfig.password
       } yield
         AkkaClient[JsValue](elasticConfig.host,
@@ -22,9 +21,7 @@ object ElasticClient {
                             elasticConfig.scheme,
                             user = user,
                             password = password)(actorSystem)
-    ) getOrElse AkkaClient[JsValue](elasticConfig.host,
-                                    elasticConfig.port,
-                                    elasticConfig.scheme)(actorSystem)
+    ) getOrElse AkkaClient[JsValue](elasticConfig.host, elasticConfig.port, elasticConfig.scheme)(actorSystem)
   }
 
 }

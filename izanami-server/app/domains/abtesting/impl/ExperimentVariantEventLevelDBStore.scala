@@ -154,7 +154,12 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
             res
               .map(_.utf8String)
               .map(Json.parse)
-              .map(value => Json.reads[ExperimentVariantEvent].reads(value).get)
+              .map(
+                value =>
+                  ExperimentVariantEvent.format
+                    .reads(value)
+                    .get
+              )
               .sortWith((e1, e2) => e1.date.isBefore(e2.date))
               .toList
         )

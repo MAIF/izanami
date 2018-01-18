@@ -5,11 +5,13 @@ VERSION=$1
 LOCATION=`pwd`
 
 yarn config set version-git-tag false
+npm config set git-tag-version false
+
 cd ${LOCATION}/izanami-clients/react
-echo "${VERSION}" | cut -d "v" -f 2 | yarn version
+npm version "${VERSION}"
 git add package.json
 
 cd ${LOCATION}/izanami-clients/node
-echo "${VERSION}" | cut -d "v" -f 2 | yarn version
+npm version "${VERSION}"
 git add package.json
 

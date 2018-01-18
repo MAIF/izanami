@@ -179,6 +179,29 @@ Will respond with a 200 status code:
 }
 ```
 
+### Patch a feature 
+
+Partial updates can be done using json patch : 
+
+```bash
+curl -X PATCH \
+  'http://localhost:9000/api/features/really:basic:feature' \
+  -H 'Content-Type: application/json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '[{"op": "replace", "path": "enabled", "value": false}]'
+```
+
+Will respond with a 200 status code:
+
+```json
+{ 
+  "id":"really:basic:feature",
+  "enabled":false,
+  "activationStrategy":"NO_STRATEGY"
+}
+```
+
 ### Delete a feature
 
  

@@ -63,7 +63,7 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
   import collection.JavaConverters._
   import scala.concurrent.duration._
 
-  private val options = new Options().createIfMissing(true)
+  private val options     = new Options().createIfMissing(true)
   private val expirations = new ConcurrentHashMap[String, Long]()
 
   private val cancel = actorSystem.scheduler.schedule(0.millis, 10.millis) {
@@ -78,7 +78,7 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
   }
 
   private def getAllKeys(): Seq[String] = {
-    var keys = Seq.empty[String]
+    var keys     = Seq.empty[String]
     val iterator = db.iterator()
     iterator.seekToFirst()
     while (iterator.hasNext) {
@@ -142,7 +142,7 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
   override def incr(key: String): Future[Long] = incrby(key, 1L)
 
   override def incrby(key: String, increment: Long): Future[Long] = {
-    val value = getValueAt(key).map(_.toLong).getOrElse(0L)
+    val value    = getValueAt(key).map(_.toLong).getOrElse(0L)
     val newValue = value + increment
     db.put(bytes(key), bytes(newValue.toString))
     Future.successful(newValue)
@@ -156,7 +156,7 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
 
   override def keys(pattern: String): Future[Seq[String]] = {
     val regex = pattern.replaceAll("\\*", ".*")
-    val pat = Pattern.compile(regex)
+    val pat   = Pattern.compile(regex)
     Future.successful(getAllKeys().filter { k =>
       pat.matcher(k).find
     })
@@ -173,11 +173,10 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
       .getOrElse(Map.empty[String, ByteString])
 
   private def setMapAt(key: String, set: Map[String, ByteString]): Unit =
-    db.put(bytes(key),
-           bytes(set.map(t => s"${t._1}<#>${t._2.utf8String}").mkString(";;;")))
+    db.put(bytes(key), bytes(set.map(t => s"${t._1}<#>${t._2.utf8String}").mkString(";;;")))
 
   override def hdel(key: String, fields: String*): Future[Long] = {
-    val hash = getMapAt(key)
+    val hash    = getMapAt(key)
     val newHash = hash.filterNot(t => fields.contains(t._1))
     setMapAt(key, newHash)
     Future.successful(fields.size)
@@ -188,15 +187,11 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
     Future.successful(hash)
   }
 
-  override def hset(key: String,
-                    field: String,
-                    value: String): Future[Boolean] =
+  override def hset(key: String, field: String, value: String): Future[Boolean] =
     hsetBS(key, field, ByteString(value))
 
-  override def hsetBS(key: String,
-                      field: String,
-                      value: ByteString): Future[Boolean] = {
-    val hash = getMapAt(key)
+  override def hsetBS(key: String, field: String, value: ByteString): Future[Boolean] = {
+    val hash    = getMapAt(key)
     val newHash = hash + ((field, value))
     setMapAt(key, newHash)
     Future.successful(true)
@@ -224,22 +219,20 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
     lpushBS(key, values.map(_.toString).map(ByteString.apply): _*)
 
   override def lpushBS(key: String, values: ByteString*): Future[Long] = {
-    val seq = getListAt(key)
+    val seq    = getListAt(key)
     val newSeq = values ++ seq
     setListAt(key, newSeq)
     Future.successful(values.size)
   }
 
-  override def lrange(key: String,
-                      start: Long,
-                      stop: Long): Future[Seq[ByteString]] = {
-    val seq = getListAt(key)
+  override def lrange(key: String, start: Long, stop: Long): Future[Seq[ByteString]] = {
+    val seq    = getListAt(key)
     val result = seq.slice(start.toInt, stop.toInt - start.toInt)
     Future.successful(result)
   }
 
   override def ltrim(key: String, start: Long, stop: Long): Future[Boolean] = {
-    val seq = getListAt(key)
+    val seq    = getListAt(key)
     val result = seq.slice(start.toInt, stop.toInt - start.toInt)
     setListAt(key, result)
     Future.successful(true)
@@ -286,7 +279,7 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
     saddBS(key, members.map(ByteString.apply): _*)
 
   override def saddBS(key: String, members: ByteString*): Future[Long] = {
-    val seq = getSetAt(key)
+    val seq    = getSetAt(key)
     val newSeq = seq ++ members
     setSetAt(key, newSeq)
     Future.successful(members.size)
@@ -309,7 +302,7 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
     sremBS(key, members.map(ByteString.apply): _*)
 
   override def sremBS(key: String, members: ByteString*): Future[Long] = {
-    val seq = getSetAt(key)
+    val seq    = getSetAt(key)
     val newSeq = seq.filterNot(b => members.contains(b))
     setSetAt(key, newSeq)
     Future.successful(members.size)

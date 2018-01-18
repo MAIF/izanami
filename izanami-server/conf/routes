@@ -12,6 +12,7 @@ GET     /api/configs                        controllers.ConfigController.list(pa
 POST    /api/configs                        controllers.ConfigController.create()
 GET     /api/configs/:id                    controllers.ConfigController.get(id)
 PUT     /api/configs/:id                    controllers.ConfigController.update(id)
+PATCH   /api/configs/:id                    controllers.ConfigController.patch(id)
 DELETE  /api/configs/:id                    controllers.ConfigController.delete(id)
 GET     /api/tree/configs                   controllers.ConfigController.tree(pattern: String ?= "*")
 GET     /api/configs.ndjson                 controllers.ConfigController.download()
@@ -25,6 +26,7 @@ POST    /api/features                       controllers.FeatureController.create
 DELETE  /api/features                       controllers.FeatureController.deleteAll(pattern: String ?= "*")
 GET     /api/features/:id                   controllers.FeatureController.get(id: String)
 PUT     /api/features/:id                   controllers.FeatureController.update(id)
+PATCH   /api/features/:id                   controllers.FeatureController.patch(id)
 DELETE  /api/features/:id                   controllers.FeatureController.delete(id)
 GET     /api/features/:id/check             controllers.FeatureController.check(id)
 POST    /api/features/:id/check             controllers.FeatureController.checkWithContext(id)
@@ -40,6 +42,7 @@ POST    /api/scripts                        controllers.GlobalScriptController.c
 DELETE  /api/scripts                        controllers.GlobalScriptController.deleteAll(pattern: String ?= "*")
 GET     /api/scripts/:id                    controllers.GlobalScriptController.get(id)
 PUT     /api/scripts/:id                    controllers.GlobalScriptController.update(id)
+PATCH   /api/scripts/:id                    controllers.GlobalScriptController.patch(id)
 DELETE  /api/scripts/:id                    controllers.GlobalScriptController.delete(id)
 GET     /api/scripts.ndjson                 controllers.GlobalScriptController.download()
 POST    /api/scripts.ndjson                 controllers.GlobalScriptController.upload()
@@ -57,6 +60,7 @@ POST    /api/experiments/events.ndjson      controllers.ExperimentController.upl
 DELETE  /api/experiments                    controllers.ExperimentController.deleteAll(pattern: String ?= "*")
 GET     /api/experiments/:id                controllers.ExperimentController.get(id, clientId: Option[String])
 PUT     /api/experiments/:id                controllers.ExperimentController.update(id)
+PATCH   /api/experiments/:id                controllers.ExperimentController.patch(id)
 DELETE  /api/experiments/:id                controllers.ExperimentController.delete(id)
 GET     /api/experiments/:id/variant        controllers.ExperimentController.getVariantForClient(id: String, clientId: String)
 POST    /api/experiments/:id/displayed      controllers.ExperimentController.variantDisplayed(id: String, clientId: String)
@@ -71,6 +75,7 @@ POST    /api/webhooks.ndjson                controllers.WebhookController.upload
 POST    /api/webhooks                       controllers.WebhookController.create()
 GET     /api/webhooks/:id                   controllers.WebhookController.get(id)
 PUT     /api/webhooks/:id                   controllers.WebhookController.update(id)
+PATCH   /api/webhooks/:id                   controllers.WebhookController.patch(id)
 DELETE  /api/webhooks/:id                   controllers.WebhookController.delete(id)
 GET     /api/counts/webhooks                controllers.WebhookController.count()
 
@@ -81,6 +86,7 @@ POST    /api/users.ndjson                   controllers.UserController.upload()
 POST    /api/users                          controllers.UserController.create()
 GET     /api/users/:id                      controllers.UserController.get(id)
 PUT     /api/users/:id                      controllers.UserController.update(id)
+PATCH   /api/users/:id                      controllers.UserController.patch(id)
 DELETE  /api/users/:id                      controllers.UserController.delete(id)
 GET     /api/counts/users                   controllers.UserController.count()
 
@@ -91,6 +97,7 @@ POST    /api/apikeys.ndjson                 controllers.ApikeyController.upload(
 POST    /api/apikeys                        controllers.ApikeyController.create()
 GET     /api/apikeys/:id                    controllers.ApikeyController.get(id)
 PUT     /api/apikeys/:id                    controllers.ApikeyController.update(id)
+PATCH   /api/apikeys/:id                    controllers.ApikeyController.patch(id)
 DELETE  /api/apikeys/:id                    controllers.ApikeyController.delete(id)
 GET     /api/counts/apikeys                 controllers.ApikeyController.count()
 
@@ -110,7 +117,7 @@ PUT     /api/bo/loggers/:name/level         controllers.BackOfficeController.cha
 GET     /api/bo/loggers                     controllers.BackOfficeController.getAllLoggers()
 
 GET     /api/swagger.json                   controllers.SwaggerController.swagger()
-GET     /api/swagger/ui                     controllers.SwaggerController.swaggerUi()
+GET     /swagger/ui                     controllers.SwaggerController.swaggerUi()
 
 
 # Map static resources from the /public folder to the /assets URL path

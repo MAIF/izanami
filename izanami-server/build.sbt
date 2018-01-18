@@ -8,6 +8,8 @@ name in Universal := "izanami"
 
 lazy val `izanami-server` = (project in file("."))
   .enablePlugins(PlayScala, DockerPlugin)
+  .enablePlugins(NoPublish)
+  .disablePlugins(BintrayPlugin)
 
 scalaVersion := "2.12.4"
 
@@ -21,6 +23,7 @@ libraryDependencies ++= Seq(
   ws,
   "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
   "com.auth0"                % "java-jwt"                       % "3.1.0", // MIT license
+  "org.gnieh"                %% "diffson-play-json"             % "2.2.4", //
   "com.softwaremill.macwire" %% "macros"                        % "2.3.0" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                   % akkaVersion, // Apache 2.0
