@@ -117,7 +117,7 @@ public class Application {
     }
 
     @Configuration
-    @Profile("izanamiDev")
+    @Profile("izanamiLocal")
     static class Dev {
 
         @Bean
