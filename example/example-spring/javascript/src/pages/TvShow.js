@@ -1,5 +1,5 @@
 import React from "react";
-import {Feature, Enabled, Disabled, Experiment, Variant} from 'izanami';
+import {Feature, Enabled, Disabled} from 'react-izanami';
 import * as Service from "../services";
 import Layout from './Layout';
 
@@ -25,8 +25,11 @@ export default class TvShow extends React.Component {
     this.setState({show});
   };
 
-  markWatched = (id, bool) => e => {
-    Service.markWatched(this.state.show.id, id, bool);
+  markEpisodeWatched = (id, bool) => e => {
+    Service.markEpisodeWatched(this.state.show.id, id, bool);
+  };
+  markSeasonWatched = (id, bool) => e => {
+    Service.markSeasonWatched(this.state.show.id, id, bool);
   };
 
   calcExpandId(seasons) {
@@ -66,16 +69,26 @@ export default class TvShow extends React.Component {
                 <div className="panel panel-default" key={`season-${s.number}`}>
                   <div className="panel-heading" role="tab" id={`heading-${s.number}`}>
                     <h4 className="panel-title">
-                      <a
-                        role="button"
-                        data-toggle="collapse"
-                        data-parent="#accordion"
-                        href={`#collapse-${s.number}`}
-                        aria-controls={`collapse-${s.number}`}
-                        { ...(idx === expandId ? {'aria-expanded':"true"} :  {'aria-expanded':"false"} ) }
-                      >
-                        {`Season ${s.number}`}
-                      </a>
+
+                        <a
+                          role="button"
+                          data-toggle="collapse"
+                          data-parent="#accordion"
+                          href={`#collapse-${s.number}`}
+                          aria-controls={`collapse-${s.number}`}
+                          { ...(idx === expandId ? {'aria-expanded':"true"} :  {'aria-expanded':"false"} ) }
+                        >
+                            {`Season ${s.number}`}
+                        </a>
+                        <Feature path={"mytvshows:season:markaswatched"}>
+                          <Enabled>
+                            {s.allWatched && <button onClick={this.markSeasonWatched(s.number, false)} style={{display:'flex', padding: '2px 2px 2px 2px'}} className="btn btn default pull-right"><i className="glyphicon glyphicon-ok"/></button>}
+                            {!s.allWatched && <button  onClick={this.markSeasonWatched(s.number, true)} style={{display:'flex', padding: '2px 2px 2px 2px'}} className="btn btn default pull-right"><i className="fa fa-eye"/></button>}
+                          </Enabled>
+                          <Disabled>
+                            <div></div>
+                          </Disabled>
+                        </Feature>
                     </h4>
                   </div>
                   <div id={`collapse-${s.number}`} className={idx === expandId ? "panel-collapse collapse in": "panel-collapse collapse"} role="tabpanel" aria-labelledby={`heading-${s.number}`}>
@@ -97,10 +110,10 @@ export default class TvShow extends React.Component {
                               <td>{e.overview}</td>
                               <td>
                                 {!e.watched &&
-                                  <button type="button" className="btn btn-default" onClick={this.markWatched(e.id, true)}><i className="fa fa-eye" /></button>
+                                  <button type="button" className="btn btn-default" onClick={this.markEpisodeWatched(e.id, true)}><i className="fa fa-eye" /></button>
                                 }
                                 {e.watched &&
-                                  <button type="button" className="btn btn-default" onClick={this.markWatched(e.id, false)}><i className="glyphicon glyphicon-ok" /></button>
+                                  <button type="button"className="btn btn-default" onClick={this.markEpisodeWatched(e.id, false)}><i className="glyphicon glyphicon-ok" /></button>
                                 }
                               </td>
                             </tr>

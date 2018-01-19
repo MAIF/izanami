@@ -63,8 +63,31 @@ export function removeTvShow(id) {
     });
 }
 
-export function markWatched(tvdbid, id, bool) {
+export function markEpisodeWatched(tvdbid, id, bool) {
   return fetch(`/api/me/${tvdbid}/episodes/${id}?watched=${bool}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(r => {
+      if (r.status === 200) {
+        return r.json()
+      } else {
+        return ;
+      }
+    })
+    .then(u => {
+      notifiyUserChanged(u);
+      return u;
+    });
+}
+
+
+export function markSeasonWatched(tvdbid, number, bool) {
+  return fetch(`/api/me/${tvdbid}/seasons/${number}?watched=${bool}`, {
     method: 'POST',
     credentials: 'include',
     headers: {

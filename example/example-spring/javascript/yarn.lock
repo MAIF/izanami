@@ -2760,19 +2760,6 @@ isstream@~0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/isstream/-/isstream-0.1.2.tgz#47e63f7af55afa6f92e1500e690eb8b8529c099a"
 
-"izanami@file:../../react":
-  version "1.0.1"
-  dependencies:
-    deep-equal "^1.0.1"
-    deepmerge "^1.4.4"
-    es-symbol "1.1.2"
-    es6-shim "0.35.3"
-    lodash "^4.17.4"
-    prop-types "15.6.0"
-    react "16.0.0"
-    react-dom "16.0.0"
-    whatwg-fetch "2.0.3"
-
 jquery@3.2.1:
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.2.1.tgz#5c4d9de652af6cd0a770154a631bba12b015c787"
@@ -4023,8 +4010,9 @@ react-input-autosize@^2.1.2:
   dependencies:
     prop-types "^15.5.8"
 
-"react-izanami@file:../../react":
-  version "1.0.1"
+react-izanami@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/react-izanami/-/react-izanami-1.0.0.tgz#d5fd203005d9e2516bdfd45ce7d1c2e457159479"
   dependencies:
     deep-equal "^1.0.1"
     deepmerge "^1.4.4"

@@ -1,17 +1,21 @@
 package izanami.example.me;
 
+import izanami.javadsl.FeatureClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/me")
 public class MeController {
 
     private final MeService meService;
+    private final FeatureClient featureClient;
 
     @Autowired
-    public MeController(MeService meService) {
+    public MeController(MeService meService, FeatureClient featureClient) {
         this.meService = meService;
+        this.featureClient = featureClient;
     }
 
     @GetMapping(path = "")
@@ -40,13 +44,18 @@ public class MeController {
     }
 
     @PostMapping(path = "/{serieId}/seasons/{seasonNumber}")
-    Me markSeason(
+    ResponseEntity<Me> markSeason(
             @CookieValue(value = "userId") String userId,
             @PathVariable("serieId") Long serieId,
             @PathVariable("seasonNumber") Long seasonNumber,
             @RequestParam("watched") Boolean watched
     ) {
-        return meService.markSeason(userId, serieId, seasonNumber, watched);
+        return
+                featureClient.featureOrElse("mytvshows:season:markaswatched",
+                        () -> ResponseEntity.ok(meService.markSeason(userId, serieId, seasonNumber, watched)),
+                        () -> ResponseEntity.badRequest().<Me>body(null)
+                ).get();
+
     }
 
 }

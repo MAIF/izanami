@@ -17,7 +17,7 @@ izanami:
     features: >
       [
         { "id": "izanami:example:emailNotifications", "enabled": false },
-        { "id": "izanami:example:deleteAll", "enabled": false }
+        { "id": "mytvshows:season:markaswatched", "enabled": true }
       ]
     configs: >
       [
