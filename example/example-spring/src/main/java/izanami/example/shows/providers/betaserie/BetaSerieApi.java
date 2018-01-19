@@ -30,7 +30,7 @@ public class BetaSerieApi implements Shows {
     @Override
     public List<ShowResume> search(String serie) {
         return searchBetaSerie(serie)
-                .flatMap(s -> getBetaSerie(s.thetvdb_id))
+                .flatMap(s -> getBetaSerie(s.id))
                 .map(BetaSerie::toShowResume);
     }
 
@@ -38,7 +38,7 @@ public class BetaSerieApi implements Shows {
     public Option<Show> get(String id) {
         return getBetaSerie(id).map(betaSerie ->
                     betaSerie.toShow(
-                        betaSerieEpisodes(id)
+                        betaSerieEpisodes(betaSerie.id)
                             .map(EpisodeResume::toEpisode)
                             .groupBy(e -> e.seasonNumber)
                             .map(t -> new Shows.Season(t._1, t._2))
@@ -71,7 +71,7 @@ public class BetaSerieApi implements Shows {
         String uri = UriComponentsBuilder
                 .fromHttpUrl(url)
                 .path("/shows/display")
-                .queryParam("thetvdb_id", id)
+                .queryParam("id", id)
                 .queryParam("key", this.apikey)
                 .build().toUriString();
         HttpHeaders headers = new HttpHeaders();
@@ -91,7 +91,7 @@ public class BetaSerieApi implements Shows {
         String uri = UriComponentsBuilder
                 .fromHttpUrl(url)
                 .path("/shows/episodes")
-                .queryParam("thetvdb_id", id)
+                .queryParam("id", id)
                 .queryParam("key", this.apikey)
                 .build().toUriString();
         HttpHeaders headers = new HttpHeaders();
@@ -119,21 +119,26 @@ public class BetaSerieApi implements Shows {
     }
 
     static class BetaSerieResume {
+        public String id;
         public String thetvdb_id;
+        public String imdb_id;
         public String title;
 
         public BetaSerieResume() {
         }
 
-        public BetaSerieResume(String id, String title) {
-            this.thetvdb_id = id;
+        public BetaSerieResume(String id, String thetvdb_id, String imdb_id, String title) {
+            this.id = id;
+            this.thetvdb_id = thetvdb_id;
+            this.imdb_id = imdb_id;
             this.title = title;
         }
     }
 
     static class BetaSerie {
-
+        public String id;
         public String thetvdb_id;
+        public String imdb_id;
         public String title;
         public String description;
         public Images images;
@@ -141,19 +146,21 @@ public class BetaSerieApi implements Shows {
         public BetaSerie() {
         }
 
-        public BetaSerie(String id, String title, String description, Images images) {
-            this.thetvdb_id = id;
+        public BetaSerie(String id, String imdb_id, String thetvdb_id, String title, String description, Images images) {
+            this.id = id;
+            this.imdb_id = imdb_id;
+            this.thetvdb_id = thetvdb_id;
             this.title = title;
             this.description = description;
             this.images = images;
         }
 
         public ShowResume toShowResume() {
-            return new ShowResume(thetvdb_id, title, description, Option.of(images).map(i -> i.banner).getOrNull());
+            return new ShowResume(id, title, description, Option.of(images).map(i -> i.banner).getOrNull());
         }
 
         public Show toShow(List<Season> seasons) {
-            return new Show(thetvdb_id, title, description, Option.of(images).map(i -> i.banner).getOrNull(), seasons);
+            return new Show(id, title, description, Option.of(images).map(i -> i.banner).getOrNull(), seasons);
         }
     }
 
