@@ -20,6 +20,8 @@ lazy val `izanami-server` = project
 
 lazy val `izanami-clients` = project
 
+lazy val `example` = project
+
 lazy val simulation = project
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)

@@ -1,7 +1,7 @@
 import * as Service from "../services";
 import React from "react";
-import {IzanamiProvider, Feature, Enabled, Disabled, Experiment, Variant, Api as IzanamiApi} from 'izanami';
-import { BrowserRouter as Router, Route, Link, Switch, Redirect } from 'react-router-dom';
+import {Api as IzanamiApi} from 'react-izanami';
+import { Redirect } from 'react-router-dom';
 
 export default class Login extends React.Component {
 
@@ -47,7 +47,7 @@ export default class Login extends React.Component {
                   <span className="icon-bar"></span>
                   <span className="icon-bar"></span>
                 </button>
-                <a className="navbar-brand" href="#">Todo list</a>
+                <a className="navbar-brand" href="#">My Tv Shows</a>
               </div>
               <div id="navbar" className="navbar-collapse collapse">
                 <ul className="nav navbar-nav">
@@ -59,7 +59,7 @@ export default class Login extends React.Component {
           <div className="row">
             <div className="col-md-6 col-md-offset-3">
               <div className="jumbotron">
-                <h2>Signin and create your todo list</h2>
+                <h2>Signin and manage your lovelly shows</h2>
                 <form>
                   <div className={`form-group ${this.state.error ? "has-error" : ""}`}>
                     <label htmlFor="email">Email address</label>

@@ -1,6 +1,6 @@
 import React from "react";
 import * as Service from "../services";
-import { BrowserRouter as Router, Route, Link, Switch, Redirect } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const Layout = props => (
   <div className="container">
