@@ -11,7 +11,7 @@ betaserie:
 tvdb:
   apikey: "92466265017F27E4"
   url: "https://api.thetvdb.com"
-  banner: "https://www.thetvdb.com/banners/_cache/"
+  banner: "https://www.thetvdb.com/banners/"
 izanami:
   host: "http://localhost:9000"
   clientId: "xxxx"
