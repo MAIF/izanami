@@ -66,11 +66,9 @@ export default class TvShow extends React.Component {
           <div className="col-md-12">
             <h1 style={{textAlign: 'center'}}>{this.state.show.title}</h1>
             <p>{this.state.show.description}</p>
-            <div className="row">
-              <div className="col-md-8 col-lg-offset-2">
-                <img src={this.state.show.image}/>
-              </div>
-            </div>
+
+            <img className="center-block" src={this.state.show.image}/>
+
             <div className="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
               { seasons.map( (s, idx) =>
 
