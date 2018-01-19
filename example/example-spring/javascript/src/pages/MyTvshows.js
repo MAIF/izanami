@@ -30,11 +30,11 @@ export default class MyTvShows extends React.Component {
                   </tr>
                   </thead>
                   <tbody>
-                  {this.props.user.tvshows.map(({banner, seriesName, overview, id}) =>
+                  {this.props.user.shows.map(({image, title, description, id}) =>
                     <tr key={`tvshows-${id}`}>
-                      <td>{banner && <Link to={`/tvshow/${id}`} ><img src={`https://www.thetvdb.com/banners/_cache/${banner}`} /></Link>}</td>
-                      <td><Link to={`/tvshow/${id}`}>{seriesName}</Link></td>
-                      <td><Link to={`/tvshow/${id}`}>{overview}</Link></td>
+                      <td>{image && <Link to={`/tvshow/${id}`} ><img width="300px" src={`${image}`} /></Link>}</td>
+                      <td><Link to={`/tvshow/${id}`}>{title}</Link></td>
+                      <td><Link to={`/tvshow/${id}`}>{description}</Link></td>
                       <td>
                         <button type="button" className="btn btn-default" onClick={this.remove(id)}><i className="glyphicon glyphicon-trash"/></button>
                       </td>

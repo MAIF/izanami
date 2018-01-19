@@ -24,20 +24,20 @@ public class MeController {
     }
 
     @PostMapping(path = "/{serieId}")
-    Me addSerie(@CookieValue(value = "userId") String userId, @PathVariable("serieId") Long serieId) {
+    Me addSerie(@CookieValue(value = "userId") String userId, @PathVariable("serieId") String serieId) {
         return meService.addTvShow(userId, serieId);
     }
 
     @DeleteMapping(path = "/{serieId}")
-    Me removeSerie(@CookieValue(value = "userId") String userId, @PathVariable("serieId") Long serieId) {
+    Me removeSerie(@CookieValue(value = "userId") String userId, @PathVariable("serieId") String serieId) {
         return meService.removeTvShow(userId, serieId);
     }
 
     @PostMapping(path = "/{serieId}/episodes/{episodeId}")
     Me markEpisode(
             @CookieValue(value = "userId") String userId,
-            @PathVariable("serieId") Long serieId,
-            @PathVariable("episodeId") Long episodeId,
+            @PathVariable("serieId") String serieId,
+            @PathVariable("episodeId") String episodeId,
             @RequestParam("watched") Boolean watched
     ) {
         return meService.markEpisode(userId, serieId, episodeId, watched);
@@ -46,7 +46,7 @@ public class MeController {
     @PostMapping(path = "/{serieId}/seasons/{seasonNumber}")
     ResponseEntity<Me> markSeason(
             @CookieValue(value = "userId") String userId,
-            @PathVariable("serieId") Long serieId,
+            @PathVariable("serieId") String serieId,
             @PathVariable("seasonNumber") Long seasonNumber,
             @RequestParam("watched") Boolean watched
     ) {

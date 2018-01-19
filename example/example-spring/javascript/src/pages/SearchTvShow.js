@@ -25,15 +25,15 @@ class TvShowOption extends React.Component {
   };
 
   render() {
-    const {option:{banner, seriesName, overview, id}} = this.props;
+    const {option:{image, title, description}} = this.props;
     return (
       <div>
         <button className={"btn btn-default"} style={{width:'100%'}} onClick={this.onSelect}>
-          <h2>{seriesName} </h2>
+          <h2>{title}</h2>
           <p>
-            { _.truncate(overview) }
+            { _.truncate(description) }
           </p>
-          {banner && <img src={`https://www.thetvdb.com/banners/_cache/${banner}`} />}
+          {image && <img width="300px" src={`${image}`} />}
         </button>
       </div>
     );
@@ -48,10 +48,8 @@ export default class SearchTvShow extends React.Component {
   };
 
   getOptions = (input) => {
-    return fetch(`/api/tvshows/_search?name=${input}`)
-      .then((response) => {
-        return response.json();
-      }).then((options) => {
+    return Service.searchTvShow(input)
+      .then((options) => {
         return {options};
       });
   };
@@ -70,7 +68,7 @@ export default class SearchTvShow extends React.Component {
       onChange={this.setValue}
       onValueClick={this.selectValue}
       value={this.state.value}
-      valueKey="id" labelKey="seriesName"
+      valueKey="id" labelKey="title"
       loadOptions={this.getOptions}
       placeholder={"Search a tv show"}
       optionComponent={TvShowOption}

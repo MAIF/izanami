@@ -2,7 +2,9 @@ package izanami.example.me;
 
 import io.vavr.collection.List;
 import io.vavr.collection.Seq;
-import izanami.example.tvdb.TvdbApi;
+import io.vavr.control.Option;
+import izanami.example.shows.Shows;
+import izanami.example.shows.providers.tvdb.TvdbShowsApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,51 +17,46 @@ public class MeService {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(MeService.class);
 
-    private final TvdbApi tvdbApi;
+    private final Shows shows;
     private final MeRepository meRepository;
 
     @Autowired
-    public MeService(TvdbApi tvdbApi, MeRepository meRepository) {
-        this.tvdbApi = tvdbApi;
+    public MeService(Shows shows, MeRepository meRepository) {
+        this.shows = shows;
         this.meRepository = meRepository;
     }
 
-    public Me addTvShow(String userId, Long tvdbId) {
+    public Me addTvShow(String userId, String id) {
         Me me = get(userId);
 
-        List<Me.Tvshow> tvshows = List.ofAll(me.tvshows);
-        if (!tvshows.exists(tvshow -> tvshow.id.equals(tvdbId))) {
-            TvdbApi.TvshowResume tvshowResume = tvdbApi.get(tvdbId);
-            java.util.List<TvdbApi.EpisodeResume> episodes = tvdbApi.episodes(tvdbId);
-
-            Seq<Me.Season> seasons = List.ofAll(episodes)
-                    .map(Me.Episode::fromResume)
-                    .groupBy(e -> e.airedSeason)
-                    .map(t -> new Me.Season(t._1, t._2.toJavaList()));
-            Me.Tvshow tvshow = Me.Tvshow.fromResume(tvshowResume, seasons.toJavaList());
-            LOGGER.info("Adding tvshow for {}: {}", tvdbId, tvshow.seriesName);
-            Me updated = me.updateTvShows(tvshows.append(tvshow).toJavaList());
-            return meRepository.save(updated);
+        List<Shows.Show> tvshows = List.ofAll(me.shows);
+        if (!tvshows.exists(tvshow -> tvshow.id.equals(id))) {
+            Option<Shows.Show> mayBeShow = shows.get(id);
+            return mayBeShow.map(show -> {
+                LOGGER.info("Adding show for {}: {}", id, show.title);
+                Me updated = me.updateTvShows(tvshows.append(show));
+                return meRepository.save(updated);
+            }).getOrElse(me);
         } else {
             return me;
         }
 
     }
 
-    public Me markEpisode(String userId, Long tvdbId, Long episodeId, Boolean watched) {
+    public Me markEpisode(String userId, String tvdbId, String episodeId, Boolean watched) {
         Me me = get(userId);
 
         Me meUpdated = new Me(
             me.userId,
-            List.ofAll(me.tvshows)
+            me.shows
                 .map(tvshow -> {
                     if (tvshow.id.equals(tvdbId)) {
                         return tvshow.updateSeasons(
-                            List.ofAll(tvshow.seasons)
+                            tvshow.seasons
                                 .map(season ->
-                                    new Me.Season(
+                                    new Shows.Season(
                                         season.number,
-                                        List.ofAll(season.episodes)
+                                        season.episodes
                                             .map(episode -> {
                                                 if (episode.id.equals(episodeId)) {
                                                     return episode.updateWatched(watched);
@@ -67,15 +64,13 @@ public class MeService {
                                                     return episode;
                                                 }
                                             })
-                                            .toJavaList())
+                                    )
                                 )
-                                .toJavaList()
                         );
                     } else {
                         return tvshow;
                     }
                 })
-                .toJavaList()
         );
 
         meRepository.save(meUpdated);
@@ -83,55 +78,46 @@ public class MeService {
 
     }
 
-    public Me markSeason(String userId, Long tvdbId, Long seasonNumber, Boolean watched) {
+    public Me markSeason(String userId, String tvdbId, Long seasonNumber, Boolean watched) {
         Me me = get(userId);
+        Me meUpdated = new Me(
+            me.userId,
+            me.shows
+                .map(tvshow -> {
+                    if (tvshow.id.equals(tvdbId)) {
+                        return tvshow.updateSeasons(
+                            tvshow.seasons
+                                .map(season -> {
+                                    if (season.number.equals(seasonNumber)) {
+                                        return new Shows.Season(
+                                                season.number,
+                                                season.episodes
+                                                    .map(episode ->
+                                                        episode.updateWatched(watched)
+                                                    )
+                                        );
+                                    } else {
+                                        return season;
+                                    }
+                                })
+                        );
+                    } else {
+                        return tvshow;
+                    }
+                })
+        );
 
-        if (!List.ofAll(me.tvshows).exists(tvshow -> tvshow.id.equals(tvdbId))) {
-
-            Me meUpdated = new Me(
-                    me.userId,
-                    List.ofAll(me.tvshows)
-                            .map(tvshow -> {
-                                if (tvshow.id.equals(tvdbId)) {
-                                    return tvshow.updateSeasons(
-                                            List.ofAll(tvshow.seasons)
-                                                    .map(season -> {
-                                                        if (season.number.equals(seasonNumber)) {
-                                                            return new Me.Season(
-                                                                    season.number,
-                                                                    List.ofAll(season.episodes)
-                                                                            .map(episode ->
-                                                                                episode.updateWatched(watched)
-                                                                            )
-                                                                            .toJavaList()
-                                                            );
-                                                        } else {
-                                                            return season;
-                                                        }
-                                                    })
-                                                    .toJavaList()
-                                    );
-                                } else {
-                                    return tvshow;
-                                }
-                            })
-                            .toJavaList()
-            );
-
-            meRepository.save(meUpdated);
-            return meUpdated;
-        } else {
-            return me;
-        }
+        meRepository.save(meUpdated);
+        return meUpdated;
     }
 
     public Me get(String userId) {
-        return meRepository.get(userId).getOrElse(new Me(userId, Collections.emptyList()));
+        return meRepository.get(userId).getOrElse(new Me(userId, List.empty()));
     }
 
-    public Me removeTvShow(String userId, Long serieId) {
+    public Me removeTvShow(String userId, String serieId) {
         Me me = get(userId);
-        Me updated = new Me(me.userId, List.ofAll(me.tvshows).filter(tvshow -> !tvshow.id.equals(serieId)).toJavaList());
+        Me updated = new Me(me.userId, me.shows.filter(tvshow -> !tvshow.id.equals(serieId)));
         meRepository.save(updated);
         return updated;
     }

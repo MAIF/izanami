@@ -1,5 +1,6 @@
-package izanami.example.tvdb;
+package izanami.example.shows.providers.tvdb;
 
+import izanami.example.shows.providers.tvdb.TvdbShowsApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,11 +17,12 @@ public class TvdbConfiguration {
     RestTemplate restTemplate;
 
     @Bean
-    TvdbApi tvdbApi() {
-        return new TvdbApi(
+    TvdbShowsApi tvdbApi() {
+        return new TvdbShowsApi(
                 restTemplate,
                 environment.getProperty("tvdb.url"),
-                new TvdbApi.Login(
+                environment.getProperty("tvdb.banner"),
+                new TvdbShowsApi.Login(
                         environment.getProperty("tvdb.apikey")
                 )
         );

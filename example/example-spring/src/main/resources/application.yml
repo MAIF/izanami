@@ -5,6 +5,9 @@ spring:
       - dev
 leveldb:
   path: "leveldb/datas"
+betaserie:
+  apikey: "a8dd8ebe25e9"
+  url: "https://api.betaseries.com"
 tvdb:
   apikey: "92466265017F27E4"
   url: "https://api.thetvdb.com"
@@ -17,7 +20,10 @@ izanami:
     features: >
       [
         { "id": "izanami:example:emailNotifications", "enabled": false },
-        { "id": "mytvshows:season:markaswatched", "enabled": true }
+        { "id": "mytvshows:season:markaswatched", "enabled": true },
+        { "id": "mytvshows:providers:tvdb", "enabled": false },
+        { "id": "mytvshows:providers:betaserie", "enabled": true },
+        { "id": "mytvshows:providers:omdb", "enabled": false }
       ]
     configs: >
       [

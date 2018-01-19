@@ -61,7 +61,7 @@ export default class TvShow extends React.Component {
       <Layout user={this.props.user}>
         <div className="row">
           <div className="col-md-12">
-            <h2>{this.state.show.seriesName}</h2>
+            <h2>{this.state.show.title}</h2>
 
             <div className="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
               { seasons.map( (s, idx) =>
@@ -105,9 +105,9 @@ export default class TvShow extends React.Component {
                         <tbody>
                           {s.episodes.map(e =>
                             <tr key={`episode-${e.id}`}>
-                              <td>{e.airedEpisodeNumber}</td>
-                              <td>{e.episodeName}</td>
-                              <td>{e.overview}</td>
+                              <td>{e.number}</td>
+                              <td>{e.title}</td>
+                              <td>{e.description}</td>
                               <td>
                                 {!e.watched &&
                                   <button type="button" className="btn btn-default" onClick={this.markEpisodeWatched(e.id, true)}><i className="fa fa-eye" /></button>
