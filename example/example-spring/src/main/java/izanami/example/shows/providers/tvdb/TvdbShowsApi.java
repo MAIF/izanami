@@ -54,7 +54,7 @@ public class TvdbShowsApi implements Shows {
     @Override
     public List<ShowResume> search(String serie) {
         List<TvshowResume> tvshowResumes = searchTvDbShows(serie);
-        return io.vavr.collection.List.ofAll(tvshowResumes)
+        return tvshowResumes
                 .map(s -> s.toShowResume(this.imageBaseUrl));
     }
 
@@ -133,6 +133,7 @@ public class TvdbShowsApi implements Shows {
         public String banner;
         public Date firstAired;
         public Long id;
+        public String imdbId;
         public String network;
         public String overview;
         public String seriesName;
