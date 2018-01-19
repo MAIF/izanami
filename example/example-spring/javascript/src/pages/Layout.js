@@ -13,7 +13,7 @@ const Layout = props => (
             <span className="icon-bar"></span>
             <span className="icon-bar"></span>
           </button>
-          <a className="navbar-brand" href="#">My Tv Shows</a>
+          <Link to={"/"} className="navbar-brand">My Tv Shows</Link>
         </div>
         <div id="navbar" className="navbar-collapse collapse">
           <ul className="nav navbar-nav">

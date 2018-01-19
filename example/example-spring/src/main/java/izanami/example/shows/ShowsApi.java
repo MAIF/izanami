@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import static io.vavr.API.*;
-import static io.vavr.Patterns.*;
 import static io.vavr.Predicates.*;
 
 @Primary
