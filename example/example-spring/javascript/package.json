@@ -7,7 +7,7 @@
   "scripts": {
     "bundle": "cross-env NODE_ENV=production webpack --colors --progress",
     "build": "rm -f ../src/main/resources/public/javascripts/bundle/* && npm run bundle",
-    "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3333"
+    "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3334"
   },
   "private": true,
   "devDependencies": {
