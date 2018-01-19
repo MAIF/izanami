@@ -2,21 +2,24 @@ package izanami.example;
 
 
 import akka.actor.ActorSystem;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vavr.jackson.datatype.VavrModule;
 import izanami.ClientConfig;
 import izanami.Experiments;
 import izanami.Strategies;
-import izanami.example.configuration.JsonMessageConverter;
 import izanami.javadsl.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.web.HttpMessageConverters;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
 
 
@@ -38,8 +41,14 @@ public class Application {
     }
 
     @Bean
-    RestTemplate restTemplate() {
-        return new RestTemplate();
+    @Autowired
+    RestTemplate restTemplate(RestTemplateBuilder builder, ObjectMapper objectMapper) {
+        return builder.build();
+    }
+
+    @Bean
+    Module vavrModule() {
+        return new VavrModule();
     }
 
     @Bean
@@ -66,9 +75,9 @@ public class Application {
     @Autowired
     Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
         return izanamiClient.proxy()
-                .withFeaturePattern("izanami:example:*")
+                .withFeaturePattern("mytvshows:*")
                 .withFeatureClient(featureClient)
-                .withExperimentPattern("izanami:example:*")
+                .withExperimentPattern("mytvshows:*")
                 .withExperimentsClient(experimentClient);
     }
 
@@ -80,7 +89,7 @@ public class Application {
         @Autowired
         FeatureClient featureClient(IzanamiClient izanamiClient, Environment environment) {
             return izanamiClient.featureClient(
-                    Strategies.smartCacheWithSseStrategy("izanami:example:*"),
+                    Strategies.smartCacheWithSseStrategy("mytvshows:*"),
                     Features.parseJson(environment.getProperty("izanami.fallback.features"))
             );
         }
@@ -89,7 +98,7 @@ public class Application {
         @Autowired
         ConfigClient configClient(IzanamiClient izanamiClient, Environment environment) {
             return izanamiClient.configClient(
-                    Strategies.smartCacheWithSseStrategy("izanami:example:*"),
+                    Strategies.smartCacheWithSseStrategy("mytvshows:*"),
                     Configs.parseJson(environment.getProperty("izanami.fallback.configs"))
             );
         }
@@ -144,11 +153,6 @@ public class Application {
             );
         }
 
-    }
-
-    @Bean
-    public HttpMessageConverters additionalConverters() {
-        return new HttpMessageConverters(new JsonMessageConverter());
     }
 
 }
