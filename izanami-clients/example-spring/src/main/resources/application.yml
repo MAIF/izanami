@@ -1,8 +1,14 @@
 spring:
   profiles:
     active:
-      - izanamiProd
-      - prod
+      - izanamiDev
+      - dev
+leveldb:
+  path: "leveldb/datas"
+tvdb:
+  apikey: "92466265017F27E4"
+  url: "https://api.thetvdb.com"
+  banner: "https://www.thetvdb.com/banners/_cache/"
 izanami:
   host: "http://localhost:9000"
   clientId: "xxxx"

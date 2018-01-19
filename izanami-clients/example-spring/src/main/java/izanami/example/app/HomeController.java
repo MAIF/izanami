@@ -1,4 +1,4 @@
-package izanami.example.controller;
+package izanami.example.app;
 
 
 import io.vavr.collection.List;
@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
@@ -33,7 +32,7 @@ public class HomeController {
         return home(model);
     }
 
-    @RequestMapping("/todos/**")
+    @RequestMapping("/tvshow/**")
     public String other(Model model) {
         return home(model);
     }

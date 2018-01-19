@@ -1,4 +1,4 @@
-package izanami.example.controller;
+package izanami.example.izanami;
 
 
 import io.vavr.control.Option;
@@ -28,11 +28,11 @@ public class IzanamiProxyController {
 
     @GetMapping()
     public CompletionStage<ResponseEntity<String>> proxy(
-            @CookieValue(value = "clientId", required = false) String clientId) {
+            @CookieValue(value = "userId", required = false) String userId) {
 
-        Option<JsObject> context = Option.of(clientId).map(id -> Json.obj($("clientId", id)));
+        Option<JsObject> context = Option.of(userId).map(id -> Json.obj($("userId", id)));
 
-        return proxy.statusAndStringResponse(context, Option.of(clientId))
+        return proxy.statusAndStringResponse(context, Option.of(userId))
                 .map(resp ->
                         new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
                 ).toCompletableFuture();
@@ -40,10 +40,10 @@ public class IzanamiProxyController {
 
     @PostMapping()
     public CompletionStage<ResponseEntity<String>> proxyWithContext(
-            @CookieValue(value = "clientId", required = false) String clientId,
+            @CookieValue(value = "userId", required = false) String userId,
             @RequestBody String context
     ) {
-        return proxy.statusAndStringResponse(Option.some(Json.parse(context).asObject()), Option.of(clientId))
+        return proxy.statusAndStringResponse(Option.some(Json.parse(context).asObject()), Option.of(userId))
                 .map(resp ->
                         new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
                 ).toCompletableFuture();
@@ -52,9 +52,9 @@ public class IzanamiProxyController {
     @PostMapping("/experiments/won")
     public CompletionStage<ResponseEntity<String>> markWon(
             @RequestParam(value = "experiment") String id,
-            @CookieValue(value = "clientId", required = false) String clientId) {
+            @CookieValue(value = "userId", required = false) String userId) {
 
-        return proxy.markVariantWonStringResponse(id, clientId)
+        return proxy.markVariantWonStringResponse(id, userId)
                 .map(resp ->
                         new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
                 ).toCompletableFuture();
@@ -64,9 +64,9 @@ public class IzanamiProxyController {
     @PostMapping("/experiments/displayed")
     public CompletionStage<ResponseEntity<String>> markDisplayed(
             @RequestParam(value = "experiment") String id,
-            @CookieValue(value = "clientId", required = false) String clientId) {
+            @CookieValue(value = "userId", required = false) String userId) {
 
-        return proxy.markVariantDisplayedStringResponse(id, clientId)
+        return proxy.markVariantDisplayedStringResponse(id, userId)
                 .map(resp ->
                         new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
                 ).toCompletableFuture();
