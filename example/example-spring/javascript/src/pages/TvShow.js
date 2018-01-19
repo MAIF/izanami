@@ -18,10 +18,9 @@ export default class TvShow extends React.Component {
   }
 
   initShow = props => {
-    const { match: { params: name}, user: {tvshows = []} } = props;
-
-    const id = parseInt(name.id);
-    const show = tvshows.find(tvshow => tvshow.id === id) || {};
+    const { match: { params: name}, user: {shows = []} } = props;
+    const id = name.id;
+    const show = shows.find(show => show.id === id) || {};
     this.setState({show});
   };
 
@@ -53,10 +52,14 @@ export default class TvShow extends React.Component {
   }
 
   render() {
-
-    const seasons = (this.state.show.seasons || []).sort((s1, s2) => s1.number - s2.number);
+    const seasons = (this.state.show.seasons || [])
+      .filter(s =>
+        s.number !== 0
+      )
+      .sort((s1, s2) =>
+        s1.number - s2.number
+      );
     const expandId = this.calcExpandId(seasons);
-    console.log('expand id', expandId);
     return (
       <Layout user={this.props.user}>
         <div className="row">

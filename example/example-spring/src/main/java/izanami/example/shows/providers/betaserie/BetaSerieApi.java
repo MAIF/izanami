@@ -30,7 +30,7 @@ public class BetaSerieApi implements Shows {
     @Override
     public List<ShowResume> search(String serie) {
         return searchBetaSerie(serie)
-                .flatMap(s -> getBetaSerie(s.id))
+                .flatMap(s -> getBetaSerie(s.thetvdb_id))
                 .map(BetaSerie::toShowResume);
     }
 
@@ -71,7 +71,7 @@ public class BetaSerieApi implements Shows {
         String uri = UriComponentsBuilder
                 .fromHttpUrl(url)
                 .path("/shows/display")
-                .queryParam("id", id)
+                .queryParam("thetvdb_id", id)
                 .queryParam("key", this.apikey)
                 .build().toUriString();
         HttpHeaders headers = new HttpHeaders();
@@ -91,7 +91,7 @@ public class BetaSerieApi implements Shows {
         String uri = UriComponentsBuilder
                 .fromHttpUrl(url)
                 .path("/shows/episodes")
-                .queryParam("id", id)
+                .queryParam("thetvdb_id", id)
                 .queryParam("key", this.apikey)
                 .build().toUriString();
         HttpHeaders headers = new HttpHeaders();
@@ -119,21 +119,21 @@ public class BetaSerieApi implements Shows {
     }
 
     static class BetaSerieResume {
-        public String id;
+        public String thetvdb_id;
         public String title;
 
         public BetaSerieResume() {
         }
 
         public BetaSerieResume(String id, String title) {
-            this.id = id;
+            this.thetvdb_id = id;
             this.title = title;
         }
     }
 
     static class BetaSerie {
 
-        public String id;
+        public String thetvdb_id;
         public String title;
         public String description;
         public Images images;
@@ -142,18 +142,18 @@ public class BetaSerieApi implements Shows {
         }
 
         public BetaSerie(String id, String title, String description, Images images) {
-            this.id = id;
+            this.thetvdb_id = id;
             this.title = title;
             this.description = description;
             this.images = images;
         }
 
         public ShowResume toShowResume() {
-            return new ShowResume(id, title, description, Option.of(images).map(i -> i.banner).getOrNull());
+            return new ShowResume(thetvdb_id, title, description, Option.of(images).map(i -> i.banner).getOrNull());
         }
 
         public Show toShow(List<Season> seasons) {
-            return new Show(id, title, description, Option.of(images).map(i -> i.banner).getOrNull(), seasons);
+            return new Show(thetvdb_id, title, description, Option.of(images).map(i -> i.banner).getOrNull(), seasons);
         }
     }
 
