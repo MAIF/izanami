@@ -84,7 +84,10 @@ lazy val publishSettings =
       ),
       bintrayReleaseOnPublish := false,
       credentials := List(
-        Credentials("Artifactory Realm", "oss.jfrog.org", sys.env("BINTRAY_USER"), sys.env("BINTRAY_PASSWORD"))
+        Credentials("Artifactory Realm",
+                    "oss.jfrog.org",
+                    sys.env.getOrElse("BINTRAY_USER", ""),
+                    sys.env.getOrElse("BINTRAY_PASSWORD", ""))
       )
     )
   }
