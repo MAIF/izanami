@@ -16,6 +16,8 @@ import elastic.api.Elastic
 import env._
 import filters.{IzanamiDefaultFilter, OtoroshiFilter}
 import handlers.ErrorHandler
+import patches.Patchs
+import patches.impl.ConfigsPatch
 import play.api.ApplicationLoader.Context
 import play.api._
 import play.api.http.HttpErrorHandler
@@ -25,6 +27,7 @@ import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
 import redis.RedisClientMasterSlaves
 import router.Routes
+import store.JsonDataStore
 import store.cassandra.{CassandraClient, CassandraJsonDataStore}
 import store.elastic.{ElasticClient, ElasticJsonDataStore}
 import store.leveldb.LevelDBJsonDataStore
@@ -68,17 +71,15 @@ package object modules {
       izanamiConfig.db.elastic.map(c => ElasticClient(c, actorSystem))
 
     /* Event store */
+    // format: off
     lazy val eventStore: EventStore = izanamiConfig.events match {
       case InMemoryEvents(_) => new BasicEventStore(actorSystem)
-      case KafkaEvents(c) =>
-        new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
-      case RedisEvents(c) =>
-        new RedisEventStore(redisClient.get, c, actorSystem)
-      case DistributedEvents(c) =>
-        new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
-      case other =>
-        throw new IllegalArgumentException(s"Unknow event store $other")
+      case KafkaEvents(c) => new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
+      case RedisEvents(c) => new RedisEventStore(redisClient.get, c, actorSystem)
+      case DistributedEvents(c) => new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
+      case other => throw new IllegalArgumentException(s"Unknow event store $other")
     }
+    // format: on
 
     /* Global script */
     lazy val globalScriptStore: GlobalScriptStore = {
@@ -222,6 +223,25 @@ package object modules {
     lazy val eventsController: EventsController = wire[EventsController]
 
     lazy val apikeyController: ApikeyController = wire[ApikeyController]
+
+    {
+      val conf: DbDomainConfig = izanamiConfig.patch.db
+      // format: off
+        lazy val jsonStore: Option[JsonDataStore] = conf.`type` match {
+          case DbType.inMemory  => Some(InMemoryJsonDataStore(conf, actorSystem))
+          case DbType.redis     => redisClient.map(c => RedisJsonDataStore(c, conf, actorSystem))
+          case DbType.levelDB   => izanamiConfig.db.leveldb.map(leveldb => LevelDBJsonDataStore(leveldb, conf, actorSystem, applicationLifecycle))
+          case DbType.cassandra => cassandraClient.map(cClient => CassandraJsonDataStore(cClient, izanamiConfig.db.cassandra.get, conf, actorSystem))
+          case DbType.elastic   => elasticClient.map(es => ElasticJsonDataStore(es, izanamiConfig.db.elastic.get, conf, actorSystem))
+        }
+        // format: on
+
+      val allPatchs = Map(
+        1 -> wire[ConfigsPatch]
+      )
+      val patchs: Patchs = new Patchs(jsonStore, allPatchs, actorSystem)
+      patchs.run()
+    }
 
     lazy val searchController: SearchController = wire[SearchController]
 
