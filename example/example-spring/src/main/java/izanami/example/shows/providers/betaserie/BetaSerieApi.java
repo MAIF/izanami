@@ -156,7 +156,7 @@ public class BetaSerieApi implements Shows {
         }
 
         public ShowResume toShowResume() {
-            return new ShowResume(id, title, description, Option.of(images).map(i -> i.banner).getOrNull());
+            return new ShowResume(id, title, description, Option.of(images).map(i -> i.banner).getOrNull(), "betaserie");
         }
 
         public Show toShow(List<Season> seasons) {

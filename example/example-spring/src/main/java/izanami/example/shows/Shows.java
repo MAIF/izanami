@@ -16,15 +16,17 @@ public interface Shows {
         public String image;
         public String title;
         public String description;
+        public String source;
 
         public ShowResume() {
         }
 
-        public ShowResume(String id, String title, String description, String image) {
+        public ShowResume(String id, String title, String description, String image, String source) {
             this.id = id;
             this.image = image;
             this.title = title;
             this.description = description;
+            this.source = source;
         }
     }
 
@@ -48,7 +50,7 @@ public interface Shows {
         }
 
         public Show updateSeasons(List<Season> seasons) {
-            return new Show(id, image, description, title, seasons);
+            return new Show(id, title, description, image, seasons);
         }
 
         @Override

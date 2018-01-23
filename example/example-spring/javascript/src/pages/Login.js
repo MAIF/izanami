@@ -14,7 +14,9 @@ export default class Login extends React.Component {
     this.setState({email: e.target.value})
   };
 
-  doLogin = () => {
+  doLogin = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     const {email} = this.state;
     Service.login({email})
       .then(r => {
@@ -40,19 +42,19 @@ export default class Login extends React.Component {
         <div className="container">
         <div className="row">
         <img src="/img/logo.png" className="img-responsive center-block logo" />
-</div>
+        </div>
           <div className="row">
             <div className="col-md-6 col-md-offset-3">
               <div className="jumbotron">
                 <h2>Signin and manage your lovelly shows</h2>
-                <form>
+                <form onSubmit={this.doLogin}>
                   <div className={`form-group ${this.state.error ? "has-error" : ""}`}>
                     <label htmlFor="email">Email address</label>
                     <input type="email" className="form-control" id="exampleInputEmail1" placeholder="foo@gmail.com"
                            onChange={this.setEmail}/>
                     {this.state.error && <span className="help-block">Error while login</span>}
                   </div>
-                  <button type="button" className="btn btn-lg btn-default pull-right" onClick={this.doLogin}>Signin</button>
+                  <button type="submit" className="btn btn-lg btn-default pull-right" >Signin</button>
                 </form>
               </div>
             </div>
