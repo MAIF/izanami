@@ -158,7 +158,7 @@ public class TvdbShowsApi implements Shows {
                     String.valueOf(this.id),
                     this.seriesName,
                     this.overview,
-                    Option.of(this.banner).filter(i -> !i.isEmpty()).map(i -> baseUrl + i).getOrElse(() -> null),
+                    Option.of(this.banner).filter(i -> !i.isEmpty()).map(i -> baseUrl + i).getOrNull(),
                     seasons
             );
         }
@@ -168,7 +168,8 @@ public class TvdbShowsApi implements Shows {
                     String.valueOf(this.id),
                     this.seriesName,
                     this.overview,
-                    Option.of(this.banner).filter(i -> !i.isEmpty()).map(i -> baseUrl + i).getOrElse(() -> null)
+                    Option.of(this.banner).filter(i -> !i.isEmpty()).map(i -> baseUrl + i).getOrNull(),
+                    "tvdb"
             );
         }
     }

@@ -25,7 +25,7 @@ class TvShowOption extends React.Component {
   };
 
   render() {
-    const {option:{image, title, description}} = this.props;
+    const {option:{image, title, description, source}} = this.props;
     return (
       <div>
         <button className={"btn btn-default"} style={{width:'100%'}} onClick={this.onSelect}>
@@ -35,9 +35,9 @@ class TvShowOption extends React.Component {
             </div>
             <div className="col-md-9">
               <div className="TvResult">
-                <h3>{title}</h3>
+                <h3>{title} ({source})</h3>
                 <p>
-                {description}
+                {_.truncate(description, {'length':120})}
                 </p>
               </div>
             </div>
