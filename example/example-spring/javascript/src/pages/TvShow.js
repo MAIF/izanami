@@ -63,11 +63,11 @@ export default class TvShow extends React.Component {
     return (
       <Layout user={this.props.user}>
         <div className="row">
-          <div className="col-md-12">
+          <div className="col-md-12 details">
             <h1 style={{textAlign: 'center'}}>{this.state.show.title}</h1>
             <p>{this.state.show.description}</p>
 
-            <img className="center-block" src={this.state.show.image}/>
+            <img className="center-block visuel" src={this.state.show.image}/>
 
             <div className="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
               { seasons.map( (s, idx) =>
@@ -89,7 +89,7 @@ export default class TvShow extends React.Component {
                         <Feature path={"mytvshows:season:markaswatched"}>
                           <Enabled>
                             {s.allWatched && <button onClick={this.markSeasonWatched(s.number, false)} style={{display:'flex', padding: '2px 2px 2px 2px'}} className="btn btn default pull-right"><i className="glyphicon glyphicon-ok"/></button>}
-                            {!s.allWatched && <button  onClick={this.markSeasonWatched(s.number, true)} style={{display:'flex', padding: '2px 2px 2px 2px'}} className="btn btn default pull-right"><i className="fa fa-eye"/></button>}
+                            {!s.allWatched && <button  onClick={this.markSeasonWatched(s.number, true)} style={{display:'flex', padding: '2px 2px 2px 2px',marginTop:'-3px'}} className="btn btn default pull-right"> ADD </button>}
                           </Enabled>
                           <Disabled>
                             <div></div>
@@ -116,7 +116,7 @@ export default class TvShow extends React.Component {
                               <td>{e.description}</td>
                               <td>
                                 {!e.watched &&
-                                  <button type="button" className="btn btn-default" onClick={this.markEpisodeWatched(e.id, true)}><i className="fa fa-eye" /></button>
+                                  <button type="button" className="btn btn-default" onClick={this.markEpisodeWatched(e.id, true)}>ADD</button>
                                 }
                                 {e.watched &&
                                   <button type="button"className="btn btn-default" onClick={this.markEpisodeWatched(e.id, false)}><i className="glyphicon glyphicon-ok" /></button>

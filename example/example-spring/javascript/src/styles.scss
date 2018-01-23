@@ -1,4 +1,121 @@
+$primaryColor:#f4c737;
 
+html {
+  margin:0;
+  padding:0;
+  background: url(/img/got.jpg) no-repeat center fixed;
+  -webkit-background-size: cover; /* pour anciens Chrome et Safari */
+  background-size: cover; /* version standardisée */
+}
+
+body{
+  background-color: transparent;
+}
+// accueil
+.logo{
+  margin-top: 20px;
+  margin-bottom:20px;
+  width: 200px;
+}
+
+.jumbotron{
+  background-color: $primaryColor;
+padding-bottom: 68px;
+  h2{
+    color: #373634;
+  }
+
+  .btn-default {
+    color: #fff;
+    background-color: #967D69;
+    border: none;
+}
+
+}
+// menu
+.navbar-brand{
+  padding: 5px;
+}
+.navbar-brand>img{
+  width: 40px;
+}
+
+.navbar-default {
+    background-color: #3b3c3e;
+    border-color: #232324;
+}
+.navbar-default .navbar-collapse, .navbar-default .navbar-form {
+    border-color: #232324;
+  }
+
+.navbar-default .navbar-nav>li>a {
+  color: $primaryColor;
+}
+
+.navbar-default .navbar-nav>li>a:focus, .navbar-default .navbar-nav>li>a:hover {
+color:lighten( $primaryColor, 10% )
+}
+h2{
+  color:$primaryColor;
+}
+
+.TvResult{
+  text-align: left;
+  margin-left: 20px;
+  h3{
+    margin-top: 0px;
+  }
+}
+
+.media{
+        background-color: $primaryColor;
+    box-shadow: 0 1px 5px 0 rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(0, 0, 0, 0.14);
+    border-radius: 4px;
+    outline: none;
+}
+
+.media-middle {
+    vertical-align: top;
+}
+
+.media-heading {
+    padding-top: 5px;
+    float: left;
+}
+.description{
+  clear: both;
+}
+
+.media-body button{
+  background-color: transparent;
+}
+
+.fa-eye{
+  font-size: 18px;
+  color: #333;
+}
+
+//details
+.details{
+  background-color: $primaryColor;
+}
+
+.visuel{
+  width: 100%;
+}
+
+.panel-group{
+  margin-top: 20px;
+}
+.panel-default{
+  border: none;
+}
+.panel-default>.panel-heading {
+    background-color: #967D69;
+}
+ .panel-title>a {
+   color: #FFF;
+ }
 tr.done {
   color: #ccc;
 }
