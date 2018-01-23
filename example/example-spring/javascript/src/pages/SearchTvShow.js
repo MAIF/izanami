@@ -29,11 +29,19 @@ class TvShowOption extends React.Component {
     return (
       <div>
         <button className={"btn btn-default"} style={{width:'100%'}} onClick={this.onSelect}>
-          <h2>{title}</h2>
-          <p>
-            { _.truncate(description) }
-          </p>
-          {image && <img width="300px" src={`${image}`} />}
+        <div className="row">
+            <div className="col-md-3">
+              {image && <img width="300px" src={`${image}`} />}
+            </div>
+            <div className="col-md-9">
+              <div className="TvResult">
+                <h3>{title}</h3>
+                <p>
+                {description}
+                </p>
+              </div>
+            </div>
+          </div>
         </button>
       </div>
     );

@@ -38,24 +38,9 @@ export default class Login extends React.Component {
     } else {
       return (
         <div className="container">
-          <nav className="navbar navbar-default">
-            <div className="container-fluid">
-              <div className="navbar-header">
-                <button type="button" className="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-                  <span className="sr-only">Toggle navigation</span>
-                  <span className="icon-bar"></span>
-                  <span className="icon-bar"></span>
-                  <span className="icon-bar"></span>
-                </button>
-                <a className="navbar-brand" href="#">My Tv Shows</a>
-              </div>
-              <div id="navbar" className="navbar-collapse collapse">
-                <ul className="nav navbar-nav">
-                </ul>
-              </div>
-            </div>
-          </nav>
-
+        <div className="row">
+        <img src="/img/logo.png" className="img-responsive center-block logo" />
+</div>
           <div className="row">
             <div className="col-md-6 col-md-offset-3">
               <div className="jumbotron">
@@ -67,7 +52,7 @@ export default class Login extends React.Component {
                            onChange={this.setEmail}/>
                     {this.state.error && <span className="help-block">Error while login</span>}
                   </div>
-                  <button type="button" className="btn btn-lg btn-default" onClick={this.doLogin}>Signin</button>
+                  <button type="button" className="btn btn-lg btn-default pull-right" onClick={this.doLogin}>Signin</button>
                 </form>
               </div>
             </div>

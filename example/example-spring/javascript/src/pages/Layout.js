@@ -13,12 +13,9 @@ const Layout = props => (
             <span className="icon-bar"></span>
             <span className="icon-bar"></span>
           </button>
-          <Link to={"/"} className="navbar-brand">My Tv Shows</Link>
+          <Link to={"/"} className="navbar-brand"><img src="/img/logo.png"/></Link>
         </div>
         <div id="navbar" className="navbar-collapse collapse">
-          <ul className="nav navbar-nav">
-            <li><Link to={"/"}><i className="fa fa-list-ul" aria-hidden="true"></i> My shows</Link></li>
-          </ul>
           <ul className="nav navbar-nav navbar-right">
             <li><Link to={"/login"} onClick={ e => Service.logout()}>{props.user.userId} <span className="glyphicon glyphicon-off"></span></Link></li>
           </ul>
@@ -30,4 +27,3 @@ const Layout = props => (
 );
 
 export default Layout;
-
