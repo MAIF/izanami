@@ -230,8 +230,8 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
               "query" -> Json.obj(
                 "bool" -> Json.obj(
                   "must" -> Json.arr(
-                    Json.obj("term" -> Json.obj("id"        -> experiment.id.key)),
-                    Json.obj("term" -> Json.obj("variantId" -> v.id))
+                    Json.obj("term" -> Json.obj("experimentId" -> experiment.id.key)),
+                    Json.obj("term" -> Json.obj("variantId"    -> v.id))
                   )
                 )
               )
@@ -244,7 +244,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       .map { id =>
         Bulk[ExperimentVariantEvent](BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))), None)
       }
-      .via(client.bulkFlow(batchSize = 500))
+      .via(index.bulkFlow(batchSize = 500))
       .runWith(Sink.ignore)
       .map(_ => Result.ok(Done))
 
@@ -287,7 +287,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
     val query = Json.obj(
       "size"    -> 1,
       "_source" -> Json.arr("date"),
-      "query"   -> Json.obj("term" -> Json.obj("id" -> Json.obj("value" -> experimentId))),
+      "query"   -> Json.obj("term" -> Json.obj("experimentId" -> Json.obj("value" -> experimentId))),
       "sort"    -> Json.arr(Json.obj("date" -> Json.obj("order" -> order)))
     )
     Logger.debug(s"Querying ${Json.prettyPrint(query)}")
@@ -310,11 +310,10 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
     import cats.instances.future._
 
     val minDate: Future[Option[LocalDateTime]] = min(experimentId)
-    val maxDate: Future[Option[LocalDateTime]] = max(experimentId)
 
     (for {
       min <- OptionT(minDate)
-      max <- OptionT(maxDate)
+      max = LocalDateTime.now()
     } yield {
       if (ChronoUnit.MONTHS.between(min, max) > 50) {
         "month"
