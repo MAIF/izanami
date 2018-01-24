@@ -64,7 +64,7 @@ class SmartCacheFeatureClientSpec
 
       //Waiting for the client to start polling
       val features: Features = pattern
-        .after(1.second, system.scheduler) {
+        .after(1300.millisecond, system.scheduler) {
           featureClient.features("*")
         }
         .futureValue

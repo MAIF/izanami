@@ -73,7 +73,7 @@ class ScriptSpec
   val config = IzanamiConfig(
     Some("dev"),
     Default(DefaultFilter(Seq(), "", "", "", ApiKey("", ""))),
-    DbConfig(None, None, None, None, None),
+    DbConfig("", None, None, None, None, None),
     LogoutConfig(""),
     ConfigConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     FeaturesConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
@@ -86,7 +86,8 @@ class ScriptSpec
     UserConfig(DbDomainConfig("", DbDomainConfigDetails("")),
                InitialUserConfig("", "")),
     ApikeyConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
-    InMemoryEvents(InMemoryEventsConfig())
+    InMemoryEvents(InMemoryEventsConfig()),
+    PatchConfig(DbDomainConfig("", DbDomainConfigDetails("")))
   )
 
   "Script" must {
