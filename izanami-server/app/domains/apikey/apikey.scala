@@ -25,12 +25,12 @@ trait ApikeyStore extends DataStore[ApikeyKey, Apikey]
 object ApikeyStore {
   type ApikeyKey = Key
 
-  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): ApikeyStore =
+  def apply(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem): ApikeyStore =
     new ApikeyStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends ApikeyStore {
+class ApikeyStoreImpl(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem) extends ApikeyStore {
   import Apikey._
   import domains.events.Events._
   import store.Result._

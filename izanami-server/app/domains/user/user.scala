@@ -64,12 +64,12 @@ trait UserStore extends DataStore[UserKey, User]
 object UserStore {
   type UserKey = Key
 
-  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): UserStore =
+  def apply(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem): UserStore =
     new UserStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class UserStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends UserStore {
+class UserStoreImpl(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem) extends UserStore {
   import User._
   import domains.events.Events._
   import store.Result._

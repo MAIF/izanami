@@ -62,7 +62,7 @@ object WebhookStore {
 
   sealed trait WebhookMessages
 
-  def apply(jsonStore: JsonDataStore,
+  def apply(jsonStore: => JsonDataStore,
             eventStore: EventStore,
             dbConfig: DbDomainConfig,
             webHookConfig: WebhookConfig,
@@ -75,7 +75,7 @@ object WebhookStore {
   }
 }
 
-class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventStore: EventStore, system: ActorSystem)
+class WebhookStoreImpl(jsonStore: => JsonDataStore, config: DbDomainConfig, eventStore: EventStore, system: ActorSystem)
     extends WebhookStore {
 
   import Webhook._
