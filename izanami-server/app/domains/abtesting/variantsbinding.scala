@@ -114,11 +114,11 @@ object VariantBinding {
 trait VariantBindingStore extends DataStore[VariantBindingKey, VariantBinding]
 
 object VariantBindingStore {
-  def apply(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem): VariantBindingStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): VariantBindingStore =
     new VariantBindingStoreImpl(jsonStore, eventStore, system)
 }
 
-class VariantBindingStoreImpl(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem)
+class VariantBindingStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
     extends VariantBindingStore {
   import domains.events.Events._
   import system.dispatcher

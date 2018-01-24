@@ -28,11 +28,11 @@ object ConfigStore {
 
   type ConfigKey = Key
 
-  def apply(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem): ConfigStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): ConfigStore =
     new ConfigStoreImpl(jsonStore, eventStore, system)
 }
 
-class ConfigStoreImpl(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem) extends ConfigStore {
+class ConfigStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends ConfigStore {
 
   import Config._
   import store.Result._

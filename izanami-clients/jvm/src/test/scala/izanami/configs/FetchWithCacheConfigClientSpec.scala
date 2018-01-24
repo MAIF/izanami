@@ -12,13 +12,9 @@ import play.api.libs.json.Json
 
 import scala.concurrent.duration.DurationInt
 
-class FetchWithCacheConfigClientSpec
-    extends IzanamiSpec
-    with BeforeAndAfterAll
-    with MockitoSugar
-    with ConfigServer {
+class FetchWithCacheConfigClientSpec extends IzanamiSpec with BeforeAndAfterAll with MockitoSugar with ConfigServer {
 
-  implicit val system = ActorSystem("test")
+  implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
 
   override def afterAll {
@@ -51,7 +47,7 @@ class FetchWithCacheConfigClientSpec
         configs.configs must be(initialConfigs)
         ctx.calls.size must be(1)
 
-        configs.get("test") must be(Json.obj("value" -> 1))
+        configs.get("test") must be(Json.obj("value"  -> 1))
         configs.get("test2") must be(Json.obj("value" -> 2))
         configs.get("other") must be(Json.obj())
       }

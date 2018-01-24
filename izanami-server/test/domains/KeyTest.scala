@@ -4,8 +4,8 @@ import play.api.libs.json.{JsError, JsString, JsSuccess, Json}
 import test.IzanamiSpec
 
 /**
-  * Created by adelegue on 17/07/2017.
-  */
+ * Created by adelegue on 17/07/2017.
+ */
 class KeyTest extends IzanamiSpec {
 
   "Key deserialization" must {
@@ -26,19 +26,16 @@ class KeyTest extends IzanamiSpec {
   "Key serialization" must {
 
     "should be valid" in {
-      Json.toJson(Key("ragnar:lodbrok:730")) must be(
-        JsString("ragnar:lodbrok:730"))
+      Json.toJson(Key("ragnar:lodbrok:730")) must be(JsString("ragnar:lodbrok:730"))
     }
   }
 
   "Test patterns" must {
     "match" in {
-      Key("test2:ab:scenario:B:8:displayed").matchPattern("test2:ab:scenario:*") must be(
-        true)
+      Key("test2:ab:scenario:B:8:displayed").matchPattern("test2:ab:scenario:*") must be(true)
     }
     "not match" in {
-      Key("test1:ab:scenario:B:8:displayed").matchPattern("test2:ab:scenario:*") must be(
-        false)
+      Key("test1:ab:scenario:B:8:displayed").matchPattern("test2:ab:scenario:*") must be(false)
     }
   }
 }

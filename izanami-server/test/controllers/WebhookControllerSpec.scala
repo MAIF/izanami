@@ -158,7 +158,6 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
 //
 //    }
 
-
     "call webhook on with filter" in {
 
       withServer(buildBasicServer()) { ctx =>

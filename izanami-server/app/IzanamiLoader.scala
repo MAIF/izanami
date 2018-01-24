@@ -224,20 +224,21 @@ package object modules {
 
     lazy val apikeyController: ApikeyController = wire[ApikeyController]
 
-    {
+    val patchResult = {
       val conf: DbDomainConfig = izanamiConfig.patch.db
       // format: off
-        lazy val jsonStore: Option[JsonDataStore] = conf.`type` match {
-          case DbType.inMemory  => Some(InMemoryJsonDataStore(conf, actorSystem))
-          case DbType.redis     => redisClient.map(c => RedisJsonDataStore(c, conf, actorSystem))
-          case DbType.levelDB   => izanamiConfig.db.leveldb.map(leveldb => LevelDBJsonDataStore(leveldb, conf, actorSystem, applicationLifecycle))
-          case DbType.cassandra => cassandraClient.map(cClient => CassandraJsonDataStore(cClient, izanamiConfig.db.cassandra.get, conf, actorSystem))
-          case DbType.elastic   => elasticClient.map(es => ElasticJsonDataStore(es, izanamiConfig.db.elastic.get, conf, actorSystem))
-        }
-        // format: on
+      lazy val jsonStore: Option[JsonDataStore] = conf.`type` match {
+        case DbType.inMemory  => None
+        case DbType.redis     => redisClient.map(c => RedisJsonDataStore(c, conf, actorSystem))
+        case DbType.levelDB   => izanamiConfig.db.leveldb.map(leveldb => LevelDBJsonDataStore(leveldb, conf, actorSystem, applicationLifecycle))
+        case DbType.cassandra => cassandraClient.map(cClient => CassandraJsonDataStore(cClient, izanamiConfig.db.cassandra.get, conf, actorSystem))
+        case DbType.elastic   => elasticClient.map(es => ElasticJsonDataStore(es, izanamiConfig.db.elastic.get, conf, actorSystem))
+      }
+      // format: on
 
+      lazy val configsPatch: ConfigsPatch = wire[ConfigsPatch]
       val allPatchs = Map(
-        1 -> wire[ConfigsPatch]
+        1 -> configsPatch
       )
       val patchs: Patchs = new Patchs(jsonStore, allPatchs, actorSystem)
       patchs.run()

@@ -43,11 +43,14 @@ Download it :
 wget --quiet 'https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar'
 ```
 
-Run it 
+Run it (JDK 8 needed)
 
 ```zsh
 java -jar izanami.jar 
 ```
 
-And then go to http://localhost:9000
+Go to http://localhost:9000
 
+And then log in using `admin` / `admin123` 
+
+Follow the @ref[getting started page](quickstart.md) to see more about Izanami.  

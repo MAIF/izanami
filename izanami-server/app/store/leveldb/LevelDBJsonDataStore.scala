@@ -42,7 +42,13 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
     extends JsonDataStore {
 
   private val client: DB =
-    factory.open(new File(dbPath), new Options().createIfMissing(true))
+    try {
+      factory.open(new File(dbPath), new Options().createIfMissing(true))
+    } catch {
+      case e: Throwable =>
+        Logger.error(s"Error initializing level db at path ${new File(dbPath).getAbsolutePath}", e)
+        throw e;
+    }
   applicationLifecycle.addStopHook { () =>
     Logger.info(s"Closing leveldb for path $dbPath")
     Future(client.close())

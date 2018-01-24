@@ -11,8 +11,8 @@ import play.api.libs.json._
 import scala.collection.immutable.Seq
 
 /**
-  * Automatic to and from JSON marshalling/unmarshalling using an in-scope *play-json* protocol.
-  */
+ * Automatic to and from JSON marshalling/unmarshalling using an in-scope *play-json* protocol.
+ */
 object PlayJsonSupport extends PlayJsonSupport {
 
   final case class PlayJsonError(error: JsError) extends RuntimeException {
@@ -22,8 +22,8 @@ object PlayJsonSupport extends PlayJsonSupport {
 }
 
 /**
-  * Automatic to and from JSON marshalling/unmarshalling using an in-scope *play-json* protocol.
-  */
+ * Automatic to and from JSON marshalling/unmarshalling using an in-scope *play-json* protocol.
+ */
 trait PlayJsonSupport {
   import PlayJsonSupport._
 
@@ -42,30 +42,29 @@ trait PlayJsonSupport {
     Marshaller.stringMarshaller(`application/json`)
 
   /**
-    * HTTP entity => `A`
-    *
-    * @tparam A type to decode
-    * @return unmarshaller for `A`
-    */
+   * HTTP entity => `A`
+   *
+   * @tparam A type to decode
+   * @return unmarshaller for `A`
+   */
   implicit def unmarshaller[A: Reads]: FromEntityUnmarshaller[A] = {
     def read(json: JsValue) =
       implicitly[Reads[A]]
         .reads(json)
         .recoverTotal { e =>
           throw RejectionError(
-            ValidationRejection(JsError.toJson(e).toString,
-                                Some(PlayJsonError(e)))
+            ValidationRejection(JsError.toJson(e).toString, Some(PlayJsonError(e)))
           )
         }
     jsonStringUnmarshaller.map(data => read(Json.parse(data)))
   }
 
   /**
-    * `A` => HTTP entity
-    *
-    * @tparam A type to encode
-    * @return marshaller for any `A` value
-    */
+   * `A` => HTTP entity
+   *
+   * @tparam A type to encode
+   * @return marshaller for any `A` value
+   */
   implicit def marshaller[A](
       implicit writes: Writes[A],
       printer: JsValue => String = Json.prettyPrint
