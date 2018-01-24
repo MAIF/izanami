@@ -5,12 +5,12 @@ import akka.actor.ActorSystem
 import domains.config.ConfigStore._
 import domains.events.EventStore
 import domains.{AuthInfo, Key}
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import store._
 
 import scala.concurrent.Future
 
-case class Config(id: ConfigKey, value: String) {
+case class Config(id: ConfigKey, value: JsValue) {
 
   def isAllowed = Key.isAllowed(id) _
 
