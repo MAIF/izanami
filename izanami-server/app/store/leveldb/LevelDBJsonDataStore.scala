@@ -1,6 +1,7 @@
 package store.leveldb
 
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
@@ -31,11 +32,18 @@ object LevelDBJsonDataStore {
             actorSystem: ActorSystem,
             applicationLifecycle: ApplicationLifecycle): LevelDBJsonDataStore = {
     val namespace = config.conf.namespace
-    Logger.info(s"Load store LevelDB for namespace $namespace")
-    val parentPath     = levelDbConfig.parentPath
-    val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-    LevelDBJsonDataStore(actorSystem, dbPath, applicationLifecycle)
+    if (stores.get(namespace) == null) {
+      Logger.info(s"Load store LevelDB for namespace $namespace")
+      val parentPath     = levelDbConfig.parentPath
+      val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
+      val store          = LevelDBJsonDataStore(actorSystem, dbPath, applicationLifecycle)
+      stores.put(namespace, store)
+      store
+    } else {
+      stores.get(namespace)
+    }
   }
+  private val stores = new ConcurrentHashMap[String, LevelDBJsonDataStore]()
 }
 
 class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifecycle: ApplicationLifecycle)
@@ -47,7 +55,7 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
     } catch {
       case e: Throwable =>
         Logger.error(s"Error initializing level db at path ${new File(dbPath).getAbsolutePath}", e)
-        throw e;
+        throw new RuntimeException(s"Error initializing level db at path ${new File(dbPath).getAbsolutePath}", e)
     }
   applicationLifecycle.addStopHook { () =>
     Logger.info(s"Closing leveldb for path $dbPath")
