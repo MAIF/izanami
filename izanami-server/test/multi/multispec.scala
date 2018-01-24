@@ -242,10 +242,6 @@ class LevelDBTests
     )
     with BeforeAndAfterAll {
 
-  override protected def beforeAll(): Unit =
-    Try {
-      FileUtils.deleteRecursively(new File("./target/leveldb"))
-    }
   override protected def afterAll(): Unit =
     Try {
       FileUtils.deleteRecursively(new File("./target/leveldb"))

@@ -31,16 +31,16 @@ object LevelDBJsonDataStore {
             config: DbDomainConfig,
             actorSystem: ActorSystem,
             applicationLifecycle: ApplicationLifecycle): LevelDBJsonDataStore = {
-    val namespace = config.conf.namespace
-    if (stores.get(namespace) == null) {
+    val namespace      = config.conf.namespace
+    val parentPath     = levelDbConfig.parentPath
+    val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
+    if (stores.get(dbPath) == null) {
       Logger.info(s"Load store LevelDB for namespace $namespace")
-      val parentPath     = levelDbConfig.parentPath
-      val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-      val store          = LevelDBJsonDataStore(actorSystem, dbPath, applicationLifecycle)
-      stores.put(namespace, store)
+      val store = LevelDBJsonDataStore(actorSystem, dbPath, applicationLifecycle)
+      stores.put(dbPath, store)
       store
     } else {
-      stores.get(namespace)
+      stores.get(dbPath)
     }
   }
   private val stores = new ConcurrentHashMap[String, LevelDBJsonDataStore]()
@@ -49,14 +49,8 @@ object LevelDBJsonDataStore {
 class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifecycle: ApplicationLifecycle)
     extends JsonDataStore {
 
-  private val client: DB =
-    try {
-      factory.open(new File(dbPath), new Options().createIfMissing(true))
-    } catch {
-      case e: Throwable =>
-        Logger.error(s"Error initializing level db at path ${new File(dbPath).getAbsolutePath}", e)
-        throw new RuntimeException(s"Error initializing level db at path ${new File(dbPath).getAbsolutePath}", e)
-    }
+  private val client: DB = factory.open(new File(dbPath), new Options().createIfMissing(true))
+
   applicationLifecycle.addStopHook { () =>
     Logger.info(s"Closing leveldb for path $dbPath")
     Future(client.close())
