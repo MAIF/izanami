@@ -56,6 +56,8 @@ scalacOptions ++= Seq(
   "-language:existentials"
 )
 
+parallelExecution in Test := false
+
 scalafmtOnCompile in ThisBuild := true
 
 scalafmtTestOnCompile in ThisBuild := true
