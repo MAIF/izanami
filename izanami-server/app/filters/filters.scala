@@ -94,7 +94,7 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
                     Json.obj("error" -> "Claim error !!!", "m" -> e.getMessage)
                   )
                   .withHeaders(
-                    "Opun-Gateway-State-Resp" -> maybeState.getOrElse("--")
+                    config.headerGatewayStateResp -> maybeState.getOrElse("--")
                   )
               )
             )
@@ -107,7 +107,7 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
               Json.obj("error" -> "Bad env !!!")
             )
             .withHeaders(
-              "Opun-Gateway-State-Resp" -> maybeState.getOrElse("--")
+              config.headerGatewayStateResp -> maybeState.getOrElse("--")
             )
         )
     }) recoverWith {
@@ -119,7 +119,7 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
                 Json.obj("error" -> e.getMessage)
               )
               .withHeaders(
-                "Opun-Gateway-State-Resp" -> maybeState.getOrElse("--")
+                config.headerGatewayStateResp -> maybeState.getOrElse("--")
               )
           )
         )
