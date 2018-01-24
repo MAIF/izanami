@@ -9,23 +9,14 @@ import org.scalatestplus.play.components.OneServerPerSuiteWithComponents
 import play.api.ApplicationLoader.Context
 import play.api.libs.json.Json
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.{
-  BuiltInComponents,
-  BuiltInComponentsFromContext,
-  Configuration,
-  NoHttpFiltersComponents
-}
+import play.api.{BuiltInComponents, BuiltInComponentsFromContext, Configuration, NoHttpFiltersComponents}
 
 import scala.concurrent.duration.DurationInt
 
 /**
-  * Created by adelegue on 18/07/2017.
-  */
-class ScriptSpec
-    extends PlaySpec
-    with OneServerPerSuiteWithComponents
-    with ScalaFutures
-    with IntegrationPatience {
+ * Created by adelegue on 18/07/2017.
+ */
+class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with ScalaFutures with IntegrationPatience {
 
   case class TestComponent(context: Context)
       extends BuiltInComponentsFromContext(context)
@@ -81,10 +72,8 @@ class ScriptSpec
     ExperimentConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     VariantBindingConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     ExperimentEventConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
-    WebhookConfig(DbDomainConfig("", DbDomainConfigDetails("")),
-                  WebhookEventsConfig(5, 1.second, 1, 1.second)),
-    UserConfig(DbDomainConfig("", DbDomainConfigDetails("")),
-               InitialUserConfig("", "")),
+    WebhookConfig(DbDomainConfig("", DbDomainConfigDetails("")), WebhookEventsConfig(5, 1.second, 1, 1.second)),
+    UserConfig(DbDomainConfig("", DbDomainConfigDetails("")), InitialUserConfig("", "")),
     ApikeyConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     InMemoryEvents(InMemoryEventsConfig()),
     PatchConfig(DbDomainConfig("", DbDomainConfigDetails("")))

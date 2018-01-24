@@ -5,11 +5,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import izanami._
-import izanami.scaladsl.ConfigEvent.{
-  ConfigCreated,
-  ConfigDeleted,
-  ConfigUpdated
-}
+import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import izanami.scaladsl.{Config, Configs, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
@@ -25,7 +21,7 @@ class FetchConfigClientSpec
     with ConfigServer
     with ConfigMockServer {
 
-  implicit val system = ActorSystem("test")
+  implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
 
   import system.dispatcher
@@ -55,7 +51,7 @@ class FetchConfigClientSpec
 
       configs.configs must be(initialConfigs)
 
-      configs.get("test") must be(Json.obj("value" -> 1))
+      configs.get("test") must be(Json.obj("value"  -> 1))
       configs.get("test2") must be(Json.obj("value" -> 2))
       configs.get("other") must be(Json.obj())
 
@@ -123,7 +119,7 @@ class FetchConfigClientSpec
         case Failure(e) => e.printStackTrace()
       }
       //#one-config
-      futureConfig.futureValue must be(Json.obj("value" -> 1))
+      futureConfig.futureValue must be(Json.obj("value"                  -> 1))
       izanamiClient.config("test2").futureValue must be(Json.obj("value" -> 2))
       izanamiClient.config("other").futureValue must be(Json.obj())
 
@@ -138,10 +134,8 @@ class FetchConfigClientSpec
         )
 
         val expectedEvents = Seq(
-          ConfigCreated("id1", Config("id1", Json.obj("config" -> 1))),
-          ConfigUpdated("filter:id2",
-                        Config("id1", Json.obj("config" -> 1)),
-                        Config("id1", Json.obj("config" -> 2))),
+          ConfigCreated("id1", Config("id1", Json.obj("config"        -> 1))),
+          ConfigUpdated("filter:id2", Config("id1", Json.obj("config" -> 1)), Config("id1", Json.obj("config" -> 2))),
           ConfigCreated("filter:id3", Config("id1", Json.obj("config" -> 3))),
           ConfigDeleted("id4"),
           ConfigDeleted("id5")
@@ -161,8 +155,7 @@ class FetchConfigClientSpec
         expectedEvents.foreach(e => ctx.queue.offer(e))
 
         fEvents.futureValue must be(expectedEvents)
-        fEvents2.futureValue must be(
-          expectedEvents.filter(_.id.startsWith("filter:")))
+        fEvents2.futureValue must be(expectedEvents.filter(_.id.startsWith("filter:")))
       }
     }
   }

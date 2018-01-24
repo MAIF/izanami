@@ -82,11 +82,11 @@ object Experiment {
 trait ExperimentStore extends DataStore[ExperimentKey, Experiment]
 
 object ExperimentStore {
-  def apply(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem) =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) =
     new ExperimentStoreImpl(jsonStore, eventStore, system)
 }
 
-class ExperimentStoreImpl(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem)
+class ExperimentStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
     extends ExperimentStore {
 
   import Experiment._

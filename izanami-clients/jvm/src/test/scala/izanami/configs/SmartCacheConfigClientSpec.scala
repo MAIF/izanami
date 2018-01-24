@@ -26,7 +26,7 @@ class SmartCacheConfigClientSpec
     with ConfigServer
     with ConfigMockServer {
 
-  implicit val system = ActorSystem("test")
+  implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
 
   import system.dispatcher
@@ -78,7 +78,8 @@ class SmartCacheConfigClientSpec
         getRequestedFor(urlPathEqualTo("/api/configs"))
           .withQueryParam("pattern", equalTo("*"))
           .withQueryParam("page", equalTo("1"))
-          .withQueryParam("pageSize", equalTo("200")))
+          .withQueryParam("pageSize", equalTo("200"))
+      )
       mock.resetRequests()
 
       configs.get("test1") must be(Json.obj("value" -> 1))
@@ -110,7 +111,8 @@ class SmartCacheConfigClientSpec
         getRequestedFor(urlPathEqualTo("/api/configs"))
           .withQueryParam("pattern", equalTo("*"))
           .withQueryParam("page", equalTo("1"))
-          .withQueryParam("pageSize", equalTo("200")))
+          .withQueryParam("pageSize", equalTo("200"))
+      )
       mock.resetRequests()
 
       configsUpdated.configs must be(fallback.configs ++ updatedConfigs)
@@ -170,9 +172,8 @@ class SmartCacheConfigClientSpec
 
         // We update config via sse
         ctx.push(
-          ConfigUpdated("test1",
-                        Config("test1", Json.obj("value" -> 3)),
-                        Config("test1", Json.obj("value" -> 1))))
+          ConfigUpdated("test1", Config("test1", Json.obj("value" -> 3)), Config("test1", Json.obj("value" -> 1)))
+        )
 
         //We wait that the events arrive
         val configsUpdated: Configs = pattern

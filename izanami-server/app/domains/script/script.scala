@@ -160,12 +160,12 @@ object GlobalScriptStore {
 
   type GlobalScriptKey = Key
 
-  def apply(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem): GlobalScriptStore =
+  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): GlobalScriptStore =
     new GlobalScriptStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class GlobalScriptStoreImpl(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem)
+class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
     extends GlobalScriptStore {
 
   import system.dispatcher

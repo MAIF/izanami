@@ -5,20 +5,16 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import izanami.Strategy.FetchWithCacheStrategy
 import izanami._
-import izanami.scaladsl.{IzanamiClient, Features}
+import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json.Json
 
 import scala.concurrent.duration.DurationInt
 
-class FetchWithCacheFeatureClientSpec
-    extends IzanamiSpec
-    with BeforeAndAfterAll
-    with MockitoSugar
-    with FeatureServer {
+class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll with MockitoSugar with FeatureServer {
 
-  implicit val system = ActorSystem("test")
+  implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
 
   override def afterAll {

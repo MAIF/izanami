@@ -15,7 +15,7 @@ import redis.embedded.RedisServer
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationLong
-import scala.util.Random
+import scala.util.{Random, Try}
 
 object Configs {
 
@@ -40,6 +40,7 @@ object Configs {
       |izanami.webhook.db.type=$${izanami.db.default}
       |izanami.user.db.type=$${izanami.db.default}
       |izanami.apikey.db.type=$${izanami.db.default}
+      |izanami.patch.db.type=$${izanami.db.default}
       |
       |izanami {
       |  db {
@@ -67,6 +68,7 @@ object Configs {
          |izanami.webhook.db.type=$${izanami.db.default}
          |izanami.user.db.type=$${izanami.db.default}
          |izanami.apikey.db.type=$${izanami.db.default}
+         |izanami.patch.db.type=$${izanami.db.default}
          |
          |izanami {
          |  db {
@@ -96,6 +98,7 @@ object Configs {
          |izanami.webhook.db.type=$${izanami.db.default}
          |izanami.user.db.type=$${izanami.db.default}
          |izanami.apikey.db.type=$${izanami.db.default}
+         |izanami.patch.db.type=$${izanami.db.default}
          |
          |izanami {
          |  db {
@@ -122,6 +125,7 @@ object Configs {
          |izanami.webhook.db.type=$${izanami.db.default}
          |izanami.user.db.type=$${izanami.db.default}
          |izanami.apikey.db.type=$${izanami.db.default}
+         |izanami.patch.db.type=$${izanami.db.default}
          |
         |izanami {
          |  db {
@@ -148,6 +152,8 @@ object Configs {
         |izanami.webhook.db.type=${izanami.db.default}
         |izanami.user.db.type=${izanami.db.default}
         |izanami.apikey.db.type=${izanami.db.default}
+        |izanami.patch.db.type=${izanami.db.default}
+        |
       """.stripMargin)
       .resolve()
   )
@@ -236,6 +242,12 @@ class LevelDBTests
     )
     with BeforeAndAfterAll {
 
+  override protected def beforeAll(): Unit =
+    Try {
+      FileUtils.deleteRecursively(new File("./target/leveldb"))
+    }
   override protected def afterAll(): Unit =
-    FileUtils.deleteRecursively(new File("./target/leveldb"))
+    Try {
+      FileUtils.deleteRecursively(new File("./target/leveldb"))
+    }
 }
