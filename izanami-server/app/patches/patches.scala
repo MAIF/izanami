@@ -39,7 +39,7 @@ class Patchs(mayBeJsonStore: Option[JsonDataStore], allpatches: Map[Int, PatchIn
   val key = Key("last:patch")
 
   def run(): Future[Done] = {
-    val jsonStore: JsonDataStore = mayBeJsonStore.get
+    val jsonStore: => JsonDataStore = mayBeJsonStore.get
     jsonStore
       .getById(key)
       .one

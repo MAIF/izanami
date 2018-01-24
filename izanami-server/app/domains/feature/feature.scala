@@ -242,12 +242,12 @@ object FeatureStore {
 
   sealed trait FeatureMessages
 
-  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): FeatureStore =
+  def apply(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem): FeatureStore =
     new FeatureStoreImpl(jsonStore, eventStore, system)
 
 }
 
-class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends FeatureStore {
+class FeatureStoreImpl(jsonStore: => JsonDataStore, eventStore: EventStore, system: ActorSystem) extends FeatureStore {
 
   import Feature._
   import domains.events.Events._
