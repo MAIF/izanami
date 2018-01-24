@@ -64,7 +64,8 @@ case class IzanamiConfig(
     webhook: WebhookConfig,
     user: UserConfig,
     apikey: ApikeyConfig,
-    events: EventsConfig
+    events: EventsConfig,
+    patch: PatchConfig
 )
 
 //case class Claim(sharedKey: String, header: String, headerClientId: String, headerClientSecret: String)
@@ -96,6 +97,7 @@ case class WebhookConfig(db: DbDomainConfig, events: WebhookEventsConfig)
 case class WebhookEventsConfig(group: Int, within: FiniteDuration, nbMaxErrors: Int, errorReset: FiniteDuration)
 case class UserConfig(db: DbDomainConfig, initialize: InitialUserConfig)
 case class ApikeyConfig(db: DbDomainConfig)
+case class PatchConfig(db: DbDomainConfig)
 
 sealed trait EventsConfig
 case class InMemoryEvents(inmemory: InMemoryEventsConfig)          extends EventsConfig
@@ -109,6 +111,7 @@ case class RedisEventsConfig(topic: String)
 case class KafkaEventsConfig(topic: String)
 
 case class DbConfig(
+    default: String,
     redis: Option[RedisConfig],
     leveldb: Option[LevelDbConfig],
     cassandra: Option[CassandraConfig],

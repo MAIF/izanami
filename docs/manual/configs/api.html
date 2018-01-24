@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-0.0.6*
+1.0.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -111,7 +111,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-0.0.6*
+1.0.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -224,7 +224,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   &quot;results&quot;: [
     {
       &quot;id&quot;: &quot;ragnar:lodbrok:email&quot;,
-      &quot;value&quot;: &quot;{\n  \&quot;email\&quot;: \&quot;ragnar.lodbrok@gmail.com\&quot;\n}&quot;
+      &quot;value&quot;: {&quot;email&quot;: &quot;ragnar.lodbrok@gmail.com&quot;}
     }
   ],
   &quot;metadata&quot;: {
@@ -242,12 +242,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     -H &#39;Content-Type: application/json&#39; \
     -H &#39;Izanami-Client-Id: xxxx&#39; \
     -H &#39;Izanami-Client-Secret: xxxx&#39; \
-    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot; }&#39; | jq  
+    -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: {&quot;city&quot;: &quot;Kattegat&quot;} }&#39; | jq  
 </code></pre>
 <p>Will respond with a 201 status code: </p>
 <pre class="prettyprint"><code class="language-json">{
   &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+  &quot;value&quot;: {&quot;city&quot;: &quot;Kattegat&quot;}
 }
 </code></pre>
 <h3><a href="#get-a-config" name="get-a-config" class="anchor"><span class="anchor-link"></span></a>Get a config</h3>
@@ -260,7 +260,9 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
   &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+  &quot;value&quot;: {
+    &quot;city&quot;: &quot;Kattegat&quot;
+  }
 }
 </code></pre>
 <h3><a href="#update-a-config" name="update-a-config" class="anchor"><span class="anchor-link"></span></a>Update a config</h3>
@@ -269,12 +271,14 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; \
-  -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot; }&#39; | jq
+  -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: {&quot;city&quot;: &quot;Northumbria&quot;} }&#39; | jq
 </code></pre>
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
   &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+  &quot;value&quot;: {
+    &quot;city&quot;: &quot;Northumbria&quot;
+  }
 }
 </code></pre>
 <h3><a href="#patch-a-config" name="patch-a-config" class="anchor"><span class="anchor-link"></span></a>Patch a config</h3>
@@ -284,12 +288,14 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   -H &#39;Content-Type: application/json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; \
-  -d &#39;[{&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;value&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;}]&#39;
+  -d &#39;[{&quot;op&quot;: &quot;replace&quot;, &quot;path&quot;: &quot;/value&quot;, &quot;value&quot;: {&quot;city&quot;: &quot;Northumbria&quot;} }]&#39; | jq
 </code></pre>
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
   &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Kattegat\&quot;}&quot;
+  &quot;value&quot;: {
+    &quot;city&quot;: &quot;Northumbria&quot;
+  }
 }
 </code></pre>
 <h3><a href="#delete-a-config" name="delete-a-config" class="anchor"><span class="anchor-link"></span></a>Delete a config</h3>
@@ -302,7 +308,9 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
   &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+  &quot;value&quot;: {
+    &quot;city&quot;: &quot;Northumbria&quot;
+  }
 }
 </code></pre>
 <h2><a href="#tree-api" name="tree-api" class="anchor"><span class="anchor-link"></span></a>Tree API</h2>
@@ -356,11 +364,11 @@ curl -XPOST \
 <p>Will return each item separated by a <code>\n</code>.</p>
 <pre class="prettyprint"><code class="language-nd-json">{
   &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;,
-  &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot;
+  &quot;value&quot;: {&quot;city&quot;: &quot;Northumbria&quot;}
 }
 {
   &quot;id&quot;: &quot;ragnar:lodbrok:email&quot;,
-  &quot;value&quot;: &quot;{\n  \&quot;email\&quot;: \&quot;ragnar.lodbrok@gmail.com\&quot;\n}&quot;
+  &quot;value&quot;: {&quot;email&quot;: &quot;ragnar.lodbrok@gmail.com&quot;}
 }
 </code></pre>
 <h3><a href="#upload" name="upload" class="anchor"><span class="anchor-link"></span></a>Upload</h3>
@@ -369,8 +377,8 @@ curl -XPOST \
   -H &#39;Content-Type: application/nd-json&#39; \
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; \
-  -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: &quot;{\&quot;city\&quot;: \&quot;Northumbria\&quot;}&quot; } 
-      {&quot;id&quot;: &quot;ragnar:lodbrok:email&quot;, &quot;value&quot;: &quot;{\n  \&quot;email\&quot;: \&quot;ragnar.lodbrok@gmail.com\&quot;\n}&quot;}&#39; \
+  -d &#39;{ &quot;id&quot;: &quot;ragnar:lodbrok:city&quot;, &quot;value&quot;: {&quot;city&quot;: &quot;Northumbria&quot;}&quot; } 
+      {&quot;id&quot;: &quot;ragnar:lodbrok:email&quot;, &quot;value&quot;: {&quot;email&quot;: &quot;ragnar.lodbrok@gmail.com&quot;}}&#39; \
    | jq 
 </code></pre>
 <p>Will return </p>

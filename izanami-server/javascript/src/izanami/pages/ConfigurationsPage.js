@@ -22,20 +22,20 @@ export class ConfigurationsPage extends Component {
 
   fetchItems = (args) => {
     const {search = [], page, pageSize} = args;
-    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
-    return IzanamiServices.fetchConfigs({page, pageSize, search: pattern });  
+    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
+    return IzanamiServices.fetchConfigs({page, pageSize, search: pattern });
   };
 
   fetchItem = (id) => {
     return IzanamiServices.fetchConfig(id);
   };
 
-  createItem = (config) => {
-    return IzanamiServices.createConfig(config);
+  createItem = ({id, value}) => {
+    return IzanamiServices.createConfig({id, value: JSON.parse(value)});
   };
 
-  updateItem = (config, configOriginal) => {
-    return IzanamiServices.updateConfig(configOriginal.id, config);
+  updateItem = ({id, value}, configOriginal) => {
+    return IzanamiServices.updateConfig(configOriginal.id, {id, value: JSON.parse(value)});
   };
 
   deleteItem = (config) => {
@@ -79,7 +79,9 @@ export class ConfigurationsPage extends Component {
               updated: 'CONFIG_UPDATED',
               deleted: 'CONFIG_DELETED'
             }}
-            extractKey={item => item.id} />
+            extractKey={item => item.id}
+            convertItem={({id, value}) => ({id, value: JSON.stringify(value)})}
+          />
         </div>
       </div>
     );

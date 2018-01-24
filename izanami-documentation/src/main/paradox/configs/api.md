@@ -34,7 +34,7 @@ Will respond with a 200 status code:
   "results": [
     {
       "id": "ragnar:lodbrok:email",
-      "value": "{\n  \"email\": \"ragnar.lodbrok@gmail.com\"\n}"
+      "value": {"email": "ragnar.lodbrok@gmail.com"}
     }
   ],
   "metadata": {
@@ -56,7 +56,7 @@ curl -XPOST \
     -H 'Content-Type: application/json' \
     -H 'Izanami-Client-Id: xxxx' \
     -H 'Izanami-Client-Secret: xxxx' \
-    -d '{ "id": "ragnar:lodbrok:city", "value": "{\"city\": \"Kattegat\"}" }' | jq  
+    -d '{ "id": "ragnar:lodbrok:city", "value": {"city": "Kattegat"} }' | jq  
 ```
 
 Will respond with a 201 status code: 
@@ -64,7 +64,7 @@ Will respond with a 201 status code:
 ```json
 {
   "id": "ragnar:lodbrok:city",
-  "value": "{\"city\": \"Kattegat\"}"
+  "value": {"city": "Kattegat"}
 }
 ```
 
@@ -83,7 +83,9 @@ Will respond with a 200 status code:
 ```json
 {
   "id": "ragnar:lodbrok:city",
-  "value": "{\"city\": \"Kattegat\"}"
+  "value": {
+    "city": "Kattegat"
+  }
 }
 ```
 
@@ -96,7 +98,7 @@ curl -X PUT \
   -H 'Content-Type: application/json' \
   -H 'Izanami-Client-Id: xxxx' \
   -H 'Izanami-Client-Secret: xxxx' \
-  -d '{ "id": "ragnar:lodbrok:city", "value": "{\"city\": \"Northumbria\"}" }' | jq
+  -d '{ "id": "ragnar:lodbrok:city", "value": {"city": "Northumbria"} }' | jq
 ```
 
 Will respond with a 200 status code:
@@ -104,7 +106,9 @@ Will respond with a 200 status code:
 ```json
 {
   "id": "ragnar:lodbrok:city",
-  "value": "{\"city\": \"Northumbria\"}"
+  "value": {
+    "city": "Northumbria"
+  }
 }
 ```
 
@@ -118,7 +122,7 @@ curl -X PATCH \
   -H 'Content-Type: application/json' \
   -H 'Izanami-Client-Id: xxxx' \
   -H 'Izanami-Client-Secret: xxxx' \
-  -d '[{"op": "replace", "path": "value", "value": "{\"city\": \"Northumbria\"}"}]'
+  -d '[{"op": "replace", "path": "/value", "value": {"city": "Northumbria"} }]' | jq
 ```
 
 Will respond with a 200 status code:
@@ -126,7 +130,9 @@ Will respond with a 200 status code:
 ```json
 {
   "id": "ragnar:lodbrok:city",
-  "value": "{\"city\": \"Kattegat\"}"
+  "value": {
+    "city": "Northumbria"
+  }
 }
 ```
 
@@ -146,7 +152,9 @@ Will respond with a 200 status code:
 ```json
 {
   "id": "ragnar:lodbrok:city",
-  "value": "{\"city\": \"Northumbria\"}"
+  "value": {
+    "city": "Northumbria"
+  }
 }
 ```
 
@@ -222,11 +230,11 @@ Will return each item separated by a `\n`.
 ```nd-json
 {
   "id": "ragnar:lodbrok:city",
-  "value": "{\"city\": \"Northumbria\"}"
+  "value": {"city": "Northumbria"}
 }
 {
   "id": "ragnar:lodbrok:email",
-  "value": "{\n  \"email\": \"ragnar.lodbrok@gmail.com\"\n}"
+  "value": {"email": "ragnar.lodbrok@gmail.com"}
 }
 ``` 
 
@@ -238,8 +246,8 @@ curl -X POST \
   -H 'Content-Type: application/nd-json' \
   -H 'Izanami-Client-Id: xxxx' \
   -H 'Izanami-Client-Secret: xxxx' \
-  -d '{ "id": "ragnar:lodbrok:city", "value": "{\"city\": \"Northumbria\"}" } 
-      {"id": "ragnar:lodbrok:email", "value": "{\n  \"email\": \"ragnar.lodbrok@gmail.com\"\n}"}' \
+  -d '{ "id": "ragnar:lodbrok:city", "value": {"city": "Northumbria"}" } 
+      {"id": "ragnar:lodbrok:email", "value": {"email": "ragnar.lodbrok@gmail.com"}}' \
    | jq 
 ```
 
