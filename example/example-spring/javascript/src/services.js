@@ -1,4 +1,15 @@
 
+export function notifyWon(key) {
+  return fetch(`/api/izanami/experiments/won?experiment=${key}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  });
+}
+
 export function me() {
   return fetch("/api/me", {
     method: 'GET',
