@@ -1,7 +1,7 @@
 spring:
   profiles:
     active:
-      - izanamiLocal
+      - izanamiProd
       - dev
 leveldb:
   path: "leveldb/datas"
@@ -32,7 +32,7 @@ izanami:
     experiments: >
       [
         {
-          "id": "izanami:example:button",
+          "id": "mytvshows:gotoepisodes:button",
           "name": "Test button",
           "description": "Test button",
           "enabled": true,

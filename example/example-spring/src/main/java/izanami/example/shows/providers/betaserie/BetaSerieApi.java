@@ -60,7 +60,7 @@ public class BetaSerieApi implements Shows {
         LOGGER.info("Search show {}, => {}", text, uri);
         try {
             ResponseEntity<BetaSerieShows> response = restTemplate.exchange(uri, HttpMethod.GET, entity, BetaSerieShows.class);
-            return response.getBody().shows;
+            return List.ofAll(response.getBody().shows);
         } catch (HttpClientErrorException e) {
             return List.empty();
         }
@@ -100,7 +100,7 @@ public class BetaSerieApi implements Shows {
         LOGGER.info("Get episodes show {}, => {}", id, uri);
         try {
             ResponseEntity<BetaSerieEpisodes> response = restTemplate.exchange(uri, HttpMethod.GET, entity, BetaSerieEpisodes.class);
-            return response.getBody().episodes;
+            return List.ofAll(response.getBody().episodes);
         } catch (HttpClientErrorException e) {
             return List.empty();
         }
@@ -108,10 +108,10 @@ public class BetaSerieApi implements Shows {
 
 
     public static class BetaSerieShows {
-        public List<BetaSerieResume> shows;
+        public java.util.List<BetaSerieResume> shows;
     }
     public static class BetaSerieEpisodes {
-        public List<EpisodeResume> episodes;
+        public java.util.List<EpisodeResume> episodes;
     }
 
     public static class BetaSerieShow {
