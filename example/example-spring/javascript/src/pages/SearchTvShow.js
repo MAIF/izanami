@@ -28,8 +28,8 @@ class TvShowOption extends React.Component {
     const {option:{image, title, description, source}} = this.props;
     return (
       <div>
-        <button className={"btn btn-default"} style={{width:'100%'}} onClick={this.onSelect}>
-        <div className="row resultats">
+        <button className={"btn btn-default btnSearch"} style={{width:'100%'}} onClick={this.onSelect}>
+        <div className="row resultSearch">
             <div className="col-md-3">
               {image && <img width="300px" src={`${image}`} />}
             </div>
