@@ -126,9 +126,13 @@ h2 {
   background-color: $primaryColor;
 }
 
-.resultats {
+.resultSearch, .btnSearch {
   background-color: $primaryColor;
 }
+.resultSearch:hover, .btnSearch:hover, .btnSearch:active, .btnSearch:focus{
+    background-color: lighten($primaryColor, 10%);
+}
+
 //details
 .fa-home {
   color: rgba(60, 61, 62, 0.5);
