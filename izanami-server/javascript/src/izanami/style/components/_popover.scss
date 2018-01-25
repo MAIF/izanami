@@ -13,3 +13,12 @@
 .popover .close{
 	margin-top: -5px;;
 }
+
+.popover.right>.arrow:after {
+    border-right-color: #c9302c;
+}
+
+.popover-content{
+	background-color: #c9302c;
+	color: #FFF;
+}

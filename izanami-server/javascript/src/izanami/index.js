@@ -173,7 +173,7 @@ export class LoggedApp extends Component {
                         options: {
                           title: '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
                           html: 'true',
-                          content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-default cancel pull-right" href="/users/add">Create user</a>',
+                          content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-success" href="/users/add">Create user</a>',
                           container: 'body'
                         },
                         state: 'show',
