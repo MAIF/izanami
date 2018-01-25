@@ -29,7 +29,7 @@ class TvShowOption extends React.Component {
     return (
       <div>
         <button className={"btn btn-default"} style={{width:'100%'}} onClick={this.onSelect}>
-        <div className="row">
+        <div className="row resultats">
             <div className="col-md-3">
               {image && <img width="300px" src={`${image}`} />}
             </div>

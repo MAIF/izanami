@@ -102,11 +102,34 @@ h2 {
   font-size: 18px;
   color: #333;
 }
+// select
+
+#app .Select--single > .Select-control .Select-value,
+#app .Select-menu-outer,
+#app .Select-placeholder {
+  color: black;
+}
+
+#app .Select-arrow {
+  border-color: #000 transparent transparent;
+}
+
+#app .Select-control,
+#app .Select-control,
+#app .Select-menu-outer,
+#app .Select-option,
+#app .is-open > .Select-control {
+  background-color: $primaryColor;
+}
+
+.resultats {
+  background-color: $primaryColor;
+}
 //details
-.fa-home{
-    color: rgba(60, 61, 62, 0.5);
-    margin-top: 27px;
-  }
+.fa-home {
+  color: rgba(60, 61, 62, 0.5);
+  margin-top: 27px;
+}
 
 .details {
   background-color: $primaryColor;
@@ -151,17 +174,32 @@ h2 {
   background-color: #e5b010;
 }
 
-.panel-title > a,.table {
+.panel-title > a,
+.table {
   color: #57493d;
 }
 
-.table>tbody>tr>td, .table>tbody>tr>th, .table>tfoot>tr>td, .table>tfoot>tr>th, .table>thead>tr>td, .table>thead>tr>th,
-.panel-group .panel-heading+.panel-collapse>.list-group, .panel-group .panel-heading+.panel-collapse>.panel-body,.table > tbody > tr > td, .table > tbody > tr > th, .table > tfoot > tr > td, .table > tfoot > tr > th, .table > thead > tr > td, .table > thead > tr > th, .panel-group .panel-heading + .panel-collapse > .list-group, .panel-group .panel-heading + .panel-collapse > .panel-body {
-    border-top: 1px solid #aa8104;
+.panel-group .panel-heading + .panel-collapse > .list-group,
+.panel-group .panel-heading + .panel-collapse > .panel-body,
+.panel-group .panel-heading+.panel-collapse > .list-group,
+.panel-group .panel-heading+.panel-collapse > .panel-body,
+.table > tbody > tr > td,
+.table > tbody > tr > td,
+.table > tbody > tr > th,
+.table > tbody > tr > th,
+.table > tfoot > tr > td,
+.table > tfoot > tr > td,
+.table > tfoot > tr > th,
+.table > tfoot > tr > th,
+.table > thead > tr > td,
+.table > thead > tr > td,
+.table > thead > tr > th,
+.table > thead > tr > th {
+  border-top: 1px solid #aa8104;
 }
 
-.table>thead>tr>th {
-    border-bottom: 2px solid #aa8104;
+.table > thead > tr > th {
+  border-bottom: 2px solid #aa8104;
 }
 
 tr.done {
