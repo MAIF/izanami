@@ -64,7 +64,7 @@ public class IzanamiProxyController {
     @PostMapping("/experiments/displayed")
     public CompletionStage<ResponseEntity<String>> markDisplayed(
             @RequestParam(value = "experiment") String id,
-            @CookieValue(value = "userId", required = false) String userId) {
+            @CookieValue(value = "userId") String userId) {
 
         return proxy.markVariantDisplayedStringResponse(id, userId)
                 .map(resp ->
