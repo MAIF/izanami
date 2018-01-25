@@ -88,8 +88,8 @@ export default class TvShow extends React.Component {
                         </a>
                         <Feature path={"mytvshows:season:markaswatched"}>
                           <Enabled>
-                            {s.allWatched && <button onClick={this.markSeasonWatched(s.number, false)} style={{display:'flex', padding: '2px 2px 2px 2px'}} className="btn btn default pull-right"><i className="glyphicon glyphicon-ok"/></button>}
-                            {!s.allWatched && <button  onClick={this.markSeasonWatched(s.number, true)} style={{display:'flex', padding: '2px 2px 2px 2px',marginTop:'-3px'}} className="btn btn default pull-right"> ADD </button>}
+                            {s.allWatched && <button onClick={this.markSeasonWatched(s.number, false)} className="btn btn default pull-right addBtn"><i className="glyphicon glyphicon-ok"/></button>}
+                            {!s.allWatched && <button  onClick={this.markSeasonWatched(s.number, true)} className="btn btn default pull-right addBtn"> ADD </button>}
                           </Enabled>
                           <Disabled>
                             <div></div>
@@ -116,10 +116,10 @@ export default class TvShow extends React.Component {
                               <td>{e.description}</td>
                               <td>
                                 {!e.watched &&
-                                  <button type="button" className="btn btn-default" onClick={this.markEpisodeWatched(e.id, true)}>ADD</button>
+                                  <button type="button" className="btn addBigBtn" onClick={this.markEpisodeWatched(e.id, true)}> ADD </button>
                                 }
                                 {e.watched &&
-                                  <button type="button"className="btn btn-default" onClick={this.markEpisodeWatched(e.id, false)}><i className="glyphicon glyphicon-ok" /></button>
+                                  <button type="button"className="btn addBigBtn" onClick={this.markEpisodeWatched(e.id, false)}><i className="glyphicon glyphicon-ok" /></button>
                                 }
                               </td>
                             </tr>
