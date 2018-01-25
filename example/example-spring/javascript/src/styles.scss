@@ -107,6 +107,11 @@ h2 {
   color: #333;
 }
 //details
+.fa-home{
+    color: rgba(60, 61, 62, 0.5);
+    margin-top: 7px;
+  }
+
 .details {
   background-color: $primaryColor;
 }
@@ -137,7 +142,6 @@ h2 {
 
 .panel-body {
   background-color: #d9a70d;
-  // border: 1px solid #957c68;
 }
 
 .panel-group {

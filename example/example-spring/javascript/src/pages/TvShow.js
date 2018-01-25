@@ -63,7 +63,9 @@ export default class TvShow extends React.Component {
     return (
       <Layout user={this.props.user}>
         <div className="row">
+
           <div className="col-md-12 details">
+                    <div className="row"><div className="col-md-12"><i className="fa fa-home fa-2x" aria-hidden="true"></i></div></div>
             <h1 style={{textAlign: 'center'}}>{this.state.show.title}</h1>
             <p>{this.state.show.description}</p>
 
