@@ -489,6 +489,27 @@ Go to the Izanami server, activate the feature and reload the page
 ![Izanami](../img/tutorial/spring/seasonaswatched_enabled.png)
 
 
+A last thing, on the server side we need to take care that the feature is also togglable on the endpoint. 
+This is done on the `MeController.java`  
+
+```java
+
+@PostMapping(path = "/{serieId}/seasons/{seasonNumber}")
+ResponseEntity<Me> markSeason(
+        @CookieValue(value = "userId") String userId,
+        @PathVariable("serieId") String serieId,
+        @PathVariable("seasonNumber") Long seasonNumber,
+        @RequestParam("watched") Boolean watched
+) {
+    return checkSecurityResponse(userId, () ->
+            featureClient.featureOrElse("mytvshows:season:markaswatched",
+                    () -> ResponseEntity.ok(meService.markSeason(userId, serieId, seasonNumber, watched)),
+                    () -> ResponseEntity.badRequest().<Me>body(null)
+            ).get()
+    );
+}
+
+```
 
 ## Step four : A/B testing
 
