@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>React client · Izanami</title>
+<title>Tutorials · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -73,11 +73,11 @@
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="active page">React client</a></li>
+    <li><a href="../clients/react.html" class="page">React client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
   </ul></li>
-  <li><a href="../tutorials/index.html" class="page">Tutorials</a>
+  <li><a href="../tutorials/index.html" class="active page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
   </ul></li>
@@ -158,11 +158,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
-    <li><a href="../clients/react.html" class="active page">React client</a></li>
+    <li><a href="../clients/react.html" class="page">React client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
   </ul></li>
-  <li><a href="../tutorials/index.html" class="page">Tutorials</a>
+  <li><a href="../tutorials/index.html" class="active page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
   </ul></li>
@@ -181,8 +181,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li><a href="../clients/index.html">Clients</a></li>
-  <li>React client</li>
+  <li>Tutorials</li>
 </ul>
 </div>
 </div>
@@ -190,124 +189,32 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#react-client" name="react-client" class="anchor"><span class="anchor-link"></span></a>React client</h1>
-<p><code>react-izanami</code> is a simple set of React components to leverage the power of Opun Izanami feature flipping and experiments.</p>
-<p>In order to use the client you need to proxify Izanami to avoid leaking the credentials to the client side. </p>
-<p>You can use the , the  or write your own proxy. </p>
-<h2><a href="#install-the-client" name="install-the-client" class="anchor"><span class="anchor-link"></span></a>Install the client</h2>
-<pre class="prettyprint"><code class="language-bash">npm install react-izanami
-</code></pre>
-<h2><a href="#import" name="import" class="anchor"><span class="anchor-link"></span></a>Import</h2>
-<pre class="prettyprint"><code class="language-jsx harmony">import {IzanamiProvider, Feature, Enabled, Disabled, Experiment, Variant, Api as IzanamiApi} from &#39;izanami&#39;;
-</code></pre>
-<h2><a href="#izanami-provider" name="izanami-provider" class="anchor"><span class="anchor-link"></span></a>Izanami provider</h2>
-<p>You can wrap your application in the izanami provider and let izanami fetch data from the proxy you have exposed:</p>
-<pre class="prettyprint"><code class="language-jsx harmony">&lt;IzanamiProvider fetchFrom=&quot;/api/izanami&quot;&gt;
-    {/* your app */}    
-  &lt;/IzanamiProvider&gt;
-</code></pre>
-<p>You can pass fallbacks in the case of the server is not up: </p>
-<pre class="prettyprint"><code class="language-jsx harmony">&lt;IzanamiProvider fetchFrom=&quot;/api/izanami&quot; featuresFallback={{my: {feature: {active: true}}}} experimentsFallback={{my:{experiment:{variant: &#39;B&#39;}}}} &gt;
-{/* ... */}    
-&lt;/IzanamiProvider&gt;
-</code></pre>
-<p>You can also pass features and experiments as props if you don&rsquo;t want the provider to fetch datas: </p>
-<pre class="prettyprint"><code class="language-jsx harmony">&lt;IzanamiProvider features={{my: {feature: {active: true}}}} experiments={{my:{experiment:{variant: &#39;B&#39;}}}} &gt;
-{/* ... */}
-&lt;/IzanamiProvider&gt;
-</code></pre>
-<p>You can trigger manual reload using the Api class. For example during router transition : </p>
-<pre class="prettyprint"><code class="language-jsx harmony">componentWillReceiveProps(nextProps) {
-    // will be true
-    const locationChanged = nextProps.location !== this.props.location;
-    if (locationChanged) {
-      //Reload izanami data on route change
-      IzanamiApi.izanamiReload(&quot;/api/izanami&quot;);
-    }
-}
-</code></pre>
-<h2><a href="#feature-flipping" name="feature-flipping" class="anchor"><span class="anchor-link"></span></a>Feature flipping</h2>
-<p>Once you the provider configured, you can switch code depending on a feature : </p>
-<pre class="prettyprint"><code class="language-jsx harmony">&lt;Feature path=&quot;izanami.example.deleteAll&quot;&gt;
-  &lt;Enabled&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;button type=&quot;button&quot;  className=&quot;btn btn-sm btn-default&quot; onClick={this.deleteAll}&gt;Delete done items&lt;/button&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/Enabled&gt;
-  &lt;Disabled&gt;
-    &lt;tr&gt;&lt;/tr&gt;
-  &lt;/Disabled&gt;
-&lt;/Feature&gt;
-</code></pre>
-<h2><a href="#experiments-a-b-testing-" name="experiments-a-b-testing-" class="anchor"><span class="anchor-link"></span></a>Experiments (A/B testing)</h2>
-<p>Once you the provider configured, you can displayed a specific variant for an experiment :</p>
-<pre class="prettyprint"><code class="language-jsx harmony">{this.state.todoLists.map(l =&gt;
-    &lt;tr key={`td-${l.name}`}&gt;
-      &lt;td&gt;&lt;Link to={`/todos/${l.name}`} &gt;{l.name}&lt;/Link&gt;&lt;/td&gt;
-      &lt;td&gt;{l.user}&lt;/td&gt;
-      &lt;td&gt;
-        &lt;Experiment path={&quot;izanami:example:button&quot;} notifyDisplay=&quot;/api/izanami/experiments/displayed&quot; &gt;
-          &lt;Variant id={&quot;A&quot;}&gt;
-            &lt;Link to={`/todos/${l.name}`} onClick={this.onTodosClick} className=&quot;btn btn-sm btn-default&quot;&gt;&lt;i className=&quot;fa fa-eye&quot; aria-hidden=&quot;true&quot; /&gt;&lt;/Link&gt;
-            &lt;button className=&quot;btn btn-sm btn-default&quot; onClick={this.removeTodoList(l.name)}&gt;&lt;i className=&quot;glyphicon glyphicon-trash&quot; /&gt;&lt;/button&gt;
-          &lt;/Variant&gt;
-          &lt;Variant id={&quot;B&quot;}&gt;
-            &lt;Link to={`/todos/${l.name}`} onClick={this.onTodosClick} className=&quot;btn btn-sm btn-primary&quot;&gt;&lt;i className=&quot;glyphicon glyphicon-pencil&quot; /&gt;&lt;/Link&gt;
-            &lt;button className=&quot;btn btn-sm btn-primary&quot; onClick={this.removeTodoList(l.name)}&gt;&lt;i className=&quot;glyphicon glyphicon-trash&quot; /&gt;&lt;/button&gt;
-          &lt;/Variant&gt;
-        &lt;/Experiment&gt;
-      &lt;/td&gt;
-    &lt;/tr&gt;
-)}
-</code></pre>
-<p>If specified, the <code>notifyDisplay</code> field will call the registered url to notify Izanami that the current variant is displayed. </p>
-<p>You have to call yourself Izanami when a variant won because the react client can&rsquo;t decide this for you :).</p>
-<p>In this example, the variant won if the client click on the button. For that we will do an http POST on <code>/api/izanami/experiments/won</code> when the client click on the link using this function :</p>
-<pre class="prettyprint"><code class="language-javascript">export function notifyWon(key) {
-  return fetch(`/api/izanami/experiments/won?experiment=${key}`, {
-    method: &#39;POST&#39;,
-    credentials: &#39;include&#39;,
-    headers: {
-      &#39;Accept&#39;: &#39;application/json&#39;,
-      &#39;Content-Type&#39;: &#39;application/json&#39;
-    }
-  });
-}
-</code></pre>
-<p>and then when the client click on the link: </p>
-<pre class="prettyprint"><code class="language-javascript">onTodosClick = () =&gt; {
-  Service.notifyWon(&quot;izanami:example:button&quot;);
-};
-</code></pre>
-<div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/clients/react.md">here</a>.
-</div>
-
-<div class="nav-next">
-<p><strong>Next:</strong> <a href="../clients/node.html">Node js client</a></p>
-</div>
-</div>
-<div class="large-3 show-for-large column" data-sticky-container>
-<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
-<div class="page-nav">
-<div class="nav-title">On this page:</div>
-<div class="nav-toc">
+<h1><a href="#tutorials" name="tutorials" class="anchor"><span class="anchor-link"></span></a>Tutorials</h1>
+<div class="toc ">
 <ul>
-  <li><a href="../clients/react.html#react-client" class="header">React client</a>
+  <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a>
   <ul>
-    <li><a href="../clients/react.html#install-the-client" class="header">Install the client</a></li>
-    <li><a href="../clients/react.html#import" class="header">Import</a></li>
-    <li><a href="../clients/react.html#izanami-provider" class="header">Izanami provider</a></li>
-    <li><a href="../clients/react.html#feature-flipping" class="header">Feature flipping</a></li>
-    <li><a href="../clients/react.html#experiments-a-b-testing-" class="header">Experiments (A/B testing)</a></li>
+    <li><a href="../tutorials/spring.html#overview-of-the-example-application" class="header">Overview of the example application</a>
+    <ul>
+      <li><a href="../tutorials/spring.html#code-organisation" class="header">Code organisation</a></li>
+      <li><a href="../tutorials/spring.html#running-the-application" class="header">Running the application</a></li>
+    </ul></li>
+    <li><a href="../tutorials/spring.html#step-one-configuring-the-java-client" class="header">Step one : Configuring the java client</a></li>
+    <li><a href="../tutorials/spring.html#step-two-feature-flipping-to-switch-the-providers" class="header">Step two : feature flipping to switch the providers</a></li>
+    <li><a href="../tutorials/spring.html#step-three-feature-flipping-to-enable-disable-a-button-on-the-client-side" class="header">Step three : feature flipping to enable/disable a button on the client side</a></li>
+    <li><a href="../tutorials/spring.html#step-four-a-b-testing" class="header">Step four : A/B testing</a></li>
   </ul></li>
 </ul>
 </div>
+<div class="source-github">
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/tutorials/index.md">here</a>.
 </div>
-</nav>
+
+<div class="nav-next">
+<p><strong>Next:</strong> <a href="../tutorials/spring.html">Spring / React tutorial</a></p>
+</div>
+</div>
+<div class="large-3 show-for-large column" data-sticky-container>
 </div>
 </div>
 
