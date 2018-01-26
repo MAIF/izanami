@@ -1,13 +1,10 @@
 package izanami.commons
 
-import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, Cancellable, Props}
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
-import akka.stream.scaladsl.Source
-import izanami.FeatureEvent.FeatureUpdated
 import izanami.Strategy.CacheWithPollingStrategy
 import izanami._
-import izanami.commons.SmartCacheStrategyActor.{CacheEvent, ValueUpdated}
+import izanami.commons.SmartCacheStrategyActor.CacheEvent
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationDouble
@@ -92,7 +89,7 @@ private[izanami] class SmartCacheStrategyActor[T](
         ),
         discardOld = true
       )
-      log.info(s"Initializing smart cache actor with strategie $config and patterns $patterns")
+      log.info(s"Initializing smart cache actor with strategy $config and patterns $patterns")
       val initValues: Future[SetValues[T]] =
         fetchData(patterns.toSeq).map { r =>
           SetValues[T](r, triggerEvent = true)
@@ -146,7 +143,6 @@ private[izanami] class SmartCacheStrategyActor[T](
         case None =>
           val fResult: Future[Seq[(String, T)]] = fetchData(Seq(key))
           pipe(fResult.map(r => r.find(_._1 == key).map(_._2))) to sender()
-        //pipe(fResult.map(r => SetValues[T](r))) to self
       }
 
     case RefreshCache =>

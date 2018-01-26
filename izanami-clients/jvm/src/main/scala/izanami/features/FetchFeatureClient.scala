@@ -37,6 +37,12 @@ private[features] class FetchFeatureClient(
   import izanamiDispatcher.ec
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
+  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
+    case e =>
+      logger.error("Failure during call", e)
+      v
+  }
+
   private val featuresSource = events
     .filter(_.domain == "Feature")
     .map {
@@ -80,6 +86,7 @@ private[features] class FetchFeatureClient(
     client
       .fetchPages("/api/features", query)
       .map(json => Features(clientConfig, parseFeatures(json), fallback.featuresSeq))
+      .recover { handleFailure(fallback) }
   }
 
   override def features(pattern: String, context: JsObject): Future[Features] = {
@@ -91,6 +98,7 @@ private[features] class FetchFeatureClient(
       .map(json => {
         Features(clientConfig, parseFeatures(json), fallback.featuresSeq)
       })
+      .recover { handleFailure(fallback) }
   }
 
   override def checkFeature(key: String): Future[Boolean] =
@@ -112,9 +120,9 @@ private[features] class FetchFeatureClient(
                        context,
                        status,
                        body)
-          FastFuture
-            .failed(IzanamiException(s"Error while checking feature $convertedKey, status: $status, response: $body"))
+          FastFuture.successful(fallback.isActive(key))
       }
+      .recover(handleFailure(fallback.isActive(key)))
   }
 
   override def featuresSource(pattern: String): Source[izanami.FeatureEvent, NotUsed] = {

@@ -37,6 +37,12 @@ private[configs] class FetchConfigClient(
   import izanamiDispatcher.ec
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
+  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
+    case e =>
+      logger.error("Failure during call", e)
+      v
+  }
+
   private val configsSource = events
     .filter(_.domain == "Config")
     .map {
@@ -81,27 +87,32 @@ private[configs] class FetchConfigClient(
       .map { json =>
         Configs.fromJson(json, fallback.configs)
       }
+      .recover(handleFailure(fallback))
   }
 
   override def config(key: String): Future[JsValue] = {
     require(key != null, "key should not be null")
     val convertedKey = key.replace(".", ":")
-    client.fetch(s"/api/configs/$convertedKey").flatMap {
-      case (code, body) if code == StatusCodes.OK =>
-        Json
-          .parse(body)
-          .validate[Config]
-          .fold(
-            err => FastFuture.failed(IzanamiException(s"Error parsing config $body, err = $err")),
-            c => {
-              FastFuture.successful(c.value)
-            }
-          )
-      case (code, _) if code == StatusCodes.NotFound =>
-        FastFuture.successful(fallback.get(convertedKey))
-      case (code, body) =>
-        FastFuture.failed(IzanamiException(s"Error getting config, code=$code, response=$body"))
-    }
+    client
+      .fetch(s"/api/configs/$convertedKey")
+      .flatMap {
+        case (code, body) if code == StatusCodes.OK =>
+          Json
+            .parse(body)
+            .validate[Config]
+            .fold(
+              err => FastFuture.failed(IzanamiException(s"Error parsing config $body, err = $err")),
+              c => {
+                FastFuture.successful(c.value)
+              }
+            )
+        case (code, _) if code == StatusCodes.NotFound =>
+          FastFuture.successful(fallback.get(convertedKey))
+        case (code, body) =>
+          logger.error(s"Error getting config, code=$code, response=$body")
+          FastFuture.successful(fallback.get(convertedKey))
+      }
+      .recover(handleFailure(fallback.get(convertedKey)))
   }
 
   override def configsSource(pattern: String): Source[ConfigEvent, NotUsed] = {

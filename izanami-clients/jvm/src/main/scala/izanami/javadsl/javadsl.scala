@@ -21,39 +21,174 @@ import scala.util.{Failure, Success}
 
 object IzanamiClient {
 
+  /**
+   * Create an instance of IzanamiClient.
+   *
+   * {{{
+   *   IzanamiClient client = IzanamiClient.client(
+   *           actorSystem,
+   *           ClientConfig
+   *                   .create(host)
+   *                   .withClientId(clientId)
+   *                   .withClientSecret(clientSecret)
+   *                   .withClientIdHeaderName("Izanami-Client-Id")
+   *                   .withClientSecretHeaderName("Izanami-Client-Secret")
+   *                   .withDispatcher("izanami-example.blocking-io-dispatcher")
+   *                   .sseBackend()
+   *   );
+   * }}}
+   * @param actorSystem
+   * @param config
+   * @return
+   */
   def client(actorSystem: ActorSystem, config: ClientConfig): IzanamiClient =
     new IzanamiClient(config, izanami.scaladsl.IzanamiClient(config)(actorSystem))
 }
 
+/**
+ * The Izanami client is the root class that allow you to create [[izanami.javadsl.ConfigClient]], [[izanami.javadsl.FeatureClient]] and [[izanami.javadsl.ExperimentsClient]]
+ * @param clientConfig
+ * @param underlyingClient
+ */
 class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scaladsl.IzanamiClient) {
 
   import underlyingClient._
 
+  /**
+   * Get a featureClient instance to interact with features.
+   *
+   * For example :
+   *
+   * {{{
+   *   FeatureClient featureClient = izanamiClient.featureClient(
+   *         Strategies.smartCacheWithSseStrategy("mytvshows:*")
+   *   );
+   * }}}
+   *
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy, Strategies.fetchWithCacheStrategy, Strategies.smartCacheWithPollingStrategy, Strategies.smartCacheWithSseStrategy
+   * @return the [[izanami.javadsl.FeatureClient]]
+   */
   def featureClient(strategy: izanami.Strategy): FeatureClient =
     featureClient(strategy, Features.features())
 
+  /**
+   * Get a featureClient instance to interact with features.
+   *
+   * For example :
+   *
+   * {{{
+   *   FeatureClient featureClient = izanamiClient.featureClient(
+   *        Strategies.smartCacheWithSseStrategy("mytvshows:*"),
+   *        Features.parseJson(environment.getProperty("izanami.fallback.features"))
+   *   );
+   * }}}
+   *
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy, Strategies.fetchWithCacheStrategy, Strategies.smartCacheWithPollingStrategy, Strategies.smartCacheWithSseStrategy
+   * @param fallback: a fallback in case of the server is not available
+   * @return the [[izanami.javadsl.FeatureClient]]
+   */
   def featureClient(strategy: izanami.Strategy, fallback: ClientConfig => Features): FeatureClient =
     new FeatureClient(underlyingClient.actorSystem,
                       underlyingClient.featureClient(strategy, fallback.andThen(_.underlying)))
 
+  /**
+   *
+   * Get a configClient instance to interact with shared config.
+   *
+   * For example :
+   *
+   * {{{
+   *   ConfigClient configClient = izanamiClient.configClient(
+   *      Strategies.smartCacheWithSseStrategy("mytvshows:*")
+   *   );
+   * }}}
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy, Strategies.fetchWithCacheStrategy, Strategies.smartCacheWithPollingStrategy, Strategies.smartCacheWithSseStrategy
+   * @return the [[izanami.javadsl.ConfigClient]]
+   */
   def configClient(strategy: izanami.Strategy): ConfigClient =
     new ConfigClient(underlyingClient.actorSystem,
                      clientConfig,
                      underlyingClient.configClient(strategy, izanami.scaladsl.Configs(Seq.empty)))
 
+  /**
+   * Get a configClient instance to interact with shared config.
+   *
+   * For example :
+   *
+   * {{{
+   *   ConfigClient configClient = izanamiClient.configClient(
+   *      Strategies.smartCacheWithSseStrategy("mytvshows:*"),
+   *      Configs.parseJson(environment.getProperty("izanami.fallback.configs"))
+   *   );
+   * }}}
+   *
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy, Strategies.fetchWithCacheStrategy, Strategies.smartCacheWithPollingStrategy, Strategies.smartCacheWithSseStrategy
+   * @param fallback: a fallback in case of the server is not available
+   * @return the [[izanami.javadsl.ConfigClient]]
+   */
   def configClient(strategy: izanami.Strategy, fallback: Configs): ConfigClient =
     new ConfigClient(underlyingClient.actorSystem,
                      clientConfig,
                      underlyingClient.configClient(strategy, fallback.underlying))
 
+  /**
+   * Get a experimentClient instance to interact with experiments.
+   *
+   * For example :
+   *
+   * {{{
+   *   ExperimentsClient experimentsClient = izanamiClient.experimentClient(
+   *     Strategies.fetchStrategy()
+   *   );
+   * }}}
+   *
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy
+   * @return the [[izanami.javadsl.ExperimentsClient]]
+   */
   def experimentClient(strategy: izanami.Strategy): ExperimentsClient =
     new ExperimentsClient(underlyingClient.experimentClient(strategy))
 
+  /**
+   * Get a experimentClient instance to interact with experiments.
+   *
+   * For example :
+   *
+   * {{{
+   *   ExperimentsClient experimentsClient = izanamiClient.experimentClient(
+   *     Strategies.fetchStrategy(),
+   *     Experiments.parseJson(environment.getProperty("izanami.fallback.experiments"))
+   *   );
+   * }}}
+   *
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy
+   * @param fallback: a fallback in case of the server is not available
+   * @return the [[izanami.javadsl.ExperimentsClient]]
+   */
   def experimentClient(strategy: izanami.Strategy, fallback: izanami.Experiments): ExperimentsClient =
     new ExperimentsClient(underlyingClient.experimentClient(strategy, fallback))
 
+  /**
+   * Create a proxy to expose a part of the api of the server from your app.
+   *
+   * {{{
+   *   Proxy proxy = izanamiClient.proxy()
+   *           .withFeaturePattern("mytvshows:*")
+   *           .withFeatureClient(featureClient)
+   *           .withExperimentPattern("mytvshows:*")
+   *           .withExperimentsClient(experimentClient);
+   * }}}
+   * @return the [[izanami.javadsl.Proxy]]
+   */
   def proxy(): Proxy = new Proxy(underlyingClient.proxy())
 
+  /**
+   * Create a proxy to expose a part of the api of the server from your app.
+   *
+   * @param featureClient [[izanami.javadsl.FeatureClient]]
+   * @param configClient [[izanami.javadsl.ConfigClient]]
+   * @param experimentClient [[izanami.javadsl.ExperimentsClient]]
+   * @return the [[izanami.javadsl.Proxy]]
+   */
   def proxy(featureClient: FeatureClient, configClient: ConfigClient, experimentClient: ExperimentsClient): Proxy =
     new Proxy(
       underlyingClient.proxy(

@@ -53,6 +53,22 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     )
     .mapMaterializedValue(_ => NotUsed)
 
+  /**
+   *
+   * Get a [[izanami.scaladsl.ConfigClient]] to interact with configs from server.
+   *
+   * {{{
+   *   val configClient = client.configClient(
+   *     strategy = Strategies.fetchStrategy(),
+   *     fallback = Configs(
+   *       "test2" -> Json.obj("value" -> 2)
+   *     )
+   *   )
+   * }}}
+   * @param strategy
+   * @param fallback
+   * @return
+   */
   def configClient(
       strategy: Strategy,
       fallback: Configs = Configs(Seq.empty)
@@ -76,6 +92,22 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     }
   }
 
+  /**
+   *
+   * Get a [[izanami.scaladsl.FeatureClient]] to interact with features from server.
+   *
+   * {{{
+   *   val featureClient = client.featureClient(
+   *     strategy = Strategies.fetchStrategy(),
+   *     fallback = Features(
+   *       DefaultFeature("test2", true)
+   *     )
+   *   )
+   * }}}
+   * @param strategy
+   * @param fallback
+   * @return
+   */
   def featureClient(
       strategy: Strategy,
       fallback: ClientConfig => Features = clientConfig => Features(clientConfig, Seq.empty, Seq.empty)
@@ -100,6 +132,12 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     }
   }
 
+  /**
+   *
+   * @param strategy
+   * @param fallback
+   * @return
+   */
   def experimentClient(strategy: Strategy, fallback: Experiments = Experiments()) =
     strategy match {
       case DevStrategy =>
@@ -110,8 +148,21 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
         throw new IllegalArgumentException(s"This strategy $s is not not supported for experiments")
     }
 
+  /**
+   * Create a proxy to expose a part of the api of the server from your app.
+   *
+   * @return the [[izanami.scaladsl.Proxy]]
+   */
   def proxy(): Proxy = Proxy(None, None, None)
 
+  /**
+   * Create a proxy to expose a part of the api of the server from your app.
+   *
+   * @param featureClient [[izanami.scaladsl.FeatureClient]]
+   * @param configClient [[izanami.scaladsl.ConfigClient]]
+   * @param experimentClient [[izanami.scaladsl.ExperimentsClient]]
+   * @return the [[izanami.scaladsl.Proxy]]
+   */
   def proxy(featureClient: FeatureClient, configClient: ConfigClient, experimentClient: ExperimentsClient): Proxy =
     Proxy(Some(featureClient), Some(configClient), Some(experimentClient))
 
