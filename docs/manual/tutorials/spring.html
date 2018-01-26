@@ -567,6 +567,23 @@ export function init(node) {
 <p><img src="../img/tutorial/spring/seasonaswatched_disabled.png" alt="Izanami" /></p>
 <p>Go to the Izanami server, activate the feature and reload the page </p>
 <p><img src="../img/tutorial/spring/seasonaswatched_enabled.png" alt="Izanami" /></p>
+<p>A last thing, on the server side we need to take care that the feature is also togglable on the endpoint. This is done on the <code>MeController.java</code> </p>
+<pre class="prettyprint"><code class="language-java"><br/>@PostMapping(path = &quot;/{serieId}/seasons/{seasonNumber}&quot;)
+ResponseEntity&lt;Me&gt; markSeason(
+        @CookieValue(value = &quot;userId&quot;) String userId,
+        @PathVariable(&quot;serieId&quot;) String serieId,
+        @PathVariable(&quot;seasonNumber&quot;) Long seasonNumber,
+        @RequestParam(&quot;watched&quot;) Boolean watched
+) {
+    return checkSecurityResponse(userId, () -&gt;
+            featureClient.featureOrElse(&quot;mytvshows:season:markaswatched&quot;,
+                    () -&gt; ResponseEntity.ok(meService.markSeason(userId, serieId, seasonNumber, watched)),
+                    () -&gt; ResponseEntity.badRequest().&lt;Me&gt;body(null)
+            ).get()
+    );
+}
+
+</code></pre>
 <h2><a href="#step-four-a-b-testing" name="step-four-a-b-testing" class="anchor"><span class="anchor-link"></span></a>Step four : A/B testing</h2>
 <p>Congrats! You&rsquo;ve almost reached the end of this tutorial. The last step is to measure the best of two button using A/B testing.</p>
 <p>In this section, we will provide two variants of the same button : variant A and variant B and see which the better. </p>

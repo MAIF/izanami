@@ -5,7 +5,7 @@ lazy val `example` = (project in file("."))
   .disablePlugins(BintrayPlugin)
 
 lazy val `example-spring` = project
-  //.dependsOn(jvm)
+//.dependsOn(jvm)
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
