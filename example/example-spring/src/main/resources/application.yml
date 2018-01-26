@@ -1,7 +1,7 @@
 spring:
   profiles:
     active:
-      - izanamiLocal
+      - izanamiProd
       - dev
 leveldb:
   path: "leveldb/datas"
@@ -13,13 +13,12 @@ tvdb:
   url: "https://api.thetvdb.com"
   banner: "https://www.thetvdb.com/banners/"
 izanami:
-  host: "http://localhost:9000"
+  host: "http://izanami-tryout.cleverapps.io"
   clientId: "xxxx"
   clientSecret: "xxxx"
   fallback:
     features: >
       [
-        { "id": "izanami:example:emailNotifications", "enabled": false },
         { "id": "mytvshows:season:markaswatched", "enabled": true },
         { "id": "mytvshows:providers:tvdb", "enabled": false },
         { "id": "mytvshows:providers:betaserie", "enabled": true },
