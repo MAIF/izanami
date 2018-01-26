@@ -38,7 +38,7 @@ private[features] class FetchWithCacheFeatureClient(
 
   import izanamiDispatcher.ec
 
-  implicit val timeout = Timeout(1.second)
+  implicit val timeout = Timeout(10.second)
 
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 

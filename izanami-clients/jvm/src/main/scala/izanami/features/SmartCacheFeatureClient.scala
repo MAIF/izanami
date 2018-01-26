@@ -39,7 +39,13 @@ private[features] class SmartCacheFeatureClient(
   import izanami.commons.SmartCacheStrategyActor._
   import izanamiDispatcher.ec
 
-  implicit val timeout = Timeout(1.second)
+  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
+    case e =>
+      logger.error("Failure during call", e)
+      v
+  }
+
+  implicit val timeout = Timeout(10.second)
 
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
@@ -83,6 +89,7 @@ private[features] class SmartCacheFeatureClient(
     (ref ? GetByPattern(convertedPattern))
       .mapTo[Seq[Feature]]
       .map(features => Features(clientConfig, features, fallback = fallback.featuresSeq))
+      .recover(handleFailure(fallback))
   }
 
   override def features(pattern: String, context: JsObject): Future[Features] =
@@ -119,6 +126,7 @@ private[features] class SmartCacheFeatureClient(
           f.map(_.isActive(clientConfig))
             .getOrElse(fallback.isActive(convertedKey))
       )
+      .recover(handleFailure(fallback.isActive(key)))
   }
 
   override def checkFeature(key: String, context: JsObject): Future[Boolean] =
@@ -142,7 +150,7 @@ private[features] class SmartCacheFeatureClient(
     val fetched: Future[immutable.Seq[(String, Feature)]] =
       Source(patterns.toList)
         .mapAsync(4) { key =>
-          val fFeatures = underlyingStrategy.features(key)
+          val fFeatures: Future[Features] = underlyingStrategy.features(key)
           fFeatures.onComplete {
             case Failure(e) =>
               logger.error("Error fetching features with pattern {}", key)

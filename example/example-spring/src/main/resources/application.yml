@@ -1,0 +1,44 @@
+spring:
+  profiles:
+    active:
+      - izanamiProd
+      - dev
+leveldb:
+  path: "leveldb/datas"
+betaserie:
+  apikey: "a8dd8ebe25e9"
+  url: "https://api.betaseries.com"
+tvdb:
+  apikey: "92466265017F27E4"
+  url: "https://api.thetvdb.com"
+  banner: "https://www.thetvdb.com/banners/"
+izanami:
+  host: "http://izanami-tryout.cleverapps.io"
+  clientId: "xxxx"
+  clientSecret: "xxxx"
+  fallback:
+    features: >
+      [
+        { "id": "mytvshows:season:markaswatched", "enabled": false },
+        { "id": "mytvshows:providers:tvdb", "enabled": true },
+        { "id": "mytvshows:providers:betaserie", "enabled": false },
+        { "id": "mytvshows:providers:omdb", "enabled": false }
+      ]
+    configs: >
+      [
+        { "id": "izanami:example:config", "value": { "emailProvider": "test" } }
+      ]
+    experiments: >
+      [
+        {
+          "id": "mytvshows:gotoepisodes:button",
+          "name": "Test button",
+          "description": "Test button",
+          "enabled": true,
+          "variant": {
+            "id": "A",
+            "name": "Variant A",
+            "description": "Variant A"
+          }
+        }
+      ]
