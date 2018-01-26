@@ -29,28 +29,28 @@ public class ShowsApi implements Shows {
 
     private final BetaSerieApi betaSerieApi;
 
-    @Autowired
-    public ShowsApi(FeatureClient featureClient, TvdbShowsApi tvdbShowsApi, BetaSerieApi betaSerieApi) {
-        this.featureClient = featureClient;
-        this.tvdbShowsApi = tvdbShowsApi;
-        this.betaSerieApi = betaSerieApi;
-        featureClient.onEvent("mytvshows:providers:*", event -> {
-            Match(event).of(
-                    Case($(instanceOf(FeatureEvent.FeatureCreated.class)), c -> {
-                        LOGGER.info("{} is created with enable = {}", c.feature().id(), c.feature().enabled());
-                        return Done.getInstance();
-                    }),
-                    Case($(instanceOf(FeatureEvent.FeatureUpdated.class)), c -> {
-                        LOGGER.info("{} is updated with enable = {}", c.feature().id(), c.feature().enabled());
-                        return Done.getInstance();
-                    }),
-                    Case($(instanceOf(FeatureEvent.FeatureDeleted.class)), c -> {
-                        LOGGER.info("{} is deleted", c.id());
-                        return Done.getInstance();
-                    })
-            );
-        });
-    }
+@Autowired
+public ShowsApi(FeatureClient featureClient, TvdbShowsApi tvdbShowsApi, BetaSerieApi betaSerieApi) {
+    this.featureClient = featureClient;
+    this.tvdbShowsApi = tvdbShowsApi;
+    this.betaSerieApi = betaSerieApi;
+    featureClient.onEvent("mytvshows:providers:*", event -> {
+        Match(event).of(
+                Case($(instanceOf(FeatureEvent.FeatureCreated.class)), c -> {
+                    LOGGER.info("{} is created with enable = {}", c.feature().id(), c.feature().enabled());
+                    return Done.getInstance();
+                }),
+                Case($(instanceOf(FeatureEvent.FeatureUpdated.class)), c -> {
+                    LOGGER.info("{} is updated with enable = {}", c.feature().id(), c.feature().enabled());
+                    return Done.getInstance();
+                }),
+                Case($(instanceOf(FeatureEvent.FeatureDeleted.class)), c -> {
+                    LOGGER.info("{} is deleted", c.id());
+                    return Done.getInstance();
+                })
+        );
+    });
+}
 
     @Override
     public List<ShowResume> search(String serie) {

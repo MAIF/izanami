@@ -19,9 +19,9 @@ izanami:
   fallback:
     features: >
       [
-        { "id": "mytvshows:season:markaswatched", "enabled": true },
-        { "id": "mytvshows:providers:tvdb", "enabled": false },
-        { "id": "mytvshows:providers:betaserie", "enabled": true },
+        { "id": "mytvshows:season:markaswatched", "enabled": false },
+        { "id": "mytvshows:providers:tvdb", "enabled": true },
+        { "id": "mytvshows:providers:betaserie", "enabled": false },
         { "id": "mytvshows:providers:omdb", "enabled": false }
       ]
     configs: >
