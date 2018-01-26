@@ -35,8 +35,11 @@ class FallbackExperimentStrategy(fallback: Experiments) extends ExperimentsClien
     FastFuture.successful(fallback.experiments.find(_.id == experimentId).map(_.variant))
 
   override def markVariantDisplayed(experimentId: String, clientId: String): Future[ExperimentVariantDisplayed] = {
-    val experiment: ExperimentFallback =
-      fallback.experiments.find(_.id == experimentId).get
+
+    val experiment: ExperimentFallback = fallback.experiments
+      .find(_.id == experimentId)
+      .getOrElse(ExperimentFallback(experimentId, "", "", false, Variant("", "", "")))
+
     FastFuture.successful(
       ExperimentVariantDisplayed(
         s"${experiment.id}:${experiment.variant.id}:${clientId}:${System.currentTimeMillis()}",
@@ -51,8 +54,11 @@ class FallbackExperimentStrategy(fallback: Experiments) extends ExperimentsClien
   }
 
   override def markVariantWon(experimentId: String, clientId: String): Future[ExperimentVariantWon] = {
-    val experiment: ExperimentFallback =
-      fallback.experiments.find(_.id == experimentId).get
+
+    val experiment: ExperimentFallback = fallback.experiments
+      .find(_.id == experimentId)
+      .getOrElse(ExperimentFallback(experimentId, "", "", false, Variant("", "", "")))
+
     FastFuture.successful(
       ExperimentVariantWon(
         s"${experiment.id}:${experiment.variant.id}:${clientId}:${System.currentTimeMillis()}",

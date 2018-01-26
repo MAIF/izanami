@@ -53,6 +53,22 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     )
     .mapMaterializedValue(_ => NotUsed)
 
+  /**
+   *
+   * Get a [[izanami.scaladsl.ConfigClient]] to interact with configs from server.
+   *
+   * {{{
+   *   val configClient = client.configClient(
+   *     strategy = Strategies.fetchStrategy(),
+   *     fallback = Configs(
+   *       "test2" -> Json.obj("value" -> 2)
+   *     )
+   *   )
+   * }}}
+   * @param strategy
+   * @param fallback
+   * @return
+   */
   def configClient(
       strategy: Strategy,
       fallback: Configs = Configs(Seq.empty)
@@ -76,6 +92,22 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     }
   }
 
+  /**
+   *
+   * Get a [[izanami.scaladsl.FeatureClient]] to interact with features from server.
+   *
+   * {{{
+   *   val featureClient = client.featureClient(
+   *     strategy = Strategies.fetchStrategy(),
+   *     fallback = Features(
+   *       DefaultFeature("test2", true)
+   *     )
+   *   )
+   * }}}
+   * @param strategy
+   * @param fallback
+   * @return
+   */
   def featureClient(
       strategy: Strategy,
       fallback: ClientConfig => Features = clientConfig => Features(clientConfig, Seq.empty, Seq.empty)
@@ -100,6 +132,12 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     }
   }
 
+  /**
+   *
+   * @param strategy
+   * @param fallback
+   * @return
+   */
   def experimentClient(strategy: Strategy, fallback: Experiments = Experiments()) =
     strategy match {
       case DevStrategy =>
@@ -110,8 +148,21 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
         throw new IllegalArgumentException(s"This strategy $s is not not supported for experiments")
     }
 
+  /**
+   * Create a proxy to expose a part of the api of the server from your app.
+   *
+   * @return the [[izanami.scaladsl.Proxy]]
+   */
   def proxy(): Proxy = Proxy(None, None, None)
 
+  /**
+   * Create a proxy to expose a part of the api of the server from your app.
+   *
+   * @param featureClient [[izanami.scaladsl.FeatureClient]]
+   * @param configClient [[izanami.scaladsl.ConfigClient]]
+   * @param experimentClient [[izanami.scaladsl.ExperimentsClient]]
+   * @return the [[izanami.scaladsl.Proxy]]
+   */
   def proxy(featureClient: FeatureClient, configClient: ConfigClient, experimentClient: ExperimentsClient): Proxy =
     Proxy(Some(featureClient), Some(configClient), Some(experimentClient))
 
@@ -246,25 +297,64 @@ trait FeatureClient {
   def materializer: Materializer
   def izanamiDispatcher: IzanamiDispatcher
 
+  /**
+    * Get features by pattern like my:keys:*
+    */
   def features(pattern: String): Future[Features]
+  /**
+    * Get features by pattern like my:keys:* for a context
+    */
   def features(pattern: String, context: JsObject): Future[Features]
+  /**
+    * Check if a feature is active
+    */
   def checkFeature(key: String): Future[Boolean]
+  /**
+    * Check if a feature is active for a context
+    */
   def checkFeature(key: String, context: JsObject): Future[Boolean]
 
+  /**
+    * Return a value if the feature is active or else a default
+    */
   def featureOrElse[T](key: String)(ok: => T)(ko: => T): Future[T] =
     checkFeature(key)
       .map {
         case true  => ok
         case false => ko
       }(izanamiDispatcher.ec)
+  /**
+    * Return a value if the feature is active or else a default
+    */
+  def featureOrElseAsync[T](key: String)(ok: => Future[T])(ko: => Future[T]): Future[T] =
+    checkFeature(key)
+      .flatMap {
+        case true  => ok
+        case false => ko
+      }(izanamiDispatcher.ec)
 
+  /**
+    * Return a value if the feature is active for a context, or else a default
+    */
   def featureOrElse[T](key: String, context: JsObject)(ok: => T)(ko: => T): Future[T] =
     checkFeature(key, context)
       .map {
         case true  => ok
         case false => ko
       }(izanamiDispatcher.ec)
+  /**
+    * Return a value if the feature is active for a context, or else a default
+    */
+  def featureOrElseAsync[T](key: String, context: JsObject)(ok: => Future[T])(ko: => Future[T]): Future[T] =
+    checkFeature(key, context)
+      .flatMap {
+        case true  => ok
+        case false => ko
+      }(izanamiDispatcher.ec)
 
+  /**
+    * Register a callback to be notified when a feature change
+    */
   def onFeatureChanged(key: String)(cb: Feature => Unit): Registration =
     onEvent(key) {
       case FeatureCreated(id, f) if id == key =>
@@ -273,6 +363,9 @@ trait FeatureClient {
         cb(f)
     }
 
+  /**
+    * Register a callback to be notified of events concerning features
+    */
   def onEvent(pattern: String)(cb: FeatureEvent => Unit): Registration = {
     val (killSwitch, done) = featuresSource(pattern)
       .viaMat(KillSwitches.single)(Keep.right)
@@ -281,7 +374,14 @@ trait FeatureClient {
     DefaultRegistration(killSwitch, done)(izanamiDispatcher)
   }
 
+  /**
+    * Get a Akka Stream source of events
+    */
   def featuresSource(pattern: String): Source[FeatureEvent, NotUsed]
+
+  /**
+    * Get a Reactive Streams publisher of events
+    */
   def featuresStream(pattern: String = "*"): Publisher[FeatureEvent]
 }
 
@@ -462,9 +562,19 @@ trait ConfigClient {
   def materializer: Materializer
   def izanamiDispatcher: IzanamiDispatcher
 
+  /**
+    * Get configs by pattern like my:keys:*
+    */
   def configs(pattern: String = "*"): Future[Configs]
+
+  /**
+    * Get a config by his key
+    */
   def config(key: String): Future[JsValue]
 
+  /**
+    * Register a callback to be notified when a config change
+    */
   def onConfigChanged(key: String)(cb: JsValue => Unit): Registration =
     onEvent(key) {
       case ConfigCreated(id, c) if id == key =>
@@ -472,7 +582,9 @@ trait ConfigClient {
       case ConfigUpdated(id, c, _) if id == key =>
         cb(c.value)
     }
-
+  /**
+    * Register a callback to be notified of events concerning configs
+    */
   def onEvent(pattern: String)(cb: ConfigEvent => Unit): Registration = {
     val (killSwitch, done) = configsSource(pattern)
       .viaMat(KillSwitches.single)(Keep.right)
@@ -480,8 +592,14 @@ trait ConfigClient {
       .run()(materializer)
     DefaultRegistration(killSwitch, done)(izanamiDispatcher)
   }
-
+  /**
+    * Get a Akka Stream source of events
+    */
   def configsSource(pattern: String): Source[ConfigEvent, NotUsed]
+
+  /**
+    * Get a Reactive Streams publisher of events
+    */
   def configsStream(pattern: String = "*"): Publisher[ConfigEvent]
 
 }
@@ -492,16 +610,35 @@ trait ConfigClient {
 
 trait ExperimentsClient {
 
+  /**
+    * Get an experiment if exists
+    */
   def experiment(id: String): Future[Option[ExperimentClient]]
 
+  /**
+    * Get experiments by pattern like my:keys:*
+    */
   def list(pattern: String): Future[Seq[ExperimentClient]]
 
+  /**
+    * Get experiments and the variant associated to the user id, for by pattern like my:keys:*.
+    * The result is formatted as a tree form.
+    */
   def tree(pattern: String, clientId: String): Future[JsObject]
 
+  /**
+    * Get the variant if exists, associated to the user id for an experiment.
+    */
   def getVariantFor(experimentId: String, clientId: String): Future[Option[Variant]]
 
+  /**
+    * Notify the server that the variant has been displayed for this client id
+    */
   def markVariantDisplayed(experimentId: String, clientId: String): Future[ExperimentVariantDisplayed]
 
+  /**
+    * Notify the server that the variant has won for this client id
+    */
   def markVariantWon(experimentId: String, clientId: String): Future[ExperimentVariantWon]
 }
 
@@ -513,12 +650,19 @@ case class ExperimentClient(experimentsClient: ExperimentsClient, experiment: Ex
   def enabled: Boolean       = experiment.enabled
   def variants: Seq[Variant] = experiment.variants
 
+  /**
+    * Get the variant if exists, associated to the user id for an experiment.
+    */
   def getVariantFor(clientId: String): Future[Option[Variant]] =
     experimentsClient.getVariantFor(experiment.id, clientId)
-
+  /**
+    * Notify the server that the variant has been displayed for this client id
+    */
   def markVariantDisplayed(clientId: String): Future[ExperimentVariantDisplayed] =
     experimentsClient.markVariantDisplayed(experiment.id, clientId)
-
+  /**
+    * Notify the server that the variant has won for this client id
+    */
   def markVariantWon(clientId: String): Future[ExperimentVariantWon] =
     experimentsClient.markVariantWon(experiment.id, clientId)
 

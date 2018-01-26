@@ -1,6 +1,7 @@
 .idea
 target
-data*
+data
+data2
 .credentials
 .dockercfg
 .npmrc

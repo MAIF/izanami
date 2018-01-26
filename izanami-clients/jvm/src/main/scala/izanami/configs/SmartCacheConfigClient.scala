@@ -2,6 +2,7 @@ package izanami.configs
 
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.event.Logging
 import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
 import akka.util.Timeout
@@ -38,7 +39,15 @@ class SmartCacheConfigClient(
   import izanami.commons.SmartCacheStrategyActor._
   import izanamiDispatcher.ec
 
-  implicit val timeout = Timeout(1.second)
+  implicit val timeout = Timeout(10.second)
+
+  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+
+  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
+    case e =>
+      logger.error("Failure during call", e)
+      v
+  }
 
   private val ref = actorSystem.actorOf(
     SmartCacheStrategyActor.props(
@@ -79,6 +88,7 @@ class SmartCacheConfigClient(
     (ref ? GetByPattern(convertedPattern))
       .mapTo[Seq[Config]]
       .map(configs => Configs(configs, fallback = fallback.configs))
+      .recover(handleFailure(fallback))
   }
 
   override def config(key: String): Future[JsValue] = {
@@ -87,6 +97,7 @@ class SmartCacheConfigClient(
     (ref ? Get(convertedKey))
       .mapTo[Option[Config]]
       .map(f => f.map(_.value).getOrElse(fallback.get(convertedKey)))
+      .recover(handleFailure(fallback.get(convertedKey)))
   }
 
   override def configsSource(pattern: String): Source[ConfigEvent, NotUsed] =
