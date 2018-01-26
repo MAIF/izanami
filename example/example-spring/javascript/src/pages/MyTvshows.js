@@ -41,7 +41,7 @@ export default class MyTvShows extends React.Component {
                         </Variant>
                       </Experiment>
                       <button type="button" className="btn pull-right" onClick={this.remove(id)} alt="supprimer"><i className="glyphicon glyphicon-trash"/></button>
-                      <p className="description">{description}</p>
+                      <p className="description">{_.truncate(description, {length:350})}</p>
                     </div>
                   </div>
                 )}

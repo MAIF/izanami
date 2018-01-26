@@ -147,7 +147,6 @@ So for `FeatureClient` we have two configs :
 
 ```java 
     
-    
     @Configuration
     @Profile("izanamiLocal")
     static class Dev {
@@ -222,7 +221,7 @@ Click the "features" menu
 
 ![Features](../img/tutorial/spring/features.png)
 
-and add your keys :
+and click "Add Item" to add your key :
 
 ![Features](../img/tutorial/spring/create_feature.png)
 
@@ -230,10 +229,10 @@ Now your keys are created and enabled
 
 ![Features](../img/tutorial/spring/features2.png)
 
-We have now to handle this in our application. The `ShowsApi` class exposes two methods : 
+We now have to handle this in our application. The `ShowsApi` class exposes two methods : 
 
-* search : to search a show 
-* get : to get a show, this seasons and episodes
+* `search` : to search a show 
+* `get` : to get a show, this seasons and episodes
 
 Let's inject, the `FeatureClient`, `TvdbShowsApi` (to dialog with tvdb) and `BetaSerieApi` (to dialog with betaseries) : 
 
@@ -314,7 +313,469 @@ public ShowsApi(FeatureClient featureClient, TvdbShowsApi tvdbShowsApi, BetaSeri
 } 
 ```
 
+If we search for a show, the provider will be tvdb : 
 
-## Step three : feature flipping to enable/disable a button on the client side
+![Search](../img/tutorial/spring/tvdb_search.png)
+
+
+Let's disable tvdb on Izanami : 
+
+![Search](../img/tutorial/spring/tvdb_disabled.png)
+
+We can see this on the log thanks to server sent event : 
+
+![Search](../img/tutorial/spring/disabled_log.png)
+
+
+Now if we refresh the page and search : 
+
+![Search](../img/tutorial/spring/betaserie_search.png)
+
+The provider is betaserie 
+
+## Step three : feature flipping on the client side
+
+On this step we're gonna flip on a button. 
+The product team has developed a new feature that was pushed on the master branch but the team don't want to activate it right now.
+
+### Create a proxy
+
+To use feature flipping on the client side we have to use a proxy. 
+To call Izanami APIs you need to provide authentication keys and we don't the keys to be exposed on the client side. 
+
+Don't panic, the Izanami client provide a configurable proxy you can easily integrate in you application.    
+
+First let's create the proxy in the `Application.java` spring configuration class : 
+
+```java
+@Bean
+@Autowired
+Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
+    return izanamiClient.proxy()
+            .withFeaturePattern("mytvshows:*") // We will expose the features matching this pattern. 
+            .withFeatureClient(featureClient);
+}
+```
+
+And then expose the features with the `izanami.example.izanami.IzanamiController` :
+
+```java
+@RestController
+@RequestMapping("/api/izanami")
+public class IzanamiProxyController {
+
+    private final Proxy proxy;
+
+    @Autowired
+    public IzanamiProxyController(Proxy proxy) {
+        this.proxy = proxy;
+    }
+
+
+    @GetMapping()
+    public CompletionStage<ResponseEntity<String>> proxy(
+            @CookieValue(value = "userId", required = false) String userId) {
+        
+        //We pass no context and no user id needed for experiments. 
+        return proxy.statusAndStringResponse(Option.none(), Option.none())
+                .map(resp -> // The resp is a pair (status code, response body)
+                        new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
+                ).toCompletableFuture();
+    }
+}
+```
+
+The context is exposed on `GET /api/izanami`
+
+That it! Now let's see what's happening on the client side.  
+
+### Integrate Izanami with React
+
+First install the client lib : 
+
+```bash
+yarn add react-izanami
+```
+
+And then configure Izanami. We will wrap the application inside the `IzanamiProvider` react component : 
+
+```jsx
+import {IzanamiProvider} from 'react-izanami';
+
+// ...
+
+const IzanamiApp = props => (
+  <IzanamiProvider fetchFrom="/api/izanami">
+    <Router basename="/">
+        <Switch>
+          <Route path="/login" component={Login}/>
+          <PrivateRoute path="/" component={MainApp}/>
+        </Switch>
+    </Router>
+  </IzanamiProvider>
+);
+
+export function init(node) {
+  ReactDOM.render(<IzanamiApp />, node);
+}
+```
+
+As you can see, we set the `fetchFrom` props with the proxy API we've exposed just before. 
+When the IzanamiProvider will be mounted, the features will be fetched in order to display or not the related components.
+
+
+The product team has developed the ability to mark an entire season as watched. 
+This code is located in the `pages/TvShow.js` file. 
+
+The key `mytvshows:season:markaswatched` will be used : 
+
+```jsx 
+import {Feature, Enabled, Disabled} from 'react-izanami';
+
+// ...
+
+<Feature path={"mytvshows:season:markaswatched"}>
+  <Enabled>
+    {s.allWatched && <button onClick={this.markSeasonWatched(s.number, false)} className="btn btn default pull-right addBtn"><i className="glyphicon glyphicon-ok"/></button>}
+    {!s.allWatched && <button  onClick={this.markSeasonWatched(s.number, true)} className="btn btn default pull-right addBtn"> ADD </button>}
+  </Enabled>
+  <Disabled>
+    <div></div>
+  </Disabled>
+</Feature>  
+```
+
+Verify the key `mytvshows:season:markaswatched` is define in the fallback config. 
+Then create the feature on the Izanami server instance. Keep the feature deactivated for the moment. 
+
+![Izanami](../img/tutorial/spring/allseasonwatch_feature.png)
+
+If you take a look at the network panel on the developers tools when you load the page, 
+you can see that there is a call on `/api/izanami` with the following response : 
+
+```javascript
+{
+  experiments: {},
+  features: {
+    mytvshows: {
+      providers: {
+        tvdb: {
+          active: true
+        },
+        betaserie: {
+          active: true
+        },
+        omdb: {
+          active: false
+        }
+      },
+      season: {
+        markaswatched: {
+          active: false
+        }
+      }
+    }
+  },
+  configurations: {}
+}
+``` 
+The feature `mytvshows:season:markaswatched` is not enabled. 
+
+![Izanami](../img/tutorial/spring/seasonaswatched_disabled.png)
+
+
+Go to the Izanami server, activate the feature and reload the page 
+
+![Izanami](../img/tutorial/spring/seasonaswatched_enabled.png)
+
+
 
 ## Step four : A/B testing
+
+Congrats! You've almost reached the end of this tutorial. The last step is to measure the best of two button using A/B testing.
+
+In this section, we will provide two variants of the same button : variant A and variant B and see which the better. 
+
+
+To do that we have to 
+
+* Define a fallback for our experiment  
+* Create the ExperimentsClient on the server side
+* Add new routes to the proxy
+* Define the button on the client side. 
+
+### The spring plumbing
+
+Like for the features, let's define the `ExperimentsClient` in the `Application.java` class: 
+
+For the dev 
+
+```java
+
+@Configuration
+@Profile("izanamiLocal")
+static class Dev {
+    // ... 
+    @Bean
+    @Autowired
+    ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
+        String json = environment.getProperty("izanami.fallback.experiments");
+        LOGGER.info("Loading configs fallback \n{}", json);
+        return izanamiClient.experimentClient(
+                Strategies.dev(),
+                Experiments.parseJson(json)
+        );
+    }
+
+}
+```
+For the prod 
+
+```java
+@Configuration
+@Profile("izanamiProd")
+static class Prod {
+    // ... 
+    @Bean
+    @Autowired
+    ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
+
+        return izanamiClient.experimentClient(
+                Strategies.fetchStrategy(),
+                Experiments.parseJson(environment.getProperty("izanami.fallback.experiments"))
+        );
+    }
+}
+```
+And the fallback configuration is the following : 
+
+```yaml
+izanami:
+  // ...
+  fallback:
+    // ...
+    experiments: >
+      [
+        {
+          "id": "mytvshows:gotoepisodes:button",
+          "name": "Test button",
+          "description": "Test button",
+          "enabled": true,
+          "variant": {
+            "id": "A",
+            "name": "Variant A",
+            "description": "Variant A"
+          }
+        }
+      ]
+```
+
+Here we define an experiment with the default variant (A). 
+
+
+The proxy config should be changed too in order to add the experiments client : 
+
+```java
+@Bean
+@Autowired
+Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
+    return izanamiClient.proxy()
+            .withFeaturePattern("mytvshows:*")
+            .withFeatureClient(featureClient)
+            .withExperimentPattern("mytvshows:*")
+            .withExperimentsClient(experimentClient);
+}
+```
+
+In the previous chapter the proxy controller was 
+
+```java
+@GetMapping()
+public CompletionStage<ResponseEntity<String>> proxy(
+        @CookieValue(value = "userId", required = false) String userId) {
+         
+    return proxy.statusAndStringResponse(Option.none(), Option.none())
+            .map(resp -> // The resp is a pair (status code, response body)
+                    new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
+            ).toCompletableFuture();
+}
+```
+
+Now we need to pass something to Izanami to identify the current user/session in order to get the right variant (A or B).
+We will use the userId cookie used by the app to identify the current user :  
+
+```java
+@GetMapping()
+public CompletionStage<ResponseEntity<String>> proxy(
+        @CookieValue(value = "userId", required = false) String userId) {
+    
+    //The user id needed for experiments 
+    return proxy.statusAndStringResponse(Option.none(), Option.of(userId))
+            .map(resp -> // The resp is a pair (status code, response body)
+                    new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
+            ).toCompletableFuture();
+}
+```
+
+Now if we hit the `GET /api/izanami` API in the browser, the response will be 
+
+```javascript
+{
+  experiments: {
+    mytvshows: {
+      gotoepisodes: {
+        button: {
+          variant: "A"
+        }
+      }
+    }
+  },
+  features: {
+    mytvshows: {
+      providers: {
+        tvdb: {
+          active: false
+        },
+        betaserie: {
+          active: true
+        },
+        omdb: {
+          active: false
+        }
+      },
+      season: {
+        markaswatched: {
+          active: false
+        }
+      }
+    }
+  },
+  configurations: {}
+}
+```
+
+For the moment the variant come from the callback because we haven't already define the experiment in Izanami. 
+
+### Add routes to the proxy 
+
+Now, the spring beans are created, we can enrich the proxy controller to expose more routes: 
+
+```java
+@PostMapping("/experiments/displayed")
+public CompletionStage<ResponseEntity<String>> markDisplayed(
+        @RequestParam(value = "experiment") String id,
+        @CookieValue(value = "userId") String userId) {
+
+    return proxy.markVariantDisplayedStringResponse(id, userId)
+            .map(resp ->
+                    new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
+            ).toCompletableFuture();
+}
+
+@PostMapping("/experiments/won")
+public CompletionStage<ResponseEntity<String>> markWon(
+        @RequestParam(value = "experiment") String id,
+        @CookieValue(value = "userId", required = false) String userId) {
+
+    return proxy.markVariantWonStringResponse(id, userId)
+            .map(resp ->
+                    new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
+            ).toCompletableFuture();
+
+}
+```
+
+To measure which of the two variants is the more appreciated, we need to push events to the Izanami server. 
+This is why we expose this two routes : 
+
+* `/api/izanami/experiments/displayed` will create an event when a button is displayed 
+* `/api/izanami/experiments/won` will create an event when a button is clicked 
+
+The set up on server side is done, let's work on the client side. 
+
+### The A/B testing with react
+
+The tested button is the link to access the episodes for a show :  
+
+![Izanami](../img/tutorial/spring/abtesting_button.png)
+
+The client side is on the `pages/MyTvshows.js` file. 
+
+First let's import some component : 
+
+```jsx 
+import {Experiment, Variant} from 'react-izanami';
+``` 
+
+And then the code for the button : 
+
+```jsx
+<Experiment path={"mytvshows:gotoepisodes:button"} notifyDisplay="/api/izanami/experiments/displayed" >
+    <Variant id={"A"}>
+      <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right" alt="consulter"><i className="fa fa-eye"></i></Link>
+    </Variant>
+    <Variant id={"B"}>
+      <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right" alt="consulter"><i className="glyphicon glyphicon-chevron-right"></i></Link>
+    </Variant>
+</Experiment>
+```
+
+We have to set the following props on the `Experiment` component : 
+
+* `path`: The key of the experiment 
+* `/api/izanami/experiments/displayed`: The api to call when the component is displayed 
+
+And for the `Variant` the props `id` with the id of the variant. 
+
+It remains a thing to do. We need to tell Izanami when a variant won. In our case the button won if we click on it. 
+To do this we set the `onClick` props to call the server when a click is done. 
+
+The `markAsWon` method : 
+
+```jsx
+markAsWon = () => {
+    Service.notifyWon("mytvshows:gotoepisodes:button");
+};
+```
+
+The `notifyWon` method :
+
+```jsx
+export function notifyWon(key) {
+  return fetch(`/api/izanami/experiments/won?experiment=${key}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  });
+}
+```
+
+That it !!! 
+
+Let's create the experiment on the Izanami server 
+
+![Izanami](../img/tutorial/spring/ab_creation.png)
+
+Ok the experiment is created
+
+![Izanami](../img/tutorial/spring/ab_list.png)
+
+
+If I go the app using the user `floki@gmail.com`, I got the variant A 
+
+![Izanami](../img/tutorial/spring/ab_adisplayed.png)
+
+And with the user `ragnar.lodbrock@gmail.com`, I got the variant B
+  
+![Izanami](../img/tutorial/spring/ab_bdisplayed.png)
+
+
+After clicking multiple times on the buttons, the results are 
+
+![Izanami](../img/tutorial/spring/ab_results.png) 
+
+
+Congrats !!! You have win your first belt.  

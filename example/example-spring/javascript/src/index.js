@@ -4,7 +4,7 @@ import Symbol from 'es-symbol';
 import $ from 'jquery';
 import { BrowserRouter as Router, Route, Link, Switch, Redirect } from 'react-router-dom';
 import * as Service from './services';
-import {IzanamiProvider, Feature, Enabled, Disabled, Experiment, Variant, Api as IzanamiApi} from 'react-izanami';
+import {IzanamiProvider, Api as IzanamiApi} from 'react-izanami';
 import './styles.scss'
 import React from 'react';
 import ReactDOM from 'react-dom';

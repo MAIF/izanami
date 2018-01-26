@@ -30,7 +30,7 @@ export function me() {
 
 
 export function searchTvShow(input) {
-  return fetch(`/api/shows/_search?name=${input}`)
+  return fetch(`/api/shows/_search?name=${input}&ts=${new Date().getTime()}`)
     .then((response) => {
       return response.json();
     });

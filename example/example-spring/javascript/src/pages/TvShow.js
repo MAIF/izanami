@@ -2,6 +2,7 @@ import React from "react";
 import {Feature, Enabled, Disabled} from 'react-izanami';
 import * as Service from "../services";
 import Layout from './Layout';
+import {Link} from 'react-router-dom';
 
 export default class TvShow extends React.Component {
 
@@ -66,7 +67,7 @@ export default class TvShow extends React.Component {
           <div className="col-md-12 details">
               <div className="row">
                     <div className="col-md-1">
-                      <i className="fa fa-home fa-2x" aria-hidden="true"></i>
+                      <Link to={"/"}><i className="fa fa-home fa-2x" aria-hidden="true"></i></Link>
                     </div>
                     <div className="col-md-10">
                       <h1 style={{textAlign: 'center'}}>{this.state.show.title}</h1>
