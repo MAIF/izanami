@@ -39,7 +39,7 @@ private[configs] class FetchWithCacheConfigClient(
 
   import actorSystem.dispatcher
 
-  implicit val timeout = Timeout(1.second)
+  implicit val timeout = Timeout(10.second)
 
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
   private val cache: Cache[String, Seq[Config]] = CacheBuilder
