@@ -254,7 +254,7 @@ package object modules {
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) => Seq(new OtoroshiFilter(_env, config))
       case env.Default(config) =>
-        Seq(new IzanamiDefaultFilter(_env, config, apikeyStore))
+        Seq(new IzanamiDefaultFilter(_env, config, izanamiConfig.apikey, apikeyStore))
     }
 
     lazy val router: Router = {

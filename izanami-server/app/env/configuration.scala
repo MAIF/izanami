@@ -70,7 +70,7 @@ case class IzanamiConfig(
 
 //case class Claim(sharedKey: String, header: String, headerClientId: String, headerClientSecret: String)
 case class LogoutConfig(url: String)
-case class ApiKey(headerClientId: String, headerClientSecret: String)
+case class ApiKeyHeaders(headerClientId: String, headerClientSecret: String)
 case class OtoroshiFilterConfig(sharedKey: String,
                                 issuer: String,
                                 headerClaim: String,
@@ -81,7 +81,7 @@ case class DefaultFilter(allowedPaths: Seq[String],
                          issuer: String,
                          sharedKey: String,
                          cookieClaim: String,
-                         apiKeys: ApiKey)
+                         apiKeys: ApiKeyHeaders)
 
 sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
@@ -96,7 +96,15 @@ case class ExperimentEventConfig(db: DbDomainConfig)
 case class WebhookConfig(db: DbDomainConfig, events: WebhookEventsConfig)
 case class WebhookEventsConfig(group: Int, within: FiniteDuration, nbMaxErrors: Int, errorReset: FiniteDuration)
 case class UserConfig(db: DbDomainConfig, initialize: InitialUserConfig)
-case class ApikeyConfig(db: DbDomainConfig)
+case class InitializeApiKey(clientId: Option[String], clientSecret: Option[String], authorizedPatterns: String)
+case class ApikeyConfig(db: DbDomainConfig, initialize: InitializeApiKey) {
+
+  def keys: Option[domains.apikey.Apikey] =
+    for {
+      id     <- initialize.clientId
+      secret <- initialize.clientSecret
+    } yield domains.apikey.Apikey(id, "", secret, initialize.authorizedPatterns)
+}
 case class PatchConfig(db: DbDomainConfig)
 
 sealed trait EventsConfig
