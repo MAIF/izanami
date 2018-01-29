@@ -63,7 +63,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
   val config = IzanamiConfig(
     Some("dev"),
-    Default(DefaultFilter(Seq(), "", "", "", ApiKey("", ""))),
+    Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
     DbConfig("", None, None, None, None, None),
     LogoutConfig(""),
     ConfigConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
@@ -74,7 +74,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     ExperimentEventConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
     WebhookConfig(DbDomainConfig("", DbDomainConfigDetails("")), WebhookEventsConfig(5, 1.second, 1, 1.second)),
     UserConfig(DbDomainConfig("", DbDomainConfigDetails("")), InitialUserConfig("", "")),
-    ApikeyConfig(DbDomainConfig("", DbDomainConfigDetails(""))),
+    ApikeyConfig(DbDomainConfig("", DbDomainConfigDetails("")), InitializeApiKey(None, None, "*")),
     InMemoryEvents(InMemoryEventsConfig()),
     PatchConfig(DbDomainConfig("", DbDomainConfigDetails("")))
   )

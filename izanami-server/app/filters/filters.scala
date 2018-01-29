@@ -136,9 +136,10 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
   }
 }
 
-class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyStore: ApikeyStore)(implicit ec: ExecutionContext,
-                                                                                      val mat: Materializer)
-    extends Filter {
+class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: ApikeyConfig, apikeyStore: ApikeyStore)(
+    implicit ec: ExecutionContext,
+    val mat: Materializer
+) extends Filter {
 
   private val logger = Logger("filter")
 
@@ -169,25 +170,34 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyStore: ApikeyS
         }
       // Prod && Api key :
       case prod if prod == "prod" && maybeClientId.isDefined && maybeClientSecret.isDefined =>
-        apikeyStore.getById(Key(maybeClientId.get)).one.flatMap {
-          case Some(apikey) if apikey.clientSecret == maybeClientSecret.get =>
-            nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, Some(apikey)))
-              .map { result =>
-                val requestTime = System.currentTimeMillis - startTime
-                logger.debug(
-                  s"Request api key => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                    .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                    .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+        apikeyStore
+          .getById(Key(maybeClientId.get))
+          .one
+          .map { mayBeKey =>
+            Logger.debug(s"$mayBeKey: ${apikeyConfig.keys}")
+            mayBeKey
+              .orElse(apikeyConfig.keys)
+              .filter(_.clientSecret == maybeClientSecret.get)
+          }
+          .flatMap {
+            case Some(apikey) if apikey.clientSecret == maybeClientSecret.get =>
+              nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, Some(apikey)))
+                .map { result =>
+                  val requestTime = System.currentTimeMillis - startTime
+                  logger.debug(
+                    s"Request api key => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+                      .map(h => s"""   "${h._1}": "${h._2}"\n""")
+                      .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+                  )
+                  result
+                }
+            case _ =>
+              FastFuture.successful(
+                Results.Unauthorized(
+                  Json.obj("error" -> "Bad request !!!")
                 )
-                result
-              }
-          case _ =>
-            FastFuture.successful(
-              Results.Unauthorized(
-                Json.obj("error" -> "Bad request !!!")
               )
-            )
-        }
+          }
       // Prod && Exclusions :
       case prod
           if prod == "prod" && maybeClaim.isDefined && config.allowedPaths
