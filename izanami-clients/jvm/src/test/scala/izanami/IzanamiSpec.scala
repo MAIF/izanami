@@ -130,6 +130,7 @@ trait ExperimentMockServer extends MockServer {
     val url = s"/api/tree/experiments"
 
     val tree = experiments
+      .filter(_.enabled)
       .map(_.id)
       .map(
         id =>
