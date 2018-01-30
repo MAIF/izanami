@@ -27,6 +27,7 @@ class FallbackExperimentStrategy(fallback: Experiments) extends ExperimentsClien
   override def tree(pattern: String, clientId: String): Future[JsObject] =
     FastFuture.successful(
       fallback.experiments
+        .filter(_.enabled)
         .map { _.tree }
         .foldLeft(Json.obj())(_ deepMerge _)
     )

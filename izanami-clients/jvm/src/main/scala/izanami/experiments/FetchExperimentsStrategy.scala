@@ -222,21 +222,19 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
       for {
         fetched <- httpClient
                     .fetch(s"/api/tree/experiments", Seq("pattern" -> effectivePattern, "clientId" -> clientId))
-                    .flatMap {
+                    .map {
                       case (status, body) if status == StatusCodes.OK =>
-                        FastFuture.successful(Json.parse(body).as[JsObject])
+                        Json.parse(body).as[JsObject]
                       case (status, body) =>
                         logger.error(s"Error getting experiment: status=$status, body= $body")
-                        FastFuture.failed(IzanamiException(s"Error getting experiment: status=$status, body= $body"))
+                        Json.obj()
                     }
         fallback <- fallbackStrategy.tree(pattern, clientId)
       } yield fallback.deepMerge(fetched)
-    ).recover {
+    ).recoverWith {
       case e =>
         logger.error(s"Error getting experiment tree for $pattern, recovering with fallback", e)
-        fallback.experiments
-          .map { _.tree }
-          .foldLeft(Json.obj())(_ deepMerge _)
+        fallbackStrategy.tree(pattern, clientId)
     }
   }
 }

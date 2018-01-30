@@ -127,6 +127,29 @@ class FetchExperimentsClientStrategySpec extends IzanamiSpec with BeforeAndAfter
       )
       //#experiment-tree
     }
+
+    "Tree experiments with disabled experiment" in {
+
+      val variantA            = Variant("A", "Variant A", "The A variant")
+      val variantB            = Variant("B", "Variant B", "The B variant")
+
+      val client = IzanamiClient(ClientConfig(host))
+        .experimentClient(
+          Strategies.fetchStrategy(),
+          Experiments(ExperimentFallback("izanami:ab:test", "test", "An experiment", false, variantA))
+        )
+
+      val expectedExperiments = Experiment("izanami:ab:test", "test", "An experiment", false, Seq(variantA, variantB))
+
+      getExperimentTree("*", "client1", "A", Seq(expectedExperiments))
+
+      //#experiment-tree
+      val experimentsTree = client.tree("*", "client1").futureValue
+      experimentsTree must be(
+        Json.obj()
+      )
+      //#experiment-tree
+    }
   }
 
 }

@@ -117,9 +117,8 @@ export class Experiment extends Component {
     const children = this.props.children;
     const path = this.props.path.replace(/:/g, '.');
     const experiments = deepmerge(this.context.__mergedExperiments, this.state.experiments);
-    const value = (_.get(experiments, path) || { variant: null }).variant || this.props.default;
-
-    console.log('Value', value);
+    let experiment = (_.get(experiments, path) || { variant: null });
+    const value = experiment.variant || this.props.default;
 
     const childrenArray = Array.isArray(children) ? children : [children];
     const variantChildren = childrenArray.filter(c => c.type === Variant).filter(c => c.props.id === value);
@@ -129,17 +128,7 @@ export class Experiment extends Component {
       return null;
     } else {
       const variant = variantChildren[0] || null;
-      if (variant && debug) {
-        const color = '#' + (~~(Math.random()*(1<<24))).toString(16);
-        return (
-          <div className="izanami-experiment" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid ' + color }}>
-            <span style={{ padding: 2, color: 'white', backgroundColor: color, position: 'absolute', top: -17, left: -1, zIndex: 100000 }}>
-              Experiment <span style={{ fontWeight: 'bold' }}>{path}</span>: variant is <span style={{ fontWeight: 'bold' }}>{value}</span>
-            </span>
-            {variant}
-          </div>
-        );
-      }
+      if (debug) console.log(`Experiment '${path}' (${JSON.stringify(experiment)}) has variant ${value}`);
       return variant;
     }
   }

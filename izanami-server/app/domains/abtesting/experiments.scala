@@ -46,6 +46,7 @@ object Experiment {
                                 variantBindingStore: VariantBindingStore): Flow[Experiment, JsObject, NotUsed] = {
     import VariantBinding._
     Flow[Experiment]
+      .filter(_.enabled)
       .mapAsyncUnordered(2) { experiment =>
         variantBindingStore
           .getById(VariantBindingKey(experiment.id, clientId))
