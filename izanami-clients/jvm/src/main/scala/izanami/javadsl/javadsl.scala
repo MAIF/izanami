@@ -345,18 +345,18 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
   import izanamiDispatcher.ec
 
   /**
-    * Get features by pattern like my:keys:*
-    * @param pattern
-    * @return
-    */
+   * Get features by pattern like my:keys:*
+   * @param pattern
+   * @return
+   */
   def features(pattern: String): Future[Features] =
     underlying.features(pattern).map(Features.apply _).toJava
 
   /**
-    * Get features by pattern like my:keys:* with a json context
-    * @param pattern
-    * @return
-    */
+   * Get features by pattern like my:keys:* with a json context
+   * @param pattern
+   * @return
+   */
   def features(pattern: String, context: JsObject): Future[Features] =
     underlying
       .features(pattern, context.toScala().as[play.api.libs.json.JsObject])
@@ -364,13 +364,13 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
       .toJava
 
   /**
-    * Return a value if the feature is active or else a default.
-    * @param key
-    * @param ok
-    * @param ko
-    * @tparam T
-    * @return
-    */
+   * Return a value if the feature is active or else a default.
+   * @param key
+   * @param ok
+   * @param ko
+   * @tparam T
+   * @return
+   */
   def featureOrElse[T](key: String, ok: Function0[T], ko: Function0[T]): Future[T] =
     checkFeature(key).map {
       new java.util.function.Function[java.lang.Boolean, T] {
@@ -382,13 +382,13 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
     }
 
   /**
-    * Return a value if the feature is active or else a default.
-    * @param key
-    * @param ok
-    * @param ko
-    * @tparam T
-    * @return
-    */
+   * Return a value if the feature is active or else a default.
+   * @param key
+   * @param ok
+   * @param ko
+   * @tparam T
+   * @return
+   */
   def featureOrElseAsync[T](key: String, ok: Function0[Future[T]], ko: Function0[Future[T]]): Future[T] =
     checkFeature(key).flatMap {
       new java.util.function.Function[java.lang.Boolean, Future[T]] {
@@ -400,13 +400,13 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
     }
 
   /**
-    * Return a value if the feature is active or else a default.
-    * @param key
-    * @param ok
-    * @param ko
-    * @tparam T
-    * @return
-    */
+   * Return a value if the feature is active or else a default.
+   * @param key
+   * @param ok
+   * @param ko
+   * @tparam T
+   * @return
+   */
   def featureOrElse[T](key: String, context: JsObject, ok: Function0[T], ko: Function0[T]): Future[T] =
     checkFeature(key, context).map {
       new java.util.function.Function[java.lang.Boolean, T] {
@@ -418,14 +418,17 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
     }
 
   /**
-    * Return a value if the feature is active or else a default.
-    * @param key
-    * @param ok
-    * @param ko
-    * @tparam T
-    * @return
-    */
-  def featureOrElseAsync[T](key: String, context: JsObject, ok: Function0[Future[T]], ko: Function0[Future[T]]): Future[T] =
+   * Return a value if the feature is active or else a default.
+   * @param key
+   * @param ok
+   * @param ko
+   * @tparam T
+   * @return
+   */
+  def featureOrElseAsync[T](key: String,
+                            context: JsObject,
+                            ok: Function0[Future[T]],
+                            ko: Function0[Future[T]]): Future[T] =
     checkFeature(key, context).flatMap {
       new java.util.function.Function[java.lang.Boolean, Future[T]] {
         override def apply(t: lang.Boolean): Future[T] = t match {
@@ -436,19 +439,19 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
     }
 
   /**
-    * Check if a feature is active or not
-    * @param key the id of the feature
-    * @return
-    */
+   * Check if a feature is active or not
+   * @param key the id of the feature
+   * @return
+   */
   def checkFeature(key: String): Future[java.lang.Boolean] =
     underlying.checkFeature(key).map(Boolean.box).toJava
 
   /**
-    * Check if a feature is active or not using a json context
-    * @param key
-    * @param context
-    * @return
-    */
+   * Check if a feature is active or not using a json context
+   * @param key
+   * @param context
+   * @return
+   */
   def checkFeature(key: String, context: JsObject): Future[java.lang.Boolean] =
     underlying
       .checkFeature(key, context.toScala().as[play.api.libs.json.JsObject])
@@ -456,11 +459,11 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
       .toJava
 
   /**
-    * Register a callback to be notified when a feature change.
-    * @param key
-    * @param cb
-    * @return
-    */
+   * Register a callback to be notified when a feature change.
+   * @param key
+   * @param cb
+   * @return
+   */
   def onFeatureChanged(key: String)(cb: Consumer[Feature]): Registration =
     Registration(underlying.onFeatureChanged(key) { f =>
       cb.accept(f)
@@ -468,11 +471,11 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
     })
 
   /**
-    * Register a callback to be notified of events concerning features.
-    * @param pattern
-    * @param cb
-    * @return
-    */
+   * Register a callback to be notified of events concerning features.
+   * @param pattern
+   * @param cb
+   * @return
+   */
   def onEvent(pattern: String)(cb: Consumer[FeatureEvent]): Registration =
     Registration(underlying.onEvent(pattern) { f =>
       cb.accept(f)
@@ -480,18 +483,18 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
     })
 
   /**
-    * Get a Akka stream source of events
-    * @param pattern a pattern to filter events
-    * @return
-    */
+   * Get a Akka stream source of events
+   * @param pattern a pattern to filter events
+   * @return
+   */
   def featuresSource(pattern: String): Source[FeatureEvent, NotUsed] =
     underlying.featuresSource(pattern).asJava
 
   /**
-    * Get a ReactiveStream publisher of events
-    * @param pattern a pattern to filter events
-    * @return
-    */
+   * Get a ReactiveStream publisher of events
+   * @param pattern a pattern to filter events
+   * @return
+   */
   def featuresStream(pattern: String): Publisher[FeatureEvent] =
     underlying.featuresStream(pattern)
 
@@ -578,10 +581,10 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
     ActorMaterializer(ActorMaterializerSettings(actorSystem).withDispatcher(clientConfig.dispatcher))(actorSystem)
 
   /**
-    * Get configs for a pattern like my:keys:*
-    * @param pattern
-    * @return
-    */
+   * Get configs for a pattern like my:keys:*
+   * @param pattern
+   * @return
+   */
   def configs(pattern: String = "*"): Future[Configs] =
     underlying
       .configs(pattern)
@@ -591,10 +594,10 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
       .toJava
 
   /**
-    * Get a config by his key.
-    * @param key
-    * @return a json value. Empty if the config is not set.
-    */
+   * Get a config by his key.
+   * @param key
+   * @return a json value. Empty if the config is not set.
+   */
   def config(key: String): Future[JsValue] =
     underlying
       .config(key)
@@ -602,23 +605,24 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
         c.toJava()
       }
       .toJava
+
   /**
-    * Register a callback to be notified when a config change.
-    * @param key
-    * @param cb
-    * @return
-    */
+   * Register a callback to be notified when a config change.
+   * @param key
+   * @param cb
+   * @return
+   */
   def onConfigChanged(key: String)(cb: Consumer[JsValue]): Registration =
     Registration(
       underlying.onConfigChanged(key)(json => cb.accept(json.toJava()))
     )
 
   /**
-    * Register a callback to be notified of events concerning configs.
-    * @param pattern
-    * @param cb
-    * @return
-    */
+   * Register a callback to be notified of events concerning configs.
+   * @param pattern
+   * @param cb
+   * @return
+   */
   def onEvent(pattern: String = "*", cb: Consumer[ConfigEvent]): Registration =
     Registration(
       underlying
@@ -629,10 +633,10 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
     )
 
   /**
-    * Get a Akka stream source of events
-    * @param pattern a pattern to filter events
-    * @return
-    */
+   * Get a Akka stream source of events
+   * @param pattern a pattern to filter events
+   * @return
+   */
   def configsSource(pattern: String): Source[ConfigEvent, NotUsed] =
     underlying
       .configsSource(pattern)
@@ -649,10 +653,10 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
     }
 
   /**
-    * Get a ReactiveStream publisher of events
-    * @param pattern a pattern to filter events
-    * @return
-    */
+   * Get a ReactiveStream publisher of events
+   * @param pattern a pattern to filter events
+   * @return
+   */
   def configsStream(pattern: String = "*"): Publisher[ConfigEvent] =
     configsSource(pattern)
       .runWith(Sink.asPublisher(AsPublisher.WITH_FANOUT), materializer)
@@ -672,11 +676,11 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
   import JsonConv._
 
   /**
-    * Get an experiment by id.
-    *
-    * @param id
-    * @return
-    */
+   * Get an experiment by id.
+   *
+   * @param id
+   * @return
+   */
   def experiment(id: String): Future[Option[ExperimentClient]] =
     underlying
       .experiment(id)
@@ -689,11 +693,11 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
       .toJava
 
   /**
-    * Get experiments by pattern like my:keys:*
-    *
-    * @param pattern
-    * @return
-    */
+   * Get experiments by pattern like my:keys:*
+   *
+   * @param pattern
+   * @return
+   */
   def list(pattern: String): Future[List[ExperimentClient]] =
     underlying
       .list(pattern)
@@ -701,21 +705,21 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
       .toJava
 
   /**
-    * Return experiments and the associated variants as a tree form.
-    *
-    * @param pattern
-    * @param clientId
-    * @return
-    */
+   * Return experiments and the associated variants as a tree form.
+   *
+   * @param pattern
+   * @param clientId
+   * @return
+   */
   def tree(pattern: String, clientId: String): Future[JsValue] =
     underlying.tree(pattern, clientId).map(_.toJava()).toJava
 
   /**
-    * Return the variant for a client id if exists
-    * @param id
-    * @param clientId
-    * @return
-    */
+   * Return the variant for a client id if exists
+   * @param id
+   * @param clientId
+   * @return
+   */
   def getVariantFor(id: String, clientId: String): Future[Option[Variant]] =
     underlying
       .getVariantFor(id, clientId)
@@ -723,20 +727,20 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
       .toJava
 
   /**
-    * Notify the server that the variant has been displayed for this client id
-    * @param id
-    * @param clientId
-    * @return
-    */
+   * Notify the server that the variant has been displayed for this client id
+   * @param id
+   * @param clientId
+   * @return
+   */
   def markVariantDisplayed(id: String, clientId: String): Future[ExperimentVariantDisplayed] =
     underlying.markVariantDisplayed(id, clientId).toJava
 
   /**
-    * Notify the server that the variant has won for this client id
-    * @param id
-    * @param clientId
-    * @return
-    */
+   * Notify the server that the variant has won for this client id
+   * @param id
+   * @param clientId
+   * @return
+   */
   def markVariantWon(id: String, clientId: String): Future[ExperimentVariantWon] =
     underlying.markVariantWon(id, clientId).toJava
 
@@ -747,10 +751,10 @@ class ExperimentClient(underlying: izanami.scaladsl.ExperimentClient)(implicit i
   import Vavr._
 
   /**
-    * Return the variant for a client id if exists
-    * @param clientId
-    * @return
-    */
+   * Return the variant for a client id if exists
+   * @param clientId
+   * @return
+   */
   def getVariantFor(clientId: String): Future[Option[Variant]] =
     underlying
       .getVariantFor(clientId)
@@ -758,18 +762,18 @@ class ExperimentClient(underlying: izanami.scaladsl.ExperimentClient)(implicit i
       .toJava
 
   /**
-    * Notify the server that the variant has been displayed for this client id
-    * @param clientId
-    * @return
-    */
+   * Notify the server that the variant has been displayed for this client id
+   * @param clientId
+   * @return
+   */
   def markVariantDisplayed(clientId: String): Future[ExperimentVariantDisplayed] =
     underlying.markVariantDisplayed(clientId).toJava
 
   /**
-    * Notify the server that the variant has won for this client id
-    * @param clientId
-    * @return
-    */
+   * Notify the server that the variant has won for this client id
+   * @param clientId
+   * @return
+   */
   def markVariantWon(clientId: String): Future[ExperimentVariantWon] =
     underlying.markVariantWon(clientId).toJava
 
