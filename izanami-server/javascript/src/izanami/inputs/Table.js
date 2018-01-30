@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import {Form, Alerts} from '.';
 import _ from 'lodash';
 import {createTooltip} from './tooltips';
+import {SweetModal} from './SweetModal';
 import * as Events from '../services/events';
 
 import ReactTable from 'react-table';
@@ -73,7 +74,9 @@ export class Table extends Component {
     error: false,
     errorList: [],
     nbPages: 1,
-    justUpdated: false
+    justUpdated: false,
+    confirmDelete: false,
+    toDelete: null
   };
 
   lastSearchArgs = {};
@@ -232,18 +235,25 @@ export class Table extends Component {
     this.setState({currentItem, currentItemOriginal: currentItem, showEditForm: true, error: false, errorList: []});
   };
 
-  deleteItem = (e, item) => {
+  deleteItem = (e, item, i) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (confirm('Are you sure you want to delete that item ?')) {
+    //if (confirm('Are you sure you want to delete that item ?')) {
       this.props
         .deleteItem(item)
         .then(__ => {
           const items = this.state.items.filter(i => !_.isEqual(i, item));
-          this.setState({items, showEditForm: false, showAddForm: false});
+          this.setState({
+            items,
+            showEditForm: false,
+            showAddForm: false,
+            confirmDelete: false,
+            confirmDeleteTable: false,
+            toDelete: null
+          });
           this.props.parentProps.setTitle(this.props.defaultTitle);
           this.props.backToUrl ? window.history.pushState({}, '', `/${this.props.backToUrl}`) : window.history.back();
         });
-    }
+    //}
   };
 
   createItem = e => {
@@ -367,8 +377,17 @@ export class Table extends Component {
     return [...errors, ...errorsOnFields];
   };
 
-  render() {
 
+
+  toggleModal = (i, value) => {
+    let deletes = {...this.state.confirmDeletes};
+    deletes[i] = value;
+    console.log('deletes', deletes);
+    return deletes;
+  };
+
+  render() {
+    console.log('State', this.state);
     const columns = this.props.columns.map(c => ({
         Header: c.title,
         id: c.title,
@@ -413,7 +432,7 @@ export class Table extends Component {
         width: 140,
         style: { textAlign: 'center' },
         filterable: false,
-        accessor: item => (
+        accessor: (item, ___, index) => (
           <div style={{ width: 140, textAlign: 'center' }}>
             <div className="displayGroupBtn">
               <button
@@ -440,9 +459,10 @@ export class Table extends Component {
                 type="button"
                 className="btn btn-sm btn-danger"
                 {...createTooltip(`Delete this ${this.props.itemName}`, 'top', true)}
-                onClick={e => this.deleteItem(e, item)}>
+                onClick={e => this.setState({confirmDeleteTable: true, toDelete: item})}>
                 <i className="glyphicon glyphicon-trash" />
               </button>
+
             </div>
           </div>
         ),
@@ -594,7 +614,7 @@ export class Table extends Component {
               type="button"
               className="btn btn-danger"
               title="Delete current item"
-              onClick={e => this.deleteItem(e, this.state.currentItem)}>
+              onClick={e => this.setState({confirmDelete: true})}>
               <i className="glyphicon glyphicon-trash"/> Delete
             </button>
             <button type="button" className="btn btn-danger" onClick={this.closeEditForm}>
@@ -603,8 +623,26 @@ export class Table extends Component {
             <button type="button" className="btn btn-success" onClick={this.updateItem}>
               <i className="glyphicon glyphicon-hdd"/> Update {this.props.itemName}
             </button>
+            <SweetModal type="confirm"
+                        confirm={e => this.deleteItem(e, this.state.currentItem)}
+                        id={"confirmDelete"}
+                        open={this.state.confirmDelete}
+                        onDismiss={__ => this.setState({confirmDelete: false})}
+                        labelValid="Delete"
+            >
+              <div>Are you sure you want to delete that item ?</div>
+            </SweetModal>
           </div>
         </div>}
+        <SweetModal type="confirm"
+                    confirm={e => this.deleteItem(e, this.state.toDelete)}
+                    id={"confirmDeleteTable"}
+                    open={this.state.confirmDeleteTable}
+                    onDismiss={__ => this.setState({confirmDeleteTable: false, toDelete: null})}
+                    labelValid="Delete"
+        >
+          <div>Are you sure you want to delete that item ?</div>
+        </SweetModal>
       </div>
     );
   }
