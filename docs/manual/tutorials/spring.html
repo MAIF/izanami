@@ -298,13 +298,34 @@ public class Application {
                         .create(host) // The url of the server 
                         .withClientId(clientId) // The client id of the api 
                         .withClientSecret(clientSecret) // The client secret of the api                    
-                        .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;) // To handle blocking calls 
+                        .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;) // To handle blocking calls see the callout after. 
                         .sseBackend() // To be notified when there is change on the server 
                 );
     }
 }
 </code></pre>
-<p>The client is based on <a href="https://akka.io/">Akka</a> so you have to provide an <code>ActorSystem</code> to make it work. </p>
+<p>The client is based on <a href="https://akka.io/">Akka</a> so you have to provide an <code>ActorSystem</code> to make it work. </p><div class="callout warning "><div class="callout-title">Warning</div>
+<p>Izanami use non blocking call. In order to block call you have to configure a thread pool. This is done by configuring an akka dispatcher.</p>
+<p>You can find an example on the <code>src/main/resources/application.conf</code> :</p>
+<pre class="prettyprint"><code class="language-hocon">izanami-example.blocking-io-dispatcher {
+  type = Dispatcher
+  executor = &quot;thread-pool-executor&quot;
+  thread-pool-executor {
+    fixed-pool-size = 32
+  }
+  throughput = 1
+}
+</code></pre>
+<p>On this example, we configure a thread pool of 32 threads. The reference to this dispatcher should be passed to the client : </p>
+<pre class="prettyprint"><code class="language-java">return IzanamiClient.client(
+        actorSystem,
+        ClientConfig
+            .create(host) // The url of the server 
+            // ...                    
+            .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;) // Reference to the dispatcher. 
+            // ... 
+    );
+</code></pre></div>
 <p>Now we have to create a <code>FeatureClient</code> in order to use feature flipping. </p>
 <p>In this example we use two spring profiles * <code>izanamiLocal</code>: Use on fallback from config and never call the server. You can use it during development if you don&rsquo;t an available Izanami instance.<br/>* <code>izanamiProd</code> : This profile will use a real Izanami server instance.</p>
 <p>So for <code>FeatureClient</code> we have two configs : </p>

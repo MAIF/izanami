@@ -797,6 +797,10 @@ experimentsTree must be(
       )
     )
   )
+)
+val experimentsTree = client.tree(&quot;*&quot;, &quot;client1&quot;).futureValue
+experimentsTree must be(
+  Json.obj()
 )</code></pre></dd>
 </dl>
 <h2><a href="#exposing-izanami-with-a-proxy" name="exposing-izanami-with-a-proxy" class="anchor"><span class="anchor-link"></span></a>Exposing izanami with a Proxy</h2>

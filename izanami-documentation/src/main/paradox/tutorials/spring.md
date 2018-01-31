@@ -128,7 +128,7 @@ public class Application {
                         .create(host) // The url of the server 
                         .withClientId(clientId) // The client id of the api 
                         .withClientSecret(clientSecret) // The client secret of the api                    
-                        .withDispatcher("izanami-example.blocking-io-dispatcher") // To handle blocking calls 
+                        .withDispatcher("izanami-example.blocking-io-dispatcher") // To handle blocking calls see the callout after. 
                         .sseBackend() // To be notified when there is change on the server 
                 );
     }
@@ -136,6 +136,40 @@ public class Application {
 ```
 
 The client is based on [Akka](https://akka.io/) so you have to provide an `ActorSystem` to make it work. 
+
+
+@@@ warning
+
+Izanami use non blocking call. In order to block call you have to configure a thread pool. This is done by configuring an akka dispatcher.
+
+You can find an example on the `src/main/resources/application.conf` :
+
+```hocon
+izanami-example.blocking-io-dispatcher {
+  type = Dispatcher
+  executor = "thread-pool-executor"
+  thread-pool-executor {
+    fixed-pool-size = 32
+  }
+  throughput = 1
+}
+```
+
+On this example, we configure a thread pool of 32 threads. The reference to this dispatcher should be passed to the client : 
+
+```java
+return IzanamiClient.client(
+        actorSystem,
+        ClientConfig
+            .create(host) // The url of the server 
+            // ...                    
+            .withDispatcher("izanami-example.blocking-io-dispatcher") // Reference to the dispatcher. 
+            // ... 
+    );
+```
+
+@@@
+
 
 Now we have to create a `FeatureClient` in order to use feature flipping. 
 
@@ -195,6 +229,7 @@ izanami:
 It's important to configure a fallback in case the server is not available. 
 
 @@@
+
 
 
 ## Step two : feature flipping to switch the providers  
