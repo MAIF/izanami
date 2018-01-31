@@ -17,6 +17,7 @@ import play.api.libs.json.{JsValue, Json, Reads}
 
 import scala.collection.immutable
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationDouble
 import scala.util.{Failure, Success, Try}
 
 private object PagingResult {
@@ -174,7 +175,8 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
       send = { req =>
         http.singleRequest(req.withHeaders(req.headers ++ headers))
       },
-      initialLastEventId = None
+      initialLastEventId = None,
+      retryDelay = 2.seconds
     ).map(sse => Json.parse(sse.data))
       .mapConcat(
         json =>
