@@ -7,6 +7,28 @@ It's simple to build your client using the APIs. If you're application is built 
 This client offer nice strategies for better performances. 
 
 
+You need to add repository
+ 
+Graddle
+:   
+```graddle
+    repositories {
+        jcenter()
+        maven {
+            url 'https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases/'
+        }
+    }
+```  
+
+Sbt
+:   
+```sbt
+    resolvers ++= Seq(
+      "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
+      Resolver.jcenterRepo
+    )
+```
+
 Add the following dependency to your project 
 
 @@dependency[sbt,Maven,Gradle] {
