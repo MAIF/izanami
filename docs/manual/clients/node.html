@@ -195,13 +195,13 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <pre class="prettyprint"><code class="language-bash">npm install izanami-node
 </code></pre>
 <h2><a href="#import" name="import" class="anchor"><span class="anchor-link"></span></a>Import</h2>
-<pre class="prettyprint"><code class="language-javascript">const Izanami = require(&#39;izanami&#39;);
+<pre class="prettyprint"><code class="language-javascript">const Izanami = require(&#39;izanami-node&#39;);
 </code></pre>
 <h2><a href="#usage" name="usage" class="anchor"><span class="anchor-link"></span></a>Usage</h2>
 <p>The node client expose conveniant methods to call Izanami. </p>
 <h3><a href="#configure-the-client-" name="configure-the-client-" class="anchor"><span class="anchor-link"></span></a>Configure the client:</h3>
 <pre class="prettyprint"><code class="language-javascript">const izanamicConfig = Object.assign({}, Izanami.defaultConfig, {
-  &#39;http://localhost:9000&#39;,
+  host: &#39;http://localhost:9000&#39;,
   clientId: process.env.CLIENT_ID || &#39;xxxx&#39;,
   clientSecret: process.env.CLIENT_SECRET || &#39;xxxx&#39;,
 });
