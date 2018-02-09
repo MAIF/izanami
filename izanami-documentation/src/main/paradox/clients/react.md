@@ -16,7 +16,7 @@ npm install react-izanami
 
  
 ```jsx harmony
-import {IzanamiProvider, Feature, Enabled, Disabled, Experiment, Variant, Api as IzanamiApi} from 'izanami';
+import {IzanamiProvider, Feature, Enabled, Disabled, Experiment, Variant, Api as IzanamiApi} from 'react-izanami';
 ```
 
 ## Izanami provider 
