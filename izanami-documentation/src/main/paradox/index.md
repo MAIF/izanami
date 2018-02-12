@@ -20,15 +20,15 @@
  * [Tutorials](tutorials/index.md)
  * [Developers](developers/index.md)
 
-@@@ 
+@@@
 
 Izanami is a shared configuration, feature flipping and A/B testing service written in scala and developed by the <a href="https://maif.github.io/" target="_blank">MAIF OSS</a> team.
-                
-Izanami is perfectly well suited for micro services environment, it provides a UI to allow non-tech users to toggle features and to handle A/B testing.
 
-You can interact with Izanami using REST APIs from you favorite language or listen to events by registering webhook or using server sent events.
+Izanami is perfectly well suited for micro services environments, it provides a UI to allow non-tech users to toggle features and to handle A/B testing.
 
-Izanami also provides first class integration. Java, Scala, Node and React and CLI clients are available to integrate Izanami with your application.
+You can also interact with Izanami using REST APIs from you favorite language or listen to events by registering webhook or using server sent events.
+
+Izanami also provides first class integration : Java, Scala, Node and React and CLI clients are available to integrate Izanami with your application.
 
 @@@ div { .izanami-logo }
 
@@ -37,7 +37,7 @@ Izanami also provides first class integration. Java, Scala, Node and React and C
 @@@
 
 
-Download it : 
+Download it :
 
 
 ```bash
@@ -47,11 +47,11 @@ wget --quiet 'https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.ja
 Run it (JDK 8 needed)
 
 ```zsh
-java -jar izanami.jar 
+java -jar izanami.jar
 ```
 
 Go to http://localhost:9000
 
-And then log in using `admin` / `admin123` 
+And then log in using `admin` / `admin123`
 
 Follow the @ref[getting started page](quickstart.md) to see more about Izanami.  
