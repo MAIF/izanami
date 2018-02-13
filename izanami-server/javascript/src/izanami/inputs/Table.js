@@ -366,24 +366,15 @@ export class Table extends Component {
     reader.readAsText(e.target.files[0]);
   };
 
-  buildErrorList = ({errors, fieldErrors = {}}) => {
+  buildErrorList = ({errors = {}, fieldErrors = {}}) => {
     const errorsOnFields = Object.keys(fieldErrors)
       .flatMap(k => {
-        const messages = fieldErrors[k];
+        const messages = fieldErrors[k] || [];
         return messages.map(({message = "", args = []}) =>
           ({message: `${k}.${message}`, args})
         )
       });
     return [...errors, ...errorsOnFields];
-  };
-
-
-
-  toggleModal = (i, value) => {
-    let deletes = {...this.state.confirmDeletes};
-    deletes[i] = value;
-    console.log('deletes', deletes);
-    return deletes;
   };
 
   render() {

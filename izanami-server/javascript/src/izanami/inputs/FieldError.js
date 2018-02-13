@@ -11,22 +11,23 @@ export class FieldError extends Component {
 
   render() {
 
-    const display = this.props.error && this.props.errorMessage
+    const display = this.props.error || ((this.props.errorMessage || []).length > 0);
 
     if (display) {
       return (
-        <div className="form-group has-error-perso">
-
-{this.props.children}
-          {
-            this.props.errorMessage.map((err, index) =>
-              <div>
-              <label className="control-label col-sm-offset-2 paddingLabelError" for="inputError1" key={index}>{TranslateService.translate(err)}</label>
-              </div>
-            )
-          }
-
-
+        <div className="form-group has-error">
+          {this.props.children}
+          {this.props.errorMessage.map((err, index) =>
+            <div>
+              <label
+                className="control-label col-sm-offset-2 paddingLabelError"
+                for="inputError1"
+                key={index}
+              >
+                {TranslateService.translate(err)}
+              </label>
+            </div>
+          )}
         </div>
       );
     }
