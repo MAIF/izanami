@@ -49,6 +49,17 @@ export class Form extends Component {
     }
   };
 
+  getSchema = (name) => {
+    let current = {...this.props.schema[name]};
+    if (!current.error) {
+      current.error = {
+        key: `obj.${name}`
+      }
+    }
+    return current;
+  };
+
+
   generateStep(name, idx) {
     if (_.isFunction(name)) {
       return React.createElement(name, {})
@@ -57,7 +68,7 @@ export class Form extends Component {
     } else if (name === '---') {
       return <hr key={idx}/>
     } else {
-      const {type, disabled, props = {}, error} = this.props.schema[name];
+      const {type, disabled, props = {}, error} = this.getSchema(name);
 
 
       let fieldOnError = false;

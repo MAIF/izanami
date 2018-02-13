@@ -98,8 +98,20 @@ export default class TvShow extends React.Component {
                         </a>
                         <Feature path={"mytvshows:season:markaswatched"}>
                           <Enabled>
-                            {s.allWatched && <button onClick={this.markSeasonWatched(s.number, false)} className="btn btn default pull-right addBtn"><i className="glyphicon glyphicon-ok"/></button>}
-                            {!s.allWatched && <button  onClick={this.markSeasonWatched(s.number, true)} className="btn btn default pull-right addBtn"> ADD </button>}
+                            {s.allWatched &&
+                              <button
+                                onClick={this.markSeasonWatched(s.number, false)}
+                                className="btn btn default pull-right addBtn">
+                                  <i className="glyphicon glyphicon-ok"/>
+                              </button>
+                            }
+                            {!s.allWatched &&
+                              <button
+                                onClick={this.markSeasonWatched(s.number, true)}
+                                className="btn btn default pull-right addBtn">
+                                ADD
+                              </button>
+                            }
                           </Enabled>
                           <Disabled>
                             <div></div>
