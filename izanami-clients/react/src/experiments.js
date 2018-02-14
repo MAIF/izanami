@@ -57,8 +57,8 @@ export class Won extends Component {
 export class Experiment extends Component {
 
   static contextTypes = {
-    __mergedExperiments: PropTypes.object,
-    __debug: PropTypes.bool,
+    __subscribeToExperimentContext: PropTypes.func,
+    __unsubscribeToExperimentContext: PropTypes.func,
   };
 
   static propTypes = {
@@ -75,7 +75,8 @@ export class Experiment extends Component {
   };
 
   state = {
-    experiments: {}
+    experiments: {},
+    mergedExperiments: {}
   };
 
   onExperimentsChanged = ({experiments}) => {
@@ -84,12 +85,18 @@ export class Experiment extends Component {
     }
   };
 
+  onContextChange = ({__mergedExperiments, __fetchFrom, __debug}) => {
+    if (__fetchFrom && this.state.fetchFrom !== __fetchFrom ) {
+      if(__debug) console.log('[Experiments] Registering to api for ', __fetchFrom);
+      this.setState({fetchFrom: __fetchFrom, debug: __debug, mergedExperiments: __mergedExperiments});
+      Api.register(__fetchFrom , this.onExperimentsChanged)
+    } else {
+      this.setState({debug: __debug, mergedExperiments: __mergedExperiments});
+    }
+  };
 
   componentDidMount() {
-    const fetchFrom = this.context.__fetchFrom;
-    if (fetchFrom) {
-      Api.register(fetchFrom, this.onExperimentsChanged)
-    }
+    this.context.__subscribeToExperimentContext(this.onContextChange);
     if (this.props.notifyDisplay && !this.mounted) {
       this.mounted = true;
       const notifyDisplay = this.props.notifyDisplay;
@@ -107,28 +114,40 @@ export class Experiment extends Component {
 
   componentWillUnmount() {
     this.mounted = false;
-    const fetchFrom = this.context.__fetchFrom;
+    const fetchFrom = this.state.fetchFrom;
     if (fetchFrom) {
       Api.unregister(fetchFrom, this.onExperimentsChanged)
     }
+    this.context.__unsubscribeToExperimentContext(this.onContextChange);
   }
 
   render() {
     const children = this.props.children;
     const path = this.props.path.replace(/:/g, '.');
-    const experiments = deepmerge(this.context.__mergedExperiments, this.state.experiments);
+    const experiments = deepmerge(this.state.mergedExperiments, this.state.experiments);
     let experiment = (_.get(experiments, path) || { variant: null });
     const value = experiment.variant || this.props.default;
 
     const childrenArray = Array.isArray(children) ? children : [children];
     const variantChildren = childrenArray.filter(c => c.type === Variant).filter(c => c.props.id === value);
-    const debug = !!this.context.__debug || this.props.debug;
+    const debug = !!this.state.debug || this.props.debug;
     if (variantChildren.length === 0) {
-      if (debug) console.log(`Experiment '${path}' has no valid Variant ${value}. Please provide one.`);
+      if (debug) console.log(`[Experiments] experiment '${path}' has no valid Variant ${value}. Please provide one.`);
       return null;
     } else {
       const variant = variantChildren[0] || null;
-      if (debug) console.log(`Experiment '${path}' (${JSON.stringify(experiment)}) has variant ${value}`);
+      if (debug) console.log(`[Experiments] experiment '${path}' (${JSON.stringify(experiment)}) has variant ${value}`);
+      if (variant && debug) {
+        const color = '#' + (~~(Math.random()*(1<<24))).toString(16);
+        return (
+          <div className="izanami-experiment" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid ' + color }}>
+            <span style={{ padding: 2, opacity: '0.9', fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: color, position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)'}}>
+              Experiment <span style={{ fontWeight: 'bold' }}>{path}</span>: variant is <span style={{ fontWeight: 'bold' }}>{value}</span>
+            </span>
+            {variant}
+          </div>
+        );
+      }
       return variant;
     }
   }
@@ -136,12 +155,11 @@ export class Experiment extends Component {
 
 export class ExperimentsProvider extends Component {
 
+  callbacks = [];
+
   static childContextTypes = {
-    __experiments: PropTypes.object,
-    __fallback: PropTypes.object,
-    __mergedExperiments: PropTypes.object,
-    __debug: PropTypes.bool,
-    __fetchFrom: PropTypes.string,
+    __subscribeToExperimentContext: PropTypes.func,
+    __unsubscribeToExperimentContext: PropTypes.func
   };
 
   static propTypes = {
@@ -156,30 +174,58 @@ export class ExperimentsProvider extends Component {
   };
 
   state = {
-    experiments: this.props.experiments,
-    fallback: this.props.fallback,
-    debug: this.props.debug,
+    __experiments: this.props.experiments,
+    __fallback: this.props.fallback,
+    __mergedExperiments: deepmerge(this.props.fallback, this.props.experiments),
+    __fetchFrom: this.props.fetchFrom,
+    __debug: this.props.debug,
+  };
+
+  registerCb = (callback) => {
+    const index = this.callbacks.indexOf(callback);
+    if (index === -1) {
+      this.callbacks.push(callback);
+    }
+  };
+
+  unregisterCb = (callback) => {
+    const index = this.callbacks.indexOf(callback);
+    if (index > -1) {
+      this.callbacks.splice(index, 1);
+    }
+  };
+
+  publish = () => {
+    this.callbacks.forEach(cb => {
+      cb({...this.state})
+    })
   };
 
   getChildContext() {
     return {
-      __debug: this.state.debug,
-      __experiments: this.state.experiments,
-      __fallback: this.state.fallback,
-      __mergedExperiments: deepmerge(this.state.fallback, this.state.experiments),
-      __fetchFrom: this.props.fetchFrom
+      __subscribeToExperimentContext: cb => {
+        if (cb) {
+          cb({...this.state});
+          this.registerCb(cb);
+        }
+      },
+      __unsubscribeToExperimentContext: cb => {
+        if (cb) {
+          this.unregisterCb(cb);
+        }
+      }
     };
   }
 
   componentWillReceiveProps(nextProps) {
     if (!deepEqual(nextProps.experiments, this.props.experiments)) {
-      this.setState({ experiments: nextProps.experiments });
+      this.setState({ __experiments: nextProps.experiments, __mergedExperiments: deepmerge(this.state.__fallback, nextProps.experiments) }, this.publish);
     }
     if (!deepEqual(nextProps.fallback, this.props.fallback)) {
-      this.setState({ fallback: nextProps.fallback });
+      this.setState({ __fallback: nextProps.fallback, __mergedExperiments: deepmerge(nextProps.fallback, this.state.__experiments) }, this.publish);
     }
     if (nextProps.debug !== this.props.debug) {
-      this.setState({ debug: nextProps.debug });
+      this.setState({ __debug: nextProps.debug }, this.publish);
     }
   }
 

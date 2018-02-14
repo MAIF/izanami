@@ -1,7 +1,39 @@
 import ReactDOM from 'react-dom';
 import React, { Component } from 'react';
-
+//import {applyMiddleware, createStore, combineReducers} from 'redux';
+//import thunk from 'redux-thunk';
+//import {Provider, connect} from 'react-redux';
 import { Enabled, Disabled, Feature, IzanamiProvider, Variant, Experiment} from './';
+
+//
+// const setConfiguration = (configuration) => {
+//   return (dispatch, getState) => {
+//     if (!getState().configuration.initialized) {
+//       dispatch({
+//         type: 'SET_CONFIGURATION',
+//         configuration
+//       })
+//     }
+//   };
+// };
+//
+// const defaultState = {
+//   initialized: false,
+//   app: {
+//     mode: undefined
+//   }
+// };
+//
+// const configuration = (state = defaultState, action) => {
+//   switch (action.type) {
+//     case 'SET_CONFIGURATION':
+//       return { ...state, ...action.configuration };
+//     default:
+//       return state;
+//   }
+// };
+//
+// const store = createStore(combineReducers({configuration}), {}, applyMiddleware(thunk));
 
 const features = {
   project: {
@@ -30,18 +62,22 @@ const fallback = {
 };
 
 class App extends Component {
+
+  // componentDidMount() {
+  //   store.dispatch(setConfiguration({
+  //     initialized: true,
+  //     app: {
+  //       mode: "test"
+  //     }
+  //   }));
+  // }
+
   render() {
+    //<Provider store={store}>
     return (
       <IzanamiProvider fetchFrom={"/api/izanami"} featuresFallback={fallback}>
         <div>
-          <Feature debug path="project.lang.french">
-            <Enabled>
-              <h1>Salut le monde !</h1>
-            </Enabled>
-            <Disabled>
-              <h1>Hello World!</h1>
-            </Disabled>
-          </Feature>
+          <FeatureApp />
           <div>
             <Feature debug path="project.feature1">
               <p>
@@ -58,9 +94,30 @@ class App extends Component {
           </div>
         </div>
       </IzanamiProvider>
-    );
+    )
+  }
+  // </Provider>
+}
+
+class FeatureApp extends Component {
+  render() {
+    return <div>
+      <Feature debug path="project.lang.french">
+        <Enabled>
+          <h1>Salut le monde !</h1>
+        </Enabled>
+        <Disabled>
+          <h1>Hello World!</h1>
+        </Disabled>
+      </Feature>
+    </div>
   }
 }
+
+// const FeatureApp = connect(store => {
+//   console.log(store);
+//   return store.configuration.app;
+// })(FeatureAppComponent);
 
 const experiments = {
   project: {
