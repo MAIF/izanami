@@ -28,9 +28,8 @@ export class Disabled extends Component {
 export class Feature extends Component {
 
   static contextTypes = {
-    __mergedFeatures: PropTypes.object,
-    __fetchFrom: PropTypes.string,
-    __debug: PropTypes.bool,
+    __subscribeToFeatureContext: PropTypes.func,
+    __unsubscribeToFeatureContext: PropTypes.func,
   };
 
   static propTypes = {
@@ -43,21 +42,30 @@ export class Feature extends Component {
   };
 
   state = {
-    features: {}
+    features: {},
+    mergedFeatures: {}
+  };
+
+  onContextChange = ({__mergedFeatures, __fetchFrom, __debug}) => {
+    if (__fetchFrom && this.state.fetchFrom !== __fetchFrom ) {
+      this.setState({fetchFrom: __fetchFrom, debug: __debug, mergedFeatures: __mergedFeatures});
+      if(__debug) console.log('[Features] Registering to api for ', __fetchFrom);
+      Api.register(__fetchFrom , this.onFeaturesChanged)
+    } else {
+      this.setState({debug: __debug, mergedFeatures: __mergedFeatures});
+    }
   };
 
   componentDidMount() {
-    const fetchFrom = this.context.__fetchFrom;
-    if (fetchFrom) {
-      Api.register(fetchFrom, this.onFeaturesChanged)
-    }
+    this.context.__subscribeToFeatureContext(this.onContextChange);
   }
 
   componentWillUnmount() {
-    const fetchFrom = this.context.__fetchFrom;
+    const fetchFrom = this.state.__fetchFrom;
     if (fetchFrom) {
       Api.unregister(fetchFrom, this.onFeaturesChanged)
     }
+    this.context.__unsubscribeToFeatureContext(this.onContextChange);
   }
 
   onFeaturesChanged = ({features}) => {
@@ -69,20 +77,19 @@ export class Feature extends Component {
   render() {
     const children = this.props.children;
     const path = this.props.path.replace(/:/g, '.');
-    const features = deepmerge(this.context.__mergedFeatures, this.state.features);
+    const features = deepmerge(this.state.mergedFeatures, this.state.features);
     const value = _.get(features, path) || { active: false };
-    console.log('Value', features, path);
     const isActive = value.active;
     const childrenArray = Array.isArray(children) ? children : [children];
     const enabledChildren = childrenArray.filter(c => c.type === Enabled);
     const disabledChildren = childrenArray.filter(c => c.type === Disabled);
-    const debug = !!this.context.__debug || this.props.debug;
+    const debug = !!this.state.debug || this.props.debug;
     if (isActive && enabledChildren.length > 0) {
-      if (debug) console.log(`feature '${path}' is enabled, rendering first <Enabled /> component`);
+      if (debug) console.log(`[Features] feature '${path}' is enabled, rendering first <Enabled /> component`);
       if (debug) {
         return (
           <div className="izanami-feature-enabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid green' }}>
-            <span style={{ padding: 2, color: 'white', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000 }}>
+            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
               Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is enabled
             </span>
             {enabledChildren[0]}
@@ -91,11 +98,11 @@ export class Feature extends Component {
       }
       return enabledChildren[0];
     } else if (!isActive && disabledChildren.length > 0) {
-      if (debug) console.log(`feature '${path}' is disabled, rendering first <Disabled /> component`);
+      if (debug) console.log(`[Features] feature '${path}' is disabled, rendering first <Disabled /> component`);
       if (debug) {
         return (
           <div className="izanami-feature-disabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid grey' }}>
-            <span style={{ padding: 2, color: 'white', backgroundColor: 'grey', position: 'absolute', top: -17, left: -1, zIndex: 100000 }}>
+            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'grey', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
               Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is disabled
             </span>
             {disabledChildren[0]}
@@ -104,14 +111,14 @@ export class Feature extends Component {
       }
       return disabledChildren[0];
     } else if (isActive) {
-      if (debug) console.log(`feature '${path}' is enabled, rendering first child`);
+      if (debug) console.log(`[Features] feature '${path}' is enabled, rendering first child`);
       if (childrenArray.length > 1) {
         console.warn('You have to provide only one child to <Feature /> unless it\'s <Enabled /> and <Disabled /> used together.');
       }
       if (debug) {
         return (
           <div className="izanami-feature-enabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid green' }}>
-            <span style={{ padding: 2, color: 'white', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000 }}>
+            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
               Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is enabled
             </span>
             {childrenArray[0]}
@@ -120,11 +127,11 @@ export class Feature extends Component {
       }
       return childrenArray[0];
     } else {
-      if (debug) console.log(`feature '${path}' is disabled, rendering nothing`);
+      if (debug) console.log(`[Features] feature '${path}' is disabled, rendering nothing`);
       if (debug) {
         return (
           <div className="izanami-feature-disabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid grey' }}>
-            <span style={{ padding: 2, color: 'white', backgroundColor: 'grey', position: 'absolute', top: -17, left: -1, zIndex: 100000 }}>
+            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'grey', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
               Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is disabled
             </span>
           </div>
@@ -138,12 +145,11 @@ export class Feature extends Component {
 
 export class FeatureProvider extends Component {
 
+  callbacks = [];
+
   static childContextTypes = {
-    __features: PropTypes.object,
-    __fallback: PropTypes.object,
-    __mergedFeatures: PropTypes.object,
-    __debug: PropTypes.bool,
-    __fetchFrom: PropTypes.string
+    __subscribeToFeatureContext: PropTypes.func,
+    __unsubscribeToFeatureContext: PropTypes.func
   };
 
   static propTypes = {
@@ -158,31 +164,59 @@ export class FeatureProvider extends Component {
   };
 
   state = {
-    features: this.props.features,
-    fallback: this.props.fallback,
-    debug: this.props.debug,
+    __features: this.props.features,
+    __fallback: this.props.fallback,
+    __debug: this.props.debug,
+    __mergedFeatures: deepmerge(this.props.fallback, this.props.features),
+    __fetchFrom: this.props.fetchFrom
+  };
+
+  registerCb = (callback) => {
+    const index = this.callbacks.indexOf(callback);
+    if (index === -1) {
+      this.callbacks.push(callback);
+    }
+  };
+
+  unregisterCb = (callback) => {
+    const index = this.callbacks.indexOf(callback);
+    if (index > -1) {
+      this.callbacks.splice(index, 1);
+    }
+  };
+
+  publish = () => {
+    this.callbacks.forEach(cb => {
+      cb({...this.state})
+    })
   };
 
   getChildContext() {
-    const features = deepmerge(this.state.fallback, this.state.features);
     return {
-      __debug: this.state.debug,
-      __features: this.state.features,
-      __fallback: this.state.fallback,
-      __mergedFeatures: deepmerge(this.state.fallback, this.state.features),
-      __fetchFrom: this.props.fetchFrom
+      __subscribeToFeatureContext: cb => {
+        if (cb) {
+          let context = {...this.state};
+          cb(context);
+          this.registerCb(cb);
+        }
+      },
+      __unsubscribeToFeatureContext: cb => {
+        if (cb) {
+          this.unregisterCb(cb);
+        }
+      }
     };
   }
 
   componentWillReceiveProps(nextProps) {
     if (!deepEqual(nextProps.features, this.props.features)) {
-      this.setState({ features: nextProps.features });
+      this.setState({ __features: nextProps.features, __mergedFeatures: deepmerge(this.state.__fallback, nextProps.features) }, this.publish);
     }
     if (!deepEqual(nextProps.fallback, this.props.fallback)) {
-      this.setState({ fallback: nextProps.fallback });
+      this.setState({ __fallback: nextProps.fallback, __mergedFeatures: deepmerge(nextProps.fallback, this.state.__features) }, this.publish);
     }
     if (nextProps.debug !== this.props.debug) {
-      this.setState({ debug: nextProps.debug });
+      this.setState({ __debug: nextProps.debug }, this.publish);
     }
   }
 
