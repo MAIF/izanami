@@ -54,7 +54,6 @@ export class IzanamiProvider extends Component {
 
   componentDidMount() {
     if (this.props.fetchFrom) {
-      console.log(this.featuresCallbacks);
       Api.register(this.props.fetchFrom, this.onDataLoaded);
       this.setState({loading: true});
       Api.izanamiReload(this.props.fetchFrom, this.props.fetchHeaders);
@@ -70,7 +69,6 @@ export class IzanamiProvider extends Component {
   render() {
     if (this.props.fetchFrom) {
         const { debug, features, featuresFallback, experiments, experimentsFallback } = this.state.fetched;
-        console.log('Refreshing', features);
         return (
           <FeatureProvider debug={debug} features={features || {}} fallback={featuresFallback} fetchFrom={this.props.fetchFrom}>
             <ExperimentsProvider debug={debug} experiments={experiments || {}} experimentsFallback={experimentsFallback}>
