@@ -93,10 +93,8 @@ object Domain {
 
 case class Key(key: String) {
 
-  private def pattern(str: String) = s"^${str.replaceAll("\\*", ".*")}$$"
-
   def matchPattern(str: String): Boolean = {
-    val regex = pattern(str)
+    val regex = Key.buildRegexPattern(str)
     key.matches(regex)
   }
 
@@ -143,13 +141,18 @@ object Key {
 
   def apply(path: Seq[String]): Key = new Key(path.mkString(":"))
 
-  private[domains] def buildRegex(pattern: String): Regex = {
-    val newPattern = pattern.replaceAll("\\*", ".*")
-    s"^$newPattern$$".r
-  }
+  private[domains] def buildRegexPattern(pattern: String): String =
+    if (pattern.isEmpty) "$^"
+    else {
+      val newPattern = pattern.replaceAll("\\*", ".*")
+      s"^$newPattern$$"
+    }
+
+  private[domains] def buildRegex(pattern: String): Regex =
+    buildRegexPattern(pattern).r
 
   def isAllowed(key: Key)(auth: Option[AuthInfo]): Boolean = {
-    val pattern = buildRegex(auth.map(_.authorizedPattern).getOrElse("*"))
+    val pattern = buildRegex(auth.map(_.authorizedPattern).getOrElse(""))
     key.key match {
       case pattern(_*) => true
       case _           => false
@@ -157,7 +160,7 @@ object Key {
   }
 
   def isAllowed(patternToCheck: String)(auth: Option[AuthInfo]): Boolean = {
-    val pattern = buildRegex(auth.map(_.authorizedPattern).getOrElse("*"))
+    val pattern = buildRegex(auth.map(_.authorizedPattern).getOrElse(""))
     patternToCheck match {
       case pattern(_*) => true
       case _           => false
