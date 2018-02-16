@@ -1,8 +1,8 @@
 package izanami.commons
 
 import akka.actor.{Actor, ActorLogging, Cancellable, Props}
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
-import izanami.Strategy.CacheWithPollingStrategy
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Materializer}
+import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy}
 import izanami._
 import izanami.commons.SmartCacheStrategyActor.CacheEvent
 
@@ -57,14 +57,18 @@ private[izanami] class SmartCacheStrategyActor[T](
   import akka.pattern._
   import dispatcher.ec
 
-  private implicit val mat =
+  private implicit val mat: Materializer =
     ActorMaterializer(
       ActorMaterializerSettings(context.system)
         .withDispatcher(dispatcher.name)
     )(context)
 
-  override def receive =
-    logic(patterns = initialPatterns.toSet, cache = fallback, pollingScheduler = None)
+  override def receive: Receive =
+    logic(
+      patterns = initialPatterns.toSet,
+      cache = fallback,
+      pollingScheduler = None
+    )
 
   private def logic(
       patterns: Set[String],
@@ -73,7 +77,7 @@ private[izanami] class SmartCacheStrategyActor[T](
   ): Receive = {
 
     case Init =>
-      val scheduler = config match {
+      val scheduler: Option[Cancellable] = config match {
         case c: CacheWithPollingStrategy =>
           Some(
             context.system.scheduler
@@ -147,9 +151,19 @@ private[izanami] class SmartCacheStrategyActor[T](
 
     case RefreshCache =>
       log.debug(s"Refresh cache for patterns $patterns")
-      val keysAndPatterns = resolvePatterns(patterns.toSeq, cache.keys.toSeq)
+      val keysAndPatterns: Seq[String] = resolvePatterns(patterns.toSeq, cache.keys.toSeq)
 
-      pipe(fetchData(keysAndPatterns).map(r => SetValues[T](r, triggerEvent = true))) to self
+      val call: Future[SetValues[T]] = fetchData(keysAndPatterns).map(r => SetValues[T](r, triggerEvent = true))
+      call.onComplete {
+        case Failure(e) if config.isInstanceOf[CacheWithSseStrategy] =>
+              log.error(e, "Error refreshing cache, retrying in 5 seconds")
+              context.system.scheduler
+                .scheduleOnce(5.seconds, self, RefreshCache)
+        case Failure(e) =>
+          log.error(e, "Error refreshing cache")
+        case _ =>
+      }
+      pipe(call) to self
 
     case SetValues(values, triggerEvent) =>
       log.debug("Updating cache with values {}", values)
@@ -162,18 +176,18 @@ private[izanami] class SmartCacheStrategyActor[T](
           case (k, v) if valuesToUpdate.exists {
                 case (k1, v2) => k1 == k && v2 != v
               } =>
-            val newValue = valuesToUpdate.find(_._1 == k).get
+            val newValue: (String, T) = valuesToUpdate.find(_._1 == k).get
             ValueUpdated[T](k, newValue._2, v)
         }.toSeq
         val creates: Seq[CacheEvent[T]] = valuesToUpdate.collect {
           case (k, v) if !cache.contains(k) =>
             ValueCreated(k, v)
         }
-        val events = updates ++ creates
+        val events: Seq[CacheEvent[T]] = updates ++ creates
         onValueUpdated(events)
       }
 
-      val cacheUpdated = cache ++ valuesToUpdate
+      val cacheUpdated: Map[String, T] = cache ++ valuesToUpdate
 
       context.become(
         logic(
@@ -217,9 +231,11 @@ private[izanami] class SmartCacheStrategyActor[T](
     keys.filterNot(PatternsUtil.matchOnePattern(existingPatterns)) ++ existingPatterns
 
 }
+
 object PatternsUtil {
+
   def matchPattern(pattern: String)(key: String): Boolean = {
-    val regex = buildPattern(pattern)
+    val regex: String = buildPattern(pattern)
     key.matches(regex)
   }
 

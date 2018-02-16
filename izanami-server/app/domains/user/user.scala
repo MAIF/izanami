@@ -46,11 +46,11 @@ object User {
     for {
       name   <- claims.get("name").map(_.asString())
       userId <- claims.get("user_id").map(_.asString())
-      email  <- claims.get("email").map(_.asString())
+      email  = claims.get("email").map(_.asString()).getOrElse("")
       patterns = claims
         .get("izanami_authorized_patterns")
         .map(_.asString())
-        .getOrElse("*")
+        .getOrElse("")
       isAdmin = claims
         .get("izanami_admin")
         .map(_.asString)

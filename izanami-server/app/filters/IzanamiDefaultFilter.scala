@@ -17,125 +17,6 @@ import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util._
 
-object OtoroshiFilter {
-  object Attrs {
-    val AuthInfo: TypedKey[Option[AuthInfo]] = TypedKey("auth")
-  }
-
-  def apply(env: Env, config: OtoroshiFilterConfig, apikeyStore: ApikeyStore)(implicit ec: ExecutionContext,
-                                                                              mat: Materializer): OtoroshiFilter =
-    new OtoroshiFilter(env, config)
-}
-
-class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: ExecutionContext, val mat: Materializer)
-    extends Filter {
-
-  private val logger = Logger("filter")
-
-  def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
-    val startTime  = System.currentTimeMillis
-    val maybeReqId = requestHeader.headers.get(config.headerRequestId)
-    val maybeState = requestHeader.headers.get(config.headerGatewayState)
-    val maybeClaim = requestHeader.headers.get(config.headerClaim)
-
-    val t = Try(env.env match {
-      case devOrTest if devOrTest == "dev" || devOrTest == "test" =>
-        nextFilter(requestHeader).map { result =>
-          val requestTime = System.currentTimeMillis - startTime
-          logger.debug(
-            s"Request => ${requestHeader.method} ${requestHeader.uri} took ${requestTime}ms and returned ${result.header.status}"
-          )
-          result.withHeaders(
-            config.headerGatewayStateResp -> maybeState.getOrElse("--")
-          )
-        }
-      case "prod" if maybeClaim.isEmpty && maybeState.isEmpty =>
-        Future.successful(
-          Results.Unauthorized(
-            Json.obj("error" -> "Bad request !!!")
-          )
-        )
-      case "prod" if maybeClaim.isEmpty =>
-        Future.successful(
-          Results
-            .Unauthorized(
-              Json.obj("error" -> "Bad claim !!!")
-            )
-            .withHeaders(
-              config.headerGatewayStateResp -> maybeState.getOrElse("--")
-            )
-        )
-      case "prod" =>
-        val tryDecode = Try {
-          val algorithm = Algorithm.HMAC512(config.sharedKey)
-          val verifier =
-            JWT.require(algorithm).withIssuer(config.issuer).build()
-          val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
-          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, User.fromJwtToken(decoded))).map {
-            result =>
-              val requestTime = System.currentTimeMillis - startTime
-              maybeReqId.foreach { id =>
-                logger.debug(
-                  s"Request from Opun Gateway with id : $id => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                    .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                    .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
-                )
-              }
-              result.withHeaders(
-                config.headerGatewayStateResp -> maybeState.getOrElse("--")
-              )
-          }
-        } recoverWith {
-          case e =>
-            Success(
-              Future.successful(
-                Results
-                  .Unauthorized(
-                    Json.obj("error" -> "Claim error !!!", "m" -> e.getMessage)
-                  )
-                  .withHeaders(
-                    config.headerGatewayStateResp -> maybeState.getOrElse("--")
-                  )
-              )
-            )
-        }
-        tryDecode.get
-      case _ =>
-        Future.successful(
-          Results
-            .Unauthorized(
-              Json.obj("error" -> "Bad env !!!")
-            )
-            .withHeaders(
-              config.headerGatewayStateResp -> maybeState.getOrElse("--")
-            )
-        )
-    }) recoverWith {
-      case e =>
-        Success(
-          Future.successful(
-            Results
-              .InternalServerError(
-                Json.obj("error" -> e.getMessage)
-              )
-              .withHeaders(
-                config.headerGatewayStateResp -> maybeState.getOrElse("--")
-              )
-          )
-        )
-    }
-    val result: Future[Result] = t.get
-    result.onComplete {
-      case Success(resp) =>
-        logger.debug(s" ${requestHeader.method} ${requestHeader.uri} resp : $resp")
-      case Failure(e) =>
-        logger.error(s"Error for request ${requestHeader.method} ${requestHeader.uri}", e)
-        logger.error(s"Error for request ${requestHeader.method} ${requestHeader.uri}", e.getCause)
-    }
-    result
-  }
-}
-
 class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: ApikeyConfig, apikeyStore: ApikeyStore)(
     implicit ec: ExecutionContext,
     val mat: Materializer
@@ -158,7 +39,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
           requestHeader.addAttr(
             OtoroshiFilter.Attrs.AuthInfo,
             Some(
-              User(id = "id", name = "Ragnard", email = "ragnard@viking.com", admin = false, authorizedPattern = "*")
+              User(id = "id", name = "Ragnard", email = "ragnard@viking.com", admin = false, authorizedPattern = "")
             )
           )
         ).map { result =>
