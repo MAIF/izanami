@@ -173,29 +173,33 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
       }
 
   def deleteAllWithSession(patterns: Seq[String])(implicit session: Session): Future[Result[Done]] =
-    patternStatement("key", patterns) match {
-      case Right(s) =>
-        val stm = if (!s.isEmpty) s"AND $s" else ""
-        val query =
-          s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-        Logger.debug(s"Running query $query with args [$namespaceFormatted]")
-        val stmt =
-          new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
-        CassandraSource(stmt)
-          .map { rs =>
-            (rs.getString("namespace"), rs.getString("id"))
-          }
-          .mapAsync(4) {
-            case (n, id) =>
-              val query =
-                s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
-              val args = Seq(n, id)
-              Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
-              executeWithSession(query, n, id)
-          }
-          .runFold(0)((acc, _) => acc + 1)
-          .map(_ => Result.ok(Done))
-      case Left(s) => FastFuture.successful(Result.error(s))
+    if (patterns.isEmpty || patterns.contains("")) {
+      FastFuture.successful(Result.ok(Done))
+    } else {
+      patternStatement("key", patterns) match {
+        case Right(s) =>
+          val stm = if (!s.isEmpty) s"AND $s" else ""
+          val query =
+            s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
+          Logger.debug(s"Running query $query with args [$namespaceFormatted]")
+          val stmt =
+            new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
+          CassandraSource(stmt)
+            .map { rs =>
+              (rs.getString("namespace"), rs.getString("id"))
+            }
+            .mapAsync(4) {
+              case (n, id) =>
+                val query =
+                  s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
+                val args = Seq(n, id)
+                Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
+                executeWithSession(query, n, id)
+            }
+            .runFold(0)((acc, _) => acc + 1)
+            .map(_ => Result.ok(Done))
+        case Left(s) => FastFuture.successful(Result.error(s))
+      }
     }
 
   override def getById(id: Key): FindResult[JsValue] =
@@ -250,18 +254,22 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
     )
 
   private def getByIdLikeWithSession(patterns: Seq[String])(implicit session: Session): Source[JsValue, NotUsed] =
-    patternStatement("key", patterns) match {
-      case Right(s) =>
-        val stm = if (!s.isEmpty) s"AND $s" else ""
-        val query =
-          s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-        Logger.debug(s"Running query $query with args [$namespaceFormatted]")
-        val stmt = new SimpleStatement(query, namespaceFormatted)
-        CassandraSource(stmt).map { rs =>
-          Json.parse(rs.getString("value"))
-        }
-      case Left(err) =>
-        Source.failed(new IllegalArgumentException("pattern.invalid"))
+    if (patterns.isEmpty || patterns.contains("")) {
+      Source.empty
+    } else {
+      patternStatement("key", patterns) match {
+        case Right(s) =>
+          val stm = if (!s.isEmpty) s"AND $s" else ""
+          val query =
+            s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
+          Logger.debug(s"Running query $query with args [$namespaceFormatted]")
+          val stmt = new SimpleStatement(query, namespaceFormatted)
+          CassandraSource(stmt).map { rs =>
+            Json.parse(rs.getString("value"))
+          }
+        case Left(err) =>
+          Source.failed(new IllegalArgumentException("pattern.invalid"))
+      }
     }
 
   override def count(patterns: Seq[String]): Future[Long] =
@@ -272,25 +280,28 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
     })
 
   private def countWithSession(patterns: Seq[String])(implicit session: Session): Future[Result[Long]] =
-    patternStatement("key", patterns) match {
-      case Right(s) =>
-        val stm = if (!s.isEmpty) s"AND $s" else ""
-        val query =
-          s"SELECT COUNT(*) AS count FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-        Logger.debug(s"Running query $query with args [$namespaceFormatted]")
-        val stmt =
-          new SimpleStatement(
-            query,
-            namespaceFormatted
-          ).setKeyspace("izanami")
-        CassandraSource(stmt)
-          .map { rs =>
-            Result.ok(rs.getLong("count"))
-          }
-          .runWith(Sink.head)
-      case Left(err) => FastFuture.successful(Result.error(err))
+    if (patterns.isEmpty || patterns.contains("")) {
+      FastFuture.successful(Result.ok(0))
+    } else {
+      patternStatement("key", patterns) match {
+        case Right(s) =>
+          val stm = if (!s.isEmpty) s"AND $s" else ""
+          val query =
+            s"SELECT COUNT(*) AS count FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
+          Logger.debug(s"Running query $query with args [$namespaceFormatted]")
+          val stmt =
+            new SimpleStatement(
+              query,
+              namespaceFormatted
+            ).setKeyspace("izanami")
+          CassandraSource(stmt)
+            .map { rs =>
+              Result.ok(rs.getLong("count"))
+            }
+            .runWith(Sink.head)
+        case Left(err) => FastFuture.successful(Result.error(err))
+      }
     }
-
 }
 
 object Cassandra {

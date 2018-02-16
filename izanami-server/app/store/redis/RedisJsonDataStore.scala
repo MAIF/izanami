@@ -62,25 +62,29 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
   private def patternsToKey(patterns: Seq[String]): Seq[Key] =
     patterns.map(Key.apply).map(buildKey)
 
-  private def findKeys(patterns: Seq[String]): Source[Key, NotUsed] =
-    Source
-      .unfoldAsync(0) { cursor =>
-        client
-          .scan(cursor, matchGlob = Some(s"$name:*"))
-          .map { curs =>
-            if (cursor == -1) {
-              None
-            } else if (curs.index == 0) {
-              Some(-1, curs.data)
-            } else {
-              Some(curs.index, curs.data)
+  private def findKeys(patterns: Seq[String]): Source[Key, NotUsed] = patterns match {
+    case p if p.isEmpty || p.contains("") =>
+      Source.empty
+    case p =>
+      Source
+        .unfoldAsync(0) { cursor =>
+          client
+            .scan(cursor, matchGlob = Some(s"$name:*"))
+            .map { curs =>
+              if (cursor == -1) {
+                None
+              } else if (curs.index == 0) {
+                Some(-1, curs.data)
+              } else {
+                Some(curs.index, curs.data)
+              }
             }
-          }
-      }
-      .mapConcat(_.toList)
-      .map(Key.apply)
-      .map(_.drop(name))
-      .filter(k => k.matchPatterns(patterns: _*))
+        }
+        .mapConcat(_.toList)
+        .map(Key.apply)
+        .map(_.drop(name))
+        .filter(k => k.matchPatterns(patterns: _*))
+  }
 
   override def create(id: Key, data: JsValue) = getByKeyId(id).flatMap {
     case Some(_) =>

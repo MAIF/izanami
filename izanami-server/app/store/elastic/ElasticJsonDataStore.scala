@@ -188,30 +188,8 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
 
   private def buildSearchQuery(patterns: Seq[String]): JsObject = {
 
-    val queryWithTTL = Json.obj(
-      "bool" -> Json.obj(
-        "must" -> (Json.arr(
-          Json.obj("exists" -> Json.obj("field" -> "deathDate")),
-          Json.obj(
-            "range" -> Json
-              .obj(
-                "deathDate" -> Json.obj(
-                  "gte" -> DateTimeFormatter.ISO_DATE_TIME
-                    .format(LocalDateTime.now())
-                )
-              )
-          ),
-        ) ++ JsArray(
-          patterns.map { pattern =>
-            Json.obj("wildcard" -> Json.obj("key" -> Json.obj("value" -> pattern)))
-          }
-        ))
-      )
-    )
-
     val queryWithoutTTL = Json.obj(
       "bool" -> Json.obj(
-        "must_not" -> Json.obj("exists" -> Json.obj("field" -> "deathDate")),
         "must" -> JsArray(
           patterns.map { pattern =>
             Json.obj("wildcard" -> Json.obj("key" -> Json.obj("value" -> pattern)))
@@ -223,7 +201,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
     Json.obj(
       "query" -> Json.obj(
         "bool" -> Json.obj(
-          "should"               -> Json.arr(queryWithTTL, queryWithoutTTL),
+          "should"               -> Json.arr(queryWithoutTTL),
           "minimum_should_match" -> 1
         )
       )
