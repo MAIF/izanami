@@ -205,19 +205,20 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </ul>
 <p>This king of key naming bring several advantages. </p>
 <h2><a href="#handling-user-authorisations" name="handling-user-authorisations" class="anchor"><span class="anchor-link"></span></a>Handling user authorisations</h2>
-<p>This kind of format for keys allow you to handle authorisations for different kind of applications. </p>
-<p>When you create a user, you can define &ldquo;authorized patterns&rdquo; ( <a href="ui.html#edit-a-user">see</a> ). </p>
+<p>This kind of format for keys allow you to handle authorisations for different kind of client applications. </p>
+<p>When you create a user, you can define &ldquo;authorized patterns&rdquo; ( <a href="ui.html#edit-a-user">more details here</a> ). </p>
 <p>You define a set of users with pattern <code>myapp:*</code> that will only see keys starting with <code>myapp:</code>, define a set of users with pattern <code>myapp2:*</code> that will only see keys starting with <code>myapp2:</code> and so on. </p>
 <p>The same rules are possible for api keys. </p>
-<h2><a href="#filtering-keys-for-client" name="filtering-keys-for-client" class="anchor"><span class="anchor-link"></span></a>Filtering keys for client</h2>
-<p>When you query izanami, you can use pattern in order to filter only the keys you need for your application. The form of the key can help you to get only the data you need. </p>
+<h2><a href="#filtering-keys-by-pattern-on-the-client-side" name="filtering-keys-by-pattern-on-the-client-side" class="anchor"><span class="anchor-link"></span></a>Filtering keys by pattern on the client side</h2>
+<p>When you query izanami, you can use pattern in order to filter only the keys you need in your application. The form of the key can help you to get only the data you need. </p>
 <p>You can for example define keys like </p>
 <ul>
   <li><code>myapp:prod:public:my:key1</code></li>
   <li><code>myapp:prod:public:my:key2</code></li>
-  <li><code>myapp:prod:private:my:key1</code></li>
+  <li><code>myapp:prod:private:my:key3</code></li>
 </ul>
 <p>And use the pattern <code>myapp:prod:public:*</code> for the keys exposed to the UI. </p>
+<p>This kind of pattern are mandatory if you use the <a href="clients/node.html">node</a> or <a href="clients/jvm.html">jvm</a> clients. </p>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/keys.md">here</a>.
 </div>
@@ -235,7 +236,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
   <li><a href="keys.html#key-definition-and-best-practices" class="header">Key definition and best practices</a>
   <ul>
     <li><a href="keys.html#handling-user-authorisations" class="header">Handling user authorisations</a></li>
-    <li><a href="keys.html#filtering-keys-for-client" class="header">Filtering keys for client</a></li>
+    <li><a href="keys.html#filtering-keys-by-pattern-on-the-client-side" class="header">Filtering keys by pattern on the client side</a></li>
   </ul></li>
 </ul>
 </div>
