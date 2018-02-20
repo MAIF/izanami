@@ -671,7 +671,7 @@ trait EventStore extends Closeable {
 
   def dropUntilLastId(lastId: Option[Long]): Flow[IzanamiEvent, IzanamiEvent, NotUsed] =
     lastId.map { id =>
-      Flow[IzanamiEvent].dropWhile(_._id <= id)
+      Flow[IzanamiEvent].filter(_._id > id)
     } getOrElse {
       Flow[IzanamiEvent]
     }
