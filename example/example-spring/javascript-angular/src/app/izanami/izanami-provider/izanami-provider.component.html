@@ -9,7 +9,7 @@
                               [experiments]="experiments || {}"
                               [fallback]="experimentsFallback">
       <ng-template #experimentProviderContainer>
-        <ng-container *ngTemplateOutlet="children"></ng-container>
+        <ng-template *ngTemplateOutlet="children"></ng-template>
 
         <app-feature path="toto.tata.titi"></app-feature>
       </ng-template>
