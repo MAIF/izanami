@@ -15,6 +15,7 @@
  * [Configs](configs/index.md)
  * [Features](features/index.md)
  * [Experiments](experiments/index.md)
+ * [Keys](keys.md)
  * [Events](events.md)
  * [Clients](clients/index.md)
  * [Tutorials](tutorials/index.md)
