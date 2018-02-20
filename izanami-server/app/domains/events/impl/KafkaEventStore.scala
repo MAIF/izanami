@@ -12,7 +12,7 @@ import env.{KafkaConfig, KafkaEventsConfig}
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
-import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeserializer, StringSerializer}
 import play.api.{Environment, Logger}
 import play.api.libs.json.Json
@@ -20,6 +20,8 @@ import play.api.libs.json.Json
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
+
+import scala.collection.mutable
 
 object KafkaSettings {
 
@@ -88,6 +90,7 @@ class KafkaEventStore(_env: Environment,
                       eventsConfig: KafkaEventsConfig)
     extends EventStore {
 
+  import scala.collection.JavaConverters._
   import system.dispatcher
 
   Logger.info(s"Initializing kafka event store $clusterConfig")
@@ -101,6 +104,10 @@ class KafkaEventStore(_env: Environment,
     .consumerSettings(_env, system, clusterConfig)
     .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
+
+  private val tmpConsumer: KafkaConsumer[Array[Byte], String] = settings.createKafkaConsumer()
+  private val partitions: mutable.Buffer[PartitionInfo]       = tmpConsumer.partitionsFor(eventsConfig.topic).asScala
+  tmpConsumer.close()
 
   override def publish(event: IzanamiEvent): Future[Done] = {
     val promise: Promise[RecordMetadata] = Promise[RecordMetadata]
@@ -121,21 +128,19 @@ class KafkaEventStore(_env: Environment,
                       patterns: Seq[String],
                       lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] = {
 
-    import scala.collection.JavaConverters._
-
     val kafkaConsumer: KafkaConsumer[Array[Byte], String] =
       settings.createKafkaConsumer()
 
     val subscription: ManualSubscription = lastEventId.map { id =>
       val lastDate: Long = System.currentTimeMillis() - (1000 * 60 * 60 * 24)
       val topicsInfo: Seq[(TopicPartition, Long)] =
-        kafkaConsumer.partitionsFor(eventsConfig.topic).asScala.map { t =>
+        partitions.map { t =>
           new TopicPartition(eventsConfig.topic, t.partition()) -> lastDate
         }
       Subscriptions.assignmentOffsetsForTimes(topicsInfo: _*)
     } getOrElse {
       val topicsInfo: Seq[TopicPartition] =
-        kafkaConsumer.partitionsFor(eventsConfig.topic).asScala.map { t =>
+        partitions.map { t =>
           new TopicPartition(eventsConfig.topic, t.partition())
         }
       Subscriptions.assignment(topicsInfo: _*)
