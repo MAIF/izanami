@@ -72,6 +72,9 @@ case class ClientConfig(
     assert(dispatcher != null, "dispatcher should not be null")
     this.copy(dispatcher = dispatcher)
   }
+  def withDefaultBlockingDispatcher() = {
+    this.copy(dispatcher = "izanami.blocking-dispatcher")
+  }
   def withZoneId(zoneId: ZoneId) = {
     assert(zoneId != null, "zoneId should not be null")
     this.copy(zoneId = zoneId)
