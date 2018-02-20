@@ -1,0 +1,87 @@
+<div class="row" *ngIf="show">
+  <div class="col-md-12 details">
+    <div class="row">
+      <div class="col-md-1">
+        <a routerLink="/"><i class="fa fa-home fa-2x" aria-hidden="true"></i></a>
+      </div>
+      <div class="col-md-10">
+        <h1 style="text-align: center">{{show.title}}</h1>
+      </div>
+    </div>
+
+    <p>{{show.description}}</p>
+
+    <img class="center-block visuel" [src]="show.image"/>
+
+    <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+      <div *ngFor="let season of seasons; let indexSeason = index" class="panel panel-default">
+        <div class="panel-heading" role="tab">
+          <h4 class="panel-title">
+            <a
+              role="button"
+              data-toggle="collapse"
+              data-parent="#accordion"
+              href="#collapse-{{season.number}}"
+              [attr.aria-controls]="'collapse-' + season.number"
+              [attr.aria-expanded]="indexSeason == selectedSeason"
+            >
+              Season {{season.number}}
+
+              <!--<button *ngIf="!season.allWatched" type="button" class="btn btn default pull-right addBtn"-->
+              <!--(click)="markSeasonWatched(season.number, true)">-->
+              <!--ADD-->
+              <!--</button>-->
+              <!--<button *ngIf="season.allWatched" type="button" class="btn btn default pull-right addBtn"-->
+              <!--(click)="markSeasonWatched(season.number, false)">-->
+              <!--<i class="glyphicon glyphicon-ok"></i>-->
+              <!--</button>-->
+
+            </a>
+          </h4>
+        </div>
+
+        <div id="collapse-{{season.number}}" class="panel-collapse collapse"
+             [class.in]="indexSeason == selectedSeason"
+             [attr.aria-labelledby]="'heading-' + season.number"
+             role="tabpanel">
+          <div class="panel-body">
+            <table class="table">
+              <thead>
+              <tr>
+                <th>Number</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Watched</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr *ngFor="let episode of season.episodes">
+                <td>{{episode.number}}</td>
+                <td>{{episode.title}}</td>
+                <td>{{episode.description}}</td>
+                <td>
+
+                  <button *ngIf="!episode.watched" type="button" class="btn addBigBtn"
+                          (click)="markEpisodeWatched(episode.id, true)">
+                    ADD
+                  </button>
+                  <button *ngIf="episode.watched" type="button" class="btn addBigBtn"
+                          (click)="markEpisodeWatched(episode.id, false)">
+                    <i class="glyphicon glyphicon-ok"></i>
+                  </button>
+                </td>
+              </tr>
+
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+
+      </div>
+    </div>
+
+
+  </div>
+</div>
