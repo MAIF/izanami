@@ -106,7 +106,11 @@ object Strategy {
   case object DevStrategy                                                      extends Strategy
   case object FetchStrategy                                                    extends Strategy
   case class FetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration) extends Strategy
-  case class CacheWithSseStrategy(patterns: Seq[String])                       extends SmartCacheStrategy
+  case class CacheWithSseStrategy(patterns: Seq[String], pollingInterval: Option[FiniteDuration] = Some(20.seconds))
+      extends SmartCacheStrategy {
+    def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = Some(interval))
+    def withPollingDisabled() = copy(pollingInterval = None)
+  }
   case class CacheWithPollingStrategy(patterns: Seq[String], pollingInterval: FiniteDuration = 20.seconds)
       extends SmartCacheStrategy
 }
