@@ -115,7 +115,8 @@ object Strategy {
 ///////////////////////////  Events   /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-case class IzanamiEvent(key: String,
+case class IzanamiEvent(_id: Long,
+                        key: String,
                         `type`: String,
                         domain: String,
                         payload: JsObject,
@@ -359,11 +360,13 @@ case class ReleaseDateFeature(id: String, enabled: Boolean, date: LocalDateTime)
 }
 
 sealed trait FeatureEvent extends Event {
+  def eventId: Option[Long]
   def id: String
 }
 
 object FeatureEvent {
-  case class FeatureCreated(id: String, feature: Feature)                      extends FeatureEvent
-  case class FeatureUpdated(id: String, feature: Feature, oldFeature: Feature) extends FeatureEvent
-  case class FeatureDeleted(id: String)                                        extends FeatureEvent
+  case class FeatureCreated(eventId: Option[Long], id: String, feature: Feature) extends FeatureEvent
+  case class FeatureUpdated(eventId: Option[Long], id: String, feature: Feature, oldFeature: Feature)
+      extends FeatureEvent
+  case class FeatureDeleted(eventId: Option[Long], id: String) extends FeatureEvent
 }

@@ -11,14 +11,9 @@ import izanami.IzanamiBackend.SseBackend
 import izanami.Strategy.DevStrategy
 import izanami._
 import izanami.commons.{HttpClient, IzanamiException}
-import izanami.configs.{FallbackConfigStategy, FetchConfigClient, FetchWithCacheConfigClient, SmartCacheConfigClient}
+import izanami.configs._
 import izanami.experiments.{FallbackExperimentStrategy, FetchExperimentsStrategy}
-import izanami.features.{
-  FallbackFeatureStategy,
-  FetchFeatureClient,
-  FetchWithCacheFeatureClient,
-  SmartCacheFeatureClient
-}
+import izanami.features._
 import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigUpdated}
 import org.reactivestreams.Publisher
 import play.api.libs.json._
@@ -34,7 +29,6 @@ object IzanamiClient {
 }
 
 class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSystem) {
-  import akka.event.Logging
 
   private val client: HttpClient = HttpClient(actorSystem, config)
 
@@ -82,13 +76,13 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
       case DevStrategy =>
         FallbackConfigStategy(fallback)
       case Strategy.FetchStrategy =>
-        FetchConfigClient(client, config, fallback, source)
+        FetchConfigClient(RawFetchConfigClient(client, config, fallback, source), fallback)
       case s: Strategy.FetchWithCacheStrategy =>
-        FetchWithCacheConfigClient(config, fallback, FetchConfigClient(client, config, fallback, source), s)
+        FetchWithCacheConfigClient(config, fallback, RawFetchConfigClient(client, config, fallback, source), s)
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheConfigClient(config, FetchConfigClient(client, config, fallback, eventSource), fallback, s)
+        SmartCacheConfigClient(config, RawFetchConfigClient(client, config, fallback, eventSource), fallback, s)
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheConfigClient(config, FetchConfigClient(client, config, fallback, source), fallback, s)
+        SmartCacheConfigClient(config, RawFetchConfigClient(client, config, fallback, source), fallback, s)
     }
   }
 
@@ -122,13 +116,13 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
       case DevStrategy =>
         FallbackFeatureStategy(fb)
       case Strategy.FetchStrategy =>
-        FetchFeatureClient(client, config, fb, source)
+        FetchFeatureClient(RawFetchFeatureClient(client, config, fb, source), fb)
       case s: Strategy.FetchWithCacheStrategy =>
-        FetchWithCacheFeatureClient(config, FetchFeatureClient(client, config, fb, source), s)
+        FetchWithCacheFeatureClient(config, RawFetchFeatureClient(client, config, fb, source), s)
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fallback(config), eventSource), fb, s)
+        SmartCacheFeatureClient(config, RawFetchFeatureClient(client, config, fallback(config), eventSource), fb, s)
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fb, source), fb, s)
+        SmartCacheFeatureClient(config, RawFetchFeatureClient(client, config, fb, eventSource), fb, s)
     }
   }
 
@@ -362,9 +356,9 @@ trait FeatureClient {
    */
   def onFeatureChanged(key: String)(cb: Feature => Unit): Registration =
     onEvent(key) {
-      case FeatureCreated(id, f) if id == key =>
+      case FeatureCreated(_, id, f) if id == key =>
         cb(f)
-      case FeatureUpdated(id, f, _) if id == key =>
+      case FeatureUpdated(_, id, f, _) if id == key =>
         cb(f)
     }
 
@@ -557,9 +551,9 @@ sealed trait ConfigEvent extends Event {
 }
 
 object ConfigEvent {
-  case class ConfigCreated(id: String, config: Config)                    extends ConfigEvent
-  case class ConfigUpdated(id: String, config: Config, oldConfig: Config) extends ConfigEvent
-  case class ConfigDeleted(id: String)                                    extends ConfigEvent
+  case class ConfigCreated(eventId: Option[Long], id: String, config: Config)                    extends ConfigEvent
+  case class ConfigUpdated(eventId: Option[Long], id: String, config: Config, oldConfig: Config) extends ConfigEvent
+  case class ConfigDeleted(eventId: Option[Long], id: String)                                    extends ConfigEvent
 }
 
 trait ConfigClient {
@@ -582,9 +576,9 @@ trait ConfigClient {
    */
   def onConfigChanged(key: String)(cb: JsValue => Unit): Registration =
     onEvent(key) {
-      case ConfigCreated(id, c) if id == key =>
+      case ConfigCreated(_, id, c) if id == key =>
         cb(c.value)
-      case ConfigUpdated(id, c, _) if id == key =>
+      case ConfigUpdated(_, id, c, _) if id == key =>
         cb(c.value)
     }
 

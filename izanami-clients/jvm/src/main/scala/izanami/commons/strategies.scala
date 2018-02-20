@@ -14,8 +14,8 @@ object SmartCacheStrategyActor {
   case object Init
   case object Stop
   case object RefreshCache
-  case class SetValues[T](values: Seq[(String, T)], triggerEvent: Boolean)
-  case class RemoveValues[T](values: Seq[String], triggerEvent: Boolean)
+  case class SetValues[T](values: Seq[(String, T)], eventId: Option[Long], triggerEvent: Boolean)
+  case class RemoveValues[T](values: Seq[String], eventId: Option[Long], triggerEvent: Boolean)
   case class Get(key: String)
   case class GetByPattern(key: String)
 
@@ -96,7 +96,7 @@ private[izanami] class SmartCacheStrategyActor[T](
       log.info(s"Initializing smart cache actor with strategy $config and patterns $patterns")
       val initValues: Future[SetValues[T]] =
         fetchData(patterns.toSeq).map { r =>
-          SetValues[T](r, triggerEvent = true)
+          SetValues[T](r, None, triggerEvent = true)
         }
       initValues.onComplete {
         case Failure(e) =>
@@ -134,7 +134,7 @@ private[izanami] class SmartCacheStrategyActor[T](
       pipe(futureValues.map(s => s.map(_._2))) to sender()
 
       // Update internal cache
-      pipe(futureValues.map(r => SetValues[T](r, triggerEvent = true))) to self
+      pipe(futureValues.map(r => SetValues[T](r, None, triggerEvent = true))) to self
 
     case Get(key) if PatternsUtil.matchOnePattern(patterns.toSeq)(key) =>
       sender() ! cache.get(key)
@@ -153,19 +153,19 @@ private[izanami] class SmartCacheStrategyActor[T](
       log.debug(s"Refresh cache for patterns $patterns")
       val keysAndPatterns: Seq[String] = resolvePatterns(patterns.toSeq, cache.keys.toSeq)
 
-      val call: Future[SetValues[T]] = fetchData(keysAndPatterns).map(r => SetValues[T](r, triggerEvent = true))
+      val call: Future[SetValues[T]] = fetchData(keysAndPatterns).map(r => SetValues[T](r, None, triggerEvent = true))
       call.onComplete {
         case Failure(e) if config.isInstanceOf[CacheWithSseStrategy] =>
-              log.error(e, "Error refreshing cache, retrying in 5 seconds")
-              context.system.scheduler
-                .scheduleOnce(5.seconds, self, RefreshCache)
+          log.error(e, "Error refreshing cache, retrying in 5 seconds")
+          context.system.scheduler
+            .scheduleOnce(5.seconds, self, RefreshCache)
         case Failure(e) =>
           log.error(e, "Error refreshing cache")
         case _ =>
       }
       pipe(call) to self
 
-    case SetValues(values, triggerEvent) =>
+    case SetValues(values, lastId, triggerEvent) =>
       log.debug("Updating cache with values {}", values)
       val valuesToUpdate: Seq[(String, T)] = values
         .asInstanceOf[Seq[(String, T)]]
@@ -198,7 +198,7 @@ private[izanami] class SmartCacheStrategyActor[T](
         discardOld = true
       )
 
-    case RemoveValues(keys, triggerEvent) =>
+    case RemoveValues(keys, lastId, triggerEvent) =>
       val deletes: Seq[CacheEvent[T]] = cache.collect {
         case (k, v) if keys.contains(k) =>
           ValueDeleted[T](k, v)

@@ -213,7 +213,7 @@ class SmartCacheFeatureClientSpec
         ctx.calls.size must be(1)
 
         // We update feature via sse
-        ctx.push(FeatureUpdated("test1", DefaultFeature("test1", false), DefaultFeature("test1", true)))
+        ctx.push(FeatureUpdated(Some(1), "test1", DefaultFeature("test1", false), DefaultFeature("test1", true)))
 
         //We wait that the events arrive
         val featuresUpdated: Features = pattern
