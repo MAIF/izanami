@@ -106,7 +106,8 @@ class KafkaEventStore(_env: Environment,
     val promise: Promise[RecordMetadata] = Promise[RecordMetadata]
     try {
       val message = Json.stringify(event.toJson)
-      producer.send(new ProducerRecord[Array[Byte], String](eventsConfig.topic, event.key.key.getBytes, message), callback(promise))
+      producer.send(new ProducerRecord[Array[Byte], String](eventsConfig.topic, event.key.key.getBytes, message),
+                    callback(promise))
     } catch {
       case NonFatal(e) =>
         promise.failure(e)
