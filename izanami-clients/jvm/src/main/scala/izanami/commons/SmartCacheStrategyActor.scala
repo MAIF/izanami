@@ -78,10 +78,15 @@ private[izanami] class SmartCacheStrategyActor[T](
 
     case Init =>
       val scheduler: Option[Cancellable] = config match {
-        case c: CacheWithPollingStrategy =>
+        case CacheWithPollingStrategy(_, pollingInterval) =>
           Some(
             context.system.scheduler
-              .schedule(c.pollingInterval, c.pollingInterval, self, RefreshCache)
+              .schedule(pollingInterval, pollingInterval, self, RefreshCache)
+          )
+        case CacheWithSseStrategy(_, Some(pollingInterval)) =>
+          Some(
+            context.system.scheduler
+              .schedule(pollingInterval, pollingInterval, self, RefreshCache)
           )
         case _ => None
       }
@@ -155,10 +160,6 @@ private[izanami] class SmartCacheStrategyActor[T](
 
       val call: Future[SetValues[T]] = fetchData(keysAndPatterns).map(r => SetValues[T](r, None, triggerEvent = true))
       call.onComplete {
-        case Failure(e) if config.isInstanceOf[CacheWithSseStrategy] =>
-          log.error(e, "Error refreshing cache, retrying in 5 seconds")
-          context.system.scheduler
-            .scheduleOnce(5.seconds, self, RefreshCache)
         case Failure(e) =>
           log.error(e, "Error refreshing cache")
         case _ =>
