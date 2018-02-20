@@ -1,4 +1,4 @@
-import {Component, Input, OnDestroy, OnInit} from '@angular/core';
+import {Component, Input, OnDestroy, OnInit, TemplateRef} from '@angular/core';
 import {FeatureProviderComponent} from "../feature-provider/feature-provider.component";
 import {IzanamiService} from "../izanami.service";
 import {deepEqual} from "assert";
@@ -16,6 +16,13 @@ export class FeatureComponent implements OnInit, OnDestroy {
 
   @Input("debug")
   debug: boolean;
+
+  @Input("enabled")
+  enabled: TemplateRef<any>;
+
+  @Input("disabled")
+  disabled: TemplateRef<any>;
+
 
   features: any;
 
