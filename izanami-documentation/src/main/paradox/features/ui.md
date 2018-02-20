@@ -40,6 +40,8 @@ In this example, the feature is active if the user send in the context is `ragna
 
 <img src="../img/features/script.png" width="80%" />
 
+You can find more details about script @ref[on this page](./index.md#script).
+
 ### GLOBAL SCRIPT 
 
 Global script strategy is the same as script except that the script are shared between features. 
