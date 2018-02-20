@@ -645,11 +645,11 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
 
   private def convertEvent(evt: izanami.scaladsl.ConfigEvent): ConfigEvent =
     evt match {
-      case izanami.scaladsl.ConfigEvent.ConfigCreated(id, c) =>
+      case izanami.scaladsl.ConfigEvent.ConfigCreated(_, id, c) =>
         ConfigCreated(id, Config(c))
-      case izanami.scaladsl.ConfigEvent.ConfigUpdated(id, c, o) =>
+      case izanami.scaladsl.ConfigEvent.ConfigUpdated(_, id, c, o) =>
         ConfigUpdated(id, Config(c), Config(o))
-      case izanami.scaladsl.ConfigEvent.ConfigDeleted(id) => ConfigDeleted(id)
+      case izanami.scaladsl.ConfigEvent.ConfigDeleted(_, id) => ConfigDeleted(id)
     }
 
   /**

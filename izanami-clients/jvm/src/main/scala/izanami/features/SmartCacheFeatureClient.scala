@@ -41,7 +41,7 @@ private[features] class SmartCacheFeatureClient(
 
   private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
     case e =>
-      logger.error("Failure during call", e)
+      logger.error(e, "Failure during call")
       v
   }
 
@@ -67,20 +67,20 @@ private[features] class SmartCacheFeatureClient(
 
   def onValueUpdated(updates: Seq[CacheEvent[Feature]]): Unit =
     updates.foreach {
-      case ValueCreated(k, v)      => queue.offer(FeatureCreated(k, v))
-      case ValueUpdated(k, v, old) => queue.offer(FeatureUpdated(k, v, old))
-      case ValueDeleted(k, _)      => queue.offer(FeatureDeleted(k))
+      case ValueCreated(k, v)      => queue.offer(FeatureCreated(None, k, v))
+      case ValueUpdated(k, v, old) => queue.offer(FeatureUpdated(None, k, v, old))
+      case ValueDeleted(k, _)      => queue.offer(FeatureDeleted(None, k))
     }
 
   underlyingStrategy
     .featuresSource("*")
     .runWith(Sink.foreach {
-      case FeatureCreated(id, f) =>
-        ref ! SetValues(Seq((id, f)), triggerEvent = false)
-      case FeatureUpdated(id, f, _) =>
-        ref ! SetValues(Seq((id, f)), triggerEvent = false)
-      case FeatureDeleted(id) =>
-        ref ! RemoveValues(Seq(id), triggerEvent = false)
+      case FeatureCreated(eventId, id, f) =>
+        ref ! SetValues(Seq((id, f)), eventId, triggerEvent = false)
+      case FeatureUpdated(eventId, id, f, _) =>
+        ref ! SetValues(Seq((id, f)), eventId, triggerEvent = false)
+      case FeatureDeleted(eventId, id) =>
+        ref ! RemoveValues(Seq(id), eventId, triggerEvent = false)
     })
 
   override def features(pattern: String): Future[Features] = {
@@ -109,7 +109,7 @@ private[features] class SmartCacheFeatureClient(
                 case _                      => true
               }
               .foreach { f =>
-                ref ! SetValues(Seq((f.id, f)), triggerEvent = true)
+                ref ! SetValues(Seq((f.id, f)), None, triggerEvent = true)
               }
           case _ =>
         }

@@ -63,12 +63,12 @@ class SmartCacheConfigClient(
   underlyingStrategy
     .configsSource("*")
     .runWith(Sink.foreach {
-      case ConfigCreated(id, c) =>
-        ref ! SetValues(Seq((id, c)), triggerEvent = false)
-      case ConfigUpdated(id, c, _) =>
-        ref ! SetValues(Seq((id, c)), triggerEvent = false)
-      case ConfigDeleted(id) =>
-        ref ! RemoveValues(Seq(id), triggerEvent = false)
+      case ConfigCreated(eventId, id, c) =>
+        ref ! SetValues(Seq((id, c)), eventId, triggerEvent = false)
+      case ConfigUpdated(eventId, id, c, _) =>
+        ref ! SetValues(Seq((id, c)), eventId, triggerEvent = false)
+      case ConfigDeleted(eventId, id) =>
+        ref ! RemoveValues(Seq(id), eventId, triggerEvent = false)
     })
 
   private val (queue, internalEventSource) = Source
@@ -78,10 +78,11 @@ class SmartCacheConfigClient(
 
   def onValueUpdated(updates: Seq[CacheEvent[Config]]): Unit =
     updates.foreach {
-      case ValueCreated(k, v)      => queue.offer(ConfigCreated(k, v))
-      case ValueUpdated(k, v, old) => queue.offer(ConfigUpdated(k, v, old))
-      case ValueDeleted(k, _)      => queue.offer(ConfigDeleted(k))
+      case ValueCreated(k, v)      => queue.offer(ConfigCreated(None, k, v))
+      case ValueUpdated(k, v, old) => queue.offer(ConfigUpdated(None, k, v, old))
+      case ValueDeleted(k, _)      => queue.offer(ConfigDeleted(None, k))
     }
+
   override def configs(pattern: String): Future[Configs] = {
     val convertedPattern: String =
       Option(pattern).map(_.replace(".", ":")).getOrElse("*")

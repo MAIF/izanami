@@ -60,7 +60,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   implicit val actorSystem = system
   implicit val mat         = ActorMaterializer(ActorMaterializerSettings(system).withDispatcher(config.dispatcher))
 
-  private val logger = Logging(system, this.getClass.getSimpleName)
+  private val logger = Logging(system, this.getClass.getName)
 
   private val http = Http()
 
@@ -177,18 +177,19 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
       },
       initialLastEventId = None,
       retryDelay = 2.seconds
-    ).map(sse => Json.parse(sse.data))
-      .mapConcat(
-        json =>
+    ).map(sse => (sse.id, Json.parse(sse.data)))
+      .mapConcat {
+        case (id, json) =>
+          logger.debug("new sse message {}", Json.stringify(json))
           json
             .validate[IzanamiEvent]
             .fold(
               err => {
                 actorSystem.log
-                  .error("Error deserializing event {}: {}", json, err)
+                  .error("Error deserializing event id: [{}] {}: {}", id, json, err)
                 List.empty
               },
               s => List(s)
-          )
-      )
+            )
+      }
 }
