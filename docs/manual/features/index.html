@@ -255,7 +255,53 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <p>this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not. </p>
 <p>In this example, the feature is active if the user sent in the context is <code>ragnar.lodbrock@gmail.com</code> : </p>
 <img src="../img/features/script.png" width="80%" />
-<p>You can find more details about script <a href="../ui.html#create-or-update-a-script">on this page</a>.</p>
+<p>When writing a script, you have access to </p>
+<ul>
+  <li><code>context</code>: A json object send by the client</li>
+  <li><code>enabled</code>: A function to call, the feature is enabled</li>
+  <li><code>disabled</code>: A function to call, the feature is disabled</li>
+  <li><code>http</code>: An http client that can be used to request an API.</li>
+</ul>
+<p>The http client expose the call method that take two args :</p>
+<ul>
+  <li><code>options</code>, an object with the following possible attributes
+    <ul>
+      <li><code>url</code> (required): The url to call.</li>
+      <li><code>method</code> (default get): The http method betwwen <code>get</code>, <code>post</code>, <code>put</code>, <code>delete</code>, <code>option</code>, <code>patch</code></li>
+      <li><code>headers</code> : A object with headerName -&gt; Value</li>
+      <li><code>body</code> : An optional json string</li>
+    </ul>
+  </li>
+  <li><code>callback</code>: A bifunction with failure or success.</li>
+</ul>
+<pre class="prettyprint"><code class="language-javascript">function enabled(context, enabled, disabled, http) {
+    http.call({
+      url: &quot;http://localhost:9000/api/features/feature:with:script/check&quot;, 
+      method: &quot;post&quot;, 
+      headers: {
+        &quot;Izanami-Client-Id&quot;: &quot;xxxx&quot;,
+        &quot;Izanami-Client-Secret&quot;: &quot;xxxx&quot;, 
+        &quot;Content-Type&quot;: &quot;application/json&quot;
+      }, 
+      body: JSON.stringify({
+        user: context.user
+      })
+    }, 
+    function (error, success) {
+      if (error) {
+        return enabled()
+      } else {
+        var resp = JSON.parse(success)
+        if (resp.active) {
+          return enabled(); 
+        } else {
+          return disabled();
+        }
+      }
+    }
+  )
+}
+</code></pre>
 <h2><a href="#global-script" name="global-script" class="anchor"><span class="anchor-link"></span></a>GLOBAL SCRIPT</h2>
 <p>Global script strategy is the same as script except that the script are shared between features. </p>
 <p>You can find more details about global scripts <a href="../ui.html#create-or-update-a-script">on this page</a>.</p>
