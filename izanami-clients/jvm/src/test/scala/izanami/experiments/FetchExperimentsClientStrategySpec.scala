@@ -130,8 +130,8 @@ class FetchExperimentsClientStrategySpec extends IzanamiSpec with BeforeAndAfter
 
     "Tree experiments with disabled experiment" in {
 
-      val variantA            = Variant("A", "Variant A", "The A variant")
-      val variantB            = Variant("B", "Variant B", "The B variant")
+      val variantA = Variant("A", "Variant A", "The A variant")
+      val variantB = Variant("B", "Variant B", "The B variant")
 
       val client = IzanamiClient(ClientConfig(host))
         .experimentClient(

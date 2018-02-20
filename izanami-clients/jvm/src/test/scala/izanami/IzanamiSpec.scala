@@ -620,16 +620,18 @@ trait ConfigServer {
 
   def serializeEvent(event: ConfigEvent): JsValue =
     event match {
-      case ConfigCreated(id, c) =>
+      case ConfigCreated(eventId, id, c) =>
         Json.obj(
+          "_id"       -> eventId,
           "type"      -> "CONFIG_CREATED",
           "key"       -> id,
           "domain"    -> "Config",
           "payload"   -> Json.toJson(c),
           "timestamp" -> System.currentTimeMillis()
         )
-      case ConfigUpdated(id, c, o) =>
+      case ConfigUpdated(eventId, id, c, o) =>
         Json.obj(
+          "_id"       -> eventId,
           "type"      -> "CONFIG_UPDATED",
           "key"       -> id,
           "domain"    -> "Config",
@@ -637,8 +639,9 @@ trait ConfigServer {
           "oldValue"  -> Json.toJson(o),
           "timestamp" -> System.currentTimeMillis()
         )
-      case ConfigDeleted(id) =>
+      case ConfigDeleted(eventId, id) =>
         Json.obj(
+          "_id"       -> eventId,
           "type"      -> "CONFIG_DELETED",
           "key"       -> id,
           "domain"    -> "Config",
@@ -769,16 +772,18 @@ trait FeatureServer {
 
   def serializeEvent(event: FeatureEvent): JsValue =
     event match {
-      case FeatureCreated(id, f) =>
+      case FeatureCreated(eventId, id, f) =>
         Json.obj(
+          "_id"       -> eventId,
           "type"      -> "FEATURE_CREATED",
           "key"       -> id,
           "domain"    -> "Feature",
           "payload"   -> Json.toJson(f),
           "timestamp" -> System.currentTimeMillis()
         )
-      case FeatureUpdated(id, f, o) =>
+      case FeatureUpdated(eventId, id, f, o) =>
         Json.obj(
+          "_id"       -> eventId,
           "type"      -> "FEATURE_UPDATED",
           "key"       -> id,
           "domain"    -> "Feature",
@@ -786,8 +791,9 @@ trait FeatureServer {
           "oldValue"  -> Json.toJson(o),
           "timestamp" -> System.currentTimeMillis()
         )
-      case FeatureDeleted(id) =>
+      case FeatureDeleted(eventId, id) =>
         Json.obj(
+          "_id"       -> eventId,
           "type"      -> "FEATURE_DELETED",
           "key"       -> id,
           "domain"    -> "Feature",

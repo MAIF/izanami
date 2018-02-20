@@ -172,7 +172,10 @@ class SmartCacheConfigClientSpec
 
         // We update config via sse
         ctx.push(
-          ConfigUpdated("test1", Config("test1", Json.obj("value" -> 3)), Config("test1", Json.obj("value" -> 1)))
+          ConfigUpdated(Some(1),
+                        "test1",
+                        Config("test1", Json.obj("value" -> 3)),
+                        Config("test1", Json.obj("value" -> 1)))
         )
 
         //We wait that the events arrive
