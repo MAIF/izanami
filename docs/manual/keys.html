@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Whats in the box · Izanami</title>
+<title>Key definition and best practices · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -39,7 +39,7 @@
   <li><a href="quickstart.html" class="page">Quick start</a></li>
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="features.html" class="active page">What&rsquo;s in the box</a></li>
+  <li><a href="features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="architecture/index.html" class="page">Architecture</a></li>
   <li><a href="getizanami/index.html" class="page">Get Izanami</a>
   <ul>
@@ -69,7 +69,7 @@
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
     <li><a href="experiments/api.html" class="page">APIs</a></li>
   </ul></li>
-  <li><a href="keys.html" class="page">Key definition and best practices</a></li>
+  <li><a href="keys.html" class="active page">Key definition and best practices</a></li>
   <li><a href="events.html" class="page">Listen to events</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
   <ul>
@@ -125,7 +125,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="quickstart.html" class="page">Quick start</a></li>
   <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
-  <li><a href="features.html" class="active page">What&rsquo;s in the box</a></li>
+  <li><a href="features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="architecture/index.html" class="page">Architecture</a></li>
   <li><a href="getizanami/index.html" class="page">Get Izanami</a>
   <ul>
@@ -155,7 +155,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="experiments/ui.html" class="page">The UI</a></li>
     <li><a href="experiments/api.html" class="page">APIs</a></li>
   </ul></li>
-  <li><a href="keys.html" class="page">Key definition and best practices</a></li>
+  <li><a href="keys.html" class="active page">Key definition and best practices</a></li>
   <li><a href="events.html" class="page">Listen to events</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
   <ul>
@@ -183,7 +183,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="index.html">Izanami</a></li>
-  <li>What&rsquo;s in the box</li>
+  <li>Key definition and best practices</li>
 </ul>
 </div>
 </div>
@@ -191,61 +191,56 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#whats-in-the-box" name="whats-in-the-box" class="anchor"><span class="anchor-link"></span></a>What&rsquo;s in the box</h1>
-<p>Izanami provide a couple of features : </p>
+<h1><a href="#key-definition-and-best-practices" name="key-definition-and-best-practices" class="anchor"><span class="anchor-link"></span></a>Key definition and best practices</h1>
+<p>The key format handled by Izanami is namespaces separated by a <code>:</code>. </p>
+<p>The recommended format is : </p>
 <ul>
-  <li>Simple UI and/or API driven</li>
-  <li>Easy to implement toggling rules</li>
-  <li>Real time conversion rate statistics to evaluate A/B testing</li>
-  <li>Shared configuration</li>
-  <li>Feature flipping
-    <ul>
-      <li>Activation strategy: by date, by script</li>
-    </ul>
-  </li>
-  <li>A/B testing</li>
-  <li>Scalable</li>
-  <li>Real time event publication
-    <ul>
-      <li>Webhook</li>
-      <li>Server sent event</li>
-    </ul>
-  </li>
-  <li>Dedicated client
-    <ul>
-      <li>Java, Scala, Node and React clients</li>
-    </ul>
-  </li>
-  <li>Multi-datastores support
-    <ul>
-      <li>Redis</li>
-      <li>LevelDB</li>
-      <li>In-memory</li>
-      <li>Cassandra</li>
-      <li>Elastic search</li>
-      <li>more to come</li>
-    </ul>
-  </li>
-  <li>Multi event store support
-    <ul>
-      <li>redis</li>
-      <li>kafka</li>
-      <li>akka distributed pub sub</li>
-    </ul>
-  </li>
-  <li>Advandced Clever-Cloud integration</li>
-  <li>Advandced Otoroshi integration</li>
-  <li>Made with love</li>
+  <li><code>app namespace</code> <code>:</code> <code>env namespace</code> <code>:</code> <code>the rest of the key</code></li>
 </ul>
+<p>For example you could have keys defined like this : </p>
+<ul>
+  <li><code>myapp:dev:my:key</code></li>
+  <li><code>myapp:preprod:my:key</code></li>
+  <li><code>myapp:prod:my:key</code></li>
+</ul>
+<p>This king of key naming bring several advantages. </p>
+<h2><a href="#handling-user-authorisations" name="handling-user-authorisations" class="anchor"><span class="anchor-link"></span></a>Handling user authorisations</h2>
+<p>This kind of format for keys allow you to handle authorisations for different kind of applications. </p>
+<p>When you create a user, you can define &ldquo;authorized patterns&rdquo; ( <a href="ui.html#edit-a-user">see</a> ). </p>
+<p>You define a set of users with pattern <code>myapp:*</code> that will only see keys starting with <code>myapp:</code>, define a set of users with pattern <code>myapp2:*</code> that will only see keys starting with <code>myapp2:</code> and so on. </p>
+<p>The same rules are possible for api keys. </p>
+<h2><a href="#filtering-keys-for-client" name="filtering-keys-for-client" class="anchor"><span class="anchor-link"></span></a>Filtering keys for client</h2>
+<p>When you query izanami, you can use pattern in order to filter only the keys you need for your application. The form of the key can help you to get only the data you need. </p>
+<p>You can for example define keys like </p>
+<ul>
+  <li><code>myapp:prod:public:my:key1</code></li>
+  <li><code>myapp:prod:public:my:key2</code></li>
+  <li><code>myapp:prod:private:my:key1</code></li>
+</ul>
+<p>And use the pattern <code>myapp:prod:public:*</code> for the keys exposed to the UI. </p>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/features.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/keys.md">here</a>.
 </div>
 
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="architecture/index.html">Architecture</a></p>
+<p><strong>Next:</strong> <a href="events.html">Listen to events</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="keys.html#key-definition-and-best-practices" class="header">Key definition and best practices</a>
+  <ul>
+    <li><a href="keys.html#handling-user-authorisations" class="header">Handling user authorisations</a></li>
+    <li><a href="keys.html#filtering-keys-for-client" class="header">Filtering keys for client</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 
