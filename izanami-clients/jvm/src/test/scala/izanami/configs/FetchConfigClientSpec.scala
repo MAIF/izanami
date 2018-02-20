@@ -134,11 +134,14 @@ class FetchConfigClientSpec
         )
 
         val expectedEvents = Seq(
-          ConfigCreated("id1", Config("id1", Json.obj("config"        -> 1))),
-          ConfigUpdated("filter:id2", Config("id1", Json.obj("config" -> 1)), Config("id1", Json.obj("config" -> 2))),
-          ConfigCreated("filter:id3", Config("id1", Json.obj("config" -> 3))),
-          ConfigDeleted("id4"),
-          ConfigDeleted("id5")
+          ConfigCreated(Some(1), "id1", Config("id1", Json.obj("config" -> 1))),
+          ConfigUpdated(Some(2),
+                        "filter:id2",
+                        Config("id1", Json.obj("config"                        -> 1)),
+                        Config("id1", Json.obj("config"                        -> 2))),
+          ConfigCreated(Some(3), "filter:id3", Config("id1", Json.obj("config" -> 3))),
+          ConfigDeleted(Some(4), "id4"),
+          ConfigDeleted(Some(5), "id5")
         )
 
         val fEvents = strategy

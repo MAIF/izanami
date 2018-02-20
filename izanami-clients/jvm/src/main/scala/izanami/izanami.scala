@@ -72,6 +72,9 @@ case class ClientConfig(
     assert(dispatcher != null, "dispatcher should not be null")
     this.copy(dispatcher = dispatcher)
   }
+  def withDefaultBlockingDispatcher() = {
+    this.copy(dispatcher = "izanami.blocking-dispatcher")
+  }
   def withZoneId(zoneId: ZoneId) = {
     assert(zoneId != null, "zoneId should not be null")
     this.copy(zoneId = zoneId)
@@ -106,7 +109,11 @@ object Strategy {
   case object DevStrategy                                                      extends Strategy
   case object FetchStrategy                                                    extends Strategy
   case class FetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration) extends Strategy
-  case class CacheWithSseStrategy(patterns: Seq[String])                       extends SmartCacheStrategy
+  case class CacheWithSseStrategy(patterns: Seq[String], pollingInterval: Option[FiniteDuration] = Some(20.seconds))
+      extends SmartCacheStrategy {
+    def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = Some(interval))
+    def withPollingDisabled() = copy(pollingInterval = None)
+  }
   case class CacheWithPollingStrategy(patterns: Seq[String], pollingInterval: FiniteDuration = 20.seconds)
       extends SmartCacheStrategy
 }
@@ -115,7 +122,8 @@ object Strategy {
 ///////////////////////////  Events   /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-case class IzanamiEvent(key: String,
+case class IzanamiEvent(_id: Long,
+                        key: String,
                         `type`: String,
                         domain: String,
                         payload: JsObject,
@@ -359,11 +367,13 @@ case class ReleaseDateFeature(id: String, enabled: Boolean, date: LocalDateTime)
 }
 
 sealed trait FeatureEvent extends Event {
+  def eventId: Option[Long]
   def id: String
 }
 
 object FeatureEvent {
-  case class FeatureCreated(id: String, feature: Feature)                      extends FeatureEvent
-  case class FeatureUpdated(id: String, feature: Feature, oldFeature: Feature) extends FeatureEvent
-  case class FeatureDeleted(id: String)                                        extends FeatureEvent
+  case class FeatureCreated(eventId: Option[Long], id: String, feature: Feature) extends FeatureEvent
+  case class FeatureUpdated(eventId: Option[Long], id: String, feature: Feature, oldFeature: Feature)
+      extends FeatureEvent
+  case class FeatureDeleted(eventId: Option[Long], id: String) extends FeatureEvent
 }
