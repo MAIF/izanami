@@ -8,7 +8,7 @@ import {IzanamiProvider, Api as IzanamiApi} from 'react-izanami';
 import './styles.scss'
 import React from 'react';
 import ReactDOM from 'react-dom';
-import MyTvShows from './pages/MyTvShows';
+import MyTvShows from './pages/MyTvshows';
 import TvShow from './pages/TvShow';
 import Login from './pages/Login';
 

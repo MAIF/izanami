@@ -1,0 +1,29 @@
+<ng-select
+  #mySelect
+  [options]="options"
+  [allowClear]="true"
+  (noOptionsFound)="onNoOptionsFound($event)"
+  (selected)="selected($event)"
+>
+  <ng-template #optionTemplate
+               let-option="option">
+    <div>
+      <button class="btn btn-default btnSearch" style="width: 100%">
+        <div class="row resultSearch">
+          <div class="col-md-3">
+            <img width="300px" *ngIf="option.image" [src]="option.image"/>
+          </div>
+          <div class="col-md-9">
+            <div class="TvResult">
+              <h3>{{option.title}} ({{option.source}})</h3>
+              <p>
+                {{option.description | slice:0:120}}
+              </p>
+            </div>
+          </div>
+        </div>
+      </button>
+    </div>
+  </ng-template>
+</ng-select>
+

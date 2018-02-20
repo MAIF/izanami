@@ -1,0 +1,18 @@
+<app-feature-provider [children]="featureProviderContainer"
+                      [debug]="debug"
+                      [features]="features || {}"
+                      [fallback]="fallback"
+                      [fetchFrom]="fetchFrom ? fetchFrom : null">
+  <ng-template #featureProviderContainer>
+    <app-experiments-provider [children]="experimentProviderContainer"
+                              [debug]="debug"
+                              [experiments]="experiments || {}"
+                              [fallback]="experimentsFallback">
+      <ng-template #experimentProviderContainer>
+        <ng-container *ngTemplateOutlet="children"></ng-container>
+
+        <app-feature path="toto.tata.titi"></app-feature>
+      </ng-template>
+    </app-experiments-provider>
+  </ng-template>
+</app-feature-provider>
