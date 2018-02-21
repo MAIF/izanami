@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.2*
+1.0.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -116,7 +116,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.2*
+1.0.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -240,7 +240,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <p>To run the application, you will need </p>
 <ul>
   <li>JDK 8 : <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html</a></li>
-  <li>sbt : <a href="http://www.scala-sbt.org/download.html">http://www.scala-sbt.org/download.html</a></li>
+  <li>sbt : <a href="http://www.scala-sbt.org/download.html">http://www.scala-sbt.org/download.html</a> or gradle <a href="https://gradle.org/install/">https://gradle.org/install/</a></li>
   <li>Node js : <a href="https://nodejs.org/en/download/">https://nodejs.org/en/download/</a></li>
   <li>Yarn : <a href="https://yarnpkg.com/lang/en/docs/install/">https://yarnpkg.com/lang/en/docs/install/</a></li>
 </ul>
@@ -254,8 +254,17 @@ yarn start
 </code></pre>
 <p>Now there is a webpack server waiting to refresh the browser when the code change. </p>
 <p>Let&rsquo;s run the server side : </p>
-<pre class="prettyprint"><code class="language-bash">sbt &#39;project example-spring&#39; &#39;;clean;~reStart&#39;
-</code></pre>
+<dl>
+  <dt>Graddle</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-bash">cd example/example-spring/
+gradle bootRun 
+</code></pre></dd>
+  <dt>Sbt</dt>
+  <dd>
+  <pre class="prettyprint"><code class="language-bash">sbt &#39;project example-spring&#39; &#39;;clean;~reStart&#39;
+</code></pre></dd>
+</dl>
 <p>Like on the client side, the server will be restarted automatically when your code will change. </p>
 <p>Now just open your browser and go to <a href="http://localhost:8080/">http://localhost:8080/</a></p>
 <p>You can log with any email : </p>

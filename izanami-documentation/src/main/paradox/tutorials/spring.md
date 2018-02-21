@@ -40,7 +40,7 @@ The code is organized as follow :
 To run the application, you will need 
 
 * JDK 8 : http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
-* sbt : http://www.scala-sbt.org/download.html
+* sbt : http://www.scala-sbt.org/download.html or gradle https://gradle.org/install/
 * Node js : https://nodejs.org/en/download/ 
 * Yarn : https://yarnpkg.com/lang/en/docs/install/ 
 
@@ -62,6 +62,15 @@ Now there is a webpack server waiting to refresh the browser when the code chang
 
 Let's run the server side : 
 
+Graddle
+:   
+```bash
+cd example/example-spring/
+gradle bootRun 
+```
+
+Sbt
+:   
 ```bash
 sbt 'project example-spring' ';clean;~reStart'
 ```
