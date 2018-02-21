@@ -65,13 +65,14 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
             )
         )
       case "prod" =>
+        import scala.collection.JavaConverters._
         val tryDecode = Try {
           val algorithm = Algorithm.HMAC512(config.sharedKey)
           val verifier =
             JWT.require(algorithm).withIssuer(config.issuer).build()
           val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
           val maybeUser: Option[User] = User.fromJwtToken(decoded)
-          if (maybeUser.isEmpty) Logger.info(s"Empty auth for token $decoded")
+          if (maybeUser.isEmpty) Logger.info(s"Empty auth for token ${decoded.getClaims.asScala}")
           nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, maybeUser)).map {
             result =>
               val requestTime = System.currentTimeMillis - startTime
