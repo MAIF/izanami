@@ -5,7 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import controllers.actions.AuthContext
+import controllers.actions.{AuthContext, SecuredAuthContext}
 import domains.{Import, ImportResult, Key}
 import domains.apikey.{Apikey, ApikeyStore}
 import env.Env
@@ -19,7 +19,7 @@ import store.Result.{AppErrors, ErrorMessage}
 class ApikeyController(env: Env,
                        apikeyStore: ApikeyStore,
                        system: ActorSystem,
-                       AuthAction: ActionBuilder[AuthContext, AnyContent],
+                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                        val cc: ControllerComponents)
     extends AbstractController(cc) {
 

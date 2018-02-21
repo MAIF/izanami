@@ -1,7 +1,7 @@
 package controllers
 
 import akka.actor.ActorSystem
-import controllers.actions.AuthContext
+import controllers.actions.SecuredAuthContext
 import domains.Domain.Domain
 import domains.events.EventStore
 import env.Env
@@ -14,7 +14,7 @@ import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerCo
 class EventsController(env: Env,
                        eventStore: EventStore,
                        system: ActorSystem,
-                       AuthAction: ActionBuilder[AuthContext, AnyContent],
+                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                        cc: ControllerComponents)
     extends AbstractController(cc) {
 
