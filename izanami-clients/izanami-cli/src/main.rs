@@ -385,17 +385,7 @@ fn main() {
 
     match res {
         Err(e) => {
-            if 
-                matches.is_present("check_feature") ||
-                matches.is_present("feature_tree")  || 
-                matches.is_present("enable_feature")  || 
-                matches.is_present("disable_feature")  || 
-                matches.is_present("get_config")  || 
-                matches.is_present("create_config")  || 
-                matches.is_present("update_config")  || 
-                matches.is_present("config_tree") {
-                    println!("Error : \n{}", e.iter().fold(String::new(), |acc, s| format!("{} * {}\n", acc, s)))
-            }
+            println!("Error : \n{}", e.iter().fold(String::new(), |acc, s| format!("{} * {}\n", acc, s)))        
         },
         Ok(_) => {}
     };
