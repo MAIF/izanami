@@ -7,7 +7,9 @@ extern crate reqwest;
 extern crate hyper;
 #[macro_use] 
 extern crate frunk;
+#[macro_use] 
 extern crate serde_json;
+extern crate json_color;
 
 mod client;
 
@@ -22,7 +24,8 @@ use clap::{Arg, App, ArgMatches};
 use regex::Regex;
 use client::IzanamiSettings;
 use client::IzanamiClient;
-
+use json_color::Colorizer;
+use serde_json::{Value};
 
 static SETTINGS_REGEX: &str = r"(\w+)=(.+)";
 
@@ -156,6 +159,13 @@ fn is_set_value(val: String) -> Result<(), String> {
     }
 }
 
+fn color_ouput(colorizer: Colorizer, resp: &Value) -> String {
+    let json_colorized_str = colorizer
+        .colorize_json_str(to_string_pretty(resp).unwrap().as_str())
+        .unwrap();
+    json_colorized_str
+}
+
 fn main() {
     let matches = App::new("izanami")
         .version("0.0.1")
@@ -213,7 +223,19 @@ fn main() {
             .required(false)
             .takes_value(true)        
             .help("Check if a feature is active. Can be used is combinaison with arg context.")
+        )             
+        .arg(Arg::with_name("enable_feature")
+            .long("enable_feature")                        
+            .required(false)
+            .takes_value(true)        
+            .help("Enable a feature.")
         ) 
+        .arg(Arg::with_name("disable_feature")
+            .long("disable_feature")                        
+            .required(false)
+            .takes_value(true)        
+            .help("Disable a feature.")
+        )
         .arg(Arg::with_name("feature_tree")
             .long("feature_tree")
             .short("t")                
@@ -234,13 +256,27 @@ fn main() {
             .required(false)
             .takes_value(true)        
             .help("Return the tree of configs. A pattern must be specified.")
-        ) 
+        )
         .arg(Arg::with_name("context")
             .long("context")
             .short("c")                
-            .required(false)
+            .required(false)        
             .takes_value(true)        
             .help("Used to check feature depending on context. The context is json like {\"user\": \"ragnar.lodbrock@gmail.com\"}")
+        )  
+        .arg(Arg::with_name("create_config")
+            .long("create_config")          
+            .multiple(true)         
+            .required(false)                            
+            .takes_value(true)            
+            .help("Create a config. the id and the config must be specified")
+        )     
+        .arg(Arg::with_name("update_config")
+            .long("update_config")          
+            .multiple(true)         
+            .required(false)                            
+            .takes_value(true)            
+            .help("Update a config. the id and the config must be specified")
         ) 
         .get_matches(); 
 
@@ -298,21 +334,52 @@ fn main() {
         
         matches.value_of("check_feature").map(|c| {
             let context = matches.value_of("context").map(|c| String::from(c));
-            let resp = iza_client.check_feature_with_context(c, context);
-            println!("{}", to_string_pretty(&resp).unwrap());
+            let resp = iza_client.check_feature_with_context(c, context);            
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
         });
         matches.value_of("feature_tree").map(|c| {
             let context = matches.value_of("context").map(|c| String::from(c));
             let resp = iza_client.feature_tree(c, context);
-            println!("{}", to_string_pretty(&resp).unwrap());
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
+        });
+        matches.value_of("enable_feature").map(|c| {            
+            let resp = iza_client.toggle_feature(c, &true);
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
+        });
+        matches.value_of("disable_feature").map(|c| {            
+            let resp = iza_client.toggle_feature(c, &false);
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
         });
         matches.value_of("get_config").map(|c| {
             let resp = iza_client.get_config(c);
-            println!("{}", to_string_pretty(&resp).unwrap());
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
         });   
         matches.value_of("config_tree").map(|c| {
             let resp = iza_client.get_config_tree(c);
-            println!("{}", to_string_pretty(&resp).unwrap());
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
+        });   
+        matches.values_of("create_config").map(|values| {        
+            let vals: Vec<&str> = values.collect();        
+            let raw_config: &str = vals[1];
+            let config_json: Value = serde_json::from_str(raw_config).unwrap();
+            let json_config = json!({
+                "id": vals[0],
+                "value": config_json
+            });
+            let resp = iza_client.create_config(json_config);
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
+        });   
+        matches.values_of("update_config").map(|values| {        
+            let vals: Vec<&str> = values.collect();        
+            let id = vals[0];
+            let raw_config: &str = vals[1];
+            let config_json: Value = serde_json::from_str(raw_config).unwrap();
+            let json_config = json!({
+                "id": id,
+                "value": config_json
+            });
+            let resp = iza_client.update_config(id, json_config);
+            println!("{}", color_ouput(Colorizer::arbitrary(), &resp));
         });   
     });
 
@@ -321,7 +388,11 @@ fn main() {
             if 
                 matches.is_present("check_feature") ||
                 matches.is_present("feature_tree")  || 
+                matches.is_present("enable_feature")  || 
+                matches.is_present("disable_feature")  || 
                 matches.is_present("get_config")  || 
+                matches.is_present("create_config")  || 
+                matches.is_present("update_config")  || 
                 matches.is_present("config_tree") {
                     println!("Error : \n{}", e.iter().fold(String::new(), |acc, s| format!("{} * {}\n", acc, s)))
             }
