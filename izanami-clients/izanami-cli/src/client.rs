@@ -42,6 +42,29 @@ fn post(settings: &IzanamiSettings, path: String, body: String) -> String {
     format!("{}", response_body)               
 } 
 
+fn put(settings: &IzanamiSettings, path: String, body: String) -> String {    
+    let response_body: String = 
+        reqwest::Client::new().put(path.as_str()).body(body)
+        .headers(construct_headers(settings))        
+        .send()
+        .and_then(|mut resp| resp.text())    
+        .unwrap();
+    
+    format!("{}", response_body)               
+} 
+
+
+fn patch(settings: &IzanamiSettings, path: String, body: String) -> String {    
+    let response_body: String = 
+        reqwest::Client::new().patch(path.as_str()).body(body)
+        .headers(construct_headers(settings))        
+        .send()
+        .and_then(|mut resp| resp.text())    
+        .unwrap();
+    
+    format!("{}", response_body)               
+} 
+
 fn get(settings: &IzanamiSettings, path: String) -> String {        
     let response_body: String = 
         reqwest::Client::new().get(path.as_str())
@@ -75,6 +98,12 @@ impl IzanamiClient {
         }
     }
 
+    pub fn toggle_feature(&self, name: &str, value: &bool)-> Value {                
+        let path = format!("{}/api/features/{}", &self.settings.url.clone(), name);
+        let json_patch = json!([{ "op": "replace", "path": "/enabled", "value": value }]);
+        from_str(&patch(&self.settings, path, json_patch.to_string())).unwrap()
+    }
+
     pub fn get_config_tree(&self, pattern: &str) -> Value {                
         let path = format!("{}/api/tree/configs?pattern={}", &self.settings.url.clone(), pattern);    
         from_str(&get(&self.settings, path)).unwrap()            
@@ -83,6 +112,16 @@ impl IzanamiClient {
     pub fn get_config(&self, name: &str) -> Value {                
         let path = format!("{}/api/configs/{}", &self.settings.url.clone(), name);    
         from_str(&get(&self.settings, path)).unwrap()            
+    }
+
+    pub fn create_config(&self, config: Value) -> Value {                
+        let path = format!("{}/api/configs", &self.settings.url.clone());        
+        from_str(&post(&self.settings, path, config.to_string())).unwrap()            
+    }
+
+    pub fn update_config(&self, name: &str, config: Value) -> Value {                
+        let path = format!("{}/api/configs/{}", &self.settings.url.clone(), name);        
+        from_str(&put(&self.settings, path, config.to_string())).unwrap()            
     }
 
 }
