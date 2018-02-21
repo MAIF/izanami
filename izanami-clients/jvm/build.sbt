@@ -1,7 +1,7 @@
 import sbt.Keys.{organization, scalacOptions}
 import sbtrelease.ReleaseStateTransformations._
 
-val akkaVersion = "2.5.6"
+val akkaVersion = "2.5.9"
 
 val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
   Seq(RevolverPlugin)
@@ -18,12 +18,12 @@ lazy val jvm = (project in file("."))
     crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
     libraryDependencies ++= Seq(
       "com.typesafe.akka"          %% "akka-stream"             % akkaVersion,
-      "com.typesafe.akka"          %% "akka-http"               % "10.0.10",
-      "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "0.14",
-      "io.vavr"                    % "vavr"                     % "0.9.1",
+      "com.typesafe.akka"          %% "akka-http"               % "10.0.11",
+      "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "0.17",
+      "io.vavr"                    % "vavr"                     % "0.9.2",
       "org.reactivecouchbase.json" % "json-lib"                 % "1.0.0",
       "com.google.guava"           % "guava"                    % "22.0",
-      "com.typesafe.play"          %% "play-json"               % "2.6.6",
+      "com.typesafe.play"          %% "play-json"               % "2.6.8",
       "com.chuusai"                %% "shapeless"               % "2.3.2",
       "com.adelegue"               %% "playjson-extended"       % "0.0.4",
       "junit"                      % "junit"                    % "4.12" % Test,
@@ -84,9 +84,9 @@ lazy val publishSettings =
       bintrayReleaseOnPublish := false,
       credentials := List(
         Credentials("Artifactory Realm",
-                    "oss.jfrog.org",
-                    sys.env.getOrElse("BINTRAY_USER", ""),
-                    sys.env.getOrElse("BINTRAY_PASSWORD", ""))
+          "oss.jfrog.org",
+          sys.env.getOrElse("BINTRAY_USER", ""),
+          sys.env.getOrElse("BINTRAY_PASSWORD", ""))
       )
     )
   }
