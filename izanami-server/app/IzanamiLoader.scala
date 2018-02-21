@@ -1,7 +1,7 @@
 import com.datastax.driver.core.Cluster
 import com.softwaremill.macwire.wire
 import controllers._
-import controllers.actions.{AuthAction, AuthContext}
+import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
 import domains.abtesting.impl._
 import domains.abtesting.{ExperimentVariantEventStore, _}
 import domains.apikey.ApikeyStore
@@ -55,7 +55,8 @@ package object modules {
 
     lazy val _env: Env = wire[Env]
 
-    def authAction: ActionBuilder[AuthContext, AnyContent] = wire[AuthAction]
+    lazy val authAction: ActionBuilder[AuthContext, AnyContent]                       = wire[AuthAction]
+    lazy val securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
 
     lazy val homeController: HomeController = wire[HomeController]
 

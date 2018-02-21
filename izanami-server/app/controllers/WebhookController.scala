@@ -5,7 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import controllers.actions.AuthContext
+import controllers.actions.SecuredAuthContext
 import domains.user.{User, UserNoPassword}
 import domains.webhook.{Webhook, WebhookStore}
 import domains.{Import, ImportResult, Key}
@@ -20,7 +20,7 @@ import store.Result.{AppErrors, ErrorMessage}
 class WebhookController(env: Env,
                         webhookStore: WebhookStore,
                         system: ActorSystem,
-                        AuthAction: ActionBuilder[AuthContext, AnyContent],
+                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                         cc: ControllerComponents)
     extends AbstractController(cc) {
 
