@@ -17,10 +17,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object OtoroshiFilter {
-  object Attrs {
-    val AuthInfo: TypedKey[Option[AuthInfo]] = TypedKey("auth")
-  }
-
   def apply(env: Env, config: OtoroshiFilterConfig, apikeyStore: ApikeyStore)(implicit ec: ExecutionContext,
                                                                               mat: Materializer): OtoroshiFilter =
     new OtoroshiFilter(env, config)
@@ -70,10 +66,10 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
           val algorithm = Algorithm.HMAC512(config.sharedKey)
           val verifier =
             JWT.require(algorithm).withIssuer(config.issuer).build()
-          val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
-          val maybeUser: Option[User] = User.fromJwtToken(decoded)
+          val decoded: DecodedJWT     = verifier.verify(maybeClaim.get)
+          val maybeUser: Option[User] = User.fromOtoroshiJwtToken(decoded)
           if (maybeUser.isEmpty) Logger.debug(s"Empty auth for token ${decoded.getClaims.asScala}")
-          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, maybeUser)).map {
+          nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, maybeUser)).map {
             result =>
               val requestTime = System.currentTimeMillis - startTime
               maybeReqId.foreach { id =>
