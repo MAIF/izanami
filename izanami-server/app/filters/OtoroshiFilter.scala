@@ -70,7 +70,9 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
           val verifier =
             JWT.require(algorithm).withIssuer(config.issuer).build()
           val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
-          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, User.fromJwtToken(decoded))).map {
+          val maybeUser: Option[User] = User.fromJwtToken(decoded)
+          if (maybeUser.isEmpty) Logger.info(s"Empty auth for token $decoded")
+          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, maybeUser)).map {
             result =>
               val requestTime = System.currentTimeMillis - startTime
               maybeReqId.foreach { id =>

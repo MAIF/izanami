@@ -255,8 +255,11 @@ package object modules {
     lazy val swaggerController: SwaggerController = wire[SwaggerController]
 
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
-      case env.Otoroshi(config) => Seq(new OtoroshiFilter(_env, config))
+      case env.Otoroshi(config) =>
+        Logger.info("Using otoroshi filter")
+        Seq(new OtoroshiFilter(_env, config))
       case env.Default(config) =>
+        Logger.info("Using default filter")
         Seq(new IzanamiDefaultFilter(_env, config, izanamiConfig.apikey, apikeyStore))
     }
 
