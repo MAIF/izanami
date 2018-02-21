@@ -4,7 +4,7 @@ import controllers.actions.AuthContext
 import domains.AuthInfo
 import domains.user.User
 import env.Env
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 
 class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)
@@ -18,7 +18,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
 
   def index() = AuthAction { ctx =>
     ctx.auth match {
-      case Some(auth) =>
+      case Some(_) =>
         Ok(
           views.html
             .index(_env, logout, enabledUserManagement, toJson(ctx.auth))
@@ -30,13 +30,12 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
 
   def login() = AuthAction { ctx =>
     Ok(views.html.index(_env, logout, enabledUserManagement, toJson(ctx.auth)))
-  //Ok(views.html.login(_env))
   }
 
   def otherRoutes(anyPath: String) = index()
 
   private def toJson(auth: Option[AuthInfo]): JsValue = auth match {
-    case Some(u: User) => Json.toJson(u)
+    case Some(u: User) => Json.toJson(u).as[JsObject] - "id"
     case _             => Json.obj()
   }
 }
