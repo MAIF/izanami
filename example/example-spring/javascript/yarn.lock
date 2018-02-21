@@ -4010,9 +4010,9 @@ react-input-autosize@^2.1.2:
   dependencies:
     prop-types "^15.5.8"
 
-react-izanami@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/react-izanami/-/react-izanami-1.0.0.tgz#d5fd203005d9e2516bdfd45ce7d1c2e457159479"
+react-izanami@1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/react-izanami/-/react-izanami-1.0.2.tgz#b4ca1741928b1128d3fe5951bd85f3cb2bf6f23b"
   dependencies:
     deep-equal "^1.0.1"
     deepmerge "^1.4.4"
