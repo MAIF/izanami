@@ -5,7 +5,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{GraphDSL, Interleave, Sink, Source}
 import akka.stream.{ActorMaterializer, SourceShape}
-import controllers.actions.AuthContext
+import controllers.actions.SecuredAuthContext
 import domains.abtesting.ExperimentStore
 import domains.config.ConfigStore
 import domains.feature.FeatureStore
@@ -25,7 +25,7 @@ class SearchController(env: Env,
                        globalScriptStore: GlobalScriptStore,
                        webhookStore: WebhookStore,
                        system: ActorSystem,
-                       AuthAction: ActionBuilder[AuthContext, AnyContent],
+                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                        cc: ControllerComponents)
     extends AbstractController(cc) {
 

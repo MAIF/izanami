@@ -5,7 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import controllers.actions.AuthContext
+import controllers.actions.SecuredAuthContext
 import domains.script.{GlobalScript, GlobalScriptStore}
 import domains.{Import, ImportResult, Key}
 import env.Env
@@ -19,7 +19,7 @@ import store.Result.{AppErrors, ErrorMessage}
 class GlobalScriptController(env: Env,
                              globalScriptStore: GlobalScriptStore,
                              system: ActorSystem,
-                             AuthAction: ActionBuilder[AuthContext, AnyContent],
+                             AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                              cc: ControllerComponents)
     extends AbstractController(cc) {
 

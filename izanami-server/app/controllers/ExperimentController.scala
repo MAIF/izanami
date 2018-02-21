@@ -6,7 +6,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import controllers.actions.AuthContext
+import controllers.actions.SecuredAuthContext
 import domains.{Import, ImportResult, Key}
 import domains.abtesting._
 import domains.apikey.Apikey
@@ -24,7 +24,7 @@ class ExperimentController(env: Env,
                            variantBindingStore: VariantBindingStore,
                            eVariantEventStore: ExperimentVariantEventStore,
                            system: ActorSystem,
-                           AuthAction: ActionBuilder[AuthContext, AnyContent],
+                           AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                            cc: ControllerComponents)
     extends AbstractController(cc) {
 

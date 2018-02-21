@@ -15,6 +15,14 @@ case class AuthContext[A](request: Request[A], auth: Option[AuthInfo]) extends W
     auth.toList.flatMap(_.authorizedPattern.split(","))
 }
 
+case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extends WrappedRequest[A](request) {
+
+  val auth: Option[AuthInfo] = Some(authInfo)
+
+  def authorizedPatterns: Seq[String] =
+    authInfo.authorizedPattern.split(",")
+}
+
 class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
     extends ActionBuilder[AuthContext, AnyContent]
     with ActionFunction[Request, AuthContext] {
@@ -28,6 +36,26 @@ class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(implicit val 
       case Some(ctx) => block(ctx)
       case None =>
         Logger.info("Auth info is missing => Unauthorized")
+        FastFuture.successful(Unauthorized)
+    }
+  }
+}
+
+class SecuredAction(val env: Env, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
+    extends ActionBuilder[SecuredAuthContext, AnyContent]
+    with ActionFunction[Request, SecuredAuthContext] {
+
+  override def invokeBlock[A](request: Request[A], block: (SecuredAuthContext[A]) => Future[Result]): Future[Result] = {
+    val maybeMaybeInfo: Option[Option[AuthInfo]] =
+      request.attrs.get(OtoroshiFilter.Attrs.AuthInfo)
+
+    maybeMaybeInfo match {
+      case Some(Some(info)) => block(SecuredAuthContext(request, info))
+      case Some(None) =>
+        Logger.debug("Auth info is empty => Forbidden")
+        FastFuture.successful(Forbidden)
+      case _ =>
+        Logger.debug("Auth info is missing => Unauthorized")
         FastFuture.successful(Unauthorized)
     }
   }
