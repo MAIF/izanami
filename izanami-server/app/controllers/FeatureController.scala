@@ -5,7 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
-import controllers.actions.AuthContext
+import controllers.actions.SecuredAuthContext
 import domains.abtesting.Experiment
 import domains.feature.{Feature, FeatureStore}
 import domains.{AuthInfo, Import, ImportResult, Key}
@@ -22,7 +22,7 @@ import scala.concurrent.Future
 class FeatureController(env: Env,
                         featureStore: FeatureStore,
                         system: ActorSystem,
-                        AuthAction: ActionBuilder[AuthContext, AnyContent],
+                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                         cc: ControllerComponents)
     extends AbstractController(cc) {
 
