@@ -1,6 +1,6 @@
 package test
 
-import controllers.actions.AuthContext
+import controllers.actions.{AuthContext, SecuredAuthContext}
 import domains.user.User
 import modules.IzanamiComponentsInstances
 import org.scalatest.concurrent.ScalaFutures
@@ -22,12 +22,23 @@ class TestAuthAction(user: => User, val parser: BodyParser[AnyContent])(implicit
     block(AuthContext(request, Some(user)))
 }
 
+class TestSecuredAuthAction(user: => User, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
+  extends ActionBuilder[SecuredAuthContext, AnyContent]
+    with ActionFunction[Request, AuthContext] {
+
+  override def invokeBlock[A](request: Request[A], block: (SecuredAuthContext[A]) => Future[Result]): Future[Result] =
+    block(SecuredAuthContext(request, user))
+}
+
 class IzanamiTestComponentsInstances(context: Context, user: => User, conf: Configuration => Configuration)
     extends IzanamiComponentsInstances(context) {
   override def configuration = conf(super.configuration)
 
   override def authAction: ActionBuilder[AuthContext, AnyContent] =
     new TestAuthAction(user, defaultBodyParser)
+
+  override def securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] =
+    new TestSecuredAuthAction(user, defaultBodyParser)
 }
 
 trait AddConfiguration {

@@ -55,8 +55,8 @@ package object modules {
 
     lazy val _env: Env = wire[Env]
 
-    lazy val authAction: ActionBuilder[AuthContext, AnyContent]                       = wire[AuthAction]
-    lazy val securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
+    def authAction: ActionBuilder[AuthContext, AnyContent]                       = wire[AuthAction]
+    def securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
 
     lazy val homeController: HomeController = wire[HomeController]
 
