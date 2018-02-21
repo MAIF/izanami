@@ -22,9 +22,10 @@ class TestAuthAction(user: => User, val parser: BodyParser[AnyContent])(implicit
     block(AuthContext(request, Some(user)))
 }
 
-class TestSecuredAuthAction(user: => User, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
-  extends ActionBuilder[SecuredAuthContext, AnyContent]
-    with ActionFunction[Request, AuthContext] {
+class TestSecuredAuthAction(user: => User, val parser: BodyParser[AnyContent])(
+    implicit val executionContext: ExecutionContext
+) extends ActionBuilder[SecuredAuthContext, AnyContent]
+    with ActionFunction[Request, SecuredAuthContext] {
 
   override def invokeBlock[A](request: Request[A], block: (SecuredAuthContext[A]) => Future[Result]): Future[Result] =
     block(SecuredAuthContext(request, user))
