@@ -37,7 +37,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
       case devOrTest if devOrTest == "test" || devOrTest == "dev" =>
         nextFilter(
           requestHeader.addAttr(
-            OtoroshiFilter.Attrs.AuthInfo,
+            FilterAttrs.Attrs.AuthInfo,
             Some(
               User(id = "id", name = "Ragnard", email = "ragnard@viking.com", admin = false, authorizedPattern = "")
             )
@@ -62,7 +62,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
           }
           .flatMap {
             case Some(apikey) if apikey.clientSecret == maybeClientSecret.get =>
-              nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, Some(apikey)))
+              nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, Some(apikey)))
                 .map { result =>
                   val requestTime = System.currentTimeMillis - startTime
                   logger.debug(
@@ -90,7 +90,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
             JWT.require(algorithm).withIssuer(config.issuer).build()
           val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
 
-          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
+          nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
             val requestTime = System.currentTimeMillis - startTime
             logger.debug(
               s"Request claim with exclusion => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
@@ -113,7 +113,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
         tryDecode.get
       }
       case prod if prod == "prod" && config.allowedPaths.exists(path => requestHeader.path.matches(path)) => {
-        nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, None))
+        nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, None))
           .map {
             result =>
               val requestTime = System.currentTimeMillis - startTime
@@ -141,7 +141,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
             JWT.require(algorithm).withIssuer(config.issuer).build()
           val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
 
-          nextFilter(requestHeader.addAttr(OtoroshiFilter.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
+          nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
             val requestTime = System.currentTimeMillis - startTime
             logger.debug(
               s"Request claim => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers

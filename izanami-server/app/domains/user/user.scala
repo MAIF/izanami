@@ -45,6 +45,25 @@ object User {
     val claims = jwt.getClaims.asScala
     for {
       name   <- claims.get("name").map(_.asString())
+      userId <- claims.get("user_id").map(_.asString())
+      email  <- claims.get("email").map(_.asString())
+      patterns = claims
+        .get("izanami_authorized_patterns")
+        .map(_.asString())
+        .getOrElse("")
+      isAdmin = claims
+        .get("izanami_admin")
+        .map(_.asString)
+        .flatMap(str => Try(str.toBoolean).toOption)
+        .getOrElse(false)
+    } yield User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = patterns)
+  }
+
+  def fromOtoroshiJwtToken(jwt: DecodedJWT): Option[User] = {
+    import scala.collection.JavaConverters._
+    val claims = jwt.getClaims.asScala
+    for {
+      name   <- claims.get("name").map(_.asString())
       userId = claims.get("user_id").map(_.asString()).getOrElse("NA")
       email  = claims.get("email").map(_.asString()).getOrElse("NA")
       patterns = claims
