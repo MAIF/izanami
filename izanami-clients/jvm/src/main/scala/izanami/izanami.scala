@@ -72,9 +72,8 @@ case class ClientConfig(
     assert(dispatcher != null, "dispatcher should not be null")
     this.copy(dispatcher = dispatcher)
   }
-  def withDefaultBlockingDispatcher() = {
+  def withDefaultBlockingDispatcher() =
     this.copy(dispatcher = "izanami.blocking-dispatcher")
-  }
   def withZoneId(zoneId: ZoneId) = {
     assert(zoneId != null, "zoneId should not be null")
     this.copy(zoneId = zoneId)
@@ -109,10 +108,10 @@ object Strategy {
   case object DevStrategy                                                      extends Strategy
   case object FetchStrategy                                                    extends Strategy
   case class FetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration) extends Strategy
-  case class CacheWithSseStrategy(patterns: Seq[String], pollingInterval: Option[FiniteDuration] = Some(20.seconds))
+  case class CacheWithSseStrategy(patterns: Seq[String], pollingInterval: Option[FiniteDuration] = Some(1.minute))
       extends SmartCacheStrategy {
     def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = Some(interval))
-    def withPollingDisabled() = copy(pollingInterval = None)
+    def withPollingDisabled()                         = copy(pollingInterval = None)
   }
   case class CacheWithPollingStrategy(patterns: Seq[String], pollingInterval: FiniteDuration = 20.seconds)
       extends SmartCacheStrategy

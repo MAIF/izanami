@@ -18,6 +18,7 @@ lazy val jvm = (project in file("."))
     crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
     libraryDependencies ++= Seq(
       "com.typesafe.akka"          %% "akka-stream"             % akkaVersion,
+      "com.typesafe.akka"          %% "akka-slf4j"              % akkaVersion,
       "com.typesafe.akka"          %% "akka-http"               % "10.0.11",
       "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "0.17",
       "io.vavr"                    % "vavr"                     % "0.9.2",
@@ -84,9 +85,9 @@ lazy val publishSettings =
       bintrayReleaseOnPublish := false,
       credentials := List(
         Credentials("Artifactory Realm",
-          "oss.jfrog.org",
-          sys.env.getOrElse("BINTRAY_USER", ""),
-          sys.env.getOrElse("BINTRAY_PASSWORD", ""))
+                    "oss.jfrog.org",
+                    sys.env.getOrElse("BINTRAY_USER", ""),
+                    sys.env.getOrElse("BINTRAY_PASSWORD", ""))
       )
     )
   }
