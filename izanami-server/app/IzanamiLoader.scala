@@ -53,6 +53,8 @@ package object modules {
 
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
+    Logger.info(s"Configuration: \n$izanamiConfig")
+
     lazy val _env: Env = wire[Env]
 
     def authAction: ActionBuilder[AuthContext, AnyContent]                       = wire[AuthAction]
