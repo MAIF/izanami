@@ -64,7 +64,7 @@ object User {
     val claims = jwt.getClaims.asScala
     for {
       name   <- claims.get("name").map(_.asString())
-      userId = claims.get("user_id").map(_.asString()).getOrElse("NA")
+      userId = claims.get("user_id").map(_.asString()).orElse(claims.get("sub").map(_.asString())).getOrElse("NA")
       email  = claims.get("email").map(_.asString()).getOrElse("NA")
       patterns = claims
         .get("izanami_authorized_patterns")
