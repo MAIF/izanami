@@ -15,7 +15,7 @@ import env.{CassandraConfig, DbDomainConfig}
 import libs.streams.Flows
 import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
-import store.Result.Result
+import store.Result.{ErrorMessage, Result}
 import store._
 
 import scala.concurrent.duration.FiniteDuration
@@ -95,13 +95,19 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
     session()
-      .flatMap {
-        createWithSession(id, data, None)(_)
+      .flatMap { implicit session =>
+        getByIdWithSession(id)
+          .map { _ =>
+            Result.errors(ErrorMessage("error.data.exists", id.key))
+          }
+          .orElse(Source.fromFuture(createWithSession(id, data, None)))
+          .runWith(Sink.head)
       }
 
   private def createWithSession(id: Key, data: JsValue, ttl: Option[FiniteDuration])(
       implicit session: Session
   ): Future[Result[JsValue]] = {
+
     val ttlValue = ttl.map(ttl => s" USING TTL ${ttl.toSeconds}").getOrElse("")
     val query =
       s"INSERT INTO $keyspace.$namespaceFormatted (namespace, id, key, value) values (?, ?, ?, ?) IF NOT EXISTS $ttlValue  "
@@ -111,7 +117,14 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
     executeWithSession(
       query,
       args: _*
-    ).map(_ => Result.ok(data))
+    ).map { r =>
+      if (r.wasApplied()) {
+        Logger.info(s"$r, ${r.one()}, ${r.wasApplied()}")
+        Result.ok(data)
+      } else {
+        Result.error("error")
+      }
+    }
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
