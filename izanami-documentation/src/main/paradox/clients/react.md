@@ -1,6 +1,6 @@
 # React client
 
-`react-izanami` is a simple set of React components to leverage the power of Opun Izanami feature flipping and experiments.
+`react-izanami` is a simple set of React components to leverage the power of Izanami feature flipping and experiments.
 
 In order to use the client you need to proxify Izanami to avoid leaking the credentials to the client side. 
 

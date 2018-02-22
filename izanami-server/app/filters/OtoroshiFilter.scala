@@ -74,7 +74,7 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
               val requestTime = System.currentTimeMillis - startTime
               maybeReqId.foreach { id =>
                 logger.debug(
-                  s"Request from Opun Gateway with id : $id => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+                  s"Request from Gateway with id : $id => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
                     .map(h => s"""   "${h._1}": "${h._2}"\n""")
                     .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
                 )
