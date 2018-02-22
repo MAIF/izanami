@@ -49,7 +49,6 @@ fn put(settings: &IzanamiSettings, path: String, body: String) -> String {
         .send()
         .and_then(|mut resp| resp.text())    
         .unwrap();
-    
     format!("{}", response_body)               
 } 
 
@@ -96,6 +95,16 @@ impl IzanamiClient {
             Some(c) => from_str(&post(&self.settings, path, c)).unwrap(),
             None =>  from_str(&post(&self.settings, path, String::from("{}"))).unwrap()
         }
+    }
+
+    pub fn create_feature(&self, feature: String) -> Value {                
+        let path = format!("{}/api/features", &self.settings.url.clone());
+        from_str(&post(&self.settings, path, feature)).unwrap()        
+    }
+
+    pub fn update_feature(&self, name: &str, feature: String) -> Value {                
+        let path = format!("{}/api/features/{}", &self.settings.url.clone(), name);
+        from_str(&put(&self.settings, path, feature)).unwrap()        
     }
 
     pub fn toggle_feature(&self, name: &str, value: &bool)-> Value {                
