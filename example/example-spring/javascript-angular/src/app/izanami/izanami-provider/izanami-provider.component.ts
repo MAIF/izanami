@@ -1,5 +1,6 @@
 import {Component, Input, OnDestroy, OnInit, TemplateRef} from '@angular/core';
 import {IzanamiService} from "../izanami.service";
+import {Subscription} from "rxjs/Subscription";
 
 @Component({
   selector: 'app-izanami-provider',
@@ -41,11 +42,12 @@ export class IzanamiProviderComponent implements OnInit, OnDestroy {
 
   loadInProgress: boolean;
   fetched: any;
+  subscription: Subscription;
 
   constructor(private izanamiService: IzanamiService) {
   }
 
-  onDataLoaded = data => {
+  onDataLoaded = (data) => {
     this.fetched = {
       features: data.features || this.features,
       featuresFallback: data.featuresFallback || this.featuresFallback,
@@ -67,7 +69,7 @@ export class IzanamiProviderComponent implements OnInit, OnDestroy {
       this.loading = () => null;
 
     if (this.fetchFrom) {
-      this.izanamiService.register(this.fetchFrom, this.onDataLoaded);
+      this.subscription = this.izanamiService.register(this.fetchFrom).subscribe(this.onDataLoaded);
       this.loadInProgress = true;
       this.izanamiService.izanamiReload(this.fetchFrom, this.fetchHeaders);
     }
@@ -75,7 +77,10 @@ export class IzanamiProviderComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.fetchFrom)
-      this.izanamiService.unregister(this.fetchFrom, this.onDataLoaded)
+      this.izanamiService.unregister(this.fetchFrom);
+
+    if (this.subscription)
+      this.subscription.unsubscribe();
   }
 
 }

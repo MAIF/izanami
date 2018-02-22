@@ -1,12 +1,17 @@
-import { Injectable } from '@angular/core';
+import {Injectable} from '@angular/core';
 import {HttpClient} from "@angular/common/http";
 import {Observable} from "rxjs/Observable";
 import {catchError} from "rxjs/operators";
 import {of} from "rxjs/observable/of";
+import {Subject} from "rxjs/Subject";
+import {BehaviorSubject} from "rxjs/BehaviorSubject";
 
 @Injectable()
 export class IzanamiService {
-  izanamiListeners: any = {};
+  izanamiSubject: {
+    path: string,
+    data: BehaviorSubject<any>
+  }[] = [];
 
   constructor(private httpClient: HttpClient) {
 
@@ -16,48 +21,36 @@ export class IzanamiService {
     this.httpClient.get(path, {headers: fetchHeaders, withCredentials: true})
       .pipe(catchError(this.handleError(path, {error: true})))
       .subscribe(data => {
-        const listeners = this.izanamiListeners[path] || [];
-        listeners.forEach(l => {
-          try {
-            l(data)
-          } catch (err) {
-            console.error(err);
-          }
-        });
+        const izaSubject = this.izanamiSubject.find(i => i.path === path);
+        if (izaSubject)
+          izaSubject.data.next(data);
       });
   }
 
-  register(path: string, callback: Function) {
-    const listeners = this.izanamiListeners[path] || [];
-    const index = listeners.indexOf(callback);
-    if (index > -1) {
-      listeners.splice(index, 1);
+  register(path: string): Subject<any> {
+    const izanamiSubjectRegister = this.izanamiSubject.find(i => i.path === path);
+    if (!izanamiSubjectRegister) {
+      let item = {
+        path,
+        data: new BehaviorSubject<any>({})
+      };
+      this.izanamiSubject.push(item);
+
+      return item.data;
     }
-    listeners.push(callback);
-    this.izanamiListeners = {...this.izanamiListeners, [path]: listeners}
+
+    return izanamiSubjectRegister.data;
   }
 
-  unregister(path: string, callback: Function) {
-    if (callback && path) {
-
-      const listeners = this.izanamiListeners[path] || [];
-      const index = listeners.indexOf(callback);
-      if (index > -1) {
-        listeners.splice(index, 1);
-        this.izanamiListeners = {...this.izanamiListeners, [path]: listeners}
-      }
-    } else if (path) {
-      delete this.izanamiListeners[path];
-    }
+  unregister(path: string) {
+    const indexToUnregister = this.izanamiSubject.findIndex(i => i.path === path);
+    if (indexToUnregister !== -1)
+      this.izanamiSubject.slice(indexToUnregister, 1);
   }
 
   private handleError<T>(operation = 'operation', result?: T) {
     return (error: any): Observable<T> => {
-
-      // TODO: better job of transforming error for user consumption
       console.error(`${operation} failed: ${error.message}`);
-
-      // Let the app keep running by returning an empty result.
       return of(result as T);
     };
   }
