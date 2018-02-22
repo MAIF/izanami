@@ -117,13 +117,8 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
     executeWithSession(
       query,
       args: _*
-    ).map { r =>
-      if (r.wasApplied()) {
-        Logger.info(s"$r, ${r.one()}, ${r.wasApplied()}")
-        Result.ok(data)
-      } else {
-        Result.error("error")
-      }
+    ).map { _ =>
+      Result.ok(data)
     }
   }
 
