@@ -298,7 +298,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "izanami-cli"
-version = "0.1.0"
+version = "0.0.3"
 dependencies = [
  "clap 2.29.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frunk 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",

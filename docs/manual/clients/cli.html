@@ -207,7 +207,7 @@ wget --show-progress https://dl.bintray.com/maif/binaries/osx-izanamicli/latest/
 <h2><a href="#usage" name="usage" class="anchor"><span class="anchor-link"></span></a>Usage</h2>
 <pre class="prettyprint"><code class="language-bash">./izanami-cli -h
 </code></pre>
-<pre class="prettyprint"><code class="language-bash">izanami 0.0.1
+<pre class="prettyprint"><code class="language-bash">izanami 0.0.3
 Alexandre Delègue &lt;aadelegue@gmail.com&gt;
 .___                                     .__
 |   |____________    ____ _____    _____ |__|
@@ -238,13 +238,21 @@ OPTIONS:
     -c, --context &lt;context&gt;
             Used to check feature depending on context. The context is json like {&quot;user&quot;: &quot;ragnar.lodbrock@gmail.com&quot;}
 
+        --create_config &lt;create_config&gt;...               Create a config. the id and the config must be specified
+        --create_feature &lt;create_feature&gt;                Create a feature.
+        --disable_feature &lt;disable_feature&gt;              Disable a feature.
+        --enable_feature &lt;enable_feature&gt;                Enable a feature.
     -t, --feature_tree &lt;feature_tree&gt;
             Return the tree of features. Can be used is combinaison with arg context.
 
     -g, --get_config &lt;get_config&gt;                        Get a config. A pattern must be specified.
+        --release_date &lt;release_date&gt;                    Date for a feature.
+        --script &lt;script&gt;                                Script for a feature.
     -s, --set &lt;set&gt;...
             Set a config using the format key=value. Key must be a value in [&quot;client_id&quot;, &quot;client_id_header&quot;,
             &quot;client_secret&quot;, &quot;client_secret_header&quot;, &quot;url&quot;]
+        --update_config &lt;update_config&gt;...               Update a config. the id and the config must be specified
+        --update_feature &lt;update_feature&gt;                Update a feature.
     -u, --url &lt;url&gt;                                      The url of the server. For example http://izanami.com.
 </code></pre>
 <div class="source-github">

@@ -27,7 +27,7 @@ chmod +x izanami-cli
 ```
 
 ```bash
-izanami 0.0.1
+izanami 0.0.3
 Alexandre Delègue <aadelegue@gmail.com>
 .___                                     .__
 |   |____________    ____ _____    _____ |__|
@@ -58,12 +58,20 @@ OPTIONS:
     -c, --context <context>
             Used to check feature depending on context. The context is json like {"user": "ragnar.lodbrock@gmail.com"}
 
+        --create_config <create_config>...               Create a config. the id and the config must be specified
+        --create_feature <create_feature>                Create a feature.
+        --disable_feature <disable_feature>              Disable a feature.
+        --enable_feature <enable_feature>                Enable a feature.
     -t, --feature_tree <feature_tree>
             Return the tree of features. Can be used is combinaison with arg context.
 
     -g, --get_config <get_config>                        Get a config. A pattern must be specified.
+        --release_date <release_date>                    Date for a feature.
+        --script <script>                                Script for a feature.
     -s, --set <set>...
             Set a config using the format key=value. Key must be a value in ["client_id", "client_id_header",
             "client_secret", "client_secret_header", "url"]
+        --update_config <update_config>...               Update a config. the id and the config must be specified
+        --update_feature <update_feature>                Update a feature.
     -u, --url <url>                                      The url of the server. For example http://izanami.com.
 ```

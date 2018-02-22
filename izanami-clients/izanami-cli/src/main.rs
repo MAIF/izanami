@@ -200,7 +200,7 @@ fn build_feature<'b, 'c>(matches: &'b ArgMatches<'c>, key: &str, ) -> Value {
 
 fn main() {
     let matches = App::new("izanami")
-        .version("0.0.1")
+        .version("0.0.3")
         .author("Alexandre Delègue <aadelegue@gmail.com>")
         .about(".___                                     .__ 
 |   |____________    ____ _____    _____ |__|
