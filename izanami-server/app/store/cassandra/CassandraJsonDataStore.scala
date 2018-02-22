@@ -113,7 +113,6 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
       s"INSERT INTO $keyspace.$namespaceFormatted (namespace, id, key, value) values (?, ?, ?, ?) IF NOT EXISTS $ttlValue  "
 
     val args = Seq(namespaceFormatted, id.key, id.key, Json.stringify(data))
-    Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
     executeWithSession(
       query,
       args: _*
@@ -151,7 +150,6 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
     val query =
       s"UPDATE $keyspace.$namespaceFormatted $ttlValue SET value = ? WHERE namespace = ? AND id = ? IF EXISTS "
     val args = Seq(Json.stringify(data), namespaceFormatted, id.key)
-    Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
     executeWithSession(query, args: _*).map(rs => Result.ok(data))
   }
 
@@ -160,19 +158,21 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
 
   private def deleteWithSession(id: Key)(implicit session: Session): Future[Result[JsValue]] =
     getByIdWithSession(id)(session)
-      .take(1)
       .mapAsync(1) { data =>
         val query =
-          s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
-        val args = Seq(namespaceFormatted, id.key)
-        Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
+          s"DELETE FROM $keyspace.$namespaceFormatted WHERE id = ? AND namespace = ? IF EXISTS "
+        val args = Seq(id.key, namespaceFormatted)
         executeWithSession(
           query,
           args: _*
-        ).map(_ => Result.ok(data))
+        ).map{r =>
+          Result.ok(data)
+        }
       }
-      .orElse(Source.single(Result.error("")))
-      .runWith(Sink.head)
+      .runWith(Sink.headOption)
+      .map {
+        _.getOrElse(Result.error("error.data.missing"))
+      }
 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     session()
@@ -199,9 +199,8 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
             .mapAsync(4) {
               case (n, id) =>
                 val query =
-                  s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
+                  s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
                 val args = Seq(n, id)
-                Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
                 executeWithSession(query, n, id)
             }
             .runFold(0)((acc, _) => acc + 1)
@@ -320,8 +319,10 @@ object Cassandra {
   def executeWithSession(query: String, args: Any*)(implicit session: Session,
                                                     ec: ExecutionContext): Future[ResultSet] =
     if (args.isEmpty) {
+      Logger.debug(s"Running query $query ")
       session.executeAsync(query).toFuture
     } else {
+      Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ")
       session
         .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
         .toFuture
