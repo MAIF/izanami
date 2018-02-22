@@ -27,14 +27,16 @@
             >
               Season {{season.number}}
 
-              <!--<button *ngIf="!season.allWatched" type="button" class="btn btn default pull-right addBtn"-->
-              <!--(click)="markSeasonWatched(season.number, true)">-->
-              <!--ADD-->
-              <!--</button>-->
-              <!--<button *ngIf="season.allWatched" type="button" class="btn btn default pull-right addBtn"-->
-              <!--(click)="markSeasonWatched(season.number, false)">-->
-              <!--<i class="glyphicon glyphicon-ok"></i>-->
-              <!--</button>-->
+              <ng-template appFeature path="mytvshows.season.markaswatched">
+                <button *ngIf="season.allWatched" type="button" class="btn btn default pull-right addBtn"
+                        (click)="markSeasonWatched(season.number, false)">
+                  <i class="glyphicon glyphicon-ok"></i>
+                </button>
+                <button *ngIf="!season.allWatched" type="button" class="btn btn default pull-right addBtn"
+                        (click)="markSeasonWatched(season.number, true)">
+                  ADD
+                </button>
+              </ng-template>
 
             </a>
           </h4>

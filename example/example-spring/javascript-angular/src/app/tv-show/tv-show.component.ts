@@ -61,8 +61,6 @@ export class TvShowComponent implements OnInit {
       }
     }, -1);
 
-    console.log("last all watched ", lastAllWatched);
-
     if (lastAllWatched === -1) {
       return 0;
     } else if (lastAllWatched === seasons.length) {
