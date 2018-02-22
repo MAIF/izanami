@@ -1,3 +1,5 @@
 target
 leveldb
 node_modules
+.gradle
+build
