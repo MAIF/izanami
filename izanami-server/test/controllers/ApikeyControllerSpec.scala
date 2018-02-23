@@ -5,10 +5,11 @@ import org.scalatestplus.play._
 import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
-import test.OneServerPerSuiteWithMyComponents
+import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 
 class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
+      with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
@@ -23,22 +24,21 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
     "create read update delete" in {
       val key = "toto@maif.fr"
       /* First check */
-      ws.url(s"$rootPath/api/apikeys/$key").get().futureValue.status must be(404)
-      ws.url(s"$rootPath/api/apikeys").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
       /* Create */
       val apikey =
         Json.obj("name" -> key, "clientId" -> key, "clientSecret" -> "clientSecret", "authorizedPattern" -> "*")
-      ws.url(s"$rootPath/api/apikeys").post(apikey).futureValue.status must be(201)
+      ws.url(s"$rootPath/api/apikeys").post(apikey).futureValue must beAStatus(201)
 
       /* Verify */
-      val getById = ws.url(s"$rootPath/api/apikeys/$key").get().futureValue
-      getById.status must be(200)
-      getById.json must be(apikey)
+      ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAResponse(200, apikey)
 
-      ws.url(s"$rootPath/api/apikeys").get().futureValue.json must be(
+
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
         Json.obj("results"  -> Json.arr(apikey),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
@@ -51,14 +51,12 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
                  "authorizedPattern" -> "monclubfacile:*")
       ws.url(s"$rootPath/api/apikeys/$key")
         .put(apikeyUpdated)
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       /* Verify */
       val getByIdUpdated =
         ws.url(s"$rootPath/api/apikeys/$key").get().futureValue
-      getByIdUpdated.status must be(200)
-      getByIdUpdated.json must be(apikeyUpdated)
+      getByIdUpdated must beAResponse(200, apikeyUpdated)
 
       ws.url(s"$rootPath/api/apikeys").get().futureValue.json must be(
         Json.obj("results"  -> Json.arr(apikeyUpdated),
@@ -66,13 +64,23 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
       )
 
       /* Delete */
-      ws.url(s"$rootPath/api/apikeys/$key").delete().futureValue.status must be(200)
+      ws.url(s"$rootPath/api/apikeys/$key").delete().futureValue must beAStatus(200)
 
       /* Verify */
-      ws.url(s"$rootPath/api/apikeys/$key").get().futureValue.status must be(404)
-      ws.url(s"$rootPath/api/apikeys").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+      )
+
+
+      /*Delete all*/
+      ws.url(s"$rootPath/api/apikeys")
+        .addQueryStringParameters("patterns" -> "id*")
+        .delete()
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
+        Json.obj("results"  -> Json.arr(),
+          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 

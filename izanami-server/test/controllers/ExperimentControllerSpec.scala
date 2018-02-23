@@ -5,12 +5,14 @@ import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 import play.api.libs.ws.JsonBodyWritables._
-import test.OneServerPerSuiteWithMyComponents
+import play.api.libs.ws.WSResponse
+import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec
+    with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
@@ -28,9 +30,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       /* First check */
       ws.url(s"$rootPath/api/experiments/$key")
         .get()
-        .futureValue
-        .status must be(404)
-      ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
+        .futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -42,13 +43,11 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
                                 "variants"    -> Json.arr())
       ws.url(s"$rootPath/api/experiments")
         .post(experiment)
-        .futureValue
-        .status must be(201)
+        .futureValue must beAStatus(201)
 
       /* Verify */
-      val getById = ws.url(s"$rootPath/api/experiments/$key").get().futureValue
-      getById.status must be(200)
-      getById.json must be(experiment)
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experiment)
+
 
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
         Json.obj("results"  -> Json.arr(experiment),
@@ -63,16 +62,13 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
                                        "variants"    -> Json.arr())
       ws.url(s"$rootPath/api/experiments/$key")
         .put(experimentUpdated)
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       /* Verify */
-      val getByIdUpdated =
-        ws.url(s"$rootPath/api/experiments/$key").get().futureValue
-      getByIdUpdated.status must be(200)
-      getByIdUpdated.json must be(experimentUpdated)
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experimentUpdated)
 
-      ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
+
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
         Json.obj("results"  -> Json.arr(experimentUpdated),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
@@ -80,15 +76,13 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       /* Delete */
       ws.url(s"$rootPath/api/experiments/$key")
         .delete()
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       /* Verify */
       ws.url(s"$rootPath/api/experiments/$key")
         .get()
-        .futureValue
-        .status must be(404)
-      ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
+        .futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -97,7 +91,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
     }
@@ -118,8 +112,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       )
       ws.url(s"$rootPath/api/experiments")
         .post(experiment)
-        .futureValue
-        .status must be(201)
+        .futureValue must beAStatus(201)
 
       var variants = Seq.empty[String]
 
@@ -127,8 +120,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "1")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "1")
@@ -140,8 +132,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "2")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "2")
@@ -153,8 +144,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "3")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "3")
@@ -166,8 +156,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "4")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "4")
@@ -179,8 +168,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "5")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "5")
@@ -192,8 +180,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "6")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "6")
@@ -205,8 +192,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "7")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "7")
@@ -218,8 +204,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "8")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "8")
@@ -231,8 +216,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "9")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "9")
@@ -244,8 +228,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "10")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       variants = variants :+ (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "10")
@@ -266,7 +249,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
       /* Create */
       val key = "test2:ab:scenario"
-      val experiment = Json.obj(
+      val experiment: JsObject = Json.obj(
         "id"          -> key,
         "name"        -> "a name",
         "description" -> "A description",
@@ -278,25 +261,22 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       )
       ws.url(s"$rootPath/api/experiments")
         .post(experiment)
-        .futureValue
-        .status must be(201)
+        .futureValue must beAStatus(201)
 
       // Client 1 displayed and won
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "1")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "1")
         .post("")
-        .futureValue
-        .status must be(200)
-      ws.url(s"$rootPath/api/experiments/$key/won")
+        .futureValue must beAStatus(200)
+      val value: WSResponse = ws.url(s"$rootPath/api/experiments/$key/won")
         .addQueryStringParameters("clientId" -> "1")
         .post("")
         .futureValue
-        .status must be(200)
+      value must beAStatus(200)
 
       (ws
         .url(s"$rootPath/api/experiments/$key/variant")
@@ -308,8 +288,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "2")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "2")
@@ -319,15 +298,13 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/won")
         .addQueryStringParameters("clientId" -> "2")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       // Client 3 displayed and won
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "3")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "3")
@@ -337,15 +314,13 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key/won")
         .addQueryStringParameters("clientId" -> "3")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       // Client 4 displayed
       ws.url(s"$rootPath/api/experiments/$key/displayed")
         .addQueryStringParameters("clientId" -> "4")
         .post("")
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
       (ws
         .url(s"$rootPath/api/experiments/$key/variant")
         .addQueryStringParameters("clientId" -> "4")
@@ -355,7 +330,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
       val results =
         ws.url(s"$rootPath/api/experiments/$key/results").get().futureValue
-      results.status must be(200)
+      results must beAStatus(200)
 
       val eResult: ExperimentResult =
         ExperimentResult.format.reads(results.json).get

@@ -4,7 +4,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.Sink
-import com.datastax.driver.core.Cluster
+import com.datastax.driver.core.{Cluster, Session}
 import domains.config.ConfigStore.ConfigKey
 import domains.config.{Config, ConfigStore}
 import elastic.api.Elastic
@@ -33,7 +33,7 @@ class ConfigsPatch(
     izanamiConfig: IzanamiConfig,
     configStore: => ConfigStore,
     redisClient: => Option[RedisClientMasterSlaves],
-    cassandraClient: => Option[Cluster],
+    cassandraClient: => Option[(Cluster, Session)],
     elasticClient: => Option[Elastic[JsValue]],
     applicationLifecycle: ApplicationLifecycle,
     actorSystem: ActorSystem
@@ -52,7 +52,7 @@ class ConfigsPatch(
       case DbType.inMemory    => None //Nothing to do Here, data are transcient
       case DbType.redis       => redisClient.map(cli => RedisJsonDataStore(cli, conf, actorSystem))
       case DbType.levelDB     => izanamiConfig.db.leveldb.map(levelDb => LevelDBJsonDataStore(levelDb, conf, actorSystem, applicationLifecycle))
-      case DbType.cassandra   => cassandraClient.map(c => CassandraJsonDataStore(c, izanamiConfig.db.cassandra.get, conf, actorSystem))
+      case DbType.cassandra   => cassandraClient.map(c => CassandraJsonDataStore(c._2, izanamiConfig.db.cassandra.get, conf, actorSystem))
       case DbType.elastic     => elasticClient.map(es => ElasticJsonDataStore(es, izanamiConfig.db.elastic.get, conf, actorSystem))
     }
     // format: on
