@@ -77,13 +77,26 @@ function enabled(context, enabled, disabled, http) {
 export class FeaturesPage extends Component {
 
   formSchema = {
-    id: { type: 'string', props: { label: 'Feature Id', placeholder: 'The Feature id' }, error : { key : 'obj.id'}},
+    id: {
+      type: 'key',
+      props: {
+        label: 'Feature Id',
+        placeholder: 'The Feature id',
+        search(pattern) {
+          return IzanamiServices.fetchFeatures({page: 1, pageSize: 20, search: pattern })
+            .then(({results}) =>
+              results.map(({id}) => id)
+            )
+        }
+      } ,
+      error : { key : 'obj.id'}
+    },
     activationStrategy: { type: 'select', props: { label: 'Feature strategy', placeholder: 'The Feature strategy', possibleValues: ['NO_STRATEGY', 'RELEASE_DATE', 'SCRIPT', 'GLOBAL_SCRIPT'] }, error : { key : 'obj.activationStrategy'}},
     enabled: { type: 'bool', props: { label: 'Feature active', placeholder: `Feature active` }, error : { key : 'obj.enabled'}},
     parameters: { type: FeatureParameters, props: { label: 'Parameters', placeholderKey: 'Parameter name', placeholderValue: 'Parameter value' }, error : { key : 'obj.parameters'}},
   };
 
-  editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true } } };
+  editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true, search: this.searchKey } } };
 
   columns = [
     { 
@@ -130,6 +143,13 @@ export class FeaturesPage extends Component {
     'parameters'
   ];
 
+  searchKey = (pattern) => {
+    return IzanamiServices.fetchFeatures({page: 1, pageSize: 20, search: pattern })
+      .map(({results}) =>
+        results.map(({id}) => id)
+      )
+  };
+
   fetchItems = (args) => {
     const {search = [], page, pageSize} = args;
     const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
@@ -165,7 +185,7 @@ export class FeaturesPage extends Component {
               enabled: true,
               activationStrategy: "NO_STRATEGY",
               parameters: {},
-              id: "project:env:feature1"
+              id: ""
             })}
             parentProps={this.props}
             user={this.props.user}
