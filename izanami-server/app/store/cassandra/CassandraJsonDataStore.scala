@@ -97,15 +97,15 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    getByIdRow(id)
+    getByIdRaw(id)
       .flatMap {
         case Some(d) =>
           FastFuture.successful(Result.errors(ErrorMessage("error.data.exists", id.key)))
         case None =>
-          createWithSession(id, data)
+          createRaw(id, data)
       }
 
-  private def createWithSession(id: Key, data: JsValue): Future[Result[JsValue]] = {
+  private def createRaw(id: Key, data: JsValue): Future[Result[JsValue]] = {
     val query =
       s"INSERT INTO $keyspace.$namespaceFormatted (namespace, id, key, value) values (?, ?, ?, ?) IF NOT EXISTS "
 
@@ -119,23 +119,20 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    updateWithSession(oldId, id, data)
-
-  private def updateWithSession(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
     if (oldId.key == id.key) {
-      getByIdRow(id)
+      getByIdRaw(id)
         .flatMap {
-          case Some(_) => updateInCassandra(id: Key, data)
+          case Some(_) => updateRaw(id: Key, data)
           case None    => FastFuture.successful(Result.error("error.data.missing"))
         }
     } else {
       deleteRaw(oldId)
         .flatMap { _ =>
-          createWithSession(id, data)
+          createRaw(id, data)
         }
     }
 
-  private def updateInCassandra(id: Key, data: JsValue): Future[Result[JsValue]] = {
+  private def updateRaw(id: Key, data: JsValue): Future[Result[JsValue]] = {
     val query =
       s"UPDATE $keyspace.$namespaceFormatted SET value = ? WHERE namespace = ? AND id = ? IF EXISTS "
     val args = Seq(Json.stringify(data), namespaceFormatted, id.key)
@@ -143,7 +140,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def delete(id: Key): Future[Result[JsValue]] =
-    getByIdRow(id)
+    getByIdRaw(id)
       .flatMap {
         case Some(d) =>
           deleteRaw(id).map(_ => Result.ok(d))
@@ -162,9 +159,6 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
-    deleteAllWithSession(patterns)
-
-  def deleteAllWithSession(patterns: Seq[String]): Future[Result[Done]] =
     if (patterns.isEmpty || patterns.contains("")) {
       FastFuture.successful(Result.ok(Done))
     } else {
@@ -195,10 +189,10 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
 
   override def getById(id: Key): FindResult[JsValue] =
     SimpleFindResult(
-      getByIdRow(id).map(_.toList)
+      getByIdRaw(id).map(_.toList)
     )
 
-  private def getByIdRow(id: Key): Future[Option[JsValue]] = {
+  private def getByIdRaw(id: Key): Future[Option[JsValue]] = {
     val query =
       s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
     val args = Seq(namespaceFormatted, id.key)
@@ -220,7 +214,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
-    getByIdLikeWithSession(patterns)
+    getByIdLikeRaw(patterns)
       .via(Flows.count {
         Flow[JsValue]
           .drop(nbElementPerPage * (page - 1))
@@ -235,10 +229,10 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
 
   override def getByIdLike(patterns: Seq[String]): FindResult[JsValue] =
     SourceFindResult(
-      getByIdLikeWithSession(patterns)
+      getByIdLikeRaw(patterns)
     )
 
-  private def getByIdLikeWithSession(patterns: Seq[String]): Source[JsValue, NotUsed] =
+  private def getByIdLikeRaw(patterns: Seq[String]): Source[JsValue, NotUsed] =
     if (patterns.isEmpty || patterns.contains("")) {
       Source.empty
     } else {
@@ -258,13 +252,13 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     }
 
   override def count(patterns: Seq[String]): Future[Long] =
-    countWithSession(patterns).flatMap {
+    countRaw(patterns).flatMap {
       case Right(r) => FastFuture.successful(r)
       case Left(r) =>
         FastFuture.failed(new IllegalArgumentException("pattern.invalid"))
     }
 
-  private def countWithSession(patterns: Seq[String]): Future[Result[Long]] =
+  private def countRaw(patterns: Seq[String]): Future[Result[Long]] =
     if (patterns.isEmpty || patterns.contains("")) {
       FastFuture.successful(Result.ok(0))
     } else {
