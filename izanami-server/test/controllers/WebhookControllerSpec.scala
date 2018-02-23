@@ -175,19 +175,16 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
                                "headers"     -> Json.obj())
         ws.url(s"$rootPath/api/webhooks")
           .post(webhook)
-          .futureValue
-          .status must be(201)
+          .futureValue must beAStatus(201)
 
         val config = Json.obj("id" -> key, "value" -> "value")
         ws.url(s"$rootPath/api/configs")
           .post(config)
-          .futureValue
-          .status must be(201)
+          .futureValue must beAStatus(201)
         val feature = Json.obj("id" -> key, "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
         ws.url(s"$rootPath/api/features")
           .post(feature)
-          .futureValue
-          .status must be(201)
+          .futureValue must beAStatus(201)
 
         Thread.sleep(1100)
 
