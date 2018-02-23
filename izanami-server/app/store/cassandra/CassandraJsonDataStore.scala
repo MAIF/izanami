@@ -239,7 +239,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
           val query =
             s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
           Logger.debug(s"Running query $query with args [$namespaceFormatted]")
-          val stmt = new SimpleStatement(query, namespaceFormatted).setKeyspace(keyspace)
+          val stmt = new SimpleStatement(query, namespaceFormatted)
           CassandraSource(stmt).map { rs =>
             Json.parse(rs.getString("value"))
           }
@@ -269,7 +269,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
             new SimpleStatement(
               query,
               namespaceFormatted
-            ).setKeyspace(keyspace)
+            )
           CassandraSource(stmt)
             .map { rs =>
               Result.ok(rs.getLong("count"))
