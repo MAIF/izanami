@@ -11,7 +11,18 @@
           </div>
           <div class="media-body">
             <h3 class="media-heading">{{show.title}}</h3>
-            <a routerLink="/tvshow/{{show.id}}" class="btn pull-right"><i class="fa fa-eye"></i></a>
+
+            <ng-template appExperiment path="mytvshows:gotoepisodes:button"
+                         notifyDisplayPath="/api/izanami/experiments/displayed" variant="A" [debug]="true">
+              <a routerLink="/tvshow/{{show.id}}" (click)="markAsWon" class="btn pull-right"><i
+                class="fa fa-eye"></i></a>
+            </ng-template>
+            <ng-template appExperiment path="mytvshows:gotoepisodes:button"
+                         notifyDisplayPath="/api/izanami/experiments/displayed" variant="B" [debug]="true">
+              <a routerLink="/tvshow/{{show.id}}" (click)="markAsWon" class="btn pull-right"><i
+                class="glyphicon glyphicon-chevron-right"></i></a>
+            </ng-template>
+
             <button type="button" class="btn pull-right" (click)="remove(show)" alt="supprimer"><i
               class="glyphicon glyphicon-trash"></i>
             </button>

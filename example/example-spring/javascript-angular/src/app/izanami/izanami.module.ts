@@ -3,6 +3,8 @@ import {IzanamiProviderComponent} from './izanami-provider/izanami-provider.comp
 import {IzanamiService} from './izanami.service';
 import {BrowserModule} from '@angular/platform-browser';
 import {FeatureDirective} from './feature.directive';
+import {ExperimentDirective} from './experiment.directive';
+import {ExperimentPrivateService} from './experiment-private.service';
 
 @NgModule({
   imports: [
@@ -10,10 +12,11 @@ import {FeatureDirective} from './feature.directive';
   ],
   declarations: [
     IzanamiProviderComponent,
-    FeatureDirective
+    FeatureDirective,
+    ExperimentDirective
   ],
-  exports: [IzanamiProviderComponent, FeatureDirective],
-  providers: [IzanamiService]
+  exports: [IzanamiProviderComponent, FeatureDirective, ExperimentDirective],
+  providers: [IzanamiService, ExperimentPrivateService]
 })
 export class IzanamiModule {
 }

@@ -28,6 +28,10 @@ export class MyTvShowsComponent implements OnInit {
     );
   }
 
+  markAsWon() {
+    this.appServices.notifyWon("mytvshows:gotoepisodes:button");
+  }
+
   remove(show: Show) {
     this.appServices.removeTvShow(show.id)
       .subscribe(() =>

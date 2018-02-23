@@ -1,4 +1,4 @@
-import {Directive, ElementRef, Input, OnDestroy, OnInit, TemplateRef, ViewContainerRef} from '@angular/core';
+import {Directive, Input, OnDestroy, OnInit, TemplateRef, ViewContainerRef} from '@angular/core';
 import {IzanamiProviderComponent} from "./izanami-provider/izanami-provider.component";
 import {IzanamiService} from "./izanami.service";
 import _ from 'lodash';
@@ -24,13 +24,13 @@ export class FeatureDirective implements OnInit, OnDestroy {
   features: any;
   lastStateActive: boolean;
 
-  constructor(private templateRef: TemplateRef<any>, private viewContainer: ViewContainerRef, private el: ElementRef, private izanamiService: IzanamiService, private izanamiProvider: IzanamiProviderComponent) {
+  constructor(private templateRef: TemplateRef<any>, private viewContainer: ViewContainerRef, private izanamiService: IzanamiService, private izanamiProvider: IzanamiProviderComponent) {
   }
 
   onFeaturesChanged = ({features}) => {
     if (!deepEqual(this.features, features)) {
       this.features = features;
-      let value = _.get(features, this.path) || {active: false};
+      let value = _.get(features, this.path.replace(/:/g, '.')) || {active: false};
 
       const active = !((!value.active && this.isEnabled) || (value.active && !this.isEnabled));
 
