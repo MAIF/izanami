@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
-import { Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput } from '../inputs';
+import { Key, Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput } from '../inputs';
 import DateTime from 'react-datetime';
 import moment from 'moment';
 
@@ -102,7 +102,7 @@ export class FeaturesPage extends Component {
     { 
       title: 'Name',     
       search: (s, item) => item.id.indexOf(s) > -1, 
-      content: item => item.id },
+      content: item => <Key value={item.id} /> },
     { 
       title: 'Strategy', 
       notFilterable: true,     

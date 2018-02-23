@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import _ from 'lodash';
 
 export class KeyInput extends Component {
 
@@ -34,19 +35,21 @@ export class KeyInput extends Component {
     if (v.endsWith(":")) {
       const segments = [...this.state.segments, ...v.split(":").filter(e => !!e)];
       const key = segments.join(":");
-      this.setState({segments, key, textValue: '', computedValue: key});
+      this.setState(
+        {segments, key, textValue: '', computedValue: key},
+        () => this.search()
+      );
       this.props.onChange(key);
       this.search();
     } else {
-
       const computedValue = this.state.key ? this.state.key + ":" + v : v;
-      this.setState({computedValue, textValue: v});
+      this.setState(
+        {computedValue, textValue: v},
+        () => this.search()
+      );
       this.props.onChange(computedValue);
-      this.search();
     }
   };
-
-
 
   removeLastSegment = () => {
     const segments = this.state.segments.slice(0, -1);
@@ -63,8 +66,11 @@ export class KeyInput extends Component {
     if (this.state.computedValue.length > 0) {
       this.props.search(this.state.computedValue + "*")
         .then(datas => {
+          _.sortBy(datas);
           this.setState({datas})
         })
+    } else {
+      this.setState({datas:[]})
     }
   };
 
@@ -101,7 +107,7 @@ export class KeyInput extends Component {
       <div className="form-group">
         <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{this.props.label}</label>
         <div className="col-sm-10">
-          <div className="keypicker keypicker--multi">
+          <div className="keypicker keypicker--multi" >
             <div className="keypicker-control">
               <span className="keypicker-multi-value-wrapper">
                 {this.state.segments.map( (part,i) => [
@@ -122,7 +128,7 @@ export class KeyInput extends Component {
               </span>
             </div>
             {this.state.datas && this.state.datas.length > 0  &&
-            <div className="keypicker-menu-outer">
+            <div className="keypicker-menu-outer" style={{zIndex: '20', overflow: 'hidden'}}>
               {this.state.datas.map((d, i) =>
                 <div key={`res-${i}`}>
                   {this.renderResult(d)}
