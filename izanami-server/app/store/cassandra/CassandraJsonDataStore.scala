@@ -97,7 +97,8 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
     session()
       .flatMap { implicit session =>
         getByIdWithSession(id)
-          .map { _ =>
+          .map { d =>
+            Logger.debug(s"data exists $d")
             Result.errors(ErrorMessage("error.data.exists", id.key))
           }
           .orElse(Source.fromFuture(createWithSession(id, data, None)))
@@ -129,18 +130,14 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
 
   private def updateWithSession(oldId: Key, id: Key, data: JsValue, ttl: Option[FiniteDuration])(
       implicit session: Session
-  ): Future[Result[JsValue]] =
-    getByIdWithSession(oldId)
-      .mapAsync(1) { _ =>
-        deleteWithSession(oldId)
-      }
-      .mapAsync(1) { _ =>
+  ): Future[Result[JsValue]] = if (oldId.key == id.key) {
+    updateInCassandra(id: Key, data, ttl)
+  } else {
+    deleteWithSession(oldId)
+      .flatMap{ _ =>
         createWithSession(id, data, ttl)
       }
-      .orElse {
-        Source.fromFuture(updateInCassandra(id: Key, data, ttl))
-      }
-      .runWith(Sink.head)
+  }
 
   private def updateInCassandra(id: Key, data: JsValue, ttl: Option[FiniteDuration])(
       implicit session: Session
@@ -160,8 +157,8 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
     getByIdWithSession(id)(session)
       .mapAsync(1) { data =>
         val query =
-          s"DELETE FROM $keyspace.$namespaceFormatted WHERE id = ? AND namespace = ? IF EXISTS "
-        val args = Seq(id.key, namespaceFormatted)
+          s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
+        val args = Seq(namespaceFormatted, id.key)
         executeWithSession(
           query,
           args: _*
@@ -220,8 +217,8 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
 
   private def getByIdWithSession(id: Key)(implicit session: Session): Source[JsValue, NotUsed] = {
     val query =
-      s"SELECT value FROM $keyspace.$namespaceFormatted WHERE id = ? AND namespace = ? "
-    val args = Seq(id.key, namespaceFormatted)
+      s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
+    val args = Seq(namespaceFormatted, id.key)
     Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
     val stmt =
       new SimpleStatement(query, args: _*)
