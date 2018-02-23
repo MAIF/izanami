@@ -14,7 +14,6 @@ export class IzanamiService {
   }[] = [];
 
   constructor(private httpClient: HttpClient) {
-
   }
 
   izanamiReload(path: string, fetchHeaders: any) {

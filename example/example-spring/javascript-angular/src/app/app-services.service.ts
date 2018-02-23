@@ -1,6 +1,5 @@
 import {Injectable} from '@angular/core';
 import {Observable} from "rxjs/Observable";
-import {Show} from "./model/Show";
 import {of} from "rxjs/observable/of";
 import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {User} from "./model/User";
@@ -72,5 +71,11 @@ export class AppServicesService {
       // Let the app keep running by returning an empty result.
       return of(result as T);
     };
+  }
+
+  notifyWon(key: string) {
+    const url = `/api/izanami/experiments/won?experiment=${key}`;
+    return this.httpClient.post(url, {}, this.options())
+      .pipe(catchError(this.handleError(url, {error: true})));
   }
 }
