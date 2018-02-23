@@ -130,14 +130,20 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, cluster: Clust
 
   private def updateWithSession(oldId: Key, id: Key, data: JsValue, ttl: Option[FiniteDuration])(
       implicit session: Session
-  ): Future[Result[JsValue]] = if (oldId.key == id.key) {
-    updateInCassandra(id: Key, data, ttl)
-  } else {
-    deleteWithSession(oldId)
-      .flatMap{ _ =>
-        createWithSession(id, data, ttl)
-      }
-  }
+  ): Future[Result[JsValue]] =
+    if (oldId.key == id.key) {
+      getByIdWithSession(id)
+          .mapAsync(1) { _ =>
+            updateInCassandra(id: Key, data, ttl)
+          }
+          .orElse(Source.single(Result.error("error.data.missing")))
+          .runWith(Sink.head)
+    } else {
+      deleteWithSession(oldId)
+        .flatMap{ _ =>
+          createWithSession(id, data, ttl)
+        }
+    }
 
   private def updateInCassandra(id: Key, data: JsValue, ttl: Option[FiniteDuration])(
       implicit session: Session
