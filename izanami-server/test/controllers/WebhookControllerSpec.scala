@@ -173,15 +173,17 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
                                "callbackUrl" -> s"http://localhost:${ctx.port}/api/v1/events",
                                "domains"     -> Json.arr("Config"),
                                "headers"     -> Json.obj())
+
         ws.url(s"$rootPath/api/webhooks")
           .post(webhook)
           .futureValue must beAStatus(201)
 
-        val config = Json.obj("id" -> key, "value" -> "value")
+        val config = Json.obj("id" -> "my:config:test4", "value" -> "value")
         ws.url(s"$rootPath/api/configs")
           .post(config)
           .futureValue must beAStatus(201)
-        val feature = Json.obj("id" -> key, "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
+
+        val feature = Json.obj("id" -> "my:feature:test4", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
         ws.url(s"$rootPath/api/features")
           .post(feature)
           .futureValue must beAStatus(201)
