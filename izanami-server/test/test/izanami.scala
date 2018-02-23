@@ -3,11 +3,15 @@ package test
 import controllers.actions.{AuthContext, SecuredAuthContext}
 import domains.user.User
 import modules.IzanamiComponentsInstances
+import org.scalactic.Prettifier
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{MustMatchers, OptionValues, TestSuite, WordSpec}
+import org.scalatest.matchers.{MatchResult, Matcher}
+import org.scalatest._
 import org.scalatestplus.play.components._
 import play.api.ApplicationLoader.Context
 import play.api._
+import play.api.libs.json.JsValue
+import play.api.libs.ws.WSResponse
 import play.api.mvc.{ActionBuilder, _}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -97,4 +101,32 @@ trait OneServerPerSuiteWithMyComponents
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
 
   override def components: BuiltInComponents = izanamiComponents
+}
+
+trait IzanamiMatchers {
+
+  def beAStatus(status: Int): Matcher[WSResponse] = new Matcher[WSResponse] {
+    override def apply(left: WSResponse): MatchResult = {
+      MatchResult(
+        left.status == status,
+        s"${left.status} is not the same as $status (body is ${left.body})",
+        s"${left.status} is the same as $status (body is ${left.body})",
+        Vector()
+      )
+    }
+    override def toString: String = "be theStatus " + Prettifier.default(status)
+  }
+
+  def beAResponse(status: Int, value: JsValue): Matcher[WSResponse] = new Matcher[WSResponse] {
+    override def apply(left: WSResponse): MatchResult = {
+      MatchResult(
+        left.status == status && left.json == value,
+        s"${left.status} is not the same as $status or the body ${left.body} is not the same as $value",
+        s"${left.status} is the same as $status and the body ${left.body} is not the same as $value",
+        Vector()
+      )
+    }
+    override def toString: String = "be theStatus " + Prettifier.default(status)
+  }
+
 }

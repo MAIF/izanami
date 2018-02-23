@@ -12,7 +12,7 @@ import org.scalatestplus.play._
 import play.api.Configuration
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.libs.ws.JsonBodyWritables._
-import test.OneServerPerSuiteWithMyComponents
+import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.DurationDouble
@@ -20,6 +20,7 @@ import scala.concurrent.{Await, Future}
 
 class WebhookControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
+    with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
@@ -46,8 +47,8 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
     "create read update delete" in {
       val key = "my:path"
       /* First check */
-      ws.url(s"$rootPath/api/webhooks/$key").get().futureValue.status must be(404)
-      ws.url(s"$rootPath/api/webhooks").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/webhooks/$key").get().futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -63,12 +64,11 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
       )
       ws.url(s"$rootPath/api/webhooks")
         .post(webhook)
-        .futureValue
-        .status must be(201)
+        .futureValue must beAStatus(201)
 
       /* Verify */
       val getById = ws.url(s"$rootPath/api/webhooks/$key").get().futureValue
-      getById.status must be(200)
+      getById must beAStatus(200)
       (getById.json.as[JsObject] - "created") must be(webhook)
 
       formatResults(ws.url(s"$rootPath/api/webhooks").get().futureValue.json) must be(
@@ -88,13 +88,12 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
       )
       ws.url(s"$rootPath/api/webhooks/$key")
         .put(webhookUpdated)
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       /* Verify */
       val getByIdUpdated =
         ws.url(s"$rootPath/api/webhooks/$key").get().futureValue
-      getByIdUpdated.status must be(200)
+      getByIdUpdated must beAStatus(200)
       (getByIdUpdated.json.as[JsObject] - "created") must be(webhookUpdated)
 
       formatResults(ws.url(s"$rootPath/api/webhooks").get().futureValue.json) must be(
@@ -105,14 +104,22 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
       /* Delete */
       ws.url(s"$rootPath/api/webhooks/$key")
         .delete()
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       /* Verify */
-      ws.url(s"$rootPath/api/webhooks/$key").get().futureValue.status must be(404)
-      ws.url(s"$rootPath/api/webhooks").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/webhooks/$key").get().futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+      )
+
+      /* Delete all */
+      ws.url(s"$rootPath/api/webhooks")
+        .addQueryStringParameters("patterns" -> "id*")
+        .delete()
+      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(200,
+        Json.obj("results"  -> Json.arr(),
+          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 //TO FRAGILE FOR TRAVIS => TODO: FIX IT
