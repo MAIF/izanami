@@ -6,6 +6,7 @@ import akka.testkit.SocketUtil._
 import com.typesafe.config.ConfigFactory
 import controllers.{UserControllerSpec, _}
 import elastic.client.ElasticClient
+import libs.IdGenerator
 import org.iq80.leveldb.util.FileUtils
 import org.scalatest._
 import play.api.Configuration
@@ -16,8 +17,11 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationLong
 import scala.util.{Random, Try}
+import  Configs.idGenerator
 
 object Configs {
+
+  val idGenerator = IdGenerator(0L)
 
   val redisPort: Int = temporaryServerAddress("localhost", udp = false).getPort
 
@@ -217,17 +221,18 @@ class ElasticTests
   override protected def afterAll(): Unit = ()
 }
 
+
 class CassandraTests
     extends Suites(
-      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration(s"config${System.currentTimeMillis()}")),
+      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")),
       new ExperimentControllerSpec("Cassandra",
-                                   Configs.cassandraConfiguration(s"experiment${System.currentTimeMillis()}")),
-      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration(s"features${System.currentTimeMillis()}")),
+                                   Configs.cassandraConfiguration(s"experiment${idGenerator.nextId()}")),
+      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration(s"features${idGenerator.nextId()}")),
       new GlobalScriptControllerSpec("Cassandra",
-                                     Configs.cassandraConfiguration(s"script${System.currentTimeMillis()}")),
-      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration(s"webhook${System.currentTimeMillis()}")),
-      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration(s"user${System.currentTimeMillis()}")),
-      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration(s"apikey${System.currentTimeMillis()}"))
+                                     Configs.cassandraConfiguration(s"script${idGenerator.nextId()}")),
+      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration(s"webhook${idGenerator.nextId()}")),
+      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration(s"user${idGenerator.nextId()}")),
+      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration(s"apikey${idGenerator.nextId()}"))
     )
 
 class LevelDBTests
