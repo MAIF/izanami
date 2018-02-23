@@ -4,7 +4,7 @@ import java.util.concurrent.Executor
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
@@ -18,33 +18,37 @@ import play.api.libs.json.{JsValue, Json}
 import store.Result.{ErrorMessage, Result}
 import store._
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 object CassandraJsonDataStore {
   def apply(session: Session,
             cassandraConfig: CassandraConfig,
             config: DbDomainConfig,
-            actorSystem: ActorSystem): CassandraJsonDataStore = {
-    val namespace = config.conf.namespace
-    Logger.info(s"Load store Cassandra for namespace $namespace")
-    new CassandraJsonDataStore(namespace, cassandraConfig.keyspace, session, actorSystem)
-  }
+            actorSystem: ActorSystem): CassandraJsonDataStore =
+    new CassandraJsonDataStore(
+      config.conf.namespace,
+      cassandraConfig.keyspace,
+      session,
+      actorSystem
+    )
+
 }
 
 class CassandraJsonDataStore(namespace: String, keyspace: String, session: Session, actorSystem: ActorSystem)
     extends JsonDataStore {
 
+  Logger.info(s"Load store Cassandra for namespace $namespace")
+
   private val namespaceFormatted = namespace.replaceAll(":", "_")
 
   import Cassandra._
 
-  implicit private val mat      = ActorMaterializer()(actorSystem)
-  implicit private val _session = session
+  implicit private val mat: Materializer = ActorMaterializer()(actorSystem)
+  implicit private val _session: Session = session
 
   import actorSystem.dispatcher
 
-  Logger.info(s"Creating table ${keyspace}.$namespaceFormatted if not exists")
+  Logger.info(s"Creating table $keyspace.$namespaceFormatted if not exists")
   session.execute(s"""
       | CREATE TABLE IF NOT EXISTS $keyspace.$namespaceFormatted (
       |   namespace text,
@@ -69,7 +73,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   private val regex = """[\*]?(([\w@\.0-9\-]+)(:?))+[\*]?""".r
 
   private def patternStatement(field: String, patterns: Seq[String]): Result[String] = {
-    val hasError = patterns
+    val hasError: Boolean = patterns
       .map {
         case "*"       => false
         case regex(_*) => false
@@ -93,19 +97,17 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    getByIdWithSession(id)
-      .map { d =>
-        Logger.debug(s"data exists $d")
-        Result.errors(ErrorMessage("error.data.exists", id.key))
+    getByIdRow(id)
+      .flatMap {
+        case Some(d) =>
+          FastFuture.successful(Result.errors(ErrorMessage("error.data.exists", id.key)))
+        case None =>
+          createWithSession(id, data)
       }
-      .orElse(Source.fromFuture(createWithSession(id, data, None)))
-      .runWith(Sink.head)
 
-  private def createWithSession(id: Key, data: JsValue, ttl: Option[FiniteDuration]): Future[Result[JsValue]] = {
-
-    val ttlValue = ttl.map(ttl => s" USING TTL ${ttl.toSeconds}").getOrElse("")
+  private def createWithSession(id: Key, data: JsValue): Future[Result[JsValue]] = {
     val query =
-      s"INSERT INTO $keyspace.$namespaceFormatted (namespace, id, key, value) values (?, ?, ?, ?) IF NOT EXISTS $ttlValue  "
+      s"INSERT INTO $keyspace.$namespaceFormatted (namespace, id, key, value) values (?, ?, ?, ?) IF NOT EXISTS "
 
     val args = Seq(namespaceFormatted, id.key, id.key, Json.stringify(data))
     executeWithSession(
@@ -117,55 +119,47 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    updateWithSession(oldId, id, data, None)
+    updateWithSession(oldId, id, data)
 
-  private def updateWithSession(oldId: Key,
-                                id: Key,
-                                data: JsValue,
-                                ttl: Option[FiniteDuration]): Future[Result[JsValue]] =
+  private def updateWithSession(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
     if (oldId.key == id.key) {
-      getByIdWithSession(id)
-        .mapAsync(1) { _ =>
-          updateInCassandra(id: Key, data, ttl)
+      getByIdRow(id)
+        .flatMap {
+          case Some(_) => updateInCassandra(id: Key, data)
+          case None    => FastFuture.successful(Result.error("error.data.missing"))
         }
-        .orElse(Source.single(Result.error("error.data.missing")))
-        .runWith(Sink.head)
     } else {
-      deleteWithSession(oldId)
+      deleteRaw(oldId)
         .flatMap { _ =>
-          createWithSession(id, data, ttl)
+          createWithSession(id, data)
         }
     }
 
-  private def updateInCassandra(id: Key, data: JsValue, ttl: Option[FiniteDuration]): Future[Result[JsValue]] = {
-
-    val ttlValue = ttl.map(ttl => s" USING TTL ${ttl.toSeconds}").getOrElse("")
+  private def updateInCassandra(id: Key, data: JsValue): Future[Result[JsValue]] = {
     val query =
-      s"UPDATE $keyspace.$namespaceFormatted $ttlValue SET value = ? WHERE namespace = ? AND id = ? IF EXISTS "
+      s"UPDATE $keyspace.$namespaceFormatted SET value = ? WHERE namespace = ? AND id = ? IF EXISTS "
     val args = Seq(Json.stringify(data), namespaceFormatted, id.key)
     executeWithSession(query, args: _*).map(rs => Result.ok(data))
   }
 
   override def delete(id: Key): Future[Result[JsValue]] =
-    deleteWithSession(id)
+    getByIdRow(id)
+      .flatMap {
+        case Some(d) =>
+          deleteRaw(id).map(_ => Result.ok(d))
+        case None =>
+          FastFuture.successful(Result.error("error.data.missing"))
+      }
 
-  private def deleteWithSession(id: Key): Future[Result[JsValue]] =
-    getByIdWithSession(id)
-      .mapAsync(1) { data =>
-        val query =
-          s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
-        val args = Seq(namespaceFormatted, id.key)
-        executeWithSession(
-          query,
-          args: _*
-        ).map { r =>
-          Result.ok(data)
-        }
-      }
-      .runWith(Sink.headOption)
-      .map {
-        _.getOrElse(Result.error("error.data.missing"))
-      }
+  private def deleteRaw(id: Key): Future[Unit] = {
+    val query =
+      s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
+    val args = Seq(namespaceFormatted, id.key)
+    executeWithSession(
+      query,
+      args: _*
+    ).map(_ => ())
+  }
 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     deleteAllWithSession(patterns)
@@ -176,11 +170,11 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     } else {
       patternStatement("key", patterns) match {
         case Right(s) =>
-          val stm = if (!s.isEmpty) s"AND $s" else ""
+          val stm: String = if (!s.isEmpty) s"AND $s" else ""
           val query =
             s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
           Logger.debug(s"Running query $query with args [$namespaceFormatted]")
-          val stmt =
+          val stmt: Statement =
             new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
           CassandraSource(stmt)
             .map { rs =>
@@ -200,21 +194,28 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     }
 
   override def getById(id: Key): FindResult[JsValue] =
-    SourceFindResult(
-      getByIdWithSession(id)
+    SimpleFindResult(
+      getByIdRow(id).map(_.toList)
     )
 
-  private def getByIdWithSession(id: Key): Source[JsValue, NotUsed] = {
+  private def getByIdRow(id: Key): Future[Option[JsValue]] = {
     val query =
       s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
     val args = Seq(namespaceFormatted, id.key)
     Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
-    val stmt =
+    val stmt: SimpleStatement =
       new SimpleStatement(query, args: _*)
         .setKeyspace("izanami")
-
-    CassandraSource(stmt).map { rs =>
-      Json.parse(rs.getString("value"))
+    executeWithSession(
+      query = query,
+      args = args: _*
+    ).map { rs =>
+      val row: Row = rs.one()
+      if (row != null && !row.isNull("value")) {
+        Some(Json.parse(row.getString("value")))
+      } else {
+        None
+      }
     }
   }
 
@@ -243,7 +244,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     } else {
       patternStatement("key", patterns) match {
         case Right(s) =>
-          val stm = if (!s.isEmpty) s"AND $s" else ""
+          val stm: String = if (!s.isEmpty) s"AND $s" else ""
           val query =
             s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
           Logger.debug(s"Running query $query with args [$namespaceFormatted]")
@@ -269,11 +270,11 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     } else {
       patternStatement("key", patterns) match {
         case Right(s) =>
-          val stm = if (!s.isEmpty) s"AND $s" else ""
+          val stm: String = if (!s.isEmpty) s"AND $s" else ""
           val query =
             s"SELECT COUNT(*) AS count FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
           Logger.debug(s"Running query $query with args [$namespaceFormatted]")
-          val stmt =
+          val stmt: SimpleStatement =
             new SimpleStatement(
               query,
               namespaceFormatted
@@ -311,12 +312,12 @@ object Cassandra {
   implicit class FutureConvertions[T](f: ListenableFuture[T]) {
     def toFuture(implicit ec: ExecutionContext): Future[T] = {
 
-      val promise = Promise[T]
+      val promise: Promise[T] = Promise[T]
       Futures.addCallback(
         f,
         new FutureCallback[T] {
-          override def onFailure(t: Throwable) = promise.failure(t)
-          override def onSuccess(result: T)    = promise.success(result)
+          override def onFailure(t: Throwable): Unit = promise.failure(t)
+          override def onSuccess(result: T): Unit    = promise.success(result)
         },
         ExecutorConversions.toExecutor(ec)
       )
@@ -328,8 +329,6 @@ object Cassandra {
 
   object ExecutorConversions {
     def toExecutor(ec: ExecutionContext): Executor =
-      new Executor {
-        override def execute(command: Runnable): Unit = ec.execute(command)
-      }
+      (command: Runnable) => ec.execute(command)
   }
 }
