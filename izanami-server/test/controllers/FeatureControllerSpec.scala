@@ -4,11 +4,12 @@ import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
 import play.api.libs.json.Json
-import test.OneServerPerSuiteWithMyComponents
+import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 import play.api.libs.ws.JsonBodyWritables._
 
 class FeatureControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
+    with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
@@ -23,8 +24,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
     "create read update delete deleteAll" in {
       val key = "my:path"
       /* First check */
-      ws.url(s"$rootPath/api/features/$key").get().futureValue.status must be(404)
-      ws.url(s"$rootPath/api/features").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/features/$key").get().futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -32,13 +33,11 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       val feature = Json.obj("id" -> key, "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
       ws.url(s"$rootPath/api/features")
         .post(feature)
-        .futureValue
-        .status must be(201)
+        .futureValue must beAStatus(201)
 
       /* Verify */
       val getById = ws.url(s"$rootPath/api/features/$key").get().futureValue
-      getById.status must be(200)
-      getById.json must be(feature)
+      getById must beAResponse(200, feature)
 
       ws.url(s"$rootPath/api/features").get().futureValue.json must be(
         Json.obj("results"  -> Json.arr(feature),
@@ -49,14 +48,12 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       val featureUpdated = Json.obj("id" -> key, "enabled" -> true, "activationStrategy" -> "NO_STRATEGY")
       ws.url(s"$rootPath/api/features/$key")
         .put(featureUpdated)
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       /* Verify */
       val getByIdUpdated =
         ws.url(s"$rootPath/api/features/$key").get().futureValue
-      getByIdUpdated.status must be(200)
-      getByIdUpdated.json must be(featureUpdated)
+      getByIdUpdated must beAResponse(200, featureUpdated)
 
       ws.url(s"$rootPath/api/features").get().futureValue.json must be(
         Json.obj("results"  -> Json.arr(featureUpdated),
@@ -66,12 +63,11 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       /* Delete */
       ws.url(s"$rootPath/api/features/$key")
         .delete()
-        .futureValue
-        .status must be(200)
+        .futureValue must beAStatus(200)
 
       /* Verify */
       ws.url(s"$rootPath/api/features/$key").get().futureValue.status must be(404)
-      ws.url(s"$rootPath/api/features").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -80,7 +76,7 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       ws.url(s"$rootPath/api/features")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/features").get().futureValue.json must be(
+      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -93,8 +89,7 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       val feature = Json.obj("id" -> "my:path", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
       ws.url(s"$rootPath/api/features")
         .post(feature)
-        .futureValue
-        .status must be(201)
+        .futureValue must beAStatus(201)
 
       val script = s"""
         |function enabled(context, enabled, disabled) {
@@ -111,7 +106,7 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
                               "parameters"         -> Json.obj("script" -> script))
       val feature2Created =
         ws.url(s"$rootPath/api/features").post(feature2).futureValue
-      feature2Created.status must be(201)
+      feature2Created must beAStatus(201)
 
       ws.url(s"$rootPath/api/tree/features")
         .post(Json.obj())
@@ -166,12 +161,13 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
                               "activationStrategy" -> "SCRIPT",
                               "parameters"         -> Json.obj("script" -> script))
       val resp = ws.url(s"$rootPath/api/features").post(feature2).futureValue
-      resp.status must be(201)
+      resp must beAStatus(201)
 
       val fValue =
         ws.url(s"$rootPath/api/features/$key/check").get().futureValue
-      fValue.status must be(200)
-      fValue.json must be(Json.obj("active" -> false))
+      fValue must beAResponse(
+        200, Json.obj("active" -> false)
+      )
       ws.url(s"$rootPath/api/features/$key/check")
         .post(Json.obj("name" -> "ragnar"))
         .futureValue
