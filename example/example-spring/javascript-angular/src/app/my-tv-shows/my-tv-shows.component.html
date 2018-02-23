@@ -13,12 +13,12 @@
             <h3 class="media-heading">{{show.title}}</h3>
 
             <ng-template appExperiment path="mytvshows:gotoepisodes:button"
-                         notifyDisplayPath="/api/izanami/experiments/displayed" variant="A" [debug]="true">
+                         notifyDisplayPath="/api/izanami/experiments/displayed" variant="A">
               <a routerLink="/tvshow/{{show.id}}" (click)="markAsWon" class="btn pull-right"><i
                 class="fa fa-eye"></i></a>
             </ng-template>
             <ng-template appExperiment path="mytvshows:gotoepisodes:button"
-                         notifyDisplayPath="/api/izanami/experiments/displayed" variant="B" [debug]="true">
+                         notifyDisplayPath="/api/izanami/experiments/displayed" variant="B">
               <a routerLink="/tvshow/{{show.id}}" (click)="markAsWon" class="btn pull-right"><i
                 class="glyphicon glyphicon-chevron-right"></i></a>
             </ng-template>

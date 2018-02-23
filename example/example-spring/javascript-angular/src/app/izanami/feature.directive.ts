@@ -67,16 +67,18 @@ export class FeatureDirective implements OnInit, OnDestroy {
     if (!this.path)
       throw new Error("Path is required");
 
-    if (!this.debug)
-      this.debug = false;
-
     if (typeof this.isEnabled === 'undefined')
       this.isEnabled = true;
+
+    this.debug = this.debug || false;
 
     if (this.debug)
       console.log(`Init feature \"${this.path}\"`);
 
-    this.subscription = this.izanamiService.register(this.izanamiProvider.fetchFrom).subscribe(this.onFeaturesChanged);
+    if (this.izanamiProvider.fetchFrom)
+      this.subscription = this.izanamiService.register(this.izanamiProvider.fetchFrom).subscribe(this.onFeaturesChanged);
+    else
+      this.onFeaturesChanged({features: this.izanamiProvider.features || this.izanamiProvider.featuresFallback});
   }
 
   ngOnDestroy(): void {

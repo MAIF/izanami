@@ -92,16 +92,15 @@ export class ExperimentDirective implements OnInit, OnDestroy {
     if (!this.variant)
       throw new Error("Variant is required");
 
-    if (!this.debug)
-      this.debug = false;
-
+    this.debug = this.debug || false;
 
     if (this.debug)
       console.log(`Init experiment \"${this.path}\" for variant \"${this.variant}\"`);
 
-    this.subscription = this.izanamiService.register(this.izanamiProvider.fetchFrom).subscribe(this.onExperimentsChanged);
-
-
+    if (this.izanamiProvider.fetchFrom)
+      this.subscription = this.izanamiService.register(this.izanamiProvider.fetchFrom).subscribe(this.onExperimentsChanged);
+    else
+      this.onExperimentsChanged({experiments: this.izanamiProvider.experiments || this.izanamiProvider.experimentsFallback});
   }
 
   ngOnDestroy(): void {
