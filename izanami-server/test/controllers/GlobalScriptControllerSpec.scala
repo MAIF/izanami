@@ -34,7 +34,7 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
       /* Create */
       val script =
         Json.obj("id" -> key, "name" -> "test", "description" -> "A test script", "source" -> "function() {}")
-      ws.url(s"$rootPath/api/scripts").post(script).futureValue.status must be(201)
+      ws.url(s"$rootPath/api/scripts").post(script).futureValue must beAStatus(201)
 
       /* Verify */
       ws.url(s"$rootPath/api/scripts/$key").get().futureValue must beAResponse(200, script)
