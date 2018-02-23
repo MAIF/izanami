@@ -169,7 +169,7 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
 
       withServer(buildBasicServer()) { ctx =>
         val key = "my:webhook:test4"
-        val webhook = Json.obj("clientId" -> key,
+        val webhook: JsObject = Json.obj("clientId" -> key,
                                "callbackUrl" -> s"http://localhost:${ctx.port}/api/v1/events",
                                "domains"     -> Json.arr("Config"),
                                "headers"     -> Json.obj())
@@ -178,12 +178,12 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
           .post(webhook)
           .futureValue must beAStatus(201)
 
-        val config = Json.obj("id" -> "my:config:test4", "value" -> "value")
+        val config: JsObject = Json.obj("id" -> "my:config:test4", "value" -> "value")
         ws.url(s"$rootPath/api/configs")
           .post(config)
           .futureValue must beAStatus(201)
 
-        val feature = Json.obj("id" -> "my:feature:test4", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
+        val feature: JsObject = Json.obj("id" -> "my:feature:test4", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
         ws.url(s"$rootPath/api/features")
           .post(feature)
           .futureValue must beAStatus(201)
