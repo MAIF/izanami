@@ -2,6 +2,7 @@ package env
 
 import java.net.{InetAddress, InetSocketAddress}
 
+import domains.AuthorizedPattern
 import play.api.Configuration
 import pureconfig._
 
@@ -103,7 +104,7 @@ case class ApikeyConfig(db: DbDomainConfig, initialize: InitializeApiKey) {
     for {
       id     <- initialize.clientId
       secret <- initialize.clientSecret
-    } yield domains.apikey.Apikey(id, "", secret, initialize.authorizedPatterns)
+    } yield domains.apikey.Apikey(id, "", secret, AuthorizedPattern(initialize.authorizedPatterns))
 }
 case class PatchConfig(db: DbDomainConfig)
 

@@ -6,8 +6,9 @@ import akka.http.scaladsl.util.FastFuture
 import com.auth0.jwt.interfaces.DecodedJWT
 import domains.events.EventStore
 import domains.user.UserStore.UserKey
-import domains.{AuthInfo, Key}
+import domains.{AuthInfo, AuthorizedPattern, Key}
 import libs.crypto.Sha
+import play.api.libs.json.JsObject
 import store._
 
 import scala.concurrent.Future
@@ -18,7 +19,7 @@ case class User(id: String,
                 email: String,
                 password: Option[String] = None,
                 admin: Boolean,
-                authorizedPattern: String)
+                authorizedPattern: AuthorizedPattern.AuthorizedPattern)
     extends AuthInfo {
 
   override def isAllowed(auth: Option[AuthInfo]) =
@@ -26,10 +27,13 @@ case class User(id: String,
 }
 
 object UserNoPassword {
-  import play.api.libs.json._
+  import play.api.libs.json.{Format, Json}
 
-  private val writes = Json.writes[User].transform { o: JsObject =>
-    o - "password"
+  private val writes = {
+    import domains.AuthorizedPattern._
+    Json.writes[User].transform { o: JsObject =>
+      o - "password"
+    }
   }
 
   implicit val format: Format[User] = Format(User.reads, writes)
@@ -38,18 +42,24 @@ object UserNoPassword {
 object User {
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
-  import play.api.libs.json.Reads._
+  import play.api.libs.json.Reads.{email, pattern}
 
-  private[user] val reads: Reads[User] = (
-    (__ \ 'id).read[String] and
-    (__ \ 'name).read[String](pattern("^[\\p{L} .'-]+$".r)) and
-    (__ \ 'email).read[String](email) and
-    (__ \ 'password).readNullable[String] and
-    (__ \ 'admin).read[Boolean] and
-    (__ \ 'authorizedPattern).read[String](pattern("^[\\w@\\.0-9\\-,:\\*]+$".r))
-  )(User.apply _)
+  private[user] val reads: Reads[User] = {
+    import domains.AuthorizedPattern._
+    (
+      (__ \ 'id).read[String] and
+      (__ \ 'name).read[String](pattern("^[\\p{L} .'-]+$".r)) and
+      (__ \ 'email).read[String](email) and
+      (__ \ 'password).readNullable[String] and
+      (__ \ 'admin).read[Boolean] and
+      (__ \ 'authorizedPattern).read[AuthorizedPattern](AuthorizedPattern.reads)
+    )(User.apply _)
+  }
 
-  private[user] val writes = Json.writes[User]
+  private val writes = {
+    import domains.AuthorizedPattern._
+    Json.writes[User]
+  }
 
   implicit val format = Format[User](reads, writes)
 
@@ -72,7 +82,8 @@ object User {
         .map(_.asString)
         .flatMap(str => Try(str.toBoolean).toOption)
         .getOrElse(false)
-    } yield User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = patterns)
+    } yield
+      User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = AuthorizedPattern(patterns))
   }
 
   def fromOtoroshiJwtToken(jwt: DecodedJWT): Option[User] = {
@@ -91,7 +102,8 @@ object User {
         .map(_.asString)
         .flatMap(str => Try(str.toBoolean).toOption)
         .getOrElse(false)
-    } yield User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = patterns)
+    } yield
+      User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = AuthorizedPattern(patterns))
   }
 }
 
