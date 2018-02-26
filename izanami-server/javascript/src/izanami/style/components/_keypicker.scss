@@ -252,14 +252,6 @@
   cursor: pointer;
 }
 
-.keypicker-menu-outer .keypicker-result-value:hover {
-  background-color: $colorRose;
-}
-
-.keypicker-menu-outer .keypicker-result-value:hover::before {
-  background-color: $colorRose;
-}
-
 .keypicker-menu-outer .keypicker-result-value-sep {
   color: $primaryColor;
   display: inline-block;
@@ -284,4 +276,8 @@
   border-top-right-radius: 2px;
   cursor: pointer;
   padding: 2px 5px;
+}
+
+.result-active {
+  background-color: $colorRose!important;
 }

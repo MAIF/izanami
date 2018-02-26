@@ -1,6 +1,63 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
 
+
+class SearchResult extends Component {
+
+  state = {
+    hover: -1
+  };
+
+  selectValue = (i, values) => () => {
+    const segments = values.slice(0, i + 1);
+    const key = segments.join(":");
+    this.props.onSelect(key);
+  };
+
+  setHoverIndex = i => e => {
+    this.setState({hover: i});
+  };
+
+  resetHoverIndex = e => {
+    this.setState({hover: -1});
+  };
+
+  classOfElt = i => {
+    if (i <= this.state.hover) {
+      return "keypicker-result-value result-active";
+    } else {
+      return "keypicker-result-value";
+    }
+  };
+
+
+  render() {
+    const values = this.props.value.split(":").filter(e => !!e);
+    const size = values.length;
+    return (
+      <div className="keypicker-result-control">
+        <span className="keypicker-multi-value-wrapper">
+        {values.map( (part, i) =>
+          [
+            <div
+              className={this.classOfElt(i)}
+              key={`result-${this.props.value}-${i}`}
+              onClick={this.selectValue(i, values)}
+              onMouseOver={this.setHoverIndex(i)}
+              onMouseOut={this.resetHoverIndex}
+            >
+              <span className="keypicker-result-value-label">{part}</span>
+            </div>,
+            <div className="keypicker-result-value-sep" key={`result-sep-${this.props.value}-${i}`}>
+              {i < (size - 1) && <span className="keypicker-result-value-sep-value">:</span>}
+            </div>
+          ])}
+        </span>
+      </div>
+    )
+  }
+}
+
 export class KeyInput extends Component {
 
   state = {
@@ -74,35 +131,13 @@ export class KeyInput extends Component {
     }
   };
 
-  selectValue = (i, values) => () => {
-    const segments = values.slice(0, i + 1);
-    const key = segments.join(":");
-    this.setState({segments, key, textValue: '', computedValue: key, datas: []});
+  selectValue = (key) => {
+    this.setState({segments: key.split(":"), key, textValue: '', computedValue: key, datas: []});
 
     if (this.inputRef) {
       this.inputRef.focus();
     }
     this.props.onChange(key);
-  };
-
-  renderResult = (str) => {
-    const values = str.split(":").filter(e => !!e);
-    const size = values.length;
-    return (
-      <div className="keypicker-result-control">
-        <span className="keypicker-multi-value-wrapper">
-        {values.map( (part,i) =>
-        [
-          <div className="keypicker-result-value" key={`result-${str}-${i}`} onClick={this.selectValue(i, values)}>
-            <span className="keypicker-result-value-label">{part}</span>
-          </div>,
-          <div className="keypicker-result-value-sep" key={`result-sep-${str}-${i}`}>
-            {i < (size - 1) && <span className="keypicker-result-value-sep-value">:</span>}
-          </div>
-        ])}
-        </span>
-      </div>
-    )
   };
 
   render() {
@@ -135,7 +170,7 @@ export class KeyInput extends Component {
             <div className="keypicker-menu-outer" style={{zIndex: '20', overflow: 'hidden'}}>
               {this.state.datas.map((d, i) =>
                 <div key={`res-${i}`}>
-                  {this.renderResult(d)}
+                  <SearchResult value={d} onSelect={this.selectValue}/>
                 </div>
               )}
             </div>
