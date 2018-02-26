@@ -2,21 +2,42 @@ package domains.apikey
 
 import akka.Done
 import akka.actor.ActorSystem
+import domains.AuthorizedPattern.AuthorizedPattern
 import domains.apikey.ApikeyStore.ApikeyKey
 import domains.events.EventStore
-import domains.{AuthInfo, Key}
-import play.api.libs.json.Json
+import domains.{AuthInfo, AuthorizedPattern, Key}
 import store._
 
 import scala.concurrent.Future
 
-case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: String) extends AuthInfo {
+case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: AuthorizedPattern)
+    extends AuthInfo {
   override def isAllowed(auth: Option[AuthInfo]): Boolean =
     Key.isAllowed(authorizedPattern)(auth)
 }
 
 object Apikey {
-  implicit val format = Json.format[Apikey]
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json._
+  import play.api.libs.json.Reads._
+
+  private val reads: Reads[Apikey] = {
+    import domains.AuthorizedPattern._
+    (
+      (__ \ 'clientId).read[String] and
+      (__ \ 'name).read[String](pattern("^[\\p{L} .'-]+$".r)) and
+      (__ \ 'clientSecret).read[String](pattern("^[0-9\\p{L} .'-]+$".r)) and
+      (__ \ 'authorizedPattern).read[AuthorizedPattern](AuthorizedPattern.reads)
+    )(Apikey.apply _)
+  }
+
+  private val writes = {
+    import domains.AuthorizedPattern._
+    Json.writes[Apikey]
+  }
+
+  implicit val format = Format[Apikey](reads, writes)
+
   def isAllowed(pattern: String)(auth: Option[AuthInfo]) =
     Key.isAllowed(pattern)(auth)
 }

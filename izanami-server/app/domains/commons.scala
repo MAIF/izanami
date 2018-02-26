@@ -3,6 +3,7 @@ package domains
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import cats.kernel.Monoid
+import play.api.libs.json.Reads.pattern
 import play.api.libs.json._
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParser
@@ -10,6 +11,21 @@ import store.Result.{AppErrors, ErrorMessage, Result}
 
 import scala.concurrent.ExecutionContext
 import scala.util.matching.Regex
+
+sealed trait AuthorizedPatternTag
+
+object AuthorizedPattern {
+
+  import shapeless.tag
+  import shapeless.tag.@@
+
+  type AuthorizedPattern = String @@ AuthorizedPatternTag
+
+  def apply(str: String): AuthorizedPattern = tag[AuthorizedPatternTag][String](str)
+
+  implicit val reads: Reads[AuthorizedPattern]   = __.read[String](pattern("^[\\w@\\.0-9\\-,:\\*]+$".r)).map(apply _)
+  implicit val writes: Writes[AuthorizedPattern] = Writes[AuthorizedPattern](JsString.apply)
+}
 
 object Import {
   import akka.stream.scaladsl.{Flow, Framing}
