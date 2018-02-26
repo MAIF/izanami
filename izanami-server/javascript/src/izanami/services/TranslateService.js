@@ -15,6 +15,11 @@ const translateObject = {
         pattern: "Invalid pattern for field name"
       }
     },
+    authorizedPattern:{
+      error: {
+        pattern: "Invalid pattern for field authorizedPattern, it should be something like foo*,bar:*"
+      }
+    },
     parameters: {
       ref: {
         error: {

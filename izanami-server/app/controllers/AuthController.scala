@@ -5,7 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import controllers.actions.AuthContext
-import domains.Key
+import domains.{AuthorizedPattern, Key}
 import domains.user.{User, UserStore}
 import env.Env
 import libs.crypto.Sha
@@ -65,7 +65,7 @@ class AuthController(_env: Env,
                                         email = s"$userId@admin.fr",
                                         password = None,
                                         admin = true,
-                                        authorizedPattern = "*")
+                                        authorizedPattern = AuthorizedPattern("*"))
 
                   val token: String = buildToken(user)
 

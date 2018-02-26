@@ -7,7 +7,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces._
 import domains.apikey.ApikeyStore
 import domains.user.User
-import domains.{AuthInfo, Key}
+import domains.{AuthInfo, AuthorizedPattern, Key}
 import env._
 import play.api.Logger
 import play.api.libs.json._
@@ -39,7 +39,11 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
           requestHeader.addAttr(
             FilterAttrs.Attrs.AuthInfo,
             Some(
-              User(id = "id", name = "Ragnard", email = "ragnard@viking.com", admin = false, authorizedPattern = "")
+              User(id = "id",
+                   name = "Ragnard",
+                   email = "ragnard@viking.com",
+                   admin = false,
+                   authorizedPattern = AuthorizedPattern(""))
             )
           )
         ).map { result =>
