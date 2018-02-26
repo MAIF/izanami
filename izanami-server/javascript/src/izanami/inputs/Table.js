@@ -49,6 +49,7 @@ export class Table extends Component {
     uploadLinks: PropTypes.array,
     onEvent: PropTypes.func,
     eventNames: PropTypes.object,
+    compareItem: PropTypes.func,
     convertItem: PropTypes.func,
   };
 
@@ -57,6 +58,7 @@ export class Table extends Component {
     pageSize: 20,
     firstSort: null,
     convertItem: e => e,
+    compareItem: (a, b) => _.isEqual(a, b),
   };
 
   state = {
@@ -98,7 +100,7 @@ export class Table extends Component {
     let items;
     switch (e.type) {
       case this.props.eventNames.created:
-        if (this.state.items.find(i => _.isEqual(i, e.payload))) {
+        if (this.state.items.find(i => this.props.compareItem(i, e.payload))) {
           items = this.state.items;
         } else {
           items = [e.payload, ...this.state.items].splice(0, this.props.pageSize);
@@ -106,7 +108,7 @@ export class Table extends Component {
         break;
       case this.props.eventNames.updated:
         items = this.state.items.map(i => {
-          if (_.isEqual(i, e.oldValue)) {
+          if (this.props.compareItem(i, e.oldValue)) {
             return e.payload;
           } else {
             return i;
@@ -114,7 +116,7 @@ export class Table extends Component {
         });
         break;
       case this.props.eventNames.deleted:
-        items = this.state.items.filter(i => !_.isEqual(i, e.oldValue));
+        items = this.state.items.filter(i => !this.props.compareItem(i, e.oldValue));
         break;
       default:
         items = this.state.items;
