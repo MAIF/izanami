@@ -13,7 +13,7 @@ import {FormsModule, ReactiveFormsModule} from "@angular/forms";
 import {UserResolver} from './user-resolver.service';
 import {SelectModule} from 'ng-select';
 import {TvShowComponent} from './tv-show/tv-show.component';
-import {IzanamiModule} from "./izanami/izanami.module";
+import {IzanamiModule} from "angular-izanami";
 
 @NgModule({
   declarations: [

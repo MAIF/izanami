@@ -57,7 +57,7 @@ export class IzanamiProviderComponent implements OnInit, OnDestroy {
 
 
     if (this.debug)
-      console.debug(`Data loaded into izanami provider with `, this.fetched);
+      console.log(`Data loaded into izanami provider with ${this.fetched}`);
   };
 
   ngOnInit() {
@@ -67,18 +67,18 @@ export class IzanamiProviderComponent implements OnInit, OnDestroy {
     this.fetchHeaders = this.fetchHeaders || {};
 
     if (this.debug)
-      console.debug(`Init izanami provider`);
+      console.log(`Init izanami provider`);
 
     if (this.fetchFrom) {
       if (this.debug)
-        console.debug(`Register izanami service with path ${this.fetchFrom}`);
+        console.log(`Register izanami service with path ${this.fetchFrom}`);
 
       this.subscription = this.izanamiService.register(this.fetchFrom).subscribe(this.onDataLoaded);
       this.loadInProgress = true;
       this.izanamiReload();
     } else {
       if (this.debug)
-        console.debug(`Init izanami provider with features ${this.features} and experiments ${this.experiments}`);
+        console.log(`Init izanami provider with features ${this.features} and experiments ${this.experiments}`);
     }
   }
 
