@@ -95,6 +95,11 @@ export class UserPage extends Component {
               updated: 'USER_UPDATED',
               deleted: 'USER_DELETED'
             }}
+            compareItem={ (a, b) => {
+              const  {password: p1, ...rest1} = a;
+              const  {password: p2, ...rest2} = b;
+              return _.isEqual(rest1, rest2);
+            }}
             extractKey={item => item.id} />
         </div>
       </div>

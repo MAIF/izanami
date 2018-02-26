@@ -8,7 +8,6 @@ import domains.events.EventStore
 import domains.user.UserStore.UserKey
 import domains.{AuthInfo, Key}
 import libs.crypto.Sha
-import play.api.libs.json.{Format, JsObject, Json}
 import store._
 
 import scala.concurrent.Future
@@ -27,15 +26,32 @@ case class User(id: String,
 }
 
 object UserNoPassword {
-  private val reads = Json.reads[User]
+  import play.api.libs.json._
+
   private val writes = Json.writes[User].transform { o: JsObject =>
     o - "password"
   }
-  implicit val format: Format[User] = Format(reads, writes)
+
+  implicit val format: Format[User] = Format(User.reads, writes)
 }
 
 object User {
-  implicit val format = Json.format[User]
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json._
+  import play.api.libs.json.Reads._
+
+  private[user] val reads: Reads[User] = (
+    (__ \ 'id).read[String] and
+    (__ \ 'name).read[String](pattern("^[\\p{L} .'-]+$".r)) and
+    (__ \ 'email).read[String](email) and
+    (__ \ 'password).readNullable[String] and
+    (__ \ 'admin).read[Boolean] and
+    (__ \ 'authorizedPattern).read[String]
+  )(User.apply _)
+
+  private[user] val writes = Json.writes[User]
+
+  implicit val format = Format[User](reads, writes)
 
   def isAllowed(pattern: String)(auth: Option[AuthInfo]) =
     Key.isAllowed(pattern)(auth)
