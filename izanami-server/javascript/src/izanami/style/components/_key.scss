@@ -4,7 +4,6 @@
 }
 
 .key-value {
-
 }
 
 
@@ -13,7 +12,7 @@
   /* Fallback color for IE 8 */
   background-color: rgba(0, 126, 255, 0.08);
   border-radius: 2px;
-  border: 1px solid rgba(220, 95, 159, .9);
+  border: 1px solid rgba(220, 95, 159, 1);
   color: white;
   display: inline-block;
   font-size: 0.9em;
@@ -26,6 +25,7 @@
 .key-value-value-sep {
   color: $primaryColor;
   display: inline-block;
+  background-color: rgba(0, 126, 255, 0.08);
   font-size: 0.9em;
   line-height: 1.4;
   margin-left: 2px;
@@ -35,6 +35,7 @@
 .key-value-value-sep-label {
   display: inline-block;
   vertical-align: middle;
+  background-color: rgba(0, 126, 255, 0.08);
   padding: 2px 5px;
 }
 .key-value-value-icon,
