@@ -30,7 +30,6 @@ class SearchResult extends Component {
     }
   };
 
-
   render() {
     const values = this.props.value.split(":").filter(e => !!e);
     const size = values.length;
@@ -65,15 +64,18 @@ export class KeyInput extends Component {
     segments: (this.props.value || '').split(":").filter(e => !!e),
     computedValue: this.props.value,
     textValue: '',
+    open: false,
     datas: []
   };
 
   componentDidMount() {
     document.body.addEventListener('keydown', this.tabShortcut);
+    document.body.addEventListener('click', this.handleTouchOutside);
   }
 
   componentWillUnmount() {
     document.body.removeEventListener('keydown', this.tabShortcut);
+    document.body.removeEventListener('click', this.handleTouchOutside);
   }
 
   tabShortcut = e => {
@@ -127,12 +129,20 @@ export class KeyInput extends Component {
           this.setState({datas})
         })
     } else {
-      this.setState({datas:[]})
+      this.setState({open:false})
+    }
+  };
+
+  handleTouchOutside = (event) => {
+    if (this.inputRef && this.inputRef.contains(event.target)) {
+      this.setState({open:!this.state.open});
+    } else if (this.wrapper && !this.wrapper.contains(event.target)) {
+      this.setState({open:false});
     }
   };
 
   selectValue = (key) => {
-    this.setState({segments: key.split(":"), key, textValue: '', computedValue: key, datas: []});
+    this.setState({segments: key.split(":"), key, textValue: '', computedValue: key, datas: [], open: false});
 
     if (this.inputRef) {
       this.inputRef.focus();
@@ -146,7 +156,7 @@ export class KeyInput extends Component {
       <div className="form-group">
         <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{this.props.label}</label>
         <div className="col-sm-10">
-          <div className="keypicker keypicker--multi" >
+          <div className="keypicker keypicker--multi" ref={ref => this.wrapper = ref}>
             <div className="keypicker-control">
               <span className="keypicker-multi-value-wrapper">
                 {this.state.segments.map( (part,i) => [
@@ -166,8 +176,8 @@ export class KeyInput extends Component {
                 </div>
               </span>
             </div>
-            {this.state.datas && this.state.datas.length > 0  &&
-            <div className="keypicker-menu-outer" style={{zIndex: '20', overflow: 'hidden'}}>
+            {this.state.open &&
+            <div className="keypicker-menu-outer" style={{zIndex: '20', overflow: 'hidden'}} >
               {this.state.datas.map((d, i) =>
                 <div key={`res-${i}`}>
                   <SearchResult value={d} onSelect={this.selectValue}/>
