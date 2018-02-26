@@ -46,7 +46,7 @@ object User {
     (__ \ 'email).read[String](email) and
     (__ \ 'password).readNullable[String] and
     (__ \ 'admin).read[Boolean] and
-    (__ \ 'authorizedPattern).read[String]
+    (__ \ 'authorizedPattern).read[String](pattern("^[\\w@\\.0-9\\-,:\\*]+$".r))
   )(User.apply _)
 
   private[user] val writes = Json.writes[User]
