@@ -10,6 +10,11 @@ const translateObject = {
         pattern: "Invalid pattern for field clientId"
       }
     },
+    name: {
+      error: {
+        pattern: "Invalid pattern for field name"
+      }
+    },
     parameters: {
       ref: {
         error: {
