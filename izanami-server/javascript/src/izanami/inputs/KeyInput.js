@@ -32,8 +32,8 @@ export class KeyInput extends Component {
 
   computeValue = (e) => {
     const v = e.target.value;
-    if (v.endsWith(":")) {
-      const segments = [...this.state.segments, ...v.split(":").filter(e => !!e)];
+    if (v.endsWith(":") || v.endsWith(" ")) {
+      const segments = [...this.state.segments, ...v.split(":").map(s => s.trim()).filter(s => !!s)];
       const key = segments.join(":");
       this.setState(
         {segments, key, textValue: '', computedValue: key},
@@ -78,6 +78,10 @@ export class KeyInput extends Component {
     const segments = values.slice(0, i + 1);
     const key = segments.join(":");
     this.setState({segments, key, textValue: '', computedValue: key, datas: []});
+
+    if (this.inputRef) {
+      this.inputRef.focus();
+    }
     this.props.onChange(key);
   };
 
@@ -123,7 +127,7 @@ export class KeyInput extends Component {
                   ]
                 )}
                 <div className="keypicker-input" style={{display: 'inline-block'}}>
-                  <input type="text" onChange={this.computeValue} value={this.state.textValue} onFocus={this.onFocus}/>
+                  <input type="text" onChange={this.computeValue} value={this.state.textValue} onFocus={this.onFocus} ref={e => this.inputRef = e}/>
                 </div>
               </span>
             </div>
