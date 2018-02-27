@@ -62,7 +62,11 @@ case class ExperimentVariantDisplayed(id: ExperimentVariantEventKey,
     extends ExperimentVariantEvent
 
 object ExperimentVariantDisplayed {
-  implicit val format = Json.format[ExperimentVariantDisplayed]
+  implicit val format = {
+    implicit val dateTimeReads: Reads[LocalDateTime] = Reads.DefaultLocalDateTimeReads
+    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
+    Json.format[ExperimentVariantDisplayed]
+  }
 }
 
 case class ExperimentVariantWon(id: ExperimentVariantEventKey,
@@ -75,30 +79,38 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
     extends ExperimentVariantEvent
 
 object ExperimentVariantWon {
-  implicit val format = Json.format[ExperimentVariantWon]
+  implicit val format = {
+    implicit val dateTimeReads: Reads[LocalDateTime] = Reads.DefaultLocalDateTimeReads
+    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
+    Json.format[ExperimentVariantWon]
+  }
 }
 
 object ExperimentVariantEvent {
 
-  private val reads: Reads[ExperimentVariantEvent] =
+  private val reads: Reads[ExperimentVariantEvent] = {
+
     Reads[ExperimentVariantEvent] {
       case event
-          if (event \ "@type")
-            .asOpt[String]
-            .contains("VariantDisplayedEvent") =>
+        if (event \ "@type")
+          .asOpt[String]
+          .contains("VariantDisplayedEvent") =>
         ExperimentVariantDisplayed.format.reads(event)
       case event if (event \ "@type").asOpt[String].contains("VariantWonEvent") =>
         ExperimentVariantWon.format.reads(event)
       case other => JsError("error.bad.format")
     }
+  }
 
-  private val writes: Writes[ExperimentVariantEvent] =
+  private val writes: Writes[ExperimentVariantEvent] = {
+
     Writes[ExperimentVariantEvent] {
       case e: ExperimentVariantDisplayed =>
         ExperimentVariantDisplayed.format.writes(e) ++ Json.obj("@type" -> "VariantDisplayedEvent")
       case e: ExperimentVariantWon =>
         ExperimentVariantWon.format.writes(e).as[JsObject] ++ Json.obj("@type" -> "VariantWonEvent")
     }
+  }
 
   implicit val format = Format(reads, writes)
 }
