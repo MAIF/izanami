@@ -1,18 +1,9 @@
-
-.key-value-wrapper {
-  display: inline-block;
-}
-
-.key-value {
-}
-
-
 .key-value-value {
   background-color: #ebf5ff;
   /* Fallback color for IE 8 */
   background-color: rgba(0, 126, 255, 0.08);
   border-radius: 2px;
-  border: 1px solid rgba(220, 95, 159, 1);
+  border: 1px solid $primaryColor;
   color: white;
   display: inline-block;
   font-size: 0.9em;
@@ -22,29 +13,64 @@
   cursor: pointer;
 }
 
-.key-value-value-sep {
-  color: $primaryColor;
-  display: inline-block;
-  background-color: rgba(0, 126, 255, 0.08);
-  font-size: 0.9em;
-  line-height: 1.4;
-  margin-left: 2px;
-  margin-top: 2px;
-  vertical-align: top;
+.btn-breadcrumb .btn:after {
+  content: " ";
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 13px solid transparent;
+  border-bottom: 14px solid transparent;
+  border-left: 10px solid white;
+  position: absolute;
+  top: 50%;
+  margin-top: -14px;
+  margin-left: 0px;
+  left: 100%;
+  z-index: 3;
 }
-.key-value-value-sep-label {
-  display: inline-block;
-  vertical-align: middle;
-  background-color: rgba(0, 126, 255, 0.08);
-  padding: 2px 5px;
+.btn-breadcrumb .btn:before {
+  content: " ";
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 13px solid transparent;
+  border-bottom: 14px solid transparent;
+  border-left: 10px solid rgb(173, 173, 173);
+  position: absolute;
+  top: 50%;
+  margin-top: -14px;
+  margin-left: 1px;
+  left: 100%;
+  z-index: 3;
 }
-.key-value-value-icon,
-.key-value-value-label {
-  display: inline-block;
-  vertical-align: middle;
+.btn-breadcrumb .btn.btn-info:hover:before, .btn-breadcrumb .btn.btn-info:before {
+    border-left: 10px solid $primaryColor;
 }
-.key-value-value-label {
-  border-bottom-right-radius: 2px;
-  border-top-right-radius: 2px;
-  padding: 2px 5px;
+.btn-breadcrumb .btn.btn-info:after {
+    border-left: 7px solid #373735;
+}
+
+.btn-breadcrumb .btn {
+    padding: 6px 12px 6px 24px;
+    margin-right: 0px;
+}
+
+.btn-breadcrumb .btn {
+    border-color: $primaryColor;
+    border-right: 1px solid transparent !important;
+    font-size: 11px;
+}
+
+.btn-breadcrumb .btn-info{
+    background-image: linear-gradient(to bottom, $fondBody 0, $fondBody 100%);
+}
+
+.closeKeypicker {
+    margin-left: 5px;
+    border: 1px solid $primaryColor;
+    padding: 1px 3px;
+}
+
+.closeKeypicker:hover{
+  background-color: $primaryColor;
 }
