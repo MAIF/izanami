@@ -1,0 +1,50 @@
+
+.key-value-wrapper {
+  display: inline-block;
+}
+
+.key-value {
+}
+
+
+.key-value-value {
+  background-color: #ebf5ff;
+  /* Fallback color for IE 8 */
+  background-color: rgba(0, 126, 255, 0.08);
+  border-radius: 2px;
+  border: 1px solid rgba(220, 95, 159, 1);
+  color: white;
+  display: inline-block;
+  font-size: 0.9em;
+  line-height: 1.4;
+  margin-left: 2px;
+  vertical-align: top;
+  cursor: pointer;
+}
+
+.key-value-value-sep {
+  color: $primaryColor;
+  display: inline-block;
+  background-color: rgba(0, 126, 255, 0.08);
+  font-size: 0.9em;
+  line-height: 1.4;
+  margin-left: 2px;
+  margin-top: 2px;
+  vertical-align: top;
+}
+.key-value-value-sep-label {
+  display: inline-block;
+  vertical-align: middle;
+  background-color: rgba(0, 126, 255, 0.08);
+  padding: 2px 5px;
+}
+.key-value-value-icon,
+.key-value-value-label {
+  display: inline-block;
+  vertical-align: middle;
+}
+.key-value-value-label {
+  border-bottom-right-radius: 2px;
+  border-top-right-radius: 2px;
+  padding: 2px 5px;
+}

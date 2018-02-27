@@ -4,6 +4,8 @@ export * from './LinkDisplay';
 export * from './SelectInput';
 export * from './BooleanInput';
 export * from './TextInput';
+export * from './Key';
+export * from './KeyInput';
 export * from './NumberInput';
 export * from './Form';
 export * from './Table';
