@@ -24,6 +24,7 @@
 
 .keypicker--multi .keypicker-multi-value-wrapper {
   display: inline-block;
+  margin-left: 5px;
 }
 
 .keypicker-control {
@@ -61,20 +62,7 @@
   margin-left: 3px;
 }
 .keypicker--multi .keypicker-value {
-  background-color: #ebf5ff;
-  /* Fallback color for IE 8 */
-  background-color: rgba(0, 126, 255, 0.08);
-  border-radius: 2px;
-  border: 1px solid #c2e0ff;
-  /* Fallback color for IE 8 */
-  border: 1px solid rgba(220, 95, 159, 1);
-  color: white;
-  display: inline-block;
-  font-size: 0.9em;
-  line-height: 1.4;
-  margin-left: 2px;
-  margin-top: 5px;
-  vertical-align: top;
+  margin-top: 3px;
 }
 .keypicker--multi .keypicker-value-sep {
   color: $primaryColor;
@@ -247,25 +235,11 @@
   font-size: 0.9em;
   line-height: 1.4;
   margin-left: 2px;
-  margin-top: 5px;
+  margin-top: 2px;
   vertical-align: top;
   cursor: pointer;
 }
 
-.keypicker-menu-outer .keypicker-result-value-sep {
-  color: $primaryColor;
-  display: inline-block;
-  font-size: 0.9em;
-  line-height: 1.4;
-  margin-left: 2px;
-  margin-top: 6px;
-  vertical-align: top;
-}
-.keypicker-menu-outer .keypicker-result-value-sep-label {
-  display: inline-block;
-  vertical-align: middle;
-  padding: 2px 5px;
-}
 .keypicker-menu-outer .keypicker-result-value-icon,
 .keypicker-menu-outer .keypicker-result-value-label {
   display: inline-block;
@@ -275,9 +249,13 @@
   border-bottom-right-radius: 2px;
   border-top-right-radius: 2px;
   cursor: pointer;
-  padding: 2px 5px;
 }
 
 .result-active {
   background-color: $colorRose!important;
+  background-image: none !important;
+}
+
+.result-active:after {
+  border-left-color: $colorRose!important;
 }
