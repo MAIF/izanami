@@ -34,21 +34,18 @@ class SearchResult extends Component {
     const values = this.props.value.split(":").filter(e => !!e);
     const size = values.length;
     return (
-      <div className="keypicker-result-control">
-        <span className="keypicker-multi-value-wrapper">
+      <div className="keypicker-result-control ">
+        <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
         {values.map( (part, i) =>
           [
             <div
-              className={this.classOfElt(i)}
+              className={`${this.classOfElt(i)} btn btn-info`}
               key={`result-${this.props.value}-${i}`}
               onClick={this.selectValue(i, values)}
               onMouseOver={this.setHoverIndex(i)}
               onMouseOut={this.resetHoverIndex}
             >
               <span className="keypicker-result-value-label">{part}</span>
-            </div>,
-            <div className="keypicker-result-value-sep" key={`result-sep-${this.props.value}-${i}`}>
-              {i < (size - 1) && <span className="keypicker-result-value-sep-value">:</span>}
             </div>
           ])}
         </span>
@@ -158,17 +155,14 @@ export class KeyInput extends Component {
         <div className="col-sm-10">
           <div className="keypicker keypicker--multi" ref={ref => this.wrapper = ref}>
             <div className="keypicker-control">
-              <span className="keypicker-multi-value-wrapper">
+              <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
                 {this.state.segments.map( (part,i) => [
-                  <div className="keypicker-value" key={`value-${i}`}>
-                    <span className="keypicker-value-label">{part}</span>
+                  <span className="btn btn-info keypicker-value" key={`value-${i}`}>
+                    <span>{part}</span>
                     {i === (size - 1) &&
-                      <span className="keypicker-value-icon" onClick={this.removeLastSegment}>x</span>
+                      <span className="closeKeypicker" onClick={this.removeLastSegment}>x</span>
                     }
-                  </div>,
-                  <div className="keypicker-value-sep" key={`sep-${i}`}>
-                    {i < (size - 1) && <span className="keypicker-value-sep-value">:</span>}
-                  </div>
+                  </span>
                   ]
                 )}
                 <div className="keypicker-input" style={{display: 'inline-block'}}>
@@ -177,7 +171,7 @@ export class KeyInput extends Component {
               </span>
             </div>
             {this.state.open &&
-            <div className="keypicker-menu-outer" style={{zIndex: '20', overflow: 'hidden'}} >
+            <div className="keypicker-menu-outer" style={{zIndex: '20', overflow: 'scroll'}} >
               {this.state.datas.map((d, i) =>
                 <div key={`res-${i}`}>
                   <SearchResult value={d} onSelect={this.selectValue}/>
