@@ -63,7 +63,7 @@ case class ExperimentVariantDisplayed(id: ExperimentVariantEventKey,
 
 object ExperimentVariantDisplayed {
   implicit val format = {
-    implicit val dateTimeReads: Reads[LocalDateTime] = Reads.DefaultLocalDateTimeReads
+    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.DefaultLocalDateTimeReads
     implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
     Json.format[ExperimentVariantDisplayed]
   }
@@ -80,7 +80,7 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
 
 object ExperimentVariantWon {
   implicit val format = {
-    implicit val dateTimeReads: Reads[LocalDateTime] = Reads.DefaultLocalDateTimeReads
+    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.DefaultLocalDateTimeReads
     implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
     Json.format[ExperimentVariantWon]
   }
@@ -92,9 +92,9 @@ object ExperimentVariantEvent {
 
     Reads[ExperimentVariantEvent] {
       case event
-        if (event \ "@type")
-          .asOpt[String]
-          .contains("VariantDisplayedEvent") =>
+          if (event \ "@type")
+            .asOpt[String]
+            .contains("VariantDisplayedEvent") =>
         ExperimentVariantDisplayed.format.reads(event)
       case event if (event \ "@type").asOpt[String].contains("VariantWonEvent") =>
         ExperimentVariantWon.format.reads(event)
