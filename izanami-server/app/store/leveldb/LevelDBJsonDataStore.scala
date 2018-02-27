@@ -24,8 +24,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 object LevelDBJsonDataStore {
-  def apply(system: ActorSystem, dbPath: String, applicationLifecycle: ApplicationLifecycle): LevelDBJsonDataStore =
-    new LevelDBJsonDataStore(system, dbPath, applicationLifecycle)
 
   def apply(levelDbConfig: LevelDbConfig,
             config: DbDomainConfig,
@@ -36,7 +34,7 @@ object LevelDBJsonDataStore {
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
     if (stores.get(dbPath) == null) {
       Logger.info(s"Load store LevelDB for namespace $namespace")
-      val store = LevelDBJsonDataStore(actorSystem, dbPath, applicationLifecycle)
+      val store = new LevelDBJsonDataStore(actorSystem, dbPath, applicationLifecycle)
       stores.put(dbPath, store)
       store
     } else {
