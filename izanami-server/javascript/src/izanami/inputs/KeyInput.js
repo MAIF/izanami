@@ -165,8 +165,15 @@ export class KeyInput extends Component {
                   </span>
                   ]
                 )}
-                <div className="keypicker-input" style={{display: 'inline-block'}}>
-                  <input type="text" onChange={this.computeValue} value={this.state.textValue} onFocus={this.onFocus} ref={e => this.inputRef = e}/>
+                <div className="keypicker-input" style={{display: 'inline-block',  marginLeft: '12px', overflow: 'hidden'}}>
+                  <input
+                    type="text"
+                    style={{ width: '300px' }}
+                    onChange={this.computeValue}
+                    value={this.state.textValue}
+                    onFocus={this.onFocus} ref={e => this.inputRef = e}
+                    placeholder={"Press space or : to separate key segments"}
+                  />
                 </div>
               </span>
             </div>

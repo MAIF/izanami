@@ -6,11 +6,10 @@ const Key = props => {
   return (
     <div className="btn-group btn-breadcrumb breadcrumb-info">
         {values.map( (part,i) =>
-          [
-            <div className="btn btn-info key-value-value" key={`key-value-${props.value}-${i}`} >
-              <span>{part}</span>
-            </div>
-          ])}
+          <div className="btn btn-info key-value-value" key={`key-value-${props.value}-${i}`} >
+            <span>{part}</span>
+          </div>
+        )}
     </div>
   )
 };
