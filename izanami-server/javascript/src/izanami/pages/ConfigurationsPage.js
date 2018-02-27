@@ -1,18 +1,31 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
-import { Table } from '../inputs';
+import { Key, Table } from '../inputs';
 
 export class ConfigurationsPage extends Component {
 
   formSchema = {
-    id: { type: 'string', props: { label: 'Feature Id', placeholder: 'The Feature id' }, error : { key : 'obj.id'}},
+    id: {
+      type: 'key',
+      props: {
+        label: 'Configuration Id',
+        placeholder: 'The Configuration id',
+        search(pattern) {
+          return IzanamiServices.fetchConfigs({page: 1, pageSize: 20, search: pattern })
+            .then(({results}) =>
+              results.map(({id}) => id)
+            )
+        }
+      },
+      error : { key : 'obj.id'}
+    },
     value: { type: 'code', props: { parse: true, label: 'Value', placeholder: `true` }, error : { key : 'obj.value'}},
   };
 
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true } } };
 
   columns = [
-    { title: 'Name', content: item => item.id },
+    { title: 'Name', content: item => <Key value={item.id} /> },
   ];
 
   formFlow = [
@@ -53,7 +66,7 @@ export class ConfigurationsPage extends Component {
           <Table
             defaultValue={() => ({
               value: '{"key":"value"}',
-              id: "project:env:config1"
+              id: ""
             })}
             user={this.props.user}
             parentProps={this.props}

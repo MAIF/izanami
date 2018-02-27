@@ -10,7 +10,8 @@ import {
   NumberInput,
   LabelInput,
   CodeInput,
-  FieldError
+  KeyInput,
+  FieldError,
 } from ".";
 
 import _ from 'lodash';
@@ -69,7 +70,6 @@ export class Form extends Component {
       return <hr key={idx}/>
     } else {
       const {type, disabled, props = {}, error} = this.getSchema(name);
-
 
       let fieldOnError = false;
       let errorReport = [];
@@ -135,6 +135,13 @@ export class Form extends Component {
               <NumberInput disabled={disabled}
                            value={this.getValue(name, 0)} {...props}
                            onChange={v => this.changeValue(name, v)}/>
+            </FieldError>
+          )
+        } else if (type === 'key') {
+          return (
+            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
+              <KeyInput disabled={disabled} value={this.getValue(name, '')} {...props}
+                         onChange={v => this.changeValue(name, v)}/>
             </FieldError>
           )
         } else if (_.isFunction(type)) {
