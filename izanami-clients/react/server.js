@@ -31,5 +31,5 @@ app.get('/izanami', (req, resp) => {
 
 const port = 3200;
 app.listen(port, () => {
-  console.log(`opun-demo is listening on ${port} !`)
+  console.log(`demo is listening on ${port} !`)
 });

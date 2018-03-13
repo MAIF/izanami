@@ -10,16 +10,18 @@ object RedisClient {
       val master = RedisServer(
         host = redisConfig.host,
         port = redisConfig.port,
-        password = redisConfig.password
+        password = redisConfig.password,
+        db = redisConfig.databaseId
       )
 
-      val slaves = redisConfig.slaves
+      val slaves: Seq[RedisServer] = redisConfig.slaves
         .map { configs =>
           configs.map { config =>
             RedisServer(
               host = config.host,
               port = config.port,
-              password = config.password
+              password = config.password,
+              db = config.databaseId
             )
           }
         }
