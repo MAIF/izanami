@@ -112,7 +112,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
       ),
       "externalDocs" -> Json.obj(
         "description" -> "Find out more about Izanami",
-        "url"         -> "https://www.opunmaif.fr/#izanami"
+        "url"         -> "https://www.izanami.fr/#izanami"
       ),
       "host"     -> "",
       "basePath" -> "",

@@ -132,7 +132,8 @@ case class RedisConfig(
     host: String,
     port: Int,
     password: Option[String],
-    slaves: Option[Seq[RedisConfig]] = None
+    slaves: Option[Seq[RedisConfig]] = None,
+    databaseId: Option[Int] = None
 )
 case class LevelDbConfig(parentPath: String)
 
