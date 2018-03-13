@@ -1,7 +1,7 @@
 package filters
 
 import akka.stream.Materializer
-import com.auth0.jwt.JWT
+import com.auth0.jwt.{JWT, JWTVerifier}
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces.DecodedJWT
 import domains.AuthInfo
@@ -27,16 +27,23 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
 
   private val logger = Logger("filter")
 
+  val algorithm: Algorithm = Algorithm.HMAC512(config.sharedKey)
+  val verifier: JWTVerifier = JWT
+    .require(algorithm)
+    .withIssuer(config.issuer)
+    .acceptLeeway(5000)
+    .build()
+
   def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
-    val startTime  = System.currentTimeMillis
-    val maybeReqId = requestHeader.headers.get(config.headerRequestId)
-    val maybeState = requestHeader.headers.get(config.headerGatewayState)
-    val maybeClaim = requestHeader.headers.get(config.headerClaim)
+    val startTime: Long            = System.currentTimeMillis
+    val maybeReqId: Option[String] = requestHeader.headers.get(config.headerRequestId)
+    val maybeState: Option[String] = requestHeader.headers.get(config.headerGatewayState)
+    val maybeClaim: Option[String] = requestHeader.headers.get(config.headerClaim)
 
     val t = Try(env.env match {
       case devOrTest if devOrTest == "dev" || devOrTest == "test" =>
         nextFilter(requestHeader).map { result =>
-          val requestTime = System.currentTimeMillis - startTime
+          val requestTime: Long = System.currentTimeMillis - startTime
           logger.debug(
             s"Request => ${requestHeader.method} ${requestHeader.uri} took ${requestTime}ms and returned ${result.header.status}"
           )
@@ -62,10 +69,7 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
         )
       case "prod" =>
         import scala.collection.JavaConverters._
-        val tryDecode = Try {
-          val algorithm = Algorithm.HMAC512(config.sharedKey)
-          val verifier =
-            JWT.require(algorithm).withIssuer(config.issuer).build()
+        val tryDecode: Try[Future[Result]] = Try {
           val decoded: DecodedJWT     = verifier.verify(maybeClaim.get)
           val maybeUser: Option[User] = User.fromOtoroshiJwtToken(decoded)
           if (maybeUser.isEmpty) Logger.debug(s"Empty auth for token ${decoded.getClaims.asScala}")
