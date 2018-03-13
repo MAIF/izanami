@@ -40,8 +40,8 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
     val maybeState: Option[String] = requestHeader.headers.get(config.headerGatewayState)
     val maybeClaim: Option[String] = requestHeader.headers.get(config.headerClaim)
 
-    val t = Try(env.env match {
-      case devOrTest if devOrTest == "dev" || devOrTest == "test" =>
+    val t = Try((env.env, maybeClaim) match {
+      case (("dev", _) | ("test", _)) =>
         nextFilter(requestHeader).map { result =>
           val requestTime: Long = System.currentTimeMillis - startTime
           logger.debug(
@@ -51,26 +51,20 @@ class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: Execut
             config.headerGatewayStateResp -> maybeState.getOrElse("--")
           )
         }
-      case "prod" if maybeClaim.isEmpty && maybeState.isEmpty =>
-        Future.successful(
-          Results.Unauthorized(
-            Json.obj("error" -> "Bad request !!!")
-          )
-        )
-      case "prod" if maybeClaim.isEmpty =>
+      case ("prod", None) =>
         Future.successful(
           Results
             .Unauthorized(
-              Json.obj("error" -> "Bad claim !!!")
+              Json.obj("error" -> "Bad request !!!")
             )
             .withHeaders(
               config.headerGatewayStateResp -> maybeState.getOrElse("--")
             )
         )
-      case "prod" =>
+      case ("prod", Some(claim)) =>
         import scala.collection.JavaConverters._
         val tryDecode: Try[Future[Result]] = Try {
-          val decoded: DecodedJWT     = verifier.verify(maybeClaim.get)
+          val decoded: DecodedJWT     = verifier.verify(claim)
           val maybeUser: Option[User] = User.fromOtoroshiJwtToken(decoded)
           if (maybeUser.isEmpty) Logger.debug(s"Empty auth for token ${decoded.getClaims.asScala}")
           nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, maybeUser)).map {
