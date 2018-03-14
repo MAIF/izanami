@@ -6,9 +6,6 @@
   "author": "MAIF Team",
   "license": "Apache-2.0",
   "scripts": {},
-  "engines": {
-    "node": "^8"
-  },
   "repository": {
     "type": "git",
     "url": "git://github.com/MAIF/izanami.git"
