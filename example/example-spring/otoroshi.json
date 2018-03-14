@@ -1,0 +1,455 @@
+{
+  "label": "Otoroshi export",
+  "dateRaw": 1521023501614,
+  "date": "2018-03-14 10:31:41",
+  "stats": {
+    "calls": 68,
+    "dataIn": 1109,
+    "dataOut": 325009
+  },
+  "config": {
+    "lines": [
+      "dev",
+      "sandbox",
+      "experiments",
+      "preprod",
+      "prod"
+    ],
+    "streamEntityOnly": true,
+    "autoLinkToDefaultGroup": true,
+    "limitConcurrentRequests": false,
+    "maxConcurrentRequests": 1000,
+    "maxHttp10ResponseSize": 4194304,
+    "useCircuitBreakers": true,
+    "apiReadOnly": false,
+    "u2fLoginOnly": false,
+    "ipFiltering": {
+      "whitelist": [],
+      "blacklist": []
+    },
+    "throttlingQuota": 100000,
+    "perIpThrottlingQuota": 500,
+    "analyticsEventsUrl": null,
+    "analyticsWebhooks": [],
+    "alertsWebhooks": [],
+    "alertsEmails": [],
+    "endlessIpAddresses": [],
+    "statsdConfig": null,
+    "kafkaConfig": null,
+    "backofficeAuth0Config": null,
+    "privateAppsAuth0Config": null,
+    "mailGunSettings": null,
+    "cleverSettings": null,
+    "maxWebhookSize": 100,
+    "middleFingers": false,
+    "maxLogsSize": 10000
+  },
+  "appConfig": {
+    "actorsystems": {
+      "cassandra": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "gateway": {
+        "akka": {
+          "default-dispatcher": {
+            "executor": "fork-join-executor",
+            "fork-join-executor": {
+              "parallelism-factor": 4,
+              "parallelism-max": 64,
+              "parallelism-min": 4,
+              "task-peeking-mode": "FIFO"
+            },
+            "throughput": 1,
+            "type": "Dispatcher"
+          },
+          "jvm-exit-on-fatal-error": false
+        },
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "inmemory": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "internal": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "kafka": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "leveldb": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "pressure": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "redis": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "statsd": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      },
+      "websockets": {
+        "default-dispatcher": {
+          "executor": "fork-join-executor",
+          "fork-join-executor": {
+            "parallelism-factor": 4,
+            "parallelism-max": 64,
+            "parallelism-min": 4,
+            "task-peeking-mode": "FIFO"
+          },
+          "throughput": 1,
+          "type": "Dispatcher"
+        },
+        "jvm-exit-on-fatal-error": false
+      }
+    },
+    "adminapi": {
+      "defaultValues": {
+        "backOfficeApiKeyClientId": "admin-api-apikey-id",
+        "backOfficeApiKeyClientSecret": "admin-api-apikey-secret",
+        "backOfficeGroupId": "admin-api-group",
+        "backOfficeServiceId": "admin-api-service"
+      },
+      "exposed": true,
+      "exposedDubdomain": "otoroshi-api",
+      "proxy": {
+        "https": false,
+        "local": true
+      },
+      "targetSubdomain": "otoroshi-admin-internal-api"
+    },
+    "backoffice": {
+      "exposed": true,
+      "session": {
+        "exp": 86400000
+      },
+      "subdomain": "otoroshi"
+    },
+    "cassandra": {
+      "host": "127.0.0.1",
+      "hosts": "127.0.0.1",
+      "port": 9042,
+      "windowSize": 99
+    },
+    "claim": {
+      "sharedKey": "otoroshisharedkey"
+    },
+    "commitId": "HEAD",
+    "domain": "mytvshow.demo",
+    "env": "prod",
+    "events": {
+      "maxSize": 1000
+    },
+    "eventsName": "otoroshi",
+    "importFrom": "/usr/app/otoroshi/leveldb/otoroshi.json",
+    "inmemory": {
+      "windowSize": 99
+    },
+    "kafka": {
+      "groupId": "otoroshi",
+      "host": "127.0.0.1",
+      "keystore": {},
+      "nbPartitions": 3,
+      "port": "9092",
+      "servers": "127.0.0.1:9092",
+      "truststore": {}
+    },
+    "leveldb": {
+      "path": "./leveldb",
+      "windowSize": 99
+    },
+    "middleFingers": false,
+    "privateapps": {
+      "session": {
+        "exp": 86400000
+      },
+      "subdomain": "privateapps"
+    },
+    "redirectToDev": false,
+    "redis": {
+      "host": "localhost",
+      "port": 6379,
+      "slaves": [],
+      "useScan": false,
+      "windowSize": 99
+    },
+    "rootScheme": "http",
+    "snowflake": {
+      "seed": 0
+    },
+    "storage": "inmemory",
+    "storageRoot": "otoroshi",
+    "useCache": false,
+    "userMeta": "otoroshi_data",
+    "webhooks": {
+      "size": 100
+    },
+    "workers": 30
+  },
+  "admins": [],
+  "simpleAdmins": [
+    {
+      "username": "demo@admin.io",
+      "password": "$2a$10$XKcRTEaVR5qztEoFNhrnmuirXCKJE5FVTZTfT0CjqQ0zBRy0qkyOS",
+      "label": "demo",
+      "createdAt": 1521021655391
+    }
+  ],
+  "serviceGroups": [
+    {
+      "id": "admin-api-group",
+      "name": "Otoroshi Admin Api group",
+      "description": "No description"
+    },
+    {
+      "id": "default",
+      "name": "default-group",
+      "description": "The default service group"
+    }
+  ],
+  "apiKeys": [
+    {
+      "clientId": "admin-api-apikey-id",
+      "clientSecret": "admin-api-apikey-secret",
+      "clientName": "Otoroshi Backoffice ApiKey",
+      "authorizedGroup": "admin-api-group",
+      "enabled": true,
+      "throttlingQuota": 10000000,
+      "dailyQuota": 10000000,
+      "monthlyQuota": 10000000,
+      "metadata": {}
+    },
+    {
+      "clientId": "9HFCzZIPUQQvfxkq",
+      "clientSecret": "lmwAGwqtJJM7nOMGKwSAdOjC3CZExfYC7qXd4aPmmseaShkEccAnmpULvgnrt6tp",
+      "clientName": "default-apikey",
+      "authorizedGroup": "default",
+      "enabled": true,
+      "throttlingQuota": 10000000,
+      "dailyQuota": 10000000,
+      "monthlyQuota": 10000000,
+      "metadata": {}
+    }
+  ],
+  "serviceDescriptors": [
+    {
+      "id": "admin-api-service",
+      "groupId": "admin-api-group",
+      "name": "otoroshi-admin-api",
+      "env": "prod",
+      "domain": "mytvshow.demo",
+      "subdomain": "otoroshi-api",
+      "targets": [
+        {
+          "host": "127.0.0.1:8080",
+          "scheme": "http"
+        }
+      ],
+      "root": "/",
+      "matchingRoot": null,
+      "localHost": "127.0.0.1:8080",
+      "localScheme": "http",
+      "redirectToLocal": false,
+      "enabled": true,
+      "privateApp": false,
+      "forceHttps": false,
+      "maintenanceMode": false,
+      "buildMode": false,
+      "enforceSecureCommunication": true,
+      "secComExcludedPatterns": [],
+      "publicPatterns": [],
+      "privatePatterns": [],
+      "additionalHeaders": {
+        "Host": "otoroshi-admin-internal-api.mytvshow.demo"
+      },
+      "matchingHeaders": {},
+      "ipFiltering": {
+        "whitelist": [],
+        "blacklist": []
+      },
+      "api": {
+        "exposeApi": false
+      },
+      "healthCheck": {
+        "enabled": false,
+        "url": "/"
+      },
+      "clientConfig": {
+        "useCircuitBreaker": true,
+        "retries": 1,
+        "maxErrors": 20,
+        "retryInitialDelay": 50,
+        "backoffFactor": 2,
+        "callTimeout": 30000,
+        "globalTimeout": 30000,
+        "sampleInterval": 2000
+      },
+      "canary": {
+        "enabled": false,
+        "traffic": 0.2,
+        "targets": [],
+        "root": "/"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "VxqKiVkC53iYA5B0bvLd5PBfwmNK0diBvNMHY1W8e7Dsid4L9qdcJxNex5ppJhac",
+      "groupId": "default",
+      "name": "mytvshow",
+      "env": "prod",
+      "domain": "mytvshow.demo",
+      "subdomain": "www",
+      "targets": [
+        {
+          "host": "MY_IP:8080",
+          "scheme": "http"
+        }
+      ],
+      "root": "/",
+      "matchingRoot": null,
+      "localHost": "localhost:8080",
+      "localScheme": "http",
+      "redirectToLocal": false,
+      "enabled": true,
+      "privateApp": false,
+      "forceHttps": false,
+      "maintenanceMode": false,
+      "buildMode": false,
+      "enforceSecureCommunication": true,
+      "secComExcludedPatterns": [],
+      "publicPatterns": [
+        "/.*"
+      ],
+      "privatePatterns": [],
+      "additionalHeaders": {},
+      "matchingHeaders": {},
+      "ipFiltering": {
+        "whitelist": [],
+        "blacklist": []
+      },
+      "api": {
+        "exposeApi": false
+      },
+      "healthCheck": {
+        "enabled": false,
+        "url": "/"
+      },
+      "clientConfig": {
+        "useCircuitBreaker": true,
+        "retries": 1,
+        "maxErrors": 20,
+        "retryInitialDelay": 50,
+        "backoffFactor": 2,
+        "callTimeout": 30000,
+        "globalTimeout": 30000,
+        "sampleInterval": 2000
+      },
+      "canary": {
+        "enabled": false,
+        "traffic": 0.2,
+        "targets": [],
+        "root": "/"
+      },
+      "metadata": {}
+    }
+  ],
+  "errorTemplates": []
+}

@@ -3,6 +3,7 @@ spring:
     active:
       - izanamiProd
       - dev
+      - otoroshi
 leveldb:
   path: "leveldb/datas"
 betaserie:
@@ -12,6 +13,13 @@ tvdb:
   apikey: "92466265017F27E4"
   url: "https://api.thetvdb.com"
   banner: "https://www.thetvdb.com/banners/"
+otoroshi:
+  sharedKey: "otoroshisharedkey"
+  issuer: "Otoroshi"
+  claimHeaderName: "Otoroshi-Claim"
+  requestIdHeaderName: "Otoroshi-Request-Id"
+  stateHeaderName: "Otoroshi-State"
+  stateRespHeaderName: "Otoroshi-State-Resp"
 izanami:
   host: "http://izanami-tryout.cleverapps.io"
   clientId: "xxxx"

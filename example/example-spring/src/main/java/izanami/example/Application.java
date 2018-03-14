@@ -8,6 +8,7 @@ import io.vavr.jackson.datatype.VavrModule;
 import izanami.ClientConfig;
 import izanami.Experiments;
 import izanami.Strategies;
+import izanami.example.otoroshi.OtoroshiFilter;
 import izanami.javadsl.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +20,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
+
+import javax.servlet.Filter;
 
 
 @SpringBootApplication
@@ -155,4 +157,19 @@ public class Application {
 
     }
 
+    @Configuration
+    @Profile("otoroshi")
+    static class Otoroshi {
+
+        @Bean
+        Filter otoroshiFilter(Environment environment) {
+            String sharedKey = environment.getProperty("otoroshi.sharedKey");
+            String issuer = environment.getProperty("otoroshi.issuer");
+            String claimHeaderName = environment.getProperty("otoroshi.claimHeaderName");
+            String requestIdHeaderName = environment.getProperty("otoroshi.requestIdHeaderName");
+            String stateHeaderName = environment.getProperty("otoroshi.stateHeaderName");
+            String stateRespHeaderName = environment.getProperty("otoroshi.stateRespHeaderName");
+            return new OtoroshiFilter("prod", sharedKey, issuer, requestIdHeaderName, claimHeaderName, stateHeaderName, stateRespHeaderName);
+        }
+    }
 }
