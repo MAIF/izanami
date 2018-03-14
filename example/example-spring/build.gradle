@@ -14,6 +14,7 @@ repositories {
 dependencies {
     compile('org.springframework.boot:spring-boot-starter-web')
     compile('org.springframework.boot:spring-boot-starter-thymeleaf')
+    compile('com.auth0:java-jwt:3.1.0')
     compile("fr.maif:izanami-client_2.12:1.0.2")
     compile("io.vavr:vavr-jackson:0.9.2")
     compile("org.iq80.leveldb:leveldb:0.10")

@@ -47,6 +47,37 @@ In the root folder
 sbt 'project example-spring' '~reStart'
 ```
 
+## With Otoroshi 
+
+Use Account : 
+`demo@admin.io/demoIzaOto`
+
+Update the `/etc/hosts` file with : 
+```
+127.0.0.1  localhost www.mytvshow.demo otoroshi-api.mytvshow.demo otoroshi.mytvshow.demo otoroshi-admin-internal-api.mytvshow.demo 
+```
+
+```
+cd example/example-spring
+```
+
+Open the file `otoroshi.json` and replace `MY_IP` with your IP address. 
+
+And then launch the following docker command
+
+```
+cd example/example-spring
+
+docker run -p "8081:8080" \
+    -v $(pwd):/usr/app/otoroshi/leveldb \
+    --env "CLAIM_SHAREDKEY=otoroshisharedkey" \
+    -it maif/otoroshi:1.0.2 \
+    -Dapp.domain=mytvshow.demo \
+    -Dplay.http.session.domain=.mytvshow.demo \
+    -Dapp.importFrom="/usr/app/otoroshi/leveldb/otoroshi.json"
+```
+
+
 
 Follow the tutorial [here](https://maif.github.io/izanami/manual/tutorials/spring.html)
 
