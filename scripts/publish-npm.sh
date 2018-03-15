@@ -67,6 +67,7 @@ then
         echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
         npm version ${PACKAGE_VERSION}
         npm install
+        npm run packagr
         npm publish dist
     fi
 fi
