@@ -1,0 +1,31 @@
+<div class="container">
+  <div class="row">
+    <img src="/img/logo.png" class="img-responsive center-block logo"/>
+  </div>
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <div class="jumbotron">
+        <h2>Signin and manage your lovelly shows</h2>
+
+        <form [formGroup]="loginFormGroup" (submit)="doLogin()" novalidate>
+          <div class="form-group"
+               [class.has-error]="email.invalid && (email.dirty || email.touched)">
+            <label for="email">Email address</label>
+            <input type="email" id="email" class="form-control" [formControl]="email" name="email" required/>
+            <div
+              *ngIf="email.invalid && (email.dirty || email.touched)">
+              <span *ngIf="email.errors.required" class="help-block">Email is required</span>
+              <span
+                *ngIf="email.errors.email && !email.errors.required"
+                class="help-block">Invalid email</span>
+            </div>
+
+          </div>
+          <button
+            type="submit" class="btn btn-lg btn-default pull-right">Signin
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

@@ -4,6 +4,7 @@
 
  * [Java & Scala](jvm.md)
  * [React](react.md)
+ * [Angular](angular.md)
  * [Node](node.md)
  * [CLI](cli.md)
 
