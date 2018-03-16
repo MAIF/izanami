@@ -59,6 +59,16 @@ then
 
         npm version ${PACKAGE_VERSION}
         npm publish
+
+        cd ${LOCATION}/izanami-clients/angular
+        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
+        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
+        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
+        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
+        npm version ${PACKAGE_VERSION}
+        npm install
+        npm run packagr
+        npm publish dist
     fi
 fi
 

@@ -1,0 +1,215 @@
+$primaryColor: #f4c737;
+
+html {
+  margin: 0;
+  padding: 0;
+  background: url("/img/got.jpg") no-repeat center fixed;
+  -webkit-background-size: cover;
+  /* pour anciens Chrome et Safari */
+  background-size: cover;
+  /* version standardisée */
+}
+
+body {
+  background-color: transparent;
+}
+// accueil
+
+.logo {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  width: 200px;
+}
+
+.jumbotron {
+  background-color: $primaryColor;
+  padding-bottom: 68px;
+
+  h2 {
+    color: #373634;
+  }
+
+  .btn-default {
+    color: #fff;
+    background-color: #967D69;
+    border: none;
+  }
+}
+// menu
+
+.navbar-brand {
+  padding: 5px;
+}
+
+.navbar-brand > img {
+  width: 40px;
+}
+
+.navbar-default {
+  background-color: #3b3c3e;
+  border-color: #232324;
+}
+
+.navbar-default .navbar-collapse,
+.navbar-default .navbar-form {
+  border-color: #232324;
+}
+
+.navbar-default .navbar-nav > li > a {
+  color: $primaryColor;
+}
+
+.navbar-default .navbar-nav > li > a:focus,
+.navbar-default .navbar-nav > li > a:hover {
+  color: lighten($primaryColor, 10%);
+}
+
+h2 {
+  color: $primaryColor;
+}
+
+.TvResult {
+  text-align: left;
+  margin-left: 20px;
+
+  h3 {
+    margin-top: 0;
+  }
+}
+
+.media {
+  background-color: $primaryColor;
+  box-shadow: 0 1px 5px 0 rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(0, 0, 0, 0.14);
+  border-radius: 4px;
+  outline: none;
+}
+
+.media-heading {
+  padding-top: 15px;
+  float: left;
+}
+
+.description {
+  clear: both;
+  line-height: 1.2em;
+}
+
+.media-body button {
+  background-color: transparent;
+}
+
+.fa-eye {
+  font-size: 18px;
+  color: #333;
+}
+
+.glyphicon-chevron-right {
+  color: #333;
+}
+// select
+
+#app .Select--single > .Select-control .Select-value,
+#app .Select-menu-outer,
+#app .Select-placeholder {
+  color: black;
+}
+
+#app .Select-arrow {
+  border-color: #000 transparent transparent;
+}
+
+#app .Select-control,
+#app .Select-control,
+#app .Select-menu-outer,
+#app .Select-option,
+#app .is-open > .Select-control {
+  background-color: $primaryColor;
+}
+
+.resultSearch, .btnSearch {
+  background-color: $primaryColor;
+}
+.resultSearch:hover, .btnSearch:hover, .btnSearch:active, .btnSearch:focus{
+  background-color: lighten($primaryColor, 10%);
+}
+
+//details
+.fa-home {
+  color: rgba(60, 61, 62, 0.5);
+  margin-top: 27px;
+}
+
+.details {
+  background-color: $primaryColor;
+}
+
+.visuel {
+  width: 100%;
+}
+
+.addBtn {
+  padding: 2px 4px;
+  margin-top: -5px;
+  background-color: #aa8203;
+  color: white;
+}
+
+.addBigBtn:hover,
+.addBtn:hover {
+  color: white;
+  background-color: lighten(#957c68, 10%);
+}
+
+.addBigBtn {
+  background-color: #aa8203;
+  // border: 1px solid $primaryColor;
+  color: white;
+}
+
+.panel-body {
+  background-color: #d9a70d;
+}
+
+.panel-group {
+  margin-top: 20px;
+}
+
+.panel-default {
+  border: none;
+}
+
+.panel-default > .panel-heading {
+  background-color: #e5b010;
+}
+
+.panel-title > a,
+.table {
+  color: #57493d;
+}
+
+.panel-group .panel-heading + .panel-collapse > .list-group,
+.panel-group .panel-heading + .panel-collapse > .panel-body,
+.panel-group .panel-heading+.panel-collapse > .list-group,
+.panel-group .panel-heading+.panel-collapse > .panel-body,
+.table > tbody > tr > td,
+.table > tbody > tr > td,
+.table > tbody > tr > th,
+.table > tbody > tr > th,
+.table > tfoot > tr > td,
+.table > tfoot > tr > td,
+.table > tfoot > tr > th,
+.table > tfoot > tr > th,
+.table > thead > tr > td,
+.table > thead > tr > td,
+.table > thead > tr > th,
+.table > thead > tr > th {
+  border-top: 1px solid #aa8104;
+}
+
+.table > thead > tr > th {
+  border-bottom: 2px solid #aa8104;
+}
+
+tr.done {
+  color: #ccc;
+}

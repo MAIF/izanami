@@ -23,7 +23,16 @@ public class HomeController {
     public String home(Model model) {
         String profile = List.of(this.environment.getActiveProfiles()).find(p -> p.equals("dev")).getOrElse("prod");
         model.addAttribute("mode", profile);
-        return "index";
+
+        FrontendType frontendType = FrontendType.valueOf(environment.getRequiredProperty("frontend.type"));
+        switch (frontendType) {
+            case REACT:
+                return "index";
+            case ANGULAR:
+                return "index-angular";
+            default:
+                return "index";
+        }
     }
 
 

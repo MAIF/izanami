@@ -3,7 +3,8 @@ spring:
     active:
       - izanamiProd
       - dev
-      - otoroshi
+frontend:
+  type: "REACT"
 leveldb:
   path: "leveldb/datas"
 betaserie:
