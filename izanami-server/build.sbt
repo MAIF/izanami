@@ -13,7 +13,7 @@ lazy val `izanami-server` = (project in file("."))
 
 scalaVersion := "2.12.4"
 
-val akkaVersion = "2.5.8"
+val akkaVersion = "2.5.11"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo
@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
   "com.softwaremill.macwire" %% "macros"                        % "2.3.0" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                   % akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-typed"                    % akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-actor-typed"              % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster"                  % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster-tools"            % akkaVersion, // Apache 2.0
   "com.github.etaty"         %% "rediscala"                     % "1.8.0", // Apache 2.0
@@ -36,7 +36,7 @@ libraryDependencies ++= Seq(
   "com.chuusai"              %% "shapeless"                     % "2.3.2", // Apache 2.0
   "com.adelegue"             %% "playjson-extended"             % "0.0.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
-  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.12", // Apache 2.0
+  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.17", // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.18", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"            % "0.0.11", // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.3.0", // Apache 2.0
