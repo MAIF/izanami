@@ -79,7 +79,7 @@ export class KeyInput extends Component {
     if (e.keyCode === 9) {
       e.preventDefault();
       if (this.state.textValue) {
-        const segments = [...this.state.segments, this.state.textValue];
+        const segments = [...this.state.segments, ...this.state.textValue.split(":").map(s => s.trim()).filter(s => !!s)];
         const key = segments.join(":");
         this.setState({segments, key, textValue: '', computedValue: key});
       }
@@ -98,7 +98,8 @@ export class KeyInput extends Component {
       this.props.onChange(key);
       this.search();
     } else {
-      const computedValue = this.state.key ? this.state.key + ":" + v : v;
+      const computedValue = this.state.key ? this.state.key + ":" + v.trim() : v.trim();
+      //const segments = computedValue.split(":");
       this.setState(
         {computedValue, textValue: v},
         () => this.search()
