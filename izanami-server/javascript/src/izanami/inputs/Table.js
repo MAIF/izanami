@@ -287,7 +287,7 @@ export class Table extends Component {
           this.setState({error: true, errorList: this.buildErrorList(res.errorList)});
         } else {
           let items;
-          if (this.state.items.find(i => i.id === res.data.id)) {
+          if (this.state.items.find(i => this.props.compareItem(i, res.data))) {
             items = [...this.state.items];
           } else {
             items = [res.data, ...this.state.items].splice(0, this.props.pageSize);
