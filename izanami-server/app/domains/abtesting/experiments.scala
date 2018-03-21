@@ -104,12 +104,17 @@ class ExperimentStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, syst
     }
 
   override def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment): Future[Result[Experiment]] =
-    jsonStore
-      .update(oldId, id, format.writes(data))
-      .to[Experiment]
-      .andPublishEvent { r =>
-        ExperimentUpdated(id, data, r)
-      }
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore
+          .update(oldId, id, format.writes(data))
+          .to[Experiment]
+          .andPublishEvent { r =>
+            ExperimentUpdated(id, oldValue, r)
+          }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
+    }
 
   override def delete(id: ExperimentKey): Future[Result[Experiment]] =
     jsonStore.delete(id).to[Experiment].andPublishEvent { r =>
