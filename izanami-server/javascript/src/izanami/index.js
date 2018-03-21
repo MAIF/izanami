@@ -103,7 +103,7 @@ export class LoggedApp extends Component {
       <div className="izanami-container container-fluid">
         <nav className="navbar navbar-inverse navbar-fixed-top">
           <div className="navbar-header col-md-2"><a href="/" className="navbar-brand"
-                                                     style={{display: 'flex'}}>イザナミ&nbsp; Ōpun Izanami</a>
+                                                     style={{display: 'flex'}}>イザナミ&nbsp; Izanami</a>
           </div>
 
           <div className="container-fluid">
