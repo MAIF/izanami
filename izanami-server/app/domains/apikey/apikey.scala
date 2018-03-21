@@ -66,12 +66,17 @@ class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
     }
 
   override def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): Future[Result[Apikey]] =
-    jsonStore
-      .update(oldId, id, format.writes(data))
-      .to[Apikey]
-      .andPublishEvent { r =>
-        ApikeyUpdated(id, data, r)
-      }
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore
+          .update(oldId, id, format.writes(data))
+          .to[Apikey]
+          .andPublishEvent { r =>
+            ApikeyUpdated(id, oldValue, r)
+          }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
+    }
 
   override def delete(id: ApikeyKey): Future[Result[Apikey]] =
     jsonStore.delete(id).to[Apikey].andPublishEvent { r =>

@@ -138,8 +138,13 @@ class UserStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: Ac
   }
 
   override def update(oldId: UserKey, id: UserKey, data: User): Future[Result[User]] =
-    jsonStore.update(oldId, id, format.writes(data)).to[User].andPublishEvent { r =>
-      UserUpdated(id, data, r)
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore.update(oldId, id, format.writes(data)).to[User].andPublishEvent { r =>
+          UserUpdated(id, oldValue, r)
+        }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
     }
 
   override def delete(id: UserKey): Future[Result[User]] =

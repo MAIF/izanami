@@ -263,12 +263,17 @@ class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system:
     }
 
   override def update(oldId: FeatureKey, id: FeatureKey, data: Feature): Future[Result[Feature]] =
-    jsonStore
-      .update(oldId, id, format.writes(data))
-      .to[Feature]
-      .andPublishEvent { r =>
-        FeatureUpdated(id, data, r)
-      }
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore
+          .update(oldId, id, format.writes(data))
+          .to[Feature]
+          .andPublishEvent { r =>
+            FeatureUpdated(id, oldValue, r)
+          }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
+    }
 
   override def delete(id: FeatureKey): Future[Result[Feature]] =
     jsonStore.delete(id).to[Feature].andPublishEvent { r =>
