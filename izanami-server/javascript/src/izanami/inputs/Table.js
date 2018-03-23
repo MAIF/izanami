@@ -205,14 +205,14 @@ export class Table extends Component {
     this.unmountShortcuts();
     this.props.parentProps.setTitle(this.props.defaultTitle);
     this.setState({currentItem: null, showAddForm: false, error: false, errorList: []});
-    this.props.backToUrl ? window.history.pushState({}, '', `/${this.props.backToUrl}`) : window.history.back();
+    this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
   };
 
   showAddForm = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.mountShortcuts();
     this.props.parentProps.setTitle(`Create a new ${this.props.itemName}`);
-    window.history.pushState({}, '', `/${this.props.selfUrl}/add`);
+    window.history.pushState({}, '', `${window.__contextPath}/${this.props.selfUrl}/add`);
     this.setState({currentItem: this.props.defaultValue(), currentItemOriginal: this.props.defaultValue(), showAddForm: true, error: false, errorList: []});
   };
 
@@ -221,7 +221,7 @@ export class Table extends Component {
     this.unmountShortcuts();
     this.props.parentProps.setTitle(this.props.defaultTitle);
     this.setState({currentItem: null, currentItemOriginal: null, showEditForm: false, error: false, errorList: []});
-    this.props.backToUrl ? window.history.pushState({}, '', `/${this.props.backToUrl}`) : window.history.back();
+    this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
   };
 
   showEditForm = (e, item) => {
@@ -230,7 +230,7 @@ export class Table extends Component {
     window.history.pushState(
       {},
       '',
-      `/${this.props.selfUrl}/edit/${this.props.extractKey(item)}`
+      `${window.__contextPath}/${this.props.selfUrl}/edit/${this.props.extractKey(item)}`
     );
     this.props.parentProps.setTitle(`Update a ${this.props.itemName}`);
     const currentItem = this.props.convertItem(item);
@@ -253,7 +253,7 @@ export class Table extends Component {
             toDelete: null
           });
           this.props.parentProps.setTitle(this.props.defaultTitle);
-          this.props.backToUrl ? window.history.pushState({}, '', `/${this.props.backToUrl}`) : window.history.back();
+          this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
         });
     //}
   };
@@ -293,7 +293,7 @@ export class Table extends Component {
             items = [res.data, ...this.state.items].splice(0, this.props.pageSize);
           }
           this.setState({error: false, items, justUpdated: true});
-          this.props.backToUrl ? window.history.pushState({}, '', `/${this.props.backToUrl}`) : window.history.back();
+          this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
         }
       });
   };
@@ -335,7 +335,7 @@ export class Table extends Component {
             }
           });
           this.setState({items, showEditForm: false, justUpdated: true});
-          this.props.backToUrl ? window.history.pushState({}, '', `/${this.props.backToUrl}`) : window.history.back();
+          this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
         }
       });
   };

@@ -1,6 +1,6 @@
 @import play.api.libs.json.{JsValue, Json}
 
-@(_env: env.Env, logout: String, enabledUserManagement: Boolean, user: JsValue)
+@(_env: env.Env, contextPath: String, logout: String, enabledUserManagement: Boolean, user: JsValue)
 
 <!DOCTYPE html>
 <html>
@@ -23,7 +23,8 @@
     }
     <div id="app"></div>
     <script type="application/javascript">
-        Izanami.init(document.getElementById("app"), '@logout', @enabledUserManagement, JSON.parse('@Html(Json.stringify(user))'));
+        window.__contextPath = '@contextPath';
+        Izanami.init(document.getElementById("app"), '@contextPath', '@logout', @enabledUserManagement, JSON.parse('@Html(Json.stringify(user))'));
     </script>
   </body>
 </html>

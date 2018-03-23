@@ -40,7 +40,7 @@ export class LoginPage extends Component {
           document.cookie = `notifyuser=true;expires=${d.toDate().toUTCString()};path=/`;
         }
         this.setState({error: false});
-        window.location.href = '/';
+        window.location.href = window.__contextPath === '' ? '/' : window.__contextPath;
       } else {
         this.setState({error: true})
       }
@@ -51,7 +51,7 @@ export class LoginPage extends Component {
     return (
       <div className="container-fluid">
         <div className="col-md-offset-5">
-          <img className="logo_izanami_dashboard" src="/assets/images/izanami.png"/>
+          <img className="logo_izanami_dashboard" src={`${window.__contextPath}/assets/images/izanami.png`}/>
         </div>
         <div className="col-md-4 col-md-offset-4" style={{marginTop:"20px"}}>
           <Form

@@ -2,6 +2,7 @@ import 'es6-shim';
 import 'whatwg-fetch';
 import Symbol from 'es-symbol';
 import $ from 'jquery';
+
 import 'react-select-plus/dist/react-select-plus.css';
 
 import 'react-table/react-table.css';
@@ -19,9 +20,17 @@ Array.prototype.flatMap = function (lambda) {
 };
 
 import React from 'react';
-import { RoutedIzanamiApp } from './izanami/index';
+import { buildRoutedApp } from './izanami/index';
 import ReactDOM from 'react-dom';
+import { createBrowserHistory } from "history";
 
-export function init(node, logout, enabledUserManagement, user) {
-  ReactDOM.render(<RoutedIzanamiApp user={user} logout={logout} enabledUserManagement={enabledUserManagement}/>, node);
+export function init(node, contextPath, logout, enabledUserManagement, user) {
+    let history;
+    if (window.__contextPath && window.__contextPath !== '') {
+        history = createBrowserHistory({basename:window.__contextPath});
+    } else {
+        history = createBrowserHistory();
+    }
+  const RoutedIzanamiApp = buildRoutedApp(history);
+  ReactDOM.render(<RoutedIzanamiApp user={user} contextPath={contextPath} logout={logout} enabledUserManagement={enabledUserManagement}/>, node);
 }

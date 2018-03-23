@@ -55,7 +55,13 @@ package object modules {
 
     Logger.info(s"Configuration: \n$izanamiConfig")
 
-    lazy val _env: Env = wire[Env]
+    lazy val _env: Env = izanamiConfig.contextPath match {
+      case "/" => wire[Env]
+      case c =>
+        val aFinder: AssetsFinder = assetsFinder
+          .withUrlPrefix(s"$c/assets")
+        wire[Env].copy(assetsFinder = aFinder)
+    }
 
     def authAction: ActionBuilder[AuthContext, AnyContent]                       = wire[AuthAction]
     def securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
@@ -80,7 +86,7 @@ package object modules {
       case KafkaEvents(c) => new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
       case RedisEvents(c) => new RedisEventStore(redisClient.get, c, actorSystem)
       case DistributedEvents(c) => new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
-      case other => throw new IllegalArgumentException(s"Unknow event store $other")
+      case other => throw new IllegalArgumentException(s"Unknown event store $other")
     }
     // format: on
 
@@ -260,12 +266,13 @@ package object modules {
         Seq(new OtoroshiFilter(_env, config))
       case env.Default(config) =>
         Logger.info("Using default filter")
-        Seq(new IzanamiDefaultFilter(_env, config, izanamiConfig.apikey, apikeyStore))
+        Seq(new IzanamiDefaultFilter(_env, izanamiConfig, config, izanamiConfig.apikey, apikeyStore))
     }
 
     lazy val router: Router = {
-      lazy val prefix: String = "/"
-      wire[Routes]
+      lazy val prefix: String = izanamiConfig.contextPath
+      Logger.info(s"Initializing play router with prefix $prefix")
+      wire[Routes].withPrefix(prefix)
     }
 
     override lazy val httpErrorHandler: HttpErrorHandler =
