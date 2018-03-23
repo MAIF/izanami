@@ -11,7 +11,7 @@ import domains.feature.FeatureStore._
 import domains.script.{GlobalScript, Script}
 import domains.{AuthInfo, Key}
 import env.Env
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import shapeless.syntax
 import store._
 
@@ -33,21 +33,21 @@ sealed trait Feature {
 
 }
 
-case class DefaultFeature(id: FeatureKey, enabled: Boolean) extends Feature
+case class DefaultFeature(id: FeatureKey, enabled: Boolean, parameters: JsValue) extends Feature
 
 object DefaultFeature {
 
-  import play.api.libs.functional.syntax._
   import play.api.libs.json._
   import playjson.all._
-
-  val reads: Reads[DefaultFeature] = hReads[DefaultFeature]
-  val writes: Writes[DefaultFeature] =
-    Feature
-      .commonWrite(unlift(DefaultFeature.unapply))
-      .transform { o: JsObject =>
-        o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
-      }
+  import syntax.singleton._
+  val reads: Reads[DefaultFeature] = jsonRead[DefaultFeature].withRules(
+    'parameters ->> orElse[JsValue](JsNull)
+  )
+  val writes: Writes[DefaultFeature] = Json
+    .writes[DefaultFeature]
+    .transform { o: JsObject =>
+      o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+    }
 
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
 }
