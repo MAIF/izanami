@@ -11,7 +11,7 @@ import domains.feature.FeatureStore._
 import domains.script.{GlobalScript, Script}
 import domains.{AuthInfo, Key}
 import env.Env
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 import shapeless.syntax
 import store._
 
@@ -33,7 +33,7 @@ sealed trait Feature {
 
 }
 
-case class DefaultFeature(id: FeatureKey, enabled: Boolean, parameters: JsValue) extends Feature
+case class DefaultFeature(id: FeatureKey, enabled: Boolean, parameters: JsValue = JsNull) extends Feature
 
 object DefaultFeature {
 
