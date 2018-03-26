@@ -46,7 +46,12 @@ object DefaultFeature {
   val writes: Writes[DefaultFeature] = Json
     .writes[DefaultFeature]
     .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+      (o \ "parameters").as[JsValue] match {
+        case JsNull =>
+          o - "parameters" ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+        case _ =>
+          o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+      }
     }
 
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
