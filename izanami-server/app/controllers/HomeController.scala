@@ -23,7 +23,6 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
   }
 
   def index() = AuthAction { ctx =>
-    Logger.info("Here")
     ctx.auth match {
       case Some(_) =>
         Ok(
