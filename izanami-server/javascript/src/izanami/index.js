@@ -111,15 +111,37 @@ export class LoggedApp extends Component {
     return (
       <div className="izanami-container container-fluid">
         <nav className="navbar navbar-inverse navbar-fixed-top">
-          <div className="navbar-header col-md-2"><a href="/" className="navbar-brand"
-                                                     style={{display: 'flex'}}>イザナミ&nbsp; Izanami</a>
+          <div className="navbar-header col-md-2">
+          <button
+            type="button"
+            className="navbar-toggle collapsed"
+            data-toggle="collapse"
+            data-target="#navbar"
+            aria-expanded="false"
+            aria-controls="navbar">
+            <span className="sr-only">Toggle navigation</span>
+            <span className="icon-bar" />
+            <span className="icon-bar" />
+            <span className="icon-bar" />
+          </button>
+          <button
+          type="button"
+          className="navbar-toggle collapsed menu"
+          data-toggle="collapse"
+          data-target="#sidebar"
+          aria-expanded="false"
+          aria-controls="sidebar">
+          <span className="sr-only">Toggle sidebar</span>
+          <span>Menu</span>
+        </button>
+          <a href="/" className="navbar-brand"  style={{display: 'flex'}}>イザナミ&nbsp; Izanami</a>
           </div>
 
           <div className="container-fluid">
             <div id="navbar" className="navbar-collapse collapse">
               <ul className="nav navbar-nav navbar-right">
                 <li><a
-                  href={this.props.logout}>{this.props.user ? this.props.user.email : ''}&nbsp;
+                  href={this.props.logout} className="link-logout">{this.props.user ? this.props.user.email : ''}&nbsp;
                   <span className="glyphicon glyphicon-off"/></a></li>
               </ul>
               <form className="navbar-form navbar-left">
@@ -201,9 +223,8 @@ export class LoggedApp extends Component {
 
         <div className="container-fluid">
           <div className="row">
-            <div className="analytics-viewer-bottom-container"
-                 style={{display: 'flex', flexDirection: 'row', width: '100%', height: '100%'}}>
-              <div className="col-md-2 sidebar">
+            <div className="analytics-viewer-bottom-container" >
+              <div className="col-sm-2 sidebar" id="sidebar">
                 <div className="sidebar-container">
                   <div className="sidebar-content">
                     <ul className="nav nav-sidebar">
@@ -248,7 +269,7 @@ export class LoggedApp extends Component {
                 </div>
 
               </div>
-              <div className="col-md-10 col-md-offset-2 main">
+              <div className="col-sm-10 col-sm-offset-2 main">
                 <div className="row">
                   <div className="izanami-container">
                       <DynamicTitle />
