@@ -109,7 +109,7 @@ export class LoggedApp extends Component {
     const changeme = getCookie('notifyuser') || this.props.user.changeme;
 
     return (
-      <div className="izanami-container container-fluid">
+      <div className="container-fluid">
         <nav className="navbar navbar-inverse navbar-fixed-top">
           <div className="navbar-header col-md-2">
           <button
