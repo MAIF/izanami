@@ -606,7 +606,7 @@ export class Table extends Component {
               <Alerts display={this.state.error} messages={this.state.errorList}/>
             </div>
           }
-          <div className="form-buttons pull-right">
+          <div className="form-buttons pull-right updateConfig">
             <button
               type="button"
               className="btn btn-danger"

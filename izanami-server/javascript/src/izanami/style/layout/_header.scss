@@ -96,3 +96,18 @@
     font-size: 14px
   }
 }
+
+@media screen and (max-width: 767px) {
+  .link-logout {
+      text-align: center;
+  }
+
+  .navbar-collapse.in {
+      overflow-y: inherit;
+      margin-top: 60px;
+  }
+
+  #navbar .search-input {
+    width: 100%!important;
+  }
+}
