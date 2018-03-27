@@ -33,7 +33,12 @@
     margin-right: 5px;
   }
 }
-
+@media screen and (max-width: 767px) {
+  .sidebar {
+      display: none;
+      top: 91px;
+  }
+}
 .sidebar-container {
   display: flex;
   height: 100%;
@@ -79,4 +84,10 @@
 .logo {
   width: 50%;
   left: 25%;
+}
+
+@media screen and (max-width: 767px) {
+  .logo {
+      width: 20%;
+  }
 }
