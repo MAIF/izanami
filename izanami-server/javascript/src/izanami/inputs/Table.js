@@ -495,14 +495,14 @@ export class Table extends Component {
                     </button>
                   )}
                   {this.props.showActions && this.props.user.admin &&
-                    <div className="dropdown" style={{display: 'inline-block', marginLeft: 10}}>
+                    <div className="dropdown" style={{display: 'inline-block', marginLeft: 10,height:34}}>
                         <button
                           className="dropdown-toggle btn-dropdown"
                           data-toggle="dropdown"
                           type="button"
                           aria-haspopup="true"
                           aria-expanded="false"
-                          style={{display: 'inline-block'}}
+                          style={{verticalAlign: 'middle'}}
                         >
                           <i className="fa fa-cog fa-2" aria-hidden="true"/>
                         </button>
