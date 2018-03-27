@@ -65,7 +65,7 @@ export class HomePage extends Component {
     return (
       <div className="col-md-12">
         <div className="row">
-          <div className="col-md-offset-5">
+          <div style={{width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
             <img className="logo_izanami_dashboard" src="/assets/images/izanami.png"/>
           </div>
         </div>
