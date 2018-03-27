@@ -109,6 +109,13 @@ h4 {
 .fixedH3{
     margin-top: -10px;
 }
+
+
+@media only screen and (max-width: 767px){
+  .izanami-container {
+      margin-top: 26px;
+  }
+}
 //izanmi end
 
 .backoffice-container  .label {
