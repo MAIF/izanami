@@ -1,48 +1,79 @@
 import React, { Component } from 'react';
 
+function convert(values) {
+    return values
+        .filter(([k, v]) => !!k)
+        .reduce((acc, [k, v]) => {
+            acc[k] = v;
+            return acc;
+        }, {});
+}
+
 export class ObjectInput extends Component {
 
-  changeValue = (e, name) => {
-    if (e && e.preventDefault) e.preventDefault();
-    const newValues = { ...this.props.value, [name]: e.target.value };
-    this.props.onChange(newValues);
+  state = {
+      values: []
   };
 
-  changeKey = (e, oldName) => {
+  componentDidMount() {
+      const values = Object.entries(this.props.value);
+      this.setState({values});
+  }
+
+  changeValue = (e, name, index) => {
     if (e && e.preventDefault) e.preventDefault();
-    const newValues = { ...this.props.value };
-    const oldValue = newValues[oldName];
-    delete newValues[oldName];
-    newValues[e.target.value] = oldValue;
-    this.props.onChange(newValues);
+      const values = this.state.values.map(([k, v], i) => {
+          if (i === index) {
+              return [k, e.target.value];
+          } else {
+              return [k, v];
+          }
+      });
+      this.setState({values});
+      this.props.onChange(convert(values));
+  };
+
+  changeKey = (e, oldName, index) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const values = this.state.values.map(([k, v], i) => {
+       if (i === index) {
+           return [e.target.value, v];
+       } else {
+           return [k, v];
+       }
+    });
+    this.setState({values});
+    this.props.onChange(convert(values));
   };
 
   addFirst = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!this.props.value || Object.keys(this.props.value).length === 0) {
-      this.props.onChange(this.props.defaultValue || { '': '' });
+      const values = [this.props.defaultValue || ['', ''], ...this.state.values];
+      this.setState({values});
+      this.props.onChange(convert(values));
     }
   };
 
   addNext = (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    const newItem = this.props.defaultValue || { '': '' };
-    const newValues = { ...this.props.value, ...newItem };
-    this.props.onChange(newValues);
+    const values = [...this.state.values, this.props.defaultValue || ['', '']];
+    this.setState({values});
+    this.props.onChange(convert(values));
   };
 
-  remove = (e, name) => {
+  remove = (e, idx) => {
     if (e && e.preventDefault) e.preventDefault();
-    const newValues = { ...this.props.value };
-    delete newValues[name];
-    this.props.onChange(newValues);
+    const values = this.state.values.filter((_, i) => i !==idx);
+    this.setState({values});
+    this.props.onChange(convert(values));
   };
 
   render() {
-    const values = Object.keys(this.props.value || {}).map(k => [k, this.props.value[k]]);
     return (
       <div>
-        {values.length === 0 && (
+        {this.state.values.length === 0 && (
           <div className="form-group">
             <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{this.props.label}</label>
             <div className="col-sm-10">
@@ -51,19 +82,19 @@ export class ObjectInput extends Component {
           </div>
         )}
         {
-          values.map((value, idx) => (
-            <div className="form-group" key={idx}>
+          this.state.values.map((value, idx) => (
+            <div className="form-group" key={`obj-${idx}`}>
               {idx === 0 && <label className="col-sm-2 control-label">{this.props.label}</label>}
               {idx > 0   && <label className="col-sm-2 control-label">&nbsp;</label>}
               <div className="col-sm-10">
                 <div className="input-group">
                   <input disabled={this.props.disabled} type="text" className="form-control" style={{ width: '50%' }}
-                         placeholder={this.props.placeholderKey} value={value[0]} onChange={e => this.changeKey(e, value[0])} />
+                         placeholder={this.props.placeholderKey} value={value[0]} onChange={e => this.changeKey(e, value[0], idx)} />
                   <input disabled={this.props.disabled} type="text" className="form-control" style={{ width: '50%' }}
-                         placeholder={this.props.placeholderValue} value={value[1]} onChange={e => this.changeValue(e, value[0])} />
+                         placeholder={this.props.placeholderValue} value={value[1]} onChange={e => this.changeValue(e, value[0], idx)} />
                   <span className="input-group-btn">
                   <button disabled={this.props.disabled} type="button" className="btn btn-danger" onClick={e => this.remove(e, idx)}><i className="glyphicon glyphicon-trash" /></button>
-                    {idx === (values.length - 1) && (
+                    {idx === (this.state.values.length - 1) && (
                       <button disabled={this.props.disabled} type="button" className="btn btn-primary" onClick={this.addNext}><i className="glyphicon glyphicon-plus-sign" /> </button>
                     )}
                   </span>

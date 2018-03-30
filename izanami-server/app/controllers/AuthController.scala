@@ -92,6 +92,6 @@ class AuthController(_env: Env,
       .sign(algorithm)
 
   def logout() = Action { _ =>
-    Redirect("/login").withCookies(Cookie(name = cookieName, value = "", maxAge = Some(0)))
+    Redirect(s"${_env.contextPath}/login").withCookies(Cookie(name = cookieName, value = "", maxAge = Some(0)))
   }
 }
