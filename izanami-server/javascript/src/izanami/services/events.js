@@ -1,21 +1,36 @@
 
 let callback = [];
 
-if (!!window.EventSource) {
-  console.log('Initialising server sent event');
-  const evtSource = new EventSource("/api/events");
-  evtSource.addEventListener('open', e => {
-    console.log('SSE opened');
-  }, false);
-  evtSource.addEventListener('error', e => {
-    console.error('SSE error', e);
-  }, false);
-  evtSource.addEventListener('message', e => {
-    console.log('New event', e);
-    const data = JSON.parse(e.data);
-    callback.forEach(cb => cb(data));
-  }, false);
-}
+let eventSource;
+
+const IzanamiEvents = {
+    start() {
+        if (!!window.EventSource) {
+            console.log('Initialising server sent event');
+            eventSource = new EventSource(`${window.__contextPath}/api/events`);
+            eventSource.addEventListener('open', e => {
+                console.log('SSE opened');
+            }, false);
+            eventSource.addEventListener('error', e => {
+                console.error('SSE error', e);
+            }, false);
+            eventSource.addEventListener('message', e => {
+                console.log('New event', e);
+                const data = JSON.parse(e.data);
+                callback.forEach(cb => cb(data));
+            }, false);
+        }
+    },
+    stop() {
+        if (eventSource) {
+            eventSource.close();
+        }
+    }
+};
+
+export {IzanamiEvents};
+
+
 
 
 export function addCallback(cb) {

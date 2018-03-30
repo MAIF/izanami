@@ -66,7 +66,7 @@ export class HomePage extends Component {
       <div className="col-md-12">
         <div className="row">
           <div className="col-md-offset-5">
-            <img className="logo_izanami_dashboard" src="/assets/images/izanami.png"/>
+            <img className="logo_izanami_dashboard" src={`${window.__contextPath}/assets/images/izanami.png`}/>
           </div>
         </div>
         <div style={{ marginTop: 80 }}>

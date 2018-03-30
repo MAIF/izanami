@@ -32,6 +32,12 @@ case class Env(
 
   def getFile(path: String) = environment.getFile(path)
 
+  val contextPath: String = if (izanamiConfig.contextPath.endsWith("/")) {
+    izanamiConfig.contextPath.dropRight(1)
+  } else {
+    izanamiConfig.contextPath
+  }
+
   implicit val scriptExecutionContext: ScriptExecutionContext =
     ScriptExecutionContext(actorSystem)
 }
