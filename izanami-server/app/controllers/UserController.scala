@@ -102,9 +102,9 @@ class UserController(env: Env,
     } yield Ok(Json.toJson(user))
   }
 
-  def deleteAll(patterns: Option[String]): Action[AnyContent] =
+  def deleteAll(patterns: String): Action[AnyContent] =
     AuthAction.async { ctx =>
-      val allPatterns = patterns.toList.flatMap(_.split(","))
+      val allPatterns = ctx.authorizedPatterns :+ patterns
       for {
         deletes <- userStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
