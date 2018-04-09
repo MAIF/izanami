@@ -84,6 +84,7 @@ GET     /api/users                          controllers.UserController.list(patt
 GET     /api/users.ndjson                   controllers.UserController.download()
 POST    /api/users.ndjson                   controllers.UserController.upload()
 POST    /api/users                          controllers.UserController.create()
+DELETE  /api/users                          controllers.UserController.deleteAll(pattern: String ?= "*")
 GET     /api/users/:id                      controllers.UserController.get(id)
 PUT     /api/users/:id                      controllers.UserController.update(id)
 PATCH   /api/users/:id                      controllers.UserController.patch(id)
