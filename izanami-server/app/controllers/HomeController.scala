@@ -15,11 +15,11 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
     case default: env.Default => true
     case _                    => false
   }
-  lazy val contextPath: String = _env.contextPath
+  lazy val baseURL: String = _env.baseURL
   lazy val logout: String = if (_env.izanamiConfig.logout.url.startsWith("http")) {
     _env.izanamiConfig.logout.url
   } else {
-    s"$contextPath${_env.izanamiConfig.logout.url}"
+    s"$baseURL${_env.izanamiConfig.logout.url}"
   }
 
   def index() = AuthAction { ctx =>
@@ -27,15 +27,15 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
       case Some(_) =>
         Ok(
           views.html
-            .index(_env, contextPath, logout, enabledUserManagement, toJson(ctx.auth))
+            .index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth))
         )
       case None =>
-        Redirect(s"$contextPath/login")
+        Redirect(s"$baseURL/login")
     }
   }
 
   def login() = AuthAction { ctx =>
-    Ok(views.html.index(_env, contextPath, logout, enabledUserManagement, toJson(ctx.auth)))
+    Ok(views.html.index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth)))
   }
 
   def otherRoutes(anyPath: String) = index()

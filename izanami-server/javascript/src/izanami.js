@@ -24,7 +24,7 @@ import { buildRoutedApp } from './izanami/index';
 import ReactDOM from 'react-dom';
 import { createBrowserHistory } from "history";
 
-export function init(node, contextPath, logout, enabledUserManagement, user) {
+export function init(node, logout, enabledUserManagement, user) {
     let history;
     if (window.__contextPath && window.__contextPath !== '') {
         history = createBrowserHistory({basename:window.__contextPath});
@@ -32,5 +32,5 @@ export function init(node, contextPath, logout, enabledUserManagement, user) {
         history = createBrowserHistory();
     }
   const RoutedIzanamiApp = buildRoutedApp(history);
-  ReactDOM.render(<RoutedIzanamiApp user={user} contextPath={contextPath} logout={logout} enabledUserManagement={enabledUserManagement}/>, node);
+  ReactDOM.render(<RoutedIzanamiApp user={user} logout={logout} enabledUserManagement={enabledUserManagement}/>, node);
 }
