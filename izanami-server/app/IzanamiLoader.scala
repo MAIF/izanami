@@ -55,7 +55,7 @@ package object modules {
 
     Logger.info(s"Configuration: \n$izanamiConfig")
 
-    lazy val _env: Env = izanamiConfig.contextPath match {
+    lazy val _env: Env = izanamiConfig.baseURL match {
       case "/" => wire[Env]
       case c =>
         val aFinder: AssetsFinder = assetsFinder
