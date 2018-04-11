@@ -64,6 +64,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
   val config = IzanamiConfig(
     Some("dev"),
     "/",
+    "/",
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
     DbConfig("", None, None, None, None, None),
     LogoutConfig(""),

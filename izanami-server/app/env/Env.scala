@@ -37,6 +37,11 @@ case class Env(
   } else {
     izanamiConfig.contextPath
   }
+  val baseURL: String = if (izanamiConfig.baseURL.endsWith("/")) {
+    izanamiConfig.baseURL.dropRight(1)
+  } else {
+    izanamiConfig.baseURL
+  }
 
   implicit val scriptExecutionContext: ScriptExecutionContext =
     ScriptExecutionContext(actorSystem)
