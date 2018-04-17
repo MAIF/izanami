@@ -70,6 +70,7 @@
   box-shadow: none;
 }
 
+
 // izanami end
 
 .fa-cog {
@@ -109,5 +110,9 @@
 
   #navbar .search-input {
     width: 100%!important;
+  }
+  
+  .userManagement a{
+    text-align: right;
   }
 }
