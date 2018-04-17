@@ -1,8 +1,9 @@
-.popover{
+.popover {
 	color: $fondBody;
 }
-.popover-title{
-	background-color: #c9302c;
+
+.popover-title {
+	background-color: $primaryColor;
 	color: #FFF;
 }
 
@@ -10,15 +11,17 @@
 	margin-left: -100px;
 }
 
-.popover .close{
-	margin-top: -5px;;
+.popover .close {
+	margin-top: -5px;
 }
 
-.popover.right>.arrow:after {
-    border-right-color: #c9302c;
+.popover.right > .arrow:after {
+	border-right-color: $primaryColor;
 }
 
-.popover-content{
-	background-color: #c9302c;
+.popover-content {
+	background-color: $primaryColor;
 	color: #FFF;
+	overflow: auto;
+	border-radius: 0 0 5px 5px;
 }
