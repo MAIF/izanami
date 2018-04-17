@@ -172,7 +172,7 @@ export class LoggedApp extends Component {
                 userManagementEnabled &&
                 [
                 <ul key="admin-menu" className="nav navbar-nav navbar-left">
-                  <li className="dropdown">
+                  <li className="dropdown userManagement">
                     <a
                       href="#"
                       className="dropdown-toggle"
