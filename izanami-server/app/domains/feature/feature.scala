@@ -10,7 +10,7 @@ import akka.stream.scaladsl.Flow
 import akka.{Done, NotUsed}
 import domains.events.EventStore
 import domains.feature.FeatureStore._
-import domains.feature.ReleaseDateFeature.{pattern, pattern2}
+import store.Result.Result
 import domains.script.{GlobalScript, Script}
 import domains.{AuthInfo, Key}
 import env.Env
@@ -19,7 +19,8 @@ import shapeless.syntax
 import store._
 
 import scala.concurrent.{ExecutionContext, Future}
-
+import scala.util.hashing.MurmurHash3
+import FeatureType._
 sealed trait Strategy
 
 sealed trait Feature {
@@ -28,8 +29,8 @@ sealed trait Feature {
 
   def isAllowed = Key.isAllowed(id) _
 
-  def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] =
-    FastFuture.successful(true)
+  def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
+    FastFuture.successful(Result.ok(true))
 
   def toJson(active: Boolean) =
     Json.toJson(this).as[JsObject] ++ Json.obj("active" -> active)
@@ -55,9 +56,9 @@ object DefaultFeature {
     .transform { o: JsObject =>
       (o \ "parameters").as[JsValue] match {
         case JsNull =>
-          o - "parameters" ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+          o - "parameters" ++ Json.obj("activationStrategy" -> NO_STRATEGY)
         case _ =>
-          o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+          o ++ Json.obj("activationStrategy" -> NO_STRATEGY)
       }
     }
 
@@ -69,12 +70,12 @@ object DefaultFeature {
  ***************************************************/
 
 case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] = {
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
     import domains.script.GlobalScript._
     env.globalScriptStore.getById(Key(ref)).one.flatMap {
       case Some(gs: GlobalScript) =>
-        gs.source.run(context, env)
-      case None => FastFuture.successful(false)
+        gs.source.run(context, env).map(Result.ok)
+      case None => FastFuture.successful(Result.error("script.not.found"))
     }
   }
 }
@@ -89,7 +90,7 @@ object GlobalScriptFeature {
     (__ \ "parameters" \ "ref").write[String]
   )(unlift(GlobalScriptFeature.unapply))
     .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> "GLOBAL_SCRIPT")
+      o ++ Json.obj("activationStrategy" -> GLOBAL_SCRIPT)
     }
 
   private val reads: Reads[GlobalScriptFeature] = (
@@ -107,8 +108,8 @@ object GlobalScriptFeature {
  ***************************************************/
 
 case class ScriptFeature(id: FeatureKey, enabled: Boolean, script: Script) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] =
-    script.run(context, env)
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
+    script.run(context, env).map(Result.ok)
 
 }
 
@@ -122,7 +123,7 @@ object ScriptFeature {
     (__ \ "parameters" \ "script").write[Script]
   )(unlift(ScriptFeature.unapply))
     .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> "SCRIPT")
+      o ++ Json.obj("activationStrategy" -> SCRIPT)
     }
 
   private val reads: Reads[ScriptFeature] = (
@@ -140,9 +141,9 @@ object ScriptFeature {
  ***************************************************/
 
 case class DateRangeFeature(id: FeatureKey, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] = {
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
     val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-    FastFuture.successful(now.isAfter(from) && now.isBefore(from))
+    FastFuture.successful(Result.ok(now.isAfter(from) && now.isBefore(from)))
   }
 }
 
@@ -170,7 +171,7 @@ object DateRangeFeature {
     (__ \ "parameters" \ "from").write[LocalDateTime](dateWrite) and
     (__ \ "parameters" \ "to").write[LocalDateTime](dateWrite)
   )(unlift(DateRangeFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> "DATE_RANGE")
+    o ++ Json.obj("activationStrategy" -> DATE_RANGE)
   }
 
   implicit val format: Format[DateRangeFeature] = Format(reads, writes)
@@ -181,9 +182,9 @@ object DateRangeFeature {
  ***************************************************/
 
 case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, date: LocalDateTime) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Boolean] = {
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
     val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-    FastFuture.successful(now.isAfter(date))
+    FastFuture.successful(Result.ok(now.isAfter(date)))
   }
 }
 
@@ -208,20 +209,73 @@ object ReleaseDateFeature {
     (__ \ "parameters" \ "releaseDate")
       .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern))
   )(unlift(ReleaseDateFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> "RELEASE_DATE")
+    o ++ Json.obj("activationStrategy" -> RELEASE_DATE)
   }
 
   implicit val format: Format[ReleaseDateFeature] = Format(reads, writes)
 }
 
 /* *************************************************
+ *************** PERCENTAGE FEATURE ****************
+ ***************************************************/
+
+case class PercentageFeature(id: FeatureKey, enabled: Boolean, percentage: Int) extends Feature {
+
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
+    ((context \ "id").asOpt[String], enabled) match {
+      case (Some(theId), true) =>
+        val hash: Int = Math.abs(MurmurHash3.stringHash(theId))
+        if (hash % 100 < percentage) {
+          FastFuture.successful(Result.ok(true))
+        } else {
+          FastFuture.successful(Result.ok(false))
+        }
+      case (None, true) =>
+        FastFuture.successful(Result.error("context.id.missing"))
+      case _ =>
+        FastFuture.successful(Result.ok(false))
+    }
+}
+
+object PercentageFeature {
+  import play.api.libs.json._
+  import play.api.libs.json.Reads._
+  import play.api.libs.functional.syntax._
+
+  val reads: Reads[PercentageFeature] = (
+    (__ \ "id").read[Key] and
+    (__ \ "enabled").read[Boolean] and
+    (__ \ "parameters" \ "percentage").read[Int](min(0) keepAnd max(100))
+  )(PercentageFeature.apply _)
+
+  val writes: Writes[PercentageFeature] = (
+    Feature.commonWrite and
+    (__ \ "parameters" \ "percentage").write[Int]
+  )(unlift(PercentageFeature.unapply)).transform { o: JsObject =>
+    o ++ Json.obj("activationStrategy" -> PERCENTAGE)
+  }
+
+  implicit val format: Format[PercentageFeature] = Format(reads, writes)
+}
+
+/* *************************************************
  ******************** FEATURE **********************
  ***************************************************/
+
+object FeatureType {
+  val NO_STRATEGY   = "NO_STRATEGY"
+  val RELEASE_DATE  = "RELEASE_DATE"
+  val DATE_RANGE    = "DATE_RANGE"
+  val SCRIPT        = "SCRIPT"
+  val GLOBAL_SCRIPT = "GLOBAL_SCRIPT"
+  val PERCENTAGE    = "PERCENTAGE"
+}
 
 object Feature {
 
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
+  import FeatureType._
 
   def isAllowed(key: FeatureKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
@@ -240,8 +294,9 @@ object Feature {
       .mapAsyncUnordered(2) { feature =>
         feature
           .isActive(context, env)
-          .map { active =>
-            (active && feature.enabled, feature)
+          .map {
+            case Right(active) => (active && feature.enabled, feature)
+            case Left(_)       => (false, feature)
           }
           .recover {
             case _ => (false, feature)
@@ -277,22 +332,25 @@ object Feature {
   (__ \ "enabled").write[Boolean]
 
   val reads: Reads[Feature] = Reads[Feature] {
-    case o if (o \ "activationStrategy").asOpt[String].contains("NO_STRATEGY") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(NO_STRATEGY) =>
       import DefaultFeature._
       o.validate[DefaultFeature]
-    case o if (o \ "activationStrategy").asOpt[String].contains("RELEASE_DATE") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(RELEASE_DATE) =>
       import ReleaseDateFeature._
       o.validate[ReleaseDateFeature]
-    case o if (o \ "activationStrategy").asOpt[String].contains("DATE_RANGE") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(DATE_RANGE) =>
       import DateRangeFeature._
       o.validate[DateRangeFeature]
-    case o if (o \ "activationStrategy").asOpt[String].contains("SCRIPT") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(SCRIPT) =>
       import ScriptFeature._
       o.validate[ScriptFeature]
-    case o if (o \ "activationStrategy").asOpt[String].contains("GLOBAL_SCRIPT") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(GLOBAL_SCRIPT) =>
       import GlobalScriptFeature._
       o.validate[GlobalScriptFeature]
-    case other =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(PERCENTAGE) =>
+      import PercentageFeature._
+      o.validate[PercentageFeature]
+    case _ =>
       JsError("invalid json")
   }
 
@@ -302,6 +360,7 @@ object Feature {
     case s: DateRangeFeature    => Json.toJson(s)(DateRangeFeature.format)
     case s: ScriptFeature       => Json.toJson(s)(ScriptFeature.format)
     case s: GlobalScriptFeature => Json.toJson(s)(GlobalScriptFeature.format)
+    case s: PercentageFeature   => Json.toJson(s)(PercentageFeature.format)
   }
 
   implicit val format: Format[Feature] = Format(reads, writes)

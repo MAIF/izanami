@@ -45,11 +45,13 @@ class FeatureController(env: Env,
         .flatMap {
           case pagingResult if active =>
             Future
-              .sequence(pagingResult.results.map(f => f.isActive(Json.obj(), env).map(active => (f, active))))
+              .sequence(
+                pagingResult.results.map(f => f.isActive(Json.obj(), env).map(active => (f, active.getOrElse(false))))
+              )
               .map { pairs =>
                 val results: Seq[JsValue] = pairs.map {
-                  case (feature, isAllowed) =>
-                    Json.toJson(feature).as[JsObject] ++ Json.obj("active" -> (isAllowed && feature.enabled))
+                  case (feature, isActive) =>
+                    Json.toJson(feature).as[JsObject] ++ Json.obj("active" -> (isActive && feature.enabled))
                 }
                 Ok(
                   Json.obj(
@@ -91,11 +93,13 @@ class FeatureController(env: Env,
             .getByIdLike(patternsSeq, page, nbElementPerPage)
             .flatMap { pagingResult =>
               Future
-                .sequence(pagingResult.results.map(f => f.isActive(context, env).map(active => (f, active))))
+                .sequence(
+                  pagingResult.results.map(f => f.isActive(context, env).map(active => (f, active.getOrElse(false))))
+                )
                 .map { pairs =>
                   val results: Seq[JsValue] = pairs.map {
-                    case (feature, isAllowed) =>
-                      Json.toJson(feature).as[JsObject] ++ Json.obj("active" -> (isAllowed && feature.enabled))
+                    case (feature, isActive) =>
+                      Json.toJson(feature).as[JsObject] ++ Json.obj("active" -> (isActive && feature.enabled))
                   }
                   Ok(
                     Json.obj(
@@ -176,10 +180,11 @@ class FeatureController(env: Env,
     import Feature._
     val key = Key(id)
     for {
-      context   <- contextJson.validate[JsObject] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _         <- Feature.isAllowed(key)(user) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
-      feature   <- featureStore.getById(key).one |> liftFOption[Result, Feature](NotFound)
-      isAllowed <- feature.isActive(context, env) |> liftFuture[Result, Boolean]
+      context <- contextJson.validate[JsObject] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      _       <- Feature.isAllowed(key)(user) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
+      feature <- featureStore.getById(key).one |> liftFOption[Result, Feature](NotFound)
+      isAllowed <- (feature.isActive(context, env) |> liftFEither[AppErrors, Boolean])
+                    .leftMap(e => BadRequest(e.toJson))
     } yield Ok(Json.obj("active" -> (isAllowed && feature.enabled)))
   }
 

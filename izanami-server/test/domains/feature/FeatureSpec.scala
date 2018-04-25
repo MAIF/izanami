@@ -14,6 +14,9 @@ import play.api.libs.json.{JsSuccess, Json}
 import play.api.{Configuration, Environment}
 import test.IzanamiSpec
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Random
+
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
 
   "Feature Deserialisation" must {
@@ -198,4 +201,31 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
+
+  "Percentage feature" must {
+    "Calc ratio" in {
+      val feature = PercentageFeature(Key("key"), true, 60)
+
+      val count: Int = calcPercentage(feature) { i =>
+        s"string-number-$i"
+      }
+
+      count must (be > 55 and be < 65)
+
+      val count2: Int = calcPercentage(feature) { i =>
+        Random.nextString(50)
+      }
+
+      count2 must (be > 55 and be < 65)
+
+    }
+  }
+
+  private def calcPercentage(feature: PercentageFeature)(mkString: Int => String) = {
+    val count = (0 to 1000).map { i =>
+      val isActive = feature.isActive(Json.obj("id" -> mkString(i)), null).futureValue
+      isActive
+    }.count(identity) / 10
+    count
+  }
 }
