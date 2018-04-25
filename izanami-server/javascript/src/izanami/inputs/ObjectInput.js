@@ -1,12 +1,13 @@
 import React, { Component } from 'react';
 
 function convert(values) {
-    return values
-        .filter(([k, v]) => !!k)
+    let convertion = values
+        .filter(([k]) => !!k)
         .reduce((acc, [k, v]) => {
-            acc[k] = v;
-            return acc;
+            return {[k]: v, ...acc};
         }, {});
+    console.log('Before', values, 'after', convertion);
+    return convertion;
 }
 
 export class ObjectInput extends Component {
@@ -18,6 +19,11 @@ export class ObjectInput extends Component {
   componentDidMount() {
       const values = Object.entries(this.props.value);
       this.setState({values});
+  }
+
+  componentWillReceiveProps(nextProps) {
+     const values = Object.entries(nextProps.value);
+     this.setState({values});
   }
 
   changeValue = (e, name, index) => {
@@ -52,7 +58,7 @@ export class ObjectInput extends Component {
     if (!this.props.value || Object.keys(this.props.value).length === 0) {
       const values = [this.props.defaultValue || ['', ''], ...this.state.values];
       this.setState({values});
-      this.props.onChange(convert(values));
+      //this.props.onChange(convert(values));
     }
   };
 
@@ -60,14 +66,14 @@ export class ObjectInput extends Component {
     if (e && e.preventDefault) e.preventDefault();
     const values = [...this.state.values, this.props.defaultValue || ['', '']];
     this.setState({values});
-    this.props.onChange(convert(values));
+    //this.props.onChange(convert(values));
   };
 
   remove = (e, idx) => {
     if (e && e.preventDefault) e.preventDefault();
     const values = this.state.values.filter((_, i) => i !==idx);
     this.setState({values});
-    this.props.onChange(convert(values));
+    //this.props.onChange(convert(values));
   };
 
   render() {

@@ -340,17 +340,18 @@ object ReleaseDateFeature {
 
   private val pattern  = "dd/MM/yyyy HH:mm:ss"
   private val pattern2 = "dd/MM/yyyy HH:mm"
+  private val pattern3 = "yyyy-MM-dd HH:mm:ss"
 
   private val reads: Reads[ReleaseDateFeature] = transform(
     (__ \ "parameters" \ "releaseDate") to (__ \ "date")
   ) andThen jsonRead[ReleaseDateFeature].withRules(
-    'date ->> read[LocalDateTime](localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)))
+    'date ->> read[LocalDateTime](localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)).orElse(localDateTimeReads(pattern3)))
   )
 
   private val writes: Writes[ReleaseDateFeature] = (
     Feature.commonWrite and
     (__ \ "parameters" \ "releaseDate")
-      .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern))
+      .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern3))
   )(unlift(ReleaseDateFeature.unapply)).transform { o: JsObject =>
     o ++ Json.obj("activationStrategy" -> "RELEASE_DATE")
   }
