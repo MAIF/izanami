@@ -153,7 +153,7 @@ object DateRangeFeature {
   import play.api.libs.json.Writes.temporalWrites
   import play.api.libs.json._
 
-  private[feature] val pattern = "dd/MM/yyyy HH:mm:ss"
+  private[feature] val pattern = "yyyy-MM-dd HH:mm:ss"
 
   val reads: Reads[DateRangeFeature] = (
     (__ \ "id").read[Key] and
@@ -196,12 +196,15 @@ object ReleaseDateFeature {
 
   private[feature] val pattern  = "dd/MM/yyyy HH:mm:ss"
   private[feature] val pattern2 = "dd/MM/yyyy HH:mm"
+  private[feature] val pattern3 = "yyyy-MM-dd HH:mm:ss"
 
   val reads: Reads[ReleaseDateFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
     (__ \ "parameters" \ "releaseDate")
-      .read[LocalDateTime](localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)))
+      .read[LocalDateTime](
+        localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)).orElse(localDateTimeReads(pattern3))
+      )
   )(ReleaseDateFeature.apply _)
 
   val writes: Writes[ReleaseDateFeature] = (
