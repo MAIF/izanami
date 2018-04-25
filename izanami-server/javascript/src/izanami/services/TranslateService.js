@@ -21,6 +21,11 @@ const translateObject = {
       }
     },
     parameters: {
+      percentage: {
+        error: {
+          max: "The percentage should be between 0 and 100"
+        }
+      },
       ref: {
         error: {
           path: {
