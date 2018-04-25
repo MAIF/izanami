@@ -5,6 +5,7 @@ import moment from 'moment';
 import {IzaDatePicker, IzaDateRangePicker} from '../components/IzanamiDatePicker';
 
 const DATE_FORMAT = 'DD/MM/YYYY HH:mm:ss';
+const DATE_FORMAT2 = 'YYYY-MM-DD HH:mm:ss';
 
 class FeatureParameters extends Component {
 
@@ -63,13 +64,13 @@ function enabled(context, enabled, disabled, http) {
     }
     if (this.props.source.activationStrategy === 'DATE_RANGE') {
       label = 'Date range';
-      const from = this.props.value.from ? moment(this.props.value.from, DATE_FORMAT) : moment();
-      const to = this.props.value.to ? moment(this.props.value.to, DATE_FORMAT) : moment().add(1, "day");
+      const from = this.props.value.from ? moment(this.props.value.from, DATE_FORMAT2) : moment();
+      const to = this.props.value.to ? moment(this.props.value.to, DATE_FORMAT2) : moment().add(1, "day");
       content = <IzaDateRangePicker
           from={from}
           to={to}
           updateDateRange={ (from, to) =>
-            this.props.onChange({ from : from.format(DATE_FORMAT), to: to.format(DATE_FORMAT) })
+            this.props.onChange({ from : from.format(DATE_FORMAT2), to: to.format(DATE_FORMAT2) })
           }
       />;
     }
