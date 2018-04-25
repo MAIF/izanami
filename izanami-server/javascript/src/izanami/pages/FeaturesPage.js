@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
-import { Key, Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput } from '../inputs';
+import {Key, Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput, TextInput, PercentageInput} from '../inputs';
 import moment from 'moment';
 import {IzaDatePicker, IzaDateRangePicker} from '../components/IzanamiDatePicker';
 
@@ -35,13 +35,15 @@ function enabled(context, enabled, disabled, http) {
         this.props.onChange({ script: undefined });
       } else if (oldStrategy === 'GLOBAL_SCRIPT') {
         this.props.onChange({ ref: undefined });
-      } else if (nextStrategy === 'RELEASE_DATE') {
-        this.props.onChange({ releaseDate: undefined });
+      } else if (nextStrategy === 'PERCENTAGE') {
+        this.props.onChange({ percentage: undefined });
       }
       if (nextStrategy === 'SCRIPT') {
         this.props.onChange({ script: this.defaultScriptValue });
       } else if (nextStrategy === 'RELEASE_DATE') {
         this.props.onChange({ releaseDate: moment().format(DATE_FORMAT) });
+      } else if (nextStrategy === 'PERCENTAGE') {
+        this.props.onChange({ percentage: 50 });
       } else if (nextStrategy === 'NO_STRATEGY') {
         this.props.onChange({});
       }
@@ -86,6 +88,14 @@ function enabled(context, enabled, disabled, http) {
                 onChange={r => this.props.onChange({ ref: r })}
               />;
     }
+    if (this.props.source.activationStrategy === 'PERCENTAGE') {
+      return <PercentageInput
+          placeholder={"50"}
+          value={this.props.value.percentage}
+          label={"Percentage"}
+          onChange={r => this.props.onChange({ percentage: r })}
+      />
+    }
     return (
       <div className="form-group">
         <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{label}</label>
@@ -114,7 +124,7 @@ export class FeaturesPage extends Component {
       } ,
       error : { key : 'obj.id'}
     },
-    activationStrategy: { type: 'select', props: { label: 'Feature strategy', placeholder: 'The Feature strategy', possibleValues: ['NO_STRATEGY', 'RELEASE_DATE', 'DATE_RANGE', 'SCRIPT', 'GLOBAL_SCRIPT'] }, error : { key : 'obj.activationStrategy'}},
+    activationStrategy: { type: 'select', props: { label: 'Feature strategy', placeholder: 'The Feature strategy', possibleValues: ['NO_STRATEGY', 'PERCENTAGE', 'RELEASE_DATE', 'DATE_RANGE', 'SCRIPT', 'GLOBAL_SCRIPT'] }, error : { key : 'obj.activationStrategy'}},
     enabled: { type: 'bool', props: { label: 'Feature active', placeholder: `Feature active` }, error : { key : 'obj.enabled'}},
     parameters: { type: FeatureParameters, props: { label: 'Parameters', placeholderKey: 'Parameter name', placeholderValue: 'Parameter value' }, error : { key : 'obj.parameters'}},
   };
@@ -148,6 +158,8 @@ export class FeaturesPage extends Component {
             );
           case "GLOBAL_SCRIPT":
             return <span><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
+          case "PERCENTAGE":
+            return <span>Enabled for {`${params.percentage} % of the traffic`}</span>;
           default:
             return item.activationStrategy;
         }
