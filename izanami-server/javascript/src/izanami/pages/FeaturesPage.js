@@ -1,8 +1,10 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
 import { Key, Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput } from '../inputs';
-import DateTime from 'react-datetime';
 import moment from 'moment';
+import {IzaDatePicker, IzaDateRangePicker} from '../components/IzanamiDatePicker';
+
+const DATE_FORMAT = 'DD/MM/YYYY HH:mm:ss';
 
 class FeatureParameters extends Component {
 
@@ -32,11 +34,15 @@ function enabled(context, enabled, disabled, http) {
         this.props.onChange({ script: undefined });
       } else if (oldStrategy === 'GLOBAL_SCRIPT') {
         this.props.onChange({ ref: undefined });
+      } else if (nextStrategy === 'RELEASE_DATE') {
+        this.props.onChange({ releaseDate: undefined });
       }
       if (nextStrategy === 'SCRIPT') {
         this.props.onChange({ script: this.defaultScriptValue });
       } else if (nextStrategy === 'RELEASE_DATE') {
-        this.props.onChange({ releaseDate: moment().format('DD/MM/YYYY HH:mm:ss') });
+        this.props.onChange({ releaseDate: moment().format(DATE_FORMAT) });
+      } else if (nextStrategy === 'NO_STRATEGY') {
+        this.props.onChange({});
       }
     }
   }
@@ -49,7 +55,23 @@ function enabled(context, enabled, disabled, http) {
     }
     if (this.props.source.activationStrategy === 'RELEASE_DATE') {
       label = 'Release date';
-      content = <DateTime dateFormat="DD/MM/YYYY" timeFormat="HH:mm:ss" value={this.props.value.releaseDate || moment().format('DD/MM/YYYY HH:mm:ss')} onChange={d => this.props.onChange({ releaseDate : d.format('DD/MM/YYYY HH:mm:ss') })} />;
+      const date = this.props.value.releaseDate ? moment(this.props.value.releaseDate, DATE_FORMAT) : moment();
+      content = <IzaDatePicker
+          date={date}
+          updateDate={d => this.props.onChange({ releaseDate : d.format(DATE_FORMAT) })}
+      />;
+    }
+    if (this.props.source.activationStrategy === 'DATE_RANGE') {
+      label = 'Date range';
+      const from = this.props.value.from ? moment(this.props.value.from, DATE_FORMAT) : moment();
+      const to = this.props.value.to ? moment(this.props.value.to, DATE_FORMAT) : moment().add(1, "day");
+      content = <IzaDateRangePicker
+          from={from}
+          to={to}
+          updateDateRange={ (from, to) =>
+            this.props.onChange({ from : from.format(DATE_FORMAT), to: to.format(DATE_FORMAT) })
+          }
+      />;
     }
     if (this.props.source.activationStrategy === 'SCRIPT') {
       return <CodeInput parse={false} label="Script" value={this.props.value.script || this.defaultScriptValue} onChange={v => this.props.onChange({ script: v })} />;
@@ -91,7 +113,7 @@ export class FeaturesPage extends Component {
       } ,
       error : { key : 'obj.id'}
     },
-    activationStrategy: { type: 'select', props: { label: 'Feature strategy', placeholder: 'The Feature strategy', possibleValues: ['NO_STRATEGY', 'RELEASE_DATE', 'SCRIPT', 'GLOBAL_SCRIPT'] }, error : { key : 'obj.activationStrategy'}},
+    activationStrategy: { type: 'select', props: { label: 'Feature strategy', placeholder: 'The Feature strategy', possibleValues: ['NO_STRATEGY', 'RELEASE_DATE', 'DATE_RANGE', 'SCRIPT', 'GLOBAL_SCRIPT'] }, error : { key : 'obj.activationStrategy'}},
     enabled: { type: 'bool', props: { label: 'Feature active', placeholder: `Feature active` }, error : { key : 'obj.enabled'}},
     parameters: { type: FeatureParameters, props: { label: 'Parameters', placeholderKey: 'Parameter name', placeholderValue: 'Parameter value' }, error : { key : 'obj.parameters'}},
   };
@@ -101,24 +123,30 @@ export class FeaturesPage extends Component {
   columns = [
     {
       title: 'Name',
-      style: { width: 700},
+      style: { width: 600},
       search: (s, item) => item.id.indexOf(s) > -1,
       content: item => <Key value={item.id} /> },
     {
       title: 'Strategy',
       notFilterable: true,
-      style: { textAlign: 'center'},
+      style: { textAlign: 'center', width: 300},
       content: item => {
         const params = item.parameters || {};
         switch(item.activationStrategy) {
           case "SCRIPT":
-          return <span><i className="fa fa-file-text-o" aria-hidden="true"></i>{` Script`}</span>;
+            return <span><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
           case "NO_STRATEGY":
             return  <span>{`No strategy`}</span>;
           case "RELEASE_DATE":
-            return <span><i className="fa fa-calendar" aria-hidden="true"></i>{` released on ${params.releaseDate}`}</span>;
+            return <span><i className="fa fa-calendar" aria-hidden="true"/>{` released on ${params.releaseDate}`}</span>;
+          case "DATE_RANGE":
+            return (
+                <span data-toggle="tooltip" data-placement="top" title={`${params.from} to ${params.to}`}>
+                    <i className="fa fa-calendar" aria-hidden="true"/>{` from ${moment(params.from).format('YYYY-MM-DD')} to ${moment(params.to).format('YYYY-MM-DD')}`}
+                </span>
+            );
           case "GLOBAL_SCRIPT":
-            return <span><i className="fa fa-file-text-o" aria-hidden="true"></i>{` Script based on '${params.ref}'`}</span>;
+            return <span><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
           default:
             return item.activationStrategy;
         }
@@ -162,6 +190,7 @@ export class FeaturesPage extends Component {
   };
 
   createItem = (feature) => {
+    console.log('feature', feature);
     return IzanamiServices.createFeature(feature);
   };
 

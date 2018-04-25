@@ -380,7 +380,6 @@ export class Table extends Component {
   };
 
   render() {
-    console.log('State', this.state);
     const columns = this.props.columns.map(c => ({
         Header: c.title,
         id: c.title,
