@@ -1,6 +1,6 @@
 package domains.feature
 
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneId}
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 
 import akka.actor.ActorSystem
@@ -202,16 +202,16 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   "Date range feature" must {
     "active" in {
-      val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS)
-      val to = LocalDateTime.now().plus(1, ChronoUnit.HOURS)
+      val from = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
+      val to = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
 
       feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(true)
     }
 
     "inactive" in {
-      val from = LocalDateTime.now().plus(1, ChronoUnit.MINUTES)
-      val to = LocalDateTime.now().plus(2, ChronoUnit.HOURS)
+      val from = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.MINUTES)
+      val to = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(2, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
 
       feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(false)
