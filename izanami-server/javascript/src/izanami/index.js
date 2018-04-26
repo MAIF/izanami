@@ -62,6 +62,7 @@ export class LoggedApp extends Component {
       IzanamiEvents.start();
       this.props.history.listen(() => {
         $('#sidebar').collapse('hide');
+        $('#navbar').collapse('hide');
       });
   }
 
