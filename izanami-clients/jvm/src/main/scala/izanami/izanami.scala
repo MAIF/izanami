@@ -375,8 +375,8 @@ case class ReleaseDateFeature(id: String, enabled: Boolean, date: LocalDateTime)
 
 case class DateRangeFeature(id: String, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature {
   override def isActive(config: ClientConfig): Boolean = {
-    val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-    now.isAfter(from) && now.isBefore(from)
+    val now: LocalDateTime = LocalDateTime.now(config.zoneId)
+    (now.isAfter(from) || now.isEqual(from)) && (now.isBefore(to) || now.isEqual(to))
   }
 }
 
