@@ -230,6 +230,7 @@ export class FeaturesPage extends Component {
               parameters: {},
               id: ""
             })}
+            rowNavigation={true}
             parentProps={this.props}
             user={this.props.user}
             defaultTitle="Features"
