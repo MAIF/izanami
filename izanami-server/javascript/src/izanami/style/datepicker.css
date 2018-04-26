@@ -5,20 +5,39 @@
     src: url('https://at.alicdn.com/t/font_zck90zmlh7hf47vi.eot?#iefix') format('embedded-opentype'), /* chrome、firefox */ url('https://at.alicdn.com/t/font_zck90zmlh7hf47vi.woff') format('woff'), /* chrome、firefox、opera、Safari, Android, iOS 4.2+*/ url('https://at.alicdn.com/t/font_zck90zmlh7hf47vi.ttf') format('truetype'), /* iOS 4.1- */ url('https://at.alicdn.com/t/font_zck90zmlh7hf47vi.svg#iconfont') format('svg');
 }
 
+.ant-calendar{
+    background-color: #494948;
+    font-size: 12px;
+}
+.ant-calendar-picker-input{
+  background-color: transparent;
+  border: none;
+}
+
+.ant-calendar-date{
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+}
+
+.ant-calendar-input {
+  background-color: transparent;
+  color: #e6e6e6;
+}
 .ant-calendar-picker {
     background-color: #494948;
     border-radius: 4px;
     padding: 5px;
-}
-
-.ant-calendar {
-    background-color: #494948;
+    color: #e6e6e6;
+    font-size: 12px;
 }
 
 .ant-calendar-range .ant-calendar-input, .ant-calendar-range .ant-calendar-time-picker-input,
 .ant-calendar-range.ant-calendar-time .ant-calendar-time-picker-combobox,
 li.ant-calendar-time-picker-select-option-selected {
     background-color: #626260;
+    font-size: 12px;
+    padding: 4px 7px;
 }
 .ant-calendar-date, .ant-calendar-range-picker-separator, .ant-calendar-picker-icon, .ant-calendar-picker-icon:after, .ant-calendar-range-middle {
     color:#9E9E9E;
