@@ -60,6 +60,9 @@ export class LoggedApp extends Component {
 
   componentDidMount() {
       IzanamiEvents.start();
+      this.props.history.listen(() => {
+        $('#sidebar').collapse('hide');
+      });
   }
 
   componentWillUnmount() {
