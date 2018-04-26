@@ -18,7 +18,7 @@ If you're admin, you can also
 
 ## Edit a feature  
 
-When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, SCRIPT or GLOBAL_SCRIPT
+When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT
 
 ### NO_STRATEGY 
 

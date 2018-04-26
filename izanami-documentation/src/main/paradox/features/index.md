@@ -14,7 +14,7 @@ One of the main feature of Izanami is feature flipping. Feature flipping allow y
 
 The clients can check if a feature is active using the REST API. 
 
-When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, SCRIPT or GLOBAL_SCRIPT
+When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT
 
 ## NO_STRATEGY 
 
