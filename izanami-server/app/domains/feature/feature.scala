@@ -143,7 +143,8 @@ object ScriptFeature {
 case class DateRangeFeature(id: FeatureKey, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature {
   override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
     val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-    FastFuture.successful(Result.ok(now.isAfter(from) && now.isBefore(from)))
+    val active             = (now.isAfter(from) || now.isEqual(from)) && (now.isBefore(to) || now.isEqual(to))
+    FastFuture.successful(Result.ok(active))
   }
 }
 
