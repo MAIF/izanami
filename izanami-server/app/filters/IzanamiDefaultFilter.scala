@@ -17,12 +17,27 @@ import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util._
 
-class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: ApikeyConfig, apikeyStore: ApikeyStore)(
+class IzanamiDefaultFilter(env: Env,
+                           izanamiConfig: IzanamiConfig,
+                           config: DefaultFilter,
+                           apikeyConfig: ApikeyConfig,
+                           apikeyStore: ApikeyStore)(
     implicit ec: ExecutionContext,
     val mat: Materializer
 ) extends Filter {
 
   private val logger = Logger("filter")
+
+  private val allowedPath: Seq[String] = izanamiConfig.contextPath match {
+    case "/" => config.allowedPaths
+    case path =>
+      val buildPath = if (path.endsWith("/")) {
+        path.dropRight(1)
+      } else {
+        path
+      }
+      buildPath +: config.allowedPaths.map(p => s"$buildPath$p")
+  }
 
   def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
     val startTime: Long = System.currentTimeMillis
@@ -85,7 +100,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
           }
       // Prod && Exclusions :
       case prod
-          if prod == "prod" && maybeClaim.isDefined && config.allowedPaths
+          if prod == "prod" && maybeClaim.isDefined && allowedPath
             .exists(path => requestHeader.path.matches(path)) => {
 
         val tryDecode = Try {
@@ -116,7 +131,7 @@ class IzanamiDefaultFilter(env: Env, config: DefaultFilter, apikeyConfig: Apikey
         }
         tryDecode.get
       }
-      case prod if prod == "prod" && config.allowedPaths.exists(path => requestHeader.path.matches(path)) => {
+      case prod if prod == "prod" && allowedPath.exists(path => requestHeader.path.matches(path)) => {
         nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, None))
           .map {
             result =>

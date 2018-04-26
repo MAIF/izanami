@@ -13,11 +13,10 @@ import domains.{AuthInfo, Domain, Key}
 import env.{DbDomainConfig, WebhookConfig}
 import play.api.libs.json._
 import play.api.libs.ws._
-import store.Result.Result
+import store.Result.{ErrorMessage, Result}
 import store._
 
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
 
 case class Webhook(clientId: WebhookKey,
                    callbackUrl: String,
@@ -92,12 +91,17 @@ class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventSt
     }
 
   override def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): Future[Result[Webhook]] =
-    jsonStore
-      .update(oldId, id, format.writes(data))
-      .to[Webhook]
-      .andPublishEvent { r =>
-        WebhookUpdated(id, data, r)
-      }
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore
+          .update(oldId, id, format.writes(data))
+          .to[Webhook]
+          .andPublishEvent { r =>
+            WebhookUpdated(id, oldValue, r)
+          }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
+    }
 
   override def delete(id: WebhookKey): Future[Result[Webhook]] =
     jsonStore.delete(id).to[Webhook].andPublishEvent { r =>

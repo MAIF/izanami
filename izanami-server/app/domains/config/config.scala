@@ -47,12 +47,17 @@ class ConfigStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
     }
 
   override def update(oldId: ConfigKey, id: ConfigKey, data: Config): Future[Result[Config]] =
-    jsonStore
-      .update(oldId, id, format.writes(data))
-      .to[Config]
-      .andPublishEvent { r =>
-        ConfigUpdated(id, data, r)
-      }
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore
+          .update(oldId, id, format.writes(data))
+          .to[Config]
+          .andPublishEvent { r =>
+            ConfigUpdated(id, oldValue, r)
+          }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
+    }
 
   override def delete(id: ConfigKey): Future[Result[Config]] =
     jsonStore.delete(id).to[Config].andPublishEvent { r =>

@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.3*
+1.0.4*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -117,7 +117,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.3*
+1.0.4*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -196,6 +196,37 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#all-the-settings" name="all-the-settings" class="anchor"><span class="anchor-link"></span></a>All the settings</h1><div class="callout note "><div class="callout-title">Note</div>
 <p>Izanami is written with play and akka. You can fin additional configuration information here <a href="https://www.playframework.com/documentation/2.6.x/Configuration">https://www.playframework.com/documentation/2.6.x/Configuration</a>. </p></div>
+<h2><a href="#plays-settings" name="plays-settings" class="anchor"><span class="anchor-link"></span></a>Plays settings</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+      <th>Default value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>play.http.secret.key</code> </td>
+      <td><code>APPLICATION_SECRET</code> </td>
+      <td>A token to sign cookies </td>
+      <td><code>izanamiSecret</code> </td>
+    </tr>
+    <tr>
+      <td><code>http.port</code> </td>
+      <td><code>HTTP_PORT</code> </td>
+      <td>The port used </td>
+      <td><code>9000</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.http.context</code> </td>
+      <td><code>APPLICATION_CONTEXT</code> </td>
+      <td>The context used </td>
+      <td><code>/</code> </td>
+    </tr>
+  </tbody>
+</table>
 <h2><a href="#events" name="events" class="anchor"><span class="anchor-link"></span></a>Events</h2>
 <p>Here, you can find settings about the event store configuration. </p>
 <table>
@@ -731,6 +762,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 <ul>
   <li><a href="../settings/settings.html#all-the-settings" class="header">All the settings</a>
   <ul>
+    <li><a href="../settings/settings.html#plays-settings" class="header">Plays settings</a></li>
     <li><a href="../settings/settings.html#events" class="header">Events</a></li>
     <li><a href="../settings/settings.html#db-config" class="header">Db config</a></li>
     <li><a href="../settings/settings.html#threads-configuration" class="header">Threads configuration</a></li>

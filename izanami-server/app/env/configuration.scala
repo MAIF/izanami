@@ -53,6 +53,8 @@ object IzanamiConfig {
 
 case class IzanamiConfig(
     mode: Option[String],
+    contextPath: String,
+    baseURL: String,
     filter: IzanamiFilter,
     db: DbConfig,
     logout: LogoutConfig,

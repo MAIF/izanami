@@ -1,8 +1,8 @@
 package domains.script
 
 import java.util.function.BiConsumer
-import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
 
+import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
 import akka.Done
 import akka.actor.ActorSystem
 import domains.events.EventStore
@@ -12,7 +12,7 @@ import env.Env
 import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.ws.{WSRequest, WSResponse}
-import store.Result.Result
+import store.Result.{ErrorMessage, Result}
 import store._
 
 import scala.collection.mutable
@@ -182,12 +182,17 @@ class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, sy
     }
 
   override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): Future[Result[GlobalScript]] =
-    jsonStore
-      .update(oldId, id, format.writes(data))
-      .to[GlobalScript]
-      .andPublishEvent { r =>
-        GlobalScriptUpdated(id, data, r)
-      }
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore
+          .update(oldId, id, format.writes(data))
+          .to[GlobalScript]
+          .andPublishEvent { r =>
+            GlobalScriptUpdated(id, oldValue, r)
+          }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
+    }
 
   override def delete(id: GlobalScriptKey): Future[Result[GlobalScript]] =
     jsonStore.delete(id).to[GlobalScript].andPublishEvent { r =>
