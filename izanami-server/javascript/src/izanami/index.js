@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {BrowserRouter as Router, Link, Redirect, Route, Switch, withRouter} from 'react-router-dom';
+import {Router, Link, Redirect, Route, Switch, withRouter} from 'react-router-dom';
 import {
   ApikeyPage,
   ConfigExplorerPage,
@@ -22,7 +22,7 @@ import _ from 'lodash';
 import './style/main.scss';
 import {MultiSearch} from "./inputs";
 import {DynamicTitle} from "./components/DynamicTitle";
-
+import {IzanamiEvents} from './services/events'
 const pictos = {
   configurations: "fa fa-wrench",
   features: "fa fa-toggle-on",
@@ -40,12 +40,12 @@ function getCookie(name)
 
 export class LoggedApp extends Component {
 
+
   decorate = (Component, props) => {
     const newProps = { ...props };
     const query = queryString.parse((props.location || { search: '' }).search) || {};
     newProps.location.query = query;
     newProps.params = newProps.match.params || {};
-    const user = this.props.user;
     return (
       <Component
         setTitle={t => DynamicTitle.setContent(t)}
@@ -56,6 +56,19 @@ export class LoggedApp extends Component {
       />
     );
   };
+
+
+  componentDidMount() {
+      IzanamiEvents.start();
+      this.props.history.listen(() => {
+        $('#sidebar').collapse('hide');
+        $('#navbar').collapse('hide');
+      });
+  }
+
+  componentWillUnmount() {
+    IzanamiEvents.stop();
+  }
 
   searchServicesOptions = ({query, filters}) => {
     const filtersQuery = Object.keys(filters).map(k => `${k}=${filters[k]}`).join("&");
@@ -255,7 +268,7 @@ export class LoggedApp extends Component {
                       </li>
                     </ul>
                   </div>
-                  <div className="logoContent"><img className="logo" src="/assets/images/logo.svg"/></div>
+                  <div className="logoContent"><img className="logo" src={`${window.__contextPath}/assets/images/logo.svg`}/></div>
                 </div>
 
               </div>
@@ -356,7 +369,7 @@ const PrivateRoute = ({ component: Component, ...rest }) => {
           <Component {...rest} {...props} user={user} />
         ) : (
           <Redirect to={{
-            pathname: '/login',
+            pathname: `${window.__contextPath}/login`,
             state: { from: props.location }
           }}/>
         )
@@ -365,14 +378,18 @@ const PrivateRoute = ({ component: Component, ...rest }) => {
   );
 };
 
+
 const IzanamiAppRouter = withRouter(IzanamiApp);
 
-export class RoutedIzanamiApp extends Component {
-  render() {
-    return (
-      <Router basename="/">
-        <IzanamiAppRouter {...this.props}/>
-      </Router>
-    );
+export function buildRoutedApp(browserHistory) {
+  return class RoutedIzanamiApp extends Component {
+
+      render() {
+          return (
+              <Router history={browserHistory}>
+                  <IzanamiAppRouter {...this.props}/>
+              </Router>
+          );
+      }
   }
 }

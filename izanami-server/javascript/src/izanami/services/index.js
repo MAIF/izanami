@@ -26,10 +26,8 @@ function handleResponse(r) {
     )
 }
 
-
-
 export function fetchLogin(user) {
-  return fetch("/api/login", {
+  return fetch(`${window.__contextPath}/api/login`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -43,7 +41,7 @@ export function fetchLogin(user) {
 
 export function fetchFeatures(args) {
   const {search = '*', pageSize = 10, page = 1} = args;
-  return fetch(`/api/features?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
+  return fetch(`${window.__contextPath}/api/features?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -57,7 +55,7 @@ export function fetchFeatures(args) {
 }
 
 export function fetchFeature(id) {
-  return fetch(`/api/features/${id}`, {
+  return fetch(`${window.__contextPath}/api/features/${id}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -67,7 +65,7 @@ export function fetchFeature(id) {
 }
 
 export function createFeature(feature) {
-  return fetch('/api/features', {
+  return fetch(`${window.__contextPath}/api/features`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -79,7 +77,7 @@ export function createFeature(feature) {
 }
 
 export function updateFeature(id, feature) {
-  return fetch(`/api/features/${id}`, {
+  return fetch(`${window.__contextPath}/api/features/${id}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -91,7 +89,7 @@ export function updateFeature(id, feature) {
 }
 
 export function deleteFeature(id, feature) {
-  return fetch(`/api/features/${id}`, {
+  return fetch(`${window.__contextPath}/api/features/${id}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -104,7 +102,7 @@ export function deleteFeature(id, feature) {
 
 export function fetchConfigs(args) {
   const {search = '*', pageSize = 10, page = 1} = args;
-  return fetch(`/api/configs?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
+  return fetch(`${window.__contextPath}/api/configs?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -118,7 +116,7 @@ export function fetchConfigs(args) {
 }
 
 export function fetchConfig(id) {  
-  return fetch(`/api/configs/${id}`, {
+  return fetch(`${window.__contextPath}/api/configs/${id}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -128,7 +126,7 @@ export function fetchConfig(id) {
 }
 
 export function createConfig(config) {
-  return fetch('/api/configs', {
+  return fetch(`${window.__contextPath}/api/configs`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -140,7 +138,7 @@ export function createConfig(config) {
 }
 
 export function updateConfig(id, config) {
-  return fetch(`/api/configs/${id}`, {
+  return fetch(`${window.__contextPath}/api/configs/${id}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -152,7 +150,7 @@ export function updateConfig(id, config) {
 }
 
 export function deleteConfig(id, config) {
-  return fetch(`/api/configs/${id}`, {
+  return fetch(`${window.__contextPath}/api/configs/${id}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -165,7 +163,7 @@ export function deleteConfig(id, config) {
 
 export function fetchUsers(args) {
     const {search = '*', pageSize = 10, page = 1} = args;
-    return fetch(`/api/users?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
+    return fetch(`${window.__contextPath}/api/users?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -179,7 +177,7 @@ export function fetchUsers(args) {
 }
 
 export function fetchUser(id) {  
-  return fetch(`/api/users/${id}`, {
+  return fetch(`${window.__contextPath}/api/users/${id}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -189,7 +187,7 @@ export function fetchUser(id) {
 }
 
 export function createUser(user) {
-  return fetch('/api/users', {
+  return fetch(`${window.__contextPath}/api/users`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -201,7 +199,7 @@ export function createUser(user) {
 }
 
 export function updateUser(id, user) {
-  return fetch(`/api/users/${id}`, {
+  return fetch(`${window.__contextPath}/api/users/${id}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -213,7 +211,7 @@ export function updateUser(id, user) {
 }
 
 export function deleteUser(id, user) {
-  return fetch(`/api/users/${id}`, {
+  return fetch(`${window.__contextPath}/api/users/${id}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -227,7 +225,7 @@ export function deleteUser(id, user) {
 
 export function fetchApikeys(args) {
   const {search = '*', pageSize = 10, page = 1} = args;
-  return fetch(`/api/apikeys?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
+  return fetch(`${window.__contextPath}/api/apikeys?pageSize=${pageSize}&page=${page}&pattern=${search}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -240,7 +238,7 @@ export function fetchApikeys(args) {
     );
 }
 export function fetchApiKey(id) {  
-  return fetch(`/api/apikeys/${id}`, {
+  return fetch(`${window.__contextPath}/api/apikeys/${id}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -250,7 +248,7 @@ export function fetchApiKey(id) {
 }
 
 export function createApikey(apikey) {
-  return fetch('/api/apikeys', {
+  return fetch(`${window.__contextPath}/api/apikeys`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -262,7 +260,7 @@ export function createApikey(apikey) {
 }
 
 export function updateApikey(id, apikey) {
-  return fetch(`/api/apikeys/${id}`, {
+  return fetch(`${window.__contextPath}/api/apikeys/${id}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -274,7 +272,7 @@ export function updateApikey(id, apikey) {
 }
 
 export function deleteApikey(id, apikey) {
-  return fetch(`/api/apikeys/${id}`, {
+  return fetch(`${window.__contextPath}/api/apikeys/${id}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -287,7 +285,7 @@ export function deleteApikey(id, apikey) {
 
 export function fetchWebHooks(args) {
   const {search = '*', pageSize = 10, page = 1} = args;
-  return fetch(`/api/webhooks?pageSize=${pageSize}&page=${page}&pattern=${search}`, {  
+  return fetch(`${window.__contextPath}/api/webhooks?pageSize=${pageSize}&page=${page}&pattern=${search}`, {  
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -301,7 +299,7 @@ export function fetchWebHooks(args) {
 }
 
 export function fetchWebhook(id) {  
-  return fetch(`/api/webhooks/${id}`, {
+  return fetch(`${window.__contextPath}/api/webhooks/${id}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -311,7 +309,7 @@ export function fetchWebhook(id) {
 }
 
 export function createWebHook(webhook) {
-  return fetch('/api/webhooks', {
+  return fetch(`${window.__contextPath}/api/webhooks`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -323,7 +321,7 @@ export function createWebHook(webhook) {
 }
 
 export function updateWebHook(id, webhook) {
-  return fetch(`/api/webhooks/${id}`, {
+  return fetch(`${window.__contextPath}/api/webhooks/${id}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -335,7 +333,7 @@ export function updateWebHook(id, webhook) {
 }
 
 export function deleteWebHook(id, webhook) {
-  return fetch(`/api/webhooks/${id}`, {
+  return fetch(`${window.__contextPath}/api/webhooks/${id}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -347,7 +345,7 @@ export function deleteWebHook(id, webhook) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export function fetchConfigsCount() {
-  return fetch('/api/counts/configs', {
+  return fetch(`${window.__contextPath}/api/counts/configs`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -357,7 +355,7 @@ export function fetchConfigsCount() {
 }
 
 export function fetchFeaturesCount() {
-  return fetch('/api/counts/features', {
+  return fetch(`${window.__contextPath}/api/counts/features`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -367,7 +365,7 @@ export function fetchFeaturesCount() {
 }
 
 export function fetchWebHooksCount() {
-  return fetch('/api/counts/webhooks', {
+  return fetch(`${window.__contextPath}/api/counts/webhooks`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -377,7 +375,7 @@ export function fetchWebHooksCount() {
 }
 
 export function fetchSentNotificationCount() {
-  return fetch('/api/counts/notifications', {
+  return fetch(`${window.__contextPath}/api/counts/notifications`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -387,7 +385,7 @@ export function fetchSentNotificationCount() {
 }
 
 export function fetchUpdatesCount() {
-  return fetch('/api/counts/updates', {
+  return fetch(`${window.__contextPath}/api/counts/updates`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -401,7 +399,7 @@ export function fetchUpdatesCount() {
 
 export function fetchScripts(args) {
   const {search = '*', pageSize = 10, page = 1} = args;
-  return fetch(`/api/scripts?pageSize=${pageSize}&page=${page}&pattern=${search}`, {  
+  return fetch(`${window.__contextPath}/api/scripts?pageSize=${pageSize}&page=${page}&pattern=${search}`, {  
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -413,7 +411,7 @@ export function fetchScripts(args) {
 }
 
 export function fetchScript(id) {  
-  return fetch(`/api/scripts/${id}`, {
+  return fetch(`${window.__contextPath}/api/scripts/${id}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -423,7 +421,7 @@ export function fetchScript(id) {
 }
 
 export function fetchScriptNames() {
-  return fetch('/api/scripts?name_only=true', {
+  return fetch(`${window.__contextPath}/api/scripts?name_only=true`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -433,7 +431,7 @@ export function fetchScriptNames() {
 }
 
 export function createScript(script) {
-  return fetch('/api/scripts', {
+  return fetch(`${window.__contextPath}/api/scripts`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -445,7 +443,7 @@ export function createScript(script) {
 }
 
 export function updateScript(id, script) {
-  return fetch(`/api/scripts/${id}`, {
+  return fetch(`${window.__contextPath}/api/scripts/${id}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -457,7 +455,7 @@ export function updateScript(id, script) {
 }
 
 export function deleteScript(id, script) {
-  return fetch(`/api/scripts/${id}`, {
+  return fetch(`${window.__contextPath}/api/scripts/${id}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -471,7 +469,7 @@ export function deleteScript(id, script) {
 
 export function fetchExperiments(args) {
   const {search = '*', pageSize = 10, page = 1} = args;
-  return fetch(`/api/experiments?pageSize=${pageSize}&page=${page}&pattern=${search}`, {    
+  return fetch(`${window.__contextPath}/api/experiments?pageSize=${pageSize}&page=${page}&pattern=${search}`, {    
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -483,7 +481,7 @@ export function fetchExperiments(args) {
 }
 
 export function fetchExperiment(id) {
-  return fetch(`/api/experiments/${id}`, {
+  return fetch(`${window.__contextPath}/api/experiments/${id}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -493,7 +491,7 @@ export function fetchExperiment(id) {
 }
 
 export function fetchExperimentResult(id) {
-  return fetch(`/api/experiments/${id}/results`, {
+  return fetch(`${window.__contextPath}/api/experiments/${id}/results`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -504,7 +502,7 @@ export function fetchExperimentResult(id) {
 }
 
 export function fetchExperimentVariant(id, clientId) {
-  return fetch(`/api/experiments/${id}/variant?clientId=${clientId}`, {
+  return fetch(`${window.__contextPath}/api/experiments/${id}/variant?clientId=${clientId}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -514,7 +512,7 @@ export function fetchExperimentVariant(id, clientId) {
 }
 
 export function fetchExperimentTree(pattern, clientId) {
-  return fetch(`/api/tree/experiments?clientId=${clientId}&pattern=${pattern}`, {
+  return fetch(`${window.__contextPath}/api/tree/experiments?clientId=${clientId}&pattern=${pattern}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -524,7 +522,7 @@ export function fetchExperimentTree(pattern, clientId) {
 }
 
 export function createExperiment(experiment) {
-  return fetch('/api/experiments', {
+  return fetch(`${window.__contextPath}/api/experiments`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -536,7 +534,7 @@ export function createExperiment(experiment) {
 }
 
 export function updateExperiment(id, experiment) {
-  return fetch(`/api/experiments/${id}`, {
+  return fetch(`${window.__contextPath}/api/experiments/${id}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -548,7 +546,7 @@ export function updateExperiment(id, experiment) {
 }
 
 export function deleteExperiment(id, experiment) {
-  return fetch(`/api/experiments/${id}`, {
+  return fetch(`${window.__contextPath}/api/experiments/${id}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -558,7 +556,7 @@ export function deleteExperiment(id, experiment) {
 }
 
 export function fetchExperimentsCount() {
-  return fetch('/api/counts/experiments', {
+  return fetch(`${window.__contextPath}/api/counts/experiments`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -570,7 +568,7 @@ export function fetchExperimentsCount() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export function fetchConfigGraph(pattern) {
-  return fetch(`/api/tree/configs?pattern=${pattern}`, {
+  return fetch(`${window.__contextPath}/api/tree/configs?pattern=${pattern}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -580,7 +578,7 @@ export function fetchConfigGraph(pattern) {
 }
 
 export function fetchFeatureGraph(pattern, context) {
-  return fetch(`/api/tree/features?pattern=${pattern}`, {
+  return fetch(`${window.__contextPath}/api/tree/features?pattern=${pattern}`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -594,7 +592,7 @@ export function fetchFeatureGraph(pattern, context) {
 
 
 export function fetchLoggers() {
-  return fetch(`/api/bo/loggers`, {
+  return fetch(`${window.__contextPath}/api/bo/loggers`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -604,7 +602,7 @@ export function fetchLoggers() {
 }
 
 export function changeLogLevel(name, level) {
-  return fetch(`/api/bo/loggers/${name}/level?newLevel=${level}`, {
+  return fetch(`${window.__contextPath}/api/bo/loggers/${name}/level?newLevel=${level}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {

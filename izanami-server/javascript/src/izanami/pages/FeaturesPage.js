@@ -7,14 +7,14 @@ import moment from 'moment';
 class FeatureParameters extends Component {
 
   defaultScriptValue = `/**
- * context:  a JSON object containing app specific value 
+ * context:  a JSON object containing app specific value
  *           to evaluate the state of the feature
- * enabled:  a callback to mark the feature as active 
+ * enabled:  a callback to mark the feature as active
  *           for this request
- * disabled: a callback to mark the feature as inactive 
- *           for this request 
+ * disabled: a callback to mark the feature as inactive
+ *           for this request
  * http:     a http client
- */ 
+ */
 function enabled(context, enabled, disabled, http) {
   if (context.user === 'john.doe@gmail.com') {
     return enabled();
@@ -54,13 +54,13 @@ function enabled(context, enabled, disabled, http) {
     if (this.props.source.activationStrategy === 'SCRIPT') {
       return <CodeInput parse={false} label="Script" value={this.props.value.script || this.defaultScriptValue} onChange={v => this.props.onChange({ script: v })} />;
     }
-    if (this.props.source.activationStrategy === 'GLOBAL_SCRIPT') {      
-      return <AsyncSelectInput 
-                label="Script" 
-                computeUrl={query => `/api/scripts?name_only=true&pattern=${query}*`} 
-                value={this.props.value.ref} 
+    if (this.props.source.activationStrategy === 'GLOBAL_SCRIPT') {
+      return <AsyncSelectInput
+                label="Script"
+                computeUrl={query => `/api/scripts?name_only=true&pattern=${query}*`}
+                value={this.props.value.ref}
                 extractResponse={r => r.results}
-                onChange={r => this.props.onChange({ ref: r })} 
+                onChange={r => this.props.onChange({ ref: r })}
               />;
     }
     return (
@@ -99,39 +99,40 @@ export class FeaturesPage extends Component {
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true, search: this.searchKey } } };
 
   columns = [
-    { 
-      title: 'Name',     
-      search: (s, item) => item.id.indexOf(s) > -1, 
+    {
+      title: 'Name',
+      style: { width: 700},
+      search: (s, item) => item.id.indexOf(s) > -1,
       content: item => <Key value={item.id} /> },
-    { 
-      title: 'Strategy', 
-      notFilterable: true,     
-      style: { textAlign: 'center'},     
+    {
+      title: 'Strategy',
+      notFilterable: true,
+      style: { textAlign: 'center'},
       content: item => {
         const params = item.parameters || {};
         switch(item.activationStrategy) {
-          case "SCRIPT": 
+          case "SCRIPT":
           return <span><i className="fa fa-file-text-o" aria-hidden="true"></i>{` Script`}</span>;
           case "NO_STRATEGY":
             return  <span>{`No strategy`}</span>;
           case "RELEASE_DATE":
             return <span><i className="fa fa-calendar" aria-hidden="true"></i>{` released on ${params.releaseDate}`}</span>;
-          case "GLOBAL_SCRIPT": 
+          case "GLOBAL_SCRIPT":
             return <span><i className="fa fa-file-text-o" aria-hidden="true"></i>{` Script based on '${params.ref}'`}</span>;
           default:
             return item.activationStrategy;
-        }        
+        }
       }
     },
-    { 
-      title: 'Active', 
-      style: { textAlign: 'center', width: 40 }, 
-      notFilterable: true , 
+    {
+      title: 'Active',
+      style: { textAlign: 'center', width: 60 },
+      notFilterable: true ,
       content: item => <SimpleBooleanInput value={item.enabled} onChange={v => {
         IzanamiServices.fetchFeature(item.id).then(feature => {
           IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
         })
-      }} /> 
+      }} />
     },
   ];
 

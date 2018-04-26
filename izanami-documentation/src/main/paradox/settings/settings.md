@@ -4,6 +4,16 @@
 Izanami is written with play and akka. You can fin additional configuration information here https://www.playframework.com/documentation/2.6.x/Configuration. 
 @@@
 
+## Plays settings 
+
+| Config property                                                    | Env variable                             | Description                                                                                                                                                                                                                          | Default value                                                   |
+|--------------------------------------------------------------------|------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|
+| `play.http.secret.key`                                             | `APPLICATION_SECRET`                     | A token to sign cookies                                                                                                                                                                                                              | `izanamiSecret`                                                 |
+| `http.port`                                                        | `HTTP_PORT`                              | The port used                                                                                                                                                                                                                        | `9000`                                                          |
+| `play.http.context`                                                | `APPLICATION_CONTEXT`                    | The context used                                                                                                                                                                                                                     | `/`                                                             |
+
+
+
 ## Events 
 
 Here, you can find settings about the event store configuration.  

@@ -11,7 +11,7 @@ import domains.feature.FeatureStore._
 import domains.script.{GlobalScript, Script}
 import domains.{AuthInfo, Key}
 import env.Env
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 import shapeless.syntax
 import store._
 
@@ -33,21 +33,26 @@ sealed trait Feature {
 
 }
 
-case class DefaultFeature(id: FeatureKey, enabled: Boolean) extends Feature
+case class DefaultFeature(id: FeatureKey, enabled: Boolean, parameters: JsValue = JsNull) extends Feature
 
 object DefaultFeature {
 
-  import play.api.libs.functional.syntax._
   import play.api.libs.json._
   import playjson.all._
-
-  val reads: Reads[DefaultFeature] = hReads[DefaultFeature]
-  val writes: Writes[DefaultFeature] =
-    Feature
-      .commonWrite(unlift(DefaultFeature.unapply))
-      .transform { o: JsObject =>
-        o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+  import syntax.singleton._
+  val reads: Reads[DefaultFeature] = jsonRead[DefaultFeature].withRules(
+    'parameters ->> orElse[JsValue](JsNull)
+  )
+  val writes: Writes[DefaultFeature] = Json
+    .writes[DefaultFeature]
+    .transform { o: JsObject =>
+      (o \ "parameters").as[JsValue] match {
+        case JsNull =>
+          o - "parameters" ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+        case _ =>
+          o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
       }
+    }
 
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
 }
@@ -263,12 +268,17 @@ class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system:
     }
 
   override def update(oldId: FeatureKey, id: FeatureKey, data: Feature): Future[Result[Feature]] =
-    jsonStore
-      .update(oldId, id, format.writes(data))
-      .to[Feature]
-      .andPublishEvent { r =>
-        FeatureUpdated(id, data, r)
-      }
+    this.getById(oldId).one.flatMap {
+      case Some(oldValue) =>
+        jsonStore
+          .update(oldId, id, format.writes(data))
+          .to[Feature]
+          .andPublishEvent { r =>
+            FeatureUpdated(id, oldValue, r)
+          }
+      case None =>
+        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
+    }
 
   override def delete(id: FeatureKey): Future[Result[Feature]] =
     jsonStore.delete(id).to[Feature].andPublishEvent { r =>

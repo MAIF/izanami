@@ -1,10 +1,11 @@
 @import play.api.libs.json.{JsValue, Json}
 
-@(_env: env.Env, logout: String, enabledUserManagement: Boolean, user: JsValue)
+@(_env: env.Env, baseURL: String, logout: String, enabledUserManagement: Boolean, user: JsValue)
 
 <!DOCTYPE html>
 <html>
   <head>
+    <base href="@baseURL">
     <meta charset="UTF-8"/>
     <title>Izanami</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
@@ -23,6 +24,7 @@
     }
     <div id="app"></div>
     <script type="application/javascript">
+        window.__contextPath = '@baseURL';
         Izanami.init(document.getElementById("app"), '@logout', @enabledUserManagement, JSON.parse('@Html(Json.stringify(user))'));
     </script>
   </body>
