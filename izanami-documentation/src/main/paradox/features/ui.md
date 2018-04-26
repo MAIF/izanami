@@ -32,6 +32,18 @@ this kind of strategy allow you to enable a feature on a date value in addition 
 
 <img src="../img/features/release_date.png" width="60%" />
 
+### DATE_RANGE 
+
+this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean.  
+
+<img src="../img/features/date_range.png" width="60%" />
+
+### PERCENTAGE
+
+this kind of strategy allow you to enable a feature for a percentage of clients. In this strategy, the client need to send a context with an `id` field in order to calculate if the feature is enabled or not. 
+
+<img src="../img/features/percentage.png" width="60%" />
+
 ### SCRIPT 
 
 this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not. 
