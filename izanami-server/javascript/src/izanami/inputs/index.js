@@ -1,9 +1,12 @@
+import {PercentageInput} from "./PercentageInput";
+
 export * from './ArrayInput';
 export * from './ObjectInput';
 export * from './LinkDisplay';
 export * from './SelectInput';
 export * from './BooleanInput';
 export * from './TextInput';
+export * from './PercentageInput';
 export * from './Key';
 export * from './KeyInput';
 export * from './NumberInput';

@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.4*
+1.0.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -117,7 +117,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.4*
+1.0.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -201,8 +201,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../features/api.html#no-strategy-format" class="header">NO_STRATEGY format</a></li>
     <li><a href="../features/api.html#release-date-format" class="header">RELEASE_DATE format</a></li>
+    <li><a href="../features/api.html#date-range-format" class="header">DATE_RANGE format</a></li>
     <li><a href="../features/api.html#script-format" class="header">SCRIPT format</a></li>
     <li><a href="../features/api.html#global-script-format" class="header">GLOBAL_SCRIPT format</a></li>
+    <li><a href="../features/api.html#percentage-format" class="header">PERCENTAGE format</a></li>
   </ul></li>
   <li><a href="../features/api.html#crud-api" class="header">CRUD API</a>
   <ul>
@@ -233,8 +235,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><code>NO_STRATEGY</code>: active or inactive</li>
   <li><code>RELEASE_DATE</code>: active on a specific date</li>
+  <li><code>DATE_RANGE</code>: active between two date</li>
   <li><code>SCRIPT</code>: Activation depends on the execution of a js script</li>
   <li><code>GLOBAL_SCRIPT</code>: Activation depends on the execution of a js script shared across feature</li>
+  <li><code>PERCENTAGE</code>: Active for a percentage of client</li>
 </ul>
 <h3><a href="#no-strategy-format" name="no-strategy-format" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY format</h3>
 <pre class="prettyprint"><code class="language-json">{
@@ -251,6 +255,17 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     &quot;releaseDate&quot;: &quot;13/12/2017 10:29:04&quot;
   },
   &quot;activationStrategy&quot;: &quot;RELEASE_DATE&quot;
+}
+</code></pre>
+<h3><a href="#date-range-format" name="date-range-format" class="anchor"><span class="anchor-link"></span></a>DATE_RANGE format</h3>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;feature:with:datetange&quot;,
+  &quot;enabled&quot;: true,
+  &quot;parameters&quot;: {
+    &quot;from&quot;: &quot;2017-12-13 10:29:04&quot;,
+    &quot;to&quot;: &quot;2017-12-14 00:45:23&quot;
+  },
+  &quot;activationStrategy&quot;: &quot;DATE_RANGE&quot;
 }
 </code></pre>
 <h3><a href="#script-format" name="script-format" class="anchor"><span class="anchor-link"></span></a>SCRIPT format</h3>
@@ -271,6 +286,16 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     &quot;ref&quot;: &quot;project:script:ref&quot;
   },
   &quot;activationStrategy&quot;: &quot;GLOBAL_SCRIPT&quot;
+}
+</code></pre>
+<h3><a href="#percentage-format" name="percentage-format" class="anchor"><span class="anchor-link"></span></a>PERCENTAGE format</h3>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;feature:with:percentage&quot;,
+  &quot;enabled&quot;: false,
+  &quot;parameters&quot;: {
+    &quot;percentage&quot;: 60
+  },
+  &quot;activationStrategy&quot;: &quot;PERCENTAGE&quot;
 }
 </code></pre>
 <h2><a href="#crud-api" name="crud-api" class="anchor"><span class="anchor-link"></span></a>CRUD API</h2>
@@ -401,12 +426,14 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <ul>
       <li><code>NO_STRATEGY</code> features</li>
       <li><code>RELEASE_DATE</code> features</li>
+      <li><code>DATE_RANGE</code> features</li>
     </ul>
   </li>
   <li>feature needing context:
     <ul>
       <li><code>SCRIPT</code> features</li>
       <li><code>GLOBAL_SCRIPT</code> features</li>
+      <li><code>PERCENTAGE</code> features</li>
     </ul>
   </li>
 </ul>
@@ -429,6 +456,19 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   -H &#39;Izanami-Client-Id: xxxx&#39; \
   -H &#39;Izanami-Client-Secret: xxxx&#39; \
   -d &#39;{ &quot;user&quot;: &quot;ragnar.lodbrok@gmail.com&quot; }&#39; | jq
+</code></pre>
+<p>Will respond with a 200 status code:</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;active&quot;: true
+}
+</code></pre>
+<p>The percentage strategy need a context with an id field in order to decide if the feature is active for this id. </p>
+<pre class="prettyprint"><code class="language-bash">curl -X POST \
+  &#39;http://localhost:9000/api/features/feature:with:percentage/check&#39; \
+  -H &#39;Content-Type: application/json&#39; \
+  -H &#39;Izanami-Client-Id: xxxx&#39; \
+  -H &#39;Izanami-Client-Secret: xxxx&#39; \
+  -d &#39;{ &quot;id&quot;: &quot;ragnar.lodbrok@gmail.com&quot; }&#39; | jq
 </code></pre>
 <p>Will respond with a 200 status code:</p>
 <pre class="prettyprint"><code class="language-json">{
