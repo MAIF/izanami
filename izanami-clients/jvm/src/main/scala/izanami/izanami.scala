@@ -237,10 +237,14 @@ object Feature {
       DefaultFeature.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains("RELEASE_DATE") =>
       ReleaseDateFeature.format.reads(o)
+    case o if (o \ "activationStrategy").asOpt[String].contains("DATE_RANGE") =>
+      DateRangeFeature.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains("SCRIPT") =>
       ScriptFeature.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains("GLOBAL_SCRIPT") =>
       GlobalScriptFeature.format.reads(o)
+    case o if (o \ "activationStrategy").asOpt[String].contains("PERCENTAGE") =>
+      PercentageFeature.format.reads(o)
     case other =>
       JsError("invalid json")
   }
@@ -248,8 +252,10 @@ object Feature {
   val writes: Writes[Feature] = Writes[Feature] {
     case s: DefaultFeature      => Json.toJson(s)(DefaultFeature.format)
     case s: ReleaseDateFeature  => Json.toJson(s)(ReleaseDateFeature.format)
+    case s: DateRangeFeature    => Json.toJson(s)(DateRangeFeature.format)
     case s: ScriptFeature       => Json.toJson(s)(ScriptFeature.format)
     case s: GlobalScriptFeature => Json.toJson(s)(GlobalScriptFeature.format)
+    case s: PercentageFeature   => Json.toJson(s)(PercentageFeature.format)
   }
 
   implicit val format: Format[Feature] = Format(reads, writes)
@@ -340,17 +346,18 @@ object ReleaseDateFeature {
 
   private val pattern  = "dd/MM/yyyy HH:mm:ss"
   private val pattern2 = "dd/MM/yyyy HH:mm"
+  private val pattern3 = "yyyy-MM-dd HH:mm:ss"
 
   private val reads: Reads[ReleaseDateFeature] = transform(
     (__ \ "parameters" \ "releaseDate") to (__ \ "date")
   ) andThen jsonRead[ReleaseDateFeature].withRules(
-    'date ->> read[LocalDateTime](localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)))
+    'date ->> read[LocalDateTime](localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)).orElse(localDateTimeReads(pattern3)))
   )
 
   private val writes: Writes[ReleaseDateFeature] = (
     Feature.commonWrite and
     (__ \ "parameters" \ "releaseDate")
-      .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern))
+      .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern3))
   )(unlift(ReleaseDateFeature.unapply)).transform { o: JsObject =>
     o ++ Json.obj("activationStrategy" -> "RELEASE_DATE")
   }
@@ -359,11 +366,82 @@ object ReleaseDateFeature {
 }
 
 case class ReleaseDateFeature(id: String, enabled: Boolean, date: LocalDateTime) extends Feature {
-  override def isActive(config: ClientConfig) = {
+  override def isActive(config: ClientConfig): Boolean = {
     val now: LocalDateTime = LocalDateTime.now(config.zoneId)
     enabled && now.isAfter(date)
   }
 }
+
+
+case class DateRangeFeature(id: String, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature {
+  override def isActive(config: ClientConfig): Boolean = {
+    val now: LocalDateTime = LocalDateTime.now(config.zoneId)
+    (now.isAfter(from) || now.isEqual(from)) && (now.isBefore(to) || now.isEqual(to))
+  }
+}
+
+
+object DateRangeFeature {
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json.Reads.localDateTimeReads
+  import play.api.libs.json.Writes.temporalWrites
+  import play.api.libs.json._
+
+  private val pattern = "yyyy-MM-dd HH:mm:ss"
+
+  val reads: Reads[DateRangeFeature] = (
+    (__ \ "id").read[String] and
+      (__ \ "enabled").read[Boolean] and
+      (__ \ "parameters" \ "from")
+        .read[LocalDateTime](localDateTimeReads(pattern)) and
+      (__ \ "parameters" \ "to")
+        .read[LocalDateTime](localDateTimeReads(pattern))
+    )(DateRangeFeature.apply _)
+
+  private val dateWrite: Writes[LocalDateTime] = temporalWrites[LocalDateTime, String](pattern)
+
+  val writes: Writes[DateRangeFeature] = (
+    Feature.commonWrite and
+      (__ \ "parameters" \ "from").write[LocalDateTime](dateWrite) and
+      (__ \ "parameters" \ "to").write[LocalDateTime](dateWrite)
+    )(unlift(DateRangeFeature.unapply)).transform { o: JsObject =>
+    o ++ Json.obj("activationStrategy" -> "DATE_RANGE")
+  }
+
+  implicit val format: Format[DateRangeFeature] = Format(reads, writes)
+}
+
+
+case class PercentageFeature(id: String, enabled: Boolean, active: Option[Boolean], percentage: Int) extends Feature {
+
+  override def isActive(config: ClientConfig): Boolean =
+    active.getOrElse(false)
+}
+
+object PercentageFeature {
+  import play.api.libs.json._
+  import play.api.libs.json.Reads._
+  import play.api.libs.functional.syntax._
+
+  val reads: Reads[PercentageFeature] = (
+    (__ \ "id").read[String] and
+      (__ \ "enabled").read[Boolean] and
+      (__ \ "active").readNullable[Boolean] and
+      (__ \ "parameters" \ "percentage").read[Int](min(0) keepAnd max(100))
+    )(PercentageFeature.apply _)
+
+  val writes: Writes[PercentageFeature] = (
+    Feature.commonWrite and
+      (__ \ "active").writeNullable[Boolean] and
+      (__ \ "parameters" \ "percentage").write[Int]
+    )(unlift(PercentageFeature.unapply)).transform { o: JsObject =>
+    o ++ Json.obj("activationStrategy" -> "PERCENTAGE")
+  }
+
+  implicit val format: Format[PercentageFeature] = Format(reads, writes)
+}
+
+
 
 sealed trait FeatureEvent extends Event {
   def eventId: Option[Long]

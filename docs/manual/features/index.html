@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.4*
+1.0.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -117,7 +117,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.4*
+1.0.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -198,6 +198,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../features/index.html#no-strategy" class="header">NO_STRATEGY</a></li>
   <li><a href="../features/index.html#release-date" class="header">RELEASE_DATE</a></li>
+  <li><a href="../features/index.html#date-range" class="header">DATE_RANGE</a></li>
+  <li><a href="../features/index.html#percentage" class="header">PERCENTAGE</a></li>
   <li><a href="../features/index.html#script" class="header">SCRIPT</a></li>
   <li><a href="../features/index.html#global-script" class="header">GLOBAL SCRIPT</a></li>
   <li><a href="../features/ui.html" class="page">The UI</a>
@@ -206,6 +208,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <ul>
       <li><a href="../features/ui.html#no-strategy" class="header">NO_STRATEGY</a></li>
       <li><a href="../features/ui.html#release-date" class="header">RELEASE_DATE</a></li>
+      <li><a href="../features/ui.html#date-range" class="header">DATE_RANGE</a></li>
+      <li><a href="../features/ui.html#percentage" class="header">PERCENTAGE</a></li>
       <li><a href="../features/ui.html#script" class="header">SCRIPT</a></li>
       <li><a href="../features/ui.html#global-script" class="header">GLOBAL SCRIPT</a></li>
     </ul></li>
@@ -218,8 +222,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <ul>
       <li><a href="../features/api.html#no-strategy-format" class="header">NO_STRATEGY format</a></li>
       <li><a href="../features/api.html#release-date-format" class="header">RELEASE_DATE format</a></li>
+      <li><a href="../features/api.html#date-range-format" class="header">DATE_RANGE format</a></li>
       <li><a href="../features/api.html#script-format" class="header">SCRIPT format</a></li>
       <li><a href="../features/api.html#global-script-format" class="header">GLOBAL_SCRIPT format</a></li>
+      <li><a href="../features/api.html#percentage-format" class="header">PERCENTAGE format</a></li>
     </ul></li>
     <li><a href="../features/api.html#crud-api" class="header">CRUD API</a>
     <ul>
@@ -248,13 +254,19 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </div>
 <p>One of the main feature of Izanami is feature flipping. Feature flipping allow you to activate or passivate a feature in real time. </p>
 <p>The clients can check if a feature is active using the REST API. </p>
-<p>When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, SCRIPT or GLOBAL_SCRIPT</p>
+<p>When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT</p>
 <h2><a href="#no-strategy" name="no-strategy" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY</h2>
 <p>this is the simpler one, the feature can be active or inactive</p>
 <img src="../img/features/no_strategy.png" width="60%" />
 <h2><a href="#release-date" name="release-date" class="anchor"><span class="anchor-link"></span></a>RELEASE_DATE</h2>
 <p>this kind of strategy allow you to enable a feature on a date value in addition to the active boolean. </p>
 <img src="../img/features/release_date.png" width="60%" />
+<h2><a href="#date-range" name="date-range" class="anchor"><span class="anchor-link"></span></a>DATE_RANGE</h2>
+<p>this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean. </p>
+<img src="../img/features/date_range.png" width="60%" />
+<h2><a href="#percentage" name="percentage" class="anchor"><span class="anchor-link"></span></a>PERCENTAGE</h2>
+<p>this kind of strategy allow you to enable a feature for a percentage of clients. In this strategy, the client need to send a context with an <code>id</code> field in order to calculate if the feature is enabled or not. </p>
+<img src="../img/features/percentage.png" width="60%" />
 <h2><a href="#script" name="script" class="anchor"><span class="anchor-link"></span></a>SCRIPT</h2>
 <p>this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not. </p>
 <p>In this example, the feature is active if the user sent in the context is <code>ragnar.lodbrock@gmail.com</code> : </p>
@@ -327,6 +339,8 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
   <ul>
     <li><a href="../features/index.html#no-strategy" class="header">NO_STRATEGY</a></li>
     <li><a href="../features/index.html#release-date" class="header">RELEASE_DATE</a></li>
+    <li><a href="../features/index.html#date-range" class="header">DATE_RANGE</a></li>
+    <li><a href="../features/index.html#percentage" class="header">PERCENTAGE</a></li>
     <li><a href="../features/index.html#script" class="header">SCRIPT</a></li>
     <li><a href="../features/index.html#global-script" class="header">GLOBAL SCRIPT</a></li>
   </ul></li>

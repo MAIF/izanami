@@ -14,7 +14,7 @@ One of the main feature of Izanami is feature flipping. Feature flipping allow y
 
 The clients can check if a feature is active using the REST API. 
 
-When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, SCRIPT or GLOBAL_SCRIPT
+When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT
 
 ## NO_STRATEGY 
 
@@ -27,6 +27,19 @@ this is the simpler one, the feature can be active or inactive
 this kind of strategy allow you to enable a feature on a date value in addition to the active boolean.  
 
 <img src="../img/features/release_date.png" width="60%" />
+
+  
+## DATE_RANGE 
+
+this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean.  
+
+<img src="../img/features/date_range.png" width="60%" />
+
+## PERCENTAGE
+
+this kind of strategy allow you to enable a feature for a percentage of clients. In this strategy, the client need to send a context with an `id` field in order to calculate if the feature is enabled or not. 
+
+<img src="../img/features/percentage.png" width="60%" />
 
 ## SCRIPT 
 

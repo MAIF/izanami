@@ -1,18 +1,19 @@
 package domains.feature
 
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneId}
+import java.time.temporal.{ChronoUnit, TemporalUnit}
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import com.typesafe.config.ConfigFactory
 import domains.Key
 import domains.script.Script
-import env.{Env, IzanamiConfig}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, Json}
-import play.api.{Configuration, Environment}
 import test.IzanamiSpec
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Random
 
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
 
@@ -198,4 +199,49 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
+
+  "Date range feature" must {
+    "active" in {
+      val from = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
+      val to = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
+      val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
+
+      feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(true)
+    }
+
+    "inactive" in {
+      val from = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.MINUTES)
+      val to = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(2, ChronoUnit.HOURS)
+      val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
+
+      feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(false)
+    }
+  }
+
+  "Percentage feature" must {
+    "Calc ratio" in {
+      val feature = PercentageFeature(Key("key"), true, 60)
+
+      val count: Int = calcPercentage(feature) { i =>
+        s"string-number-$i"
+      }
+
+      count must (be > 55 and be < 65)
+
+      val count2: Int = calcPercentage(feature) { i =>
+        Random.nextString(50)
+      }
+
+      count2 must (be > 55 and be < 65)
+
+    }
+  }
+
+  private def calcPercentage(feature: PercentageFeature)(mkString: Int => String) = {
+    val count = (0 to 1000).map { i =>
+      val isActive = feature.isActive(Json.obj("id" -> mkString(i)), null).futureValue.getOrElse(false)
+      isActive
+    }.count(identity) / 10
+    count
+  }
 }
