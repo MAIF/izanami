@@ -246,7 +246,7 @@ package object modules {
       // format: on
 
       lazy val configsPatch: ConfigsPatch = wire[ConfigsPatch]
-      val allPatchs = Map(
+      lazy val allPatchs = Map(
         1 -> configsPatch
       )
       val patchs: Patchs = new Patchs(jsonStore, allPatchs, actorSystem)
