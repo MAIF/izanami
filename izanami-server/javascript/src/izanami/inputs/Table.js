@@ -586,7 +586,7 @@ export class Table extends Component {
             <button type="button" className="btn btn-danger" onClick={this.closeAddForm}>
               Cancel
             </button>
-            <button type="button" className="btn btn-primary" onClick={this.createItem}>
+            <button type="button" className="btn btn-success" onClick={this.createItem}>
               <i className="glyphicon glyphicon-hdd"/> Create {this.props.itemName}
             </button>
           </div>
