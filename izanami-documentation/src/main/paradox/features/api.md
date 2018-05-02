@@ -8,9 +8,10 @@ The feature structure depends on the type of the strategy. A feature can have th
 
 * `NO_STRATEGY`: active or inactive 
 * `RELEASE_DATE`: active on a specific date 
+* `DATE_RANGE`: active between two date 
 * `SCRIPT`: Activation depends on the execution of a js script 
 * `GLOBAL_SCRIPT`: Activation depends on the execution of a js script shared across feature
-
+* `PERCENTAGE`: Active for a percentage of client 
 
 ### NO_STRATEGY format 
 
@@ -32,6 +33,20 @@ The feature structure depends on the type of the strategy. A feature can have th
     "releaseDate": "13/12/2017 10:29:04"
   },
   "activationStrategy": "RELEASE_DATE"
+}
+```
+
+### DATE_RANGE format
+
+```json
+{
+  "id": "feature:with:datetange",
+  "enabled": true,
+  "parameters": {
+    "from": "2017-12-13 10:29:04",
+    "to": "2017-12-14 00:45:23"
+  },
+  "activationStrategy": "DATE_RANGE"
 }
 ```
  
@@ -60,6 +75,19 @@ The feature structure depends on the type of the strategy. A feature can have th
   "activationStrategy": "GLOBAL_SCRIPT"
 }
 ```
+### PERCENTAGE format 
+
+```json
+{
+  "id": "feature:with:percentage",
+  "enabled": false,
+  "parameters": {
+    "percentage": 60
+  },
+  "activationStrategy": "PERCENTAGE"
+}
+```
+
 
 ## CRUD API 
 
@@ -233,12 +261,13 @@ We can divide the feature in two kind :
 * feature without context: 
     * `NO_STRATEGY` features 
     * `RELEASE_DATE` features
+    * `DATE_RANGE` features
 * feature needing context:   
     * `SCRIPT` features 
     * `GLOBAL_SCRIPT` features
+    * `PERCENTAGE` features
     
 ### Check a feature without context 
-
 
 ```bash
 curl -X GET \
@@ -275,6 +304,24 @@ Will respond with a 200 status code:
 }
 ```
 
+The percentage strategy need a context with an id field in order to decide if the feature is active for this id. 
+
+```bash
+curl -X POST \
+  'http://localhost:9000/api/features/feature:with:percentage/check' \
+  -H 'Content-Type: application/json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' \
+  -d '{ "id": "ragnar.lodbrok@gmail.com" }' | jq
+```
+
+Will respond with a 200 status code:
+
+```json
+{
+  "active": true
+}
+```
 
 ### The Tree API 
 

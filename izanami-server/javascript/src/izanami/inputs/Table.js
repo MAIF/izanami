@@ -197,7 +197,11 @@ export class Table extends Component {
 
   gotoItem = (e, item) => {
     if (e && e.preventDefault) e.preventDefault();
-    this.props.navigateTo(item);
+    if (this.props.navigateTo) {
+      this.props.navigateTo(item);
+    } else {
+      this.showEditForm(e, item);
+    }
   };
 
   closeAddForm = e => {
@@ -380,7 +384,6 @@ export class Table extends Component {
   };
 
   render() {
-    console.log('State', this.state);
     const columns = this.props.columns.map(c => ({
         Header: c.title,
         id: c.title,
@@ -407,6 +410,7 @@ export class Table extends Component {
           ) : (
             <div
               onClick={e => {
+                 console.log('Click!', this.props.rowNavigation);
                 if (this.props.rowNavigation) {
                   this.gotoItem(e, original);
                 }
