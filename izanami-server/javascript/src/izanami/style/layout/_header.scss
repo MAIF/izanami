@@ -1,44 +1,54 @@
 .navbar-inverse {
-    background-color: $fondNavbar;
+  background-color: $fondNavbar;
+  background-image: none;
+  border: none;
+
+  .navbar-brand {
+    -webkit-flex-direction: row;
+    flex-direction: row;
+    color: #fff;
+    font-weight: 700;
+    text-shadow: none;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  .navbar-nav > li {
+    > a {
+      color: $colorGris;
+    }
+
+    .dropdown-menu {
+      margin-top: -1px;
+    }
+
+    > a:focus,
+    > a:hover {
+      color: $primaryColor;
+    }
+  }
+
+  .navbar-nav > .active > a,
+  .navbar-nav > .open > a,
+  .navbar-nav > .open > a:focus,
+  .navbar-nav > .open > a:hover {
+    background-color: $fondBody;
     background-image: none;
-    border: none;
-      .navbar-brand {
-        -webkit-flex-direction: row;
-        flex-direction: row;
-        color: #fff;
-        font-weight: 700;
-        text-shadow: none;
-        justify-content: center;
-        text-align: center;
-        width: 100%;
-        font-size: 18px;
-        cursor: pointer;
-    }
-    .navbar-nav>li {
-        >a{
-        color: $colorGris;
-        }
-        .dropdown-menu {
-            margin-top: -1px;
-        }
-        >a:hover, >a:focus {
-            color : $primaryColor;
-        }
-    }
+    color: $primaryColor;
+  }
 
-    .navbar-nav>.active>a, .navbar-nav>.open>a,.navbar-nav>.open>a:focus, .navbar-nav>.open>a:hover {
-        background-color: $fondBody;
-        background-image: none;
-        color: $primaryColor;
-    }
+  .navbar-right > li > a {
+    color: $primaryColor;
 
-   .navbar-right > li > a {
-        color: $primaryColor;
-        &:focus,&:hover {
-            background:none;
-            cursor: pointer;
-        }
+    &:focus,
+    &:hover {
+      background: none;
+      cursor: pointer;
     }
+  }
 
   i.glyphicon.glyphicon-off {
     margin-left: 4px;
@@ -46,73 +56,98 @@
 }
 
 .navbar-header {
-    height: 52px;
-    background-color: $primaryColor;
+  height: 52px;
+  background-color: $primaryColor;
 }
 
-.navbar-inverse .navbar-nav>li>a, .glyphicon-cog {
-	color: $primaryColor;
+.glyphicon-cog,
+.navbar-inverse .navbar-nav > li > a {
+  color: $primaryColor;
 }
-
 // izanimi begin
-
 .text-info {
   color: $colorRose;
 }
 
-.input-group-addon{
+.input-group-addon {
   background: none;
   border: none;
 }
 
 .form-control:focus {
-   border-color: #373735;
+  border-color: #373735;
   box-shadow: none;
 }
-
-
 // izanami end
-
 .fa-cog {
-	font-size: 1.5em;
-	top: 5px;
+  font-size: 1.5em;
+  top: 5px;
+  color: #fff;
 }
 
 #navbar .Select-control {
-    border: 1px solid #ccc;
+  border: 1px solid #ccc;
 }
 
-  .nav > li > a {
-     padding: 15px 15px;
+.nav > li > a {
+  padding: 15px;
 }
-
 @media (max-width:1300px) {
   .navbar-inverse .navbar-brand {
     flex-direction: column;
   }
 }
-
 @media (max-width:1200px) {
   .navbar-inverse .navbar-brand {
-    font-size: 14px
+    font-size: 14px;
   }
 }
-
 @media screen and (max-width: 767px) {
   .link-logout {
-      text-align: center;
-  }
-
-  .navbar-collapse.in {
-      overflow-y: inherit;
-      margin-top: 60px;
+    text-align: center;
   }
 
   #navbar .search-input {
     width: 100%!important;
   }
-  
-  .userManagement a{
+
+  .userManagement a {
     text-align: right;
+  }
+
+  .navbar-brand {
+    margin-top: -56px;
+  }
+
+  .navbar-right {
+    margin-top: -53px;
+    float: right;
+    position: absolute;
+    right: 15px;
+  }
+
+  .userManagement.open {
+    background-color: #373735;
+    z-index: 3;
+  }
+
+  .navbar-nav .open .dropdown-menu {
+    box-shadow: 0 6px 12px rgba(0,0,0,.175);
+  }
+
+  .navbar-form {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .navbar-toggle {
+    margin-right: 0;
+  }
+
+  .navbar-left {
+    clear: both;
+    border: none;
+    box-shadow: none;
+    margin-left: -15px;
   }
 }

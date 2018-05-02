@@ -116,18 +116,6 @@ export class LoggedApp extends Component {
         <nav className="navbar navbar-inverse navbar-fixed-top">
           <div className="navbar-header col-md-2">
           <button
-            type="button"
-            className="navbar-toggle collapsed"
-            data-toggle="collapse"
-            data-target="#navbar"
-            aria-expanded="false"
-            aria-controls="navbar">
-            <span className="sr-only">Toggle navigation</span>
-            <span className="icon-bar" />
-            <span className="icon-bar" />
-            <span className="icon-bar" />
-          </button>
-          <button
           type="button"
           className="navbar-toggle collapsed menu"
           data-toggle="collapse"
@@ -138,89 +126,86 @@ export class LoggedApp extends Component {
           <span>Menu</span>
         </button>
           <a href="/" className="navbar-brand"  style={{display: 'flex'}}>イザナミ&nbsp; Izanami</a>
+
           </div>
 
           <div className="container-fluid">
-            <div id="navbar" className="navbar-collapse collapse">
-              <ul className="nav navbar-nav navbar-right">
-                <li><a
-                  href={this.props.logout} className="link-logout">{this.props.user ? this.props.user.email : ''}&nbsp;
-                  <span className="glyphicon glyphicon-off"/></a></li>
-              </ul>
-              <form className="navbar-form navbar-left">
-                {selected &&
-                <div className="form-group" style={{ marginRight: 10, display: 'inline'}}>
-                <span
-                  title="Current line"
-                  className="label label-success"
-                  style={{ fontSize: 20, cursor: 'pointer' }}>
-                  {selected}
-                </span>
-                </div>}
-                <div className="form-group" style={{ marginRight: 10 }}>
-                  <MultiSearch filters={[
-                      {name: 'features', label: 'Features', active: true},
-                      {name: 'configs', label: 'Configurations', active: true},
-                      {name: 'experiments', label: 'Experiments', active: true},
-                      {name: 'scripts', label: 'Scripts', active: true}
-                    ]}
-                    query={this.searchServicesOptions}
-                    lineRenderer={this.lineRenderer}
-                    onElementSelected={this.gotoService}
-                  />
-
-                </div>
-              </form>
-              {
-                userManagementEnabled &&
-                [
-                <ul key="admin-menu" className="nav navbar-nav navbar-left">
-                  <li className="dropdown userManagement">
-                    <a
-                      href="#"
-                      className="dropdown-toggle"
-                      data-toggle="dropdown"
-                      role="button"
-                      aria-haspopup="true"
-                      aria-expanded="false"
-                    >
-                      <i className="fa fa-cog fa-2" aria-hidden="true"/>
-                    </a>
-                    <ul className="dropdown-menu">
-                      <li>
-                        <Link to="/users" className="" style={{cursor: 'pointer'}}>Users management</Link>
-                      </li>
-                      <li>
-                        <Link to="/apikeys" className="" style={{cursor: 'pointer'}}>Api Keys management</Link>
-                      </li>
-                    </ul>
+          {
+            userManagementEnabled &&
+            [
+            <ul key="admin-menu" className="nav navbar-nav navbar-right">
+              <li className="dropdown userManagement">
+                <a
+                  href="#"
+                  className="dropdown-toggle"
+                  data-toggle="dropdown"
+                  role="button"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                >
+                  <i className="fa fa-cog fa-2" aria-hidden="true"/>
+                </a>
+                <ul className="dropdown-menu">
+                  <li>
+                    <Link to="/users" className="" style={{cursor: 'pointer'}}>Users management</Link>
                   </li>
-                </ul>,
-                  <ul key="popover-create-user" className="nav navbar-nav navbar-left">
-                    <li>{changeme &&
-                    <a
-                      data-toggle="popover"
-                      data-trigger="focus"
-                      tabIndex="0"
-                      role="button"
-                      style={{paddingLeft: 0, paddingRight: 0, marginLeft: 0, marginRight: 0, width: 0}}
-                      {...popover({
-                        options: {
-                          title: '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
-                          html: 'true',
-                          content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-success pull-right" href="/users/add">Create user</a>',
-                          container: 'body'
-                        },
-                        state: 'show',
-                        onClose: this.onChangemeClosed
-                      })}
-                    />
-                    }
-                    </li>
-                  </ul>
-                ]
-              }
+                  <li>
+                    <Link to="/apikeys" className="" style={{cursor: 'pointer'}}>Api Keys management</Link>
+                  </li>
+                  <li><a
+                    href={this.props.logout} className="link-logout">{this.props.user ? this.props.user.email : ''}&nbsp;
+                    <span className="glyphicon glyphicon-off"/></a></li>
+                </ul>
+              </li>
+            </ul>,
+              <ul key="popover-create-user" className="nav navbar-nav navbar-left">
+                <li>{changeme &&
+                <a
+                  data-toggle="popover"
+                  data-trigger="focus"
+                  tabIndex="0"
+                  role="button"
+                  style={{paddingLeft: 0, paddingRight: 0, marginLeft: 0, marginRight: 0, width: 0}}
+                  {...popover({
+                    options: {
+                      title: '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
+                      html: 'true',
+                      content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-success pull-right" href="/users/add">Create user</a>',
+                      container: 'body'
+                    },
+                    state: 'show',
+                    onClose: this.onChangemeClosed
+                  })}
+                />
+                }
+                </li>
+              </ul>
+            ]
+          }
+          <form className="navbar-form navbar-left">
+            {selected &&
+            <div className="form-group" style={{ marginRight: 10, display: 'inline'}}>
+            <span
+              title="Current line"
+              className="label label-success"
+              style={{ fontSize: 20, cursor: 'pointer' }}>
+              {selected}
+            </span>
+            </div>}
+            <div className="form-group" style={{ marginRight: 10 }}>
+              <MultiSearch filters={[
+                  {name: 'features', label: 'Features', active: true},
+                  {name: 'configs', label: 'Configurations', active: true},
+                  {name: 'experiments', label: 'Experiments', active: true},
+                  {name: 'scripts', label: 'Scripts', active: true}
+                ]}
+                query={this.searchServicesOptions}
+                lineRenderer={this.lineRenderer}
+                onElementSelected={this.gotoService}
+              />
+
             </div>
+          </form>
           </div>
         </nav>
 

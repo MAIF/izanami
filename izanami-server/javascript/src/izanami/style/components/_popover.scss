@@ -1,5 +1,7 @@
 .popover {
 	color: $fondBody;
+	margin-left:calc(50% - 135px)!important;
+	margin-top: 50px;
 }
 
 .popover-title {
@@ -15,8 +17,8 @@
 	margin-top: -5px;
 }
 
-.popover.right > .arrow:after {
-	border-right-color: $primaryColor;
+.popover.right > .arrow,.popover.right > .arrow:after {
+	border-right: none;
 }
 
 .popover-content {
