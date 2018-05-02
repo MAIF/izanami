@@ -9,6 +9,12 @@
   width: 50%;
 }
 
+@media screen and (max-width: 767px) {
+  .modal {
+    width: auto;
+  }
+}
+
 .modal-dialog {
   width: 80%;
   margin: 30px auto;
