@@ -226,29 +226,29 @@ export class ExperimentsPage extends Component {
         {this.state.results && (
           <div className="row">
             <form className="form-horizontal">
-              {this.state.results.winner && (<p>
-                The winner of the experiment name <span className="bold">"{this.state.results.experiment.name}"</span> is <span className="bold">"{this.state.results.winner.name}"</span> (<span className="bold">{this.state.results.winner.id}</span>)
+              <h4>Winner</h4>{this.state.results.winner && (<p>
+                The winner of the experiment name <strong>"{this.state.results.experiment.name}"</strong> is <strong>"{this.state.results.winner.name}"</strong> (<strong>{this.state.results.winner.id}</strong>)
               </p>)}
               {!this.state.results.winner && (<p>
-                There is no winner yet for the experiment name <span className="bold">"{this.state.results.experiment.name}"</span>
+                There is no winner yet for the experiment name <strong>"{this.state.results.experiment.name}"</strong>
               </p>)}
-              <hr />
+              <h4>Population </h4>
               <p>
-                Tested population consist of <span className="bold">{population}</span> users with <span className="bold">{displays}</span> displays
+                Tested population consist of <strong>{population}</strong> users with <strong>{displays}</strong> displays
               </p>
-              <hr />
+              <h4>Variants </h4>
               <ul>
                 {results.map((r, index) => (
                   <li key={index}>
-                    Variant <span className="bold">"{r.variant.name}" ({r.variant.id})</span> has a conversion rate of <span className="bold">{r.transformation.toFixed(3)} %</span>
+                    Variant <strong><span style={{color:this.colors[index]}}>"{r.variant.name}" ({r.variant.id})</span></strong> has a conversion rate of <strong>{r.transformation.toFixed(3)} %</strong>
                     <ul>
-                      <li>won <span className="bold">{r.won}</span> times over <span className="bold">{r.displayed}</span> displays</li>
+                      <li>won <strong>{r.won}</strong> times over <strong>{r.displayed}</strong> displays</li>
                     </ul>
                   </li>
                 ))}
               </ul>
             </form>
-            <AreaChart width={800} height={400} data={this.state.data} >
+            <AreaChart width={800} height={400} data={this.state.data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} >
               {this.state.serieNames.map(([k, s], i) =>
                 <Area
                   type="monotone"
@@ -261,9 +261,9 @@ export class ExperimentsPage extends Component {
                 />
               )}
               <Tooltip />
-              <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-              <XAxis dataKey="name" />
-              <YAxis />
+              <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fill: '#b5b3b3' }} />
+              <YAxis tick={{ fill: '#b5b3b3' }}/>
             </AreaChart>
             <div className="modal-footer">
               <button type="button" className="btn btn-primary" onClick={e => this.showResults(e, this.state.item)}><i className="glyphicon glyphicon-refresh" /> Reload</button>
