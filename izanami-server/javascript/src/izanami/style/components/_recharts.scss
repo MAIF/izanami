@@ -1,0 +1,11 @@
+.recharts-surface {
+  background-color: $fondNavbar;
+  margin-top: 10px;
+}
+
+.recharts-surface,
+.recharts-wrapper {
+  width: 100%!important;
+  height: auto!important;
+  max-width: 800px;
+}
