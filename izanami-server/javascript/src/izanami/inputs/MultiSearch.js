@@ -44,7 +44,7 @@ export class MultiSearch extends Component {
   };
 
   onFocus = e => {
-    this.setState({display: true, inputStyle: { width: '400px'}} );
+    this.setState({display: true, inputStyle: {}} );
     this.refreshResults(this.state.filters, this.state.query);
   };
 

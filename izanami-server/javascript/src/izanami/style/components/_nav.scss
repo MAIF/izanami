@@ -22,8 +22,21 @@
   border: 1px solid $primaryColor;
 }
 
+
+.nav-tabs.nav > li > a:focus,
+.nav-tabs.nav > li > a:hover {
+  background-color: $primaryColor;
+  cursor: pointer;
+}
+
+
 .tab-content {
   margin-top: 200px;
+}
+
+.tab-content a,
+.tab-content a:hover {
+  color: $grisTexte;
 }
 
 .nav > li > a {
