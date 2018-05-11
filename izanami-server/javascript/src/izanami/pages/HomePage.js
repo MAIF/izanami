@@ -22,7 +22,7 @@ class Metric extends Component {
         color: 'white' }}>
         <div style={{ zIndex: 103, position: 'absolute', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           <span style={{ textShadow: 'rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px' }}>{props.value}</span>
-          <span style={{ textShadow: 'rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px', fontSize: 22, fontWeight: 'normal' }}>
+          <span style={{ textShadow: 'rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px', fontSize: 22, fontWeight: 'normal' ,textAlign:'center'}}>
             <i className={this.props.picto} /> {props.legend}
           </span>
         </div>
