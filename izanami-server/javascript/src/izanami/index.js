@@ -158,29 +158,26 @@ export class LoggedApp extends Component {
                 </ul>
               </li>
             </ul>,
-              <ul key="popover-create-user" className="nav navbar-nav navbar-left">
-                <li>{changeme &&
-                <a
-                  data-toggle="popover"
-                  data-trigger="focus"
-                  tabIndex="0"
-                  role="button"
-                  style={{paddingLeft: 0, paddingRight: 0, marginLeft: 0, marginRight: 0, width: 0}}
-                  {...popover({
-                    options: {
-                      title: '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
-                      html: 'true',
-                      content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary pull-right" href="/users/add">Create user</a>',
-                      container: 'body'
-                    },
-                    state: 'show',
-                    onClose: this.onChangemeClosed
-                  })}
-                />
-                }
-                </li>
-              </ul>
             ]
+          }
+          {changeme &&
+          <a
+            data-toggle="popover"
+            data-trigger="focus"
+            tabIndex="0"
+            role="button"
+            style={{paddingLeft: 0, paddingRight: 0, marginLeft: 0, marginRight: 0, width: 0}}
+            {...popover({
+              options: {
+                title: '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
+                html: 'true',
+                content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary pull-right" href="/users/add">Create user</a>',
+                container: 'body'
+              },
+              state: 'show',
+              onClose: this.onChangemeClosed
+            })}
+          />
           }
           <form className="navbar-form navbar-left">
             {selected &&
