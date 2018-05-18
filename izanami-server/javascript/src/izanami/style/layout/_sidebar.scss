@@ -12,13 +12,18 @@
   overflow-x: hidden;
   overflow-y: auto;
   border-right: none;
-
-  .active a {
-    color: $primaryColor;
+  @media screen and (max-width: $screen-sm) {
+    display: none;
+    top: 111px;
+    width: 100%;
   }
 
   a {
     color: $colorGris;
+  }
+
+  .active a {
+    color: $primaryColor;
   }
 
   h2 a,
@@ -51,7 +56,8 @@
 
   > li > a {
     padding: 5px 10px 5px 36px;
-    &.active{
+
+    &.active {
       color: $primaryColor;
     }
   }
@@ -71,12 +77,15 @@
   }
 }
 
-.logoContent {
-  text-align: center;
-  margin-top: 20px;
-}
-
 .logo {
   width: 50%;
   left: 25%;
+  @media screen and (max-width: $screen-sm) {
+    width: 20%;
+  }
+}
+
+.logoContent {
+  text-align: center;
+  margin-top: 20px;
 }

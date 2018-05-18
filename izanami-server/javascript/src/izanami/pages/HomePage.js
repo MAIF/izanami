@@ -20,9 +20,9 @@ class Metric extends Component {
         fontSize: 23,
         fontWeight: 'bold',
         color: 'white' }}>
-        <div style={{ zIndex: 103, position: 'absolute', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ zIndex: 103, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           <span style={{ textShadow: 'rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px' }}>{props.value}</span>
-          <span style={{ textShadow: 'rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px', fontSize: 22, fontWeight: 'normal' }}>
+          <span style={{ textShadow: 'rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px', fontSize: 22, fontWeight: 'normal' ,textAlign:'center'}}>
             <i className={this.props.picto} /> {props.legend}
           </span>
         </div>
@@ -65,7 +65,7 @@ export class HomePage extends Component {
     return (
       <div className="col-md-12">
         <div className="row">
-          <div className="col-md-offset-5">
+          <div style={{width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
             <img className="logo_izanami_dashboard" src={`${window.__contextPath}/assets/images/izanami.png`}/>
           </div>
         </div>

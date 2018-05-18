@@ -179,7 +179,7 @@ export class KeyInput extends Component {
               </span>
             </div>
             {this.state.open &&
-            <div className="keypicker-menu-outer" style={{zIndex: '20', overflow: 'scroll'}} >
+            <div className="keypicker-menu-outer" >
               {this.state.datas.map((d, i) =>
                 <div key={`res-${i}`}>
                   <SearchResult value={d} onSelect={this.selectValue}/>
