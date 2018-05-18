@@ -9,7 +9,7 @@ body {
 
 a,
 a:hover {
-  color: $primaryColor
+  color: $primaryColor;
 }
 
 .main {
@@ -17,124 +17,73 @@ a:hover {
   padding-left: 30px;
   margin-top: -10px;
 }
+
 .page-header {
   margin-top: 32px;
   border-bottom-color: $primaryColor;
   margin-left: 25px
 }
 
-.placeholders {
-  margin-bottom: 30px;
-  text-align: center;
-}
-.placeholders h4 {
-  margin-bottom: 0;
-}
 .placeholder {
   margin-bottom: 20px;
-}
-.placeholder img {
-  display: inline-block;
-  border-radius: 50%;
+
+  img {
+    display: inline-block;
+    border-radius: 50%;
+  }
 }
 
-.menu {
-  float: left;
-  color: #fff
-}
-
-.page-header,h3,
+h3,
 h4 {
-  color: $primaryColor
+  color: $primaryColor;
 }
-
-
-@mixin h3fixed{
+@mixin h3fixed {
   position: fixed;
   background-color: #373735;
   width: 100%;
   z-index: 110;
   margin-left: -25px;
+  margin-top: -10px;
 }
+
 .fixedH3 {
   @include h3fixed;
-  // height: 130px;
 }
 
-.fixedH3withoutHeight {
- @include h3fixed;
+.fixedH3+.row {
+  padding-top: 88px;
 }
 
-.fixedH3+.row, .fixedH3withoutHeight+.row {
-  padding-top: 88px
-}
-
-
-@media only screen and (max-width:767px) {
-  .backoffice-container {
-    margin-top: 56px
+.izanami-container {
+  > .row {
+    margin-left: 0;
+    margin-right: -5px;
   }
-  .sidebar {
-    display: none;
-    width: 100%
-  }
-}
 
-.backoffice-container>h3+.row {
-    margin-left: 0px;
+  > h3+.row {
+    margin-left: 0;
     margin-right: -10px;
-}
-.backoffice-container>.row {
-    margin-left: 0px;
-}
-.backoffice-container .glyphicon-ok-sign,.backoffice-container .glyphicon-remove-sign{
+  }
+
+  .glyphicon-ok-sign,
+  .glyphicon-remove-sign {
     font-size: 16px;
     top: 4px;
+  }
+  @media only screen and (max-width: $screen-sm) {
+    margin-top: 66px;
+  }
 }
 
-//izanami begin
-.izanami-container>h3+.row {
-  margin-left: 0px;
-  margin-right: -10px;
-}
-.izanami-container>.row {
-  margin-left: 0px;
-  margin-right: -5px;
-}
-.izanami-container .glyphicon-ok-sign,.izanami-container .glyphicon-remove-sign{
-  font-size: 16px;
-  top: 4px;
+
+.fa-cog {
+  font-size: 1.5em;
+  top: 5px;
+  color: #fff;
 }
 
-.fixedH3{
-    margin-top: -10px;
-}
-//izanmi end
-
-.backoffice-container  .label {
-    margin-right: 5px;
-}
-
-.content{
-  margin-top:50px;
-}
-
-.tab-content a,.tab-content a:hover {
-  color: $grisTexte;
-}
-
-.nav-tabs.nav > li > a:focus, .nav-tabs.nav > li > a:hover {
-  background-color: $primaryColor;
-  cursor: pointer;
-}
-
-.logoOtoroshi {
-    width: 240px;
-    margin-top: 60px;
-    margin-bottom: 0;
-}
 
 .logo_izanami_dashboard {
-    margin-top: 30px;
-    width: 240px;
+  margin-top: 30px;
+  width: 240px;
 }

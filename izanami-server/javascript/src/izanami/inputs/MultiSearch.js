@@ -12,7 +12,7 @@ export class MultiSearch extends Component {
     display: false,
     results: [],
     filters: {},
-    inputStyle: {width: '200px'},
+    inputStyle: {},
     query: ''
   };
 
@@ -44,7 +44,7 @@ export class MultiSearch extends Component {
   };
 
   onFocus = e => {
-    this.setState({display: true, inputStyle: { width: '400px'}} );
+    this.setState({display: true, inputStyle: {}} );
     this.refreshResults(this.state.filters, this.state.query);
   };
 
@@ -53,7 +53,7 @@ export class MultiSearch extends Component {
   };
 
   close = () => {
-    this.setState({display: false, inputStyle: {width: '200px'}, query: '', filters: this.props.filters});
+    this.setState({display: false, inputStyle: {}, query: '', filters: this.props.filters});
   };
 
   refreshResults = (currentFilters, query) => {

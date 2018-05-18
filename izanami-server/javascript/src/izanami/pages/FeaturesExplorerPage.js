@@ -39,9 +39,9 @@ export class FeaturesExplorerPage extends Component {
       <div className="col-md-12">
         <form className="form-inline" style={{ marginBottom: 20, marginLeft: -15  }}>
           <div className="form-group">
-            <input type="text" className="form-control col-md-10" style={{ width: 300 }} placeholder="feature query (ie. project:env:*, mcf:preprod:frontend:*)" value={this.state.query} onChange={e => this.setState({ query: e.target.value })} />
+            <input type="text" className="form-control col-xs-12" placeholder="feature query (ie. project:env:*, mcf:preprod:frontend:*)" value={this.state.query} onChange={e => this.setState({ query: e.target.value })} />
           </div>
-          <button style={{ marginLeft: 10 }} type="button" className="btn btn-success" onClick={this.updateGraph}>
+          <button type="button" className="btn btn-success btn-search" onClick={this.updateGraph}>
             <i className="glyphicon glyphicon-search" />
             {' '}
             {!this.state.searching && 'Search'}

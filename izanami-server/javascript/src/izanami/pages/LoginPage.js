@@ -50,7 +50,7 @@ export class LoginPage extends Component {
   render() {
     return (
       <div className="container-fluid">
-        <div className="col-md-offset-5">
+        <div className="text-center">
           <img className="logo_izanami_dashboard" src={`${window.__contextPath}/assets/images/izanami.png`}/>
         </div>
         <div className="col-md-4 col-md-offset-4" style={{marginTop:"20px"}}>

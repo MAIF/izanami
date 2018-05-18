@@ -38,28 +38,3 @@
 .tab-content a:hover {
   color: $grisTexte;
 }
-
-.nav > li > a {
-  transition-duration: 1s;
-
-  &:focus,
-  &:hover {
-    background-color: $fondGrisclairSurvolMenu;
-    color: #fff;
-    border-color: $primaryColor;
-  }
-}
-
-.nav > li > h3 > a {
-  padding: 5px 0 5px 30px;
-  margin-left: -30px;
-  display: block;
-  transition-duration: 1s;
-
-  &:focus,
-  &:hover {
-    text-decoration: none;
-    background-color: $fondGrisclairSurvolMenu;
-    color: #fff;
-  }
-}

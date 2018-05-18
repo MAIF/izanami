@@ -19,7 +19,6 @@ import {
 import {popover} from './inputs/popover'
 import queryString from 'query-string';
 import _ from 'lodash';
-import './style/react-datetime.css';
 import './style/main.scss';
 import {MultiSearch} from "./inputs";
 import {DynamicTitle} from "./components/DynamicTitle";
@@ -61,6 +60,10 @@ export class LoggedApp extends Component {
 
   componentDidMount() {
       IzanamiEvents.start();
+      this.props.history.listen(() => {
+        $('#sidebar').collapse('hide');
+        $('#navbar').collapse('hide');
+      });
   }
 
   componentWillUnmount() {
@@ -109,101 +112,104 @@ export class LoggedApp extends Component {
     const changeme = getCookie('notifyuser') || this.props.user.changeme;
 
     return (
-      <div className="izanami-container container-fluid">
+      <div className="container-fluid">
         <nav className="navbar navbar-inverse navbar-fixed-top">
-          <div className="navbar-header col-md-2"><a href="/" className="navbar-brand"
-                                                     style={{display: 'flex'}}>イザナミ&nbsp; Izanami</a>
+          <div className="navbar-header col-md-2">
+          <button
+          type="button"
+          className="navbar-toggle collapsed menu"
+          data-toggle="collapse"
+          data-target="#sidebar"
+          aria-expanded="false"
+          aria-controls="sidebar">
+          <span className="sr-only">Toggle sidebar</span>
+          <span>Menu</span>
+        </button>
+          <a href="/" className="navbar-brand"  style={{display: 'flex'}}>イザナミ&nbsp; Izanami</a>
+
           </div>
 
           <div className="container-fluid">
-            <div id="navbar" className="navbar-collapse collapse">
-              <ul className="nav navbar-nav navbar-right">
-                <li><a
-                  href={this.props.logout}>{this.props.user ? this.props.user.email : ''}&nbsp;
-                  <span className="glyphicon glyphicon-off"/></a></li>
-              </ul>
-              <form className="navbar-form navbar-left">
-                {selected &&
-                <div className="form-group" style={{ marginRight: 10, display: 'inline'}}>
-                <span
-                  title="Current line"
-                  className="label label-success"
-                  style={{ fontSize: 20, cursor: 'pointer' }}>
-                  {selected}
-                </span>
-                </div>}
-                <div className="form-group" style={{ marginRight: 10 }}>
-                  <MultiSearch filters={[
-                      {name: 'features', label: 'Features', active: true},
-                      {name: 'configs', label: 'Configurations', active: true},
-                      {name: 'experiments', label: 'Experiments', active: true},
-                      {name: 'scripts', label: 'Scripts', active: true}
-                    ]}
-                    query={this.searchServicesOptions}
-                    lineRenderer={this.lineRenderer}
-                    onElementSelected={this.gotoService}
-                  />
-
-                </div>
-              </form>
-              {
-                userManagementEnabled &&
-                [
-                <ul key="admin-menu" className="nav navbar-nav navbar-left">
-                  <li className="dropdown">
-                    <a
-                      href="#"
-                      className="dropdown-toggle"
-                      data-toggle="dropdown"
-                      role="button"
-                      aria-haspopup="true"
-                      aria-expanded="false"
-                    >
-                      <i className="fa fa-cog fa-2" aria-hidden="true"/>
-                    </a>
-                    <ul className="dropdown-menu">
-                      <li>
-                        <Link to="/users" className="" style={{cursor: 'pointer'}}>Users management</Link>
-                      </li>
-                      <li>
-                        <Link to="/apikeys" className="" style={{cursor: 'pointer'}}>Api Keys management</Link>
-                      </li>
-                    </ul>
+          {
+            userManagementEnabled &&
+            [
+            <ul key="admin-menu" className="nav navbar-nav navbar-right">
+              <li className="dropdown userManagement">
+                <a
+                  href="#"
+                  className="dropdown-toggle"
+                  data-toggle="dropdown"
+                  role="button"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                >
+                  <i className="fa fa-cog fa-2" aria-hidden="true"/>
+                </a>
+                <ul className="dropdown-menu">
+                  <li>
+                    <Link to="/users" className="" style={{cursor: 'pointer'}}>Users management</Link>
                   </li>
-                </ul>,
-                  <ul key="popover-create-user" className="nav navbar-nav navbar-left">
-                    <li>{changeme &&
-                    <a
-                      data-toggle="popover"
-                      data-trigger="focus"
-                      tabIndex="0"
-                      role="button"
-                      style={{paddingLeft: 0, paddingRight: 0, marginLeft: 0, marginRight: 0, width: 0}}
-                      {...popover({
-                        options: {
-                          title: '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
-                          html: 'true',
-                          content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-success" href="/users/add">Create user</a>',
-                          container: 'body'
-                        },
-                        state: 'show',
-                        onClose: this.onChangemeClosed
-                      })}
-                    />
-                    }
-                    </li>
-                  </ul>
-                ]
-              }
+                  <li>
+                    <Link to="/apikeys" className="" style={{cursor: 'pointer'}}>Api Keys management</Link>
+                  </li>
+                  <li><a
+                    href={this.props.logout} className="link-logout">{this.props.user ? this.props.user.email : ''}&nbsp;
+                    <span className="glyphicon glyphicon-off"/></a></li>
+                </ul>
+              </li>
+            </ul>,
+            ]
+          }
+          {changeme &&
+          <a
+            data-toggle="popover"
+            data-trigger="focus"
+            tabIndex="0"
+            role="button"
+            style={{paddingLeft: 0, paddingRight: 0, marginLeft: 0, marginRight: 0, width: 0}}
+            {...popover({
+              options: {
+                title: '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
+                html: 'true',
+                content: '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary pull-right" href="/users/add">Create user</a>',
+                container: 'body'
+              },
+              state: 'show',
+              onClose: this.onChangemeClosed
+            })}
+          />
+          }
+          <form className="navbar-form navbar-left">
+            {selected &&
+            <div className="form-group" style={{ marginRight: 10, display: 'inline'}}>
+            <span
+              title="Current line"
+              className="label label-success"
+              style={{ fontSize: 20, cursor: 'pointer' }}>
+              {selected}
+            </span>
+            </div>}
+            <div className="form-group" style={{ marginRight: 10 }}>
+              <MultiSearch filters={[
+                  {name: 'features', label: 'Features', active: true},
+                  {name: 'configs', label: 'Configurations', active: true},
+                  {name: 'experiments', label: 'Experiments', active: true},
+                  {name: 'scripts', label: 'Scripts', active: true}
+                ]}
+                query={this.searchServicesOptions}
+                lineRenderer={this.lineRenderer}
+                onElementSelected={this.gotoService}
+              />
+
             </div>
+          </form>
           </div>
         </nav>
 
         <div className="container-fluid">
           <div className="row">
-            <div className="analytics-viewer-bottom-container"
-                 style={{display: 'flex', flexDirection: 'row', width: '100%', height: '100%'}}>
-              <div className="col-md-2 sidebar">
+            <div className="analytics-viewer-bottom-container" >
+              <div className="col-sm-2 sidebar" id="sidebar">
                 <div className="sidebar-container">
                   <div className="sidebar-content">
                     <ul className="nav nav-sidebar">
@@ -248,7 +254,7 @@ export class LoggedApp extends Component {
                 </div>
 
               </div>
-              <div className="col-md-10 col-md-offset-2 main">
+              <div className="col-sm-10 col-sm-offset-2 main">
                 <div className="row">
                   <div className="izanami-container">
                       <DynamicTitle />
