@@ -116,6 +116,26 @@ h2 {
   width: 70px
 }
 
+.youtube_player{
+  margin-bottom: 20px;
+}
+
+.youtube_player {
+	position:relative;
+	padding-bottom:56.25%;
+	padding-top:30px;
+	height:0;
+	overflow:hidden;
+}
+
+.youtube_player iframe, .youtube_player object, .youtube_player embed {
+	position:absolute;
+	top:0;
+	left:0;
+	width:100%;
+	height:100%;
+}
+
 .outer-circle {
   height: 100px;
   width: 100px;
