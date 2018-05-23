@@ -81,9 +81,23 @@ export class Feature extends Component {
     const value = _.get(features, path) || { active: false };
     const isActive = value.active;
     const childrenArray = Array.isArray(children) ? children : [children];
-    const enabledChildren = childrenArray.filter(c => c.type === Enabled);
-    const disabledChildren = childrenArray.filter(c => c.type === Disabled);
+    const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
+    const disabledChildren = childrenArray.filter(c => c && c.type === Disabled);
     const debug = !!this.state.debug || this.props.debug;
+    if (this.props.render && _.isFunction(this.props.render)) {
+      if (debug) {
+        return (
+          <div className={`izanami-feature-${isActive ? 'enabled' : 'disabled'}`} title={`Feature ${path} is ${isActive ? 'enabled' : 'disabled'}`} style={{ position: 'relative', outline: '1px solid green' }}>
+            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
+              Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is {isActive ? 'enabled' : 'disabled'}
+            </span>
+            {this.props.render(isActive)}
+          </div>
+        );
+      } else {
+        return this.props.render(isActive);
+      }
+    }
     if (isActive && enabledChildren.length > 0) {
       if (debug) console.log(`[Features] feature '${path}' is enabled, rendering first <Enabled /> component`);
       if (debug) {
