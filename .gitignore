@@ -9,3 +9,4 @@ npmrc
 .artifactory
 secrets.tar
 logs
+.DS_Store
