@@ -250,7 +250,6 @@ export class LoggedApp extends Component {
                       </li>
                     </ul>
                   </div>
-                  <div className="logoContent"><img className="logo" src={`${window.__contextPath}/assets/images/logo.svg`}/></div>
                 </div>
 
               </div>
