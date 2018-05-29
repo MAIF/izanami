@@ -19,6 +19,7 @@ export class MultiSearch extends Component {
   componentDidMount() {
     this.setState({filters: this.props.filters});
     this.toggleTouchOutsideEvent(true);
+    document.addEventListener('keydown', this.listenToSlash, false);
   }
 
   componentWillReceiveProps(props) {
@@ -87,6 +88,7 @@ export class MultiSearch extends Component {
 
   componentWillUnmount () {
     this.toggleTouchOutsideEvent(false);
+    document.removeEventListener('keydown', this.listenToSlash);
   }
 
   toggleTouchOutsideEvent = (enabled) => {
@@ -113,6 +115,15 @@ export class MultiSearch extends Component {
     }
   };
 
+  listenToSlash = e => {
+    if (e.keyCode === 191 && e.target.tagName.toLowerCase() !== 'input') {
+      setTimeout(() => {
+        this.onFocus(null);
+        if (this.searchInput) this.searchInput.focus();
+      });
+    }
+  };
+
   render() {
     return (
       <div className="row" ref={ref => this.wrapper = ref}>
@@ -124,9 +135,13 @@ export class MultiSearch extends Component {
                    onFocus={this.onFocus}
                    onChange={this.textChange}
                    onBlur={this.onBlur}
+                   ref={r => this.searchInput = r}
             />
 
-            <span className="form-control-feedback">
+            <span className="form-control-feedback" onClick={e => {
+              this.onFocus(null);
+              if (this.searchInput) this.searchInput.focus();
+            }}>
               <span style={{ width: 19, height: 20, marginRight: 6 }} title="You can jump directly into the search bar from anywhere just by typing '/'">
                 <svg xmlns="http://www.w3.org/2000/svg" width="19" height="20">
                   <defs>
