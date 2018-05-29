@@ -76,16 +76,3 @@
     }
   }
 }
-
-.logo {
-  width: 50%;
-  left: 25%;
-  @media screen and (max-width: $screen-sm) {
-    width: 20%;
-  }
-}
-
-.logoContent {
-  text-align: center;
-  margin-top: 20px;
-}
