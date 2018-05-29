@@ -15,13 +15,14 @@
 }
 
 .search-input {
-  -webkit-transition: all .51s !important;
-  -moz-transition: all .5s !important;
-  transition: all .5s !important;
-  // width: 200px ;
+  @media screen and  (min-width: 768px){
+  width: 400px !important;
+  }
 }
-.search-input:focus {
-  width:400px !important;
+.navbar-form .has-feedback .form-control-feedback{
+  top:4px;
+  cursor: pointer;
+  pointer-events: initial;
 }
 
 i.search-loading {
