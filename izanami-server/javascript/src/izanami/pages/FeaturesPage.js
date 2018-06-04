@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
+import {Link} from 'react-router-dom';
 import {Key, Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput, TextInput, PercentageInput} from '../inputs';
 import moment from 'moment';
 import {IzaDatePicker, IzaDateRangePicker} from '../components/IzanamiDatePicker';
@@ -136,7 +137,7 @@ export class FeaturesPage extends Component {
       title: 'Name',
       style: { width: 600},
       search: (s, item) => item.id.indexOf(s) > -1,
-      content: item => <Key value={item.id} /> },
+      content: item => <Link to={`/features/edit/${item.id}`}><Key value={item.id} /></Link> },
     {
       title: 'Strategy',
       notFilterable: true,
@@ -230,7 +231,6 @@ export class FeaturesPage extends Component {
               parameters: {},
               id: ""
             })}
-            rowNavigation={true}
             parentProps={this.props}
             user={this.props.user}
             defaultTitle="Features"
