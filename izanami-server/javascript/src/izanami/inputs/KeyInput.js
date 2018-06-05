@@ -156,9 +156,9 @@ export class KeyInput extends Component {
         <div className="col-sm-10">
           <div className="keypicker keypicker--multi" ref={ref => this.wrapper = ref}>
             <div className="keypicker-control">
-              <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
+              <span style={{ display: 'table-cell' }} className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
                 {this.state.segments.map( (part,i) => [
-                  <span className="btn btn-info keypicker-value" key={`value-${i}`}>
+                  <span className="btn btn-info keypicker-value" style={{ marginLeft: '0px' }} key={`value-${i}`}>
                     <span>{part}</span>
                     {i === (size - 1) &&
                       <span className="closeKeypicker" onClick={this.removeLastSegment}>x</span>
@@ -166,10 +166,10 @@ export class KeyInput extends Component {
                   </span>
                   ]
                 )}
-                <div className="keypicker-input" style={{display: 'inline-block',  marginLeft: '12px', overflow: 'hidden'}}>
+                <div className="keypicker-input" style={{display: 'contents',  marginLeft: '12px', overflow: 'hidden'}}>
                   <input
                     type="text"
-                    style={{ width: '300px' }}
+                    style={{ display: 'inline-block','marginLeft':'2px' }}
                     onChange={this.computeValue}
                     value={this.state.textValue}
                     onFocus={this.onFocus} ref={e => this.inputRef = e}
