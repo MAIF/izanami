@@ -8,13 +8,33 @@ import pureconfig._
 
 import scala.concurrent.duration.FiniteDuration
 
+sealed trait DbType
+object Cassandra extends DbType
+object Redis     extends DbType
+object LevelDB   extends DbType
+object InMemory  extends DbType
+object Elastic   extends DbType
+object Mongo     extends DbType
+
 object DbType {
-  val cassandra = "Cassandra"
-  val redis     = "Redis"
-  val levelDB   = "LevelDB"
-  val inMemory  = "InMemory"
-  val elastic   = "Elastic"
+  def fromString(s: String) = s match {
+    case "Cassandra" => Cassandra
+    case "Redis"     => Redis
+    case "LevelDB"   => LevelDB
+    case "InMemory"  => InMemory
+    case "Elastic"   => Elastic
+    case "Mongo"     => Mongo
+  }
 }
+
+//object DbType {
+//  val cassandra = "Cassandra"
+//  val redis     = "Redis"
+//  val levelDB   = "LevelDB"
+//  val inMemory  = "InMemory"
+//  val elastic   = "Elastic"
+//  val mongo     = "Mongo"
+//}
 
 object EventStoreType {
   val redis       = "Redis"
@@ -29,15 +49,21 @@ object IzanamiConfig {
 
   implicit def hint[T] =
     ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
+
   implicit val filterConfHint = new FieldCoproductHint[IzanamiFilter]("type") {
     override def fieldValue(name: String) = name
   }
+
   implicit val storeConfHint = new FieldCoproductHint[EventsConfig]("store") {
     override def fieldValue(name: String) = name.dropRight("Events".length)
   }
 
+  implicit val dbTypeHint: ConfigConvert[DbType] =
+    viaString[DbType](catchReadError { DbType.fromString }, _.toString)
+
   implicit val inetAddressCC: ConfigConvert[InetAddress] =
     viaString[InetAddress](catchReadError(InetAddress.getByName), _.getHostAddress)
+
   implicit val inetSocketAddressCC: ConfigConvert[InetSocketAddress] =
     viaString[InetSocketAddress](
       catchReadError { str =>
@@ -127,7 +153,8 @@ case class DbConfig(
     leveldb: Option[LevelDbConfig],
     cassandra: Option[CassandraConfig],
     kafka: Option[KafkaConfig],
-    elastic: Option[ElasticConfig]
+    elastic: Option[ElasticConfig],
+    mongo: Option[MongoConfig]
 )
 
 case class RedisConfig(
@@ -157,6 +184,8 @@ case class ElasticConfig(host: String,
                          password: Option[String],
                          automaticRefresh: Boolean = false)
 
-case class DbDomainConfig(`type`: String, conf: DbDomainConfigDetails)
+case class MongoConfig(url: String, database: Option[String], name: Option[String])
+
+case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails)
 case class InitialUserConfig(userId: String, password: String)
 case class DbDomainConfigDetails(namespace: String)

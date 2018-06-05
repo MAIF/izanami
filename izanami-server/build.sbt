@@ -31,6 +31,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"        %% "akka-cluster"                  % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster-tools"            % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion, // Apache 2.0
+  "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.13.0",
+  "org.reactivemongo"        %% "reactivemongo"                 % "0.13.0",
+  "org.reactivemongo"        %% "play2-reactivemongo"           % "0.13.0-play26",
   "com.github.etaty"         %% "rediscala"                     % "1.8.0", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
   "org.typelevel"            %% "cats-core"                     % "1.0.1", // MIT license
