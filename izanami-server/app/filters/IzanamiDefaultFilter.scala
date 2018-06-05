@@ -47,9 +47,9 @@ class IzanamiDefaultFilter(env: Env,
     val maybeClientSecret =
       requestHeader.headers.get(config.apiKeys.headerClientSecret)
 
-    val t = Try(env.env match {
+    val t = Try((env.env, maybeClientId, maybeClientSecret, maybeClaim) match {
       // dev or test mode :
-      case devOrTest if devOrTest == "test" || devOrTest == "dev" =>
+      case (devOrTest, _, _, _) if devOrTest == "test" || devOrTest == "dev" =>
         nextFilter(
           requestHeader.addAttr(
             FilterAttrs.Attrs.AuthInfo,
@@ -69,18 +69,18 @@ class IzanamiDefaultFilter(env: Env,
           result
         }
       // Prod && Api key :
-      case prod if prod == "prod" && maybeClientId.isDefined && maybeClientSecret.isDefined =>
+      case ("prod", Some(clientId), Some(clientSecret), _) =>
         apikeyStore
-          .getById(Key(maybeClientId.get))
+          .getById(Key(clientId))
           .one
           .map { mayBeKey =>
             Logger.debug(s"$mayBeKey: ${apikeyConfig.keys}")
             mayBeKey
               .orElse(apikeyConfig.keys)
-              .filter(_.clientSecret == maybeClientSecret.get)
+              .filter(_.clientId == clientId)
           }
           .flatMap {
-            case Some(apikey) if apikey.clientSecret == maybeClientSecret.get =>
+            case Some(apikey) if apikey.clientSecret == clientSecret =>
               nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, Some(apikey)))
                 .map { result =>
                   val requestTime = System.currentTimeMillis - startTime
@@ -99,15 +99,12 @@ class IzanamiDefaultFilter(env: Env,
               )
           }
       // Prod && Exclusions :
-      case prod
-          if prod == "prod" && maybeClaim.isDefined && allowedPath
-            .exists(path => requestHeader.path.matches(path)) => {
-
+      case ("prod", _, _, Some(claim)) if allowedPath.exists(path => requestHeader.path.matches(path)) =>
         val tryDecode = Try {
           val algorithm = Algorithm.HMAC512(config.sharedKey)
           val verifier =
             JWT.require(algorithm).withIssuer(config.issuer).build()
-          val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
+          val decoded: DecodedJWT = verifier.verify(claim)
 
           nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
             val requestTime = System.currentTimeMillis - startTime
@@ -130,8 +127,7 @@ class IzanamiDefaultFilter(env: Env,
             )
         }
         tryDecode.get
-      }
-      case prod if prod == "prod" && allowedPath.exists(path => requestHeader.path.matches(path)) => {
+      case ("prod", _, _, _) if allowedPath.exists(path => requestHeader.path.matches(path)) =>
         nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, None))
           .map {
             result =>
@@ -143,9 +139,8 @@ class IzanamiDefaultFilter(env: Env,
               )
               result
           }
-      }
       // Prod && Claim empty :
-      case prod if prod == "prod" && maybeClaim.isEmpty =>
+      case ("prod", _, _, None) =>
         Future.successful(
           Results
             .Unauthorized(
@@ -153,12 +148,12 @@ class IzanamiDefaultFilter(env: Env,
             )
         )
       // Prod && Claim => decoding jwt :
-      case prod if prod == "prod" =>
+      case ("prod", _, _, Some(claim)) =>
         val tryDecode = Try {
           val algorithm = Algorithm.HMAC512(config.sharedKey)
           val verifier =
             JWT.require(algorithm).withIssuer(config.issuer).build()
-          val decoded: DecodedJWT = verifier.verify(maybeClaim.get)
+          val decoded: DecodedJWT = verifier.verify(claim)
 
           nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, User.fromJwtToken(decoded))).map { result =>
             val requestTime = System.currentTimeMillis - startTime
