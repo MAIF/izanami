@@ -169,7 +169,7 @@ export class KeyInput extends Component {
                 <div className="keypicker-input" style={{display: 'contents',  marginLeft: '12px', overflow: 'hidden'}}>
                   <input
                     type="text"
-                    style={{ display: 'inline-block','marginLeft':'2px' }}
+                    style={{ display: 'inline-block','marginLeft':'4px' }}
                     onChange={this.computeValue}
                     value={this.state.textValue}
                     onFocus={this.onFocus} ref={e => this.inputRef = e}
