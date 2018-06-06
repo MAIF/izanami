@@ -11,7 +11,6 @@ import org.iq80.leveldb.util.FileUtils
 import org.scalatest._
 import play.api.Configuration
 import play.api.libs.json.JsValue
-import redis.embedded.RedisServer
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -23,7 +22,7 @@ object Configs {
 
   val idGenerator = IdGenerator(0L)
 
-  val redisPort: Int = temporaryServerAddress("localhost", udp = false).getPort
+  val redisPort: Int = 6380
 
   val cassandraPort: Int = 9042
 
@@ -215,16 +214,6 @@ class RedisTests
       new UserControllerSpec("Redis", Configs.redisConfiguration),
       new ApikeyControllerSpec("Redis", Configs.redisConfiguration)
     )
-    with BeforeAndAfterAll {
-
-  val redisEmbeddedServer: RedisServer = new RedisServer(Configs.redisPort)
-
-  override protected def beforeAll(): Unit =
-    redisEmbeddedServer.start()
-
-  override protected def afterAll(): Unit =
-    redisEmbeddedServer.stop()
-}
 
 class ElasticTests
     extends Suites(

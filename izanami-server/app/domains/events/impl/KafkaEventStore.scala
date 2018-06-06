@@ -10,7 +10,7 @@ import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.{KafkaConfig, KafkaEventsConfig}
 import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
+import org.apache.kafka.clients.consumer.{Consumer => KConsumer, ConsumerConfig}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeserializer, StringSerializer}
@@ -97,6 +97,7 @@ class KafkaEventStore(_env: Environment,
 
   private lazy val producerSettings =
     KafkaSettings.producerSettings(_env, system, clusterConfig)
+
   private lazy val producer: KafkaProducer[Array[Byte], String] =
     producerSettings.createKafkaProducer
 
@@ -105,8 +106,8 @@ class KafkaEventStore(_env: Environment,
     .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
 
-  private val tmpConsumer: KafkaConsumer[Array[Byte], String] = settings.createKafkaConsumer()
-  private val partitions: mutable.Buffer[PartitionInfo]       = tmpConsumer.partitionsFor(eventsConfig.topic).asScala
+  private val tmpConsumer: KConsumer[Array[Byte], String] = settings.createKafkaConsumer()
+  private val partitions: mutable.Buffer[PartitionInfo]   = tmpConsumer.partitionsFor(eventsConfig.topic).asScala
   tmpConsumer.close()
 
   override def publish(event: IzanamiEvent): Future[Done] = {
@@ -128,7 +129,7 @@ class KafkaEventStore(_env: Environment,
                       patterns: Seq[String],
                       lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] = {
 
-    val kafkaConsumer: KafkaConsumer[Array[Byte], String] =
+    val kafkaConsumer: KConsumer[Array[Byte], String] =
       settings.createKafkaConsumer()
 
     val subscription: ManualSubscription = lastEventId.map { id =>

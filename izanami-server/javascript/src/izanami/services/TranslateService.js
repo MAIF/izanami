@@ -32,6 +32,20 @@ const translateObject = {
             missing: "Invalid path"
           }
         }
+      },
+      to: {
+        error: {
+            path: {
+              missing: "Date from is missing"
+            }
+        }
+      },
+      from: {
+        error: {
+            path: {
+              missing: "Date to is missing"
+            }
+        }
       }
     }
   },
