@@ -120,7 +120,7 @@ object Configs {
     ConfigFactory.parseString(s"""
          |izanami.db.default="LevelDB"
          |izanami.mode= "test"
-        |izanami.config.db.type=$${izanami.db.default}
+         |izanami.config.db.type=$${izanami.db.default}
          |izanami.features.db.type=$${izanami.db.default}
          |izanami.globalScript.db.type=$${izanami.db.default}
          |izanami.experiment.db.type=$${izanami.db.default}
@@ -131,7 +131,7 @@ object Configs {
          |izanami.apikey.db.type=$${izanami.db.default}
          |izanami.patch.db.type=$${izanami.db.default}
          |
-        |izanami {
+         |izanami {
          |  db {
          |    leveldb {
          |      parentPath = "./target/leveldb/$folder"
@@ -163,6 +163,33 @@ object Configs {
   )
 
   def folderConfig = s"data-${Random.nextInt(1000)}"
+
+  def mongoConfig(test: String): Configuration = Configuration(
+    ConfigFactory
+      .parseString(s"""
+       |izanami.db.default="Mongo"
+       |izanami.mode= "test"
+       |izanami.config.db.type=$${izanami.db.default}
+       |izanami.features.db.type=$${izanami.db.default}
+       |izanami.globalScript.db.type=$${izanami.db.default}
+       |izanami.experiment.db.type=$${izanami.db.default}
+       |izanami.variantBinding.db.type=$${izanami.db.default}
+       |izanami.experimentEvent.db.type=$${izanami.db.default}
+       |izanami.webhook.db.type=$${izanami.db.default}
+       |izanami.user.db.type=$${izanami.db.default}
+       |izanami.apikey.db.type=$${izanami.db.default}
+       |izanami.patch.db.type=$${izanami.db.default}
+       |
+       |izanami {
+       |  db {
+       |    mongo {
+       |      url = "mongodb://localhost:27017/$test-${Random.nextInt(1000)}"
+       |    }
+       |  }
+       |}
+      """.stripMargin)
+      .resolve()
+  )
 
 }
 
@@ -252,3 +279,16 @@ class LevelDBTests
       FileUtils.deleteRecursively(new File("./target/leveldb"))
     }
 }
+
+
+
+class MongoTests
+  extends Suites(
+    new ConfigControllerSpec("Mongo", Configs.mongoConfig("config")),
+    new ExperimentControllerSpec("Mongo", Configs.mongoConfig("experiment")),
+    new FeatureControllerSpec("Mongo", Configs.mongoConfig("feature")),
+    new GlobalScriptControllerSpec("Mongo", Configs.mongoConfig("script")),
+    new WebhookControllerSpec("Mongo", Configs.mongoConfig("webhook")),
+    new UserControllerSpec("Mongo", Configs.mongoConfig("user")),
+    new ApikeyControllerSpec("Mongo", Configs.mongoConfig("apikey"))
+  )
