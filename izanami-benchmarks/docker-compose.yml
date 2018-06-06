@@ -14,9 +14,33 @@ services:
       - 8080:8080
     networks:
       - bench
+    depends_on:
+      - redis
+      - elasticsearch
     environment:
       - INITIAL_APIKEY_CLIENT_ID=apikey
       - INITIAL_APIKEY_CLIENT_SECRET=123456
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ELASTIC_HOST=elasticsearch
+      - IZANAMI_DATABASE=Redis
+
+  redis:
+    image: redis:4.0.8
+    networks:
+      - bench
+    ports:
+      - 6379:6379
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.5.3
+    networks:
+      - bench
+    ports:
+      - 9210:9200
+    environment:
+      - "xpack.security.enabled=false"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 
 networks:
   bench:
