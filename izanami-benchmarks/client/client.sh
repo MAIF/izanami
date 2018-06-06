@@ -11,4 +11,4 @@ echo "Bench ..."
 wrk -R 2000 -t200 -c800 -d40s -H "Izanami-Client-Id: apikey" -H "Izanami-Client-Secret: 123456" --latency http://izanami:8080/api/features
 
 echo "Hey ..."
-hey -H "Izanami-Client-Id: apikey" -H "Izanami-Client-Secret: 123456" -n 1000 -c 400 -m GET http://localhost:8080/api/features
+hey -H "Izanami-Client-Id: apikey" -H "Izanami-Client-Secret: 123456" -n 1000 -c 400 -m GET http://izanami:8080/api/features
