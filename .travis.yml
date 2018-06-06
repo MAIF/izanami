@@ -28,7 +28,7 @@ matrix:
       - export PATH=$PATH:$HOME/.cargo/bin
       - rustup update
       - rustup default stable
-      - docker-compose -d -f docker-compose.test.yml up
+      - docker-compose -d up
       script:
       - sh ./scripts/build-javascript.sh
       - sh ./scripts/sbt-build.sh
