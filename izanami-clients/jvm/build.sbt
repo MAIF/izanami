@@ -1,7 +1,7 @@
 import sbt.Keys.{organization, scalacOptions}
 import sbtrelease.ReleaseStateTransformations._
 
-val akkaVersion = "2.5.11"
+val akkaVersion = "2.5.12"
 
 val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
   Seq(RevolverPlugin)
@@ -20,12 +20,12 @@ lazy val jvm = (project in file("."))
       "com.typesafe.akka"          %% "akka-stream"             % akkaVersion,
       "com.typesafe.akka"          %% "akka-slf4j"              % akkaVersion,
       "com.typesafe.akka"          %% "akka-http"               % "10.1.0",
-      "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "0.17",
+      "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "0.19",
       "io.vavr"                    % "vavr"                     % "0.9.2",
       "org.reactivecouchbase.json" % "json-lib"                 % "1.0.0",
       "com.google.guava"           % "guava"                    % "22.0",
-      "com.typesafe.play"          %% "play-json"               % "2.6.8",
-      "com.chuusai"                %% "shapeless"               % "2.3.2",
+      "com.typesafe.play"          %% "play-json"               % "2.6.9",
+      "com.chuusai"                %% "shapeless"               % "2.3.3",
       "com.adelegue"               %% "playjson-extended"       % "0.0.4",
       "junit"                      % "junit"                    % "4.12" % Test,
       "org.assertj"                % "assertj-core"             % "3.5.2" % Test,

@@ -22,9 +22,9 @@ resolvers ++= Seq(
 libraryDependencies ++= Seq(
   ws,
   "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
-  "com.auth0"                % "java-jwt"                       % "3.1.0", // MIT license
-  "org.gnieh"                %% "diffson-play-json"             % "2.2.4", //
-  "com.softwaremill.macwire" %% "macros"                        % "2.3.0" % "provided", // Apache 2.0
+  "com.auth0"                % "java-jwt"                       % "3.3.0", // MIT license
+  "org.gnieh"                %% "diffson-play-json"             % "3.0.0", //
+  "com.softwaremill.macwire" %% "macros"                        % "2.3.1" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                   % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor-typed"              % akkaVersion, // Apache 2.0
@@ -36,14 +36,14 @@ libraryDependencies ++= Seq(
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.13.0-play26",
   "com.github.etaty"         %% "rediscala"                     % "1.8.0", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
-  "org.typelevel"            %% "cats-core"                     % "1.0.1", // MIT license
+  "org.typelevel"            %% "cats-core"                     % "1.1.0", // MIT license
   "com.chuusai"              %% "shapeless"                     % "2.3.2", // Apache 2.0
   "com.adelegue"             %% "playjson-extended"             % "0.0.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
-  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.17", // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.18", // Apache 2.0
+  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.19", // Apache 2.0
+  "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.20", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"            % "0.0.11", // Apache 2.0
-  "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.3.0", // Apache 2.0
+  "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.0", // Apache 2.0
   "com.typesafe.akka"        %% "akka-http"                     % "10.0.6" % Test, // Apache 2.0
   "de.heikoseeberger"        %% "akka-http-play-json"           % "1.16.0" % Test, // Apache 2.0
   "org.scalatestplus.play"   %% "scalatestplus-play"            % "3.1.1" % Test, // Apache 2.0
