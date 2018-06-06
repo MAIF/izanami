@@ -1,0 +1,27 @@
+version: '3'
+services:
+
+  client:
+    build: ./client
+    networks:
+      - bench
+    depends_on:
+      - izanami
+
+  izanami:
+    image: maif/izanami
+    ports:
+      - 8080:8080
+    networks:
+      - bench
+    environment:
+      - INITIAL_APIKEY_CLIENT_ID=apikey
+      - INITIAL_APIKEY_CLIENT_SECRET=123456
+
+networks:
+  bench:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.238.0/24
