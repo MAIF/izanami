@@ -108,7 +108,7 @@ class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMong
       .flatMap { db =>
         db.collection[JSONCollection](collName)
           .findAndUpdate(
-            Json.obj("id" -> id),
+            Json.obj("id"   -> id),
             Json.obj("$inc" -> Json.obj("value" -> 1)),
             upsert = true,
             fetchNewObject = true
