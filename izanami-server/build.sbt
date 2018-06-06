@@ -11,9 +11,9 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.6"
 
-val akkaVersion = "2.5.11"
+val akkaVersion = "2.5.12"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo
