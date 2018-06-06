@@ -130,9 +130,6 @@ export class LoggedApp extends Component {
           </div>
 
           <div className="container-fluid">
-          {
-            userManagementEnabled &&
-            [
             <ul key="admin-menu" className="nav navbar-nav navbar-right">
               <li className="dropdown userManagement">
                 <a
@@ -146,20 +143,21 @@ export class LoggedApp extends Component {
                   <i className="fa fa-cog fa-2" aria-hidden="true"/>
                 </a>
                 <ul className="dropdown-menu">
-                  <li>
-                    <Link to="/users" className="" style={{cursor: 'pointer'}}>Users management</Link>
-                  </li>
-                  <li>
-                    <Link to="/apikeys" className="" style={{cursor: 'pointer'}}>Api Keys management</Link>
-                  </li>
+                  {userManagementEnabled && [
+                    <li>
+                      <Link to="/users" className="" style={{cursor: 'pointer'}}>Users management</Link>
+                    </li>,
+                    <li>
+                      <Link to="/apikeys" className="" style={{cursor: 'pointer'}}>Api Keys management</Link>
+                    </li>
+                    ]
+                  }
                   <li><a
                     href={this.props.logout} className="link-logout">{this.props.user ? this.props.user.email : ''}&nbsp;
                     <span className="glyphicon glyphicon-off"/></a></li>
                 </ul>
               </li>
-            </ul>,
-            ]
-          }
+            </ul>
           {changeme &&
           <a
             data-toggle="popover"
