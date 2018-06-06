@@ -164,7 +164,7 @@ object Configs {
 
   def folderConfig = s"data-${Random.nextInt(1000)}"
 
-  def mongoConfig: Configuration = Configuration(
+  def mongoConfig(test: String): Configuration = Configuration(
     ConfigFactory
       .parseString(s"""
        |izanami.db.default="Mongo"
@@ -183,7 +183,7 @@ object Configs {
        |izanami {
        |  db {
        |    mongo {
-       |      url = "mongodb://localhost:27017/test-${Random.nextInt(1000)}"
+       |      url = "mongodb://localhost:27017/$test-${Random.nextInt(1000)}"
        |    }
        |  }
        |}
@@ -284,11 +284,11 @@ class LevelDBTests
 
 class MongoTests
   extends Suites(
-    new ConfigControllerSpec("Mongo", Configs.mongoConfig),
-    new ExperimentControllerSpec("Mongo", Configs.mongoConfig),
-    new FeatureControllerSpec("Mongo", Configs.mongoConfig),
-    new GlobalScriptControllerSpec("Mongo", Configs.mongoConfig),
-    new WebhookControllerSpec("Mongo", Configs.mongoConfig),
-    new UserControllerSpec("Mongo", Configs.mongoConfig),
-    new ApikeyControllerSpec("Mongo", Configs.mongoConfig)
+    new ConfigControllerSpec("Mongo", Configs.mongoConfig("config")),
+    new ExperimentControllerSpec("Mongo", Configs.mongoConfig("experiment")),
+    new FeatureControllerSpec("Mongo", Configs.mongoConfig("feature")),
+    new GlobalScriptControllerSpec("Mongo", Configs.mongoConfig("script")),
+    new WebhookControllerSpec("Mongo", Configs.mongoConfig("webhook")),
+    new UserControllerSpec("Mongo", Configs.mongoConfig("user")),
+    new ApikeyControllerSpec("Mongo", Configs.mongoConfig("apikey"))
   )

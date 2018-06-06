@@ -98,22 +98,24 @@ class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMong
 
   private def getWon(experimentId: String, variantId: String): Future[Long] =
     getCounter(wonCollectionName, experimentId, variantId)
+
   private def getDisplayed(experimentId: String, variantId: String): Future[Long] =
     getCounter(displayedCollectionName, experimentId, variantId)
 
   private def incrAndGet(collName: String, experimentId: String, variantId: String): Future[Long] = {
     val id = s"$experimentId.$variantId"
     mongoApi.database
-      .flatMap(
-        _.collection[JSONCollection](collName)
+      .flatMap { db =>
+        db.collection[JSONCollection](collName)
           .findAndUpdate(
-            Json.obj("id"   -> id),
+            Json.obj("id" -> id),
             Json.obj("$inc" -> Json.obj("value" -> 1)),
-            upsert = true
+            upsert = true,
+            fetchNewObject = true
           )
           .map(_.result[Counter])
-          .map(_.map(_.value).getOrElse(0))
-      )
+          .map(_.map(_.value).getOrElse(0L))
+      }
   }
 
   private def incrAndGetDisplayed(experimentId: String, variantId: String): Future[Long] =
@@ -132,7 +134,7 @@ class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMong
           transformation = if (displayed != 0) (won * 100.0) / displayed
           else 0.0
           toSave = e.copy(transformation = transformation)
-          result <- upsert(id, toSave) // add event
+          result <- insert(id, toSave) // add event
         } yield result
       case e: ExperimentVariantWon =>
         for {
@@ -141,18 +143,18 @@ class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMong
           transformation = if (displayed != 0) (won * 100.0) / displayed
           else 0.0
           toSave = e.copy(transformation = transformation)
-          result <- upsert(id, toSave) // add event
+          result <- insert(id, toSave) // add event
         } yield result
     }
     res.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
   }
 
-  private def upsert(id: ExperimentVariantEventKey,
+  private def insert(id: ExperimentVariantEventKey,
                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
     mongoApi.database
       .flatMap(
         _.collection[JSONCollection](collectionName)
-          .update(Json.obj("id" -> id.key.key), ExperimentVariantEventDocument(id, id.experimentId, id.variantId, data))
+          .insert(ExperimentVariantEventDocument(id, id.experimentId, id.variantId, data))
       )
       .map(_ => Result.ok(data))
 
