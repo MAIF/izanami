@@ -25,6 +25,8 @@ import play.api.libs.json.JsValue
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
+import play.modules.reactivemongo.{DefaultReactiveMongoApi, ReactiveMongoApi}
+import reactivemongo.api.MongoConnection
 import redis.RedisClientMasterSlaves
 import router.Routes
 import store.JsonDataStore
@@ -32,6 +34,7 @@ import store.cassandra.{CassandraClient, CassandraJsonDataStore}
 import store.elastic.{ElasticClient, ElasticJsonDataStore}
 import store.leveldb.LevelDBJsonDataStore
 import store.memory.InMemoryJsonDataStore
+import store.mongo.MongoJsonDataStore
 import store.redis.{RedisClient, RedisJsonDataStore}
 
 class IzanamiLoader extends ApplicationLoader {
@@ -79,6 +82,21 @@ package object modules {
     lazy val elasticClient: Option[Elastic[JsValue]] =
       izanamiConfig.db.elastic.map(c => ElasticClient(c, actorSystem))
 
+    lazy val mongoApi: Option[ReactiveMongoApi] = izanamiConfig.db.mongo.map { c =>
+      val name      = c.name.getOrElse("default")
+      val parsedUri = MongoConnection.parseURI(c.url).get
+      val dbName    = parsedUri.db.orElse(c.database).getOrElse("default")
+      Logger.info(s"Creating mongo api driver with name:$name, dbName:$dbName, uri:$parsedUri")
+      new DefaultReactiveMongoApi(
+        name,
+        parsedUri,
+        dbName,
+        false,
+        configuration,
+        applicationLifecycle
+      )
+    }
+
     /* Event store */
     // format: off
     lazy val eventStore: EventStore = izanamiConfig.events match {
@@ -95,11 +113,12 @@ package object modules {
       val conf = izanamiConfig.globalScript.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => GlobalScriptStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
-        case DbType.redis     => GlobalScriptStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.levelDB   => GlobalScriptStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
-        case DbType.cassandra => GlobalScriptStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.elastic   => GlobalScriptStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case InMemory  => GlobalScriptStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
+        case Redis     => GlobalScriptStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
+        case LevelDB   => GlobalScriptStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
+        case Cassandra => GlobalScriptStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
+        case Elastic   => GlobalScriptStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case Mongo     => GlobalScriptStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, actorSystem)
       }
       // format: on
     }
@@ -112,11 +131,12 @@ package object modules {
       val conf = izanamiConfig.config.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => ConfigStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
-        case DbType.redis     => ConfigStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.levelDB   => ConfigStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
-        case DbType.cassandra => ConfigStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.elastic   => ConfigStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case InMemory  => ConfigStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
+        case Redis     => ConfigStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
+        case LevelDB   => ConfigStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
+        case Cassandra => ConfigStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
+        case Elastic   => ConfigStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case Mongo     => ConfigStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, actorSystem)
       }
       // format: on
     }
@@ -128,11 +148,12 @@ package object modules {
       val conf = izanamiConfig.features.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => FeatureStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
-        case DbType.redis     => FeatureStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.levelDB   => FeatureStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
-        case DbType.cassandra => FeatureStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.elastic   => FeatureStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case InMemory  => FeatureStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
+        case Redis     => FeatureStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
+        case LevelDB   => FeatureStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
+        case Cassandra => FeatureStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
+        case Elastic   => FeatureStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case Mongo     => FeatureStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, actorSystem)
       }
       // format: on
     }
@@ -144,11 +165,12 @@ package object modules {
       val conf = izanamiConfig.experiment.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => ExperimentStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
-        case DbType.redis     => ExperimentStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.levelDB   => ExperimentStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
-        case DbType.cassandra => ExperimentStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.elastic   => ExperimentStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case InMemory  => ExperimentStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
+        case Redis     => ExperimentStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
+        case LevelDB   => ExperimentStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
+        case Cassandra => ExperimentStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
+        case Elastic   => ExperimentStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case Mongo     => ExperimentStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, actorSystem)
       }
       // format: on
     }
@@ -158,11 +180,12 @@ package object modules {
 
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => VariantBindingStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
-        case DbType.redis     => VariantBindingStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.levelDB   => VariantBindingStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
-        case DbType.cassandra => VariantBindingStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.elastic   => VariantBindingStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case InMemory  => VariantBindingStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
+        case Redis     => VariantBindingStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
+        case LevelDB   => VariantBindingStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
+        case Cassandra => VariantBindingStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
+        case Elastic   => VariantBindingStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case Mongo     => VariantBindingStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, actorSystem)
       }
       // format: on
     }
@@ -171,11 +194,12 @@ package object modules {
       val conf = izanamiConfig.experimentEvent.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => ExperimentVariantEventInMemoryStore(conf, actorSystem)
-        case DbType.redis     => ExperimentVariantEventRedisStore(redisClient, eventStore, actorSystem)
-        case DbType.levelDB   => ExperimentVariantEventLevelDBStore(izanamiConfig.db.leveldb.get, conf, eventStore, actorSystem, applicationLifecycle)
-        case DbType.cassandra => ExperimentVariantEventCassandreStore(cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore, actorSystem)
-        case DbType.elastic   => ExperimentVariantEventElasticStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore, actorSystem)
+        case InMemory  => ExperimentVariantEventInMemoryStore(conf, actorSystem)
+        case Redis     => ExperimentVariantEventRedisStore(redisClient, eventStore, actorSystem)
+        case LevelDB   => ExperimentVariantEventLevelDBStore(izanamiConfig.db.leveldb.get, conf, eventStore, actorSystem, applicationLifecycle)
+        case Cassandra => ExperimentVariantEventCassandreStore(cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore, actorSystem)
+        case Elastic   => ExperimentVariantEventElasticStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore, actorSystem)
+        case Mongo    =>  ExperimentVariantEventMongoStore(conf, mongoApi.get, eventStore, actorSystem)
       }
       // format: on
     }
@@ -188,11 +212,12 @@ package object modules {
       val conf = izanamiConfig.webhook.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => WebhookStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
-        case DbType.redis     => WebhookStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
-        case DbType.levelDB   => WebhookStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
-        case DbType.cassandra => WebhookStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
-        case DbType.elastic   => WebhookStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
+        case InMemory  => WebhookStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
+        case Redis     => WebhookStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
+        case LevelDB   => WebhookStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
+        case Cassandra => WebhookStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
+        case Elastic   => WebhookStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
+        case Mongo     => WebhookStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, conf, izanamiConfig.webhook, wsClient, actorSystem)
       }
       // format: on
     }
@@ -204,11 +229,12 @@ package object modules {
       val conf = izanamiConfig.user.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => UserStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
-        case DbType.redis     => UserStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.levelDB   => UserStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
-        case DbType.cassandra => UserStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.elastic   => UserStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case InMemory  => UserStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
+        case Redis     => UserStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
+        case LevelDB   => UserStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
+        case Cassandra => UserStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
+        case Elastic   => UserStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case Mongo     => UserStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, actorSystem)
       }
       // format: on
     }
@@ -220,11 +246,12 @@ package object modules {
       val conf = izanamiConfig.apikey.db
       // format: off
       conf.`type` match {
-        case DbType.inMemory  => ApikeyStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
-        case DbType.redis     => ApikeyStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.levelDB   => ApikeyStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
-        case DbType.cassandra => ApikeyStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
-        case DbType.elastic   => ApikeyStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case InMemory  => ApikeyStore(InMemoryJsonDataStore(conf, actorSystem), eventStore, actorSystem)
+        case Redis     => ApikeyStore(RedisJsonDataStore(redisClient.get, conf, actorSystem), eventStore, actorSystem)
+        case LevelDB   => ApikeyStore(LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle), eventStore, actorSystem)
+        case Cassandra => ApikeyStore(CassandraJsonDataStore(cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem), eventStore, actorSystem)
+        case Elastic   => ApikeyStore(ElasticJsonDataStore(elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem), eventStore, actorSystem)
+        case Mongo     => ApikeyStore(MongoJsonDataStore(mongoApi.get,conf, actorSystem), eventStore, actorSystem)
       }
       // format: on
     }
@@ -237,11 +264,12 @@ package object modules {
       val conf: DbDomainConfig = izanamiConfig.patch.db
       // format: off
       lazy val jsonStore: Option[JsonDataStore] = conf.`type` match {
-        case DbType.inMemory  => None
-        case DbType.redis     => redisClient.map(c => RedisJsonDataStore(c, conf, actorSystem))
-        case DbType.levelDB   => izanamiConfig.db.leveldb.map(leveldb => LevelDBJsonDataStore(leveldb, conf, actorSystem, applicationLifecycle))
-        case DbType.cassandra => cassandraClient.map(cClient => CassandraJsonDataStore(cClient._2, izanamiConfig.db.cassandra.get, conf, actorSystem))
-        case DbType.elastic   => elasticClient.map(es => ElasticJsonDataStore(es, izanamiConfig.db.elastic.get, conf, actorSystem))
+        case InMemory  => None
+        case Redis     => redisClient.map(c => RedisJsonDataStore(c, conf, actorSystem))
+        case LevelDB   => izanamiConfig.db.leveldb.map(leveldb => LevelDBJsonDataStore(leveldb, conf, actorSystem, applicationLifecycle))
+        case Cassandra => cassandraClient.map(cClient => CassandraJsonDataStore(cClient._2, izanamiConfig.db.cassandra.get, conf, actorSystem))
+        case Elastic   => elasticClient.map(es => ElasticJsonDataStore(es, izanamiConfig.db.elastic.get, conf, actorSystem))
+        case Mongo     =>  mongoApi.map(mongo => MongoJsonDataStore(mongo, conf, actorSystem))
       }
       // format: on
 
