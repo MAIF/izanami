@@ -9,6 +9,14 @@ import 'antd/lib/date-picker/style/index.css';
 import '../style/datepicker.css';
 
 export class IzaDateRangePicker extends Component {
+
+    componentDidMount() {
+        const { from, to, updateDateRange } = this.props;
+        if (from && to && updateDateRange) {
+            updateDateRange(from, to);
+        }
+    }
+    
     onChange = (value, dateString) => {
         const from = value[0];
         const to = value[1];
