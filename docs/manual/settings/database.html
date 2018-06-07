@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.5*
+1.0.6*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -117,7 +117,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.5*
+1.0.6*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -204,6 +204,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../settings/database.html#redis" class="header">Redis</a></li>
     <li><a href="../settings/database.html#cassandra" class="header">Cassandra</a></li>
     <li><a href="../settings/database.html#elasticsearch" class="header">Elasticsearch</a></li>
+    <li><a href="../settings/database.html#mongo" class="header">Mongo</a></li>
     <li><a href="../settings/database.html#mix-databases" class="header">Mix Databases</a></li>
   </ul></li>
   <li><a href="../settings/database.html#event-stores" class="header">Event stores</a>
@@ -302,6 +303,19 @@ export ELASTIC_HOST=localhost
 export ELASTIC_PORT=9200
 export ELASTIC_USER=xxxx
 export ELASTIC_PASSWORD=xxxx
+
+bin/izanami 
+</code></pre>
+<p>Other settings are available, consult the <a href="settings.html">settings</a> page. </p>
+<h3><a href="#mongo" name="mongo" class="anchor"><span class="anchor-link"></span></a>Mongo</h3>
+<p>To run Izanami with elasticsearch : </p>
+<pre class="prettyprint"><code class="language-bash">bin/izanami \ 
+    -Dizanami.db.default=Mongo \
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami
+</code></pre>
+<p>Or </p>
+<pre class="prettyprint"><code class="language-bash">export IZANAMI_DATABASE=Mongo
+export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami 
 
 bin/izanami 
 </code></pre>

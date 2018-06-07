@@ -152,6 +152,29 @@ bin/izanami
 
 Other settings are available, consult the @ref[settings](settings.md) page. 
 
+### Mongo 
+
+
+To run Izanami with elasticsearch : 
+
+```bash
+bin/izanami \ 
+    -Dizanami.db.default=Mongo \
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami
+```
+
+Or 
+
+```bash
+export IZANAMI_DATABASE=Mongo
+export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami 
+
+bin/izanami 
+```
+
+Other settings are available, consult the @ref[settings](settings.md) page. 
+
+
 ### Mix Databases 
 
 If you want to use 2 or more databases you need to provide
