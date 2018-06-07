@@ -150,11 +150,11 @@ export class FeaturesPage extends Component {
           case "NO_STRATEGY":
             return  <span>{`No strategy`}</span>;
           case "RELEASE_DATE":
-            return <span><i className="fa fa-calendar" aria-hidden="true"/>{` released on ${params.releaseDate}`}</span>;
+            return <span><time datetime="2014-09-20" className="icon" title={`${params.releaseDate}`}><span>20</span><span>Sept.</span><span>2018</span></time>{` released on ${params.releaseDate}`}</span>;
           case "DATE_RANGE":
             return (
                 <span data-toggle="tooltip" data-placement="top" title={`${params.from} to ${params.to}`}>
-                    <i className="fa fa-calendar" aria-hidden="true"/>{` from ${moment(params.from).format('YYYY-MM-DD')} to ${moment(params.to).format('YYYY-MM-DD')}`}
+                    ` from ${moment(params.from).format('YYYY-MM-DD')} to ${moment(params.to).format('YYYY-MM-DD')}`}
                 </span>
             );
           case "GLOBAL_SCRIPT":
