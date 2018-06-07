@@ -154,7 +154,7 @@ export class FeaturesPage extends Component {
           case "DATE_RANGE":
             return (
                 <span data-toggle="tooltip" data-placement="top" title={`${params.from} to ${params.to}`}>
-                    ` from ${moment(params.from).format('YYYY-MM-DD')} to ${moment(params.to).format('YYYY-MM-DD')}`}
+                    {` from ${moment(params.from).format('YYYY-MM-DD')} to ${moment(params.to).format('YYYY-MM-DD')}`}
                 </span>
             );
           case "GLOBAL_SCRIPT":
