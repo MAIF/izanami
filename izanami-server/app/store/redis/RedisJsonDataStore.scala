@@ -138,7 +138,7 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
   override def getByIdLike(patterns: Seq[String]) = SourceFindResult(
     findKeys(patterns)
       .grouped(50)
-      .mapAsync(4)(getByIds)
+      .mapAsyncUnordered(50)(getByIds)
       .mapConcat(_.toList)
   )
 
@@ -149,7 +149,7 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
         .drop(position)
         .take(nbElementPerPage)
         .grouped(nbElementPerPage)
-        .mapAsync(4)(getByIds)
+        .mapAsyncUnordered(nbElementPerPage)(getByIds)
         .fold(Seq.empty[JsValue])(_ ++ _)
     } runWith Sink.head map {
       case (results, count) =>
