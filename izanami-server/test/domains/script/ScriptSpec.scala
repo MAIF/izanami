@@ -66,19 +66,19 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     "/",
     "/",
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
-    DbConfig("", None, None, None, None, None, None),
+    DbConfig("", None, None, None, None, None, None, None),
     LogoutConfig(""),
-    ConfigConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    FeaturesConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    GlobalScriptConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    ExperimentConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    VariantBindingConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    ExperimentEventConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    WebhookConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")), WebhookEventsConfig(5, 1.second, 1, 1.second)),
-    UserConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")), InitialUserConfig("", "")),
-    ApikeyConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")), InitializeApiKey(None, None, "*")),
+    ConfigConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None))),
+    FeaturesConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None))),
+    GlobalScriptConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None))),
+    ExperimentConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None))),
+    VariantBindingConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None))),
+    ExperimentEventConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None))),
+    WebhookConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None)), WebhookEventsConfig(5, 1.second, 1, 1.second)),
+    UserConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None)), InitialUserConfig("", "")),
+    ApikeyConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None)), InitializeApiKey(None, None, "*")),
     InMemoryEvents(InMemoryEventsConfig()),
-    PatchConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")))
+    PatchConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("", None)))
   )
 
   "Script" must {
