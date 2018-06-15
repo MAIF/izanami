@@ -125,8 +125,7 @@ class ApikeyController(env: Env,
   def download(): Action[AnyContent] = AuthAction { ctx =>
     val source = apikeyStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
-      .map(data => Json.toJson(data))
+      .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)

@@ -59,9 +59,9 @@ class ConfigController(env: Env,
       val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
       configStore
         .getByIdLike(patternsSeq)
-        .stream
-        .map { config =>
-          config.id.jsPath.write[JsValue].writes(config.value)
+        .map {
+          case (_, config) =>
+            config.id.jsPath.write[JsValue].writes(config.value)
         }
         .fold(Json.obj()) { (acc, js) =>
           acc.deepMerge(js.as[JsObject])
@@ -143,8 +143,7 @@ class ConfigController(env: Env,
   def download(): Action[AnyContent] = AuthAction { ctx =>
     val source = configStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
-      .map(data => Json.toJson(data))
+      .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)

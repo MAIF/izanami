@@ -1,14 +1,16 @@
 package domains.user
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.Source
 import com.auth0.jwt.interfaces.DecodedJWT
 import domains.events.EventStore
 import domains.user.UserStore.UserKey
 import domains.{AuthInfo, AuthorizedPattern, Key}
 import libs.crypto.Sha
 import play.api.libs.json.JsObject
+import store.SourceUtils.SourceKV
 import store._
 
 import scala.concurrent.Future
@@ -164,8 +166,8 @@ class UserStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: Ac
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[User] =
-    JsonFindResult[User](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, User), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[User]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

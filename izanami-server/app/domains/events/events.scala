@@ -100,10 +100,11 @@ object Events {
         } yield ConfigDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "CONFIGS_DELETED" =>
         for {
-          _id   <- (o \ "_id").validate[Long]
-          ts    <- (o \ "timestamp").validate[LocalDateTime]
-          count <- (o \ "payload").validate[Long]
-        } yield ConfigsDeleted(count, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          count    <- (o \ "payload" \ "count").validate[Long]
+          patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
+        } yield ConfigsDeleted(count, patterns, _id, ts)
       //FEATURES
       case o: JsObject if (o \ "type").as[String] == "FEATURE_CREATED" =>
         for {
@@ -129,10 +130,11 @@ object Events {
         } yield FeatureDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "FEATURES_DELETED" =>
         for {
-          _id   <- (o \ "_id").validate[Long]
-          ts    <- (o \ "timestamp").validate[LocalDateTime]
-          count <- (o \ "payload").validate[Long]
-        } yield FeaturesDeleted(count, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          count    <- (o \ "payload" \ "count").validate[Long]
+          patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
+        } yield FeaturesDeleted(count, patterns, _id, ts)
       //SCRIPTS
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPT_CREATED" =>
         for {
@@ -158,10 +160,11 @@ object Events {
         } yield GlobalScriptDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPTS_DELETED" =>
         for {
-          _id   <- (o \ "_id").validate[Long]
-          ts    <- (o \ "timestamp").validate[LocalDateTime]
-          count <- (o \ "payload").validate[Long]
-        } yield GlobalScriptsDeleted(count, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          count    <- (o \ "payload" \ "count").validate[Long]
+          patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
+        } yield GlobalScriptsDeleted(count, patterns, _id, ts)
       //USER
       case o: JsObject if (o \ "type").as[String] == "USER_CREATED" =>
         for {
@@ -187,10 +190,11 @@ object Events {
         } yield UserDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "USERS_DELETED" =>
         for {
-          _id   <- (o \ "_id").validate[Long]
-          ts    <- (o \ "timestamp").validate[LocalDateTime]
-          count <- (o \ "payload").validate[Long]
-        } yield UsersDeleted(count)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          count    <- (o \ "payload" \ "count").validate[Long]
+          patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
+        } yield UsersDeleted(count, patterns)
       //WEBHOOK
       case o: JsObject if (o \ "type").as[String] == "WEBHOOK_CREATED" =>
         for {
@@ -216,10 +220,11 @@ object Events {
         } yield WebhookDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "WEBHOOKS_DELETED" =>
         for {
-          _id   <- (o \ "_id").validate[Long]
-          ts    <- (o \ "timestamp").validate[LocalDateTime]
-          count <- (o \ "payload").validate[Long]
-        } yield WebhooksDeleted(count, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          count    <- (o \ "payload" \ "count").validate[Long]
+          patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
+        } yield WebhooksDeleted(count, patterns, _id, ts)
       //APIKEY
       case o: JsObject if (o \ "type").as[String] == "APIKEY_CREATED" =>
         for {
@@ -245,10 +250,11 @@ object Events {
         } yield ApikeyDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "APIKEYS_DELETED" =>
         for {
-          _id   <- (o \ "_id").validate[Long]
-          ts    <- (o \ "timestamp").validate[LocalDateTime]
-          count <- (o \ "payload").validate[Long]
-        } yield ApikeysDeleted(count, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          count    <- (o \ "payload" \ "count").validate[Long]
+          patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
+        } yield ApikeysDeleted(count, patterns, _id, ts)
       //EXPERIMENT
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_CREATED" =>
         for {
@@ -274,10 +280,11 @@ object Events {
         } yield ExperimentDeleted(key, payload, _id, ts)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENTS_DELETED" =>
         for {
-          _id   <- (o \ "_id").validate[Long]
-          ts    <- (o \ "timestamp").validate[LocalDateTime]
-          count <- (o \ "payload").validate[Long]
-        } yield ExperimentsDeleted(count, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          count    <- (o \ "payload" \ "count").validate[Long]
+          patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
+        } yield ExperimentsDeleted(count, patterns, _id, ts)
       //VARIANT BINDING
       case o: JsObject if (o \ "type").as[String] == "VARIANT_BINDING_CREATED" =>
         for {
@@ -345,11 +352,14 @@ object Events {
     val `type`: String   = "CONFIG_DELETED"
     val payload: JsValue = Json.toJson(config)
   }
-  case class ConfigsDeleted(_id: Long = gen.nextId(), count: Long, timestamp: LocalDateTime = LocalDateTime.now())
+  case class ConfigsDeleted(_id: Long = gen.nextId(),
+                            patterns: Seq[String],
+                            count: Long,
+                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ConfigEvent {
     val `type`: String   = "CONFIGS_DELETED"
     val key: ConfigKey   = Key.Empty
-    val payload: JsValue = JsNumber(count)
+    val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
   }
 
   object ConfigEvent {
@@ -391,11 +401,14 @@ object Events {
     val `type`: String   = "FEATURE_DELETED"
     val payload: JsValue = Json.toJson(feature)
   }
-  case class FeaturesDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
+  case class FeaturesDeleted(count: Long,
+                             patterns: Seq[String],
+                             _id: Long = gen.nextId(),
+                             timestamp: LocalDateTime = LocalDateTime.now())
       extends FeatureEvent {
     val key: FeatureKey  = Key.Empty
     val `type`: String   = "FEATURES_DELETED"
-    val payload: JsValue = JsNumber(count)
+    val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
   }
 
   object FeatureEvent {
@@ -436,11 +449,14 @@ object Events {
     val `type`: String   = "GLOBALSCRIPT_DELETED"
     val payload: JsValue = Json.toJson(globalScript)
   }
-  case class GlobalScriptsDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
+  case class GlobalScriptsDeleted(count: Long,
+                                  patterns: Seq[String],
+                                  _id: Long = gen.nextId(),
+                                  timestamp: LocalDateTime = LocalDateTime.now())
       extends GlobalScriptEvent {
     val key              = Key.Empty
     val `type`: String   = "GLOBALSCRIPTS_DELETED"
-    val payload: JsValue = JsNumber(count)
+    val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
   }
 
   /////////////////////////////////////// USER ////////////////////////////////////////
@@ -479,11 +495,14 @@ object Events {
     val payload: JsValue = Json.toJson(user)
   }
 
-  case class UsersDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
+  case class UsersDeleted(count: Long,
+                          patterns: Seq[String],
+                          _id: Long = gen.nextId(),
+                          timestamp: LocalDateTime = LocalDateTime.now())
       extends UserEvent {
     val `type`: String   = "USERS_DELETED"
     val key: UserKey     = Key.Empty
-    val payload: JsValue = JsNumber(count)
+    val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
   }
 
   object UserEvent {
@@ -524,11 +543,14 @@ object Events {
     val `type`: String   = "WEBHOOK_DELETED"
     val payload: JsValue = Json.toJson(webhook)
   }
-  case class WebhooksDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
+  case class WebhooksDeleted(count: Long,
+                             patterns: Seq[String],
+                             _id: Long = gen.nextId(),
+                             timestamp: LocalDateTime = LocalDateTime.now())
       extends WebhookEvent {
     val key              = Key.Empty
     val `type`: String   = "WEBHOOKS_DELETED"
-    val payload: JsValue = JsNumber(count)
+    val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
   }
 
   /////////////////////////////////////// APIKEYS ////////////////////////////////////////
@@ -572,11 +594,14 @@ object Events {
     val payload: JsValue = Json.toJson(apikey)
   }
 
-  case class ApikeysDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
+  case class ApikeysDeleted(count: Long,
+                            patterns: Seq[String],
+                            _id: Long = gen.nextId(),
+                            timestamp: LocalDateTime = LocalDateTime.now())
       extends ApikeyEvent {
     val `type`: String   = "APIKEYS_DELETED"
     val key: ApikeyKey   = Key.Empty
-    val payload: JsValue = JsNumber(count)
+    val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
   }
 
   /////////////////////////////////////// EXPERIMENTS ////////////////////////////////////////
@@ -614,10 +639,13 @@ object Events {
     val payload: JsValue = Json.toJson(experiment)
   }
 
-  case class ExperimentsDeleted(count: Long, _id: Long = gen.nextId(), timestamp: LocalDateTime = LocalDateTime.now())
+  case class ExperimentsDeleted(count: Long,
+                                patterns: Seq[String],
+                                _id: Long = gen.nextId(),
+                                timestamp: LocalDateTime = LocalDateTime.now())
       extends ExperimentEvent {
     val `type`: String     = "EXPERIMENTS_DELETED"
-    val payload: JsValue   = JsNumber(count)
+    val payload: JsValue   = Json.obj("count" -> count, "patterns" -> patterns)
     val key: ExperimentKey = Key.Empty
   }
 

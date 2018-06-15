@@ -66,7 +66,7 @@ class ExperimentController(env: Env,
 
       experimentStore
         .getByIdLike(patternsSeq)
-        .stream
+        .map(_._2)
         .via(Experiment.toGraph(clientId))
         .map { graph =>
           Ok(graph)
@@ -146,7 +146,7 @@ class ExperimentController(env: Env,
 
     val experimentsRelationsDeletes = experimentStore
       .getByIdLike(patternsSeq)
-      .stream
+      .map(_._2)
       .flatMapMerge(
         4, { experiment =>
           Source
@@ -264,7 +264,7 @@ class ExperimentController(env: Env,
   def downloadExperiments(): Action[AnyContent] = AuthAction { ctx =>
     val source = experimentStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
+      .map(_._2)
       .map(data => Json.toJson(data))
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
@@ -305,8 +305,7 @@ class ExperimentController(env: Env,
   def downloadBindings(): Action[AnyContent] = AuthAction { ctx =>
     val source = variantBindingStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
-      .map(data => Json.toJson(data))
+      .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)

@@ -1,11 +1,13 @@
 package domains.config
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.Source
 import domains.config.ConfigStore._
 import domains.events.EventStore
 import domains.{AuthInfo, Key}
 import play.api.libs.json.{JsValue, Json}
+import store.SourceUtils.SourceKV
 import store._
 
 import scala.concurrent.Future
@@ -75,8 +77,8 @@ class ConfigStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[Config] =
-    JsonFindResult[Config](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, Config), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[Config]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

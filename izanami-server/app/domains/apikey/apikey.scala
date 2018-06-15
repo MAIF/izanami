@@ -1,11 +1,14 @@
 package domains.apikey
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.Source
 import domains.AuthorizedPattern.AuthorizedPattern
+import domains.abtesting.VariantBinding
 import domains.apikey.ApikeyStore.ApikeyKey
 import domains.events.EventStore
 import domains.{AuthInfo, AuthorizedPattern, Key}
+import store.SourceUtils.SourceKV
 import store._
 
 import scala.concurrent.Future
@@ -94,8 +97,8 @@ class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[Apikey] =
-    JsonFindResult[Apikey](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, Apikey), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[Apikey]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

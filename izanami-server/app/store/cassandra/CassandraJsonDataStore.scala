@@ -213,7 +213,8 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
     getByIdLikeRaw(patterns)
       .via(Flows.count {
-        Flow[JsValue]
+        Flow[(Key, JsValue)]
+          .map(_._2)
           .drop(nbElementPerPage * (page - 1))
           .take(nbElementPerPage)
           .fold(Seq.empty[JsValue])(_ :+ _)
@@ -224,12 +225,10 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
       }
       .runWith(Sink.head)
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[JsValue] =
-    SourceFindResult(
-      getByIdLikeRaw(patterns)
-    )
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+    getByIdLikeRaw(patterns)
 
-  private def getByIdLikeRaw(patterns: Seq[String]): Source[JsValue, NotUsed] =
+  private def getByIdLikeRaw(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     if (patterns.isEmpty || patterns.contains("")) {
       Source.empty
     } else {
@@ -241,7 +240,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
           Logger.debug(s"Running query $query with args [$namespaceFormatted]")
           val stmt = new SimpleStatement(query, namespaceFormatted)
           CassandraSource(stmt).map { rs =>
-            Json.parse(rs.getString("value"))
+            (Key(rs.getString("key")), Json.parse(rs.getString("value")))
           }
         case Left(err) =>
           Source.failed(new IllegalArgumentException("pattern.invalid"))
