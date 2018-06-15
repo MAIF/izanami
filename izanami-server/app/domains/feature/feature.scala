@@ -6,7 +6,7 @@ import java.time.{LocalDateTime, ZoneId}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import domains.events.EventStore
 import domains.feature.FeatureStore._
@@ -21,6 +21,8 @@ import store._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.hashing.MurmurHash3
 import FeatureType._
+import domains.config.Config
+import store.SourceUtils.SourceKV
 sealed trait Strategy
 
 sealed trait Feature {
@@ -427,8 +429,8 @@ class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system:
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[Feature] =
-    JsonFindResult[Feature](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, Feature), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[Feature]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

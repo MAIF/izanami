@@ -2,14 +2,14 @@ package domains.abtesting
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
 import domains.{AuthInfo, Key}
 import play.api.libs.json.{JsObject, Json}
 import store._
-
+import store.SourceUtils._
 import scala.concurrent.{ExecutionContext, Future}
 
 case class Variant(id: String,
@@ -132,8 +132,8 @@ class ExperimentStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, syst
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[Experiment] =
-    JsonFindResult[Experiment](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, Experiment), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[Experiment]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

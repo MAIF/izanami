@@ -136,7 +136,7 @@ class FeatureController(env: Env,
       case context: JsObject =>
         featureStore
           .getByIdLike(patternsSeq)
-          .stream
+          .map(_._2)
           .via(repr(context, env))
           .map(graph => Ok(graph))
           .runWith(Sink.head)
@@ -242,8 +242,7 @@ class FeatureController(env: Env,
   def download(): Action[AnyContent] = AuthAction { ctx =>
     val source = featureStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
-      .map(data => Json.toJson(data))
+      .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)

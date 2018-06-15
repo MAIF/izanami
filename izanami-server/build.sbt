@@ -10,7 +10,6 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(PlayScala, DockerPlugin)
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
-  .enablePlugins(JmhPlugin)
 
 scalaVersion := "2.12.6"
 

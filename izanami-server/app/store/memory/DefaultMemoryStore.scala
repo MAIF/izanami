@@ -1,8 +1,9 @@
 package store.memory
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.Source
 import domains.Key
 import env.DbDomainConfig
 import play.api.Logger
@@ -34,131 +35,122 @@ case class InMemoryExecutionContext(actorSystem: ActorSystem) extends ExecutionC
 }
 
 class InMemoryJsonDataStoreAsync(name: String)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
-    extends JsonDataStore {
-  private val inMemoryStore = TrieMap.empty[Key, JsValue]
+    extends BaseInMemoryJsonDataStore(name)
+    with JsonDataStore {
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    Future {
-      inMemoryStore.get(id) match {
-        case Some(_) =>
-          Result.error("error.data.exists")
-        case None =>
-          inMemoryStore + (id -> data)
-          Result.ok(data)
-      }
-    }
+    Future { createSync(id, data) }
 
   override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    Future {
-      if (inMemoryStore.contains(oldId)) {
-        inMemoryStore - oldId
-        inMemoryStore + (id -> data)
-        Result.ok(data)
-      } else {
-        Result.error("error.data.missing")
-      }
-    }
+    Future { updateSync(oldId, id, data) }
 
   override def delete(id: Key): Future[Result[JsValue]] =
-    Future {
-      inMemoryStore.remove(id) match {
-        case Some(data: JsValue) =>
-          val value: Result[JsValue] = Result.ok(data)
-          value
-        case None =>
-          Result.error("error.data.missing")
-      }
-    }
+    Future { deleteSync(id) }
 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
-    Future {
-      inMemoryStore.clear()
-      Result.ok(Done)
-    }
+    Future { deleteAllSync(patterns) }
 
   override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(Future(inMemoryStore.get(id).toList))
+    SimpleFindResult(Future(getByIdSync(id).toList))
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
     Future {
-      val position = (page - 1) * nbElementPerPage
-      val values   = find(patterns)
-      val r        = values.slice(position, position + nbElementPerPage)
-      DefaultPagingResult(r, page, nbElementPerPage, values.size)
+      getByIdLikeSync(patterns, page, nbElementPerPage)
     }
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[JsValue] =
-    SimpleFindResult(Future(find(patterns)))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+    Source(getByIdLikeSync(patterns))
 
   override def count(patterns: Seq[String]): Future[Long] =
-    Future(find(patterns).size.toLong)
-
-  private def matchPatterns(patterns: Seq[String])(key: Key) =
-    patterns.forall(r => key.matchPattern(r))
-
-  private def find(patterns: Seq[String]): List[JsValue] = {
-    val p = matchPatterns(patterns)(_)
-    inMemoryStore.collect { case (k, v) if p(k) => v }.toList
-  }
+    Future(countSync(patterns))
 }
 
-class InMemoryJsonDataStore(name: String) extends JsonDataStore {
-
-  private val inMemoryStore = TrieMap.empty[Key, JsValue]
+class InMemoryJsonDataStore(name: String) extends BaseInMemoryJsonDataStore(name) with JsonDataStore {
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    inMemoryStore.get(id) match {
-      case Some(_) =>
-        FastFuture.successful(Result.error("error.data.exists"))
-      case None =>
-        inMemoryStore + (id -> data)
-        FastFuture.successful(Result.ok(data))
-    }
+    FastFuture.successful(createSync(id, data))
 
   override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    if (inMemoryStore.contains(oldId)) {
-      inMemoryStore - oldId
-      inMemoryStore + (id -> data)
-      FastFuture.successful(Result.ok(data))
-    } else {
-      FastFuture.successful(Result.error("error.data.missing"))
-    }
+    FastFuture.successful(updateSync(oldId, id, data))
 
   override def delete(id: Key): Future[Result[JsValue]] =
+    FastFuture.successful(deleteSync(id))
+
+  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+    FastFuture.successful(deleteAllSync(patterns))
+
+  override def getById(id: Key): FindResult[JsValue] =
+    SimpleFindResult(FastFuture.successful(getByIdSync(id).toList))
+
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
+    FastFuture.successful(getByIdLikeSync(patterns, page, nbElementPerPage))
+
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+    Source(getByIdLikeSync(patterns))
+
+  override def count(patterns: Seq[String]): Future[Long] =
+    FastFuture.successful(countSync(patterns))
+}
+
+class BaseInMemoryJsonDataStore(name: String) {
+
+  protected val inMemoryStore = TrieMap.empty[Key, JsValue]
+
+  protected def createSync(id: Key, data: JsValue): Result[JsValue] =
+    inMemoryStore.get(id) match {
+      case Some(_) =>
+        Result.error("error.data.exists")
+      case None =>
+        inMemoryStore.put(id, data)
+        Result.ok(data)
+    }
+
+  protected def updateSync(oldId: Key, id: Key, data: JsValue): Result[JsValue] =
+    if (inMemoryStore.contains(oldId)) {
+      inMemoryStore.remove(oldId)
+      inMemoryStore.put(id, data)
+      Result.ok(data)
+    } else {
+      Logger.error(s"Error data missing for $oldId")
+      Result.error("error.data.missing")
+    }
+
+  protected def deleteSync(id: Key): Result[JsValue] =
     inMemoryStore.remove(id) match {
       case Some(data: JsValue) =>
         val value: Result[JsValue] = Result.ok(data)
-        FastFuture.successful(value)
+        value
       case None =>
-        FastFuture.successful(Result.error("error.data.missing"))
+        Result.error("error.data.missing")
     }
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] = {
-    inMemoryStore.clear()
-    FastFuture.successful(Result.ok(Done))
+  protected def deleteAllSync(patterns: Seq[String]): Result[Done] = {
+    val keys = find(patterns).map(_._1)
+    keys.foreach { inMemoryStore.remove }
+    Result.ok(Done)
   }
 
-  override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(FastFuture.successful(inMemoryStore.get(id).toList))
+  protected def getByIdSync(id: Key): Option[JsValue] =
+    inMemoryStore.get(id)
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] = {
+  protected def getByIdLikeSync(patterns: Seq[String], page: Int, nbElementPerPage: Int): PagingResult[JsValue] = {
     val position = (page - 1) * nbElementPerPage
     val values   = find(patterns)
-    val r        = values.slice(position, position + nbElementPerPage)
-    FastFuture.successful(DefaultPagingResult(r, page, nbElementPerPage, values.size))
+    val r        = values.slice(position, position + nbElementPerPage).map(_._2)
+    DefaultPagingResult(r, page, nbElementPerPage, values.size)
   }
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[JsValue] =
-    SimpleFindResult(FastFuture.successful(find(patterns)))
+  protected def getByIdLikeSync(patterns: Seq[String]): List[(Key, JsValue)] =
+    find(patterns)
 
-  override def count(patterns: Seq[String]): Future[Long] =
-    FastFuture.successful(find(patterns).size.toLong)
+  protected def countSync(patterns: Seq[String]): Long =
+    find(patterns).size.toLong
 
-  private def matchPatterns(patterns: Seq[String])(key: Key) =
+  protected def matchPatterns(patterns: Seq[String])(key: Key) =
     patterns.forall(r => key.matchPattern(r))
 
-  private def find(patterns: Seq[String]): List[JsValue] = {
+  protected def find(patterns: Seq[String]): List[(Key, JsValue)] = {
     val p = matchPatterns(patterns)(_)
-    inMemoryStore.collect { case (k, v) if p(k) => v }.toList
+    inMemoryStore.collect { case (k, v) if p(k) => (k, v) }.toList
   }
 }

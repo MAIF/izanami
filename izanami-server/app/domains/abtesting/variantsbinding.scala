@@ -1,7 +1,8 @@
 package domains.abtesting
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.Source
 import domains.Key
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
@@ -10,7 +11,7 @@ import store.Result.{AppErrors, ErrorMessage, Result}
 import store._
 
 import scala.concurrent.{ExecutionContext, Future}
-
+import store.SourceUtils._
 /* ************************************************************************* */
 /*                      Variant binding                                      */
 /* ************************************************************************* */
@@ -156,8 +157,10 @@ class VariantBindingStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, 
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[VariantBinding] =
-    JsonFindResult[VariantBinding](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(VariantBindingKey, VariantBinding), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[VariantBinding].map {
+      case (k, v) => (VariantBindingKey(k), v)
+    }
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

@@ -2,8 +2,9 @@ package domains.webhook
 
 import java.time.LocalDateTime
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.Source
 import domains.Domain.Domain
 import domains.events.EventStore
 import domains.events.Events.{WebhookCreated, WebhookDeleted, WebhookUpdated}
@@ -14,6 +15,7 @@ import env.{DbDomainConfig, WebhookConfig}
 import play.api.libs.json._
 import play.api.libs.ws._
 import store.Result.{ErrorMessage, Result}
+import store.SourceUtils.SourceKV
 import store._
 
 import scala.concurrent.Future
@@ -63,12 +65,11 @@ object WebhookStore {
 
   def apply(jsonStore: JsonDataStore,
             eventStore: EventStore,
-            dbConfig: DbDomainConfig,
             webHookConfig: WebhookConfig,
             wsClient: WSClient,
             actorSystem: ActorSystem): WebhookStore = {
     val webhookStore =
-      new WebhookStoreImpl(jsonStore, dbConfig, eventStore, actorSystem)
+      new WebhookStoreImpl(jsonStore, webHookConfig.db, eventStore, actorSystem)
     actorSystem.actorOf(WebHooksActor.props(wsClient, eventStore, webhookStore, webHookConfig), "webhooks")
     webhookStore
   }
@@ -119,8 +120,8 @@ class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventSt
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[Webhook] =
-    JsonFindResult[Webhook](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, Webhook), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[Webhook]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

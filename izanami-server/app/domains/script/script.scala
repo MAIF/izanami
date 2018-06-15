@@ -3,9 +3,11 @@ package domains.script
 import java.util.function.BiConsumer
 
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.{Flow, Source}
 import domains.events.EventStore
+import domains.events.Events.{GlobalScriptCreated, IzanamiEvent}
 import domains.script.GlobalScriptStore.GlobalScriptKey
 import domains.{AuthInfo, Key}
 import env.Env
@@ -13,6 +15,7 @@ import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.ws.{WSRequest, WSResponse}
 import store.Result.{ErrorMessage, Result}
+import store.SourceUtils.SourceKV
 import store._
 
 import scala.collection.mutable
@@ -163,6 +166,10 @@ object GlobalScriptStore {
   def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): GlobalScriptStore =
     new GlobalScriptStoreImpl(jsonStore, eventStore, system)
 
+  val eventAdapter = Flow[IzanamiEvent].collect {
+    case GlobalScriptCreated(key, script, _, _) =>
+  }
+
 }
 
 class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
@@ -211,8 +218,8 @@ class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, sy
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[GlobalScript] =
-    JsonFindResult[GlobalScript](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, GlobalScript), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[GlobalScript]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)
