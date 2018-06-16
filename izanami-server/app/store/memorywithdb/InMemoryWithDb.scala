@@ -17,6 +17,7 @@ import store.memory.BaseInMemoryJsonDataStore
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationDouble
+import scala.util.Success
 
 sealed trait CacheEvent
 case class Create(id: Key, data: JsValue)             extends CacheEvent
@@ -106,6 +107,7 @@ class InMemoryWithDbStore(name: String,
     extends BaseInMemoryJsonDataStore(name)
     with JsonDataStore {
 
+  import system.dispatcher
   private implicit val materializer: Materializer = ActorMaterializer()
 
   init()
@@ -146,14 +148,41 @@ class InMemoryWithDbStore(name: String,
       .runWith(Sink.ignore)
   }
 
-  override def create(id: Key, data: JsValue): Future[Result[JsValue]] = underlyingDataStore.create(id, data)
+  override def create(id: Key, data: JsValue): Future[Result[JsValue]] = {
+    val res = underlyingDataStore.create(id, data)
+    res.onComplete {
+      case Success(Right(_)) => createSync(id, data)
+      case _ =>
+    }
+    res
+  }
 
-  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    underlyingDataStore.update(oldId, id, data)
+  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] = {
+    val res = underlyingDataStore.update(oldId, id, data)
+    res.onComplete {
+      case Success(Right(_)) => updateSync(oldId, id, data)
+      case _ =>
+    }
+    res
+  }
 
-  override def delete(id: Key): Future[Result[JsValue]] = underlyingDataStore.delete(id)
+  override def delete(id: Key): Future[Result[JsValue]] = {
+    val res = underlyingDataStore.delete(id)
+    res.onComplete {
+      case Success(Right(_)) => deleteSync(id)
+      case _ =>
+    }
+    res
+  }
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] = underlyingDataStore.deleteAll(patterns)
+  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] = {
+    val res = underlyingDataStore.deleteAll(patterns)
+    res.onComplete {
+      case Success(Right(_)) => deleteAllSync(patterns)
+      case _ =>
+    }
+    res
+  }
 
   override def getById(id: Key): FindResult[JsValue] =
     SimpleFindResult(FastFuture.successful(getByIdSync(id).toList))
