@@ -25,6 +25,18 @@ export class Disabled extends Component {
   }
 }
 
+function Debug ({ isActive, path, children }) {
+  return (
+    <div className={`izanami-feature-${isActive ? 'enabled' : 'disabled'}`} title={`Feature ${path} is ${isActive ? 'enabled' : 'disabled'}`} style={{ position: 'relative', outline: '1px solid green' }}>
+      <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: isActive ? 'green' : 'grey', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
+        Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is {isActive ? 'enabled' : 'disabled'}
+      </span>
+      { children }
+    </div>
+  );
+
+}
+
 export class Feature extends Component {
 
   static contextTypes = {
@@ -87,12 +99,9 @@ export class Feature extends Component {
     if (this.props.render && isFunction(this.props.render)) {
       if (debug) {
         return (
-          <div className={`izanami-feature-${isActive ? 'enabled' : 'disabled'}`} title={`Feature ${path} is ${isActive ? 'enabled' : 'disabled'}`} style={{ position: 'relative', outline: '1px solid green' }}>
-            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
-              Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is {isActive ? 'enabled' : 'disabled'}
-            </span>
+          <Debug isActive={ isActive } path={ path }>
             {this.props.render(isActive)}
-          </div>
+          </Debug>
         );
       } else {
         return this.props.render(isActive);
@@ -102,12 +111,9 @@ export class Feature extends Component {
       if (debug) console.log(`[Features] feature '${path}' is enabled, rendering first <Enabled /> component`);
       if (debug) {
         return (
-          <div className="izanami-feature-enabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid green' }}>
-            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
-              Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is enabled
-            </span>
+          <Debug isActive={ isActive } path={ path }>
             {enabledChildren[0]}
-          </div>
+          </Debug>
         );
       }
       return enabledChildren[0];
@@ -115,12 +121,9 @@ export class Feature extends Component {
       if (debug) console.log(`[Features] feature '${path}' is disabled, rendering first <Disabled /> component`);
       if (debug) {
         return (
-          <div className="izanami-feature-disabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid grey' }}>
-            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'grey', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
-              Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is disabled
-            </span>
+          <Debug isActive={ isActive } path={ path }>
             {disabledChildren[0]}
-          </div>
+          </Debug>
         );
       }
       return disabledChildren[0];
@@ -131,25 +134,16 @@ export class Feature extends Component {
       }
       if (debug) {
         return (
-          <div className="izanami-feature-enabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid green' }}>
-            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'green', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
-              Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is enabled
-            </span>
+          <Debug isActive={ isActive } path={ path }>
             {childrenArray[0]}
-          </div>
+          </Debug>
         );
       }
       return childrenArray[0];
     } else {
       if (debug) console.log(`[Features] feature '${path}' is disabled, rendering nothing`);
       if (debug) {
-        return (
-          <div className="izanami-feature-disabled" title={`Experiment ${path}: variant is ${value}`} style={{ position: 'relative', outline: '1px solid grey' }}>
-            <span style={{ padding: 2, fontFamily: 'Arial', color: 'white', border: '1px solid black',  borderRadius: '5px', backgroundColor: 'grey', position: 'absolute', top: -17, left: -1, zIndex: 100000, boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.19)' }}>
-              Feature <span style={{ fontWeight: 'bold' }}>{path}</span> is disabled
-            </span>
-          </div>
-        );
+        return <Debug isActive={ isActive } path={ path } />;
       }
       return null;
     }
