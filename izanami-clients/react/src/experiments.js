@@ -5,7 +5,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import _ from 'lodash';
+import { get } from 'lodash';
 import * as Api from './api'
 
 if (!window.Symbol) {
@@ -125,7 +125,7 @@ export class Experiment extends Component {
     const children = this.props.children;
     const path = this.props.path.replace(/:/g, '.');
     const experiments = deepmerge(this.state.mergedExperiments, this.state.experiments);
-    let experiment = (_.get(experiments, path) || { variant: null });
+    let experiment = (get(experiments, path) || { variant: null });
     const value = experiment.variant || this.props.default;
 
     const childrenArray = Array.isArray(children) ? children : [children];
