@@ -1,7 +1,7 @@
 import {Directive, Input, OnDestroy, OnInit, TemplateRef, ViewContainerRef} from '@angular/core';
 import {IzanamiProviderComponent} from "./izanami-provider/izanami-provider.component";
 import {IzanamiService} from "./izanami.service";
-import _ from 'lodash';
+import {get} from 'lodash';
 import deepEqual from 'deep-equal';
 
 import {Subscription} from "rxjs/Subscription";
@@ -30,7 +30,7 @@ export class FeatureDirective implements OnInit, OnDestroy {
   onFeaturesChanged = ({features}) => {
     if (!deepEqual(this.features, features)) {
       this.features = features;
-      let value = _.get(features, this.path.replace(/:/g, '.')) || {active: false};
+      let value = get(features, this.path.replace(/:/g, '.')) || {active: false};
 
       const active = !((!value.active && this.isEnabled) || (value.active && !this.isEnabled));
 
