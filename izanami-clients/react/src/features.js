@@ -5,9 +5,10 @@ import React, { Component } from 'react';
 import { func, string, bool, object, node, oneOfType, arrayOf } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import { get, isFunction } from 'lodash';
+import { isFunction } from 'lodash';
 import * as Api from './api'
 import Debug from './debug'
+import { arrayPathToString, getCleanedArrayPath, getIsActive } from './util'
 
 
 if (!window.Symbol) {
@@ -75,40 +76,12 @@ export class Feature extends Component {
     }
   };
 
-  getIsActive = (features, path) => {
-      return path
-        .map(p => this.getIsFeatureActive(features, p))
-        .every(p => p);
-  }
-
-  getIsFeatureActive = (features, path) => {
-    const value = get(features, path) || { active: false };
-    return value.active;
-  }
-
-  getCleanedArrayPath = (path) => {
-    if (Array.isArray(path)) {
-      return path
-        .map(p => this.cleanPath(p));
-    } else {
-      return [this.cleanPath(path)];
-    }
-  }
-
-  cleanPath(path) {
-    return path.replace(/:/g, '.')
-  }
-
-  arrayPathToString(arrayPath) {
-    return "["+ arrayPath.join(" & ") + "]";
-  }
-
   render() {
     const children = this.props.children;
     const features = deepmerge(this.state.mergedFeatures, this.state.features);
-    const arrayPath = this.getCleanedArrayPath(this.props.path);
-    const isActive = this.getIsActive(features, arrayPath);
-    const path = this.arrayPathToString(arrayPath)
+    const arrayPath = getCleanedArrayPath(this.props.path);
+    const isActive = getIsActive(features, arrayPath);
+    const path = arrayPathToString(arrayPath)
     const childrenArray = Array.isArray(children) ? children : [children];
     const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
     const disabledChildren = childrenArray.filter(c => c && c.type === Disabled);
