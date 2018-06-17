@@ -2,7 +2,7 @@ import 'es6-shim';
 import 'whatwg-fetch';
 import Symbol from 'es-symbol';
 import React, { Component } from 'react';
-import { func, string, bool, object, node } from 'prop-types';
+import { func, string, bool, object, node, oneOfType, arrayOf } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
 import { get, isFunction } from 'lodash';
@@ -28,7 +28,7 @@ export class Disabled extends Component {
 class Debug extends Component {
 
   static propTypes = {
-    path: string,
+    path: oneOfType([string, arrayOf(string)]),
     isActive: bool,
     children: node
   };
@@ -54,7 +54,7 @@ export class Feature extends Component {
   };
 
   static propTypes = {
-    path: string.isRequired,
+    path: oneOfType([string, arrayOf(string)]).isRequired,
     debug: bool,
   };
 
@@ -95,12 +95,26 @@ export class Feature extends Component {
     }
   };
 
+  getIsActive = (features, path) => {
+    if (Array.isArray(path)) {
+      return path
+        .map(p => this.getIsFeatureActive(features, p))
+        .every(Boolean);
+    } else {
+      return this.getIsFeatureActive(features, path);
+    }
+  }
+
+  getIsFeatureActive = (features, path) => {
+    const value = get(features, path) || { active: false };
+    return value.active;
+  }
+
   render() {
     const children = this.props.children;
-    const path = this.props.path.replace(/:/g, '.');
     const features = deepmerge(this.state.mergedFeatures, this.state.features);
-    const value = get(features, path) || { active: false };
-    const isActive = value.active;
+    const path = this.props.path.replace(/:/g, '.');
+    const isActive = this.getIsActive(features, path);
     const childrenArray = Array.isArray(children) ? children : [children];
     const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
     const disabledChildren = childrenArray.filter(c => c && c.type === Disabled);
