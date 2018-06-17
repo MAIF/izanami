@@ -2,7 +2,7 @@ import 'es6-shim';
 import 'whatwg-fetch';
 import Symbol from 'es-symbol';
 import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import { func, string, bool, object } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
 import _ from 'lodash';
@@ -28,13 +28,13 @@ export class Disabled extends Component {
 export class Feature extends Component {
 
   static contextTypes = {
-    __subscribeToFeatureContext: PropTypes.func,
-    __unsubscribeToFeatureContext: PropTypes.func,
+    __subscribeToFeatureContext: func,
+    __unsubscribeToFeatureContext: func,
   };
 
   static propTypes = {
-    path: PropTypes.string.isRequired,
-    debug: PropTypes.bool,
+    path: string.isRequired,
+    debug: bool,
   };
 
   static defaultProps = {
@@ -162,15 +162,15 @@ export class FeatureProvider extends Component {
   callbacks = [];
 
   static childContextTypes = {
-    __subscribeToFeatureContext: PropTypes.func,
-    __unsubscribeToFeatureContext: PropTypes.func
+    __subscribeToFeatureContext: func,
+    __unsubscribeToFeatureContext: func
   };
 
   static propTypes = {
-    features: PropTypes.object.isRequired,
-    fallback: PropTypes.object,
-    fetchFrom: PropTypes.string,
-    debug: PropTypes.bool,
+    features: object.isRequired,
+    fallback: object,
+    fetchFrom: string,
+    debug: bool,
   };
 
   static defaultProps = {
