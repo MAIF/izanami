@@ -5,7 +5,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import { get } from 'lodash';
+import { get, isFunction } from 'lodash';
 import * as Api from './api'
 
 
@@ -84,7 +84,7 @@ export class Feature extends Component {
     const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
     const disabledChildren = childrenArray.filter(c => c && c.type === Disabled);
     const debug = !!this.state.debug || this.props.debug;
-    if (this.props.render && _.isFunction(this.props.render)) {
+    if (this.props.render && isFunction(this.props.render)) {
       if (debug) {
         return (
           <div className={`izanami-feature-${isActive ? 'enabled' : 'disabled'}`} title={`Feature ${path} is ${isActive ? 'enabled' : 'disabled'}`} style={{ position: 'relative', outline: '1px solid green' }}>
