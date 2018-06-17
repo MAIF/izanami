@@ -2,7 +2,7 @@ import {Directive, Input, OnDestroy, OnInit, TemplateRef, ViewContainerRef} from
 import {IzanamiService} from "./izanami.service";
 import {IzanamiProviderComponent} from "./izanami-provider/izanami-provider.component";
 import {Subscription} from "rxjs/Subscription";
-import _ from 'lodash';
+import {get} from 'lodash';
 import deepEqual from 'deep-equal';
 import {ExperimentPrivateService} from "./experiment-private.service";
 
@@ -37,7 +37,7 @@ export class ExperimentDirective implements OnInit, OnDestroy {
   onExperimentsChanged = ({experiments}) => {
     if (!deepEqual(this.experiments, experiments)) {
       this.experiments = experiments;
-      let value = _.get(experiments, this.path.replace(/:/g, '.')) || {variant: this.defaultVariant};
+      let value = get(experiments, this.path.replace(/:/g, '.')) || {variant: this.defaultVariant};
 
       const variantActive = value.variant === this.variant;
 
