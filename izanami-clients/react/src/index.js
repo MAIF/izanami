@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { FeatureProvider } from './features';
 import { ExperimentsProvider } from './experiments';
 import * as Api from './api'
-import PropTypes from 'prop-types';
+import { object, bool, string, func } from 'prop-types';
 
 export * as Api from './api';
 export * from './features';
@@ -11,15 +11,15 @@ export * from './experiments';
 export class IzanamiProvider extends Component {
 
   static propTypes = {
-    features: PropTypes.object,
-    featuresFallback: PropTypes.object,
-    experiments: PropTypes.object,
-    experimentsFallback: PropTypes.object,
-    debug: PropTypes.bool,
-    fetchFrom: PropTypes.string,
-    fetchData: PropTypes.func,
-    fetchHeaders: PropTypes.object,
-    loading: PropTypes.func,
+    features: object,
+    featuresFallback: object,
+    experiments: object,
+    experimentsFallback: object,
+    debug: bool,
+    fetchFrom: string,
+    fetchData: func,
+    fetchHeaders: object,
+    loading: func,
   };
 
   static defaultProps = {
