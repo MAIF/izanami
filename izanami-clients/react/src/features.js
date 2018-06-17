@@ -96,13 +96,9 @@ export class Feature extends Component {
   };
 
   getIsActive = (features, path) => {
-    if (Array.isArray(path)) {
       return path
         .map(p => this.getIsFeatureActive(features, p))
         .every(p => p);
-    } else {
-      return this.getIsFeatureActive(features, path);
-    }
   }
 
   getIsFeatureActive = (features, path) => {
@@ -110,20 +106,29 @@ export class Feature extends Component {
     return value.active;
   }
 
-  getCleanedPath = (path) => {
+  getCleanedArrayPath = (path) => {
     if (Array.isArray(path)) {
       return path
-        .map(p => p.replace(/:/g, '.'))
+        .map(p => this.cleanPath(p));
     } else {
-      return path.replace(/:/g, '.');
+      return [this.cleanPath(path)];
     }
+  }
+
+  cleanPath(path) {
+    return path.replace(/:/g, '.')
+  }
+
+  arrayPathToString(arrayPath) {
+    return "["+ arrayPath.join(" & ") + "]";
   }
 
   render() {
     const children = this.props.children;
     const features = deepmerge(this.state.mergedFeatures, this.state.features);
-    const path = this.getCleanedPath(this.props.path);
-    const isActive = this.getIsActive(features, path);
+    const arrayPath = this.getCleanedArrayPath(this.props.path);
+    const isActive = this.getIsActive(features, arrayPath);
+    const path = this.arrayPathToString(arrayPath)
     const childrenArray = Array.isArray(children) ? children : [children];
     const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
     const disabledChildren = childrenArray.filter(c => c && c.type === Disabled);
