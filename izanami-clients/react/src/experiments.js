@@ -2,7 +2,7 @@ import 'es6-shim';
 import 'whatwg-fetch';
 import Symbol from 'es-symbol';
 import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import { string, object, bool, func } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
 import { get } from 'lodash';
@@ -14,7 +14,7 @@ if (!window.Symbol) {
 
 export class Variant extends Component {
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: string.isRequired,
   };
   render() {
     return this.props.children;
@@ -24,9 +24,9 @@ export class Variant extends Component {
 export class Won extends Component {
 
   static propTypes = {
-    path: PropTypes.string.isRequired,
-    notifyWon: PropTypes.string.isRequired,
-    notifyWonHeaders: PropTypes.object.isRequired,
+    path: string.isRequired,
+    notifyWon: string.isRequired,
+    notifyWonHeaders: object.isRequired,
   };
 
   componentDidMount() {
@@ -57,16 +57,16 @@ export class Won extends Component {
 export class Experiment extends Component {
 
   static contextTypes = {
-    __subscribeToExperimentContext: PropTypes.func,
-    __unsubscribeToExperimentContext: PropTypes.func,
+    __subscribeToExperimentContext: func,
+    __unsubscribeToExperimentContext: func,
   };
 
   static propTypes = {
-    path: PropTypes.string.isRequired,
-    default: PropTypes.string,
-    debug: PropTypes.bool,
-    notifyDisplay: PropTypes.string,
-    notifyDisplayHeaders: PropTypes.object,
+    path: string.isRequired,
+    default: string,
+    debug: bool,
+    notifyDisplay: string,
+    notifyDisplayHeaders: object,
   };
 
   static defaultProps = {
@@ -158,15 +158,15 @@ export class ExperimentsProvider extends Component {
   callbacks = [];
 
   static childContextTypes = {
-    __subscribeToExperimentContext: PropTypes.func,
-    __unsubscribeToExperimentContext: PropTypes.func
+    __subscribeToExperimentContext: func,
+    __unsubscribeToExperimentContext: func
   };
 
   static propTypes = {
-    experiments: PropTypes.object.isRequired,
-    fallback: PropTypes.object,
-    fetchFrom: PropTypes.string,
-    debug: PropTypes.bool,
+    experiments: object.isRequired,
+    fallback: object,
+    fetchFrom: string,
+    debug: bool,
   };
 
   static defaultProps = {
