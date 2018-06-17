@@ -5,7 +5,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import _ from 'lodash';
+import { get } from 'lodash';
 import * as Api from './api'
 
 
@@ -78,7 +78,7 @@ export class Feature extends Component {
     const children = this.props.children;
     const path = this.props.path.replace(/:/g, '.');
     const features = deepmerge(this.state.mergedFeatures, this.state.features);
-    const value = _.get(features, path) || { active: false };
+    const value = get(features, path) || { active: false };
     const isActive = value.active;
     const childrenArray = Array.isArray(children) ? children : [children];
     const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
