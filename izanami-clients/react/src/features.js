@@ -99,7 +99,7 @@ export class Feature extends Component {
     if (Array.isArray(path)) {
       return path
         .map(p => this.getIsFeatureActive(features, p))
-        .every(Boolean);
+        .every(p => p);
     } else {
       return this.getIsFeatureActive(features, path);
     }
@@ -110,10 +110,19 @@ export class Feature extends Component {
     return value.active;
   }
 
+  getCleanedPath = (path) => {
+    if (Array.isArray(path)) {
+      return path
+        .map(p => p.replace(/:/g, '.'))
+    } else {
+      return path.replace(/:/g, '.');
+    }
+  }
+
   render() {
     const children = this.props.children;
     const features = deepmerge(this.state.mergedFeatures, this.state.features);
-    const path = this.props.path.replace(/:/g, '.');
+    const path = this.getCleanedPath(this.props.path);
     const isActive = this.getIsActive(features, path);
     const childrenArray = Array.isArray(children) ? children : [children];
     const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
