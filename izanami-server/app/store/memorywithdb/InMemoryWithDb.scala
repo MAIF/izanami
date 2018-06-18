@@ -131,27 +131,29 @@ class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
 
   private def init(): Future[Done] = {
     val value: Source[Done.type, NotUsed] =
-      eventStore
-        .events()
-        .via(eventAdapter)
-        .map {
-          case e @ Create(id, data) =>
-            Logger.debug(s"Applying create event $e")
-            createSync(id, data)
-            Done
-          case e @ Update(oldId, id, data) =>
-            Logger.debug(s"Applying update event $e")
-            updateSync(oldId, id, data)
-            Done
-          case e @ Delete(id) =>
-            Logger.debug(s"Applying delete event $e")
-            deleteSync(id)
-            Done
-          case e @ DeleteAll(patterns) =>
-            Logger.debug(s"Applying delete all event $e")
-            deleteAllSync(patterns)
-            Done
-        }
+      loadCacheFromDb.concat(
+        eventStore
+          .events()
+          .via(eventAdapter)
+          .map {
+            case e @ Create(id, data) =>
+              Logger.debug(s"Applying create event $e")
+              createSync(id, data)
+              Done
+            case e @ Update(oldId, id, data) =>
+              Logger.debug(s"Applying update event $e")
+              updateSync(oldId, id, data)
+              Done
+            case e @ Delete(id) =>
+              Logger.debug(s"Applying delete event $e")
+              deleteSync(id)
+              Done
+            case e @ DeleteAll(patterns) =>
+              Logger.debug(s"Applying delete all event $e")
+              deleteAllSync(patterns)
+              Done
+          }
+      )
     RestartSource
       .onFailuresWithBackoff(1.second, 20.second, 1)(() => value)
       .runWith(Sink.ignore)
