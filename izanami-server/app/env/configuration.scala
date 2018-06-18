@@ -160,7 +160,7 @@ case class DbConfig(
     inMemoryWithDb: Option[InMemoryWithDbConfig]
 )
 
-case class InMemoryWithDbConfig(db: DbType)
+case class InMemoryWithDbConfig(db: DbType, pollingInterval: Option[FiniteDuration] = None)
 
 case class RedisConfig(
     host: String,
