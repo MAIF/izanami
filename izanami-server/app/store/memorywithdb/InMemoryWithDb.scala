@@ -1,15 +1,16 @@
 package store.memorywithdb
 
 import akka.{Done, NotUsed}
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Cancellable}
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
 import akka.stream.{ActorMaterializer, Materializer}
 import domains.Key
 import domains.events.EventStore
 import domains.events.Events._
-import env.DbDomainConfig
+import env.{DbDomainConfig, InMemoryWithDbConfig}
 import play.api.Logger
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import store.Result.Result
 import store._
@@ -36,13 +37,15 @@ object InMemoryWithDbStore {
   import domains.apikey.Apikey
 
   def apply(
+      dbConfig: InMemoryWithDbConfig,
       dbDomainConfig: DbDomainConfig,
       underlyingDataStore: JsonDataStore,
       eventStore: EventStore,
-      eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
+      eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
+      applicationLifecycle: ApplicationLifecycle
   )(implicit system: ActorSystem): InMemoryWithDbStore = {
     val namespace = dbDomainConfig.conf.namespace
-    new InMemoryWithDbStore(namespace, underlyingDataStore, eventStore, eventAdapter)
+    new InMemoryWithDbStore(dbConfig, namespace, underlyingDataStore, eventStore, eventAdapter, applicationLifecycle)
   }
 
   lazy val globalScriptEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
@@ -100,59 +103,74 @@ object InMemoryWithDbStore {
 
 }
 
-class InMemoryWithDbStore(name: String,
+class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
+                          name: String,
                           underlyingDataStore: JsonDataStore,
                           eventStore: EventStore,
-                          eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed])(implicit system: ActorSystem)
+                          eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
+                          applicationLifecycle: ApplicationLifecycle)(implicit system: ActorSystem)
     extends BaseInMemoryJsonDataStore(name)
     with JsonDataStore {
 
   import system.dispatcher
   private implicit val materializer: Materializer = ActorMaterializer()
 
+  private val cancellable: Option[Cancellable] = dbConfig.pollingInterval.map { interval =>
+    system.scheduler.schedule(interval, interval, () => {
+      Logger.debug(s"Reloading data from db for $name")
+      loadCacheFromDb.runWith(Sink.ignore)
+      ()
+    })
+  }
+
+  applicationLifecycle.addStopHook(() => {
+    FastFuture.successful(cancellable.foreach(_.cancel()))
+  })
+
   init()
 
   private def init(): Future[Done] = {
-    val value: Source[Done.type, NotUsed] = underlyingDataStore
+    val value: Source[Done.type, NotUsed] =
+      eventStore
+        .events()
+        .via(eventAdapter)
+        .map {
+          case e @ Create(id, data) =>
+            Logger.debug(s"Applying create event $e")
+            createSync(id, data)
+            Done
+          case e @ Update(oldId, id, data) =>
+            Logger.debug(s"Applying update event $e")
+            updateSync(oldId, id, data)
+            Done
+          case e @ Delete(id) =>
+            Logger.debug(s"Applying delete event $e")
+            deleteSync(id)
+            Done
+          case e @ DeleteAll(patterns) =>
+            Logger.debug(s"Applying delete all event $e")
+            deleteAllSync(patterns)
+            Done
+        }
+    RestartSource
+      .onFailuresWithBackoff(1.second, 20.second, 1)(() => value)
+      .runWith(Sink.ignore)
+  }
+
+  private def loadCacheFromDb =
+    underlyingDataStore
       .getByIdLike(Seq("*"))
       .map {
         case (k, v) =>
           inMemoryStore.put(k, v)
           Done
       }
-      .flatMapConcat { _ =>
-        eventStore
-          .events()
-          .via(eventAdapter)
-          .map {
-            case e @ Create(id, data) =>
-              Logger.debug(s"Applying create event $e")
-              createSync(id, data)
-              Done
-            case e @ Update(oldId, id, data) =>
-              Logger.debug(s"Applying update event $e")
-              updateSync(oldId, id, data)
-              Done
-            case e @ Delete(id) =>
-              Logger.debug(s"Applying delete event $e")
-              deleteSync(id)
-              Done
-            case e @ DeleteAll(patterns) =>
-              Logger.debug(s"Applying delete all event $e")
-              deleteAllSync(patterns)
-              Done
-          }
-      }
-    RestartSource
-      .onFailuresWithBackoff(1.second, 20.second, 1)(() => value)
-      .runWith(Sink.ignore)
-  }
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] = {
     val res = underlyingDataStore.create(id, data)
     res.onComplete {
       case Success(Right(_)) => createSync(id, data)
-      case _ =>
+      case _                 =>
     }
     res
   }
@@ -161,7 +179,7 @@ class InMemoryWithDbStore(name: String,
     val res = underlyingDataStore.update(oldId, id, data)
     res.onComplete {
       case Success(Right(_)) => updateSync(oldId, id, data)
-      case _ =>
+      case _                 =>
     }
     res
   }
@@ -170,7 +188,7 @@ class InMemoryWithDbStore(name: String,
     val res = underlyingDataStore.delete(id)
     res.onComplete {
       case Success(Right(_)) => deleteSync(id)
-      case _ =>
+      case _                 =>
     }
     res
   }
@@ -179,7 +197,7 @@ class InMemoryWithDbStore(name: String,
     val res = underlyingDataStore.deleteAll(patterns)
     res.onComplete {
       case Success(Right(_)) => deleteAllSync(patterns)
-      case _ =>
+      case _                 =>
     }
     res
   }

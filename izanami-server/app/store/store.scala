@@ -287,7 +287,12 @@ object JsonDataStore {
         Logger.info(
           s"Loading InMemoryWithDbStore for namespace ${conf.conf.namespace} with underlying store ${dbType.getClass.getSimpleName}"
         )
-        InMemoryWithDbStore(conf, jsonDataStore, eventStore, eventAdapter)
+        InMemoryWithDbStore(izanamiConfig.db.inMemoryWithDb.get,
+                            conf,
+                            jsonDataStore,
+                            eventStore,
+                            eventAdapter,
+                            applicationLifecycle)
       case other =>
         storeByType(drivers, izanamiConfig, conf, other, applicationLifecycle)
     }
