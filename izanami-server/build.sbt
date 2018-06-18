@@ -139,6 +139,7 @@ dockerCommands :=
   }
 
 dockerEntrypoint ++= Seq(
+  """-Dlogger.file=./conf/prod-logger.xml """,
   """-Dcluster.akka.remote.netty.tcp.hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
   """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """
 )
