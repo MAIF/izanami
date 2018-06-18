@@ -36,8 +36,8 @@ libraryDependencies ++= Seq(
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.13.0-play26",
   "com.github.etaty"         %% "rediscala"                     % "1.8.0", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
-  "org.typelevel"            %% "cats-core"                     % "1.0.1", // MIT license
-  "com.chuusai"              %% "shapeless"                     % "2.3.2", // Apache 2.0
+  "org.typelevel"            %% "cats-core"                     % "1.1.0", // MIT license
+  "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
   "com.adelegue"             %% "playjson-extended"             % "0.0.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.19", // Apache 2.0
