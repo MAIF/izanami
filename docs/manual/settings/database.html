@@ -205,6 +205,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../settings/database.html#cassandra" class="header">Cassandra</a></li>
     <li><a href="../settings/database.html#elasticsearch" class="header">Elasticsearch</a></li>
     <li><a href="../settings/database.html#mongo" class="header">Mongo</a></li>
+    <li><a href="../settings/database.html#in-memory-with-db" class="header">In Memory with Db</a></li>
     <li><a href="../settings/database.html#mix-databases" class="header">Mix Databases</a></li>
   </ul></li>
   <li><a href="../settings/database.html#event-stores" class="header">Event stores</a>
@@ -308,7 +309,7 @@ bin/izanami
 </code></pre>
 <p>Other settings are available, consult the <a href="settings.html">settings</a> page. </p>
 <h3><a href="#mongo" name="mongo" class="anchor"><span class="anchor-link"></span></a>Mongo</h3>
-<p>To run Izanami with elasticsearch : </p>
+<p>To run Izanami with mongo : </p>
 <pre class="prettyprint"><code class="language-bash">bin/izanami \ 
     -Dizanami.db.default=Mongo \
     -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami
@@ -320,6 +321,33 @@ export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami
 bin/izanami 
 </code></pre>
 <p>Other settings are available, consult the <a href="settings.html">settings</a> page. </p>
+<h3><a href="#in-memory-with-db" name="in-memory-with-db" class="anchor"><span class="anchor-link"></span></a>In Memory with Db</h3>
+<p>If your data fit in memory and you need high throughput you can use this store. </p>
+<p>With this store your data are kept in memory and used for read operations. During write operations, the in memory image is updated asynchronously. </p>
+<p><img src="../img/diagrams/inmemorywithdb.png" alt="InMemoryWithDb" /></p>
+<p>To run Izanami with in memory with db : </p>
+<pre class="prettyprint"><code class="language-bash">bin/izanami \ 
+    -Dizanami.db.default=InMemoryWithDb \
+    -Dizanami.db.inMemoryWithDb.db=Mongo \
+    -Dizanami.db.inMemoryWithDb.pollingInterval=1 second \  // If you need to force a periodic refresh of your cache 
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami
+</code></pre>
+<p>Or </p>
+<pre class="prettyprint"><code class="language-bash">export IZANAMI_DATABASE=InMemoryWithDb
+export IN_MEMORY_WITH_DB_DB=Mongo
+export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami 
+export IN_MEMORY_WITH_DB_POLLING_INTERVAL=1 second // If you need to force a periodic refresh of your cache 
+
+bin/izanami 
+</code></pre>
+<p>You can set a database per domain : </p>
+<pre class="prettyprint"><code class="language-bash">bin/izanami \ 
+    -Dizanami.db.default=InMemoryWithDb \
+    -Dizanami.db.inMemoryWithDb.db=Mongo \
+    -Dizanami.db.inMemoryWithDb.pollingInterval=1 second \  // If you need to force a periodic refresh of your cache 
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami \
+    -Dizanami.feature.db.conf.db.type=Elastic       // Override underlying db for features
+</code></pre>
 <h3><a href="#mix-databases" name="mix-databases" class="anchor"><span class="anchor-link"></span></a>Mix Databases</h3>
 <p>If you want to use 2 or more databases you need to provide</p>
 <ul>
