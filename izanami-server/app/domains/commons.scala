@@ -42,12 +42,12 @@ object Import {
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
     }
 
-  def importFile(db: DbDomainConfig, process: Flow[(String, JsValue), ImportResult, NotUsed])(implicit materializer: Materializer) = {
+  def importFile(db: DbDomainConfig,
+                 process: Flow[(String, JsValue), ImportResult, NotUsed])(implicit materializer: Materializer) =
     db.`import`.foreach { p =>
       Logger.info(s"Importing file $p for namespace ${db.conf.namespace}")
       FileIO.fromPath(p).via(toJson).via(process).runWith(Sink.ignore)
     }
-  }
 }
 
 case class ImportResult(success: Int = 0, errors: AppErrors = AppErrors()) {
