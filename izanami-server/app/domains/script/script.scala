@@ -5,11 +5,13 @@ import java.util.function.BiConsumer
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import domains.events.EventStore
 import domains.events.Events.{GlobalScriptCreated, IzanamiEvent}
 import domains.script.GlobalScriptStore.GlobalScriptKey
-import domains.{AuthInfo, Key}
+import domains.user.UserNoPassword
+import domains.{AuthInfo, ImportResult, Key}
 import env.Env
 import play.api.Logger
 import play.api.libs.json._
@@ -155,6 +157,23 @@ object GlobalScript {
     Key.isAllowed(key)(auth)
 
   implicit val format = Json.format[GlobalScript]
+
+  def importData(
+      globalScriptStore: GlobalScriptStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[GlobalScript]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          globalScriptStore.create(obj.id, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 }
 
 trait GlobalScriptStore extends DataStore[GlobalScriptKey, GlobalScript]

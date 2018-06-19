@@ -1,8 +1,12 @@
 package domains
 
-import akka.stream.scaladsl.Source
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
 import cats.kernel.Monoid
+import env.DbDomainConfig
+import play.api.Logger
 import play.api.libs.json.Reads.pattern
 import play.api.libs.json._
 import play.api.libs.streams.Accumulator
@@ -37,6 +41,13 @@ object Import {
     BodyParser { req =>
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
     }
+
+  def importFile(db: DbDomainConfig, process: Flow[(String, JsValue), ImportResult, NotUsed])(implicit materializer: Materializer) = {
+    db.`import`.foreach { p =>
+      Logger.info(s"Importing file $p for namespace ${db.conf.namespace}")
+      FileIO.fromPath(p).via(toJson).via(process).runWith(Sink.ignore)
+    }
+  }
 }
 
 case class ImportResult(success: Int = 0, errors: AppErrors = AppErrors()) {

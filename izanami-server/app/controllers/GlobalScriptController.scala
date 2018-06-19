@@ -163,16 +163,7 @@ class GlobalScriptController(env: Env,
 
   def upload() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .map { case (s, json) => (s, json.validate[GlobalScript]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          globalScriptStore.create(obj.id, obj) map {
-            ImportResult.fromResult _
-          }
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+      .via(GlobalScript.importData(globalScriptStore))
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))

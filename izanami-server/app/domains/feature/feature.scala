@@ -10,9 +10,9 @@ import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import domains.events.EventStore
 import domains.feature.FeatureStore._
-import store.Result.Result
+import store.Result.{ErrorMessage, Result}
 import domains.script.{GlobalScript, Script}
-import domains.{AuthInfo, Key}
+import domains.{AuthInfo, ImportResult, Key}
 import env.Env
 import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 import shapeless.syntax
@@ -285,6 +285,23 @@ object Feature {
 
   def isAllowed(key: FeatureKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
+
+  def importData(
+      featureStore: FeatureStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[Feature]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          featureStore.create(obj.id, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 
   def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] { feature =>
     val path = feature.id.segments.foldLeft[JsPath](JsPath) { (path, seq) =>

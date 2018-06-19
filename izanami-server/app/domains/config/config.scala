@@ -2,15 +2,17 @@ package domains.config
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.{Flow, Source}
 import domains.config.ConfigStore._
 import domains.events.EventStore
-import domains.{AuthInfo, Key}
-import play.api.libs.json.{JsValue, Json}
+import domains.{AuthInfo, ImportResult, Key}
+import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
+import store.Result.ErrorMessage
 import store.SourceUtils.SourceKV
 import store._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 case class Config(id: ConfigKey, value: JsValue) {
 
@@ -22,6 +24,24 @@ object Config {
   implicit val format = Json.format[Config]
 
   def isAllowed(key: Key)(auth: Option[AuthInfo]) = Key.isAllowed(key)(auth)
+
+  def importData(
+      configStore: ConfigStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[Config]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          configStore.create(obj.id, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
+
 }
 
 trait ConfigStore extends DataStore[ConfigKey, Config]

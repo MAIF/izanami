@@ -1,6 +1,7 @@
 package env
 
 import java.net.{InetAddress, InetSocketAddress}
+import java.nio.file.{Path, Paths}
 
 import domains.AuthorizedPattern
 import play.api.Configuration
@@ -65,6 +66,9 @@ object IzanamiConfig {
 
   implicit val inetAddressCC: ConfigConvert[InetAddress] =
     viaString[InetAddress](catchReadError(InetAddress.getByName), _.getHostAddress)
+
+  implicit val path: ConfigConvert[Path] =
+    viaString[Path](catchReadError(str => Paths.get(str)), _.toAbsolutePath.toString)
 
   implicit val inetSocketAddressCC: ConfigConvert[InetSocketAddress] =
     viaString[InetSocketAddress](
@@ -191,6 +195,6 @@ case class ElasticConfig(host: String,
 
 case class MongoConfig(url: String, database: Option[String], name: Option[String])
 
-case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails)
+case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails, `import`: Option[Path])
 case class InitialUserConfig(userId: String, password: String)
 case class DbDomainConfigDetails(namespace: String, db: Option[DbDomainConfig])
