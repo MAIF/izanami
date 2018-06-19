@@ -140,7 +140,8 @@ class UserStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: Ac
   override def update(oldId: UserKey, id: UserKey, data: User): Future[Result[User]] =
     this.getById(oldId).one.flatMap {
       case Some(oldValue) =>
-        jsonStore.update(oldId, id, format.writes(data)).to[User].andPublishEvent { r =>
+        val user = data.copy(password = data.password.map(p => Sha.hexSha512(p)))
+        jsonStore.update(oldId, id, format.writes(user)).to[User].andPublishEvent { r =>
           UserUpdated(id, oldValue, r)
         }
       case None =>
