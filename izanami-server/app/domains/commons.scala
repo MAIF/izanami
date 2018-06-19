@@ -14,6 +14,7 @@ import play.api.mvc.BodyParser
 import store.Result.{AppErrors, ErrorMessage, Result}
 
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 
 sealed trait AuthorizedPatternTag
@@ -46,7 +47,10 @@ object Import {
                  process: Flow[(String, JsValue), ImportResult, NotUsed])(implicit materializer: Materializer) =
     db.`import`.foreach { p =>
       Logger.info(s"Importing file $p for namespace ${db.conf.namespace}")
-      FileIO.fromPath(p).via(toJson).via(process).runWith(Sink.ignore)
+      FileIO.fromPath(p).via(toJson).via(process).runWith(Sink.ignore).onComplete {
+        case Success(_) => Logger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
+        case Failure(e) => Logger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
+      }
     }
 }
 
