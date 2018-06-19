@@ -2,11 +2,12 @@ package domains.abtesting
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
-import domains.Key
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.{Flow, Source}
+import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
-import play.api.libs.json.{Format, Json, Writes}
+import play.api.libs.json._
 import store.Result.{AppErrors, ErrorMessage, Result}
 import store._
 
@@ -39,6 +40,23 @@ case class VariantBinding(variantBindingKey: VariantBindingKey, variantId: Strin
 
 object VariantBinding {
   implicit val format = Json.format[VariantBinding]
+
+  def importData(
+      variantBindingStore: VariantBindingStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[VariantBinding]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          variantBindingStore.create(obj.variantBindingKey, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 
   def variantFor(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,

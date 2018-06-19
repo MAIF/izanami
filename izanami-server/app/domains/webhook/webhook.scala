@@ -4,13 +4,14 @@ import java.time.LocalDateTime
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.{Flow, Source}
 import domains.Domain.Domain
 import domains.events.EventStore
 import domains.events.Events.{WebhookCreated, WebhookDeleted, WebhookUpdated}
 import domains.webhook.WebhookStore._
 import domains.webhook.notifications.WebHooksActor
-import domains.{AuthInfo, Domain, Key}
+import domains.{AuthInfo, Domain, ImportResult, Key}
 import env.{DbDomainConfig, WebhookConfig}
 import play.api.libs.json._
 import play.api.libs.ws._
@@ -18,7 +19,7 @@ import store.Result.{ErrorMessage, Result}
 import store.SourceUtils.SourceKV
 import store._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 case class Webhook(clientId: WebhookKey,
                    callbackUrl: String,
@@ -53,6 +54,23 @@ object Webhook {
 
   def isAllowed(key: WebhookKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
+
+  def importData(
+      webhookStore: WebhookStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[Webhook]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          webhookStore.create(obj.clientId, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 }
 
 trait WebhookStore extends DataStore[WebhookKey, Webhook]

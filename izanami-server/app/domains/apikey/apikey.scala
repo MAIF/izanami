@@ -2,16 +2,18 @@ package domains.apikey
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.{Flow, Source}
 import domains.AuthorizedPattern.AuthorizedPattern
 import domains.abtesting.VariantBinding
 import domains.apikey.ApikeyStore.ApikeyKey
 import domains.events.EventStore
-import domains.{AuthInfo, AuthorizedPattern, Key}
+import domains.{AuthInfo, AuthorizedPattern, ImportResult, Key}
+import store.Result.{AppErrors, ErrorMessage}
 import store.SourceUtils.SourceKV
 import store._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: AuthorizedPattern)
     extends AuthInfo {
@@ -43,6 +45,26 @@ object Apikey {
 
   def isAllowed(pattern: String)(auth: Option[AuthInfo]) =
     Key.isAllowed(pattern)(auth)
+
+  def importData(
+      apikeyStore: ApikeyStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[Apikey]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          apikeyStore.create(Key(obj.clientId), obj) map {
+            ImportResult.fromResult _
+          }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
+
 }
 
 trait ApikeyStore extends DataStore[ApikeyKey, Apikey]

@@ -146,16 +146,7 @@ class WebhookController(env: Env,
 
   def upload() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .map { case (s, json) => (s, json.validate[Webhook]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          webhookStore.create(obj.clientId, obj) map {
-            ImportResult.fromResult _
-          }
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+      .via(Webhook.importData(webhookStore))
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))
