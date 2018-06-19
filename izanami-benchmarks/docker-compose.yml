@@ -23,8 +23,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - ELASTIC_HOST=elasticsearch
-      - IZANAMI_DATABASE=Redis
-
+      - IZANAMI_DATABASE=InMemoryWithDb
+      - IN_MEMORY_WITH_DB_DB=Redis
+      - FEATURE_IMPORT=/data/features.ndjson
+    volumes:
+      - ./data:/data
   redis:
     image: redis:4.0.8
     networks:
@@ -41,6 +44,8 @@ services:
     environment:
       - "xpack.security.enabled=false"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+volumes:
+  data:
 
 networks:
   bench:

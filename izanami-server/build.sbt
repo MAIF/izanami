@@ -125,7 +125,8 @@ dockerCommands ++= Seq(
 )
 
 dockerExposedVolumes ++= Seq(
-  "/leveldb"
+  "/leveldb",
+  "/data"
 )
 
 dockerUsername := Some("maif")
