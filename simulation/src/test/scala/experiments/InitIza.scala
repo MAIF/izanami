@@ -1,17 +1,21 @@
 package experiments
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import com.typesafe.config.ConfigFactory
 
 import scala.collection.immutable
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Future}
 
 object InitIza extends App {
 
   implicit val system: ActorSystem             = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+  import system.dispatcher
 
   private val http = Http()
 
@@ -31,14 +35,20 @@ object InitIza extends App {
     }
 
   private def postFeature(i: Int): Future[(StatusCode, String)] = {
-    val feature = DefaultFeature(Key(s"a:key:$i"), enabled = true)
 
     val headers: immutable.Seq[HttpHeader] = immutable.Seq(
       RawHeader("Izanami-Client-Id", "xxxx"),
       RawHeader("Izanami-Client-Secret", "xxxx")
     )
 
-    val body = Json.stringify(Json.toJson(feature))
+    val body =
+      s"""
+        | {
+        |   "id": "a:key:$i",
+        |   "enabled": true,
+        |   "activationStrategy": "NO_STRATEGY"
+        | }
+      """.stripMargin
 
     http
       .singleRequest(
