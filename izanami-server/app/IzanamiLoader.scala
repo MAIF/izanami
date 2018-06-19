@@ -91,7 +91,7 @@ package object modules {
       val conf                        = izanamiConfig.globalScript.db
       lazy val eventAdapter           = InMemoryWithDbStore.globalScriptEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[GlobalScriptStore]
+      val store                       = wire[GlobalScriptStore]
       Import.importFile(conf, GlobalScript.importData(store))
       store
     }
@@ -104,7 +104,7 @@ package object modules {
       val conf                        = izanamiConfig.config.db
       lazy val eventAdapter           = InMemoryWithDbStore.configEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[ConfigStore]
+      val store                       = wire[ConfigStore]
       Import.importFile(conf, Config.importData(store))
       store
     }
@@ -116,7 +116,7 @@ package object modules {
       val conf                        = izanamiConfig.features.db
       lazy val eventAdapter           = InMemoryWithDbStore.featureEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[FeatureStore]
+      val store                       = wire[FeatureStore]
       Import.importFile(conf, Feature.importData(store))
       store
     }
@@ -128,7 +128,7 @@ package object modules {
       val conf                        = izanamiConfig.experiment.db
       lazy val eventAdapter           = InMemoryWithDbStore.experimentEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[ExperimentStore]
+      val store                       = wire[ExperimentStore]
       Import.importFile(conf, Experiment.importData(store))
       store
     }
@@ -137,7 +137,7 @@ package object modules {
       val conf                        = izanamiConfig.variantBinding.db
       lazy val eventAdapter           = InMemoryWithDbStore.variantBindingEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[VariantBindingStore]
+      val store                       = wire[VariantBindingStore]
       Import.importFile(conf, VariantBinding.importData(store))
       store
     }
@@ -174,7 +174,7 @@ package object modules {
       lazy val conf                   = webhookConfig.db
       lazy val eventAdapter           = InMemoryWithDbStore.webhookEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[WebhookStore]
+      val store                       = wire[WebhookStore]
       Import.importFile(conf, Webhook.importData(store))
       store
     }
@@ -186,7 +186,7 @@ package object modules {
       val conf                        = izanamiConfig.user.db
       lazy val eventAdapter           = InMemoryWithDbStore.userEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[UserStore]
+      val store                       = wire[UserStore]
       Import.importFile(conf, User.importData(store))
       store
     }
@@ -198,7 +198,7 @@ package object modules {
       val conf                        = izanamiConfig.apikey.db
       lazy val eventAdapter           = InMemoryWithDbStore.apikeyEventAdapter
       lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store = wire[ApikeyStore]
+      val store                       = wire[ApikeyStore]
       Import.importFile(conf, Apikey.importData(store))
       store
     }
