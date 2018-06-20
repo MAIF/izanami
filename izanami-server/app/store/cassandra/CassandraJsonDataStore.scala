@@ -236,7 +236,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
         case Right(s) =>
           val stm: String = if (!s.isEmpty) s"AND $s" else ""
           val query =
-            s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
+            s"SELECT key, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
           Logger.debug(s"Running query $query with args [$namespaceFormatted]")
           val stmt = new SimpleStatement(query, namespaceFormatted)
           CassandraSource(stmt).map { rs =>

@@ -27,7 +27,6 @@ object Configs {
   val cassandraPort: Int = 9042
 
   val elasticHttpPort: Int = 9210
-  val elasticTcpPort: Int  = 9300
 
   val elasticConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
