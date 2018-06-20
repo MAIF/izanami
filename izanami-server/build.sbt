@@ -41,7 +41,7 @@ libraryDependencies ++= Seq(
   "com.adelegue"             %% "playjson-extended"             % "0.0.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.19", // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.20", // Apache 2.0
+  "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.21", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"            % "0.0.11", // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.0", // Apache 2.0
   "com.typesafe.akka"        %% "akka-http"                     % "10.0.6" % Test, // Apache 2.0
