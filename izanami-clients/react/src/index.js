@@ -2,7 +2,8 @@ import React, { Component } from 'react';
 import { FeatureProvider } from './features';
 import { ExperimentsProvider } from './experiments';
 import * as Api from './api'
-import { object, bool, string, func } from 'prop-types';
+import { object, bool, string, func, oneOfType } from 'prop-types';
+import {isFunction, isString} from 'lodash'
 
 export * as Api from './api';
 export * from './features';
@@ -11,12 +12,13 @@ export * from './experiments';
 export class IzanamiProvider extends Component {
 
   static propTypes = {
+    id: string,
     features: object,
     featuresFallback: object,
     experiments: object,
     experimentsFallback: object,
     debug: bool,
-    fetchFrom: string,
+    fetchFrom: oneOfType([string, func]),
     fetchData: func,
     fetchHeaders: object,
     loading: func,
@@ -27,6 +29,7 @@ export class IzanamiProvider extends Component {
     experimentsFallback: {},
     debug: false,
     fetchHeaders: {},
+    id: "default",
     loading: () => null
   };
 
@@ -37,6 +40,10 @@ export class IzanamiProvider extends Component {
 
   constructor(args) {
     super(args);
+  }
+
+  id = () => {
+      return this.props.id ? this.props.id : (isFunction(this.props.fetchFrom) ? this.props.fetchFrom :  "default");
   }
 
   onDataLoaded = data => {
@@ -54,24 +61,42 @@ export class IzanamiProvider extends Component {
 
   componentDidMount() {
     if (this.props.fetchFrom) {
-      Api.register(this.props.fetchFrom, this.onDataLoaded);
+      const id = this.id();
+      if (!id) {
+        console.error("Id should not be null for IzanamiProvider");
+        return;
+      }
+      this.setState({id});
+      if (isFunction(this.props.fetchFrom)) {
+          Api.registerFetch(id, this.props.fetchFrom);
+      } else if (isString(this.props.fetchFrom)) {
+          Api.registerFetch(this.props.fetchFrom, () =>
+              fetch(this.props.fetchFrom, {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: this.props.fetchHeaders,
+              })
+          );
+      }
+      Api.register(id, this.onDataLoaded);
       this.setState({loading: true});
-      Api.izanamiReload(this.props.fetchFrom, this.props.fetchHeaders);
+      Api.izanamiReload(id, this.props.fetchHeaders);
     }
   }
 
   componentWillUnmount() {
-    if (this.props.fetchFrom) {
-      Api.unregister(this.props.fetchFrom, this.onDataLoaded)
+    if (this.state.id) {
+      Api.unregister(this.state.id, this.onDataLoaded)
     }
   }
 
   render() {
     if (this.props.fetchFrom) {
         const { debug, features, featuresFallback, experiments, experimentsFallback } = this.state.fetched;
+        const id = this.id();
         return (
-          <FeatureProvider debug={debug} features={features || {}} fallback={featuresFallback} fetchFrom={this.props.fetchFrom}>
-            <ExperimentsProvider debug={debug} experiments={experiments || {}} experimentsFallback={experimentsFallback}>
+          <FeatureProvider id={id} debug={debug} features={features || {}} fallback={featuresFallback} fetchFrom={this.props.fetchFrom}>
+            <ExperimentsProvider id={id} debug={debug} experiments={experiments || {}} experimentsFallback={experimentsFallback}>
               {this.props.children}
             </ExperimentsProvider>
           </FeatureProvider>
@@ -79,9 +104,10 @@ export class IzanamiProvider extends Component {
 
     } else {
       const { debug, features, featuresFallback, experiments, experimentsFallback, children } = this.props;
+      const id = this.id();
       return (
-        <FeatureProvider debug={debug} features={features} fallback={featuresFallback}>
-          <ExperimentsProvider debug={debug} experiments={experiments} experimentsFallback={experimentsFallback}>
+        <FeatureProvider id={id} debug={debug} features={features} fallback={featuresFallback}>
+          <ExperimentsProvider id={id} debug={debug} experiments={experiments} experimentsFallback={experimentsFallback}>
             {children}
           </ExperimentsProvider>
         </FeatureProvider>

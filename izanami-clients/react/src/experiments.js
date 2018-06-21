@@ -85,11 +85,11 @@ export class Experiment extends Component {
     }
   };
 
-  onContextChange = ({__mergedExperiments, __fetchFrom, __debug}) => {
-    if (__fetchFrom && this.state.fetchFrom !== __fetchFrom ) {
+  onContextChange = ({__mergedExperiments, __id, __debug}) => {
+    if (__id && this.state.id !== __id ) {
       if(__debug) console.log('[Experiments] Registering to api for ', __fetchFrom);
-      this.setState({fetchFrom: __fetchFrom, debug: __debug, mergedExperiments: __mergedExperiments});
-      Api.register(__fetchFrom , this.onExperimentsChanged)
+      this.setState({id: __id, debug: __debug, mergedExperiments: __mergedExperiments});
+      Api.register(__id, this.onExperimentsChanged)
     } else {
       this.setState({debug: __debug, mergedExperiments: __mergedExperiments});
     }
@@ -165,7 +165,7 @@ export class ExperimentsProvider extends Component {
   static propTypes = {
     experiments: object.isRequired,
     fallback: object,
-    fetchFrom: string,
+    id: string,
     debug: bool,
   };
 
@@ -177,7 +177,7 @@ export class ExperimentsProvider extends Component {
     __experiments: this.props.experiments,
     __fallback: this.props.fallback,
     __mergedExperiments: deepmerge(this.props.fallback, this.props.experiments),
-    __fetchFrom: this.props.fetchFrom,
+    __id: this.props.id,
     __debug: this.props.debug,
   };
 

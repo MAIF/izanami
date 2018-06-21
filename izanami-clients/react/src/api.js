@@ -1,32 +1,36 @@
 
+let izanamiFetchs = {};
 let izanamiListeners = {};
 
-export function izanamiReload(path, fetchHeaders) {
-  fetch(path, {
-    method: 'GET',
-    credentials: 'include',
-    headers: fetchHeaders,
-  }).then(r => r.json()).then(data => {
-    const listeners = izanamiListeners[path] || [];
-    listeners.forEach(l => {
-      try {
-        l(data)
-      } catch (err) {
-        console.error(err);
-      }
-    });
-  });
+export function izanamiReload(id) {
+  let izanamiFetch = izanamiFetchs[id];
+  if (izanamiFetch) {
+      console.debug("Fetching for id ", id);
+      izanamiFetch().then(r => r.json()).then(data => {
+          const listeners = izanamiListeners[id] || [];
+          listeners.forEach(l => {
+              try {
+                  l(data)
+              } catch (err) {
+                  console.error(err);
+              }
+          });
+      });
+  }
 }
 
+export function registerFetch(id, fetchMethod) {
+    izanamiFetchs = {...izanamiFetchs, [id]: fetchMethod}
+}
 
-export function register(path, callback) {
-  const listeners = izanamiListeners[path] || [];
+export function register(id, callback) {
+  const listeners = izanamiListeners[id] || [];
   const index = listeners.indexOf(callback);
   if (index > -1) {
     listeners.splice(index, 1);
   }
   listeners.push(callback);
-  izanamiListeners = {...izanamiListeners, [path]: listeners}
+  izanamiListeners = {...izanamiListeners, [id]: listeners}
 }
 
 export function unregister(path, callback) {
