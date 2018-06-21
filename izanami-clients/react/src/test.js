@@ -84,7 +84,17 @@ class App extends Component {
   render() {
     //<Provider store={store}>
     return (
-      <IzanamiProvider fetchFrom={"/api/izanami"} featuresFallback={fallback}>
+      <IzanamiProvider
+          id = "provider1"
+          fetchFrom={() =>
+              fetch("/api/izanami", {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: this.props.fetchHeaders,
+              })
+          }
+          featuresFallback={fallback}
+      >
         <div>
           <FeatureApp />
           <div>
@@ -159,7 +169,17 @@ const experimentsFallback = {
 class AppAB extends Component {
   render() {
     return (
-      <IzanamiProvider fetchFrom={"/api/izanami"}  experimentsFallback={experimentsFallback}>
+        <IzanamiProvider
+            id = "provider2"
+            fetchFrom={() =>
+                fetch("/api/izanami", {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: this.props.fetchHeaders,
+                })
+            }
+            featuresFallback={fallback}
+            experimentsFallback={experimentsFallback}>
         <div>
           <Experiment debug path="project.lang.french" default={"B"}>
             <Variant id="A">

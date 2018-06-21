@@ -206,10 +206,23 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </code></pre>
 <h2><a href="#izanami-provider" name="izanami-provider" class="anchor"><span class="anchor-link"></span></a>Izanami provider</h2>
 <p>You can wrap your application in the izanami provider and let izanami fetch data from the proxy you have exposed:</p>
-<pre class="prettyprint"><code class="language-jsx harmony">&lt;IzanamiProvider fetchFrom=&quot;/api/izanami&quot;&gt;
+<pre class="prettyprint"><code class="language-jsx harmony">  &lt;IzanamiProvider fetchFrom=&quot;/api/izanami&quot;&gt;
     {/* your app */}    
   &lt;/IzanamiProvider&gt;
 </code></pre>
+<p>Or</p>
+<pre class="prettyprint"><code class="language-jsx harmony">  &lt;IzanamiProvider
+          id = &quot;provider1&quot;
+          fetchFrom={() =&gt;
+              fetch(&quot;/api/izanami&quot;, {
+                  method: &#39;GET&#39;,
+                  credentials: &#39;include&#39;                
+              })
+          }&gt;
+    {/* your app */}    
+  &lt;/IzanamiProvider&gt;
+</code></pre>
+<p>If you register a function, you need an id because you can register multiple provider. </p>
 <p>You can pass fallbacks in the case of the server is not up: </p>
 <pre class="prettyprint"><code class="language-jsx harmony">&lt;IzanamiProvider fetchFrom=&quot;/api/izanami&quot; featuresFallback={{my: {feature: {active: true}}}} experimentsFallback={{my:{experiment:{variant: &#39;B&#39;}}}} &gt;
 {/* ... */}    
@@ -227,6 +240,16 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     if (locationChanged) {
       //Reload izanami data on route change
       IzanamiApi.izanamiReload(&quot;/api/izanami&quot;);
+    }
+}
+</code></pre>
+<p>Or if an id was used </p>
+<pre class="prettyprint"><code class="language-jsx harmony">componentWillReceiveProps(nextProps) {
+    // will be true
+    const locationChanged = nextProps.location !== this.props.location;
+    if (locationChanged) {
+      //Reload izanami data on route change
+      IzanamiApi.izanamiReload(&quot;provider1&quot;);
     }
 }
 </code></pre>

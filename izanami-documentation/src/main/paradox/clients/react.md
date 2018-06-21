@@ -24,10 +24,29 @@ import {IzanamiProvider, Feature, Enabled, Disabled, Experiment, Variant, Api as
 You can wrap your application in the izanami provider and let izanami fetch data from the proxy you have exposed:
 
 ```jsx harmony
-<IzanamiProvider fetchFrom="/api/izanami">
+  <IzanamiProvider fetchFrom="/api/izanami">
     {/* your app */}    
   </IzanamiProvider>
 ```
+
+Or
+
+```jsx harmony
+  <IzanamiProvider
+          id = "provider1"
+          fetchFrom={() =>
+              fetch("/api/izanami", {
+                  method: 'GET',
+                  credentials: 'include'                
+              })
+          }>
+    {/* your app */}    
+  </IzanamiProvider>
+```
+
+If you register a function, you need an id because you can register multiple provider. 
+
+
 
 You can pass fallbacks in the case of the server is not up: 
 
@@ -55,6 +74,18 @@ componentWillReceiveProps(nextProps) {
     if (locationChanged) {
       //Reload izanami data on route change
       IzanamiApi.izanamiReload("/api/izanami");
+    }
+}
+``` 
+Or if an id was used 
+
+```jsx harmony
+componentWillReceiveProps(nextProps) {
+    // will be true
+    const locationChanged = nextProps.location !== this.props.location;
+    if (locationChanged) {
+      //Reload izanami data on route change
+      IzanamiApi.izanamiReload("provider1");
     }
 }
 ``` 
