@@ -23,7 +23,14 @@ app.get('/izanami', (req, resp) => {
         },
         feature1: {
           active: true
-        }
+        },
+        feature2: {
+          active: true
+        },
+        feature3: {
+          active: true
+        },
+
       }
     }
   });
