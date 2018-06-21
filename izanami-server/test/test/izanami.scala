@@ -1,5 +1,6 @@
 package test
 
+import akka.http.scaladsl.util.FastFuture
 import controllers.actions.{AuthContext, SecuredAuthContext}
 import domains.AuthorizedPattern
 import domains.user.User
@@ -11,6 +12,7 @@ import org.scalatest._
 import org.scalatestplus.play.components._
 import play.api.ApplicationLoader.Context
 import play.api._
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{ActionBuilder, _}
@@ -130,4 +132,14 @@ trait IzanamiMatchers {
     override def toString: String = "be theStatus " + Prettifier.default(status)
   }
 
+}
+
+
+object FakeApplicationLifecycle {
+  def apply(): ApplicationLifecycle = new FakeApplicationLifecycle
+}
+class FakeApplicationLifecycle extends ApplicationLifecycle {
+  override def addStopHook(hook: () => Future[_]): Unit = ()
+
+  override def stop(): Future[_] = FastFuture.successful(())
 }

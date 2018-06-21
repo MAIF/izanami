@@ -2,19 +2,28 @@ package store
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
 import cats.Semigroup
-import cats.data.NonEmptyList
 import cats.kernel.Monoid
 import cats.syntax.option._
 import domains.events.EventStore
 import domains.Key
+import domains.events.Events.IzanamiEvent
+import env._
+import libs.database.Drivers
 import play.api.Logger
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import store.Result.Result
+import store.cassandra.CassandraJsonDataStore
+import store.elastic.ElasticJsonDataStore
+import store.leveldb.LevelDBJsonDataStore
+import store.memory.InMemoryJsonDataStore
+import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
+import store.mongo.MongoJsonDataStore
+import store.redis.RedisJsonDataStore
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 object Result {
@@ -36,7 +45,9 @@ object Result {
         case None => AppErrors(errors, fieldErrors + (field -> errors))
       }
 
-    def toJson  = Json.toJson(this)
+    def toJson: JsValue =
+      AppErrors.format.writes(this)
+
     def isEmpty = errors.isEmpty && fieldErrors.isEmpty
   }
 
@@ -149,6 +160,26 @@ case class JsonPagingResult[Data](jsons: PagingResult[JsValue])(implicit reads: 
 case class DefaultPagingResult[Data](results: Seq[Data], page: Int, pageSize: Int, count: Int)
     extends PagingResult[Data]
 
+object SourceUtils {
+
+  implicit class SourceKV(source: Source[(Key, JsValue), NotUsed]) {
+    def readsKV[V](implicit reads: Reads[V]): Source[(Key, V), NotUsed] =
+      source.mapConcat {
+        case (k, v) =>
+          reads
+            .reads(v)
+            .fold(
+              { err =>
+                Logger.error(s"Error parsing $v : $err")
+                List.empty[(Key, V)]
+              }, { v =>
+                List((k, v))
+              }
+            )
+      }
+  }
+}
+
 case class SimpleFindResult[Data](datas: Future[List[Data]]) extends FindResult[Data] {
 
   override def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]] =
@@ -236,8 +267,52 @@ trait DataStore[Key, Data] extends StoreOps {
   def deleteAll(patterns: Seq[String]): Future[Result[Done]]
   def getById(id: Key): FindResult[Data]
   def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): Future[PagingResult[Data]]
-  def getByIdLike(patterns: Seq[String]): FindResult[Data]
+  def getByIdLike(patterns: Seq[String]): Source[(Key, Data), NotUsed]
   def count(patterns: Seq[String]): Future[Long]
 }
 
 trait JsonDataStore extends DataStore[Key, JsValue]
+
+object JsonDataStore {
+  def apply(drivers: Drivers,
+            izanamiConfig: IzanamiConfig,
+            conf: DbDomainConfig,
+            eventStore: EventStore,
+            eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
+            applicationLifecycle: ApplicationLifecycle)(implicit actorSystem: ActorSystem): JsonDataStore =
+    conf.`type` match {
+      case InMemoryWithDb =>
+        val dbType: DbType = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
+        val jsonDataStore  = storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
+        Logger.info(
+          s"Loading InMemoryWithDbStore for namespace ${conf.conf.namespace} with underlying store ${dbType.getClass.getSimpleName}"
+        )
+        InMemoryWithDbStore(izanamiConfig.db.inMemoryWithDb.get,
+                            conf,
+                            jsonDataStore,
+                            eventStore,
+                            eventAdapter,
+                            applicationLifecycle)
+      case other =>
+        storeByType(drivers, izanamiConfig, conf, other, applicationLifecycle)
+    }
+
+  private def storeByType(
+      drivers: Drivers,
+      izanamiConfig: IzanamiConfig,
+      conf: DbDomainConfig,
+      dbType: DbType,
+      applicationLifecycle: ApplicationLifecycle
+  )(implicit actorSystem: ActorSystem): JsonDataStore =
+    dbType match {
+      case InMemory => InMemoryJsonDataStore(conf, actorSystem)
+      case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf, actorSystem)
+      case LevelDB  => LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle)
+      case Cassandra =>
+        CassandraJsonDataStore(drivers.cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem)
+      case Elastic => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem)
+      case Mongo   => MongoJsonDataStore(drivers.mongoApi.get, conf, actorSystem)
+      case _       => throw new IllegalArgumentException(s"Unsupported store type $dbType")
+    }
+
+}

@@ -155,7 +155,7 @@ Other settings are available, consult the @ref[settings](settings.md) page.
 ### Mongo 
 
 
-To run Izanami with elasticsearch : 
+To run Izanami with mongo : 
 
 ```bash
 bin/izanami \ 
@@ -173,6 +173,49 @@ bin/izanami
 ```
 
 Other settings are available, consult the @ref[settings](settings.md) page. 
+
+### In Memory with Db 
+
+If your data fit in memory and you need high throughput you can use this store. 
+
+With this store your data are kept in memory and used for read operations. 
+During write operations, the in memory image is updated asynchronously. 
+
+![InMemoryWithDb](../img/diagrams/inmemorywithdb.png)
+
+
+
+To run Izanami with in memory with db : 
+
+```bash
+bin/izanami \ 
+    -Dizanami.db.default=InMemoryWithDb \
+    -Dizanami.db.inMemoryWithDb.db=Mongo \
+    -Dizanami.db.inMemoryWithDb.pollingInterval=1 second \  // If you need to force a periodic refresh of your cache 
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami
+```
+
+Or 
+
+```bash
+export IZANAMI_DATABASE=InMemoryWithDb
+export IN_MEMORY_WITH_DB_DB=Mongo
+export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami 
+export IN_MEMORY_WITH_DB_POLLING_INTERVAL=1 second // If you need to force a periodic refresh of your cache 
+
+bin/izanami 
+```
+
+You can set a database per domain : 
+
+```bash
+bin/izanami \ 
+    -Dizanami.db.default=InMemoryWithDb \
+    -Dizanami.db.inMemoryWithDb.db=Mongo \
+    -Dizanami.db.inMemoryWithDb.pollingInterval=1 second \  // If you need to force a periodic refresh of your cache 
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami \
+    -Dizanami.feature.db.conf.db.type=Elastic       // Override underlying db for features
+```
 
 
 ### Mix Databases 

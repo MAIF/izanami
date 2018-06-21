@@ -74,8 +74,8 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
     } else Option.empty
   }
 
-  private def mget(keys: String*): Future[Seq[Option[ByteString]]] =
-    Future.sequence(keys.map(k => get(k)))
+  private def mget(keys: String*): Future[Seq[Option[(String, ByteString)]]] =
+    Future.sequence(keys.map(k => get(k).map(_.map(v => (k, v)))))
 
   private def get(key: String): Future[Option[ByteString]] = Future {
     Try(client.get(bytes(key))).toOption
@@ -83,16 +83,14 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
       .map(ByteString.apply)
   }
 
-  private def getByIds(keys: String*): Future[Seq[JsValue]] =
+  private def getByIds(keys: String*): Future[Seq[(String, JsValue)]] =
     mget(keys: _*).map(_.flatten).map {
       _.map {
-        _.utf8String
-      }.map {
-        Json.parse
+        case (k, v) => (k, Json.parse(v.utf8String))
       }
     }
 
-  private def getByKeys(keys: Key*): Future[Seq[JsValue]] =
+  private def getByKeys(keys: Key*): Future[Seq[(String, JsValue)]] =
     getByIds(keys.map(_.key): _*)
 
   private def patternsToKey(patterns: Seq[String]): Seq[Key] =
@@ -166,12 +164,13 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
     SimpleFindResult(getByKeyId(id).map(_.toList))
 
   override def getByIdLike(patterns: Seq[String]) =
-    SourceFindResult(
-      keys(patterns: _*)
-        .grouped(50)
-        .mapAsync(4)(getByKeys)
-        .mapConcat(_.toList)
-    )
+    keys(patterns: _*)
+      .grouped(50)
+      .mapAsync(4)(getByKeys)
+      .mapConcat(_.toList)
+      .map {
+        case (k, v) => (Key(k), v)
+      }
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int) = {
     val position = (page - 1) * nbElementPerPage
@@ -181,6 +180,7 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
         .take(nbElementPerPage)
         .grouped(nbElementPerPage)
         .mapAsync(4)(getByKeys)
+        .map(_.map(_._2))
         .fold(Seq.empty[JsValue])(_ ++ _)
     } runWith Sink.head map {
       case (results, count) =>
@@ -189,7 +189,9 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
   }
 
   override def count(patterns: Seq[String]): Future[Long] =
-    getByIdLike(patterns).list.map(_.size)
+    getByIdLike(patterns).runFold(0L) { (acc, _) =>
+      acc + 1
+    }
 
   def stop() =
     client.close()

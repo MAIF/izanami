@@ -6,13 +6,13 @@ import java.time.{LocalDateTime, ZoneId}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import domains.events.EventStore
 import domains.feature.FeatureStore._
-import store.Result.Result
+import store.Result.{ErrorMessage, Result}
 import domains.script.{GlobalScript, Script}
-import domains.{AuthInfo, Key}
+import domains.{AuthInfo, ImportResult, Key}
 import env.Env
 import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 import shapeless.syntax
@@ -21,6 +21,8 @@ import store._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.hashing.MurmurHash3
 import FeatureType._
+import domains.config.Config
+import store.SourceUtils.SourceKV
 sealed trait Strategy
 
 sealed trait Feature {
@@ -284,6 +286,23 @@ object Feature {
   def isAllowed(key: FeatureKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
 
+  def importData(
+      featureStore: FeatureStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[Feature]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          featureStore.create(obj.id, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
+
   def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] { feature =>
     val path = feature.id.segments.foldLeft[JsPath](JsPath) { (path, seq) =>
       path \ seq
@@ -427,8 +446,8 @@ class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system:
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[Feature] =
-    JsonFindResult[Feature](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, Feature), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[Feature]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

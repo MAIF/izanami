@@ -27,7 +27,6 @@ object Configs {
   val cassandraPort: Int = 9042
 
   val elasticHttpPort: Int = 9210
-  val elasticTcpPort: Int  = 9300
 
   val elasticConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
@@ -190,6 +189,30 @@ object Configs {
       .resolve()
   )
 
+
+  val inMemoryWithDbConfiguration: Configuration = Configuration(
+    ConfigFactory
+      .parseString("""
+                     |izanami.db.default="InMemoryWithDb"
+                     |izanami.db.inMemoryWithDb.db="InMemory"
+                     |
+                     |izanami.mode= "test"
+                     |izanami.config.db.type=${izanami.db.default}
+                     |izanami.features.db.type=${izanami.db.default}
+                     |izanami.globalScript.db.type=${izanami.db.default}
+                     |izanami.experiment.db.type=${izanami.db.default}
+                     |izanami.variantBinding.db.type=${izanami.db.default}
+                     |izanami.experimentEvent.db.type=${izanami.db.default}
+                     |izanami.webhook.db.type=${izanami.db.default}
+                     |izanami.user.db.type=${izanami.db.default}
+                     |izanami.apikey.db.type=${izanami.db.default}
+                     |izanami.patch.db.type=${izanami.db.default}
+                     |
+      """.stripMargin)
+      .resolve()
+  )
+
+
 }
 
 class InMemoryTests
@@ -201,6 +224,18 @@ class InMemoryTests
       new WebhookControllerSpec("InMemory", Configs.inMemoryConfiguration),
       new UserControllerSpec("InMemory", Configs.inMemoryConfiguration),
       new ApikeyControllerSpec("InMemory", Configs.inMemoryConfiguration)
+    )
+    with BeforeAndAfterAll {}
+
+class InMemoryWithDbTests
+    extends Suites(
+      new ConfigControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
+      new ExperimentControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
+      new FeatureControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
+      new GlobalScriptControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
+      new WebhookControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
+      new UserControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
+      new ApikeyControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
     )
     with BeforeAndAfterAll {}
 

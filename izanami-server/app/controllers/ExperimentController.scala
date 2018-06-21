@@ -66,7 +66,7 @@ class ExperimentController(env: Env,
 
       experimentStore
         .getByIdLike(patternsSeq)
-        .stream
+        .map(_._2)
         .via(Experiment.toGraph(clientId))
         .map { graph =>
           Ok(graph)
@@ -146,7 +146,7 @@ class ExperimentController(env: Env,
 
     val experimentsRelationsDeletes = experimentStore
       .getByIdLike(patternsSeq)
-      .stream
+      .map(_._2)
       .flatMapMerge(
         4, { experiment =>
           Source
@@ -264,7 +264,7 @@ class ExperimentController(env: Env,
   def downloadExperiments(): Action[AnyContent] = AuthAction { ctx =>
     val source = experimentStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
+      .map(_._2)
       .map(data => Json.toJson(data))
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
@@ -282,14 +282,7 @@ class ExperimentController(env: Env,
 
   def uploadExperiments() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .map { case (s, json) => (s, json.validate[Experiment]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          experimentStore.create(obj.id, obj) map { ImportResult.fromResult _ }
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+      .via(Experiment.importData(experimentStore))
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))
@@ -305,8 +298,7 @@ class ExperimentController(env: Env,
   def downloadBindings(): Action[AnyContent] = AuthAction { ctx =>
     val source = variantBindingStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
-      .map(data => Json.toJson(data))
+      .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
@@ -319,16 +311,7 @@ class ExperimentController(env: Env,
 
   def uploadBindings() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .map { case (s, json) => (s, json.validate[VariantBinding]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          variantBindingStore.create(obj.variantBindingKey, obj) map {
-            ImportResult.fromResult _
-          }
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+      .via(VariantBinding.importData(variantBindingStore))
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))
@@ -357,16 +340,7 @@ class ExperimentController(env: Env,
 
   def uploadEvents() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .map { case (s, json) => (s, json.validate[ExperimentVariantEvent]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          eVariantEventStore.create(obj.id, obj) map {
-            ImportResult.fromResult _
-          }
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+      .via(ExperimentVariantEvent.importData(eVariantEventStore))
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))

@@ -2,16 +2,17 @@ package domains.abtesting
 
 import java.time.LocalDateTime
 
-import akka.stream.scaladsl.Source
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
-import domains.Key
+import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import libs.IdGenerator
 import play.api.libs.json._
-import store.Result.Result
+import store.Result.{ErrorMessage, Result}
 import store.{FindResult, StoreOps}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /* ************************************************************************* */
 /*                      ExperimentVariantEvent                               */
@@ -113,6 +114,24 @@ object ExperimentVariantEvent {
   }
 
   implicit val format = Format(reads, writes)
+
+  def importData(
+      eVariantEventStore: ExperimentVariantEventStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[ExperimentVariantEvent]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          eVariantEventStore.create(obj.id, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
+
 }
 
 trait ExperimentVariantEventStore extends StoreOps {

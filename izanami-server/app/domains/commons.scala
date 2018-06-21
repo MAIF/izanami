@@ -1,8 +1,12 @@
 package domains
 
-import akka.stream.scaladsl.Source
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
 import cats.kernel.Monoid
+import env.DbDomainConfig
+import play.api.Logger
 import play.api.libs.json.Reads.pattern
 import play.api.libs.json._
 import play.api.libs.streams.Accumulator
@@ -10,6 +14,7 @@ import play.api.mvc.BodyParser
 import store.Result.{AppErrors, ErrorMessage, Result}
 
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 
 sealed trait AuthorizedPatternTag
@@ -36,6 +41,20 @@ object Import {
   def ndJson(implicit ec: ExecutionContext): BodyParser[Source[(String, JsValue), _]] =
     BodyParser { req =>
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
+    }
+
+  def importFile(
+      db: DbDomainConfig,
+      process: Flow[(String, JsValue), ImportResult, NotUsed]
+  )(implicit ec: ExecutionContext, materializer: Materializer) =
+    db.`import`.foreach { p =>
+      Logger.info(s"Importing file $p for namespace ${db.conf.namespace}")
+      FileIO.fromPath(p).via(toJson).via(process).runWith(Sink.head).onComplete {
+        case Success(res) if res.isError =>
+          Logger.info(s"Import end with error for file $p and namespace ${db.conf.namespace}: \n ${res.errors}")
+        case Success(_) => Logger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
+        case Failure(e) => Logger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
+      }
     }
 }
 

@@ -61,24 +61,25 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
        |}
          """.stripMargin
 
+  private val dbConfig = DbDomainConfig(InMemory, DbDomainConfigDetails("", None), None)
   val config = IzanamiConfig(
     Some("dev"),
     "/",
     "/",
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
-    DbConfig("", None, None, None, None, None, None),
+    DbConfig("", None, None, None, None, None, None, None),
     LogoutConfig(""),
-    ConfigConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    FeaturesConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    GlobalScriptConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    ExperimentConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    VariantBindingConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    ExperimentEventConfig(DbDomainConfig(InMemory, DbDomainConfigDetails(""))),
-    WebhookConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")), WebhookEventsConfig(5, 1.second, 1, 1.second)),
-    UserConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")), InitialUserConfig("", "")),
-    ApikeyConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")), InitializeApiKey(None, None, "*")),
+    ConfigConfig(dbConfig),
+    FeaturesConfig(dbConfig),
+    GlobalScriptConfig(dbConfig),
+    ExperimentConfig(dbConfig),
+    VariantBindingConfig(dbConfig),
+    ExperimentEventConfig(dbConfig),
+    WebhookConfig(dbConfig, WebhookEventsConfig(5, 1.second, 1, 1.second)),
+    UserConfig(dbConfig, InitialUserConfig("", "")),
+    ApikeyConfig(dbConfig, InitializeApiKey(None, None, "*")),
     InMemoryEvents(InMemoryEventsConfig()),
-    PatchConfig(DbDomainConfig(InMemory, DbDomainConfigDetails("")))
+    PatchConfig(dbConfig)
   )
 
   "Script" must {
