@@ -43,7 +43,7 @@ export class IzanamiProvider extends Component {
   }
 
   id = () => {
-      return isFunction(this.props.fetchFrom) ? this.props.id : this.props.fetchFrom
+      return this.props.id ? this.props.id : (isFunction(this.props.fetchFrom) ? this.props.fetchFrom :  "default");
   }
 
   onDataLoaded = data => {
