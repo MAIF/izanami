@@ -44,6 +44,9 @@ const features = {
     },
     feature1: {
       active: true
+    },
+    feature2: {
+      active: true
     }
   }
 };
@@ -57,7 +60,13 @@ const fallback = {
     },
     feature1: {
       active: false
-    }
+    },
+    feature2: {
+      active: true
+    },
+    feature3: {
+      active: false
+    },
   }
 };
 
@@ -108,6 +117,14 @@ class FeatureApp extends Component {
         </Enabled>
         <Disabled>
           <h1>Hello World!</h1>
+        </Disabled>
+      </Feature>
+      <Feature debug path={["project.feature2","project.feature3"]}>
+        <Enabled>
+          <h1>Actif</h1>
+        </Enabled>
+        <Disabled>
+          <h1>Inactif</h1>
         </Disabled>
       </Feature>
     </div>
