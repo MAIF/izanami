@@ -1,17 +1,20 @@
 package domains.user
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.{Flow, Source}
 import com.auth0.jwt.interfaces.DecodedJWT
 import domains.events.EventStore
 import domains.user.UserStore.UserKey
-import domains.{AuthInfo, AuthorizedPattern, Key}
+import domains.{AuthInfo, AuthorizedPattern, ImportResult, Key}
 import libs.crypto.Sha
 import play.api.libs.json.JsObject
+import store.Result.ErrorMessage
+import store.SourceUtils.SourceKV
 import store._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 case class User(id: String,
@@ -105,6 +108,23 @@ object User {
     } yield
       User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = AuthorizedPattern(patterns))
   }
+
+  def importData(
+      userStore: UserStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, UserNoPassword.format.reads(json)) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          userStore.create(Key(obj.id), obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 }
 
 trait UserStore extends DataStore[UserKey, User]
@@ -164,8 +184,8 @@ class UserStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: Ac
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[User] =
-    JsonFindResult[User](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, User), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[User]
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

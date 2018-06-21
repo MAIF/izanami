@@ -1,243 +1,156 @@
 package store.memory
 
-import akka.Done
-import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
-import akka.util.Timeout
-import cats.syntax.option._
+import akka.{Done, NotUsed}
+import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.Source
 import domains.Key
 import env.DbDomainConfig
 import play.api.Logger
 import play.api.libs.json.{JsValue, _}
-import store.Result.{ErrorMessage, Result}
+import store.Result.Result
 import store._
-import store.memory.JsonDataStoreActor._
 
-import scala.concurrent.Future
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.{ExecutionContext, Future}
 
 object InMemoryJsonDataStore {
-  def apply(system: ActorSystem, name: String): InMemoryJsonDataStore =
-    new InMemoryJsonDataStore(system, name)
 
-  def apply(dbDomainConfig: DbDomainConfig, actorSystem: ActorSystem): InMemoryJsonDataStore = {
-    val namespace = dbDomainConfig.conf.namespace
-
+  def apply(dbDomainConfig: DbDomainConfig, actorSystem: ActorSystem): JsonDataStore = {
+    val namespace    = dbDomainConfig.conf.namespace
+    implicit val ec  = InMemoryExecutionContext(actorSystem)
+    implicit val sys = actorSystem
     Logger.info(s"Load store InMemory for namespace $namespace")
-    InMemoryJsonDataStore(actorSystem, namespace)
+    //new InMemoryJsonDataStoreAsync(namespace)(sys, ec)
+    new InMemoryJsonDataStore(namespace)
   }
 }
 
-class InMemoryJsonDataStore(system: ActorSystem, name: String) extends JsonDataStore {
+case class InMemoryExecutionContext(actorSystem: ActorSystem) extends ExecutionContext {
+  private val _ec = actorSystem.dispatchers.lookup("izanami.inmemory-dispatcher")
 
-  import akka.pattern._
-  import system.dispatcher
+  override def execute(runnable: Runnable): Unit = _ec.execute(runnable)
 
-  private implicit val timeout   = Timeout(1.second)
-  private implicit val scheduler = system.scheduler
+  override def reportFailure(cause: Throwable): Unit = _ec.reportFailure(cause)
+}
 
-  private val store =
-    system.actorOf(Props[JsonDataStoreActor](new JsonDataStoreActor()), name)
+class InMemoryJsonDataStoreAsync(name: String)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
+    extends BaseInMemoryJsonDataStore(name)
+    with JsonDataStore {
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    applyCommand(CreateJsonData(id, data)).collect {
-      case CommandResponse(r) => r
-    }
+    Future { createSync(id, data) }
 
   override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    applyCommand(UpdateJsonData(oldId, id, data)).collect {
-      case CommandResponse(r) => r
-    }
+    Future { updateSync(oldId, id, data) }
 
   override def delete(id: Key): Future[Result[JsValue]] =
-    applyCommand(DeleteJsonData(id)).collect {
-      case CommandResponse(r) => r
-    }
+    Future { deleteSync(id) }
 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
-    applyCommand(DeleteJsonDatasByPatterns(patterns)).collect {
-      case CommandResponseBatch(r) => r
-    }
+    Future { deleteAllSync(patterns) }
 
   override def getById(id: Key): FindResult[JsValue] =
-    find(GetById(id))
+    SimpleFindResult(Future(getByIdSync(id).toList))
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
-    (store ? Find(patterns, page, nbElementPerPage))
-      .mapTo[ActorStoreResponse]
-      .collect {
-        case QueryResponse(r, c) =>
-          DefaultPagingResult(r, page, nbElementPerPage, c)
-      }
+    Future {
+      getByIdLikeSync(patterns, page, nbElementPerPage)
+    }
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[JsValue] =
-    find(FindAll(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+    Source(getByIdLikeSync(patterns))
 
   override def count(patterns: Seq[String]): Future[Long] =
-    find(FindAll(patterns)).list.map(_.size)
+    Future(countSync(patterns))
+}
 
-  def find(query: JsonDataQuery): FindResult[JsValue] = {
-    val future: Future[ActorStoreResponse] =
-      (store ? query).mapTo[ActorStoreResponse]
-    SimpleFindResult(future.collect {
-      case QueryResponse(c, _) => c
-    })
-  }
+class InMemoryJsonDataStore(name: String) extends BaseInMemoryJsonDataStore(name) with JsonDataStore {
 
-  def count(query: JsonCountQuery): Future[Long] = {
-    val future: Future[ActorStoreResponse] =
-      (store ? query).mapTo[ActorStoreResponse]
-    future.collect {
-      case CountResponse(c) => c
+  override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
+    FastFuture.successful(createSync(id, data))
+
+  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
+    FastFuture.successful(updateSync(oldId, id, data))
+
+  override def delete(id: Key): Future[Result[JsValue]] =
+    FastFuture.successful(deleteSync(id))
+
+  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+    FastFuture.successful(deleteAllSync(patterns))
+
+  override def getById(id: Key): FindResult[JsValue] =
+    SimpleFindResult(FastFuture.successful(getByIdSync(id).toList))
+
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
+    FastFuture.successful(getByIdLikeSync(patterns, page, nbElementPerPage))
+
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+    Source(getByIdLikeSync(patterns))
+
+  override def count(patterns: Seq[String]): Future[Long] =
+    FastFuture.successful(countSync(patterns))
+}
+
+class BaseInMemoryJsonDataStore(name: String) {
+
+  protected val inMemoryStore = TrieMap.empty[Key, JsValue]
+
+  protected def createSync(id: Key, data: JsValue): Result[JsValue] =
+    inMemoryStore.get(id) match {
+      case Some(_) =>
+        Result.error("error.data.exists")
+      case None =>
+        inMemoryStore.put(id, data)
+        Result.ok(data)
     }
+
+  protected def updateSync(oldId: Key, id: Key, data: JsValue): Result[JsValue] =
+    if (inMemoryStore.contains(oldId)) {
+      inMemoryStore.remove(oldId)
+      inMemoryStore.put(id, data)
+      Result.ok(data)
+    } else {
+      Logger.error(s"Error data missing for $oldId")
+      Result.error("error.data.missing")
+    }
+
+  protected def deleteSync(id: Key): Result[JsValue] =
+    inMemoryStore.remove(id) match {
+      case Some(data: JsValue) =>
+        val value: Result[JsValue] = Result.ok(data)
+        value
+      case None =>
+        Result.error("error.data.missing")
+    }
+
+  protected def deleteAllSync(patterns: Seq[String]): Result[Done] = {
+    val keys = find(patterns).map(_._1)
+    keys.foreach { inMemoryStore.remove }
+    Result.ok(Done)
   }
 
-  def applyCommand[E](command: JsonDataCommand)(implicit format: Format[JsValue]): Future[ActorStoreResponse] = {
-    val future: Future[ActorStoreResponse] =
-      (store ? command.asInstanceOf[JsonDataMessages]).mapTo[ActorStoreResponse]
-    future
+  protected def getByIdSync(id: Key): Option[JsValue] =
+    inMemoryStore.get(id)
+
+  protected def getByIdLikeSync(patterns: Seq[String], page: Int, nbElementPerPage: Int): PagingResult[JsValue] = {
+    val position = (page - 1) * nbElementPerPage
+    val values   = find(patterns)
+    val r        = values.slice(position, position + nbElementPerPage).map(_._2)
+    DefaultPagingResult(r, page, nbElementPerPage, values.size)
   }
 
-  def close(): Unit =
-    this.store ! PoisonPill
+  protected def getByIdLikeSync(patterns: Seq[String]): List[(Key, JsValue)] =
+    find(patterns)
 
-}
+  protected def countSync(patterns: Seq[String]): Long =
+    find(patterns).size.toLong
 
-private[memory] class JsonDataStoreActor extends Actor {
-
-  private var datas: Map[Key, (JsValue, Long, Option[FiniteDuration])] =
-    Map.empty[Key, (JsValue, Long, Option[FiniteDuration])]
-
-  override def receive: Receive = {
-
-    case cmd: JsonDataCommand =>
-      cmd match {
-
-        case CreateJsonData(id, value) =>
-          datas.get(id) match {
-            case Some(_) =>
-              sender() ! CommandResponse(Result.errors(ErrorMessage("error.data.exists", id.key)))
-
-            case None =>
-              sender() ! CommandResponse(Result.ok(value))
-              val storedData =
-                (value, System.currentTimeMillis(), none[FiniteDuration])
-              datas = datas + (id -> storedData)
-          }
-
-        case CreateJsonDataWithTTL(id, value, ttl) =>
-          datas.get(id) match {
-            case Some(_) =>
-              sender() ! CommandResponse(Result.errors(ErrorMessage("error.data.exists", id.key)))
-            case None =>
-              sender() ! CommandResponse(Result.ok(value))
-              val storedData = (value, System.currentTimeMillis(), ttl.some)
-              datas = datas + (id -> storedData)
-          }
-
-        case UpdateJsonData(oldId, id, value) =>
-          sender() ! CommandResponse(Result.ok(value))
-          val storedData =
-            (value, System.currentTimeMillis(), none[FiniteDuration])
-          datas = (datas - oldId) + (id -> storedData)
-
-        case UpdateJsonDataWithTTL(oldId, id, value, ttl) =>
-          sender() ! CommandResponse(Result.ok(value))
-          val storedData = (value, System.currentTimeMillis(), ttl.some)
-          datas = (datas - oldId) + (id -> storedData)
-
-        case DeleteJsonData(id) =>
-          datas.get(id) match {
-            case Some((value, _, _)) =>
-              sender() ! CommandResponse(Result.ok(value))
-              datas = datas - id
-            case None =>
-              sender() ! CommandResponse(Result.error(s"error.data.missing"))
-          }
-
-        case DeleteJsonDatasByPatterns(patterns) =>
-          val keysToDelete = datas.keys.filter { matchPatterns(patterns) }.toList
-          val newDatas     = keysToDelete.foldLeft(datas) { _ - _ }
-          sender() ! CommandResponseBatch(Result.ok(Done))
-          datas = newDatas
-      }
-
-    /* Queries */
-    case query: JsonDataQuery =>
-      query match {
-
-        case GetById(id) =>
-          val queriedDatas = datas.get(id).flatMap(isExpired).toList
-          sender() ! QueryResponse(queriedDatas, 1)
-
-        case Find(patterns, page, nbElementPerPage) =>
-          Logger.debug(s"Applying pattern $patterns to keys during search")
-
-          val position = (page - 1) * nbElementPerPage
-          val keys = datas.keys
-            .filter {
-              matchPatterns(patterns)
-            }
-          val values = keys
-            .flatMap(datas.get)
-            .flatMap(isExpired)
-            .slice(position, position + nbElementPerPage)
-            .toList
-          sender() ! QueryResponse(values, keys.size)
-
-        case FindAll(patterns) =>
-          Logger.debug(s"Applying pattern $patterns to keys during search ")
-
-          val keys = datas
-            .collect { case (k, v) if matchPatterns(patterns)(k) => v }
-          val values = keys
-            .flatMap(isExpired)
-            .toList
-          sender() ! QueryResponse(values, keys.size)
-
-      }
-
-    case query: JsonCountQuery =>
-      sender() ! CountResponse(datas.count(_ => true))
-  }
-
-}
-
-private[memory] object JsonDataStoreActor {
-
-  case object TimerKey
-
-  sealed trait JsonDataMessages
-  sealed trait JsonDataCommand                                                              extends JsonDataMessages
-  case class CreateJsonData(id: Key, data: JsValue)                                         extends JsonDataCommand
-  case class CreateJsonDataWithTTL(id: Key, data: JsValue, ttl: FiniteDuration)             extends JsonDataCommand
-  case class UpdateJsonData(oldId: Key, id: Key, data: JsValue)                             extends JsonDataCommand
-  case class UpdateJsonDataWithTTL(oldId: Key, id: Key, data: JsValue, ttl: FiniteDuration) extends JsonDataCommand
-  case class DeleteJsonData(id: Key)                                                        extends JsonDataCommand
-  case class DeleteJsonDatasByPatterns(patterns: Seq[String])                               extends JsonDataCommand
-
-  sealed trait JsonDataQuery                                                        extends JsonDataMessages
-  case class GetById(id: Key)                                                       extends JsonDataQuery
-  case class Find(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15) extends JsonDataQuery
-  case class FindAll(patterns: Seq[String])                                         extends JsonDataQuery
-
-  sealed trait JsonCountQuery extends JsonDataMessages
-  case object CountAll        extends JsonCountQuery
-
-  sealed trait ActorStoreResponse
-  case class CommandResponse(result: Result[JsValue])          extends ActorStoreResponse
-  case class CommandResponseBatch(result: Result[Done])        extends ActorStoreResponse
-  case class QueryResponse(configs: List[JsValue], count: Int) extends ActorStoreResponse
-  case class CountResponse(count: Long)                        extends ActorStoreResponse
-
-  private def matchPatterns(patterns: Seq[String])(key: Key) =
+  protected def matchPatterns(patterns: Seq[String])(key: Key) =
     patterns.forall(r => key.matchPattern(r))
 
-  private def isExpired(storedData: (JsValue, Long, Option[FiniteDuration])): Option[JsValue] = {
-    val now = System.currentTimeMillis()
-    storedData match {
-      case (data, date, Some(ttl)) if (date + ttl.toMillis) < now =>
-        none[JsValue]
-      case (data, _, _) => data.some
-    }
+  protected def find(patterns: Seq[String]): List[(Key, JsValue)] = {
+    val p = matchPatterns(patterns)(_)
+    inMemoryStore.collect { case (k, v) if p(k) => (k, v) }.toList
   }
 }

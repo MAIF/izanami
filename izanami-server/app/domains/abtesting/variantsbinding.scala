@@ -1,16 +1,18 @@
 package domains.abtesting
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import domains.Key
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.{Flow, Source}
+import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
-import play.api.libs.json.{Format, Json, Writes}
+import play.api.libs.json._
 import store.Result.{AppErrors, ErrorMessage, Result}
 import store._
 
 import scala.concurrent.{ExecutionContext, Future}
-
+import store.SourceUtils._
 /* ************************************************************************* */
 /*                      Variant binding                                      */
 /* ************************************************************************* */
@@ -38,6 +40,23 @@ case class VariantBinding(variantBindingKey: VariantBindingKey, variantId: Strin
 
 object VariantBinding {
   implicit val format = Json.format[VariantBinding]
+
+  def importData(
+      variantBindingStore: VariantBindingStore
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[VariantBinding]) }
+      .mapAsync(4) {
+        case (_, JsSuccess(obj, _)) =>
+          variantBindingStore.create(obj.variantBindingKey, obj) map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 
   def variantFor(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
@@ -156,8 +175,10 @@ class VariantBindingStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, 
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[VariantBinding] =
-    JsonFindResult[VariantBinding](jsonStore.getByIdLike(patterns))
+  override def getByIdLike(patterns: Seq[String]): Source[(VariantBindingKey, VariantBinding), NotUsed] =
+    jsonStore.getByIdLike(patterns).readsKV[VariantBinding].map {
+      case (k, v) => (VariantBindingKey(k), v)
+    }
 
   override def count(patterns: Seq[String]): Future[Long] =
     jsonStore.count(patterns)

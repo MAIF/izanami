@@ -87,8 +87,9 @@ class WebHooksActor(wSClient: WSClient, eventStore: EventStore, webhookStore: We
   private def setUpWebHooks(): Future[Done] =
     webhookStore
       .getByIdLike(Seq("*"))
-      .list
-      .map(_.filterNot(_.isBanned))
+      .map(_._2)
+      .filterNot(_.isBanned)
+      .fold(Seq.empty[Webhook]) { _ :+ _ }
       .map { hooks =>
         //Create webhooks if missing
         hooks.foreach { createWebhook }
@@ -99,6 +100,7 @@ class WebHooksActor(wSClient: WSClient, eventStore: EventStore, webhookStore: We
           .foreach(_ ! PoisonPill)
         Done
       }
+      .runWith(Sink.head)
 
   private def createWebhook(hook: Webhook): Unit = {
     val childName = buildId(hook.clientId)

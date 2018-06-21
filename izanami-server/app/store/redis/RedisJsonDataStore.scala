@@ -50,14 +50,15 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
       }
     }
 
-  private def getByIds(keys: Key*): Future[Seq[JsValue]] =
-    client.mget(keys.map(buildKey).map(_.key): _*).map(_.flatten).map {
-      _.map {
-        _.utf8String
-      }.map {
-        Json.parse
-      }
-    }
+  private def getByIds(keys: Key*): Future[Seq[(String, JsValue)]] =
+    client
+      .mget(keys.map(buildKey).map(_.key): _*)
+      .map(
+        entries =>
+          (keys zip entries).collect {
+            case (k, Some(v)) => (k.key, Json.parse(v.utf8String))
+        }
+      )
 
   private def patternsToKey(patterns: Seq[String]): Seq[Key] =
     patterns.map(Key.apply).map(buildKey)
@@ -135,12 +136,14 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
   override def getById(id: Key) =
     SimpleFindResult(getByKeyId(id).map(_.toList))
 
-  override def getByIdLike(patterns: Seq[String]) = SourceFindResult(
+  override def getByIdLike(patterns: Seq[String]) =
     findKeys(patterns)
       .grouped(50)
-      .mapAsync(4)(getByIds)
+      .mapAsyncUnordered(50)(getByIds)
       .mapConcat(_.toList)
-  )
+      .map {
+        case (k, v) => (Key(k), v)
+      }
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int) = {
     val position = (page - 1) * nbElementPerPage
@@ -149,7 +152,8 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
         .drop(position)
         .take(nbElementPerPage)
         .grouped(nbElementPerPage)
-        .mapAsync(4)(getByIds)
+        .mapAsyncUnordered(nbElementPerPage)(getByIds)
+        .map(_.map(_._2))
         .fold(Seq.empty[JsValue])(_ ++ _)
     } runWith Sink.head map {
       case (results, count) =>
@@ -158,6 +162,8 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
   }
 
   override def count(patterns: Seq[String]): Future[Long] =
-    getByIdLike(patterns).list.map(_.size)
+    getByIdLike(patterns).runFold(0L) { (acc, _) =>
+      acc + 1
+    }
 
 }

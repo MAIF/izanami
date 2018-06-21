@@ -136,7 +136,7 @@ class FeatureController(env: Env,
       case context: JsObject =>
         featureStore
           .getByIdLike(patternsSeq)
-          .stream
+          .map(_._2)
           .via(repr(context, env))
           .map(graph => Ok(graph))
           .runWith(Sink.head)
@@ -242,8 +242,7 @@ class FeatureController(env: Env,
   def download(): Action[AnyContent] = AuthAction { ctx =>
     val source = featureStore
       .getByIdLike(ctx.authorizedPatterns)
-      .stream
-      .map(data => Json.toJson(data))
+      .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
@@ -255,14 +254,7 @@ class FeatureController(env: Env,
 
   def upload() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .map { case (s, json) => (s, json.validate[Feature]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          featureStore.create(obj.id, obj) map { ImportResult.fromResult _ }
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+      .via(Feature.importData(featureStore))
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))

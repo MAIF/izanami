@@ -1,6 +1,6 @@
 package store.mongo
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
@@ -137,15 +137,13 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     }
   }
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[JsValue] =
-    SourceFindResult(
-      Source.fromFuture(storeCollection).flatMapConcat {
-        _.find(buildPatternLikeRequest(patterns))
-          .cursor[MongoDoc](ReadPreference.primary)
-          .documentSource()
-          .map(_.data)
-      }
-    )
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+    Source.fromFuture(storeCollection).flatMapConcat {
+      _.find(buildPatternLikeRequest(patterns))
+        .cursor[MongoDoc](ReadPreference.primary)
+        .documentSource()
+        .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
+    }
 
   private def countRaw(patterns: Seq[String])(implicit collection: JSONCollection): Future[Int] =
     collection.count(Some(buildPatternLikeRequest(patterns)))

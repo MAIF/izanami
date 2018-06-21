@@ -1,6 +1,7 @@
 package env
 
 import java.net.{InetAddress, InetSocketAddress}
+import java.nio.file.{Path, Paths}
 
 import domains.AuthorizedPattern
 import play.api.Configuration
@@ -9,21 +10,23 @@ import pureconfig._
 import scala.concurrent.duration.FiniteDuration
 
 sealed trait DbType
-object Cassandra extends DbType
-object Redis     extends DbType
-object LevelDB   extends DbType
-object InMemory  extends DbType
-object Elastic   extends DbType
-object Mongo     extends DbType
+object Cassandra      extends DbType
+object Redis          extends DbType
+object LevelDB        extends DbType
+object InMemory       extends DbType
+object Elastic        extends DbType
+object Mongo          extends DbType
+object InMemoryWithDb extends DbType
 
 object DbType {
   def fromString(s: String) = s match {
-    case "Cassandra" => Cassandra
-    case "Redis"     => Redis
-    case "LevelDB"   => LevelDB
-    case "InMemory"  => InMemory
-    case "Elastic"   => Elastic
-    case "Mongo"     => Mongo
+    case "Cassandra"      => Cassandra
+    case "Redis"          => Redis
+    case "LevelDB"        => LevelDB
+    case "InMemory"       => InMemory
+    case "Elastic"        => Elastic
+    case "Mongo"          => Mongo
+    case "InMemoryWithDb" => InMemoryWithDb
   }
 }
 
@@ -63,6 +66,9 @@ object IzanamiConfig {
 
   implicit val inetAddressCC: ConfigConvert[InetAddress] =
     viaString[InetAddress](catchReadError(InetAddress.getByName), _.getHostAddress)
+
+  implicit val path: ConfigConvert[Path] =
+    viaString[Path](catchReadError(str => Paths.get(str)), _.toAbsolutePath.toString)
 
   implicit val inetSocketAddressCC: ConfigConvert[InetSocketAddress] =
     viaString[InetSocketAddress](
@@ -154,8 +160,11 @@ case class DbConfig(
     cassandra: Option[CassandraConfig],
     kafka: Option[KafkaConfig],
     elastic: Option[ElasticConfig],
-    mongo: Option[MongoConfig]
+    mongo: Option[MongoConfig],
+    inMemoryWithDb: Option[InMemoryWithDbConfig]
 )
+
+case class InMemoryWithDbConfig(db: DbType, pollingInterval: Option[FiniteDuration] = None)
 
 case class RedisConfig(
     host: String,
@@ -186,6 +195,6 @@ case class ElasticConfig(host: String,
 
 case class MongoConfig(url: String, database: Option[String], name: Option[String])
 
-case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails)
+case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails, `import`: Option[Path])
 case class InitialUserConfig(userId: String, password: String)
-case class DbDomainConfigDetails(namespace: String)
+case class DbDomainConfigDetails(namespace: String, db: Option[DbDomainConfig])

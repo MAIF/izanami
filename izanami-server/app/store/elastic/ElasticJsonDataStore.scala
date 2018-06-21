@@ -221,8 +221,10 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
     }
   }
 
-  override def getByIdLike(patterns: Seq[String]): FindResult[JsValue] =
-    SourceFindResult(getByIdLikeSource(patterns).map(_._2))
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+    getByIdLikeSource(patterns).map {
+      case (k, v) => (Key(k), v)
+    }
 
   private def getByIdLikeSource(patterns: Seq[String]): Source[(String, JsValue), NotUsed] = {
     val query = buildSearchQuery(patterns)
