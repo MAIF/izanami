@@ -5,7 +5,7 @@ import React, { Component } from 'react';
 import { func, string, bool, object, node, oneOfType, arrayOf } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import { isFunction } from 'lodash';
+import { get, isFunction } from 'lodash';
 import * as Api from './api'
 import Debug from './debug'
 import { arrayPathToString, getCleanedArrayPath, getIsActive } from './util'
@@ -48,11 +48,11 @@ export class Feature extends Component {
     mergedFeatures: {}
   };
 
-  onContextChange = ({__mergedFeatures, __fetchFrom, __debug}) => {
-    if (__fetchFrom && this.state.fetchFrom !== __fetchFrom ) {
-      this.setState({fetchFrom: __fetchFrom, debug: __debug, mergedFeatures: __mergedFeatures});
-      if(__debug) console.log('[Features] Registering to api for ', __fetchFrom);
-      Api.register(__fetchFrom , this.onFeaturesChanged)
+  onContextChange = ({__mergedFeatures, __id, __debug}) => {
+    if (__id && this.state.id !== __id ) {
+      this.setState({id: __id, debug: __debug, mergedFeatures: __mergedFeatures});
+      if(__debug) console.log('[Features] Registering to api for ', __id);
+      Api.register(__id , this.onFeaturesChanged);
     } else {
       this.setState({debug: __debug, mergedFeatures: __mergedFeatures});
     }
@@ -63,9 +63,9 @@ export class Feature extends Component {
   }
 
   componentWillUnmount() {
-    const fetchFrom = this.state.__fetchFrom;
-    if (fetchFrom) {
-      Api.unregister(fetchFrom, this.onFeaturesChanged)
+    const id = this.state.id;
+    if (id) {
+      Api.unregister(id, this.onFeaturesChanged)
     }
     this.context.__unsubscribeToFeatureContext(this.onContextChange);
   }
@@ -153,7 +153,7 @@ export class FeatureProvider extends Component {
   static propTypes = {
     features: object.isRequired,
     fallback: object,
-    fetchFrom: string,
+    id: string,
     debug: bool,
   };
 
@@ -162,11 +162,11 @@ export class FeatureProvider extends Component {
   };
 
   state = {
+    __id: this.props.id,
     __features: this.props.features,
     __fallback: this.props.fallback,
     __debug: this.props.debug,
-    __mergedFeatures: deepmerge(this.props.fallback, this.props.features),
-    __fetchFrom: this.props.fetchFrom
+    __mergedFeatures: deepmerge(this.props.fallback, this.props.features)
   };
 
   registerCb = (callback) => {
