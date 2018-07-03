@@ -5,30 +5,33 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
+import cats.syntax.option._
 import domains.Key
 import env.DbDomainConfig
 import libs.streams.Flows
 import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
-import redis.RedisClientMasterSlaves
 import store.Result.ErrorMessage
 import store._
+import io.lettuce.core._
+import io.lettuce.core.api.async.RedisAsyncCommands
 
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
+import scala.compat.java8.FutureConverters._
+import scala.collection.JavaConverters._
 
 object RedisJsonDataStore {
-  def apply(client: RedisClientMasterSlaves, system: ActorSystem, name: String): RedisJsonDataStore =
+  def apply(client: RedisWrapper, system: ActorSystem, name: String): RedisJsonDataStore =
     new RedisJsonDataStore(client, system, name)
 
-  def apply(client: RedisClientMasterSlaves, config: DbDomainConfig, actorSystem: ActorSystem): RedisJsonDataStore = {
+  def apply(client: RedisWrapper, config: DbDomainConfig, actorSystem: ActorSystem): RedisJsonDataStore = {
     val namespace = config.conf.namespace
     Logger.info(s"Load store Redis for namespace $namespace")
     RedisJsonDataStore(client, actorSystem, namespace)
   }
 }
 
-class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, name: String) extends JsonDataStore {
+class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String) extends JsonDataStore {
 
   import system.dispatcher
 
@@ -41,24 +44,27 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
     getByStringId(effectiveKey.key)
   }
 
+  private def command(): RedisAsyncCommands[String, String] = client.connection.async()
+
   private def getByStringId(key: String): Future[Option[JsValue]] =
-    client.get(key).map {
-      _.map {
-        _.utf8String
-      }.map {
-        Json.parse
-      }
-    }
+    command()
+      .get(key)
+      .toScala
+      .map { Option(_).map { Json.parse } }
 
   private def getByIds(keys: Key*): Future[Seq[(String, JsValue)]] =
-    client
+    command()
       .mget(keys.map(buildKey).map(_.key): _*)
-      .map(
-        entries =>
-          (keys zip entries).collect {
-            case (k, Some(v)) => (k.key, Json.parse(v.utf8String))
-        }
-      )
+      .toScala
+      .map { entries =>
+        entries.asScala
+          .map { kv =>
+            (kv.getKey, Option(kv.getValue))
+          }
+          .collect {
+            case (k, Some(v)) => (k, Json.parse(v))
+          }
+      }
 
   private def patternsToKey(patterns: Seq[String]): Seq[Key] =
     patterns.map(Key.apply).map(buildKey)
@@ -68,18 +74,20 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
       Source.empty
     case p =>
       Source
-        .unfoldAsync(0) { cursor =>
-          client
-            .scan(cursor, matchGlob = Some(s"$name:*"))
-            .map { curs =>
-              if (cursor == -1) {
-                None
-              } else if (curs.index == 0) {
-                Some(-1, curs.data)
-              } else {
-                Some(curs.index, curs.data)
+        .unfoldAsync(ScanCursor.INITIAL.some) {
+          case Some(c) =>
+            command()
+              .scan(c, ScanArgs.Builder.matches(s"$name:*"))
+              .toScala
+              .map { curs =>
+                if (curs.isFinished) {
+                  Some((None, curs.getKeys.asScala))
+                } else {
+                  Some(Some(curs), curs.getKeys.asScala)
+                }
               }
-            }
+          case None =>
+            FastFuture.successful(None)
         }
         .mapConcat(_.toList)
         .map(Key.apply)
@@ -92,19 +100,22 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
       FastFuture.successful(Result.errors(ErrorMessage("error.data.exists", id.key)))
 
     case None =>
-      client
+      command()
         .set(buildKey(id).key, Json.stringify(data))
+        .toScala
         .map(_ => Result.ok(data))
   }
 
   override def update(oldId: Key, id: Key, data: JsValue) =
     if (oldId == id) {
-      client
+      command()
         .set(buildKey(id).key, Json.stringify(data))
+        .toScala
         .map(_ => Result.ok(data))
     } else {
-      client
+      command()
         .del(buildKey(oldId).key)
+        .toScala
         .flatMap { _ =>
           create(id, data)
         }
@@ -113,8 +124,9 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
   override def delete(id: Key) =
     getByKeyId(id).flatMap {
       case Some(value) =>
-        client
+        command()
           .del(buildKey(id).key)
+          .toScala
           .map(_ => Result.ok(value))
 
       case None =>
@@ -123,14 +135,12 @@ class RedisJsonDataStore(client: RedisClientMasterSlaves, system: ActorSystem, n
 
   override def deleteAll(patterns: Seq[String]) = {
     val patternKeys: Seq[Key] = patternsToKey(patterns)
-    for {
-      keys <- Future.sequence {
-               patternKeys.map(key => client.keys(key.key))
-             }
-      _ <- Future.sequence {
-            keys.flatten(key => key.map(k => client.del(k)))
-          }
-    } yield Result.ok(Done)
+    getByIdLike(patterns)
+      .mapAsync(10) {
+        case (k, _) => command().del(k.key).toScala
+      }
+      .runWith(Sink.ignore)
+      .map(_ => Result.ok(Done))
   }
 
   override def getById(id: Key) =
