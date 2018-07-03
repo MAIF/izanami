@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>About Izanami · Izanami</title>
+<title>Performances · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -37,7 +37,7 @@
 <div class="nav-toc">
 <ul>
   <li><a href="quickstart.html" class="page">Quick start</a></li>
-  <li><a href="about.html" class="active page">About Izanami</a></li>
+  <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
   <li><a href="features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="architecture/index.html" class="page">Architecture</a></li>
@@ -83,7 +83,7 @@
   <ul>
     <li><a href="tutorials/spring.html" class="page">Spring / React tutorial</a></li>
   </ul></li>
-  <li><a href="performances.html" class="page">Performances</a></li>
+  <li><a href="performances.html" class="active page">Performances</a></li>
   <li><a href="developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
@@ -125,7 +125,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-toc">
 <ul>
   <li><a href="quickstart.html" class="page">Quick start</a></li>
-  <li><a href="about.html" class="active page">About Izanami</a></li>
+  <li><a href="about.html" class="page">About Izanami</a></li>
   <li><a href="philosophy.html" class="page">Philosophy</a></li>
   <li><a href="features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="architecture/index.html" class="page">Architecture</a></li>
@@ -171,7 +171,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="tutorials/spring.html" class="page">Spring / React tutorial</a></li>
   </ul></li>
-  <li><a href="performances.html" class="page">Performances</a></li>
+  <li><a href="performances.html" class="active page">Performances</a></li>
   <li><a href="developers/index.html" class="page">For Developers</a></li>
 </ul>
 </div>
@@ -187,7 +187,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="index.html">Izanami</a></li>
-  <li>About Izanami</li>
+  <li>Performances</li>
 </ul>
 </div>
 </div>
@@ -195,28 +195,137 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#about-izanami" name="about-izanami" class="anchor"><span class="anchor-link"></span></a>About Izanami</h1>
-<p>At the beginning of 2016, we had the need to create a new environment to be able to create new &ldquo;digital&rdquo; products very quickly in an agile fashion at <a href="https://www.maif.fr/" target="_blank">MAIF</a>. Every team should have the opportunity to build application as they need with a lot of flexibility in terms of language, framework, protocols, architecture &hellip; </p>
-<p>Our team was in charge to bring tools and we knew thar one game changer in term of flexibility is the ability to activate or deactivate a feature, switch a configuration quickly and even measure the impact of a feature for the end users.</p>
-<p>As every team could use their own language, framework or whatever, we needed a solution that could work with every technology. We&rsquo;we tried existing product but we found nothing that satisfied our needs :</p>
+<h1><a href="#performances" name="performances" class="anchor"><span class="anchor-link"></span></a>Performances</h1>
+<p>Here is some benchmarks done on my machine (macbook pro with 16 GO of ram and a core I7 3,5 GHz)</p>
+<h2><a href="#inmemory-with-db" name="inmemory-with-db" class="anchor"><span class="anchor-link"></span></a>InMemory with db</h2>
+<p>Izanami run with :</p>
+<pre><code>izanami-server/target/universal/stage/bin/izanami  \
+  -Dizanami.db.default=InMemoryWithDb \
+  -Dizanami.db.inMemoryWithDb.db=Redis \
+  -Dizanami.events.store=Kafka \
+  -Dizanami.apikey.initialize.clientId=xxxx \
+  -Dizanami.apikey.initialize.clientSecret=xxxx \
+  -Dizanami.features.db.import=/Users/alexandredelegue/opun/izanami/izanami-benchmarks/data/features.ndjson \
+  -Dlogger.file=/Users/alexandredelegue/opun/izanami/izanami-server/conf/prod-logger.xml
+</code></pre>
+<p>List features :</p>
 <ul>
-  <li>Technology agnostic : HTTP seams to be the best solution here</li>
-  <li>API first : the UI is just client of the API</li>
-  <li>Tracability : the platform should publish event listenable by the clients</li>
+  <li>2 threads</li>
+  <li>1000 concurrent connexions</li>
 </ul>
-<p>And here come <strong>Izanami</strong>, our feature flipping, shared configuration and A/B testing platform. </p><div class="izanami-logo">
-<p><img src="img/izanami.png" alt="izanami" /> </p></div>
-<p><strong><a href="https://en.wikipedia.org/wiki/Izanami-no-Mikoto">Izanami</a></strong> is the japanese goddess of creation and death. She decides if you deserve to live, or to die. </p>
-<p>Now you have the power to kill features or bring back them to life. </p>
+<p><code>wrk -t2 -c1000 -d 30s --timeout 10s --latency -H &quot;Izanami-Client-Id: xxxx&quot; -H &quot;Izanami-Client-Secret: xxxx&quot; http://localhost:9000/api/features</code></p>
+<p>Results</p>
+<pre><code>Running 30s test @ http://localhost:9000/api/features
+  2 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   233.39ms  471.06ms   9.92s    98.88%
+    Req/Sec   434.07    307.73     0.99k    48.24%
+  Latency Distribution
+     50%  175.21ms
+     75%  259.79ms
+     90%  357.54ms
+     99%    1.09s
+  19713 requests in 30.04s, 23.10MB read
+  Socket errors: connect 0, read 801, write 76, timeout 67
+Requests/sec:    656.21
+Transfer/sec:    787.58KB
+</code></pre>
+<p>Get one feature :</p>
+<ul>
+  <li>2 threads</li>
+  <li>1000 concurrent connexions</li>
+</ul>
+<pre><code>wrk -t2 -c1000 -d 30s --timeout 10s --latency -H &quot;Izanami-Client-Id: xxxx&quot; -H &quot;Izanami-Client-Secret: xxxx&quot; http://localhost:9000/api/features/a:key:1002
+Running 30s test @ http://localhost:9000/api/features/a:key:1002
+  2 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    91.82ms  386.27ms   5.24s    97.42%
+    Req/Sec    12.85k     1.62k   22.52k    78.66%
+  Latency Distribution
+     50%   36.01ms
+     75%   49.63ms
+     90%   65.49ms
+     99%    2.38s
+  764420 requests in 30.08s, 129.03MB read
+  Socket errors: connect 0, read 616, write 27, timeout 0
+Requests/sec:  25411.92
+Transfer/sec:      4.29MB
+</code></pre>
+<h2><a href="#redis" name="redis" class="anchor"><span class="anchor-link"></span></a>Redis</h2>
+<p>Izanami run with :</p>
+<pre><code>izanami-server/target/universal/stage/bin/izanami  \
+  -Dizanami.db.default=Redis \
+  -Dizanami.events.store=Kafka \
+  -Dizanami.apikey.initialize.clientId=xxxx \
+  -Dizanami.apikey.initialize.clientSecret=xxxx \
+  -Dizanami.features.db.import=/Users/alexandredelegue/opun/izanami/izanami-benchmarks/data/features.ndjson \
+  -Dlogger.file=/Users/alexandredelegue/opun/izanami/izanami-server/conf/prod-logger.xml
+</code></pre>
+<p>List features :</p>
+<ul>
+  <li>2 threads</li>
+  <li>1000 concurrent connexions</li>
+</ul>
+<p><code>wrk -t2 -c1000 -d 30s --timeout 10s --latency -H &quot;Izanami-Client-Id: xxxx&quot; -H &quot;Izanami-Client-Secret: xxxx&quot; http://localhost:9000/api/features</code></p>
+<p>Results</p>
+<pre><code>Running 30s test @ http://localhost:9000/api/features
+  2 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     5.36s   760.49ms   6.16s    86.62%
+    Req/Sec   335.98    406.80     1.74k    85.48%
+  Latency Distribution
+     50%    5.51s
+     75%    5.81s
+     90%    6.00s
+     99%    6.11s
+  4566 requests in 30.06s, 5.33MB read
+  Socket errors: connect 0, read 718, write 27, timeout 0
+Requests/sec:    151.87
+Transfer/sec:    181.68KB
+</code></pre>
+<p>Get one feature :</p>
+<ul>
+  <li>2 threads</li>
+  <li>1000 concurrent connexions</li>
+</ul>
+<pre><code>Running 30s test @ http://localhost:9000/api/features/a:key:1002
+  2 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    79.81ms   23.54ms 641.12ms   84.72%
+    Req/Sec     6.10k     1.37k    9.02k    72.81%
+  Latency Distribution
+     50%   75.93ms
+     75%   87.53ms
+     90%  102.16ms
+     99%  153.50ms
+  360663 requests in 30.08s, 60.88MB read
+  Socket errors: connect 0, read 336, write 27, timeout 0
+Requests/sec:  11988.19
+Transfer/sec:      2.02MB
+</code></pre>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/about.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/performances.md">here</a>.
 </div>
 
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="philosophy.html">Philosophy</a></p>
+<p><strong>Next:</strong> <a href="developers/index.html">For Developers</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="performances.html#performances" class="header">Performances</a>
+  <ul>
+    <li><a href="performances.html#inmemory-with-db" class="header">InMemory with db</a></li>
+    <li><a href="performances.html#redis" class="header">Redis</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

@@ -19,6 +19,7 @@
  * [Events](events.md)
  * [Clients](clients/index.md)
  * [Tutorials](tutorials/index.md)
+ * [Performances](performances.md)
  * [Developers](developers/index.md)
 
 @@@
