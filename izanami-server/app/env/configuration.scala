@@ -166,13 +166,25 @@ case class DbConfig(
 
 case class InMemoryWithDbConfig(db: DbType, pollingInterval: Option[FiniteDuration] = None)
 
-case class RedisConfig(
+sealed trait RedisConfig
+case class Master(
     host: String,
     port: Int,
     password: Option[String],
-    slaves: Option[Seq[RedisConfig]] = None,
     databaseId: Option[Int] = None
-)
+) extends RedisConfig
+
+case class Sentinel(
+    host: String,
+    port: Int,
+    masterId: String,
+    password: Option[String],
+    sentinels: Option[Seq[RedisOneSentinelConfig]] = None,
+    databaseId: Option[Int] = None
+) extends RedisConfig
+
+case class RedisOneSentinelConfig(host: String, port: Int)
+
 case class LevelDbConfig(parentPath: String)
 
 case class CassandraConfig(addresses: Seq[String],

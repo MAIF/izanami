@@ -7,14 +7,19 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
+import cats.syntax.option._
 import domains.abtesting._
 import domains.events.EventStore
+import io.lettuce.core.{RedisClient, ScanArgs, ScanCursor}
+import io.lettuce.core.api.async.RedisAsyncCommands
 import play.api.Logger
 import play.api.libs.json.Json
-import redis.RedisClientMasterSlaves
 import store.Result.Result
+import store.redis.RedisWrapper
 import store.{FindResult, Result, SimpleFindResult, SourceFindResult}
 
+import scala.compat.java8.FutureConverters._
+import scala.collection.JavaConverters._
 import scala.concurrent.Future
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -22,13 +27,13 @@ import scala.concurrent.Future
 //////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventRedisStore {
-  def apply(maybeRedis: Option[RedisClientMasterSlaves],
+  def apply(maybeRedis: Option[RedisWrapper],
             eventStore: EventStore,
             actorSystem: ActorSystem): ExperimentVariantEventRedisStore =
     new ExperimentVariantEventRedisStore(maybeRedis, eventStore, actorSystem)
 }
 
-class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlaves],
+class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
                                        eventStore: EventStore,
                                        actorSystem: ActorSystem)
     extends ExperimentVariantEventStore {
@@ -45,7 +50,9 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlave
   val experimentseventswonNamespace: String = "experimentseventswon:count"
   val experimentseventsNamespace: String    = "experimentsevents"
 
-  val client: RedisClientMasterSlaves = maybeRedis.get
+  val client: RedisWrapper = maybeRedis.get
+
+  private def command(): RedisAsyncCommands[String, String] = client.connection.async()
 
   private def now(): Long =
     LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant.toEpochMilli
@@ -58,45 +65,52 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlave
   private def incrAndGetDisplayed(experimentId: String, variantId: String): Future[Long] = {
     val displayedCounter: String =
       s"$experimentseventsdisplayedNamespace:$experimentId:$variantId"
-    client.incr(displayedCounter)
+    command().incr(displayedCounter).toScala.map(_.longValue())
   }
 
   private def incrAndGetWon(experimentId: String, variantId: String): Future[Long] = {
     val wonCounter: String =
       s"$experimentseventswonNamespace:$experimentId:$variantId"
-    client.incr(wonCounter)
+    command().incr(wonCounter).toScala.map(_.longValue())
   }
 
   private def getWon(experimentId: String, variantId: String): Future[Long] = {
     val wonCounter: String =
       s"$experimentseventswonNamespace:$experimentId:$variantId"
-    client.get(wonCounter).map { mayBeWon =>
-      mayBeWon.map(_.utf8String.toLong).getOrElse(0L)
+    get(wonCounter).map { mayBeWon =>
+      mayBeWon.map(_.toLong).getOrElse(0L)
     }
   }
+
+  private def get(id: String): Future[Option[String]] =
+    command().get(id).toScala.map { s =>
+      Option(s)
+    }
 
   private def getDisplayed(experimentId: String, variantId: String): Future[Long] = {
     val displayedCounter: String =
       s"$experimentseventsdisplayedNamespace:$experimentId:$variantId"
-    client.get(displayedCounter).map { mayBeDisplayed =>
-      mayBeDisplayed.map(_.utf8String.toLong).getOrElse(0L)
+    get(displayedCounter).map { mayBeDisplayed =>
+      mayBeDisplayed.map(_.toLong).getOrElse(0L)
     }
   }
 
   private def findKeys(pattern: String): Source[String, NotUsed] =
     Source
-      .unfoldAsync(0) { cursor =>
-        client
-          .scan(cursor, matchGlob = Some(pattern))
-          .map { curs =>
-            if (cursor == -1) {
-              None
-            } else if (curs.index == 0) {
-              Some(-1, curs.data)
-            } else {
-              Some(curs.index, curs.data)
+      .unfoldAsync(ScanCursor.INITIAL.some) {
+        case Some(c) =>
+          command()
+            .scan(c, ScanArgs.Builder.matches(s"$pattern:*"))
+            .toScala
+            .map { curs =>
+              if (curs.isFinished) {
+                Some((None, curs.getKeys.asScala))
+              } else {
+                Some(Some(curs), curs.getKeys.asScala)
+              }
             }
-          }
+        case None =>
+          FastFuture.successful(None)
       }
       .mapConcat(_.toList)
 
@@ -113,11 +127,12 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlave
           won            <- getWon(id.experimentId.key, id.variantId) // get won counter
           transformation = calcTransformation(displayed, won)
           dataToSave     = e.copy(transformation = transformation)
-          result <- client
+          result <- command()
                      .zadd(
                        eventsKey,
                        (now(), Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
                      )
+                     .toScala
                      .map { _ =>
                        Result.ok(dataToSave)
                      } // add event
@@ -128,11 +143,12 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlave
           displayed      <- getDisplayed(id.experimentId.key, id.variantId) // get display counter
           transformation = calcTransformation(displayed, won)
           dataToSave     = e.copy(transformation = transformation)
-          result <- client
+          result <- command()
                      .zadd(
                        eventsKey,
                        (now(), Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
                      )
+                     .toScala
                      .map { _ =>
                        Result.ok(dataToSave)
                      } // add event
@@ -147,13 +163,12 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlave
     val source: Source[ExperimentVariantEvent, NotUsed] = Source
       .unfoldAsync(0L) { (lastPage: Long) =>
         val nextPage: Long = lastPage + 50
-        client.zrange(eventVariantKey, lastPage, nextPage).map {
+        command().zrange(eventVariantKey, lastPage, nextPage).toScala.map(_.asScala.toList).map {
           case Nil => Option.empty
           case res =>
             Option(
               (nextPage,
                res
-                 .map(_.utf8String)
                  .map { Json.parse }
                  .map { value =>
                    value.validate[ExperimentVariantEvent].get
@@ -213,16 +228,16 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisClientMasterSlave
   }
 
   override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
-    (
-      for {
-        displayedCounterKey <- client.keys(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
-        wonCounterKey       <- client.keys(s"$experimentseventswonNamespace:${experiment.id.key}:*")
-        eventsKey           <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-        _                   <- Future.sequence(displayedCounterKey.map(key => client.del(key))) // remove displayed counter
-        _                   <- Future.sequence(wonCounterKey.map(key => client.del(key))) // remove won counter
-        _                   <- Future.sequence(eventsKey.map(key => client.del(key))) // remove events list
-      } yield Result.ok(Done)
-    ).andPublishEvent(e => ExperimentVariantEventsDeleted(experiment))
+    findKeys(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
+      .merge(findKeys(s"$experimentseventswonNamespace:${experiment.id.key}:*"))
+      .merge(findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*"))
+      .grouped(100)
+      .mapAsync(10) { keys =>
+        command().del(keys: _*).toScala
+      }
+      .runWith(Sink.ignore)
+      .map(_ => Result.ok(Done))
+      .andPublishEvent(e => ExperimentVariantEventsDeleted(experiment))
 
   override def listAll(patterns: Seq[String]) =
     findKeys(s"$experimentseventsNamespace:*")

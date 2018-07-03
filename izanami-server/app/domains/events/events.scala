@@ -44,9 +44,6 @@ import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeseria
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.{Environment, Logger}
-import redis.RedisClientMasterSlaves
-import redis.actors.RedisSubscriberActor
-import redis.api.pubsub.{Message, PMessage}
 
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
