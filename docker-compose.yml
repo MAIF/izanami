@@ -4,6 +4,18 @@ services:
     image: redis
     ports:
       - 6379:6379
+  redis_slave:
+    image: redis
+    command: redis-server --slaveof redis 6379
+    links:
+      - redis
+  redis-sentinel:
+    build:
+      context: ./docker/sentinel
+    links:
+      - redis
+    ports:
+      - 26379:26379
   cassandra:
     image: cassandra:3.11
     ports:

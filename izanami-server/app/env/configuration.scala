@@ -170,6 +170,7 @@ sealed trait RedisConfig
 case class Master(
     host: String,
     port: Int,
+    poolSize: Int,
     password: Option[String],
     databaseId: Option[Int] = None
 ) extends RedisConfig
@@ -177,6 +178,7 @@ case class Master(
 case class Sentinel(
     host: String,
     port: Int,
+    poolSize: Int,
     masterId: String,
     password: Option[String],
     sentinels: Option[Seq[RedisOneSentinelConfig]] = None,
