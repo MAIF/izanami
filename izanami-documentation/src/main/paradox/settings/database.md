@@ -91,6 +91,35 @@ export REDIS_PASSWORD=xxxx
 bin/izanami 
 ```
 
+#### redis sentinel 
+
+```bash
+bin/izanami \ 
+    -Dizanami.db.default=Redis \
+    -Dizanami.db.redis.type=sentinel \
+    -D-Dizanami.db.redis.host=localhost \    
+    -Dizanami.db.redis.port=26379 \
+    -Dizanami.db.redis.masterId=redismaster \
+    -Dizanami.db.redis.sentinels.0.host=localhost \
+    -Dizanami.db.redis.sentinels.0.port=26380 \
+    -Dizanami.db.redis.password=xxxx 
+```
+
+Or 
+
+```bash
+export IZANAMI_DATABASE=Redis
+export REDIS_HOST=localhost 
+export REDIS_PORT=26379
+export REDIS_MASTER_ID=redismaster
+export REDIS_PASSWORD=xxxx
+
+bin/izanami 
+```
+
+
+
+
 Other settings are available, consult the @ref[settings](settings.md) page. 
 
 

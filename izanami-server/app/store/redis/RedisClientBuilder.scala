@@ -7,6 +7,7 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
 import io.lettuce.core.{RedisClient, RedisURI}
 import play.api.inject.ApplicationLifecycle
 
+import scala.collection.immutable
 import scala.concurrent.{ExecutionContext, Future}
 
 object RedisClientBuilder {
@@ -18,7 +19,7 @@ object RedisClientBuilder {
 
     configuration.map {
 
-      case Master(host, port, password, databaseId) =>
+      case Master(host, port, poolSize, password, databaseId) =>
         val builder = RedisURI
           .builder()
           .withHost(host)
@@ -33,8 +34,8 @@ object RedisClientBuilder {
 
         applicationLifecycle.addStopHook(() => Future.successful(client.shutdown()))
 
-        RedisWrapper(client, applicationLifecycle)
-      case Sentinel(host, port, masterId, password, sentinels, databaseId) =>
+        RedisWrapper(client, poolSize, applicationLifecycle)
+      case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId) =>
         val builder: RedisURI.Builder = RedisURI.Builder
           .sentinel(host, port, masterId)
 
@@ -49,18 +50,28 @@ object RedisClientBuilder {
 
         applicationLifecycle.addStopHook(() => Future.successful(client.shutdown()))
 
-        RedisWrapper(client, applicationLifecycle)
+        RedisWrapper(client, poolSize, applicationLifecycle)
     }
   }
 
 }
 
-case class RedisWrapper(underlying: RedisClient, applicationLifecycle: ApplicationLifecycle)(
+case class RedisWrapper(underlying: RedisClient, poolSize: Int, applicationLifecycle: ApplicationLifecycle)(
     implicit ec: ExecutionContext
 ) {
 
+  //val connections: Seq[StatefulRedisConnection[String, String]] = {
+  //  (0 to poolSize).map { _ =>
+  //    val c = underlying.connect()
+  //    applicationLifecycle.addStopHook(() => Future { c.close() })
+  //    c
+  //  }
+  //}
+  //val connectionIterator: Iterator[StatefulRedisConnection[String, String]] = Iterator.continually(connections).flatten
+
   val connection: StatefulRedisConnection[String, String] = underlying.connect()
   applicationLifecycle.addStopHook(() => Future { connection.close() })
+  //def connection: StatefulRedisConnection[String, String] = connectionIterator.next()
 
   def connectPubSub(): StatefulRedisPubSubConnection[String, String] = {
     val connection: StatefulRedisPubSubConnection[String, String] = underlying.connectPubSub()
