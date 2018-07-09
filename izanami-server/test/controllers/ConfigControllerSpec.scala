@@ -26,7 +26,8 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       val key = "my:path"
       /* First check */
       ws.url(s"$rootPath/api/configs/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -37,7 +38,6 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Verify */
       ws.url(s"$rootPath/api/configs/$key").get().futureValue must beAResponse(200, config)
-
 
       ws.url(s"$rootPath/api/configs").get().futureValue.json must be(
         Json.obj("results"  -> Json.arr(config),
@@ -55,7 +55,8 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
         ws.url(s"$rootPath/api/configs/$key").get().futureValue
       getByIdUpdated must beAResponse(200, configUpdated)
 
-      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(configUpdated),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
@@ -65,7 +66,8 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Verify */
       ws.url(s"$rootPath/api/configs/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -74,9 +76,10 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       ws.url(s"$rootPath/api/configs")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/configs").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
-          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 

@@ -25,7 +25,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       val key = "my:path"
       /* First check */
       ws.url(s"$rootPath/api/features/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(
+        200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -67,7 +68,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Verify */
       ws.url(s"$rootPath/api/features/$key").get().futureValue.status must be(404)
-      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -76,7 +78,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       ws.url(s"$rootPath/api/features")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/features").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -166,7 +169,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       val fValue =
         ws.url(s"$rootPath/api/features/$key/check").get().futureValue
       fValue must beAResponse(
-        200, Json.obj("active" -> false)
+        200,
+        Json.obj("active" -> false)
       )
       ws.url(s"$rootPath/api/features/$key/check")
         .post(Json.obj("name" -> "ragnar"))

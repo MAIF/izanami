@@ -19,8 +19,8 @@ class ABTestingSimulation extends Simulation {
   }
 
   private val headers = Map(
-    "Izanami-Client-Id"     -> "client",
-    "Izanami-Client-Secret" -> "client1234"
+    "Izanami-Client-Id"     -> "xxxx",
+    "Izanami-Client-Secret" -> "xxxx"
   )
 
   private val experimentId = "project:experiments:name"
