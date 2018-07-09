@@ -10,7 +10,7 @@ import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.{KafkaConfig, KafkaEventsConfig}
 import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.consumer.{Consumer => KConsumer, ConsumerConfig}
+import org.apache.kafka.clients.consumer.{ConsumerConfig, Consumer => KConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeserializer, StringSerializer}
@@ -20,6 +20,7 @@ import play.api.libs.json.Json
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
+import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
 
 import scala.collection.mutable
 
@@ -47,7 +48,7 @@ object KafkaSettings {
     } yield {
       settings
         .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
-        .withProperty(SslConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
+        .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
         .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
         .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
         .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)
@@ -72,7 +73,7 @@ object KafkaSettings {
     } yield {
       settings
         .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
-        .withProperty(SslConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
+        .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
         .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
         .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
         .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)

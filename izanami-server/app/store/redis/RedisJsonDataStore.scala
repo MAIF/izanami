@@ -77,7 +77,7 @@ class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String
         .unfoldAsync(ScanCursor.INITIAL.some) {
           case Some(c) =>
             command()
-              .scan(c, ScanArgs.Builder.matches(s"$name:*"))
+              .scan(c, ScanArgs.Builder.matches(s"$name:*").limit(500))
               .toScala
               .map { curs =>
                 if (curs.isFinished) {
