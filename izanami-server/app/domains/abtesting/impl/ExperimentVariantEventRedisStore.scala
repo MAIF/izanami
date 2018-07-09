@@ -10,7 +10,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import cats.syntax.option._
 import domains.abtesting._
 import domains.events.EventStore
-import io.lettuce.core.{RedisClient, ScanArgs, ScanCursor}
+import io.lettuce.core.{RedisClient, ScanArgs, ScanCursor, ScoredValue}
 import io.lettuce.core.api.async.RedisAsyncCommands
 import play.api.Logger
 import play.api.libs.json.Json
@@ -100,7 +100,7 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
       .unfoldAsync(ScanCursor.INITIAL.some) {
         case Some(c) =>
           command()
-            .scan(c, ScanArgs.Builder.matches(s"$pattern:*"))
+            .scan(c, ScanArgs.Builder.matches(s"$pattern").limit(500))
             .toScala
             .map { curs =>
               if (curs.isFinished) {
@@ -130,7 +130,10 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
           result <- command()
                      .zadd(
                        eventsKey,
-                       (now(), Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
+                       ScoredValue.just(
+                         now(),
+                         Json.stringify(ExperimentVariantEvent.format.writes(dataToSave))
+                       )
                      )
                      .toScala
                      .map { _ =>
@@ -146,7 +149,10 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
           result <- command()
                      .zadd(
                        eventsKey,
-                       (now(), Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
+                       ScoredValue.just(
+                         now(),
+                         Json.stringify(ExperimentVariantEvent.format.writes(dataToSave))
+                       )
                      )
                      .toScala
                      .map { _ =>
@@ -172,8 +178,7 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
                  .map { Json.parse }
                  .map { value =>
                    value.validate[ExperimentVariantEvent].get
-                 }
-                 .toList)
+                 })
             )
         }
       }

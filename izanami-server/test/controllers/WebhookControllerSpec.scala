@@ -48,7 +48,8 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
       val key = "my:path"
       /* First check */
       ws.url(s"$rootPath/api/webhooks/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(
+        200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -108,7 +109,8 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Verify */
       ws.url(s"$rootPath/api/webhooks/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -117,9 +119,10 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
       ws.url(s"$rootPath/api/webhooks")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
-          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 //TO FRAGILE FOR TRAVIS => TODO: FIX IT
@@ -170,9 +173,9 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
       withServer(buildBasicServer()) { ctx =>
         val key = "my:webhook:test4"
         val webhook: JsObject = Json.obj("clientId" -> key,
-                               "callbackUrl" -> s"http://localhost:${ctx.port}/api/v1/events",
-                               "domains"     -> Json.arr("Config"),
-                               "headers"     -> Json.obj())
+                                         "callbackUrl" -> s"http://localhost:${ctx.port}/api/v1/events",
+                                         "domains"     -> Json.arr("Config"),
+                                         "headers"     -> Json.obj())
 
         ws.url(s"$rootPath/api/webhooks")
           .post(webhook)
@@ -183,7 +186,8 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
           .post(config)
           .futureValue must beAStatus(201)
 
-        val feature: JsObject = Json.obj("id" -> "my:feature:test4", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
+        val feature: JsObject =
+          Json.obj("id" -> "my:feature:test4", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
         ws.url(s"$rootPath/api/features")
           .post(feature)
           .futureValue must beAStatus(201)

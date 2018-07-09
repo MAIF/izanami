@@ -26,7 +26,8 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
       val key = "my:path"
       /* First check */
       ws.url(s"$rootPath/api/scripts/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/scripts").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/scripts").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -56,8 +57,7 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Verify */
       val getByIdUpdated =
-        ws.url(s"$rootPath/api/scripts/$key").get().futureValue must beAResponse(200, scriptUpdated)
-
+      ws.url(s"$rootPath/api/scripts/$key").get().futureValue must beAResponse(200, scriptUpdated)
 
       ws.url(s"$rootPath/api/scripts").get().futureValue.json must be(
         Json.obj("results"  -> Json.arr(scriptUpdated),
@@ -78,7 +78,8 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
       ws.url(s"$rootPath/api/scripts")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/scripts").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/scripts").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )

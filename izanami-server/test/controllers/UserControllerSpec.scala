@@ -25,7 +25,8 @@ class UserControllerSpec(name: String, configurationSpec: Configuration)
       val key = "toto@maif.fr"
       /* First check */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
+        200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -38,8 +39,8 @@ class UserControllerSpec(name: String, configurationSpec: Configuration)
       /* Verify */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAResponse(200, user)
 
-
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(user),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
@@ -54,7 +55,8 @@ class UserControllerSpec(name: String, configurationSpec: Configuration)
       /* Verify */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAResponse(200, userUpdated)
 
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(userUpdated),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
@@ -64,7 +66,8 @@ class UserControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Verify */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -73,9 +76,10 @@ class UserControllerSpec(name: String, configurationSpec: Configuration)
       ws.url(s"$rootPath/api/users")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
-          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 
