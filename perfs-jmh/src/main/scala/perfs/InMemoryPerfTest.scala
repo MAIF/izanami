@@ -23,7 +23,7 @@ object InMemoryPerfTest {
   class BenchmarkState {
     implicit val actorSystem = ActorSystem()
     implicit val mat         = ActorMaterializer()
-    val store                = InMemoryJsonDataStore(DbDomainConfig(InMemory, DbDomainConfigDetails("test")), actorSystem)
+    val store                = InMemoryJsonDataStore(DbDomainConfig(InMemory, DbDomainConfigDetails("test", None), None), actorSystem)
     val init = Source(0 to 2000)
       .mapAsyncUnordered(50) { i =>
         val key = Key(s"a:key:$i")
