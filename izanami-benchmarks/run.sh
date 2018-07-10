@@ -1,11 +1,21 @@
 #!/bin/sh
 
 first () {
+  sudo apt-get install default-jdk -y
+  echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+  sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823
+  sudo apt-get update
+  sudo apt-get install sbt -y
+
   sudo apt-get update \
     && sudo apt-get install git -y \
     && git clone https://github.com/MAIF/izanami.git izanami \
-    && cd ./izanami/izanami-benchmarks \
-    && sh ./run.sh install
+
+  sudo cd ./izanami \
+    && sudo sbt -J-Xmx2G -J-Xss20M 'izanami-server/docker:publishLocal'
+
+  sudo cd ./izanami-benchmarks \
+    && sudo sh ./run.sh install
 }
 
 install () {
@@ -42,16 +52,19 @@ case "${1}" in
     install
     run
     ;;
+  first)
+    first
+    ;;
   install)
     install
     ;;
   run)
     run
     ;;
-  *)
   all)
     install
     run
+    ;;
 esac
 
 exit ${?}
