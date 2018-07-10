@@ -20,16 +20,14 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
   implicit val actorSystem: ActorSystem = ActorSystem()
   import actorSystem.dispatcher
 
-
   "InMemoryWithDbStore" must {
     "update is cache on event" in {
 
-      val name = "test"
+      val name            = "test"
       val underlyingStore = new InMemoryJsonDataStore(name)
 
-
-      val key1 = Key("key:1")
-      val key2 = Key("key:2")
+      val key1     = Key("key:1")
+      val key2     = Key("key:2")
       val feature1 = DefaultFeature(key1, false)
       underlyingStore.create(key1, Json.toJson(feature1)).futureValue
       val eventStore = new BasicEventStore(actorSystem)
@@ -45,7 +43,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       Thread.sleep(500)
 
       val feature1Updated = feature1.copy(enabled = true)
-      val feature2 = DefaultFeature(key2, false)
+      val feature2        = DefaultFeature(key2, false)
 
       actorSystem.eventStream.publish(FeatureUpdated(key1, feature1, feature1Updated))
       actorSystem.eventStream.publish(FeatureCreated(key2, feature2))
@@ -59,12 +57,11 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
   }
 
   "scheduler should reload cache" in {
-    val name = "test"
+    val name            = "test"
     val underlyingStore = new InMemoryJsonDataStore(name)
 
-
-    val key1 = Key("key:1")
-    val key2 = Key("key:2")
+    val key1     = Key("key:1")
+    val key2     = Key("key:2")
     val feature1 = DefaultFeature(key1, false)
     underlyingStore.create(key1, Json.toJson(feature1)).futureValue
     val eventStore = new BasicEventStore(actorSystem)

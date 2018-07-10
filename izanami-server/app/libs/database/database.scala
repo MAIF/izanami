@@ -4,18 +4,18 @@ import akka.actor.ActorSystem
 import com.datastax.driver.core.{Cluster, Session}
 import elastic.api.Elastic
 import env.IzanamiConfig
+import io.lettuce.core.RedisClient
 import play.api.inject.ApplicationLifecycle
 import play.api.{Configuration, Logger}
 import play.api.libs.json.JsValue
 import play.modules.reactivemongo.{DefaultReactiveMongoApi, ReactiveMongoApi}
 import reactivemongo.api.MongoConnection
-import redis.RedisClientMasterSlaves
 import store.cassandra.CassandraClient
 import store.elastic.ElasticClient
-import store.redis.RedisClient
+import store.redis.{RedisClientBuilder, RedisWrapper}
 
 trait Drivers {
-  def redisClient: Option[RedisClientMasterSlaves]
+  def redisClient: Option[RedisWrapper]
   def cassandraClient: Option[(Cluster, Session)]
   def elasticClient: Option[Elastic[JsValue]]
   def mongoApi: Option[ReactiveMongoApi]
@@ -26,8 +26,8 @@ object Drivers {
       implicit system: ActorSystem
   ): Drivers = {
 
-    def getRedisClient: Option[RedisClientMasterSlaves] =
-      RedisClient.redisClient(izanamiConfig.db.redis, system)
+    def getRedisClient: Option[RedisWrapper] =
+      RedisClientBuilder.redisClient(izanamiConfig.db.redis, system, applicationLifecycle)
 
     def getCassandraClient: Option[(Cluster, Session)] =
       CassandraClient.cassandraClient(izanamiConfig.db.cassandra)
@@ -50,10 +50,10 @@ object Drivers {
       )
     }
     new Drivers {
-      override def redisClient: Option[RedisClientMasterSlaves] = getRedisClient
-      override def cassandraClient: Option[(Cluster, Session)]  = getCassandraClient
-      override def elasticClient: Option[Elastic[JsValue]]      = getElasticClient
-      override def mongoApi: Option[ReactiveMongoApi]           = getMongoApi
+      override def redisClient: Option[RedisWrapper]           = getRedisClient
+      override def cassandraClient: Option[(Cluster, Session)] = getCassandraClient
+      override def elasticClient: Option[Elastic[JsValue]]     = getElasticClient
+      override def mongoApi: Option[ReactiveMongoApi]          = getMongoApi
 
     }
   }

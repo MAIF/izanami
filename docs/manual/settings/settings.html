@@ -383,15 +383,21 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td>6379 </td>
     </tr>
     <tr>
+      <td><code>izanami.db.redis.masterId</code> </td>
+      <td><code>REDIS_MASTER_ID</code> </td>
+      <td>The id of the master in a sentinel context </td>
+      <td><code>redismaster</code> </td>
+    </tr>
+    <tr>
       <td><code>izanami.db.redis.password</code> </td>
       <td><code>REDIS_PASSWORD</code> </td>
       <td>The password for the redis server </td>
       <td> </td>
     </tr>
     <tr>
-      <td><code>izanami.db.redis.slaves</code> </td>
+      <td><code>izanami.db.redis.sentinels</code> </td>
       <td> </td>
-      <td>An array of redis config for slaves. For example: <code>izanami.db.redis.slaves=[{ host = localhost, port = 6380 }]</code> </td>
+      <td>An array of redis config for slaves. For example: <code>izanami.db.redis.sentinels=[{ host = localhost, port = 6380 }]</code> </td>
       <td> </td>
     </tr>
     <tr>

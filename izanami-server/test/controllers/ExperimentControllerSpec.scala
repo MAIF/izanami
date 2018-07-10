@@ -31,7 +31,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key")
         .get()
         .futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(
+        200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -47,7 +48,6 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
       /* Verify */
       ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experiment)
-
 
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
         Json.obj("results"  -> Json.arr(experiment),
@@ -67,8 +67,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       /* Verify */
       ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experimentUpdated)
 
-
-      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(experimentUpdated),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
@@ -82,7 +82,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments/$key")
         .get()
         .futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
@@ -91,7 +92,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       ws.url(s"$rootPath/api/experiments")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(
+        200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
     }
@@ -272,7 +274,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         .addQueryStringParameters("clientId" -> "1")
         .post("")
         .futureValue must beAStatus(200)
-      val value: WSResponse = ws.url(s"$rootPath/api/experiments/$key/won")
+      val value: WSResponse = ws
+        .url(s"$rootPath/api/experiments/$key/won")
         .addQueryStringParameters("clientId" -> "1")
         .post("")
         .futureValue
