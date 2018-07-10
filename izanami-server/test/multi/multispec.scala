@@ -16,7 +16,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationLong
 import scala.util.{Random, Try}
-import  Configs.idGenerator
+import Configs.idGenerator
 
 object Configs {
 
@@ -189,7 +189,6 @@ object Configs {
       .resolve()
   )
 
-
   val inMemoryWithDbConfiguration: Configuration = Configuration(
     ConfigFactory
       .parseString("""
@@ -211,7 +210,6 @@ object Configs {
       """.stripMargin)
       .resolve()
   )
-
 
 }
 
@@ -272,15 +270,12 @@ class ElasticTests
   override protected def afterAll(): Unit = ()
 }
 
-
 class CassandraTests
     extends Suites(
       new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")),
-      new ExperimentControllerSpec("Cassandra",
-                                   Configs.cassandraConfiguration(s"experiment${idGenerator.nextId()}")),
+      new ExperimentControllerSpec("Cassandra", Configs.cassandraConfiguration(s"experiment${idGenerator.nextId()}")),
       new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration(s"features${idGenerator.nextId()}")),
-      new GlobalScriptControllerSpec("Cassandra",
-                                     Configs.cassandraConfiguration(s"script${idGenerator.nextId()}")),
+      new GlobalScriptControllerSpec("Cassandra", Configs.cassandraConfiguration(s"script${idGenerator.nextId()}")),
       new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration(s"webhook${idGenerator.nextId()}")),
       new UserControllerSpec("Cassandra", Configs.cassandraConfiguration(s"user${idGenerator.nextId()}")),
       new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration(s"apikey${idGenerator.nextId()}"))
@@ -304,15 +299,13 @@ class LevelDBTests
     }
 }
 
-
-
 class MongoTests
-  extends Suites(
-    new ConfigControllerSpec("Mongo", Configs.mongoConfig("config")),
-    new ExperimentControllerSpec("Mongo", Configs.mongoConfig("experiment")),
-    new FeatureControllerSpec("Mongo", Configs.mongoConfig("feature")),
-    new GlobalScriptControllerSpec("Mongo", Configs.mongoConfig("script")),
-    new WebhookControllerSpec("Mongo", Configs.mongoConfig("webhook")),
-    new UserControllerSpec("Mongo", Configs.mongoConfig("user")),
-    new ApikeyControllerSpec("Mongo", Configs.mongoConfig("apikey"))
-  )
+    extends Suites(
+      new ConfigControllerSpec("Mongo", Configs.mongoConfig("config")),
+      new ExperimentControllerSpec("Mongo", Configs.mongoConfig("experiment")),
+      new FeatureControllerSpec("Mongo", Configs.mongoConfig("feature")),
+      new GlobalScriptControllerSpec("Mongo", Configs.mongoConfig("script")),
+      new WebhookControllerSpec("Mongo", Configs.mongoConfig("webhook")),
+      new UserControllerSpec("Mongo", Configs.mongoConfig("user")),
+      new ApikeyControllerSpec("Mongo", Configs.mongoConfig("apikey"))
+    )

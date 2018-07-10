@@ -203,7 +203,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../settings/database.html#in-memory-store" class="header">In memory store</a></li>
     <li><a href="../settings/database.html#level-db" class="header">Level DB</a></li>
-    <li><a href="../settings/database.html#redis" class="header">Redis</a></li>
+    <li><a href="../settings/database.html#redis" class="header">Redis</a>
+    <ul>
+      <li><a href="../settings/database.html#redis-sentinel" class="header">redis sentinel</a></li>
+    </ul></li>
     <li><a href="../settings/database.html#cassandra" class="header">Cassandra</a></li>
     <li><a href="../settings/database.html#elasticsearch" class="header">Elasticsearch</a></li>
     <li><a href="../settings/database.html#mongo" class="header">Mongo</a></li>
@@ -269,6 +272,26 @@ bin/izanami
 <pre class="prettyprint"><code class="language-bash">export IZANAMI_DATABASE=Redis
 export REDIS_HOST=localhost 
 export REDIS_PORT=6379
+export REDIS_PASSWORD=xxxx
+
+bin/izanami 
+</code></pre>
+<h4><a href="#redis-sentinel" name="redis-sentinel" class="anchor"><span class="anchor-link"></span></a>redis sentinel</h4>
+<pre class="prettyprint"><code class="language-bash">bin/izanami \ 
+    -Dizanami.db.default=Redis \
+    -Dizanami.db.redis.type=sentinel \
+    -D-Dizanami.db.redis.host=localhost \    
+    -Dizanami.db.redis.port=26379 \
+    -Dizanami.db.redis.masterId=redismaster \
+    -Dizanami.db.redis.sentinels.0.host=localhost \
+    -Dizanami.db.redis.sentinels.0.port=26380 \
+    -Dizanami.db.redis.password=xxxx 
+</code></pre>
+<p>Or </p>
+<pre class="prettyprint"><code class="language-bash">export IZANAMI_DATABASE=Redis
+export REDIS_HOST=localhost 
+export REDIS_PORT=26379
+export REDIS_MASTER_ID=redismaster
 export REDIS_PASSWORD=xxxx
 
 bin/izanami 

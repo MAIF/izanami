@@ -9,7 +9,7 @@ import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 
 class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
-      with IzanamiMatchers
+    with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
@@ -25,7 +25,8 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
       val key = "toto@maif.fr"
       /* First check */
       ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(
+        200,
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
@@ -37,8 +38,8 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
       /* Verify */
       ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAResponse(200, apikey)
 
-
-      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(apikey),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
@@ -68,19 +69,20 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Verify */
       ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
-
 
       /*Delete all*/
       ws.url(s"$rootPath/api/apikeys")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(200,
+      ws.url(s"$rootPath/api/apikeys").get().futureValue must beAResponse(
+        200,
         Json.obj("results"  -> Json.arr(),
-          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
 

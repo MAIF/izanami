@@ -34,7 +34,7 @@ libraryDependencies ++= Seq(
   "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.13.0",
   "org.reactivemongo"        %% "reactivemongo"                 % "0.13.0",
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.13.0-play26",
-  "com.github.etaty"         %% "rediscala"                     % "1.8.0", // Apache 2.0
+  "io.lettuce"               % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
   "org.typelevel"            %% "cats-core"                     % "1.1.0", // MIT license
   "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
