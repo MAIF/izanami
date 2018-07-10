@@ -19,6 +19,6 @@ services:
       - "xpack.security.enabled=false"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
   mongo:
-    image: mongo
+    image: mongo:3.4
     ports:
       - 27017:27017
