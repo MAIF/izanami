@@ -105,7 +105,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     collection.insert(MongoDoc(id, data)).map(_ => Result.ok(data))
 
   private def getByIdRaw(id: Key)(implicit collection: JSONCollection): Future[Option[JsValue]] = {
-    Logger.debug(s"Get by if $id")
+    Logger.debug(s"Mongo query $collectionName findById ${id.key}")
     collection
       .find(Json.obj("id" -> id.key))
       .one[MongoDoc]
@@ -122,9 +122,13 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] = {
     val from    = (page - 1) * nbElementPerPage
     val options = QueryOpts(skipN = from, batchSizeN = nbElementPerPage, flagsN = 0)
+    val query   = buildPatternLikeRequest(patterns)
+    Logger.debug(
+      s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage"
+    )
     storeCollection.flatMap { implicit collection =>
       val findResult: Future[Seq[MongoDoc]] = collection
-        .find(buildPatternLikeRequest(patterns))
+        .find(query)
         .options(options)
         .cursor[MongoDoc](ReadPreference.primary)
         .collect[Seq](maxDocs = nbElementPerPage, Cursor.FailOnError[Seq[MongoDoc]]())
@@ -139,22 +143,30 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     Source.fromFuture(storeCollection).flatMapConcat {
-      _.find(buildPatternLikeRequest(patterns))
+      val query = buildPatternLikeRequest(patterns)
+      Logger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
+      _.find(query)
         .cursor[MongoDoc](ReadPreference.primary)
         .documentSource()
         .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
     }
 
-  private def countRaw(patterns: Seq[String])(implicit collection: JSONCollection): Future[Int] =
-    collection.count(Some(buildPatternLikeRequest(patterns)))
+  private def countRaw(patterns: Seq[String])(implicit collection: JSONCollection): Future[Int] = {
+    val query = buildPatternLikeRequest(patterns)
+    Logger.debug(s"Mongo query $collectionName count ${Json.stringify(query)}")
+    collection.count(Some(query))
+  }
 
   override def count(patterns: Seq[String]): Future[Long] =
     storeCollection.flatMap(countRaw(patterns)(_)).map(_.longValue())
 
   private def buildPatternLikeRequest(patterns: Seq[String]): JsObject = {
-    val searchs = patterns.map { p =>
-      val regex = Json.obj("$regex" -> p.replaceAll("\\*", ".*"), "$options" -> "i")
-      Json.obj("id" -> regex)
+    val searchs = patterns.map {
+      case p if p.contains("*") =>
+        val regex = Json.obj("$regex" -> p.replaceAll("\\*", ".*"), "$options" -> "i")
+        Json.obj("id" -> regex)
+      case p =>
+        Json.obj("id" -> p)
     }
     Json.obj("$and" -> searchs)
   }
