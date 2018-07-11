@@ -97,7 +97,7 @@ export class Feature extends Component {
         return this.props.render(isActive);
       }
     }
-    if (isActive && enabledChildren.length > 0) {
+    if (isActive && (enabledChildren.length > 0 || disabledChildren.length > 0)) {
       if (debug) console.log(`[Features] feature '${path}' is enabled, rendering first <Enabled /> component`);
       if (debug) {
         return (
@@ -107,7 +107,7 @@ export class Feature extends Component {
         );
       }
       return enabledChildren[0];
-    } else if (!isActive && disabledChildren.length > 0) {
+    } else if (!isActive && (enabledChildren.length > 0 || disabledChildren.length > 0)) {
       if (debug) console.log(`[Features] feature '${path}' is disabled, rendering first <Disabled /> component`);
       if (debug) {
         return (
