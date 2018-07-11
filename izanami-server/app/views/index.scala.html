@@ -1,6 +1,6 @@
 @import play.api.libs.json.{JsValue, Json}
 
-@(_env: env.Env, baseURL: String, logout: String, enabledUserManagement: Boolean, user: JsValue)
+@(_env: env.Env, baseURL: String, logout: String, enabledUserManagement: Boolean, user: JsValue, version: String)
 
 <!DOCTYPE html>
 <html>
@@ -27,5 +27,6 @@
         window.__contextPath = '@baseURL';
         Izanami.init(document.getElementById("app"), '@logout', @enabledUserManagement, JSON.parse('@Html(Json.stringify(user))'));
     </script>
+    Version: @version
   </body>
 </html>
