@@ -34,12 +34,29 @@ services:
     image: mongo
     ports:
       - 27017:27017
-  kafka:
-    image: spotify/kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:3.2.1
     ports:
-      - 2181:2181
-      - 9092:9092
+     - 32182:32181
     environment:
-      - "ADVERTISED_HOST=127.0.0.1"
-      - "ADVERTISED_PORT=9092"
-      - "AUTO.CREATE.TOPICS.ENABLE"
+      ZOOKEEPER_CLIENT_PORT: 32181
+      ZOOKEEPER_TICK_TIME: 2000
+    extra_hosts:
+      - "moby:127.0.0.1"
+      - "localhost: 127.0.0.1"
+  kafka:
+    image: confluentinc/cp-kafka:3.2.1
+    ports:
+     - 29092:29092
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:32181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    extra_hosts:
+      - "moby:127.0.0.1"
+      - "localhost: 127.0.0.1"
