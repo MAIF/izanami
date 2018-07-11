@@ -22,12 +22,15 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
     s"$baseURL${_env.izanamiConfig.logout.url}"
   }
 
+  val p       = getClass.getPackage
+  val version = p.getImplementationVersion
+
   def index() = AuthAction { ctx =>
     ctx.auth match {
       case Some(_) =>
         Ok(
           views.html
-            .index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth))
+            .index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth), version)
         )
       case None =>
         Redirect(s"$baseURL/login")
@@ -35,7 +38,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
   }
 
   def login() = AuthAction { ctx =>
-    Ok(views.html.index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth)))
+    Ok(views.html.index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth), version))
   }
 
   def otherRoutes(anyPath: String) = index()
