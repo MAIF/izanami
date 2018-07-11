@@ -1,0 +1,11 @@
+{"id":"a:key:0","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key:1","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key:10","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key1:100","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key1:1000","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key1:1001","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key1:1002","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key2:100","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key2:1000","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key2:1001","enabled":true,"activationStrategy":"NO_STRATEGY"}
+{"id":"a:key2:1002","enabled":true,"activationStrategy":"NO_STRATEGY"}
