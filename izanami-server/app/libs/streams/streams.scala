@@ -2,11 +2,9 @@ package libs.streams
 
 import akka.NotUsed
 import akka.stream.OverflowStrategy.backpressure
+import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Source, SourceQueueWithComplete, Zip}
 import akka.stream.{FlowShape, Materializer, QueueOfferResult}
-import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Merge, Source, SourceQueueWithComplete, Zip}
-import cats._
-import cats.implicits._
-import libs.streams.CacheableQueue.{Element, Fake, QueueElement}
+import libs.streams.CacheableQueue.{Element, QueueElement}
 import play.api.Logger
 
 import scala.concurrent.Future
@@ -69,13 +67,9 @@ object CacheableQueue {
   case class State[T](current: T, elements: Seq[T] = Seq.empty, capacity: Int) extends QueueState[T]
   case class Starter[T](elements: Seq[T] = Seq.empty, capacity: Int)           extends QueueState[T]
 
-  import cats.syntax.option._
-
   def apply[T](capacity: Int, queueBufferSize: Int = 50, broadcastCapacity: Int = 256)(
       implicit mat: Materializer
   ): CacheableQueue[T] = {
-
-    val empty = (none[T], Seq.empty[T]).asRight[(Option[T], Seq[T])]
 
     val (queue, rawSource: Source[QueueElement[T], NotUsed]) =
       Source

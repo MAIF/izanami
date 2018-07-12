@@ -1,12 +1,10 @@
 package domains.events.impl
 
-import java.io.Closeable
-
-import akka.{Done, NotUsed}
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.{ActorMaterializer, Materializer, OverflowStrategy}
-import akka.stream.scaladsl.{BroadcastHub, Flow, Source, SourceQueueWithComplete}
+import akka.stream.scaladsl.{Source, SourceQueueWithComplete}
+import akka.stream.{ActorMaterializer, Materializer}
+import akka.{Done, NotUsed}
 import domains.Domain.Domain
 import domains.events.EventLogger._
 import domains.events.EventStore
