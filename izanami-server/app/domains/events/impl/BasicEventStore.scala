@@ -11,6 +11,7 @@ import domains.Domain.Domain
 import domains.events.EventLogger._
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
+import libs.streams.CacheableQueue
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -22,14 +23,7 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
 
   logger.info("Starting default event store")
 
-  val source = Source
-    .queue[IzanamiEvent](1000, OverflowStrategy.dropBuffer)
-    .mapMaterializedValue { q =>
-      system.actorOf(EventStreamActor.props(q))
-      NotUsed
-    }
-    .runWith(BroadcastHub.sink(1024))
-
+  private val queue                                       = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
   override def publish(event: IzanamiEvent): Future[Done] =
     //Already published
     FastFuture.successful(Done)
@@ -37,9 +31,15 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],
                       lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
-    source
-      .via(dropUntilLastId(lastEventId))
-      .filter { eventMatch(patterns, domains) }
+    lastEventId match {
+      case Some(_) =>
+        queue.sourceWithCache
+          .via(dropUntilLastId(lastEventId))
+          .filter(eventMatch(patterns, domains))
+      case None =>
+        queue.rawSource
+          .filter(eventMatch(patterns, domains))
+    }
 
   override def close() = {}
 

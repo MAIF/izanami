@@ -1,25 +1,24 @@
 package domains.events.impl
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, OverflowStrategy}
-import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
 import domains.Domain.Domain
 import domains.events.Events.IzanamiEvent
 import domains.events.{EventLogger, EventStore}
 import env.RedisEventsConfig
-import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
-import io.lettuce.core.pubsub.{RedisPubSubListener, StatefulRedisPubSubConnection}
 import io.lettuce.core.pubsub.api.async.RedisPubSubAsyncCommands
-import io.lettuce.core.pubsub.api.reactive.RedisPubSubReactiveCommands
+import io.lettuce.core.pubsub.{RedisPubSubListener, StatefulRedisPubSubConnection}
+import libs.streams.CacheableQueue
 import play.api.Logger
 import play.api.libs.json.{JsError, JsResult, JsSuccess, Json}
 import store.redis.RedisWrapper
 
 import scala.compat.java8.FutureConverters._
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.Failure
 
 class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore {
 
@@ -35,10 +34,7 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
   private val connectionPubSub: StatefulRedisPubSubConnection[String, String] = client.connectPubSub()
   private val channel: RedisPubSubAsyncCommands[String, String]               = connectionPubSub.async()
 
-  private val (queue, source) = Source
-    .queue[IzanamiEvent](1000, OverflowStrategy.dropHead)
-    .toMat(BroadcastHub.sink[IzanamiEvent](1024))(Keep.both)
-    .run()
+  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
 
   connectionPubSub.addListener(new RedisPubSubListener[String, String] {
     private def publishMessage(message: String) = {
@@ -88,9 +84,15 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],
                       lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
-    source
-      .via(dropUntilLastId(lastEventId))
-      .filter(eventMatch(patterns, domains))
+    lastEventId match {
+      case Some(_) =>
+        queue.sourceWithCache
+          .via(dropUntilLastId(lastEventId))
+          .filter(eventMatch(patterns, domains))
+      case None =>
+        queue.rawSource
+          .filter(eventMatch(patterns, domains))
+    }
 
   override def close() = {}
 }
