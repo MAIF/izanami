@@ -16,6 +16,7 @@ import domains.events.EventLogger._
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.DistributedEventsConfig
+import libs.streams.CacheableQueue
 import play.api.Logger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
@@ -38,10 +39,7 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
 
   logger.info(s"Creating distributed event store")
 
-  private val (queue, source) = Source
-    .queue[IzanamiEvent](1000, OverflowStrategy.dropHead)
-    .toMat(BroadcastHub.sink[IzanamiEvent](1024))(Keep.both)
-    .run()
+  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
 
   private val actor =
     s.actorOf(DistributedEventsPublisherActor.props(queue, config))
@@ -54,9 +52,15 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],
                       lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
-    source
-      .via(dropUntilLastId(lastEventId))
-      .filter(eventMatch(patterns, domains))
+    lastEventId match {
+      case Some(_) =>
+        queue.sourceWithCache
+          .via(dropUntilLastId(lastEventId))
+          .filter(eventMatch(patterns, domains))
+      case None =>
+        queue.rawSource
+          .filter(eventMatch(patterns, domains))
+    }
 
   override def close() = actor ! PoisonPill
 
@@ -99,11 +103,11 @@ object DistributedEventsPublisherActor {
 
   case class Message(event: JsValue)
 
-  def props(queue: SourceQueueWithComplete[IzanamiEvent], config: DistributedEventsConfig): Props =
+  def props(queue: CacheableQueue[IzanamiEvent], config: DistributedEventsConfig): Props =
     Props(new DistributedEventsPublisherActor(queue, config))
 }
 
-private[events] class DistributedEventsPublisherActor(queue: SourceQueueWithComplete[IzanamiEvent],
+private[events] class DistributedEventsPublisherActor(queue: CacheableQueue[IzanamiEvent],
                                                       config: DistributedEventsConfig)
     extends Actor {
 
