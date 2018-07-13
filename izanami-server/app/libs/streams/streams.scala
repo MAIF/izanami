@@ -32,12 +32,12 @@ object Flows {
 
 case class CacheableQueue[T](queue: SourceQueueWithComplete[QueueElement[T]],
                              sourceWithCache: Source[T, NotUsed],
-                             rawSource: Source[T, NotUsed]) {
+                             rawSource: Source[T, NotUsed]) extends SourceQueueWithComplete[T]{
 
-  def offer(elem: T): Future[QueueOfferResult] = queue.offer(Element(elem))
-  def watchCompletion()                        = queue.watchCompletion()
-  def complete()                               = queue.complete()
-
+  override def offer(elem: T): Future[QueueOfferResult] = queue.offer(Element(elem))
+  override def watchCompletion()                        = queue.watchCompletion()
+  override def complete()                               = queue.complete()
+  override def fail(ex: Throwable): Unit = queue.fail(ex)
 }
 
 object CacheableQueue {
@@ -74,7 +74,7 @@ object CacheableQueue {
     val (queue, rawSource: Source[QueueElement[T], NotUsed]) =
       Source
         .queue[QueueElement[T]](queueBufferSize, backpressure)
-        .toMat(BroadcastHub.sink(broadcastCapacity))(Keep.both)
+        .toMat(BroadcastHub.sink(2))(Keep.both)
         .run
 
     val (_, tmpSource: Source[QueueState[T], NotUsed]) = rawSource
