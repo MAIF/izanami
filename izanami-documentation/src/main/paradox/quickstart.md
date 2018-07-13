@@ -32,7 +32,7 @@ Ok, now you've reached the home page
 
 Izanami encourage you to create a real user but let's ignore that for the moment and close the pop up. 
 
-Now we will an create API key to use the API : 
+Now we will create an API key to use the API : 
 
 <img src="img/quickstart/3-apikey.png" width="50%" />
 

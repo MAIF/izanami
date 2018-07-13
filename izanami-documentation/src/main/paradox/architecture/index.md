@@ -10,7 +10,7 @@ As said before, Izanami provide different features :
 ![diagram](../img/diagrams/architecture.png) 
 
 The data of each domains (features, configs, experiments ...) are compartmentalized in buckets. 
-Izanami can be plugged with 2 or more databases at the same time where each database store on or more bucket. 
+Izanami can be plugged with 2 or more databases at the same time where each database store one or more bucket. 
 
 Izanami contains the following buckets : 
 
