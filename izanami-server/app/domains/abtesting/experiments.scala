@@ -69,7 +69,6 @@ object Experiment {
       .mapAsyncUnordered(2) { experiment =>
         variantBindingStore
           .getById(VariantBindingKey(experiment.id, clientId))
-          .one
           .flatMap {
             case Some(v) =>
               FastFuture.successful(
@@ -123,7 +122,7 @@ class ExperimentStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, syst
     }
 
   override def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment): Future[Result[Experiment]] =
-    this.getById(oldId).one.flatMap {
+    this.getById(oldId).flatMap {
       case Some(oldValue) =>
         jsonStore
           .update(oldId, id, format.writes(data))
@@ -143,8 +142,8 @@ class ExperimentStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, syst
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: ExperimentKey): FindResult[Experiment] =
-    JsonFindResult[Experiment](jsonStore.getById(id))
+  override def getById(id: ExperimentKey): Future[Option[Experiment]] =
+    jsonStore.getById(id).to[Experiment]
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Experiment]] =
     jsonStore

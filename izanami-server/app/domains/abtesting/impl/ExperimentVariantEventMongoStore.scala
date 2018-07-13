@@ -2,7 +2,7 @@ package domains.abtesting.impl
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Sink, Source}
 import reactivemongo.akkastream._
 import domains.abtesting.Experiment.ExperimentKey
@@ -18,7 +18,7 @@ import reactivemongo.api.ReadPreference
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.{FindResult, Result, SourceFindResult}
+import store.Result
 import store.Result.Result
 
 import scala.concurrent.duration.DurationInt
@@ -188,11 +188,9 @@ class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMong
       }
   }
 
-  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] =
-    SourceFindResult(
-      Source(experiment.variants.toList)
-        .mapAsync(4)(v => getVariantResult(experiment.id.key, v))
-    )
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
+    Source(experiment.variants.toList)
+      .mapAsync(4)(v => getVariantResult(experiment.id.key, v))
 
   override def listAll(patterns: Seq[String]) =
     Source

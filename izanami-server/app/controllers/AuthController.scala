@@ -38,7 +38,7 @@ class AuthController(_env: Env,
   def authenticate: Action[JsValue] = Action.async(parse.json) { req =>
     val auth: Auth = req.body.as[Auth]
 
-    userStore.getById(Key(auth.userId)).one.flatMap { maybeUser =>
+    userStore.getById(Key(auth.userId)).flatMap { maybeUser =>
       {
         maybeUser match {
           case Some(user: User) =>

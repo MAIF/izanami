@@ -160,8 +160,8 @@ class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifec
       Result.ok(Done)
     }
 
-  override def getById(id: Key) =
-    SimpleFindResult(getByKeyId(id).map(_.toList))
+  override def getById(id: Key): Future[Option[JsValue]] =
+    getByKeyId(id)
 
   override def getByIdLike(patterns: Seq[String]) =
     keys(patterns: _*)

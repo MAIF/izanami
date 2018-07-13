@@ -198,6 +198,7 @@ class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, sy
   private implicit val s  = system
   private implicit val es = eventStore
 
+  import store.Result._
   import GlobalScript._
   import GlobalScriptStore._
   import domains.events.Events._
@@ -208,7 +209,7 @@ class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, sy
     }
 
   override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): Future[Result[GlobalScript]] =
-    this.getById(oldId).one.flatMap {
+    this.getById(oldId).flatMap {
       case Some(oldValue) =>
         jsonStore
           .update(oldId, id, format.writes(data))
@@ -227,8 +228,8 @@ class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, sy
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: GlobalScriptKey): FindResult[GlobalScript] =
-    JsonFindResult[GlobalScript](jsonStore.getById(id))
+  override def getById(id: GlobalScriptKey): Future[Option[GlobalScript]] =
+    jsonStore.getById(id).to[GlobalScript]
 
   override def getByIdLike(patterns: Seq[String],
                            page: Int,

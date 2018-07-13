@@ -143,7 +143,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
   }
 
   override def delete(id: Key): Future[Result[JsValue]] =
-    getById(id).one
+    getById(id)
       .flatMap {
         case Some(value) =>
           index.delete(id.key, refresh = elasticConfig.automaticRefresh).map { _ =>
@@ -169,22 +169,24 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
         }
       }
 
-  override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(
-      index
-        .get(id.key)
-        .map {
-          case r @ GetResponse(_, _, _, _, true, source) =>
-            List(r.as[EsDocument])
-              .filter(d => d.deathDate.forall(d => LocalDateTime.now().isBefore(d)))
-              .map(_.value)
-          case _ =>
-            List.empty
-        }
-        .recover {
-          case EsException(_, statusCode, _) if statusCode == 404 => List.empty
-        }
-    )
+  override def getById(id: Key): Future[Option[JsValue]] = {
+    import cats.implicits._
+    index
+      .get(id.key)
+      .map {
+        case r @ GetResponse(_, _, _, _, true, _) =>
+          r.as[EsDocument]
+            .some
+            .filter(d => d.deathDate.forall(d => LocalDateTime.now().isBefore(d)))
+            .map(_.value)
+        case _ =>
+          none[JsValue]
+      }
+      .recover {
+        case EsException(_, statusCode, _) if statusCode == 404 =>
+          none[JsValue]
+      }
+  }
 
   private def buildSearchQuery(patterns: Seq[String]): JsObject = {
 

@@ -143,8 +143,8 @@ class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String
       .map(_ => Result.ok(Done))
   }
 
-  override def getById(id: Key) =
-    SimpleFindResult(getByKeyId(id).map(_.toList))
+  override def getById(id: Key): Future[Option[JsValue]] =
+    getByKeyId(id)
 
   override def getByIdLike(patterns: Seq[String]) =
     findKeys(patterns)

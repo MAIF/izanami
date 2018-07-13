@@ -187,10 +187,8 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
       }
     }
 
-  override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(
-      getByIdRaw(id).map(_.toList)
-    )
+  override def getById(id: Key): Future[Option[JsValue]] =
+    getByIdRaw(id)
 
   private def getByIdRaw(id: Key): Future[Option[JsValue]] = {
     val query =
