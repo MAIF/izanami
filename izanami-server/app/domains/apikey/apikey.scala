@@ -91,7 +91,7 @@ class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
     }
 
   override def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): Future[Result[Apikey]] =
-    this.getById(oldId).one.flatMap {
+    this.getById(oldId).flatMap {
       case Some(oldValue) =>
         jsonStore
           .update(oldId, id, format.writes(data))
@@ -111,8 +111,8 @@ class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: ApikeyKey): FindResult[Apikey] =
-    JsonFindResult[Apikey](jsonStore.getById(id))
+  override def getById(id: ApikeyKey): Future[Option[Apikey]] =
+    jsonStore.getById(id).to[Apikey]
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Apikey]] =
     jsonStore

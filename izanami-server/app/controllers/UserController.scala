@@ -65,7 +65,7 @@ class UserController(env: Env,
     import UserNoPassword._
     val key = Key(id)
     for {
-      user <- userStore.getById(key).one |> liftFOption[Result, User](NotFound)
+      user <- userStore.getById(key) |> liftFOption[Result, User](NotFound)
     } yield Ok(Json.toJson(user))
   }
 
@@ -82,7 +82,7 @@ class UserController(env: Env,
     import User._
     val key = Key(id)
     for {
-      current <- userStore.getById(key).one |> liftFOption[Result, User](NotFound)
+      current <- userStore.getById(key) |> liftFOption[Result, User](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
@@ -96,7 +96,7 @@ class UserController(env: Env,
     import UserNoPassword._
     val key = Key(id)
     for {
-      user    <- userStore.getById(key).one |> liftFOption[Result, User](NotFound)
+      user    <- userStore.getById(key) |> liftFOption[Result, User](NotFound)
       _       <- user.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- userStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(user))

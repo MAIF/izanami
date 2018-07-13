@@ -204,8 +204,8 @@ class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
     res
   }
 
-  override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(FastFuture.successful(getByIdSync(id).toList))
+  override def getById(id: Key): Future[Option[JsValue]] =
+    FastFuture.successful(getByIdSync(id))
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
     FastFuture.successful(getByIdLikeSync(patterns, page, nbElementPerPage))

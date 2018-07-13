@@ -10,7 +10,7 @@ import domains.abtesting.Experiment.ExperimentKey
 import libs.IdGenerator
 import play.api.libs.json._
 import store.Result.{ErrorMessage, Result}
-import store.{FindResult, StoreOps}
+import store.StoreOps
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -140,7 +140,7 @@ trait ExperimentVariantEventStore extends StoreOps {
 
   def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]]
 
-  def findVariantResult(experiment: Experiment): FindResult[VariantResult]
+  def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed]
 
   def listAll(patterns: Seq[String] = Seq("*")): Source[ExperimentVariantEvent, NotUsed]
 

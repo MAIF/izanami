@@ -72,7 +72,6 @@ class IzanamiDefaultFilter(env: Env,
       case ("prod", Some(clientId), Some(clientSecret), _) =>
         apikeyStore
           .getById(Key(clientId))
-          .one
           .map { mayBeKey =>
             Logger.debug(s"$mayBeKey: ${apikeyConfig.keys}")
             mayBeKey

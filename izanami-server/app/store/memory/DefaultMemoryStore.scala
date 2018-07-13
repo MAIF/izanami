@@ -50,8 +50,8 @@ class InMemoryJsonDataStoreAsync(name: String)(implicit system: ActorSystem, ec:
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     Future { deleteAllSync(patterns) }
 
-  override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(Future(getByIdSync(id).toList))
+  override def getById(id: Key): Future[Option[JsValue]] =
+    Future(getByIdSync(id))
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
     Future {
@@ -79,8 +79,8 @@ class InMemoryJsonDataStore(name: String) extends BaseInMemoryJsonDataStore(name
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     FastFuture.successful(deleteAllSync(patterns))
 
-  override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(FastFuture.successful(getByIdSync(id).toList))
+  override def getById(id: Key): Future[Option[JsValue]] =
+    FastFuture.successful(getByIdSync(id))
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
     FastFuture.successful(getByIdLikeSync(patterns, page, nbElementPerPage))

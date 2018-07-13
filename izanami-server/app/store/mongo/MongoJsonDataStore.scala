@@ -112,12 +112,9 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
       .map(_.map(_.data))
   }
 
-  override def getById(id: Key): FindResult[JsValue] =
-    SimpleFindResult(
-      storeCollection
-        .flatMap(getByIdRaw(id)(_))
-        .map(_.toList)
-    )
+  override def getById(id: Key): Future[Option[JsValue]] =
+    storeCollection
+      .flatMap(getByIdRaw(id)(_))
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] = {
     val from    = (page - 1) * nbElementPerPage

@@ -69,7 +69,7 @@ class ConfigStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
     }
 
   override def update(oldId: ConfigKey, id: ConfigKey, data: Config): Future[Result[Config]] =
-    this.getById(oldId).one.flatMap {
+    this.getById(oldId).flatMap {
       case Some(oldValue) =>
         jsonStore
           .update(oldId, id, format.writes(data))
@@ -89,8 +89,8 @@ class ConfigStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: ConfigKey): FindResult[Config] =
-    JsonFindResult[Config](jsonStore.getById(id))
+  override def getById(id: ConfigKey): Future[Option[Config]] =
+    jsonStore.getById(id).to[Config]
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Config]] =
     jsonStore

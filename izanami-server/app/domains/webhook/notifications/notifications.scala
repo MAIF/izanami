@@ -205,7 +205,7 @@ class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webh
     queue = Set.empty[IzanamiEvent]
     Logger.debug(s"Sending events to ${webhook.callbackUrl} : $json")
     try {
-      webhookStore.getById(id).one.onComplete {
+      webhookStore.getById(id).onComplete {
         case Success(Some(w)) if !w.isBanned =>
           wSClient
             .url(webhook.callbackUrl)

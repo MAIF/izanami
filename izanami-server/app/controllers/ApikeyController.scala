@@ -68,7 +68,7 @@ class ApikeyController(env: Env,
     import Apikey._
     val key = Key(id)
     for {
-      apikey <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](NotFound)
+      apikey <- apikeyStore.getById(key) |> liftFOption[Result, Apikey](NotFound)
       _      <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
     } yield Ok(Json.toJson(apikey))
   }
@@ -87,7 +87,7 @@ class ApikeyController(env: Env,
     import Apikey._
     val key = Key(id)
     for {
-      current <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](NotFound)
+      current <- apikeyStore.getById(key) |> liftFOption[Result, Apikey](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
@@ -101,7 +101,7 @@ class ApikeyController(env: Env,
     import Apikey._
     val key = Key(id)
     for {
-      apikey  <- apikeyStore.getById(key).one |> liftFOption[Result, Apikey](NotFound)
+      apikey  <- apikeyStore.getById(key) |> liftFOption[Result, Apikey](NotFound)
       _       <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- apikeyStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(apikey))
