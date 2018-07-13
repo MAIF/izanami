@@ -26,6 +26,6 @@ Izanami provide a couple of features :
     * redis
     * kafka 
     * akka distributed pub sub  
-* Advandced Clever-Cloud integration
-* Advandced Otoroshi integration
+* Advanded Clever-Cloud integration
+* Advanded Otoroshi integration
 * Made with love
