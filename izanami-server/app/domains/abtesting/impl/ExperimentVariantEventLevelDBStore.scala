@@ -2,11 +2,11 @@ package domains.abtesting.impl
 
 import java.io.File
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import domains.abtesting._
 import domains.events.EventStore
@@ -17,7 +17,7 @@ import play.api.Logger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
 import store.Result.Result
-import store.{FindResult, Result, SimpleFindResult}
+import store.Result
 import store.leveldb.LevelDBRedisCommand
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -145,27 +145,29 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
     }
   }.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
 
-  private def findEvents(eventVariantKey: String): FindResult[ExperimentVariantEvent] =
-    SimpleFindResult(
-      client
-        .smembers(eventVariantKey)
-        .map(
-          res =>
-            res
-              .map(_.utf8String)
-              .map(Json.parse)
-              .map(
-                value =>
-                  ExperimentVariantEvent.format
-                    .reads(value)
-                    .get
-              )
-              .sortWith((e1, e2) => e1.date.isBefore(e2.date))
-              .toList
-        )
-    )
+  private def findEvents(eventVariantKey: String): Source[ExperimentVariantEvent, NotUsed] =
+    Source
+      .fromFuture(
+        client
+          .smembers(eventVariantKey)
+          .map(
+            res =>
+              res
+                .map(_.utf8String)
+                .map(Json.parse)
+                .map(
+                  value =>
+                    ExperimentVariantEvent.format
+                      .reads(value)
+                      .get
+                )
+                .sortWith((e1, e2) => e1.date.isBefore(e2.date))
+                .toList
+          )
+      )
+      .mapConcat(identity)
 
-  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] = {
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] = {
     val eventualVariantResult: Future[List[VariantResult]] = for {
       variantKeys <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
       variants <- Future.sequence {
@@ -178,7 +180,7 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
                            variant.id == currentVariantId
                          })
 
-                       val fEvents: Future[Seq[ExperimentVariantEvent]] = findEvents(variantKey).list
+                       val fEvents: Future[Seq[ExperimentVariantEvent]] = findEvents(variantKey).runWith(Sink.seq)
                        val fDisplayed: Future[Option[ByteString]] =
                          client.get(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId")
                        val fWon: Future[Option[ByteString]] =
@@ -211,7 +213,7 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
                  }
     } yield variants.toList
 
-    SimpleFindResult(eventualVariantResult)
+    Source.fromFuture(eventualVariantResult).mapConcat(identity)
   }
 
   override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
@@ -230,7 +232,7 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
     Source
       .fromFuture(client.keys(s"$experimentseventsNamespace:*"))
       .mapConcat(_.toList)
-      .flatMapMerge(4, key => findEvents(key).stream)
+      .flatMapMerge(4, key => findEvents(key))
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
 }

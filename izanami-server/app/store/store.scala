@@ -130,15 +130,13 @@ object Result {
           Logger.error(s"Error parsing json from database $err")
           AppErrors(Seq(ErrorMessage("error.json.parsing"))).asLeft
       }
+
   }
-}
 
-trait FindResult[Data] {
-
-  def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]]
-  def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]]
-  def stream(implicit format: Format[Data]): Source[Data, NotUsed]
-
+  implicit class OptionJsResultOps(r: Future[Option[JsValue]]) {
+    def to[E](implicit ec: ExecutionContext, reads: Reads[E]): Future[Option[E]] =
+      r.map(_.map(_.validate[E].get))
+  }
 }
 
 trait PagingResult[Data] {
@@ -180,68 +178,6 @@ object SourceUtils {
   }
 }
 
-case class SimpleFindResult[Data](datas: Future[List[Data]]) extends FindResult[Data] {
-
-  override def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]] =
-    datas.map(_.headOption)
-
-  override def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]] = datas
-
-  override def stream(implicit format: Format[Data]): Source[Data, NotUsed] =
-    Source.fromFuture(datas).mapConcat(d => d)
-}
-
-case class SourceFindResult[Data](datas: Source[Data, NotUsed])(implicit mat: Materializer) extends FindResult[Data] {
-
-  override def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]] =
-    datas.runWith(Sink.headOption)
-
-  override def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]] =
-    datas.runWith(Sink.seq)
-
-  override def stream(implicit format: Format[Data]): Source[Data, NotUsed] =
-    datas
-}
-
-case class JsonFindResult[Data](datas: FindResult[JsValue]) extends FindResult[Data] {
-
-  override def one(implicit ec: ExecutionContext, format: Format[Data]): Future[Option[Data]] =
-    datas.one
-      .map(
-        mayBeJson =>
-          mayBeJson
-            .map(json => format.reads(json))
-            .flatMap {
-              case JsSuccess(s, _) => s.some
-              case JsError(e) =>
-                Logger.error(s"Error reading data from DB $e")
-                none[Data]
-          }
-      )
-
-  override def list(implicit ec: ExecutionContext, format: Format[Data]): Future[Seq[Data]] =
-    datas.list.map(
-      l =>
-        l.map(json => format.reads(json))
-          .flatMap {
-            case JsSuccess(s, _) => s.some
-            case JsError(e) =>
-              Logger.error(s"Error reading data from DB $e")
-              none[Data]
-        }
-    )
-
-  override def stream(implicit format: Format[Data]): Source[Data, NotUsed] =
-    datas.stream
-      .map(json => format.reads(json))
-      .mapConcat {
-        case JsSuccess(s, _) => List(s)
-        case JsError(e) =>
-          Logger.error(s"Error reading data from DB $e")
-          List.empty[Data]
-      }
-}
-
 trait StoreOps {
   import domains.events.Events._
 
@@ -265,7 +201,7 @@ trait DataStore[Key, Data] extends StoreOps {
   def update(oldId: Key, id: Key, data: Data): Future[Result[Data]]
   def delete(id: Key): Future[Result[Data]]
   def deleteAll(patterns: Seq[String]): Future[Result[Done]]
-  def getById(id: Key): FindResult[Data]
+  def getById(id: Key): Future[Option[Data]]
   def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): Future[PagingResult[Data]]
   def getByIdLike(patterns: Seq[String]): Source[(Key, Data), NotUsed]
   def count(patterns: Seq[String]): Future[Long]

@@ -95,8 +95,7 @@ class ExperimentController(env: Env,
               Forbidden(AppErrors.error("error.forbidden").toJson)
             )
         experiment <- experimentStore
-                       .getById(key)
-                       .one |> liftFOption[Result, Experiment](NotFound)
+                       .getById(key) |> liftFOption[Result, Experiment](NotFound)
       } yield Ok(Json.toJson(experiment))
     }
 
@@ -116,7 +115,7 @@ class ExperimentController(env: Env,
     import Experiment._
     val key = Key(id)
     for {
-      current <- experimentStore.getById(key).one |> liftFOption[Result, Experiment](NotFound)
+      current <- experimentStore.getById(key) |> liftFOption[Result, Experiment](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
@@ -131,8 +130,7 @@ class ExperimentController(env: Env,
     val key = Key(id)
     for {
       experiment <- experimentStore
-                     .getById(key)
-                     .one |> liftFOption[Result, Experiment](NotFound)
+                     .getById(key) |> liftFOption[Result, Experiment](NotFound)
       _       <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- experimentStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
       _ <- variantBindingStore
@@ -172,12 +170,10 @@ class ExperimentController(env: Env,
       val query = VariantBindingKey(Key(experimentId), clientId)
       for {
         variantBinding <- variantBindingStore
-                           .getById(query)
-                           .one |> liftFOption[Result, VariantBinding](NotFound)
+                           .getById(query) |> liftFOption[Result, VariantBinding](NotFound)
         variantId = variantBinding.variantId
         experiment <- experimentStore
-                       .getById(Key(experimentId))
-                       .one |> liftFOption[Result, Experiment](NotFound)
+                       .getById(Key(experimentId)) |> liftFOption[Result, Experiment](NotFound)
         variant <- experiment.variants.find(_.id == variantId) |> liftOption[Result, Variant](NotFound)
       } yield Ok(Json.toJson(variant))
     }
@@ -233,18 +229,15 @@ class ExperimentController(env: Env,
       val experimentKey = Key(experimentId)
 
       Source
-        .fromFuture(experimentStore.getById(experimentKey).one)
+        .fromFuture(experimentStore.getById(experimentKey))
         .mapConcat {
           _.toList
         }
         .flatMapConcat { experiment =>
-          Source
-            .fromFuture(
-              eVariantEventStore
-                .findVariantResult(experiment)
-                .list
-                .map(variantsResult => ExperimentResult(experiment, variantsResult))
-            )
+          eVariantEventStore
+            .findVariantResult(experiment)
+            .fold(Seq.empty[VariantResult])(_ :+ _)
+            .map(variantsResult => ExperimentResult(experiment, variantsResult))
             .orElse(Source.single(ExperimentResult(experiment, Seq.empty)))
         }
         .map { r =>

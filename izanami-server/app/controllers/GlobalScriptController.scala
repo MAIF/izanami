@@ -93,8 +93,7 @@ class GlobalScriptController(env: Env,
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       globalScript <- globalScriptStore
-                       .getById(key)
-                       .one |> liftFOption[Result, GlobalScript](NotFound)
+                       .getById(key) |> liftFOption[Result, GlobalScript](NotFound)
     } yield Ok(Json.toJson(globalScript))
   }
 
@@ -117,7 +116,7 @@ class GlobalScriptController(env: Env,
     import GlobalScript._
     val key = Key(id)
     for {
-      current <- globalScriptStore.getById(key).one |> liftFOption[Result, GlobalScript](NotFound)
+      current <- globalScriptStore.getById(key) |> liftFOption[Result, GlobalScript](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
@@ -132,8 +131,7 @@ class GlobalScriptController(env: Env,
     val key = Key(id)
     for {
       globalScript <- globalScriptStore
-                       .getById(key)
-                       .one |> liftFOption[Result, GlobalScript](NotFound)
+                       .getById(key) |> liftFOption[Result, GlobalScript](NotFound)
       _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )

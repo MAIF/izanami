@@ -43,7 +43,6 @@ class Patchs(mayBeJsonStore: Option[JsonDataStore], allpatches: Map[Int, PatchIn
       case Some(store) =>
         store
           .getById(key)
-          .one
           .map {
             case Some(json) =>
               json
