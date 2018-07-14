@@ -65,12 +65,11 @@ object VariantBinding {
   ): Future[Result[Variant]] =
     VariantBindingStore
       .getById(VariantBindingKey(experimentKey, clientId))
-      .one
       .flatMap {
         case None =>
           createVariantForClient(experimentKey, clientId)
         case Some(v) =>
-          experimentStore.getById(experimentKey).one.map {
+          experimentStore.getById(experimentKey).map {
             case Some(e) =>
               e.variants
                 .find(_.id == v.variantId)
@@ -96,7 +95,7 @@ object VariantBinding {
     (
       for {
         //Get experiment, if empty : StoreError
-        experiment <- experimentStore.getById(experimentKey).one |> liftFOption(
+        experiment <- experimentStore.getById(experimentKey) |> liftFOption(
                        AppErrors(Seq(ErrorMessage("error.experiment.missing")))
                      )
         // Sum of the distinct client connected
@@ -139,6 +138,8 @@ object VariantBindingStore {
 
 class VariantBindingStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
     extends VariantBindingStore {
+
+  import store.Result._
   import domains.events.Events._
   import system.dispatcher
 
@@ -165,8 +166,8 @@ class VariantBindingStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, 
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: VariantBindingKey): FindResult[VariantBinding] =
-    JsonFindResult[VariantBinding](jsonStore.getById(id.key))
+  override def getById(id: VariantBindingKey): Future[Option[VariantBinding]] =
+    jsonStore.getById(id.key).to[VariantBinding]
 
   override def getByIdLike(patterns: Seq[String],
                            page: Int,

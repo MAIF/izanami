@@ -96,6 +96,7 @@ object WebhookStore {
 class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventStore: EventStore, system: ActorSystem)
     extends WebhookStore {
 
+  import store.Result._
   import Webhook._
   import WebhookStore._
   import system.dispatcher
@@ -110,7 +111,7 @@ class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventSt
     }
 
   override def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): Future[Result[Webhook]] =
-    this.getById(oldId).one.flatMap {
+    this.getById(oldId).flatMap {
       case Some(oldValue) =>
         jsonStore
           .update(oldId, id, format.writes(data))
@@ -130,8 +131,8 @@ class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventSt
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: WebhookKey): FindResult[Webhook] =
-    JsonFindResult[Webhook](jsonStore.getById(id))
+  override def getById(id: WebhookKey): Future[Option[Webhook]] =
+    jsonStore.getById(id).to[Webhook]
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Webhook]] =
     jsonStore

@@ -1,12 +1,12 @@
 package domains.abtesting.impl
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.scaladsl.Source
 import domains.abtesting._
 import env.DbDomainConfig
 import store.Result.Result
-import store.{FindResult, Result, SimpleFindResult}
+import store.Result
 
 import scala.concurrent.Future
 import ExperimentDataStoreActor._
@@ -45,9 +45,9 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem:
       .mapTo[Done]
       .map[Result[Done]](res => Result.ok(res))
 
-  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] =
-    SimpleFindResult {
-      Future.sequence {
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
+    Source
+      .fromFuture(Future.sequence {
         experiment.variants
           .map(variant => {
 
@@ -79,8 +79,8 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem:
             }
           })
           .toList
-      }
-    }
+      })
+      .mapConcat(identity)
 
   override def listAll(patterns: Seq[String]) =
     Source

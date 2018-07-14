@@ -74,7 +74,7 @@ object DefaultFeature {
 case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String) extends Feature {
   override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
     import domains.script.GlobalScript._
-    env.globalScriptStore.getById(Key(ref)).one.flatMap {
+    env.globalScriptStore.getById(Key(ref)).flatMap {
       case Some(gs: GlobalScript) =>
         gs.source.run(context, env).map(Result.ok)
       case None => FastFuture.successful(Result.error("script.not.found"))
@@ -419,7 +419,7 @@ class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system:
     }
 
   override def update(oldId: FeatureKey, id: FeatureKey, data: Feature): Future[Result[Feature]] =
-    this.getById(oldId).one.flatMap {
+    this.getById(oldId).flatMap {
       case Some(oldValue) =>
         jsonStore
           .update(oldId, id, format.writes(data))
@@ -438,8 +438,8 @@ class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system:
   override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: FeatureKey): FindResult[Feature] =
-    JsonFindResult[Feature](jsonStore.getById(id))
+  override def getById(id: FeatureKey): Future[Option[Feature]] =
+    jsonStore.getById(id).to[Feature]
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Feature]] =
     jsonStore

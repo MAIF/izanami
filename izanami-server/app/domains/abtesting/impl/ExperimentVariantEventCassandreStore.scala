@@ -13,7 +13,7 @@ import play.api.Logger
 import play.api.libs.json._
 import store.Result.Result
 import store.cassandra.Cassandra
-import store.{FindResult, Result, SourceFindResult}
+import store.Result
 
 import scala.concurrent.Future
 
@@ -220,11 +220,9 @@ class ExperimentVariantEventCassandreStore(session: Session,
     }
   }
 
-  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] =
-    SourceFindResult(
-      Source(experiment.variants.toList)
-        .flatMapMerge(4, v => getVariantResult(experiment.id.key, v))
-    )
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
+    Source(experiment.variants.toList)
+      .flatMapMerge(4, v => getVariantResult(experiment.id.key, v))
 
   override def listAll(patterns: Seq[String]) =
     CassandraSource(

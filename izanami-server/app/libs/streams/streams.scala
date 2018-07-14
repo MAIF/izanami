@@ -32,12 +32,13 @@ object Flows {
 
 case class CacheableQueue[T](queue: SourceQueueWithComplete[QueueElement[T]],
                              sourceWithCache: Source[T, NotUsed],
-                             rawSource: Source[T, NotUsed]) extends SourceQueueWithComplete[T]{
+                             rawSource: Source[T, NotUsed])
+    extends SourceQueueWithComplete[T] {
 
   override def offer(elem: T): Future[QueueOfferResult] = queue.offer(Element(elem))
   override def watchCompletion()                        = queue.watchCompletion()
   override def complete()                               = queue.complete()
-  override def fail(ex: Throwable): Unit = queue.fail(ex)
+  override def fail(ex: Throwable): Unit                = queue.fail(ex)
 }
 
 object CacheableQueue {

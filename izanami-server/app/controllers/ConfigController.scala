@@ -88,7 +88,7 @@ class ConfigController(env: Env,
       _ <- Config.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
-      config <- configStore.getById(key).one |> liftFOption[Result, Config](NotFound)
+      config <- configStore.getById(key) |> liftFOption[Result, Config](NotFound)
     } yield Ok(Json.toJson(config))
   }
 
@@ -105,7 +105,7 @@ class ConfigController(env: Env,
     import Config._
     val key = Key(id)
     for {
-      current <- configStore.getById(key).one |> liftFOption[Result, Config](NotFound)
+      current <- configStore.getById(key) |> liftFOption[Result, Config](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
@@ -119,7 +119,7 @@ class ConfigController(env: Env,
     import Config._
     val key = Key(id)
     for {
-      config  <- configStore.getById(key).one |> liftFOption[Result, Config](NotFound)
+      config  <- configStore.getById(key) |> liftFOption[Result, Config](NotFound)
       _       <- config.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- configStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(config))

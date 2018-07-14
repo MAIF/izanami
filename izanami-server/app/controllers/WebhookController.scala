@@ -75,7 +75,7 @@ class WebhookController(env: Env,
       _ <- Webhook.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
-      webhook <- webhookStore.getById(key).one |> liftFOption[Result, Webhook](NotFound)
+      webhook <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
     } yield Ok(Json.toJson(webhook))
   }
 
@@ -96,7 +96,7 @@ class WebhookController(env: Env,
     import Webhook._
     val key = Key(id)
     for {
-      current <- webhookStore.getById(key).one |> liftFOption[Result, Webhook](NotFound)
+      current <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
@@ -110,7 +110,7 @@ class WebhookController(env: Env,
     import Webhook._
     val key = Key(id)
     for {
-      webhook <- webhookStore.getById(key).one |> liftFOption[Result, Webhook](NotFound)
+      webhook <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
       _       <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- webhookStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(webhook))

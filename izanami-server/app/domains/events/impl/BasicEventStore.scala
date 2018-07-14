@@ -21,9 +21,8 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
 
   logger.info("Starting default event store")
 
-  private val queue                                       = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
+  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
   system.actorOf(EventStreamActor.props(queue))
-
 
   override def publish(event: IzanamiEvent): Future[Done] =
     //Already published

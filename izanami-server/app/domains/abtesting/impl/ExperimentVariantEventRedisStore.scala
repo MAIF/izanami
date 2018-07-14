@@ -16,7 +16,7 @@ import play.api.Logger
 import play.api.libs.json.Json
 import store.Result.Result
 import store.redis.RedisWrapper
-import store.{FindResult, Result, SimpleFindResult, SourceFindResult}
+import store.Result
 
 import scala.compat.java8.FutureConverters._
 import scala.collection.JavaConverters._
@@ -165,8 +165,8 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
     }
   }.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
 
-  private def findEvents(eventVariantKey: String): FindResult[ExperimentVariantEvent] = {
-    val source: Source[ExperimentVariantEvent, NotUsed] = Source
+  private def findEvents(eventVariantKey: String): Source[ExperimentVariantEvent, NotUsed] =
+    Source
       .unfoldAsync(0L) { (lastPage: Long) =>
         val nextPage: Long = lastPage + 50
         command().zrange(eventVariantKey, lastPage, nextPage).toScala.map(_.asScala.toList).map {
@@ -184,10 +184,7 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
       }
       .mapConcat(l => l)
 
-    SourceFindResult(source)
-  }
-
-  override def findVariantResult(experiment: Experiment): FindResult[VariantResult] = {
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] = {
     val eventualVariantResult: Future[List[VariantResult]] = for {
       variantKeys <- findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
                       .runFold(Seq.empty[String])(_ :+ _)
@@ -201,7 +198,7 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
                            variant.id == currentVariantId
                          })
 
-                       val fEvents: Future[Seq[ExperimentVariantEvent]] = findEvents(variantKey).list
+                       val fEvents: Future[Seq[ExperimentVariantEvent]] = findEvents(variantKey).runWith(Sink.seq)
                        val fDisplayed: Future[Long]                     = getDisplayed(experiment.id.key, currentVariantId)
                        val fWon: Future[Long]                           = getWon(experiment.id.key, currentVariantId)
 
@@ -229,7 +226,7 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
                  }
     } yield variants.toList
 
-    SimpleFindResult(eventualVariantResult)
+    Source.fromFuture(eventualVariantResult).mapConcat(identity)
   }
 
   override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
@@ -246,7 +243,7 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
 
   override def listAll(patterns: Seq[String]) =
     findKeys(s"$experimentseventsNamespace:*")
-      .flatMapMerge(4, key => findEvents(key).stream)
+      .flatMapMerge(4, key => findEvents(key))
       .alsoTo(Sink.foreach(e => println(s"Event $e")))
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 }

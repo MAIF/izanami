@@ -163,7 +163,7 @@ class FeatureController(env: Env,
       _ <- Feature.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
-      feature <- featureStore.getById(key).one |> liftFOption[Result, Feature](NotFound)
+      feature <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
     } yield Ok(Json.toJson(feature))
   }
 
@@ -182,7 +182,7 @@ class FeatureController(env: Env,
     for {
       context <- contextJson.validate[JsObject] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
       _       <- Feature.isAllowed(key)(user) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
-      feature <- featureStore.getById(key).one |> liftFOption[Result, Feature](NotFound)
+      feature <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
       isAllowed <- (feature.isActive(context, env) |> liftFEither[AppErrors, Boolean])
                     .leftMap(e => BadRequest(e.toJson))
     } yield Ok(Json.obj("active" -> (isAllowed && feature.enabled)))
@@ -203,7 +203,7 @@ class FeatureController(env: Env,
     import Feature._
     val key = Key(id)
     for {
-      current <- featureStore.getById(key).one |> liftFOption[Result, Feature](NotFound)
+      current <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
       _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
@@ -217,7 +217,7 @@ class FeatureController(env: Env,
     import Feature._
     val key = Key(id)
     for {
-      feature <- featureStore.getById(key).one |> liftFOption[Result, Feature](NotFound)
+      feature <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
       _       <- feature.isAllowed(ctx.auth) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- featureStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(feature))
