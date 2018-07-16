@@ -6,8 +6,9 @@ import akka.event.Logging
 import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
 import akka.util.Timeout
+import izanami.Strategy._
 import izanami._
-import izanami.commons.{PatternsUtil, SmartCacheStrategyActor}
+import izanami.commons.{PatternsUtil, SmartCacheStrategyHandler}
 import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import izanami.scaladsl._
 import org.reactivestreams.Publisher
@@ -35,8 +36,6 @@ class SmartCacheConfigClient(
 )(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
-  import akka.pattern._
-  import izanami.commons.SmartCacheStrategyActor._
   import izanamiDispatcher.ec
 
   implicit val timeout = Timeout(10.second)
@@ -49,26 +48,24 @@ class SmartCacheConfigClient(
       v
   }
 
-  private val ref = actorSystem.actorOf(
-    SmartCacheStrategyActor.props(
-      izanamiDispatcher,
-      config.patterns,
-      fetchDatas,
-      config,
-      fallback.configs.map(c => (c.id, c)).toMap,
-      onValueUpdated
-    )
+  private val smartCacheStrategyHandler = new SmartCacheStrategyHandler[Config](
+    izanamiDispatcher,
+    config.patterns,
+    fetchDatas,
+    config,
+    fallback.configs.map(c => (c.id, c)).toMap,
+    onValueUpdated
   )
 
   underlyingStrategy
     .configsSource("*")
     .runWith(Sink.foreach {
       case ConfigCreated(eventId, id, c) =>
-        ref ! SetValues(Seq((id, c)), eventId, triggerEvent = false)
+        smartCacheStrategyHandler.setValues(Seq((id, c)), eventId, triggerEvent = false)
       case ConfigUpdated(eventId, id, c, _) =>
-        ref ! SetValues(Seq((id, c)), eventId, triggerEvent = false)
+        smartCacheStrategyHandler.setValues(Seq((id, c)), eventId, triggerEvent = false)
       case ConfigDeleted(eventId, id) =>
-        ref ! RemoveValues(Seq(id), eventId, triggerEvent = false)
+        smartCacheStrategyHandler.removeValues(Seq(id), eventId, triggerEvent = false)
     })
 
   private val (queue, internalEventSource) = Source
@@ -86,7 +83,8 @@ class SmartCacheConfigClient(
   override def configs(pattern: String): Future[Configs] = {
     val convertedPattern: String =
       Option(pattern).map(_.replace(".", ":")).getOrElse("*")
-    (ref ? GetByPattern(convertedPattern))
+    smartCacheStrategyHandler
+      .getByPattern(convertedPattern)
       .mapTo[Seq[Config]]
       .map(configs => Configs(configs, fallback = fallback.configs))
       .recover(handleFailure(fallback))
@@ -95,7 +93,8 @@ class SmartCacheConfigClient(
   override def config(key: String): Future[JsValue] = {
     require(key != null, "key should not be null")
     val convertedKey: String = key.replace(".", ":")
-    (ref ? Get(convertedKey))
+    smartCacheStrategyHandler
+      .get(convertedKey)
       .mapTo[Option[Config]]
       .map(f => f.map(_.value).getOrElse(fallback.get(convertedKey)))
       .recover(handleFailure(fallback.get(convertedKey)))
@@ -120,3 +119,4 @@ class SmartCacheConfigClient(
       .runWith(Sink.seq)
 
 }
+
