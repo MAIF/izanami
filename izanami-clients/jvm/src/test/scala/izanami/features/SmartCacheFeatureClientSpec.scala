@@ -10,7 +10,9 @@ import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy}
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.time.{Seconds, Span}
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Promise
@@ -168,10 +170,10 @@ class SmartCacheFeatureClientSpec
         ctx.setValues(initialFeatures)
         ctx.push(featureUpdated)
 
-        events.futureValue must be(
+        events.futureValue(Timeout(Span(3, Seconds))) must be(
           Seq(featureUpdated)
         )
-        promise.future.futureValue must be(DefaultFeature("test1", true))
+        promise.future.futureValue(Timeout(Span(3, Seconds))) must be(DefaultFeature("test1", true))
       }
     }
 
