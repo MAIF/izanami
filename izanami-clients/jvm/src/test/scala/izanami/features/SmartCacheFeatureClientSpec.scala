@@ -1,6 +1,8 @@
 package izanami.features
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
+import akka.{Done, pattern}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
@@ -165,10 +167,13 @@ class SmartCacheFeatureClientSpec
 
         val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
 
-        Thread.sleep(100)
         val featureUpdated = FeatureUpdated(None, "test1", DefaultFeature("test1", true), DefaultFeature("test1", false))
-        ctx.setValues(initialFeatures)
-        ctx.push(featureUpdated)
+        pattern
+          .after(500.milliseconds, system.scheduler) {
+            ctx.setValues(initialFeatures)
+            ctx.push(featureUpdated)
+            FastFuture.successful(())
+          }.futureValue
 
         events.futureValue(Timeout(Span(3, Seconds))) must be(
           Seq(featureUpdated)

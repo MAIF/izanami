@@ -88,10 +88,15 @@ object IzanamiBackend {
 }
 
 object Strategies {
-  def dev()           = DevStrategy
-  def fetchStrategy() = FetchStrategy()
+  def dev()                                       = DevStrategy
+  def fetchStrategy()                             = FetchStrategy()
+  def fetchStrategy(errorStrategy: ErrorStrategy) = FetchStrategy(errorStrategy)
+
   def fetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration) =
     FetchWithCacheStrategy(maxElement, duration)
+  def fetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration, errorStrategy: ErrorStrategy) =
+    FetchWithCacheStrategy(maxElement, duration, errorStrategy)
+
   @annotation.varargs
   def smartCacheWithPollingStrategy(pollingInterval: FiniteDuration, patterns: String*) =
     CacheWithPollingStrategy(patterns, pollingInterval)
