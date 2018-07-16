@@ -71,7 +71,7 @@ class SmartCacheConfigClientSpec
         }
         .futureValue
 
-      configs.configs must contain theSameElementsAs(fallback.configs ++ initialConfigs)
+      configs.configs must contain theSameElementsAs (fallback.configs ++ initialConfigs)
 
       //Only one call for the first fetch
       mock.verifyThat(

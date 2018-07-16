@@ -2,7 +2,7 @@ package izanami.features
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.{Done, pattern}
+import akka.{pattern, Done}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
@@ -118,7 +118,7 @@ class SmartCacheFeatureClientSpec
       )
       mock.resetRequests()
 
-      featuresUpdated.featuresSeq must contain theSameElementsAs(fallback ++ updatedFeatures)
+      featuresUpdated.featuresSeq must contain theSameElementsAs (fallback ++ updatedFeatures)
       featuresUpdated.isActive("test1") must be(false)
       featuresUpdated.isActive("test2") must be(true)
       featuresUpdated.isActive("other") must be(false)
