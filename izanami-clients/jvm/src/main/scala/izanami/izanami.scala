@@ -102,9 +102,16 @@ object Strategies {
 
 trait Strategy
 trait SmartCacheStrategy extends Strategy {
+
   def patterns: Seq[String]
 }
 object Strategy {
+
+  sealed trait CacheEvent[T]
+  case class ValueUpdated[T](key: String, newValue: T, oldValue: T) extends CacheEvent[T]
+  case class ValueCreated[T](key: String, newValue: T)              extends CacheEvent[T]
+  case class ValueDeleted[T](key: String, oldValue: T)              extends CacheEvent[T]
+
   case object DevStrategy                                                      extends Strategy
   case object FetchStrategy                                                    extends Strategy
   case class FetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration) extends Strategy

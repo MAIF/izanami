@@ -6,8 +6,9 @@ import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
 import akka.util.Timeout
 import izanami.FeatureEvent.{FeatureCreated, FeatureDeleted, FeatureUpdated}
+import izanami.Strategy._
 import izanami._
-import izanami.commons.{PatternsUtil, SmartCacheStrategyActor}
+import izanami.commons.{PatternsUtil, SmartCacheStrategyHandler}
 import izanami.scaladsl.{FeatureClient, Features}
 import play.api.libs.json.JsObject
 
@@ -35,8 +36,6 @@ private[features] class SmartCacheFeatureClient(
 )(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends FeatureClient {
 
-  import akka.pattern._
-  import izanami.commons.SmartCacheStrategyActor._
   import izanamiDispatcher.ec
 
   private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
@@ -49,15 +48,13 @@ private[features] class SmartCacheFeatureClient(
 
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
-  private val ref = actorSystem.actorOf(
-    SmartCacheStrategyActor.props(
-      izanamiDispatcher,
-      config.patterns,
-      fetchDatas,
-      config,
-      fallback.featuresSeq.map(f => (f.id, f)).toMap,
-      onValueUpdated
-    )
+  private val smartCacheStrategyHandler = new SmartCacheStrategyHandler[Feature](
+    izanamiDispatcher,
+    config.patterns,
+    fetchDatas,
+    config,
+    fallback.featuresSeq.map(f => (f.id, f)).toMap,
+    onValueUpdated
   )
 
   private val (queue, internalEventSource) = Source
@@ -76,17 +73,18 @@ private[features] class SmartCacheFeatureClient(
     .featuresSource("*")
     .runWith(Sink.foreach {
       case FeatureCreated(eventId, id, f) =>
-        ref ! SetValues(Seq((id, f)), eventId, triggerEvent = false)
+        smartCacheStrategyHandler.setValues(Seq((id, f)), eventId, triggerEvent = false)
       case FeatureUpdated(eventId, id, f, _) =>
-        ref ! SetValues(Seq((id, f)), eventId, triggerEvent = false)
+        smartCacheStrategyHandler.setValues(Seq((id, f)), eventId, triggerEvent = false)
       case FeatureDeleted(eventId, id) =>
-        ref ! RemoveValues(Seq(id), eventId, triggerEvent = false)
+        smartCacheStrategyHandler.removeValues(Seq(id), eventId, triggerEvent = false)
     })
 
   override def features(pattern: String): Future[Features] = {
     val convertedPattern: String =
       Option(pattern).map(_.replace(".", ":")).getOrElse("*")
-    (ref ? GetByPattern(convertedPattern))
+    smartCacheStrategyHandler
+      .getByPattern(convertedPattern)
       .mapTo[Seq[Feature]]
       .map(features => Features(clientConfig, features, fallback = fallback.featuresSeq))
       .recover(handleFailure(fallback))
@@ -109,7 +107,7 @@ private[features] class SmartCacheFeatureClient(
                 case _                      => true
               }
               .foreach { f =>
-                ref ! SetValues(Seq((f.id, f)), None, triggerEvent = true)
+                smartCacheStrategyHandler.setValues(Seq((f.id, f)), None, triggerEvent = true)
               }
           case _ =>
         }
@@ -119,7 +117,8 @@ private[features] class SmartCacheFeatureClient(
   override def checkFeature(key: String): Future[Boolean] = {
     require(key != null, "key should not be null")
     val convertedKey = key.replace(".", ":")
-    (ref ? Get(convertedKey))
+    smartCacheStrategyHandler
+      .get(convertedKey)
       .mapTo[Option[Feature]]
       .map(
         f =>

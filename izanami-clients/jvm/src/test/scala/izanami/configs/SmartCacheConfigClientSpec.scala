@@ -71,7 +71,7 @@ class SmartCacheConfigClientSpec
         }
         .futureValue
 
-      configs.configs must be(fallback.configs ++ initialConfigs)
+      configs.configs must contain theSameElementsAs(fallback.configs ++ initialConfigs)
 
       //Only one call for the first fetch
       mock.verifyThat(
@@ -115,7 +115,7 @@ class SmartCacheConfigClientSpec
       )
       mock.resetRequests()
 
-      configsUpdated.configs must be(fallback.configs ++ updatedConfigs)
+      configsUpdated.configs must contain theSameElementsAs (fallback.configs ++ updatedConfigs)
       configsUpdated.get("test1") must be(Json.obj("value" -> 3))
       configsUpdated.get("test2") must be(Json.obj("value" -> 2))
       configsUpdated.get("other") must be(Json.obj())
@@ -156,7 +156,7 @@ class SmartCacheConfigClientSpec
           }
           .futureValue
 
-        configs.configs must be(fallback.configs ++ initialConfigs)
+        configs.configs must contain theSameElementsAs (fallback.configs ++ initialConfigs)
 
         //Only one call for the first fetch
         ctx.calls.size must be(1)
