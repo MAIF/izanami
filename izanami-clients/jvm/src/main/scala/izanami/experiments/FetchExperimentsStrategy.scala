@@ -12,14 +12,17 @@ import izanami.scaladsl.{ExperimentClient, ExperimentsClient}
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 object FetchExperimentsStrategy {
-  def apply(httpClient: HttpClient, fallback: Experiments)(implicit izanamiDispatcher: IzanamiDispatcher,
-                                                           actorSystem: ActorSystem): FetchExperimentsStrategy =
-    new FetchExperimentsStrategy(httpClient, fallback)
+  def apply(httpClient: HttpClient, fallback: Experiments, errorStrategy: ErrorStrategy)(
+      implicit izanamiDispatcher: IzanamiDispatcher,
+      actorSystem: ActorSystem
+  ): FetchExperimentsStrategy =
+    new FetchExperimentsStrategy(httpClient, fallback, errorStrategy)
 }
 
-class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
+class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments, errorStrategy: ErrorStrategy)(
     implicit izanamiDispatcher: IzanamiDispatcher,
     actorSystem: ActorSystem
 ) extends ExperimentsClient {
@@ -31,11 +34,8 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
 
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
-  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
-    case e =>
-      logger.error("Failure during call", e)
-      v
-  }
+  private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
+    commons.handleFailure[T](errorStrategy)(_)
 
   override def experiment(id: String): Future[Option[ExperimentClient]] = {
     require(id != null, "id should not be null")
@@ -63,7 +63,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
           logger.error(message)
           FastFuture.successful(None)
       }
-      .recover(handleFailure(None))
+      .recoverWith(handleFailure(None))
   }
 
   override def getVariantFor(experimentId: String, clientId: String): Future[Option[Variant]] = {
@@ -93,7 +93,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments)(
           logger.error(message)
           FastFuture.successful(None)
       }
-      .recover(handleFailure(None))
+      .recoverWith(handleFailure(None))
   }
 
   override def markVariantDisplayed(experimentId: String, clientId: String): Future[ExperimentVariantDisplayed] = {

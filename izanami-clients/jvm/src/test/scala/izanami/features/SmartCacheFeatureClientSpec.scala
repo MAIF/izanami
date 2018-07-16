@@ -161,14 +161,15 @@ class SmartCacheFeatureClientSpec
           promise.success(f)
         }
 
-
         val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
 
         Thread.sleep(100)
+        val featureUpdated = FeatureUpdated(None, "test1", DefaultFeature("test1", true), DefaultFeature("test1", false))
         ctx.setValues(initialFeatures)
+        ctx.push(featureUpdated)
 
         events.futureValue must be(
-          Seq(FeatureUpdated(None, "test1", DefaultFeature("test1", true), DefaultFeature("test1", false)))
+          Seq(featureUpdated)
         )
         promise.future.futureValue must be(DefaultFeature("test1", true))
       }

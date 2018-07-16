@@ -75,14 +75,17 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     strategy match {
       case DevStrategy =>
         FallbackConfigStategy(fallback)
-      case Strategy.FetchStrategy =>
-        FetchConfigClient(RawFetchConfigClient(client, config, fallback, source), fallback)
+      case Strategy.FetchStrategy(errorStrategy) =>
+        FetchConfigClient(client, config, fallback, errorStrategy, source)
       case s: Strategy.FetchWithCacheStrategy =>
-        FetchWithCacheConfigClient(config, fallback, RawFetchConfigClient(client, config, fallback, source), s)
+        FetchWithCacheConfigClient(config,
+                                   fallback,
+                                   FetchConfigClient(client, config, fallback, s.errorStrategy, source),
+                                   s)
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheConfigClient(config, RawFetchConfigClient(client, config, fallback, eventSource), fallback, s)
+        SmartCacheConfigClient(config, FetchConfigClient(client, config, fallback, Crash, eventSource), fallback, s)
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheConfigClient(config, RawFetchConfigClient(client, config, fallback, source), fallback, s)
+        SmartCacheConfigClient(config, FetchConfigClient(client, config, fallback, Crash, source), fallback, s)
     }
   }
 
@@ -115,14 +118,14 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     strategy match {
       case DevStrategy =>
         FallbackFeatureStategy(fb)
-      case Strategy.FetchStrategy =>
-        FetchFeatureClient(RawFetchFeatureClient(client, config, fb, source), fb)
+      case Strategy.FetchStrategy(errorStrategy) =>
+        FetchFeatureClient(client, config, fb, errorStrategy, source)
       case s: Strategy.FetchWithCacheStrategy =>
-        FetchWithCacheFeatureClient(config, RawFetchFeatureClient(client, config, fb, source), s)
+        FetchWithCacheFeatureClient(config, FetchFeatureClient(client, config, fb, s.errorStrategy, source), s)
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheFeatureClient(config, RawFetchFeatureClient(client, config, fallback(config), eventSource), fb, s)
+        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fallback(config), Crash, eventSource), fb, s)
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheFeatureClient(config, RawFetchFeatureClient(client, config, fb, eventSource), fb, s)
+        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fb, Crash, eventSource), fb, s)
     }
   }
 
@@ -136,8 +139,8 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
     strategy match {
       case DevStrategy =>
         FallbackExperimentStrategy(fallback)
-      case Strategy.FetchStrategy =>
-        FetchExperimentsStrategy(client, fallback)
+      case Strategy.FetchStrategy(errorStrategy) =>
+        FetchExperimentsStrategy(client, fallback, errorStrategy)
       case s =>
         throw new IllegalArgumentException(s"This strategy $s is not not supported for experiments")
     }
