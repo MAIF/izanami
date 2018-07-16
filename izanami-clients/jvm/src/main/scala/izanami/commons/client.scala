@@ -185,7 +185,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
             .validate[IzanamiEvent]
             .fold(
               err => {
-                actorSystem.log
+                logger
                   .error("Error deserializing event id: [{}] {}: {}", id, json, err)
                 List.empty
               },
