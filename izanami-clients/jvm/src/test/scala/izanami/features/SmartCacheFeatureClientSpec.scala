@@ -161,10 +161,11 @@ class SmartCacheFeatureClientSpec
           promise.success(f)
         }
 
-        ctx.setValues(initialFeatures)
-        Thread.sleep(200)
 
         val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
+
+        Thread.sleep(100)
+        ctx.setValues(initialFeatures)
 
         events.futureValue must be(
           Seq(FeatureUpdated(None, "test1", DefaultFeature("test1", true), DefaultFeature("test1", false)))
