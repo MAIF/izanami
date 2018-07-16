@@ -128,7 +128,7 @@ class SmartCacheConfigClientSpec
 
     }
 
-    "Features by pattern with sse" in {
+    "Configs by pattern with sse" in {
       runServer { ctx =>
         import akka.pattern
         //Init
