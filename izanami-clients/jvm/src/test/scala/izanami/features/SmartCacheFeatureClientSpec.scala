@@ -141,47 +141,48 @@ class SmartCacheFeatureClientSpec
 
     }
 
-//    "Features events" in {
-//      runServer { ctx =>
-//
-//        //Init
-//        val initialFeatures = Seq(
-//          DefaultFeature("test1", true)
-//        )
-//
-//        val strategy = IzanamiClient(
-//          ClientConfig(ctx.host)
-//        ).featureClient(
-//          strategy = CacheWithSseStrategy(
-//            patterns = Seq("*"),
-//            pollingInterval = None
-//          ),
-//          fallback = Features(
-//            DefaultFeature("test1", false)
-//          )
-//        )
-//
-//        val promise = Promise[Feature]
-//        strategy.onFeatureChanged("test1") { f =>
-//          promise.success(f)
-//        }
-//
-//        val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
-//
-//        val featureUpdated = FeatureUpdated(None, "test1", DefaultFeature("test1", true), DefaultFeature("test1", false))
-//        pattern
-//          .after(500.milliseconds, system.scheduler) {
-//            ctx.setValues(initialFeatures)
-//            ctx.push(featureUpdated)
-//            FastFuture.successful(())
-//          }.futureValue
-//
-//        events.futureValue(Timeout(Span(3, Seconds))) must be(
-//          Seq(featureUpdated)
-//        )
-//        promise.future.futureValue(Timeout(Span(3, Seconds))) must be(DefaultFeature("test1", true))
-//      }
-//    }
+    "Features events" in {
+      runServer { ctx =>
+        //Init
+        val initialFeatures = Seq(
+          DefaultFeature("test1", true)
+        )
+
+        val strategy = IzanamiClient(
+          ClientConfig(ctx.host)
+        ).featureClient(
+          strategy = CacheWithSseStrategy(
+            patterns = Seq("*"),
+            pollingInterval = None
+          ),
+          fallback = Features(
+            DefaultFeature("test1", false)
+          )
+        )
+
+        val promise = Promise[Feature]
+        strategy.onFeatureChanged("test1") { f =>
+          promise.success(f)
+        }
+
+        val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
+
+        val featureUpdated =
+          FeatureUpdated(Some(1L), "test1", DefaultFeature("test1", true), DefaultFeature("test1", false))
+        pattern
+          .after(500.milliseconds, system.scheduler) {
+            ctx.setValues(initialFeatures)
+            ctx.push(featureUpdated)
+            FastFuture.successful(())
+          }
+          .futureValue
+
+        events.futureValue(Timeout(Span(3, Seconds))) must be(
+          Seq(featureUpdated)
+        )
+        promise.future.futureValue(Timeout(Span(3, Seconds))) must be(DefaultFeature("test1", true))
+      }
+    }
 
     "Features by pattern with sse" in {
       runServer { ctx =>
