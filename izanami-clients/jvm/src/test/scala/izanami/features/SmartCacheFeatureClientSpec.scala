@@ -36,7 +36,8 @@ class SmartCacheFeatureClientSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  "FetchWithCacheFeatureStrategy" should {
+  "SmartCacheFeatureStrategy" should {
+
     "Features by pattern with polling" in {
 
       import akka.pattern
@@ -73,7 +74,7 @@ class SmartCacheFeatureClientSpec
         }
         .futureValue
 
-      //features.featuresSeq must be(initialValuesWithFb)
+      features.featuresSeq must contain theSameElementsAs initialValuesWithFb
 
       //Only one call for the first fetch
       mock.verifyThat(
