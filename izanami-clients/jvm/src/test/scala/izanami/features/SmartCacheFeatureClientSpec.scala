@@ -1,6 +1,8 @@
 package izanami.features
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
+import akka.{pattern, Done}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
@@ -10,7 +12,9 @@ import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy}
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.time.{Seconds, Span}
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Promise
@@ -91,7 +95,7 @@ class SmartCacheFeatureClientSpec
       featureClient.checkFeature("other").futureValue must be(false)
       mock.find(anyRequestedFor(urlMatching(".*"))) must be(empty)
 
-      //We update the feature on thebackend
+      //We update the feature on the backend
       val updatedFeatures = Seq(
         DefaultFeature("test1", false)
       )
@@ -114,7 +118,7 @@ class SmartCacheFeatureClientSpec
       )
       mock.resetRequests()
 
-      featuresUpdated.featuresSeq must be(fallback ++ updatedFeatures)
+      featuresUpdated.featuresSeq must contain theSameElementsAs (fallback ++ updatedFeatures)
       featuresUpdated.isActive("test1") must be(false)
       featuresUpdated.isActive("test2") must be(true)
       featuresUpdated.isActive("other") must be(false)
@@ -136,7 +140,6 @@ class SmartCacheFeatureClientSpec
 
     }
 
-    // TO FRAGILE FOR TRAVIS A THE MOMENT
 //    "Features events" in {
 //      runServer { ctx =>
 //
@@ -149,7 +152,8 @@ class SmartCacheFeatureClientSpec
 //          ClientConfig(ctx.host)
 //        ).featureClient(
 //          strategy = CacheWithSseStrategy(
-//            patterns = Seq("*")
+//            patterns = Seq("*"),
+//            pollingInterval = None
 //          ),
 //          fallback = Features(
 //            DefaultFeature("test1", false)
@@ -162,12 +166,19 @@ class SmartCacheFeatureClientSpec
 //        }
 //
 //        val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
-//        ctx.setValues(initialFeatures)
 //
-//        events.futureValue must be(
-//          Seq(FeatureUpdated("test1", DefaultFeature("test1", true), DefaultFeature("test1", false)))
+//        val featureUpdated = FeatureUpdated(None, "test1", DefaultFeature("test1", true), DefaultFeature("test1", false))
+//        pattern
+//          .after(500.milliseconds, system.scheduler) {
+//            ctx.setValues(initialFeatures)
+//            ctx.push(featureUpdated)
+//            FastFuture.successful(())
+//          }.futureValue
+//
+//        events.futureValue(Timeout(Span(3, Seconds))) must be(
+//          Seq(featureUpdated)
 //        )
-//        promise.future.futureValue must be(DefaultFeature("test1", true))
+//        promise.future.futureValue(Timeout(Span(3, Seconds))) must be(DefaultFeature("test1", true))
 //      }
 //    }
 
@@ -198,7 +209,7 @@ class SmartCacheFeatureClientSpec
           }
           .futureValue
 
-        features.featuresSeq must be(fallback ++ initialFeatures)
+        features.featuresSeq must contain theSameElementsAs (fallback ++ initialFeatures)
 
         //Only one call for the first fetch
         ctx.calls.size must be(1)

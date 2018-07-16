@@ -666,8 +666,8 @@ trait FeatureServer {
     val port = SocketUtil.temporaryServerAddress("localhost").getPort
 
     val (queue, source) = Source
-      .queue[FeatureEvent](50, OverflowStrategy.backpressure)
-      .toMat(BroadcastHub.sink(1024))(Keep.both)
+      .queue[FeatureEvent](2, OverflowStrategy.backpressure)
+      .toMat(BroadcastHub.sink)(Keep.both)
       .run()
 
     val fakeConfig = ClientConfig("")

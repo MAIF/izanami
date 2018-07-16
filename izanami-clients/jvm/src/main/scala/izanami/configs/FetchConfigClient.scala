@@ -10,7 +10,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import izanami.commons.{HttpClient, IzanamiException, PatternsUtil}
 import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import izanami.scaladsl._
-import izanami.{ClientConfig, IzanamiDispatcher, IzanamiEvent}
+import izanami._
 import org.reactivestreams.Publisher
 import play.api.libs.json.{JsValue, Json}
 
@@ -18,43 +18,113 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 object FetchConfigClient {
-  def apply(underlying: ConfigClient, fallback: Configs)(
+  def apply(client: HttpClient,
+            clientConfig: ClientConfig,
+            fallback: Configs,
+            errorStrategy: ErrorStrategy,
+            events: Source[IzanamiEvent, NotUsed])(
       implicit izanamiDispatcher: IzanamiDispatcher,
       actorSystem: ActorSystem,
       materializer: Materializer
   ): FetchConfigClient =
-    new FetchConfigClient(underlying, fallback)
+    new FetchConfigClient(client, clientConfig, fallback, errorStrategy, events)
 }
 
 private[configs] class FetchConfigClient(
-    underlying: ConfigClient,
-    fallback: Configs
+    client: HttpClient,
+    clientConfig: ClientConfig,
+    fallback: Configs,
+    errorStrategy: ErrorStrategy,
+    events: Source[IzanamiEvent, NotUsed]
 )(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
+  import client._
   import izanamiDispatcher.ec
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
-  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
-    case NonFatal(_) => v
-  }
+  private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
+    commons.handleFailure[T](errorStrategy)(_)
 
-  override def configs(pattern: String): Future[Configs] =
-    underlying
-      .configs(pattern)
-      .recover(handleFailure(fallback))
+  private val configsSource = events
+    .filter(_.domain == "Config")
+    .map {
+      case evt @ IzanamiEvent(_id, key, t, _, payload, _, _) if t == "CONFIG_CREATED" =>
+        Config.format
+          .reads(payload)
+          .fold(
+            err => {
+              client.actorSystem.log
+                .error(s"Error deserializing config event {}: {}", evt, err)
+              None
+            },
+            c => Some(ConfigCreated(Some(_id), key, c))
+          )
+      case evt @ IzanamiEvent(_id, key, t, _, payload, Some(oldValue), _) if t == "CONFIG_UPDATED" =>
+        val event = for {
+          newOne <- Config.format.reads(payload)
+          oldOne <- Config.format.reads(oldValue)
+        } yield ConfigUpdated(Some(_id), key, newOne, oldOne)
+
+        event.fold(
+          err => {
+            logger.error(s"Error deserializing config event {}: {}", evt, err)
+            None
+          },
+          e => Some(e)
+        )
+      case IzanamiEvent(_id, key, t, _, _, _, _) if t == "CONFIG_DELETED" =>
+        Some(ConfigDeleted(Some(_id), key))
+      case e =>
+        client.actorSystem.log.error(s"Event don't match {}", e)
+        None
+    }
+    .mapConcat(_.toList)
+
+  override def configs(pattern: String): Future[Configs] = {
+    val convertedPattern =
+      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+    val query = Seq("pattern" -> convertedPattern)
+    client
+      .fetchPages("/api/configs", query)
+      .map { json =>
+        Configs.fromJson(json, fallback.configs)
+      }
+  }.recoverWith(handleFailure(fallback))
 
   override def config(key: String): Future[JsValue] = {
-    val convertedKey: String = key.replace(".", ":")
-    underlying
-      .config(convertedKey)
-      .recover(handleFailure(fallback.get(convertedKey)))
+    require(key != null, "key should not be null")
+    val convertedKey = key.replace(".", ":")
+    client
+      .fetch(s"/api/configs/$convertedKey")
+      .flatMap {
+        case (code, body) if code == StatusCodes.OK =>
+          Json
+            .parse(body)
+            .validate[Config]
+            .fold(
+              err => FastFuture.failed(IzanamiException(s"Error parsing config $body, err = $err")),
+              c => {
+                FastFuture.successful(c.value)
+              }
+            )
+        case (code, _) if code == StatusCodes.NotFound =>
+          FastFuture.successful(fallback.get(convertedKey))
+        case (code, body) =>
+          val message = s"Error getting config, code=$code, response=$body"
+          logger.error(message)
+          FastFuture.failed(IzanamiException(message))
+      }
+      .recoverWith(handleFailure(fallback.get(convertedKey)))
   }
 
-  override def configsSource(pattern: String): Source[ConfigEvent, NotUsed] =
-    underlying.configsSource(pattern)
+  override def configsSource(pattern: String): Source[ConfigEvent, NotUsed] = {
+    val matchP = PatternsUtil.matchPattern(Option(pattern).getOrElse("*")) _
+    configsSource
+      .filter(e => matchP(e.id))
+  }
 
   override def configsStream(pattern: String): Publisher[ConfigEvent] =
-    underlying.configsStream(pattern)
+    configsSource(pattern).runWith(Sink.asPublisher(true))
 
 }

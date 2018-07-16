@@ -88,10 +88,15 @@ object IzanamiBackend {
 }
 
 object Strategies {
-  def dev()           = DevStrategy
-  def fetchStrategy() = FetchStrategy
+  def dev()                                       = DevStrategy
+  def fetchStrategy()                             = FetchStrategy()
+  def fetchStrategy(errorStrategy: ErrorStrategy) = FetchStrategy(errorStrategy)
+
   def fetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration) =
     FetchWithCacheStrategy(maxElement, duration)
+  def fetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration, errorStrategy: ErrorStrategy) =
+    FetchWithCacheStrategy(maxElement, duration, errorStrategy)
+
   @annotation.varargs
   def smartCacheWithPollingStrategy(pollingInterval: FiniteDuration, patterns: String*) =
     CacheWithPollingStrategy(patterns, pollingInterval)
@@ -102,19 +107,45 @@ object Strategies {
 
 trait Strategy
 trait SmartCacheStrategy extends Strategy {
+
   def patterns: Seq[String]
 }
+
+sealed trait ErrorStrategy
+case object RecoverWithFallback extends ErrorStrategy
+case object Crash               extends ErrorStrategy
+
+object ErrorStrategies {
+  def recoverWithFallback(): ErrorStrategy = RecoverWithFallback
+  def crash(): ErrorStrategy               = Crash
+}
+
 object Strategy {
-  case object DevStrategy                                                      extends Strategy
-  case object FetchStrategy                                                    extends Strategy
-  case class FetchWithCacheStrategy(maxElement: Int, duration: FiniteDuration) extends Strategy
+
+  sealed trait CacheEvent[T]
+  case class ValueUpdated[T](key: String, newValue: T, oldValue: T) extends CacheEvent[T]
+  case class ValueCreated[T](key: String, newValue: T)              extends CacheEvent[T]
+  case class ValueDeleted[T](key: String, oldValue: T)              extends CacheEvent[T]
+
+  case object DevStrategy extends Strategy
+  case class FetchStrategy(error: ErrorStrategy = RecoverWithFallback) extends Strategy {
+    def withErrorStrategy(strategy: ErrorStrategy) = copy(error = strategy)
+  }
+  case class FetchWithCacheStrategy(maxElement: Int,
+                                    duration: FiniteDuration,
+                                    errorStrategy: ErrorStrategy = RecoverWithFallback)
+      extends Strategy {
+    def withErrorStrategy(strategy: ErrorStrategy) = copy(errorStrategy = strategy)
+  }
   case class CacheWithSseStrategy(patterns: Seq[String], pollingInterval: Option[FiniteDuration] = Some(1.minute))
       extends SmartCacheStrategy {
     def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = Some(interval))
     def withPollingDisabled()                         = copy(pollingInterval = None)
   }
   case class CacheWithPollingStrategy(patterns: Seq[String], pollingInterval: FiniteDuration = 20.seconds)
-      extends SmartCacheStrategy
+      extends SmartCacheStrategy {
+    def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = interval)
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////
