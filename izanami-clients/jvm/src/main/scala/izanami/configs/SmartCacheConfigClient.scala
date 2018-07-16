@@ -119,4 +119,3 @@ class SmartCacheConfigClient(
       .runWith(Sink.seq)
 
 }
-

@@ -22,7 +22,7 @@ class SmartCacheStrategyHandler[T](
 )(implicit system: ActorSystem) {
 
   import dispatcher._
-  private val cache: TrieMap[String, T] = TrieMap[String, T](fallback.toSeq:_*)
+  private val cache: TrieMap[String, T] = TrieMap[String, T](fallback.toSeq: _*)
   private val patternsRef               = new AtomicReference[Seq[String]](initialPatterns)
   private val pollingScheduler          = new AtomicReference[Option[Cancellable]](None)
   private val log                       = Logging(system, this.getClass.getSimpleName)
@@ -36,12 +36,16 @@ class SmartCacheStrategyHandler[T](
       case CacheWithPollingStrategy(_, pollingInterval) =>
         Some(
           system.scheduler
-            .schedule(pollingInterval, pollingInterval, { () => refreshCache()})
+            .schedule(pollingInterval, pollingInterval, { () =>
+              refreshCache()
+            })
         )
       case CacheWithSseStrategy(_, Some(pollingInterval)) =>
         Some(
           system.scheduler
-            .schedule(pollingInterval, pollingInterval, { () => refreshCache()})
+            .schedule(pollingInterval, pollingInterval, { () =>
+              refreshCache()
+            })
         )
       case _ => None
     }
@@ -153,7 +157,6 @@ class SmartCacheStrategyHandler[T](
     keys.filterNot(PatternsUtil.matchOnePattern(existingPatterns)) ++ existingPatterns
 
 }
-
 
 object PatternsUtil {
 
