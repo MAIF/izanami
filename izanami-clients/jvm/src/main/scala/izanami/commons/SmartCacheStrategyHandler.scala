@@ -33,14 +33,14 @@ class SmartCacheStrategyHandler[T](
 
   def init(): Unit = {
     val scheduler: Option[Cancellable] = config match {
-      case CacheWithPollingStrategy(_, pollingInterval) =>
+      case CacheWithPollingStrategy(_, pollingInterval, _) =>
         Some(
           system.scheduler
             .schedule(pollingInterval, pollingInterval, { () =>
               refreshCache()
             })
         )
-      case CacheWithSseStrategy(_, Some(pollingInterval)) =>
+      case CacheWithSseStrategy(_, Some(pollingInterval), _) =>
         Some(
           system.scheduler
             .schedule(pollingInterval, pollingInterval, { () =>
