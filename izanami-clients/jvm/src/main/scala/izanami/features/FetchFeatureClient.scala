@@ -45,7 +45,7 @@ private[features] class FetchFeatureClient(
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
   private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
-    commons.handleFailure[T](errorStrategy)(_)
+    commons.handleFailure[T](errorStrategy)(_)(actorSystem)
 
   private val featuresSource = events
     .filter(_.domain == "Feature")

@@ -44,7 +44,7 @@ private[configs] class FetchConfigClient(
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
   private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
-    commons.handleFailure[T](errorStrategy)(_)
+    commons.handleFailure[T](errorStrategy)(_)(actorSystem)
 
   private val configsSource = events
     .filter(_.domain == "Config")

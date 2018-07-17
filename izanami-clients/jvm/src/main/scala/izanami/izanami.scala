@@ -107,7 +107,7 @@ object Strategies {
 
 trait Strategy
 trait SmartCacheStrategy extends Strategy {
-
+  def errorStrategy: ErrorStrategy
   def patterns: Seq[String]
 }
 
@@ -128,8 +128,8 @@ object Strategy {
   case class ValueDeleted[T](key: String, oldValue: T)              extends CacheEvent[T]
 
   case object DevStrategy extends Strategy
-  case class FetchStrategy(error: ErrorStrategy = RecoverWithFallback) extends Strategy {
-    def withErrorStrategy(strategy: ErrorStrategy) = copy(error = strategy)
+  case class FetchStrategy(errorStrategy: ErrorStrategy = RecoverWithFallback) extends Strategy {
+    def withErrorStrategy(strategy: ErrorStrategy) = copy(errorStrategy = strategy)
   }
   case class FetchWithCacheStrategy(maxElement: Int,
                                     duration: FiniteDuration,
@@ -137,14 +137,20 @@ object Strategy {
       extends Strategy {
     def withErrorStrategy(strategy: ErrorStrategy) = copy(errorStrategy = strategy)
   }
-  case class CacheWithSseStrategy(patterns: Seq[String], pollingInterval: Option[FiniteDuration] = Some(1.minute))
+  case class CacheWithSseStrategy(patterns: Seq[String],
+                                  pollingInterval: Option[FiniteDuration] = Some(1.minute),
+                                  errorStrategy: ErrorStrategy = RecoverWithFallback)
       extends SmartCacheStrategy {
     def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = Some(interval))
     def withPollingDisabled()                         = copy(pollingInterval = None)
+    def withErrorStrategy(strategy: ErrorStrategy)    = copy(errorStrategy = strategy)
   }
-  case class CacheWithPollingStrategy(patterns: Seq[String], pollingInterval: FiniteDuration = 20.seconds)
+  case class CacheWithPollingStrategy(patterns: Seq[String],
+                                      pollingInterval: FiniteDuration = 20.seconds,
+                                      errorStrategy: ErrorStrategy = RecoverWithFallback)
       extends SmartCacheStrategy {
     def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = interval)
+    def withErrorStrategy(strategy: ErrorStrategy)    = copy(errorStrategy = strategy)
   }
 }
 
