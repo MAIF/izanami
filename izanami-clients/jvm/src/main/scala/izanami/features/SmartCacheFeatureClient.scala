@@ -38,11 +38,8 @@ private[features] class SmartCacheFeatureClient(
 
   import izanamiDispatcher.ec
 
-  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
-    case e =>
-      logger.error(e, "Failure during call")
-      v
-  }
+  private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
+    commons.handleFailure[T](config.errorStrategy)(_)
 
   implicit val timeout = Timeout(10.second)
 
@@ -87,7 +84,7 @@ private[features] class SmartCacheFeatureClient(
       .getByPattern(convertedPattern)
       .mapTo[Seq[Feature]]
       .map(features => Features(clientConfig, features, fallback = fallback.featuresSeq))
-      .recover(handleFailure(fallback))
+      .recoverWith(handleFailure(fallback))
   }
 
   override def features(pattern: String, context: JsObject): Future[Features] =
@@ -125,7 +122,7 @@ private[features] class SmartCacheFeatureClient(
           f.map(_.isActive(clientConfig))
             .getOrElse(fallback.isActive(convertedKey))
       )
-      .recover(handleFailure(fallback.isActive(key)))
+      .recoverWith(handleFailure(fallback.isActive(key)))
   }
 
   override def checkFeature(key: String, context: JsObject): Future[Boolean] =
