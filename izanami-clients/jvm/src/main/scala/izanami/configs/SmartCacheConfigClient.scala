@@ -38,15 +38,12 @@ class SmartCacheConfigClient(
 
   import izanamiDispatcher.ec
 
-  implicit val timeout = Timeout(10.second)
+  private implicit val timeout: Timeout = Timeout(10.second)
 
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
-  private def handleFailure[T](v: T): PartialFunction[Throwable, T] = {
-    case e =>
-      logger.error("Failure during call", e)
-      v
-  }
+  private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
+    commons.handleFailure[T](config.errorStrategy)(_)
 
   private val smartCacheStrategyHandler = new SmartCacheStrategyHandler[Config](
     izanamiDispatcher,
@@ -87,7 +84,7 @@ class SmartCacheConfigClient(
       .getByPattern(convertedPattern)
       .mapTo[Seq[Config]]
       .map(configs => Configs(configs, fallback = fallback.configs))
-      .recover(handleFailure(fallback))
+      .recoverWith(handleFailure(fallback))
   }
 
   override def config(key: String): Future[JsValue] = {
@@ -97,7 +94,7 @@ class SmartCacheConfigClient(
       .get(convertedKey)
       .mapTo[Option[Config]]
       .map(f => f.map(_.value).getOrElse(fallback.get(convertedKey)))
-      .recover(handleFailure(fallback.get(convertedKey)))
+      .recoverWith(handleFailure(fallback.get(convertedKey)))
   }
 
   override def configsSource(pattern: String): Source[ConfigEvent, NotUsed] =
