@@ -1,0 +1,9 @@
+
+
+GET     /                                   controllers.HomeController.index
+
+GET     /api/me                             controllers.MeController.me
+GET     /api/izanami                        controllers.IzanamiController.izanamiProxy
+GET     /api/shows/_search                  controllers.ShowsController.search(name)
+
+GET     /*other                             controllers.HomeController.indexOtherRoutes(other)

@@ -4,7 +4,8 @@ name := "example-spring"
 mainClass := Some("izanami.example.Application")
 
 resolvers ++= Seq(
-  Resolver.jcenterRepo
+  Resolver.jcenterRepo,
+  "Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"
 )
 
 libraryDependencies ++= Seq(
@@ -13,6 +14,6 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind"              % "2.9.3",
   "io.vavr"                    % "vavr-jackson"                  % "0.9.2",
   "com.auth0"                  % "java-jwt"                      % "3.1.0",
-  "fr.maif"                    %% "izanami-client"               % "1.0.2",
+  "fr.maif"                    %% "izanami-client"               % "1.0.7-SNAPSHOT",
   "org.iq80.leveldb"           % "leveldb"                       % "0.10"
 )
