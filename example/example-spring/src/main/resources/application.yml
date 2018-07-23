@@ -22,7 +22,7 @@ otoroshi:
   stateHeaderName: "Otoroshi-State"
   stateRespHeaderName: "Otoroshi-State-Resp"
 izanami:
-  host: "http://izanami-tryout.cleverapps.io"
+  host: "http://localhost:8081"
   clientId: "xxxx"
   clientSecret: "xxxx"
   fallback:
