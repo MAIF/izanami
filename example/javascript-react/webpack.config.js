@@ -31,14 +31,15 @@ if (process.env.NODE_ENV === 'production') {
 
 module.exports = {
     output: {
-        path: path.resolve(__dirname, '../src/main/resources/public/javascripts/bundle/'),
+        path: path.resolve(__dirname),
         publicPath: '/javascripts/bundle/',
         filename: '[name].js',
-        library: '[name]',
+        library: 'Izanami',
         libraryTarget: 'umd'
     },
     entry: {
-        Izanami: './src/index.js'
+        '../example-spring/src/main/resources/public/javascripts/bundle/Izanami': './src/index.js',
+        '../example-play/public/javascripts/bundle/Izanami': './src/index.js'
     },
     resolve: {
         extensions: ['*', '.js', '.css', '.scss']

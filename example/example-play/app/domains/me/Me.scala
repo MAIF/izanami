@@ -124,7 +124,7 @@ class LevelDbMeRepository(path: String, applicationLifecycle: ApplicationLifecyc
 
   private val options = new Options()
   options.createIfMissing(true)
-  private val db: DB = factory.open(new File(path), options)
+  private val db: DB = factory.open(new File(path).getAbsoluteFile, options)
 
   applicationLifecycle.addStopHook { () =>
     Future {

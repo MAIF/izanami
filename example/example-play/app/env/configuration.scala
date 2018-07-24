@@ -10,7 +10,7 @@ object AppConfig {
     loadConfigOrThrow[AppConfig](configuration.underlying, "tvdb")
 }
 
-case class AppConfig(izanami: IzanamiConf, betaSerie: BetaSerieConfig)
+case class AppConfig(izanami: IzanamiConf, betaSerie: BetaSerieConfig, dbpath: String)
 
 case class IzanamiConf(
     host: String,
