@@ -64,7 +64,7 @@ class PrivateRoute extends React.Component {
         <Route {...rest}  render={props => {
           return (
             this.state.user ? (
-              <Component user={this.state.user} {...props}/>
+              <Component user={this.state.user} {...props} rootPath={this.props.rootPath}/>
             ) : (
               <Redirect to={{
                 pathname: '/login',
@@ -99,13 +99,15 @@ const IzanamiApp = props => (
   <IzanamiProvider fetchFrom="/api/izanami">
     <Router basename="/">
         <Switch>
-          <Route path="/login" component={Login}/>
-          <PrivateRoute path="/" component={MainApp}/>
+          <Route path="/login" component={Login} rootPath={props.rootPath}/>
+          <PrivateRoute path="/" component={MainApp} rootPath={props.rootPath}/>
         </Switch>
     </Router>
   </IzanamiProvider>
 );
 
-export function init(node) {
-  ReactDOM.render(<IzanamiApp />, node);
+window._basePath = window.__rootPath || "/";
+
+export function init(node, rootPath) {
+  ReactDOM.render(<IzanamiApp rootPath={rootPath}/>, node);
 }

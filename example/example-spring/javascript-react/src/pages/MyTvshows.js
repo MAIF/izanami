@@ -18,7 +18,7 @@ export default class MyTvShows extends React.Component {
 
   render() {
     return (
-      <Layout user={this.props.user}>
+      <Layout user={this.props.user} rootPath={this.props.rootPath}>
         <div className="row" >
           <div className="col-md-12" >
             <div className="row">

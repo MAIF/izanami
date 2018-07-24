@@ -125,29 +125,34 @@ class BetaSerieShows(config: BetaSerieConfig, wSClient: WSClient)(implicit ec: E
   }
 
   def searchSerie(text: String): Future[Seq[BetaSerieResume]] =
-    wSClient
-      .url(s"${config.url}/search/all")
-      .addQueryStringParameters(
-        "query" -> text,
-        "key"   -> config.apiKey
-      )
-      .get()
-      .flatMap {
-        case r if r.status === 200 =>
-          val show = r.json
-            .validate[BetaSerieShowResume]
-            .fold(
-              e => {
-                Logger.error(s"Deserialization error for \n${r.json} \n Error: $e")
-                None
-              },
-              s => s.some
-            )
-          FastFuture.successful(show.get.shows)
-        case r =>
-          FastFuture.failed(new RuntimeException(s"Error getting betaseries show ${r.body}"))
+    text match {
+      case "" =>
+        FastFuture.successful(Seq.empty[BetaSerieResume])
+      case _ =>
+        wSClient
+          .url(s"${config.url}/search/all")
+          .addQueryStringParameters(
+            "query" -> text,
+            "key"   -> config.apiKey
+          )
+          .get()
+          .flatMap {
+            case r if r.status === 200 =>
+              val show = r.json
+                .validate[BetaSerieShowResume]
+                .fold(
+                  e => {
+                    Logger.error(s"Deserialization error for \n${r.json} \n Error: $e")
+                    None
+                  },
+                  s => s.some
+                )
+              FastFuture.successful(show.get.shows)
+            case r =>
+              FastFuture.failed(new RuntimeException(s"Error getting betaseries show ${r.body}"))
 
-      }
+          }
+    }
 
   def getSerie(id: String): Future[Option[BetaSerie]] =
     wSClient

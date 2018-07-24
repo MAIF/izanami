@@ -13,7 +13,7 @@ const Layout = props => (
             <span className="icon-bar"></span>
             <span className="icon-bar"></span>
           </button>
-          <Link to={"/"} className="navbar-brand"><img src="/img/logo.png"/></Link>
+          <Link to={"/"} className="navbar-brand"><img src={`${props.rootPath}img/logo.png`} /></Link>
         </div>
         <div id="navbar" className="navbar-collapse collapse">
           <ul className="nav navbar-nav navbar-right">

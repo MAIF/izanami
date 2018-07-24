@@ -62,7 +62,7 @@ export default class TvShow extends React.Component {
       );
     const expandId = this.calcExpandId(seasons);
     return (
-      <Layout user={this.props.user}>
+      <Layout user={this.props.user}  rootPath={this.props.rootPath}>
         <div className="row">
           <div className="col-md-12 details">
               <div className="row">

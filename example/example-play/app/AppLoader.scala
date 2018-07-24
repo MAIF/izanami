@@ -1,16 +1,18 @@
 import com.softwaremill.macwire.wire
 import controllers._
+import controllers.actions.SecuredAction
+import domains.me.{LevelDbMeRepository, MeRepository, MeService, MeServiceImpl}
 import domains.shows.{BetaSerieShows, Shows}
 import env.{AppConfig, Env}
 import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy}
-import izanami.{ClientConfig, Experiments, IzanamiDispatcher, Strategy}
 import izanami.scaladsl._
+import izanami.{ClientConfig, Experiments, IzanamiDispatcher}
 import play.api.ApplicationLoader.Context
 import play.api.Mode.Dev
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
-import play.api.{ApplicationLoader, BuiltInComponentsFromContext, LoggerConfigurator, Mode}
+import play.api._
 import router.Routes
 
 import scala.concurrent.Future
@@ -44,11 +46,11 @@ object modules {
     private lazy val izanamiClient: IzanamiClient = wire[IzanamiClient]
 
     private lazy val featureClient: FeatureClient = mode match {
-      case Dev =>
-        izanamiClient.featureClient(
-          DevStrategy,
-          Features.parseJson(appConfig.izanami.fallback.features)
-        )
+//      case Dev =>
+//        izanamiClient.featureClient(
+//          DevStrategy,
+//          Features.parseJson(appConfig.izanami.fallback.features)
+//        )
       case _ =>
         izanamiClient.featureClient(
           CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
@@ -82,6 +84,10 @@ object modules {
         )
     }
 
+    featureClient.onEvent("*") {
+      case any => Logger.info(s"New event $any")
+    }
+
     private lazy val proxy: Proxy = Proxy(
       featureClient = Some(featureClient),
       configClient = Some(configClient),
@@ -92,6 +98,13 @@ object modules {
       val betaConfig = appConfig.betaSerie
       wire[BetaSerieShows]
     }
+
+    lazy val meRepository: MeRepository[Future] = {
+      val path: String = "leveldb/datas"
+      wire[LevelDbMeRepository]
+    }
+    lazy val meService: MeService[Future] = wire[MeServiceImpl[Future]]
+    def authAction: SecuredAction         = wire[SecuredAction]
 
     lazy val izanamiController: IzanamiController = wire[IzanamiController]
     lazy val meController: MeController           = wire[MeController]
