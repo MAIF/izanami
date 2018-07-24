@@ -3,14 +3,16 @@ package izanami.commons
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
+import akka.http.javadsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.Http.HostConnectionPool
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
 import akka.stream.alpakka.sse.scaladsl.EventSource
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import izanami.{ClientConfig, IzanamiEvent}
 import play.api.libs.json.{JsValue, Json, Reads}
@@ -62,7 +64,27 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
 
   private val logger = Logging(system, this.getClass.getName)
 
-  private val http = Http()
+  private val uri = Uri(config.host)
+
+  private val http: Flow[(HttpRequest, Unit), (Try[HttpResponse], Unit), HostConnectionPool] = uri.scheme match {
+    case "https" =>
+      logger.info(s"Creating https connection pool for {}:{}", uri.authority.host.address(), uri.authority.port)
+      Http().cachedHostConnectionPoolHttps(uri.authority.host.address(), uri.authority.port)
+    case "http" =>
+      logger.info(s"Creating http connection pool for {}:{}", uri.authority.host.address(), uri.authority.port)
+      Http().cachedHostConnectionPool(uri.authority.host.address(), uri.authority.port)
+  }
+
+  private def singleRequest(r: HttpRequest): Future[HttpResponse] =
+    Source
+      .single(r -> ())
+      .via(http)
+      .map(_._1)
+      .flatMapConcat {
+        case Success(s) => Source.single(s)
+        case Failure(e) => Source.failed(e)
+      }
+      .runWith(Sink.head)
 
   private val headers = (for {
     clientId     <- config.clientId
@@ -84,15 +106,13 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
 
   def fetch(path: String, params: Seq[(String, String)] = Seq.empty, method: HttpMethod = HttpMethods.GET) = {
     logger.debug(s"GET ${config.host} $path, params = $params")
-    http
-      .singleRequest(
-        HttpRequest(
-          method = method,
-          uri = buildUri(path, params),
-          headers = headers
-        )
+    singleRequest(
+      HttpRequest(
+        method = method,
+        uri = buildUri(path, params),
+        headers = headers
       )
-      .flatMap { parseResponse }
+    ).flatMap { parseResponse }
   }
 
   private def fetchAllPages(uri: String,
@@ -157,23 +177,21 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
 
   def fetchWithContext(path: String, context: JsValue, params: Seq[(String, String)] = Seq.empty) = {
     logger.debug(s"POST ${config.host} $path, params = $params")
-    http
-      .singleRequest(
-        HttpRequest(
-          method = HttpMethods.POST,
-          uri = buildUri(path, params),
-          entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(context)),
-          headers = headers
-        )
+    singleRequest(
+      HttpRequest(
+        method = HttpMethods.POST,
+        uri = buildUri(path, params),
+        entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(context)),
+        headers = headers
       )
-      .flatMap { parseResponse }
+    ).flatMap { parseResponse }
   }
 
   def eventStream(): Source[IzanamiEvent, NotUsed] =
     EventSource(
       uri = buildUri("/api/events", Seq("domains" -> "Config,Feature")),
       send = { req =>
-        http.singleRequest(req.withHeaders(req.headers ++ headers))
+        singleRequest(req.withHeaders(req.headers ++ headers))
       },
       initialLastEventId = None,
       retryDelay = 2.seconds

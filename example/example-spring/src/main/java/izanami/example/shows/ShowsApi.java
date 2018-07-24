@@ -34,7 +34,7 @@ public ShowsApi(FeatureClient featureClient, TvdbShowsApi tvdbShowsApi, BetaSeri
     this.featureClient = featureClient;
     this.tvdbShowsApi = tvdbShowsApi;
     this.betaSerieApi = betaSerieApi;
-    featureClient.onEvent("mytvshows:providers:*", event -> {
+    featureClient.onEvent("*", event -> {
         Match(event).of(
                 Case($(instanceOf(FeatureEvent.FeatureCreated.class)), c -> {
                     LOGGER.info("{} is created with enable = {}", c.feature().id(), c.feature().enabled());

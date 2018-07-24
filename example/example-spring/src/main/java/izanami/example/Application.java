@@ -68,7 +68,7 @@ public class Application {
                         .withClientSecret(clientSecret)
                         .withClientIdHeaderName("Izanami-Client-Id")
                         .withClientSecretHeaderName("Izanami-Client-Secret")
-                        .withDispatcher("izanami-example.blocking-io-dispatcher")
+                        //.withDispatcher("izanami-example.blocking-io-dispatcher")
                         .sseBackend()
                 );
     }

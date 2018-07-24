@@ -19,7 +19,7 @@ lazy val jvm = (project in file("."))
     libraryDependencies ++= Seq(
       "com.typesafe.akka"          %% "akka-stream"             % akkaVersion,
       "com.typesafe.akka"          %% "akka-slf4j"              % akkaVersion,
-      "com.typesafe.akka"          %% "akka-http"               % "10.1.0",
+      "com.typesafe.akka"          %% "akka-http"               % "10.1.3",
       "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "0.19",
       "io.vavr"                    % "vavr"                     % "0.9.2",
       "org.reactivecouchbase.json" % "json-lib"                 % "1.0.0",
