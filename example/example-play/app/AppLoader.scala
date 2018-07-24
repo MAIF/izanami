@@ -100,7 +100,7 @@ object modules {
     }
 
     lazy val meRepository: MeRepository[Future] = {
-      val path: String = "leveldb/datas"
+      val path: String = appConfig.dbpath
       wire[LevelDbMeRepository]
     }
     lazy val meService: MeService[Future] = wire[MeServiceImpl[Future]]
