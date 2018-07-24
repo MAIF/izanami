@@ -1,11 +1,14 @@
 package domains.shows
 
+import java.util.Date
+
 import akka.http.scaladsl.util.FastFuture
 import cats.implicits._
-import env.BetaSerieConfig
+import env.{BetaSerieConfig, TvdbConfig}
+import izanami.scaladsl.FeatureClient
 import play.api.Logger
-import play.api.libs.json.Json
-import play.api.libs.ws.WSClient
+import play.api.libs.json.{JsPath, Json, Reads}
+import play.api.libs.ws.{WSClient, WSResponse}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -46,6 +49,184 @@ trait Shows[F[_]] {
   def get(id: String): F[Option[Show]]
 
   def search(show: String): F[Seq[ShowResume]]
+}
+
+class AllShows(tvdbShows: TvdbShows, betaSerieShows: BetaSerieShows, featureClient: FeatureClient)(
+    implicit ec: ExecutionContext
+) extends Shows[Future] {
+
+  featureClient.onEvent("mytvshows:*") {
+    case any => Logger.info(s"New event $any")
+  }
+
+  override def get(id: String): Future[Option[Show]] =
+    featureClient.features("mytvshows:providers:*").flatMap { features =>
+      if (features.isActive("mytvshows:providers:tvdb")) {
+        tvdbShows.get(id)
+      } else if (features.isActive("mytvshows:providers:betaserie")) {
+        betaSerieShows.get(id)
+      } else {
+        FastFuture.successful(none[Show])
+      }
+    }
+
+  override def search(show: String): Future[Seq[ShowResume]] =
+    featureClient.features("mytvshows:providers:*").flatMap { features =>
+      if (features.isActive("mytvshows:providers:tvdb")) {
+        tvdbShows.search(show)
+      } else if (features.isActive("mytvshows:providers:betaserie")) {
+        betaSerieShows.search(show)
+      } else {
+        FastFuture.successful(Seq.empty)
+      }
+    }
+}
+
+object TvdbShows {
+
+  object TvshowResume {
+    implicit val format = Json.format[TvshowResume]
+  }
+  case class TvshowResume(banner: Option[String],
+                          firstAired: Date,
+                          id: Int,
+                          imdbId: String,
+                          network: String,
+                          overview: String,
+                          seriesName: String,
+                          status: String) {
+
+    def toShow(baseUrl: String, seasons: Seq[Season]): Show =
+      Show(id.toString, seriesName, overview, banner.map(b => s"$baseUrl/$b"), seasons)
+
+    def toShowResume(baseUrl: String): ShowResume =
+      ShowResume(id.toString, seriesName, overview, banner.map(b => s"$baseUrl/$b"), "tvdb")
+  }
+
+  object PagedResponse {
+    import play.api.libs.json._
+    implicit def reads[T](implicit reads: Reads[T]): Reads[PagedResponse[T]] =
+      (JsPath \ "data").read[Seq[T]].map(s => PagedResponse[T](s))
+  }
+  case class PagedResponse[T](data: Seq[T])
+
+  object SimpleResponse {
+    import play.api.libs.json._
+    implicit def reads[T](implicit reads: Reads[T]): Reads[SimpleResponse[T]] =
+      (JsPath \ "data").read[T].map(s => SimpleResponse[T](s))
+  }
+  case class SimpleResponse[T](data: T)
+
+  object EpisodeResume {
+    implicit val format = Json.format[EpisodeResume]
+  }
+  case class EpisodeResume(id: Int, airedEpisodeNumber: Int, airedSeason: Int, episodeName: String, overview: String) {
+    def toEpisode: Episode = Episode(id.toString, airedEpisodeNumber, airedSeason, episodeName, overview, false)
+  }
+
+  object Login {
+    implicit val format = Json.format[Login]
+  }
+  case class Login(apikey: String)
+}
+
+class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionContext) extends Shows[Future] {
+
+  import TvdbShows._
+
+  val accessHeaders = getAccessHeaders()
+
+  private def getAccessToken(): Future[String] =
+    wSClient
+      .url(s"${config.url}/login")
+      .post(Json.toJson(Login(config.apiKey)))
+      .flatMap {
+        parseResponse[String]() { j =>
+          (j \ "token").validate[String]
+        }
+      }
+
+  private def getAccessHeaders(): Future[Seq[(String, String)]] =
+    getAccessToken().map { token =>
+      Seq(
+        "Authorization" -> s"Bearer $token",
+        "Accept"        -> "application/json"
+      )
+    }
+
+  override def get(id: String): Future[Option[Show]] =
+    getTvDbShow(id).flatMap {
+      _.map { show =>
+        val fSeasons: Future[Seq[Season]] = listTvDbShowsEpisodes(id)
+          .map {
+            _.map(_.toEpisode)
+              .groupBy(_.seasonNumber)
+              .map {
+                case (nm, eps) => Season(nm.toInt, eps, false)
+              }
+              .toSeq
+          }
+        fSeasons.map { s =>
+          show.toShow(config.baseUrl, s)
+        }
+      }.sequence
+    }
+
+  override def search(show: String): Future[Seq[ShowResume]] = ???
+
+  private def searchTvDbShows(show: String): Future[Seq[TvshowResume]] =
+    accessHeaders.flatMap { headers =>
+      wSClient
+        .url(s"${config.url}/search/series")
+        .addQueryStringParameters("name" -> show)
+        .addHttpHeaders(headers: _*)
+        .get()
+        .flatMap { parseResponse[PagedResponse[TvshowResume]]() }
+        .map(_.data)
+    }
+
+  private def getTvDbShow(id: String): Future[Option[TvshowResume]] =
+    accessHeaders.flatMap { headers =>
+      wSClient
+        .url(s"${config.url}/series/$id")
+        .addHttpHeaders(headers: _*)
+        .get()
+        .flatMap {
+          case r if r.status === 200 =>
+            r.json
+              .validate[SimpleResponse[TvshowResume]]
+              .fold(
+                e => FastFuture.failed(new RuntimeException(s"Error reading response $e")),
+                t => FastFuture.successful(t.data.some)
+              )
+          case r if r.status === 404 =>
+            FastFuture.successful(none[TvshowResume])
+          case other =>
+            FastFuture.failed(new RuntimeException(s"Error while login ${other.statusText} ${other.body}"))
+        }
+    }
+
+  def listTvDbShowsEpisodes(tvdbId: String): Future[Seq[EpisodeResume]] =
+    accessHeaders.flatMap { headers =>
+      wSClient
+        .url(s"${config.url}/series/$tvdbId/episodes")
+        .addHttpHeaders(headers: _*)
+        .get()
+        .flatMap { parseResponse[PagedResponse[EpisodeResume]]() }
+        .map(_.data)
+    }
+
+  def parseResponse[T](code: Int = 200)(implicit reads: Reads[T]): WSResponse => Future[T] = {
+    case r if r.status === code =>
+      r.json
+        .validate[T]
+        .fold(
+          e => FastFuture.failed(new RuntimeException(s"Error reading response $e")),
+          t => FastFuture.successful(t)
+        )
+    case other =>
+      FastFuture.failed(new RuntimeException(s"Error while login ${other.statusText} ${other.body}"))
+  }
 }
 
 object BetaSerieShows {

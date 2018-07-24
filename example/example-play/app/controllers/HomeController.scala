@@ -1,16 +1,35 @@
 package controllers
 
-import env.Env
-import play.api.mvc.{AbstractController, ControllerComponents}
+import env.{AppConfig, Env}
+import play.api.libs.json.{JsError, Json}
+import play.api.mvc.{AbstractController, ControllerComponents, Cookie, Cookies}
 
-class HomeController(env: Env, val cc: ControllerComponents) extends AbstractController(cc) {
+case class LoginForm(email: String)
+object LoginForm {
+  implicit val format = Json.format[LoginForm]
+}
+
+class HomeController(env: Env, config: AppConfig, val cc: ControllerComponents) extends AbstractController(cc) {
 
   def index() = Action {
-    Ok(views.html.index(env))
+    config.front match {
+      case "react" =>
+        Ok(views.html.index(env))
+      case _ =>
+        Ok(views.html.indexangular(env))
+    }
   }
 
-  def indexOtherRoutes(path: String) = Action {
-    Ok(views.html.index(env))
+  def indexOtherRoutes(path: String) = index()
+
+  def login() = Action(parse.json) { req =>
+    req.body
+      .validate[LoginForm]
+      .fold(
+        e => BadRequest(JsError.toJson(e)),
+        form => Ok(Json.obj()).withCookies(Cookie("clientId", form.email))
+      )
+
   }
 
 }
