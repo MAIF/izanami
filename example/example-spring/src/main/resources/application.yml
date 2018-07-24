@@ -3,6 +3,9 @@ spring:
     active:
       - izanamiProd
       - dev
+  mvc:
+    static-path-pattern: "/assets/**"
+
 frontend:
   type: "REACT"
 leveldb:

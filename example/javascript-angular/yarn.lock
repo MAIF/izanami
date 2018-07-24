@@ -330,9 +330,9 @@ amqplib@^0.5.2:
     readable-stream "1.x >=1.1.9"
     safe-buffer "^5.0.1"
 
-"angular-izanami@file:../../../../npm-izanami/angular-izanami/dist/angular-izanami-0.0.0.tgz":
-  version "0.0.0"
-  resolved "../../../../npm-izanami/angular-izanami/dist/angular-izanami-0.0.0.tgz#2b03f7700731a171b3de0671324ebe816c242e9e"
+angular-izanami@0.0.1:
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/angular-izanami/-/angular-izanami-0.0.1.tgz#0a460957fc205275965599d411666e19cf8bfe00"
   dependencies:
     "@angular/animations" "^5.2.0"
     "@angular/common" "^5.2.0"

@@ -109,5 +109,5 @@ const IzanamiApp = props => (
 window._basePath = window.__rootPath || "/";
 
 export function init(node, rootPath) {
-  ReactDOM.render(<IzanamiApp rootPath={rootPath}/>, node);
+  ReactDOM.render(<IzanamiApp rootPath={rootPath || '/assets/'}/>, node);
 }

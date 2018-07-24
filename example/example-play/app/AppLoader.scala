@@ -2,7 +2,7 @@ import com.softwaremill.macwire.wire
 import controllers._
 import controllers.actions.SecuredAction
 import domains.me.{LevelDbMeRepository, MeRepository, MeService, MeServiceImpl}
-import domains.shows.{BetaSerieShows, Shows}
+import domains.shows.{AllShows, BetaSerieShows, Shows, TvdbShows}
 import env.{AppConfig, Env}
 import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy}
 import izanami.scaladsl._
@@ -84,19 +84,19 @@ object modules {
         )
     }
 
-    featureClient.onEvent("*") {
-      case any => Logger.info(s"New event $any")
-    }
-
     private lazy val proxy: Proxy = Proxy(
       featureClient = Some(featureClient),
       configClient = Some(configClient),
       experimentClient = Some(experimentClient)
     )
 
-    lazy val betaSerie: Shows[Future] = {
-      val betaConfig = appConfig.betaSerie
-      wire[BetaSerieShows]
+    lazy val shows: Shows[Future] = {
+      val betaConfig                     = appConfig.betaSerie
+      val betaSerieShows: BetaSerieShows = wire[BetaSerieShows]
+      val tvdbConfig                     = appConfig.tvdbConfig
+      val tvdbShows: TvdbShows           = wire[TvdbShows]
+
+      wire[AllShows]
     }
 
     lazy val meRepository: MeRepository[Future] = {
