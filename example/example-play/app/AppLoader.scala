@@ -93,7 +93,7 @@ object modules {
     lazy val shows: Shows[Future] = {
       val betaConfig                     = appConfig.betaSerie
       val betaSerieShows: BetaSerieShows = wire[BetaSerieShows]
-      val tvdbConfig                     = appConfig.tvdbConfig
+      val tvdbConfig                     = appConfig.tvdb
       val tvdbShows: TvdbShows           = wire[TvdbShows]
 
       wire[AllShows]
