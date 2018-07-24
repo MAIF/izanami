@@ -41,7 +41,7 @@ export default class Login extends React.Component {
       return (
         <div className="container">
         <div className="row">
-        <img src="/img/logo.png" className="img-responsive center-block logo" />
+        <img src={`${window._basePath}/img/logo.png`} className="img-responsive center-block logo" />
         </div>
           <div className="row">
             <div className="col-md-6 col-md-offset-3">

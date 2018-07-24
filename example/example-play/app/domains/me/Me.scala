@@ -4,24 +4,27 @@ import java.io.File
 
 import cats._
 import cats.implicits._
-import cats.effect._
-import cats.syntax._
-import domains.shows.{Season, Show, Shows}
-import org.iq80.leveldb.{DB, Options}
+import domains.shows.{Show, Shows}
 import org.iq80.leveldb.impl.Iq80DBFactory.{bytes, factory}
+import org.iq80.leveldb.{DB, Options}
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{Format, Json}
 
 import scala.concurrent.{ExecutionContext, Future}
+
+object Me {
+  implicit val format = Json.format[Me]
+}
 
 case class Me(userId: String, shows: Seq[Show] = Seq.empty[Show]) {
   def addShow(mayBeShow: Option[Show]): Me =
     this.copy(
       shows = mayBeShow
         .map { show =>
-          shows.map {
-            case s if s.id === show.id =>
-              show
-            case other => other
+          if (!shows.exists(s => s.id === show.id)) {
+            shows :+ show
+          } else {
+            shows
           }
         }
         .getOrElse(shows)
@@ -113,12 +116,21 @@ trait MeService[F[_]] {
 
 }
 
-class LevelDbMeRepository(path: String)(implicit ec: ExecutionContext, format: Format[Me])
+class MeServiceImpl[F[_]](val repo: MeRepository[F], val shows: Shows[F]) extends MeService[F]
+
+class LevelDbMeRepository(path: String, applicationLifecycle: ApplicationLifecycle)(implicit ec: ExecutionContext,
+                                                                                    format: Format[Me])
     extends MeRepository[Future] {
 
   private val options = new Options()
   options.createIfMissing(true)
   private val db: DB = factory.open(new File(path), options)
+
+  applicationLifecycle.addStopHook { () =>
+    Future {
+      db.close()
+    }
+  }
 
   override def get(id: String): Future[Option[Me]] =
     Future {
