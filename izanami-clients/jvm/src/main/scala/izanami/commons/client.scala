@@ -70,7 +70,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
     case "https" =>
       logger.info(s"Creating https connection pool for {}:{}", uri.authority.host.address(), uri.authority.port)
       Http().cachedHostConnectionPoolHttps(uri.authority.host.address(), uri.authority.port)
-    case "http" =>
+    case _ =>
       logger.info(s"Creating http connection pool for {}:{}", uri.authority.host.address(), uri.authority.port)
       Http().cachedHostConnectionPool(uri.authority.host.address(), uri.authority.port)
   }
