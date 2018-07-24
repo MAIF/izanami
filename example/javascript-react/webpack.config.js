@@ -38,6 +38,7 @@ module.exports = {
         libraryTarget: 'umd'
     },
     entry: {
+        Izanami: './src/index.js',
         '../example-spring/src/main/resources/public/javascripts/bundle/Izanami': './src/index.js',
         '../example-play/public/javascripts/bundle/Izanami': './src/index.js'
     },

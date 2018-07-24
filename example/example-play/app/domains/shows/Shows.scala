@@ -88,19 +88,18 @@ object TvdbShows {
     implicit val format = Json.format[TvshowResume]
   }
   case class TvshowResume(banner: Option[String],
-                          firstAired: Date,
                           id: Int,
-                          imdbId: String,
+                          imdbId: Option[String],
                           network: String,
-                          overview: String,
+                          overview: Option[String],
                           seriesName: String,
                           status: String) {
 
     def toShow(baseUrl: String, seasons: Seq[Season]): Show =
-      Show(id.toString, seriesName, overview, banner.map(b => s"$baseUrl/$b"), seasons)
+      Show(id.toString, seriesName, overview.getOrElse(""), banner.map(b => s"$baseUrl/$b"), seasons)
 
     def toShowResume(baseUrl: String): ShowResume =
-      ShowResume(id.toString, seriesName, overview, banner.map(b => s"$baseUrl/$b"), "tvdb")
+      ShowResume(id.toString, seriesName, overview.getOrElse(""), banner.map(b => s"$baseUrl/$b"), "tvdb")
   }
 
   object PagedResponse {
@@ -141,7 +140,7 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
       .url(s"${config.url}/login")
       .post(Json.toJson(Login(config.apiKey)))
       .flatMap {
-        parseResponse[String]() { j =>
+        parseResponse[String]("token") { j =>
           (j \ "token").validate[String]
         }
       }
@@ -172,17 +171,23 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
       }.sequence
     }
 
-  override def search(show: String): Future[Seq[ShowResume]] = ???
+  override def search(show: String): Future[Seq[ShowResume]] =
+    searchTvDbShows(show).map(_.map(_.toShowResume(config.baseUrl)))
 
-  private def searchTvDbShows(show: String): Future[Seq[TvshowResume]] =
-    accessHeaders.flatMap { headers =>
-      wSClient
-        .url(s"${config.url}/search/series")
-        .addQueryStringParameters("name" -> show)
-        .addHttpHeaders(headers: _*)
-        .get()
-        .flatMap { parseResponse[PagedResponse[TvshowResume]]() }
-        .map(_.data)
+  private def searchTvDbShows(text: String): Future[Seq[TvshowResume]] =
+    text match {
+      case "" => FastFuture.successful(Seq.empty[TvshowResume])
+      case _ =>
+        accessHeaders.flatMap { headers =>
+          wSClient
+            .url(s"${config.url}/search/series")
+            .addQueryStringParameters("name" -> text)
+            .addHttpHeaders(headers: _*)
+            .get()
+            .flatMap { parseResponse[PagedResponse[TvshowResume]]("search") }
+            .map(_.data)
+            .recover { case _ => Seq.empty }
+        }
     }
 
   private def getTvDbShow(id: String): Future[Option[TvshowResume]] =
@@ -212,11 +217,11 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
         .url(s"${config.url}/series/$tvdbId/episodes")
         .addHttpHeaders(headers: _*)
         .get()
-        .flatMap { parseResponse[PagedResponse[EpisodeResume]]() }
+        .flatMap { parseResponse[PagedResponse[EpisodeResume]]("list") }
         .map(_.data)
     }
 
-  def parseResponse[T](code: Int = 200)(implicit reads: Reads[T]): WSResponse => Future[T] = {
+  def parseResponse[T](key: String, code: Int = 200)(implicit reads: Reads[T]): WSResponse => Future[T] = {
     case r if r.status === code =>
       r.json
         .validate[T]
@@ -225,7 +230,7 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
           t => FastFuture.successful(t)
         )
     case other =>
-      FastFuture.failed(new RuntimeException(s"Error while login ${other.statusText} ${other.body}"))
+      FastFuture.failed(new RuntimeException(s"Error ${key} ${other.statusText} ${other.body}"))
   }
 }
 
