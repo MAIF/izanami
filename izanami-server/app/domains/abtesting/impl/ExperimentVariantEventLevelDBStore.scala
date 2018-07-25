@@ -235,4 +235,6 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
       .flatMapMerge(4, key => findEvents(key))
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
+  override def check(): Future[Unit] = FastFuture.successful(())
+
 }

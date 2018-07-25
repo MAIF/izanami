@@ -404,4 +404,14 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       .scroll(Json.obj("query" -> Json.obj("match_all" -> Json.obj())))
       .mapConcat(s => s.hitsAs[ExperimentVariantEvent].toList)
       .filter(e => e.id.key.matchPatterns(patterns: _*))
+
+  override def check(): Future[Unit] =
+    client
+      .index(esIndex / esType)
+      .get("test")
+      .map(_ => ())
+      .recover {
+        case EsException(_, statusCode, _) if statusCode == 404 =>
+          ()
+      }
 }

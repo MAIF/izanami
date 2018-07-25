@@ -10,7 +10,7 @@ import domains.abtesting.impl._
 import domains.abtesting.{ExperimentVariantEventStore, _}
 import domains.apikey.{Apikey, ApikeyStore}
 import domains.config.ConfigStore
-import domains.events.Events.{GlobalScriptCreated, IzanamiEvent}
+import domains.events.Events.IzanamiEvent
 import domains.events._
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
 import domains.feature.{Feature, FeatureStore}
@@ -30,7 +30,7 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
 import router.Routes
-import store.JsonDataStore
+import store.{Healthcheck, JsonDataStore}
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 
 import scala.concurrent.Future
@@ -202,10 +202,12 @@ package object modules {
       Import.importFile(conf, Apikey.importData(store))
       store
     }
+    lazy val apikeyController: ApikeyController = wire[ApikeyController]
+
+    lazy val healthCheck: Healthcheck                     = wire[Healthcheck]
+    lazy val healthCheckController: HealthCheckController = wire[HealthCheckController]
 
     lazy val eventsController: EventsController = wire[EventsController]
-
-    lazy val apikeyController: ApikeyController = wire[ApikeyController]
 
     val patchResult: Future[Done] = {
       lazy val conf: DbDomainConfig = izanamiConfig.patch.db
