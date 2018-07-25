@@ -108,6 +108,7 @@ GET     /api/events/:domain                 controllers.EventsController.eventsF
 
 # Search
 GET     /api/_search                        controllers.SearchController.search(patterns: String, features: Boolean ?= true, configs: Boolean ?= true, experiments: Boolean ?= true, scripts: Boolean ?= true)
+GET     /api/_health                        controllers.HealthCheckController.check
 
 #Authentication
 POST    /api/login                          controllers.AuthController.authenticate()

@@ -10,6 +10,7 @@ import store.Result
 
 import scala.concurrent.Future
 import ExperimentDataStoreActor._
+import akka.http.scaladsl.util.FastFuture
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    IN MEMORY     ////////////////////////////////////
@@ -86,6 +87,8 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem:
     Source
       .fromFuture((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])
       .mapConcat(_.toList)
+
+  override def check(): Future[Unit] = FastFuture.successful(())
 }
 
 private[abtesting] class ExperimentDataStoreActor extends Actor {

@@ -68,6 +68,8 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
     Logger.info(s"Stopping actor system $actorSystemName")
     s.terminate()
   }
+
+  override def check(): Future[Unit] = FastFuture.successful(())
 }
 
 class CustomSerializer extends SerializerWithStringManifest {

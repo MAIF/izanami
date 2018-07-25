@@ -43,6 +43,7 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
 
   override def close() = {}
 
+  override def check(): Future[Unit] = FastFuture.successful(())
 }
 
 private[events] object EventStreamActor {
