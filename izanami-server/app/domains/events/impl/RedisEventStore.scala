@@ -1,6 +1,7 @@
 package domains.events.impl
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
@@ -95,4 +96,6 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
     }
 
   override def close() = {}
+
+  override def check(): Future[Unit] = connection.async().get("test").toScala.map(_ => ())
 }

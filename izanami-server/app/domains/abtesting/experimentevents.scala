@@ -144,4 +144,6 @@ trait ExperimentVariantEventStore extends StoreOps {
 
   def listAll(patterns: Seq[String] = Seq("*")): Source[ExperimentVariantEvent, NotUsed]
 
+  def check(): Future[Unit]
+
 }

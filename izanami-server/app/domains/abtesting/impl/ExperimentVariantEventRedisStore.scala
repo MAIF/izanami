@@ -246,4 +246,6 @@ class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
       .flatMapMerge(4, key => findEvents(key))
       .alsoTo(Sink.foreach(e => println(s"Event $e")))
       .filter(e => e.id.key.matchPatterns(patterns: _*))
+
+  override def check(): Future[Unit] = command().get("test").toScala.map(_ => ())
 }
