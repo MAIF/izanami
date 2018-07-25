@@ -2,6 +2,7 @@ package domains.events.impl
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.kafka.{ConsumerSettings, ManualSubscription, Subscriptions}
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
@@ -188,5 +189,7 @@ class KafkaEventStore(_env: Environment,
       }
 
   }
+
+  override def check(): Future[Unit] = FastFuture.successful(())
 
 }

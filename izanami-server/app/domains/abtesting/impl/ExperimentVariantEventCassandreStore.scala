@@ -234,4 +234,6 @@ class ExperimentVariantEventCassandreStore(session: Session,
       .mapConcat(_.validate[ExperimentVariantEvent].asOpt.toList)
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
+  override def check(): Future[Unit] = executeWithSession("SELECT now() FROM system.local").map(_ => ())
+
 }

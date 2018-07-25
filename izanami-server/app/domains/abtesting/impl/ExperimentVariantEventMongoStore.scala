@@ -1,6 +1,7 @@
 package domains.abtesting.impl
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Sink, Source}
@@ -12,7 +13,7 @@ import domains.events.Events.ExperimentVariantEventCreated
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
 import play.api.Logger
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.ReadPreference
 import reactivemongo.api.indexes.{Index, IndexType}
@@ -202,4 +203,13 @@ class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMong
           .documentSource()
           .map(_.data)
       )
+
+  override def check(): Future[Unit] =
+    mongoApi.database
+      .flatMap(
+        _.collection[JSONCollection](collectionName)
+          .find(Json.obj())
+          .one[JsValue]
+      )
+      .map(_ => ())
 }
