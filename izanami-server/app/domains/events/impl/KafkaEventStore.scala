@@ -190,6 +190,12 @@ class KafkaEventStore(_env: Environment,
 
   }
 
-  override def check(): Future[Unit] = FastFuture.successful(())
+  override def check(): Future[Unit] =
+    Future {
+      val consumer = KafkaSettings.consumerSettings(_env, system, clusterConfig).createKafkaConsumer()
+      consumer.partitionsFor(eventsConfig.topic)
+      consumer.close()
+      ()
+    }(system.dispatchers.lookup("izanami.blocking-dispatcher"))
 
 }
