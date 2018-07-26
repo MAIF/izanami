@@ -24,7 +24,7 @@ services:
     environment:
       - "CASSANDRA_LISTEN_ADDRESS=127.0.0.1"
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:5.5.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
     ports:
       - 9200:9200
     environment:

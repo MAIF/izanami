@@ -187,7 +187,6 @@ class KafkaEventStore(_env: Environment,
       } else {
         promise.success(metadata)
       }
-
   }
 
   override def check(): Future[Unit] =
