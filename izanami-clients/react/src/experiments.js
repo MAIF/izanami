@@ -5,8 +5,8 @@ import React, { Component } from 'react';
 import { string, object, bool, func } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import { get } from 'lodash';
-import * as Api from './api'
+import { get } from 'lodash/get';
+import * as Api from './api';
 
 if (!window.Symbol) {
     window.Symbol = Symbol;

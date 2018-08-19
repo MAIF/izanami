@@ -5,10 +5,11 @@ import React, { Component } from 'react';
 import { func, string, bool, object, node, oneOfType, arrayOf } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import { get, isFunction } from 'lodash';
-import * as Api from './api'
-import Debug from './debug'
-import { arrayPathToString, getCleanedArrayPath, getIsActive } from './util'
+import { get } from 'lodash/get';
+import { isFunction } from "lodash/isFunction";
+import * as Api from './api';
+import Debug from './debug';
+import { arrayPathToString, getCleanedArrayPath, getIsActive } from './util';
 
 
 if (!window.Symbol) {

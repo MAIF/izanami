@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
 import { FeatureProvider } from './features';
 import { ExperimentsProvider } from './experiments';
-import * as Api from './api'
+import * as Api from './api';
 import { object, bool, string, func, oneOfType } from 'prop-types';
-import {isFunction, isString} from 'lodash'
+import { isFunction } from 'lodash/isFunction';
+import { isString } from 'lodash/isString';
 
 export * as Api from './api';
 export * from './features';
