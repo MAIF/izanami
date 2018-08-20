@@ -42,12 +42,12 @@ object ExperimentVariantEventDocument {
 object ExperimentVariantEventMongoStore {
   def apply(config: DbDomainConfig,
             mongoApi: ReactiveMongoApi,
-            eventStore: EventStore,
+            eventStore: EventStore[Future],
             system: ActorSystem): ExperimentVariantEventMongoStore =
     new ExperimentVariantEventMongoStore(config.conf.namespace, mongoApi, eventStore)(system)
 }
 
-class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMongoApi, eventStore: EventStore)(
+class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMongoApi, eventStore: EventStore[Future])(
     implicit system: ActorSystem
 ) extends ExperimentVariantEventStore {
 
@@ -56,7 +56,7 @@ class ExperimentVariantEventMongoStore(namespace: String, mongoApi: ReactiveMong
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
   private implicit val mat: ActorMaterializer = ActorMaterializer()
-  private implicit val es: EventStore         = eventStore
+  private implicit val es: EventStore[Future] = eventStore
 
   private val collectionName          = namespace.replaceAll(":", "_")
   private val displayedCollectionName = s"${collectionName}_counter_displayed"

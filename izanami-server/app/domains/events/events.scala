@@ -13,7 +13,6 @@ import akka.kafka.scaladsl.Consumer
 import akka.kafka.{ConsumerSettings, ManualSubscription, Subscriptions}
 import akka.serialization.SerializerWithStringManifest
 import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, Source, SourceQueueWithComplete}
-import akka.stream.{ActorMaterializer, Materializer, OverflowStrategy}
 import akka.util.ByteString
 import akka.{Done, NotUsed}
 import com.typesafe.config.{Config => TsConfig}
@@ -21,33 +20,24 @@ import domains.Domain.Domain
 import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting._
 import domains.apikey.Apikey
-import domains.apikey.ApikeyStore.ApikeyKey
+import domains.apikey.Apikey.ApikeyKey
 import domains.config.Config
-import domains.config.ConfigStore.ConfigKey
+import domains.config.Config.ConfigKey
 import domains.events.Events.IzanamiEvent
 import domains.feature.Feature
-import domains.feature.FeatureStore.FeatureKey
+import domains.feature.Feature.FeatureKey
 import domains.script.GlobalScript
-import domains.script.GlobalScriptStore.GlobalScriptKey
+import domains.script.GlobalScript.GlobalScriptKey
 import domains.user.User
-import domains.user.UserStore.UserKey
+import domains.user.User.UserKey
 import domains.webhook.Webhook
-import domains.webhook.WebhookStore.WebhookKey
+import domains.webhook.Webhook.WebhookKey
 import domains.{Domain, Key}
-import env._
 import libs.IdGenerator
-import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
-import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
-import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeserializer, StringSerializer}
-import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.{Environment, Logger}
 
 import scala.concurrent.{Future, Promise}
-import scala.util.control.NonFatal
-import scala.util.{Failure, Try}
 
 object Events {
 
@@ -686,7 +676,7 @@ object EventLogger {
   val logger = Logger("events")
 }
 
-trait EventStore extends Closeable {
+trait EventStore[F[_]] extends Closeable {
 
   private[events] def eventMatch(patterns: Seq[String], domains: Seq[Domain])(e: IzanamiEvent): Boolean =
     (domains.isEmpty || domains.contains(e.domain)) && (patterns.isEmpty || e.key
@@ -701,7 +691,7 @@ trait EventStore extends Closeable {
       Flow[IzanamiEvent]
     }
 
-  def publish(event: IzanamiEvent): Future[Done]
+  def publish(event: IzanamiEvent): F[Done]
 
   def events(domains: Seq[Domain] = Seq.empty[Domain],
              patterns: Seq[String] = Seq.empty[String],

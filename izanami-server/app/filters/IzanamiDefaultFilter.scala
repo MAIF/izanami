@@ -21,7 +21,7 @@ class IzanamiDefaultFilter(env: Env,
                            izanamiConfig: IzanamiConfig,
                            config: DefaultFilter,
                            apikeyConfig: ApikeyConfig,
-                           apikeyStore: ApikeyStore)(
+                           apikeyStore: ApikeyStore[Future])(
     implicit ec: ExecutionContext,
     val mat: Materializer
 ) extends Filter {

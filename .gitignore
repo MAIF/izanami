@@ -10,3 +10,6 @@ npmrc
 secrets.tar
 logs
 .DS_Store
+node_modules
+leveldb/datas
+e2e

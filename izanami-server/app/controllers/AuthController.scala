@@ -12,6 +12,8 @@ import libs.crypto.Sha
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 
+import scala.concurrent.Future
+
 case class Auth(userId: String, password: String)
 
 object Auth {
@@ -19,7 +21,7 @@ object Auth {
 }
 
 class AuthController(_env: Env,
-                     userStore: UserStore,
+                     userStore: UserStore[Future],
                      AuthAction: ActionBuilder[AuthContext, AnyContent],
                      system: ActorSystem,
                      cc: ControllerComponents)

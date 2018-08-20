@@ -16,8 +16,10 @@ import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 import store.Result.{AppErrors, ErrorMessage}
 
+import scala.concurrent.Future
+
 class ApikeyController(env: Env,
-                       apikeyStore: ApikeyStore,
+                       apikeyStore: ApikeyStore[Future],
                        system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                        val cc: ControllerComponents)
@@ -25,7 +27,7 @@ class ApikeyController(env: Env,
 
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
 

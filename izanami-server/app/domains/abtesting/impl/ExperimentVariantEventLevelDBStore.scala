@@ -29,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 object ExperimentVariantEventLevelDBStore {
   def apply(levelDbConfig: LevelDbConfig,
             configdb: DbDomainConfig,
-            eventStore: EventStore,
+            eventStore: EventStore[Future],
             actorSystem: ActorSystem,
             applicationLifecycle: ApplicationLifecycle): ExperimentVariantEventLevelDBStore =
     new ExperimentVariantEventLevelDBStore(levelDbConfig, configdb, eventStore, actorSystem, applicationLifecycle)
@@ -37,7 +37,7 @@ object ExperimentVariantEventLevelDBStore {
 
 class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
                                          configdb: DbDomainConfig,
-                                         eventStore: EventStore,
+                                         eventStore: EventStore[Future],
                                          actorSystem: ActorSystem,
                                          applicationLifecycle: ApplicationLifecycle)
     extends ExperimentVariantEventStore {

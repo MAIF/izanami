@@ -19,11 +19,11 @@ import store.{DefaultPagingResult, PagingResult}
 import scala.concurrent.Future
 
 class SearchController(env: Env,
-                       configStore: ConfigStore,
-                       featureStore: FeatureStore,
-                       experimentStore: ExperimentStore,
-                       globalScriptStore: GlobalScriptStore,
-                       webhookStore: WebhookStore,
+                       configStore: ConfigStore[Future],
+                       featureStore: FeatureStore[Future],
+                       experimentStore: ExperimentStore[Future],
+                       globalScriptStore: GlobalScriptStore[Future],
+                       webhookStore: WebhookStore[Future],
                        system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                        cc: ControllerComponents)

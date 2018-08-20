@@ -42,9 +42,7 @@ object ElasticJsonDataStore {
     import shapeless.syntax.singleton._
 
     private val reads: Reads[EsDocument] = Json.reads[EsDocument]
-//      jsonRead[EsDocument].withRules(
-//      'created ->> read[Option[LocalDateTime]]
-//    )
+
     private val writes = Json.writes[EsDocument]
 
     implicit val format = Format(reads, writes)
@@ -56,7 +54,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
                            elasticConfig: ElasticConfig,
                            dbDomainConfig: DbDomainConfig,
                            actorSystem: ActorSystem)
-    extends JsonDataStore {
+    extends JsonDataStore[Future] {
 
   import actorSystem.dispatcher
   import store.elastic.ElasticJsonDataStore.EsDocument._

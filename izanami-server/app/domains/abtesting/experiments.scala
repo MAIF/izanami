@@ -4,9 +4,14 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
+import cats.Monad
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
+import domains.feature.Feature
+import domains.feature.Feature.format
 import domains.{AuthInfo, ImportResult, Key}
+import libs.functional.EitherTSyntax
+import play.api.Logger
 import play.api.libs.json._
 import store.Result.ErrorMessage
 import store._
@@ -44,7 +49,7 @@ object Experiment {
   implicit val format = Json.format[Experiment]
 
   def importData(
-      experimentStore: ExperimentStore
+      experimentStore: ExperimentStore[Future]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
     import store.Result.AppErrors._
@@ -53,16 +58,18 @@ object Experiment {
       .map { case (s, json) => (s, json.validate[Experiment]) }
       .mapAsync(4) {
         case (_, JsSuccess(obj, _)) =>
-          experimentStore.create(obj.id, obj) map { ImportResult.fromResult _ }
+          experimentStore.create(obj.id, obj) map { ImportResult.fromResult }
         case (s, JsError(_)) =>
           FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }
 
-  def toGraph(clientId: String)(implicit ec: ExecutionContext,
-                                experimentStore: ExperimentStore,
-                                variantBindingStore: VariantBindingStore): Flow[Experiment, JsObject, NotUsed] = {
+  def toGraph(clientId: String)(
+      implicit ec: ExecutionContext,
+      experimentStore: ExperimentStore[Future],
+      variantBindingStore: VariantBindingStore[Future]
+  ): Flow[Experiment, JsObject, NotUsed] = {
     import VariantBinding._
     Flow[Experiment]
       .filter(_.enabled)
@@ -98,63 +105,78 @@ object Experiment {
 
 }
 
-trait ExperimentStore extends DataStore[ExperimentKey, Experiment]
+trait ExperimentStore[F[_]] extends DataStore[F, ExperimentKey, Experiment]
 
-object ExperimentStore {
-  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) =
-    new ExperimentStoreImpl(jsonStore, eventStore, system)
-}
+class ExperimentStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F], system: ActorSystem)
+    extends ExperimentStore[F]
+    with EitherTSyntax[F] {
 
-class ExperimentStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
-    extends ExperimentStore {
-
+  import cats.data._
+  import cats.implicits._
+  import libs.functional.syntax._
   import Experiment._
   import domains.events.Events.{ExperimentCreated, ExperimentDeleted, ExperimentUpdated}
   import store.Result._
-  import system.dispatcher
 
-  implicit val s  = system
-  implicit val es = eventStore
+  override def create(id: ExperimentKey, data: Experiment): F[Result[Experiment]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Experiment] = for {
+      created     <- jsonStore.create(id, Experiment.format.writes(data))   |> liftFEither
+      experiment  <- created.validate[Experiment]                           |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(ExperimentCreated(id, experiment))  |> liftF[AppErrors, Done]
+    } yield experiment
+    // format: on
+    r.value
+  }
 
-  override def create(id: ExperimentKey, data: Experiment): Future[Result[Experiment]] =
-    jsonStore.create(id, format.writes(data)).to[Experiment].andPublishEvent { r =>
-      ExperimentCreated(id, r)
-    }
+  override def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment): F[Result[Experiment]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Experiment] = for {
+      oldValue    <- getById(oldId)                                                   |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
+      updated     <- jsonStore.update(oldId, id, Experiment.format.writes(data))      |> liftFEither
+      experiment  <- updated.validate[Experiment]                                     |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(ExperimentUpdated(id, oldValue, experiment))  |> liftF[AppErrors, Done]
+    } yield experiment
+    // format: on
+    r.value
+  }
 
-  override def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment): Future[Result[Experiment]] =
-    this.getById(oldId).flatMap {
-      case Some(oldValue) =>
-        jsonStore
-          .update(oldId, id, format.writes(data))
-          .to[Experiment]
-          .andPublishEvent { r =>
-            ExperimentUpdated(id, oldValue, r)
-          }
-      case None =>
-        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
-    }
+  override def delete(id: ExperimentKey): F[Result[Experiment]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Experiment] = for {
+      deleted <- jsonStore.delete(id)                            |> liftFEither
+      experiment <- deleted.validate[Experiment]                       |> liftJsResult{ handleJsError }
+      _       <- eventStore.publish(ExperimentDeleted(id, experiment)) |> liftF[AppErrors, Done]
+    } yield experiment
+    // format: on
+    r.value
+  }
 
-  override def delete(id: ExperimentKey): Future[Result[Experiment]] =
-    jsonStore.delete(id).to[Experiment].andPublishEvent { r =>
-      ExperimentDeleted(id, r)
-    }
-
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: ExperimentKey): Future[Option[Experiment]] =
-    jsonStore.getById(id).to[Experiment]
+  override def getById(id: ExperimentKey): F[Option[Experiment]] =
+    jsonStore.getById(id).map(_.flatMap(_.validate[Experiment].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Experiment]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Experiment]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, Experiment), NotUsed] =
-    jsonStore.getByIdLike(patterns).readsKV[Experiment]
+    jsonStore
+      .getByIdLike(patterns)
+      .map {
+        case (k, v) => (k, v.validate[Experiment].get)
+      }
 
-  override def count(patterns: Seq[String]): Future[Long] =
+  override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
+
+  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
+    Logger.error(s"Error parsing json from database $err")
+    AppErrors.error("error.json.parsing")
+  }
 }
 
 case class VariantResult(variant: Option[Variant] = None,

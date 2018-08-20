@@ -32,7 +32,7 @@ object ExperimentVariantEventElasticStore {
   def apply(elastic: Elastic[JsValue],
             elasticConfig: ElasticConfig,
             config: DbDomainConfig,
-            eventStore: EventStore,
+            eventStore: EventStore[Future],
             actorSystem: ActorSystem): ExperimentVariantEventElasticStore =
     new ExperimentVariantEventElasticStore(elastic, elasticConfig, config, eventStore, actorSystem)
 }
@@ -40,7 +40,7 @@ object ExperimentVariantEventElasticStore {
 class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
                                          elasticConfig: ElasticConfig,
                                          dbDomainConfig: DbDomainConfig,
-                                         eventStore: EventStore,
+                                         eventStore: EventStore[Future],
                                          actorSystem: ActorSystem)
     extends ExperimentVariantEventStore {
 

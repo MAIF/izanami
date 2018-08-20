@@ -31,7 +31,7 @@ object RedisJsonDataStore {
   }
 }
 
-class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String) extends JsonDataStore {
+class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String) extends JsonDataStore[Future] {
 
   import system.dispatcher
 

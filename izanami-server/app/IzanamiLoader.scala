@@ -4,19 +4,18 @@ import akka.stream.scaladsl.Flow
 import com.softwaremill.macwire.wire
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
-import domains.config.Config
+import domains.config.{Config, ConfigStore, ConfigStoreImpl}
 import domains.Import
 import domains.abtesting.impl._
 import domains.abtesting.{ExperimentVariantEventStore, _}
-import domains.apikey.{Apikey, ApikeyStore}
-import domains.config.ConfigStore
+import domains.apikey.{Apikey, ApikeyStore, ApikeyStoreImpl}
 import domains.events.Events.IzanamiEvent
 import domains.events._
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
-import domains.feature.{Feature, FeatureStore}
-import domains.script.{GlobalScript, GlobalScriptStore}
-import domains.user.{User, UserStore}
-import domains.webhook.{Webhook, WebhookStore}
+import domains.feature.{Feature, FeatureStore, FeatureStoreImpl}
+import domains.script.{GlobalScript, GlobalScriptStore, GlobalScriptStoreImpl}
+import domains.user.{User, UserStore, UserStoreImpl}
+import domains.webhook.{Webhook, WebhookStore, WebhookStoreImpl}
 import libs.database.Drivers
 import env._
 import filters.{IzanamiDefaultFilter, OtoroshiFilter}
@@ -32,6 +31,7 @@ import play.api.routing.Router
 import router.Routes
 import store.{Healthcheck, JsonDataStore}
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
+import cats.instances.future._
 
 import scala.concurrent.Future
 
@@ -55,6 +55,7 @@ package object modules {
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
     implicit val system: ActorSystem = actorSystem
+    import system.dispatcher
 
     Logger.info(s"Configuration: \n$izanamiConfig")
 
@@ -77,7 +78,7 @@ package object modules {
 
     /* Event store */
     // format: off
-    lazy val eventStore: EventStore = izanamiConfig.events match {
+    lazy val eventStore: EventStore[Future] = izanamiConfig.events match {
       case InMemoryEvents(_) => new BasicEventStore(actorSystem)
       case KafkaEvents(c) => new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
       case RedisEvents(c) => new RedisEventStore(drivers.redisClient.get, c, actorSystem)
@@ -87,11 +88,11 @@ package object modules {
     // format: on
 
     /* Global script */
-    lazy val globalScriptStore: GlobalScriptStore = {
-      val conf                        = izanamiConfig.globalScript.db
-      lazy val eventAdapter           = InMemoryWithDbStore.globalScriptEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[GlobalScriptStore]
+    lazy val globalScriptStore: GlobalScriptStore[Future] = {
+      val conf                                = izanamiConfig.globalScript.db
+      lazy val eventAdapter                   = InMemoryWithDbStore.globalScriptEventAdapter
+      lazy val dbStore: JsonDataStore[Future] = wire[JsonDataStore[Future]]
+      val store: GlobalScriptStore[Future]    = wire[GlobalScriptStoreImpl[Future]]
       Import.importFile(conf, GlobalScript.importData(store))
       store
     }
@@ -100,11 +101,11 @@ package object modules {
       wire[GlobalScriptController]
 
     /* Config */
-    lazy val configStore: ConfigStore = {
-      val conf                        = izanamiConfig.config.db
-      lazy val eventAdapter           = InMemoryWithDbStore.configEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[ConfigStore]
+    lazy val configStore: ConfigStore[Future] = {
+      val conf                                = izanamiConfig.config.db
+      lazy val eventAdapter                   = InMemoryWithDbStore.configEventAdapter
+      lazy val dbStore: JsonDataStore[Future] = wire[JsonDataStore[Future]]
+      val store: ConfigStore[Future]          = wire[ConfigStoreImpl[Future]]
       Import.importFile(conf, Config.importData(store))
       store
     }
@@ -112,11 +113,11 @@ package object modules {
     lazy val configController: ConfigController = wire[ConfigController]
 
     /* Feature */
-    lazy val featureStore: FeatureStore = {
-      val conf                        = izanamiConfig.features.db
-      lazy val eventAdapter           = InMemoryWithDbStore.featureEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[FeatureStore]
+    lazy val featureStore: FeatureStore[Future] = {
+      val conf                                = izanamiConfig.features.db
+      lazy val eventAdapter                   = InMemoryWithDbStore.featureEventAdapter
+      lazy val dbStore: JsonDataStore[Future] = wire[JsonDataStore[Future]]
+      val store: FeatureStore[Future]         = wire[FeatureStoreImpl[Future]]
       Import.importFile(conf, Feature.importData(store))
       store
     }
@@ -124,20 +125,20 @@ package object modules {
     lazy val featureController: FeatureController = wire[FeatureController]
 
     /* Experiment */
-    lazy val experimentStore: ExperimentStore = {
-      val conf                        = izanamiConfig.experiment.db
-      lazy val eventAdapter           = InMemoryWithDbStore.experimentEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[ExperimentStore]
+    lazy val experimentStore: ExperimentStore[Future] = {
+      val conf                                = izanamiConfig.experiment.db
+      lazy val eventAdapter                   = InMemoryWithDbStore.experimentEventAdapter
+      lazy val dbStore: JsonDataStore[Future] = wire[JsonDataStore[Future]]
+      val store: ExperimentStore[Future]      = wire[ExperimentStoreImpl[Future]]
       Import.importFile(conf, Experiment.importData(store))
       store
     }
 
-    lazy val variantBindingStore: VariantBindingStore = {
-      val conf                        = izanamiConfig.variantBinding.db
-      lazy val eventAdapter           = InMemoryWithDbStore.variantBindingEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[VariantBindingStore]
+    lazy val variantBindingStore: VariantBindingStore[Future] = {
+      val conf                                    = izanamiConfig.variantBinding.db
+      lazy val eventAdapter                       = InMemoryWithDbStore.variantBindingEventAdapter
+      lazy val dbStore: JsonDataStore[Future]     = wire[JsonDataStore[Future]]
+      lazy val store: VariantBindingStore[Future] = wire[VariantBindingStoreImpl[Future]]
       Import.importFile(conf, VariantBinding.importData(store))
       store
     }
@@ -169,12 +170,12 @@ package object modules {
       wire[ExperimentController]
 
     /* Webhook */
-    lazy val webhookStore: WebhookStore = {
-      lazy val webhookConfig          = izanamiConfig.webhook
-      lazy val conf                   = webhookConfig.db
-      lazy val eventAdapter           = InMemoryWithDbStore.webhookEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[WebhookStore]
+    lazy val webhookStore: WebhookStore[Future] = {
+      lazy val webhookConfig                  = izanamiConfig.webhook
+      lazy val conf                           = webhookConfig.db
+      lazy val eventAdapter                   = InMemoryWithDbStore.webhookEventAdapter
+      lazy val dbStore: JsonDataStore[Future] = wire[JsonDataStore[Future]]
+      lazy val store: WebhookStore[Future]    = wire[WebhookStoreImpl[Future]]
       Import.importFile(conf, Webhook.importData(store))
       store
     }
@@ -182,11 +183,11 @@ package object modules {
     lazy val webhookController: WebhookController = wire[WebhookController]
 
     /* User */
-    lazy val userStore: UserStore = {
-      val conf                        = izanamiConfig.user.db
-      lazy val eventAdapter           = InMemoryWithDbStore.userEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[UserStore]
+    lazy val userStore: UserStore[Future] = {
+      val conf                                = izanamiConfig.user.db
+      lazy val eventAdapter                   = InMemoryWithDbStore.userEventAdapter
+      lazy val dbStore: JsonDataStore[Future] = wire[JsonDataStore[Future]]
+      lazy val store: UserStore[Future]       = wire[UserStoreImpl[Future]]
       Import.importFile(conf, User.importData(store))
       store
     }
@@ -194,11 +195,11 @@ package object modules {
     lazy val userController: UserController = wire[UserController]
 
     /* Apikey */
-    lazy val apikeyStore: ApikeyStore = {
-      val conf                        = izanamiConfig.apikey.db
-      lazy val eventAdapter           = InMemoryWithDbStore.apikeyEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[ApikeyStore]
+    lazy val apikeyStore: ApikeyStore[Future] = {
+      val conf                                = izanamiConfig.apikey.db
+      lazy val eventAdapter                   = InMemoryWithDbStore.apikeyEventAdapter
+      lazy val dbStore: JsonDataStore[Future] = wire[JsonDataStore[Future]]
+      lazy val store: ApikeyStore[Future]     = wire[ApikeyStoreImpl[Future]]
       Import.importFile(conf, Apikey.importData(store))
       store
     }
@@ -213,9 +214,9 @@ package object modules {
       lazy val conf: DbDomainConfig = izanamiConfig.patch.db
       lazy val eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] =
         Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent])
-      lazy val jsonStore: JsonDataStore            = wire[JsonDataStore]
-      lazy val jsonStoreOpt: Option[JsonDataStore] = Some(jsonStore)
-      lazy val configsPatch: ConfigsPatch          = wire[ConfigsPatch]
+      lazy val jsonStore: JsonDataStore[Future]            = wire[JsonDataStore[Future]]
+      lazy val jsonStoreOpt: Option[JsonDataStore[Future]] = Some(jsonStore)
+      lazy val configsPatch: ConfigsPatch                  = wire[ConfigsPatch]
 
       lazy val allPatchs = Map(1 -> configsPatch)
 

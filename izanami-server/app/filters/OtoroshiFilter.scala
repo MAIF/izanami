@@ -17,8 +17,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object OtoroshiFilter {
-  def apply(env: Env, config: OtoroshiFilterConfig, apikeyStore: ApikeyStore)(implicit ec: ExecutionContext,
-                                                                              mat: Materializer): OtoroshiFilter =
+  def apply(env: Env,
+            config: OtoroshiFilterConfig,
+            apikeyStore: ApikeyStore[Future])(implicit ec: ExecutionContext, mat: Materializer): OtoroshiFilter =
     new OtoroshiFilter(env, config)
 }
 

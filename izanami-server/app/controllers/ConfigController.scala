@@ -17,8 +17,10 @@ import play.api.libs.json._
 import play.api.mvc._
 import store.Result.{AppErrors, ErrorMessage}
 
+import scala.concurrent.Future
+
 class ConfigController(env: Env,
-                       configStore: ConfigStore,
+                       configStore: ConfigStore[Future],
                        system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                        val cc: ControllerComponents)
@@ -26,7 +28,7 @@ class ConfigController(env: Env,
 
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
 

@@ -14,16 +14,16 @@ import domains.webhook.WebhookStore
 import scala.concurrent.Future
 
 class Healthcheck(
-    eventStore: EventStore,
-    globalScriptStore: GlobalScriptStore,
-    configStore: ConfigStore,
-    featureStore: FeatureStore,
-    experimentStore: ExperimentStore,
-    variantBindingStore: VariantBindingStore,
+    eventStore: EventStore[Future],
+    globalScriptStore: GlobalScriptStore[Future],
+    configStore: ConfigStore[Future],
+    featureStore: FeatureStore[Future],
+    experimentStore: ExperimentStore[Future],
+    variantBindingStore: VariantBindingStore[Future],
     experimentVariantEventStore: ExperimentVariantEventStore,
-    webhookStore: WebhookStore,
-    userStore: UserStore,
-    apikeyStore: ApikeyStore
+    webhookStore: WebhookStore[Future],
+    userStore: UserStore[Future],
+    apikeyStore: ApikeyStore[Future]
 )(implicit system: ActorSystem) {
 
   import system.dispatcher

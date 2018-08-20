@@ -65,8 +65,11 @@ object Result {
       AppErrors(fieldErrors = fieldErrors)
     }
 
-    def error(messages: String*): AppErrors =
-      AppErrors(messages.map(m => ErrorMessage(m)))
+    def error(message: String): AppErrors =
+      AppErrors(Seq(ErrorMessage(message)))
+
+    def error(message: String, args: String*): AppErrors =
+      AppErrors(Seq(ErrorMessage(message, args: _*)))
 
     private def optionCombine[A: Semigroup](a: A, opt: Option[A]): A =
       opt.map(a |+| _).getOrElse(a)
@@ -123,13 +126,7 @@ object Result {
 
   implicit class JsResultOps(r: Future[Result[JsValue]]) {
     def to[E](implicit ec: ExecutionContext, reads: Reads[E]): Future[Result[E]] =
-      r.mapResult(json => json.validate[E]).flatMapResult {
-        case JsSuccess(e, _) => e.asRight
-        case JsError(err)    =>
-          //FIXME better error handling
-          Logger.error(s"Error parsing json from database $err")
-          AppErrors(Seq(ErrorMessage("error.json.parsing"))).asLeft
-      }
+      r.map(as[E])
 
   }
 
@@ -137,6 +134,14 @@ object Result {
     def to[E](implicit ec: ExecutionContext, reads: Reads[E]): Future[Option[E]] =
       r.map(_.map(_.validate[E].get))
   }
+
+  def as[T](r: Result[JsValue])(implicit reads: Reads[T]): Result[T] =
+    r.flatMap(_.validate[T].asEither)
+      .leftMap { err =>
+        Logger.error(s"Error parsing json from database $err")
+        AppErrors(Seq(ErrorMessage("error.json.parsing")))
+      }
+
 }
 
 trait PagingResult[Data] {
@@ -184,7 +189,7 @@ trait StoreOps {
   implicit class EventsOps[E](f: Future[Result[E]]) {
     def andPublishEvent[Event <: IzanamiEvent](
         func: E => Event
-    )(implicit ec: ExecutionContext, actorSystem: ActorSystem, eventStore: EventStore): Future[Result[E]] = {
+    )(implicit ec: ExecutionContext, actorSystem: ActorSystem, eventStore: EventStore[Future]): Future[Result[E]] = {
       f.foreach {
         case Right(v) =>
           eventStore.publish(func(v).asInstanceOf[IzanamiEvent])
@@ -196,26 +201,28 @@ trait StoreOps {
   }
 }
 
-trait DataStore[Key, Data] extends StoreOps {
-  def create(id: Key, data: Data): Future[Result[Data]]
-  def update(oldId: Key, id: Key, data: Data): Future[Result[Data]]
-  def delete(id: Key): Future[Result[Data]]
-  def deleteAll(patterns: Seq[String]): Future[Result[Done]]
-  def getById(id: Key): Future[Option[Data]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): Future[PagingResult[Data]]
+trait DataStore[F[_], Key, Data] extends StoreOps {
+  def create(id: Key, data: Data): F[Result[Data]]
+  def update(oldId: Key, id: Key, data: Data): F[Result[Data]]
+  def delete(id: Key): F[Result[Data]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def getById(id: Key): F[Option[Data]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Data]]
   def getByIdLike(patterns: Seq[String]): Source[(Key, Data), NotUsed]
-  def count(patterns: Seq[String]): Future[Long]
+  def count(patterns: Seq[String]): F[Long]
 }
 
-trait JsonDataStore extends DataStore[Key, JsValue]
+trait JsonDataStore[F[_]] extends DataStore[F, Key, JsValue]
+
+//trait JsonDataStore[Future] extends JsonDataStore[Future]
 
 object JsonDataStore {
   def apply(drivers: Drivers,
             izanamiConfig: IzanamiConfig,
             conf: DbDomainConfig,
-            eventStore: EventStore,
+            eventStore: EventStore[Future],
             eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-            applicationLifecycle: ApplicationLifecycle)(implicit actorSystem: ActorSystem): JsonDataStore =
+            applicationLifecycle: ApplicationLifecycle)(implicit actorSystem: ActorSystem): JsonDataStore[Future] =
     conf.`type` match {
       case InMemoryWithDb =>
         val dbType: DbType = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
@@ -239,7 +246,7 @@ object JsonDataStore {
       conf: DbDomainConfig,
       dbType: DbType,
       applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): JsonDataStore =
+  )(implicit actorSystem: ActorSystem): JsonDataStore[Future] =
     dbType match {
       case InMemory => InMemoryJsonDataStore(conf, actorSystem)
       case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf, actorSystem)

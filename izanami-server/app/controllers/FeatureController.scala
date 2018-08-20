@@ -20,7 +20,7 @@ import store.Result.{AppErrors, ErrorMessage}
 import scala.concurrent.Future
 
 class FeatureController(env: Env,
-                        featureStore: FeatureStore,
+                        featureStore: FeatureStore[Future],
                         system: ActorSystem,
                         AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                         cc: ControllerComponents)
@@ -28,7 +28,7 @@ class FeatureController(env: Env,
 
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
 
@@ -151,8 +151,8 @@ class FeatureController(env: Env,
       feature <- ctx.request.body.validate[Feature] |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
-      _     <- feature.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
-      event <- featureStore.create(feature.id, feature) |> mapLeft(err => BadRequest(err.toJson))
+      _ <- feature.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- featureStore.create(feature.id, feature) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(feature))
   }
 

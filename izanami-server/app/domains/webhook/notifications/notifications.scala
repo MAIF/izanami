@@ -9,7 +9,7 @@ import akka.stream.scaladsl.Sink
 import domains.Domain
 import domains.events.Events.{IzanamiEvent, WebhookCreated, WebhookDeleted, WebhookUpdated}
 import domains.events.{EventStore, Events}
-import domains.webhook.WebhookStore.WebhookKey
+import domains.webhook.Webhook.WebhookKey
 import domains.webhook.notifications.WebHookActor._
 import domains.webhook.{Webhook, WebhookStore}
 import env.WebhookConfig
@@ -25,11 +25,17 @@ object WebHooksActor {
 
   case object RefreshWebhook
 
-  def props(wSClient: WSClient, eventStore: EventStore, webhookStore: WebhookStore, config: WebhookConfig): Props =
+  def props(wSClient: WSClient,
+            eventStore: EventStore[Future],
+            webhookStore: WebhookStore[Future],
+            config: WebhookConfig): Props =
     Props(new WebHooksActor(wSClient, eventStore, webhookStore, config))
 }
 
-class WebHooksActor(wSClient: WSClient, eventStore: EventStore, webhookStore: WebhookStore, config: WebhookConfig)
+class WebHooksActor(wSClient: WSClient,
+                    eventStore: EventStore[Future],
+                    webhookStore: WebhookStore[Future],
+                    config: WebhookConfig)
     extends Actor {
 
   import domains.webhook.notifications.WebHooksActor._
@@ -133,11 +139,11 @@ object WebHookActor {
   case class UpdateWebHook(webhook: Webhook)
   case class WebhookBannedException(id: WebhookKey) extends RuntimeException(s"Too much error on webhook ${id.key}")
 
-  def props(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webhook, config: WebhookConfig): Props =
+  def props(wSClient: WSClient, webhookStore: WebhookStore[Future], webhook: Webhook, config: WebhookConfig): Props =
     Props(new WebHookActor(wSClient, webhookStore, webhook, config))
 }
 
-class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore, webhook: Webhook, config: WebhookConfig)
+class WebHookActor(wSClient: WSClient, webhookStore: WebhookStore[Future], webhook: Webhook, config: WebhookConfig)
     extends Actor {
 
   import cats.syntax.option._

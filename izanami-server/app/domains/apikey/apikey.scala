@@ -4,11 +4,16 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
+import cats.Monad
+import cats.data.EitherT
 import domains.AuthorizedPattern.AuthorizedPattern
-import domains.abtesting.VariantBinding
-import domains.apikey.ApikeyStore.ApikeyKey
+import domains.abtesting.Experiment.ExperimentKey
+import domains.apikey.Apikey.ApikeyKey
 import domains.events.EventStore
 import domains.{AuthInfo, AuthorizedPattern, ImportResult, Key}
+import libs.functional.EitherTSyntax
+import play.api.Logger
+import play.api.libs.json.{JsPath, JsonValidationError}
 import store.Result.{AppErrors, ErrorMessage}
 import store.SourceUtils.SourceKV
 import store._
@@ -25,6 +30,8 @@ object Apikey {
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
   import play.api.libs.json.Reads._
+
+  type ApikeyKey = Key
 
   private val reads: Reads[Apikey] = {
     import domains.AuthorizedPattern._
@@ -47,7 +54,7 @@ object Apikey {
     Key.isAllowed(pattern)(auth)
 
   def importData(
-      apikeyStore: ApikeyStore
+      apikeyStore: ApikeyStore[Future]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
     import AppErrors._
@@ -67,54 +74,60 @@ object Apikey {
 
 }
 
-trait ApikeyStore extends DataStore[ApikeyKey, Apikey]
-object ApikeyStore {
-  type ApikeyKey = Key
+trait ApikeyStore[F[_]] extends DataStore[F, ApikeyKey, Apikey]
 
-  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): ApikeyStore =
-    new ApikeyStoreImpl(jsonStore, eventStore, system)
+class ApikeyStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
+    extends ApikeyStore[F]
+    with EitherTSyntax[F] {
 
-}
-
-class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends ApikeyStore {
+  import cats.syntax._
+  import cats.implicits._
+  import libs.functional.syntax._
   import Apikey._
   import domains.events.Events._
   import store.Result._
-  import system.dispatcher
 
-  implicit val s  = system
-  implicit val es = eventStore
+  override def create(id: ExperimentKey, data: Apikey): F[Result[Apikey]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Apikey] = for {
+      created     <- jsonStore.create(id, Apikey.format.writes(data))   |> liftFEither
+      apikey      <- created.validate[Apikey]                           |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(ApikeyCreated(id, apikey))      |> liftF[AppErrors, Done]
+    } yield apikey
+    // format: on
+    r.value
+  }
 
-  override def create(id: ApikeyKey, data: Apikey): Future[Result[Apikey]] =
-    jsonStore.create(id, format.writes(data)).to[Apikey].andPublishEvent { r =>
-      ApikeyCreated(id, r)
-    }
+  override def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): F[Result[Apikey]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Apikey] = for {
+      oldValue    <- getById(oldId)                                               |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
+      updated     <- jsonStore.update(oldId, id, Apikey.format.writes(data))      |> liftFEither
+      experiment  <- updated.validate[Apikey]                                     |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(ApikeyUpdated(id, oldValue, experiment))  |> liftF[AppErrors, Done]
+    } yield experiment
+    // format: on
+    r.value
+  }
 
-  override def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): Future[Result[Apikey]] =
-    this.getById(oldId).flatMap {
-      case Some(oldValue) =>
-        jsonStore
-          .update(oldId, id, format.writes(data))
-          .to[Apikey]
-          .andPublishEvent { r =>
-            ApikeyUpdated(id, oldValue, r)
-          }
-      case None =>
-        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
-    }
+  override def delete(id: ApikeyKey): F[Result[Apikey]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Apikey] = for {
+      deleted <- jsonStore.delete(id)                               |> liftFEither
+      experiment <- deleted.validate[Apikey]                        |> liftJsResult{ handleJsError }
+      _       <- eventStore.publish(ApikeyDeleted(id, experiment))  |> liftF[AppErrors, Done]
+    } yield experiment
+    // format: on
+    r.value
+  }
 
-  override def delete(id: ApikeyKey): Future[Result[Apikey]] =
-    jsonStore.delete(id).to[Apikey].andPublishEvent { r =>
-      ApikeyDeleted(id, r)
-    }
-
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: ApikeyKey): Future[Option[Apikey]] =
-    jsonStore.getById(id).to[Apikey]
+  override def getById(id: ApikeyKey): F[Option[Apikey]] =
+    jsonStore.getById(id).map(_.flatMap(_.validate[Apikey].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Apikey]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Apikey]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
@@ -122,6 +135,11 @@ class ApikeyStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, Apikey), NotUsed] =
     jsonStore.getByIdLike(patterns).readsKV[Apikey]
 
-  override def count(patterns: Seq[String]): Future[Long] =
+  override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
+
+  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
+    Logger.error(s"Error parsing json from database $err")
+    AppErrors.error("error.json.parsing")
+  }
 }

@@ -1,32 +1,34 @@
 package domains.feature
 
-import java.time.format.DateTimeFormatter
-import java.time.temporal.Temporal
 import java.time.{LocalDateTime, ZoneId}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
+import cats.Monad
 import domains.events.EventStore
-import domains.feature.FeatureStore._
-import store.Result.{ErrorMessage, Result}
+import domains.feature.Feature.FeatureKey
+import domains.feature.FeatureType._
 import domains.script.{GlobalScript, Script}
 import domains.{AuthInfo, ImportResult, Key}
 import env.Env
-import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
+import libs.functional.EitherTSyntax
+import play.api.Logger
+import play.api.libs.json._
 import shapeless.syntax
+import store.Result._
 import store._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.hashing.MurmurHash3
-import FeatureType._
-import domains.config.Config
-import store.SourceUtils.SourceKV
+
 sealed trait Strategy
 
 sealed trait Feature {
+
   def id: FeatureKey
+
   def enabled: Boolean
 
   def isAllowed = Key.isAllowed(id) _
@@ -72,14 +74,12 @@ object DefaultFeature {
  ***************************************************/
 
 case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
-    import domains.script.GlobalScript._
+  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
     env.globalScriptStore.getById(Key(ref)).flatMap {
       case Some(gs: GlobalScript) =>
         gs.source.run(context, env).map(Result.ok)
       case None => FastFuture.successful(Result.error("script.not.found"))
     }
-  }
 }
 
 object GlobalScriptFeature {
@@ -244,9 +244,9 @@ case class PercentageFeature(id: FeatureKey, enabled: Boolean, percentage: Int) 
 }
 
 object PercentageFeature {
-  import play.api.libs.json._
-  import play.api.libs.json.Reads._
   import play.api.libs.functional.syntax._
+  import play.api.libs.json.Reads._
+  import play.api.libs.json._
 
   val reads: Reads[PercentageFeature] = (
     (__ \ "id").read[Key] and
@@ -278,30 +278,28 @@ object FeatureType {
 }
 
 object Feature {
-
+  import FeatureType._
+  import cats.implicits._
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
-  import FeatureType._
+
+  type FeatureKey = Key
 
   def isAllowed(key: FeatureKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
 
   def importData(
-      featureStore: FeatureStore
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import store.Result.AppErrors._
-
+      featureStore: FeatureStore[Future]
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] =
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[Feature]) }
       .mapAsync(4) {
         case (_, JsSuccess(obj, _)) =>
-          featureStore.create(obj.id, obj) map { ImportResult.fromResult }
+          featureStore.create(obj.id, obj).map(ImportResult.fromResult)
         case (s, JsError(_)) =>
           FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
-  }
 
   def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] { feature =>
     val path = feature.id.segments.foldLeft[JsPath](JsPath) { (path, seq) =>
@@ -390,66 +388,78 @@ object Feature {
 
 }
 
-trait FeatureStore extends DataStore[FeatureKey, Feature]
+trait FeatureStore[F[_]] extends DataStore[F, FeatureKey, Feature]
 
-object FeatureStore {
-
-  type FeatureKey = Key
-
-  sealed trait FeatureMessages
-
-  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): FeatureStore =
-    new FeatureStoreImpl(jsonStore, eventStore, system)
-
-}
-
-class FeatureStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem) extends FeatureStore {
+class FeatureStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F])(
+    implicit system: ActorSystem
+) extends FeatureStore[F]
+    with EitherTSyntax[F] {
 
   import Feature._
+  import cats.data._
+  import cats.implicits._
   import domains.events.Events._
+  import libs.functional.syntax._
   import store.Result._
-  import system.dispatcher
 
-  implicit val s  = system
-  implicit val es = eventStore
+  override def create(id: FeatureKey, data: Feature): F[Result[Feature]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Feature] = for {
+      created <- jsonStore.create(id, format.writes(data))        |> liftFEither
+      feature <- created.validate[Feature]                        |> liftJsResult{ handleJsError }
+      _       <- eventStore.publish(FeatureCreated(id, feature))  |> liftF[AppErrors, Done]
+    } yield feature
+    // format: on
+    r.value
+  }
 
-  override def create(id: FeatureKey, data: Feature): Future[Result[Feature]] =
-    jsonStore.create(id, format.writes(data)).to[Feature].andPublishEvent { r =>
-      FeatureCreated(id, r)
-    }
+  override def update(oldId: FeatureKey, id: FeatureKey, data: Feature): F[Result[Feature]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Feature] = for {
+      oldValue <- getById(oldId)                                    |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
+      updated  <- jsonStore.update(oldId, id, format.writes(data))  |> liftFEither
+      feature  <- updated.validate[Feature]                         |> liftJsResult{ handleJsError }
+      _        <- eventStore.publish(FeatureUpdated(id, oldValue, feature)) |> liftF[AppErrors, Done]
+    } yield feature
+    // format: on
+    r.value
+  }
 
-  override def update(oldId: FeatureKey, id: FeatureKey, data: Feature): Future[Result[Feature]] =
-    this.getById(oldId).flatMap {
-      case Some(oldValue) =>
-        jsonStore
-          .update(oldId, id, format.writes(data))
-          .to[Feature]
-          .andPublishEvent { r =>
-            FeatureUpdated(id, oldValue, r)
-          }
-      case None =>
-        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
-    }
+  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
+    Logger.error(s"Error parsing json from database $err")
+    AppErrors.error("error.json.parsing")
+  }
 
-  override def delete(id: FeatureKey): Future[Result[Feature]] =
-    jsonStore.delete(id).to[Feature].andPublishEvent { r =>
-      FeatureDeleted(id, r)
-    }
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+  override def delete(id: FeatureKey): F[Result[Feature]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Feature] = for {
+      deleted <- jsonStore.delete(id)                            |> liftFEither
+      feature <- deleted.validate[Feature]                       |> liftJsResult{ handleJsError }
+      _       <- eventStore.publish(FeatureDeleted(id, feature)) |> liftF[AppErrors, Done]
+    } yield feature
+    // format: on
+    r.value
+  }
+
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: FeatureKey): Future[Option[Feature]] =
-    jsonStore.getById(id).to[Feature]
+  override def getById(id: FeatureKey): F[Option[Feature]] =
+    jsonStore
+      .getById(id)
+      .map(_.flatMap(_.validate[Feature].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Feature]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Feature]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, Feature), NotUsed] =
-    jsonStore.getByIdLike(patterns).readsKV[Feature]
+    jsonStore.getByIdLike(patterns).map {
+      case (k, v) => (k, v.validate[Feature].get)
+    }
 
-  override def count(patterns: Seq[String]): Future[Long] =
+  override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
 
 }

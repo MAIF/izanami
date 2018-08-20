@@ -45,7 +45,7 @@ object LevelDBJsonDataStore {
 }
 
 class LevelDBJsonDataStore(system: ActorSystem, dbPath: String, applicationLifecycle: ApplicationLifecycle)
-    extends JsonDataStore {
+    extends JsonDataStore[Future] {
 
   private val client: DB = factory.open(new File(dbPath), new Options().createIfMissing(true))
 

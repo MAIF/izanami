@@ -28,13 +28,13 @@ import scala.concurrent.Future
 
 object ExperimentVariantEventRedisStore {
   def apply(maybeRedis: Option[RedisWrapper],
-            eventStore: EventStore,
+            eventStore: EventStore[Future],
             actorSystem: ActorSystem): ExperimentVariantEventRedisStore =
     new ExperimentVariantEventRedisStore(maybeRedis, eventStore, actorSystem)
 }
 
 class ExperimentVariantEventRedisStore(maybeRedis: Option[RedisWrapper],
-                                       eventStore: EventStore,
+                                       eventStore: EventStore[Future],
                                        actorSystem: ActorSystem)
     extends ExperimentVariantEventStore {
 
