@@ -35,7 +35,7 @@ object CassandraJsonDataStore {
 }
 
 class CassandraJsonDataStore(namespace: String, keyspace: String, session: Session, actorSystem: ActorSystem)
-    extends JsonDataStore {
+    extends JsonDataStore[Future] {
 
   Logger.info(s"Load store Cassandra for namespace $namespace")
 

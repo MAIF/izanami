@@ -6,6 +6,7 @@ import domains.script.{GlobalScriptStore, ScriptExecutionContext}
 import play.api.libs.ws.WSClient
 import play.api.{Environment, Logger, Mode}
 
+import scala.concurrent.Future
 import scala.util.Random
 
 case class Env(
@@ -13,7 +14,7 @@ case class Env(
     environment: Environment,
     actorSystem: ActorSystem,
     wSClient: WSClient,
-    globalScriptStore: GlobalScriptStore,
+    globalScriptStore: GlobalScriptStore[Future],
     assetsFinder: AssetsFinder
 ) {
 

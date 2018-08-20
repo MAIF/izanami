@@ -21,7 +21,7 @@ import scala.compat.java8.FutureConverters._
 import scala.concurrent.Future
 import scala.util.Failure
 
-class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore {
+class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore[Future] {
 
   import EventLogger._
   import system.dispatcher

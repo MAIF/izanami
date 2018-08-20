@@ -7,12 +7,14 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
+import cats.Monad
+import cats.data.EitherT
 import domains.events.EventStore
 import domains.events.Events.{GlobalScriptCreated, IzanamiEvent}
-import domains.script.GlobalScriptStore.GlobalScriptKey
-import domains.user.UserNoPassword
+import domains.script.GlobalScript.GlobalScriptKey
 import domains.{AuthInfo, ImportResult, Key}
 import env.Env
+import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.ws.{WSRequest, WSResponse}
@@ -153,13 +155,15 @@ case class GlobalScript(id: Key, name: String, description: String, source: Scri
 
 object GlobalScript {
 
+  type GlobalScriptKey = Key
+
   def isAllowed(key: GlobalScriptKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
 
   implicit val format = Json.format[GlobalScript]
 
   def importData(
-      globalScriptStore: GlobalScriptStore
+      globalScriptStore: GlobalScriptStore[Future]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
     import store.Result.AppErrors._
@@ -176,14 +180,9 @@ object GlobalScript {
   }
 }
 
-trait GlobalScriptStore extends DataStore[GlobalScriptKey, GlobalScript]
+trait GlobalScriptStore[F[_]] extends DataStore[F, GlobalScriptKey, GlobalScript]
 
 object GlobalScriptStore {
-
-  type GlobalScriptKey = Key
-
-  def apply(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem): GlobalScriptStore =
-    new GlobalScriptStoreImpl(jsonStore, eventStore, system)
 
   val eventAdapter = Flow[IzanamiEvent].collect {
     case GlobalScriptCreated(key, script, _, _) =>
@@ -191,49 +190,57 @@ object GlobalScriptStore {
 
 }
 
-class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, system: ActorSystem)
-    extends GlobalScriptStore {
+class GlobalScriptStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
+    extends GlobalScriptStore[F]
+    with EitherTSyntax[F] {
 
-  import system.dispatcher
-  private implicit val s  = system
-  private implicit val es = eventStore
-
-  import store.Result._
   import GlobalScript._
-  import GlobalScriptStore._
+  import cats.implicits._
+  import store.Result._
+  import libs.functional.syntax._
   import domains.events.Events._
 
-  override def create(id: GlobalScriptKey, data: GlobalScript): Future[Result[GlobalScript]] =
-    jsonStore.create(id, format.writes(data)).to[GlobalScript].andPublishEvent { r =>
-      GlobalScriptCreated(id, r)
-    }
+  override def create(id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, GlobalScript] = for {
+      created     <- jsonStore.create(id, GlobalScript.format.writes(data))   |> liftFEither
+      apikey      <- created.validate[GlobalScript]                           |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(GlobalScriptCreated(id, apikey))      |> liftF[AppErrors, Done]
+    } yield apikey
+    // format: on
+    r.value
+  }
 
-  override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): Future[Result[GlobalScript]] =
-    this.getById(oldId).flatMap {
-      case Some(oldValue) =>
-        jsonStore
-          .update(oldId, id, format.writes(data))
-          .to[GlobalScript]
-          .andPublishEvent { r =>
-            GlobalScriptUpdated(id, oldValue, r)
-          }
-      case None =>
-        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
-    }
+  override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, GlobalScript] = for {
+      oldValue    <- getById(oldId)                                                     |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
+      updated     <- jsonStore.update(oldId, id, GlobalScript.format.writes(data))      |> liftFEither
+      apikey      <- updated.validate[GlobalScript]                                     |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(GlobalScriptUpdated(id, oldValue, apikey))      |> liftF[AppErrors, Done]
+    } yield apikey
+    // format: on
+    r.value
+  }
 
-  override def delete(id: GlobalScriptKey): Future[Result[GlobalScript]] =
-    jsonStore.delete(id).to[GlobalScript].andPublishEvent { r =>
-      GlobalScriptDeleted(id, r)
-    }
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+  override def delete(id: GlobalScriptKey): F[Result[GlobalScript]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, GlobalScript] = for {
+      deleted <- jsonStore.delete(id)                                   |> liftFEither
+      apikey  <- deleted.validate[GlobalScript]                         |> liftJsResult{ handleJsError }
+      _       <- eventStore.publish(GlobalScriptDeleted(id, apikey))    |> liftF[AppErrors, Done]
+    } yield apikey
+    // format: on
+    r.value
+  }
+
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: GlobalScriptKey): Future[Option[GlobalScript]] =
-    jsonStore.getById(id).to[GlobalScript]
+  override def getById(id: GlobalScriptKey): F[Option[GlobalScript]] =
+    jsonStore.getById(id).map(_.flatMap(_.validate[GlobalScript].asOpt))
 
-  override def getByIdLike(patterns: Seq[String],
-                           page: Int,
-                           nbElementPerPage: Int): Future[PagingResult[GlobalScript]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
@@ -241,6 +248,11 @@ class GlobalScriptStoreImpl(jsonStore: JsonDataStore, eventStore: EventStore, sy
   override def getByIdLike(patterns: Seq[String]): Source[(Key, GlobalScript), NotUsed] =
     jsonStore.getByIdLike(patterns).readsKV[GlobalScript]
 
-  override def count(patterns: Seq[String]): Future[Long] =
+  override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
+
+  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
+    Logger.error(s"Error parsing json from database $err")
+    AppErrors.error("error.json.parsing")
+  }
 }

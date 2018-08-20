@@ -28,7 +28,9 @@ object Patchs {
 
 }
 
-class Patchs(mayBeJsonStore: Option[JsonDataStore], allpatches: Map[Int, PatchInstance], actorSystem: ActorSystem) {
+class Patchs(mayBeJsonStore: Option[JsonDataStore[Future]],
+             allpatches: Map[Int, PatchInstance],
+             actorSystem: ActorSystem) {
 
   import Patchs._
   import actorSystem.dispatcher

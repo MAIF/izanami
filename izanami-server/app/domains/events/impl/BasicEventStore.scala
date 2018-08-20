@@ -14,7 +14,7 @@ import libs.streams.CacheableQueue
 import scala.concurrent.Future
 import scala.util.Try
 
-class BasicEventStore(system: ActorSystem) extends EventStore {
+class BasicEventStore(system: ActorSystem) extends EventStore[Future] {
 
   private implicit val s                 = system
   private implicit val mat: Materializer = ActorMaterializer()

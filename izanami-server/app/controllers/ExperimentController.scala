@@ -19,9 +19,11 @@ import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 import store.Result.{AppErrors, ErrorMessage}
 
+import scala.concurrent.Future
+
 class ExperimentController(env: Env,
-                           experimentStore: ExperimentStore,
-                           variantBindingStore: VariantBindingStore,
+                           experimentStore: ExperimentStore[Future],
+                           variantBindingStore: VariantBindingStore[Future],
                            eVariantEventStore: ExperimentVariantEventStore,
                            system: ActorSystem,
                            AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
@@ -30,7 +32,7 @@ class ExperimentController(env: Env,
 
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
 
@@ -134,7 +136,7 @@ class ExperimentController(env: Env,
       _       <- experiment.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- experimentStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
       _ <- variantBindingStore
-            .deleteAll(Seq(s"${experiment.id.key}*")) |> liftFuture[Result, store.Result.Result[Done]]
+            .deleteAll(Seq(s"${experiment.id.key}*")) |> liftF[Result, store.Result.Result[Done]]
       _ <- eVariantEventStore.deleteEventsForExperiment(experiment) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(experiment))
   }

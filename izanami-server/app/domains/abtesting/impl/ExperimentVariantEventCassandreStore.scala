@@ -25,7 +25,7 @@ object ExperimentVariantEventCassandreStore {
   def apply(session: Session,
             config: DbDomainConfig,
             cassandraConfig: CassandraConfig,
-            eventStore: EventStore,
+            eventStore: EventStore[Future],
             actorSystem: ActorSystem): ExperimentVariantEventCassandreStore =
     new ExperimentVariantEventCassandreStore(session, config, cassandraConfig, eventStore, actorSystem)
 }
@@ -33,7 +33,7 @@ object ExperimentVariantEventCassandreStore {
 class ExperimentVariantEventCassandreStore(session: Session,
                                            config: DbDomainConfig,
                                            cassandraConfig: CassandraConfig,
-                                           eventStore: EventStore,
+                                           eventStore: EventStore[Future],
                                            actorSystem: ActorSystem)
     extends ExperimentVariantEventStore {
 

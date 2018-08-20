@@ -90,7 +90,7 @@ class KafkaEventStore(_env: Environment,
                       system: ActorSystem,
                       clusterConfig: KafkaConfig,
                       eventsConfig: KafkaEventsConfig)
-    extends EventStore {
+    extends EventStore[Future] {
 
   import scala.collection.JavaConverters._
   import system.dispatcher

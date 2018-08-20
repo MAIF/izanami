@@ -39,8 +39,8 @@ object InMemoryWithDbStore {
   def apply(
       dbConfig: InMemoryWithDbConfig,
       dbDomainConfig: DbDomainConfig,
-      underlyingDataStore: JsonDataStore,
-      eventStore: EventStore,
+      underlyingDataStore: JsonDataStore[Future],
+      eventStore: EventStore[Future],
       eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
       applicationLifecycle: ApplicationLifecycle
   )(implicit system: ActorSystem): InMemoryWithDbStore = {
@@ -105,12 +105,12 @@ object InMemoryWithDbStore {
 
 class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
                           name: String,
-                          underlyingDataStore: JsonDataStore,
-                          eventStore: EventStore,
+                          underlyingDataStore: JsonDataStore[Future],
+                          eventStore: EventStore[Future],
                           eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
                           applicationLifecycle: ApplicationLifecycle)(implicit system: ActorSystem)
     extends BaseInMemoryJsonDataStore(name)
-    with JsonDataStore {
+    with JsonDataStore[Future] {
 
   import system.dispatcher
   private implicit val materializer: Materializer = ActorMaterializer()

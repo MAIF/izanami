@@ -16,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object InMemoryJsonDataStore {
 
-  def apply(dbDomainConfig: DbDomainConfig, actorSystem: ActorSystem): JsonDataStore = {
+  def apply(dbDomainConfig: DbDomainConfig, actorSystem: ActorSystem): JsonDataStore[Future] = {
     val namespace    = dbDomainConfig.conf.namespace
     implicit val ec  = InMemoryExecutionContext(actorSystem)
     implicit val sys = actorSystem
@@ -36,7 +36,7 @@ case class InMemoryExecutionContext(actorSystem: ActorSystem) extends ExecutionC
 
 class InMemoryJsonDataStoreAsync(name: String)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
     extends BaseInMemoryJsonDataStore(name)
-    with JsonDataStore {
+    with JsonDataStore[Future] {
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
     Future { createSync(id, data) }
@@ -65,7 +65,7 @@ class InMemoryJsonDataStoreAsync(name: String)(implicit system: ActorSystem, ec:
     Future(countSync(patterns))
 }
 
-class InMemoryJsonDataStore(name: String) extends BaseInMemoryJsonDataStore(name) with JsonDataStore {
+class InMemoryJsonDataStore(name: String) extends BaseInMemoryJsonDataStore(name) with JsonDataStore[Future] {
 
   override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
     FastFuture.successful(createSync(id, data))

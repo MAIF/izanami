@@ -17,8 +17,10 @@ import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 import store.Result.{AppErrors, ErrorMessage}
 
+import scala.concurrent.Future
+
 class WebhookController(env: Env,
-                        webhookStore: WebhookStore,
+                        webhookStore: WebhookStore[Future],
                         system: ActorSystem,
                         AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                         cc: ControllerComponents)
@@ -27,7 +29,7 @@ class WebhookController(env: Env,
   import AppErrors._
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
   import system.dispatcher
 
   implicit val materializer = ActorMaterializer()(system)

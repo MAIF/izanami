@@ -11,8 +11,10 @@ import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNam
 import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 
+import scala.concurrent.Future
+
 class EventsController(env: Env,
-                       eventStore: EventStore,
+                       eventStore: EventStore[Future],
                        system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                        cc: ControllerComponents)

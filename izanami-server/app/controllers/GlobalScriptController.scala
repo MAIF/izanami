@@ -1,7 +1,6 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
@@ -16,8 +15,10 @@ import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 import store.Result.{AppErrors, ErrorMessage}
 
+import scala.concurrent.Future
+
 class GlobalScriptController(env: Env,
-                             globalScriptStore: GlobalScriptStore,
+                             globalScriptStore: GlobalScriptStore[Future],
                              system: ActorSystem,
                              AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                              cc: ControllerComponents)
@@ -26,7 +27,7 @@ class GlobalScriptController(env: Env,
   import AppErrors._
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
   import system.dispatcher
 
   implicit val materializer = ActorMaterializer()(system)

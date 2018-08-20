@@ -17,8 +17,10 @@ import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 import store.Result.{AppErrors, ErrorMessage}
 
+import scala.concurrent.Future
+
 class UserController(env: Env,
-                     userStore: UserStore,
+                     userStore: UserStore[Future],
                      system: ActorSystem,
                      AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                      val cc: ControllerComponents)
@@ -26,7 +28,7 @@ class UserController(env: Env,
 
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
   import system.dispatcher
 
   implicit val materializer = ActorMaterializer()(system)

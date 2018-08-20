@@ -35,11 +35,11 @@ object MongoJsonDataStore {
 
 class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit actorSystem: ActorSystem,
                                                                         ec: ExecutionContext)
-    extends JsonDataStore {
+    extends JsonDataStore[Future] {
 
   import cats.implicits._
   import libs.functional.EitherTOps._
-  import libs.functional.Implicits._
+  import libs.functional.syntax._
 
   private val collectionName = namespace.replaceAll(":", "_")
 

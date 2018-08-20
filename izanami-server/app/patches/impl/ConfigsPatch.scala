@@ -4,7 +4,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.{ActorMaterializer, Materializer}
-import domains.config.ConfigStore.ConfigKey
+import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigStore}
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
@@ -27,9 +27,9 @@ private[impl] object OldConfig {
 
 class ConfigsPatch(
     izanamiConfig: IzanamiConfig,
-    configStore: => ConfigStore,
+    configStore: => ConfigStore[Future],
     drivers: Drivers,
-    eventStore: EventStore,
+    eventStore: EventStore[Future],
     applicationLifecycle: ApplicationLifecycle,
     actorSystem: ActorSystem
 ) extends PatchInstance {
