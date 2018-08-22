@@ -2,16 +2,14 @@ package controllers
 
 import akka.Done
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
+import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.{Import, ImportResult, Key}
 import domains.abtesting._
-import domains.apikey.Apikey
-import domains.config.Config
-import env.Env
+import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
@@ -19,22 +17,23 @@ import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 import store.Result.{AppErrors, ErrorMessage}
 
-import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
-class ExperimentController(env: Env,
-                           experimentStore: ExperimentStore[Future],
-                           variantBindingStore: VariantBindingStore[Future],
-                           eVariantEventStore: ExperimentVariantEventStore,
-                           system: ActorSystem,
-                           AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                           cc: ControllerComponents)
-    extends AbstractController(cc) {
+class ExperimentController[F[_]: Effect](experimentStore: ExperimentStore[F],
+                                         variantBindingStore: VariantBindingStore[F],
+                                         eVariantEventStore: ExperimentVariantEventStore[F],
+                                         system: ActorSystem,
+                                         AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                         cc: ControllerComponents)
+    extends AbstractController(cc)
+    with EitherTSyntax[F] {
 
   import cats.implicits._
-  import libs.functional.EitherTOps._
+  import cats.effect.implicits._
   import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
+  import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
@@ -42,7 +41,7 @@ class ExperimentController(env: Env,
   implicit val eStore  = experimentStore
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncF(parse.empty) { ctx =>
       import Experiment._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
       experimentStore
@@ -77,7 +76,7 @@ class ExperimentController(env: Env,
         .runWith(Sink.head)
     }
 
-  def create(): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Experiment._
     for {
       experiment <- ctx.request.body.validate[Experiment] |> liftJsResult(
@@ -89,7 +88,7 @@ class ExperimentController(env: Env,
   }
 
   def get(id: String, clientId: Option[String]): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncEitherT(parse.empty) { ctx =>
       import Experiment._
       val key = Key(id)
       for {
@@ -101,7 +100,7 @@ class ExperimentController(env: Env,
       } yield Ok(Json.toJson(experiment))
     }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Experiment._
     for {
       experiment <- ctx.request.body.validate[Experiment] |> liftJsResult(
@@ -113,7 +112,7 @@ class ExperimentController(env: Env,
     } yield Ok(Json.toJson(experiment))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Experiment._
     val key = Key(id)
     for {
@@ -127,7 +126,7 @@ class ExperimentController(env: Env,
     } yield Ok(Json.toJson(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     import Experiment._
     val key = Key(id)
     for {
@@ -141,25 +140,31 @@ class ExperimentController(env: Env,
     } yield Ok(Json.toJson(experiment))
   }
 
-  def deleteAll(pattern: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
 
-    val experimentsRelationsDeletes = experimentStore
-      .getByIdLike(patternsSeq)
-      .map(_._2)
-      .flatMapMerge(
-        4, { experiment =>
-          Source
-            .fromFuture(variantBindingStore.deleteAll(Seq(s"${experiment.id.key}*")))
-            .merge(
-              Source.fromFuture(eVariantEventStore.deleteEventsForExperiment(experiment))
-            )
+    val experimentsRelationsDeletes: F[Done] = Effect[F].async { cb =>
+      experimentStore
+        .getByIdLike(patternsSeq)
+        .map(_._2)
+        .flatMapMerge(
+          4, { experiment =>
+            Source
+              .fromFuture(variantBindingStore.deleteAll(Seq(s"${experiment.id.key}*")).toIO.unsafeToFuture())
+              .merge(
+                Source.fromFuture(eVariantEventStore.deleteEventsForExperiment(experiment).toIO.unsafeToFuture())
+              )
+          }
+        )
+        .runWith(Sink.ignore)
+        .onComplete {
+          case Success(value) => cb(Right(value))
+          case Failure(e)     => cb(Left(e))
         }
-      )
-      .runWith(Sink.ignore)
+    }
 
     for {
-      _       <- experimentsRelationsDeletes
+      _       <- experimentsRelationsDeletes |> liftF
       deletes <- experimentStore.deleteAll(patternsSeq) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok
   }
@@ -167,7 +172,7 @@ class ExperimentController(env: Env,
   /* Campaign */
 
   def getVariantForClient(experimentId: String, clientId: String): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncEitherT(parse.empty) { ctx =>
       import VariantBinding._
       val query = VariantBindingKey(Key(experimentId), clientId)
       for {
@@ -181,7 +186,7 @@ class ExperimentController(env: Env,
     }
 
   def variantDisplayed(experimentId: String, clientId: String): Action[AnyContent] =
-    AuthAction.async { ctx =>
+    AuthAction.asyncEitherT { ctx =>
       import ExperimentVariantEvent._
 
       val experimentKey     = Key(experimentId)
@@ -205,7 +210,7 @@ class ExperimentController(env: Env,
     }
 
   def variantWon(experimentId: String, clientId: String): Action[AnyContent] =
-    AuthAction.async { ctx =>
+    AuthAction.asyncEitherT { ctx =>
       val experimentKey     = Key(experimentId)
       val variantBindingKey = VariantBindingKey(experimentKey, clientId)
 
@@ -231,7 +236,7 @@ class ExperimentController(env: Env,
       val experimentKey = Key(experimentId)
 
       Source
-        .fromFuture(experimentStore.getById(experimentKey))
+        .fromFuture(experimentStore.getById(experimentKey).toIO.unsafeToFuture())
         .mapConcat {
           _.toList
         }
@@ -249,7 +254,7 @@ class ExperimentController(env: Env,
         .runWith(Sink.head)
     }
 
-  def count(): Action[Unit] = AuthAction.async(parse.empty) { ctx =>
+  def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
     experimentStore.count(patterns).map { count =>
       Ok(Json.obj("count" -> count))

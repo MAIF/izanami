@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
+import cats.effect.Effect
 import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import libs.IdGenerator
@@ -115,35 +116,36 @@ object ExperimentVariantEvent {
 
   implicit val format = Format(reads, writes)
 
-  def importData(
-      eVariantEventStore: ExperimentVariantEventStore
+  def importData[F[_]: Effect](
+      eVariantEventStore: ExperimentVariantEventStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
+    import libs.streams.syntax._
     import store.Result.AppErrors._
 
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[ExperimentVariantEvent]) }
-      .mapAsync(4) {
+      .mapAsyncF(4) {
         case (_, JsSuccess(obj, _)) =>
           eVariantEventStore.create(obj.id, obj) map { ImportResult.fromResult }
         case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }
 
 }
 
-trait ExperimentVariantEventStore extends StoreOps {
+trait ExperimentVariantEventStore[F[_]] extends StoreOps {
 
-  def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]]
+  def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]]
 
-  def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]]
+  def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]]
 
   def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed]
 
   def listAll(patterns: Seq[String] = Seq("*")): Source[ExperimentVariantEvent, NotUsed]
 
-  def check(): Future[Unit]
+  def check(): F[Unit]
 
 }

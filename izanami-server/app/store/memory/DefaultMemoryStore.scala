@@ -2,8 +2,9 @@ package store.memory
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
+import cats.Applicative
+import cats.effect.{Async}
 import domains.Key
 import env.DbDomainConfig
 import play.api.Logger
@@ -12,14 +13,14 @@ import store.Result.Result
 import store._
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext}
+import scala.util.control.NonFatal
 
 object InMemoryJsonDataStore {
 
-  def apply(dbDomainConfig: DbDomainConfig, actorSystem: ActorSystem): JsonDataStore[Future] = {
-    val namespace    = dbDomainConfig.conf.namespace
-    implicit val ec  = InMemoryExecutionContext(actorSystem)
-    implicit val sys = actorSystem
+  def apply[F[_]: Async](dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem): JsonDataStore[F] = {
+    val namespace   = dbDomainConfig.conf.namespace
+    implicit val ec = InMemoryExecutionContext(actorSystem)
     Logger.info(s"Load store InMemory for namespace $namespace")
     //new InMemoryJsonDataStoreAsync(namespace)(sys, ec)
     new InMemoryJsonDataStore(namespace)
@@ -34,62 +35,80 @@ case class InMemoryExecutionContext(actorSystem: ActorSystem) extends ExecutionC
   override def reportFailure(cause: Throwable): Unit = _ec.reportFailure(cause)
 }
 
-class InMemoryJsonDataStoreAsync(name: String)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
+class InMemoryJsonDataStoreAsync[F[_]: Async](name: String)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
     extends BaseInMemoryJsonDataStore(name)
-    with JsonDataStore[Future] {
+    with JsonDataStore[F] {
+  import cats.effect._
 
-  override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    Future { createSync(id, data) }
+  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
+    toAsync { createSync(id, data) }
 
-  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    Future { updateSync(oldId, id, data) }
+  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+    toAsync { updateSync(oldId, id, data) }
 
-  override def delete(id: Key): Future[Result[JsValue]] =
-    Future { deleteSync(id) }
+  override def delete(id: Key): F[Result[JsValue]] =
+    toAsync { deleteSync(id) }
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
-    Future { deleteAllSync(patterns) }
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
+    toAsync { deleteAllSync(patterns) }
 
-  override def getById(id: Key): Future[Option[JsValue]] =
-    Future(getByIdSync(id))
+  override def getById(id: Key): F[Option[JsValue]] =
+    toAsync(getByIdSync(id))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
-    Future {
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+    toAsync {
       getByIdLikeSync(patterns, page, nbElementPerPage)
     }
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     Source(getByIdLikeSync(patterns))
 
-  override def count(patterns: Seq[String]): Future[Long] =
-    Future(countSync(patterns))
+  override def count(patterns: Seq[String]): F[Long] =
+    toAsync(countSync(patterns))
+
+  private def toAsync[T](a: => T): F[T] =
+    Async[F].async { cb =>
+      ec.execute { () =>
+        try {
+          // Signal completion
+          cb(Right(a))
+        } catch {
+          case NonFatal(e) =>
+            cb(Left(e))
+        }
+      }
+    }
 }
 
-class InMemoryJsonDataStore(name: String) extends BaseInMemoryJsonDataStore(name) with JsonDataStore[Future] {
+class InMemoryJsonDataStore[F[_]: Applicative](name: String)
+    extends BaseInMemoryJsonDataStore(name)
+    with JsonDataStore[F] {
 
-  override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    FastFuture.successful(createSync(id, data))
+  import cats.implicits._
 
-  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    FastFuture.successful(updateSync(oldId, id, data))
+  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
+    createSync(id, data).pure[F]
 
-  override def delete(id: Key): Future[Result[JsValue]] =
-    FastFuture.successful(deleteSync(id))
+  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+    updateSync(oldId, id, data).pure[F]
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
-    FastFuture.successful(deleteAllSync(patterns))
+  override def delete(id: Key): F[Result[JsValue]] =
+    deleteSync(id).pure[F]
 
-  override def getById(id: Key): Future[Option[JsValue]] =
-    FastFuture.successful(getByIdSync(id))
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
+    deleteAllSync(patterns).pure[F]
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
-    FastFuture.successful(getByIdLikeSync(patterns, page, nbElementPerPage))
+  override def getById(id: Key): F[Option[JsValue]] =
+    getByIdSync(id).pure[F]
+
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+    getByIdLikeSync(patterns, page, nbElementPerPage).pure[F]
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     Source(getByIdLikeSync(patterns))
 
-  override def count(patterns: Seq[String]): Future[Long] =
-    FastFuture.successful(countSync(patterns))
+  override def count(patterns: Seq[String]): F[Long] =
+    countSync(patterns).pure[F]
 }
 
 class BaseInMemoryJsonDataStore(name: String) {

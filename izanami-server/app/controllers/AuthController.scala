@@ -2,6 +2,7 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
+import cats.effect.Effect
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import controllers.actions.AuthContext
@@ -20,15 +21,16 @@ object Auth {
   implicit val format = Json.format[Auth]
 }
 
-class AuthController(_env: Env,
-                     userStore: UserStore[Future],
-                     AuthAction: ActionBuilder[AuthContext, AnyContent],
-                     system: ActorSystem,
-                     cc: ControllerComponents)
+class AuthController[F[_]: Effect](_env: Env,
+                                   userStore: UserStore[F],
+                                   AuthAction: ActionBuilder[AuthContext, AnyContent],
+                                   system: ActorSystem,
+                                   cc: ControllerComponents)
     extends AbstractController(cc) {
 
   import domains.user.UserNoPassword._
-  import system.dispatcher
+  import cats.implicits._
+  import libs.http._
 
   lazy val _config = _env.izanamiConfig.filter match {
     case env.Default(config) => config
@@ -37,14 +39,14 @@ class AuthController(_env: Env,
   lazy val cookieName           = _config.cookieClaim
   lazy val algorithm: Algorithm = Algorithm.HMAC512(_config.sharedKey)
 
-  def authenticate: Action[JsValue] = Action.async(parse.json) { req =>
+  def authenticate: Action[JsValue] = Action.asyncF(parse.json) { req =>
     val auth: Auth = req.body.as[Auth]
 
     userStore.getById(Key(auth.userId)).flatMap { maybeUser =>
       {
         maybeUser match {
           case Some(user: User) =>
-            FastFuture.successful {
+            Effect[F].pure {
               user match {
                 case User(_, _, _, Some(password), _, _) if password == Sha.hexSha512(auth.password) =>
                   val token: String = buildToken(user)

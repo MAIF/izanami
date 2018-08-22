@@ -5,6 +5,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
 import cats.Semigroup
+import cats.effect.Effect
 import cats.kernel.Monoid
 import cats.syntax.option._
 import domains.events.EventStore
@@ -18,7 +19,7 @@ import play.api.libs.json._
 import store.Result.Result
 import store.cassandra.CassandraJsonDataStore
 import store.elastic.ElasticJsonDataStore
-import store.leveldb.LevelDBJsonDataStore
+import store.leveldb.{DbStores, LevelDBJsonDataStore}
 import store.memory.InMemoryJsonDataStore
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 import store.mongo.MongoJsonDataStore
@@ -214,47 +215,47 @@ trait DataStore[F[_], Key, Data] extends StoreOps {
 
 trait JsonDataStore[F[_]] extends DataStore[F, Key, JsValue]
 
-//trait JsonDataStore[Future] extends JsonDataStore[Future]
-
 object JsonDataStore {
-  def apply(drivers: Drivers,
-            izanamiConfig: IzanamiConfig,
-            conf: DbDomainConfig,
-            eventStore: EventStore[Future],
-            eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-            applicationLifecycle: ApplicationLifecycle)(implicit actorSystem: ActorSystem): JsonDataStore[Future] =
+  def apply[F[_]: Effect](
+      drivers: Drivers,
+      izanamiConfig: IzanamiConfig,
+      conf: DbDomainConfig,
+      eventStore: EventStore[F],
+      eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
+      applicationLifecycle: ApplicationLifecycle
+  )(implicit actorSystem: ActorSystem, stores: DbStores[F]): JsonDataStore[F] =
     conf.`type` match {
       case InMemoryWithDb =>
-        val dbType: DbType = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
-        val jsonDataStore  = storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
+        val dbType: DbType                  = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
+        val jsonDataStore: JsonDataStore[F] = storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
         Logger.info(
           s"Loading InMemoryWithDbStore for namespace ${conf.conf.namespace} with underlying store ${dbType.getClass.getSimpleName}"
         )
-        InMemoryWithDbStore(izanamiConfig.db.inMemoryWithDb.get,
-                            conf,
-                            jsonDataStore,
-                            eventStore,
-                            eventAdapter,
-                            applicationLifecycle)
+        InMemoryWithDbStore[F](izanamiConfig.db.inMemoryWithDb.get,
+                               conf,
+                               jsonDataStore,
+                               eventStore,
+                               eventAdapter,
+                               applicationLifecycle)
       case other =>
         storeByType(drivers, izanamiConfig, conf, other, applicationLifecycle)
     }
 
-  private def storeByType(
+  private def storeByType[F[_]: Effect](
       drivers: Drivers,
       izanamiConfig: IzanamiConfig,
       conf: DbDomainConfig,
       dbType: DbType,
       applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): JsonDataStore[Future] =
+  )(implicit actorSystem: ActorSystem, stores: DbStores[F]): JsonDataStore[F] =
     dbType match {
-      case InMemory => InMemoryJsonDataStore(conf, actorSystem)
-      case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf, actorSystem)
-      case LevelDB  => LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, actorSystem, applicationLifecycle)
+      case InMemory => InMemoryJsonDataStore(conf)
+      case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf)
+      case LevelDB  => LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, applicationLifecycle)
       case Cassandra =>
-        CassandraJsonDataStore(drivers.cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf, actorSystem)
-      case Elastic => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, actorSystem)
-      case Mongo   => MongoJsonDataStore(drivers.mongoApi.get, conf, actorSystem)
+        CassandraJsonDataStore(drivers.cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf)
+      case Elastic => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
+      case Mongo   => MongoJsonDataStore(drivers.mongoApi.get, conf)
       case _       => throw new IllegalArgumentException(s"Unsupported store type $dbType")
     }
 

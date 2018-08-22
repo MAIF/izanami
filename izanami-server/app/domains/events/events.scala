@@ -697,6 +697,6 @@ trait EventStore[F[_]] extends Closeable {
              patterns: Seq[String] = Seq.empty[String],
              lastEventId: Option[Long] = None): Source[IzanamiEvent, NotUsed]
 
-  def check(): Future[Unit]
+  def check(): F[Unit]
 
 }

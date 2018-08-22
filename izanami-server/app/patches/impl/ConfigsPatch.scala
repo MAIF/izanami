@@ -4,6 +4,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.{ActorMaterializer, Materializer}
+import cats.effect.Effect
 import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigStore}
 import domains.events.EventStore
@@ -15,9 +16,8 @@ import play.api.Logger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
 import store.JsonDataStore
+import store.leveldb.DbStores
 import store.memorywithdb.CacheEvent
-
-import scala.concurrent.Future
 
 private[impl] case class OldConfig(id: ConfigKey, value: String)
 
@@ -25,20 +25,25 @@ private[impl] object OldConfig {
   val format = Json.format[OldConfig]
 }
 
-class ConfigsPatch(
+class ConfigsPatch[F[_]: Effect](
     izanamiConfig: IzanamiConfig,
-    configStore: => ConfigStore[Future],
+    configStore: => ConfigStore[F],
     drivers: Drivers,
-    eventStore: EventStore[Future],
+    eventStore: EventStore[F],
     applicationLifecycle: ApplicationLifecycle,
     actorSystem: ActorSystem
-) extends PatchInstance {
+)(implicit store: DbStores[F])
+    extends PatchInstance[F] {
 
+  import libs.effects._
   implicit val system: ActorSystem        = actorSystem
   implicit val materializer: Materializer = ActorMaterializer()
 
-  override def patch(): Future[Done] = {
+  import system.dispatcher
 
+  override def patch(): F[Done] = {
+
+    import libs.streams.syntax._
     val conf: DbDomainConfig = izanamiConfig.config.db
     Logger.info(s"Patch for configs starting for DB ${conf.`type`}")
 
@@ -49,7 +54,7 @@ class ConfigsPatch(
     jsonDataStore
       .getByIdLike(Seq("*"))
       .map(_._2)
-      .mapAsync(2) { l =>
+      .mapAsyncF(2) { l =>
         val config: OldConfig = OldConfig.format.reads(l).get
         configStore.update(config.id, config.id, Config(config.id, Json.parse(config.value)))
       }
@@ -57,6 +62,7 @@ class ConfigsPatch(
         case Right(e) => Logger.debug(s"Config updated with success => $e")
         case Left(e)  => Logger.debug(s"Config update failure $e")
       })
+      .toF
 
   }
 }

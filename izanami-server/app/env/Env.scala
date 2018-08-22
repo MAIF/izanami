@@ -14,7 +14,6 @@ case class Env(
     environment: Environment,
     actorSystem: ActorSystem,
     wSClient: WSClient,
-    globalScriptStore: GlobalScriptStore[Future],
     assetsFinder: AssetsFinder
 ) {
 

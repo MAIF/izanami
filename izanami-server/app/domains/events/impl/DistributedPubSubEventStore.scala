@@ -10,6 +10,7 @@ import akka.serialization.SerializerWithStringManifest
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
+import cats.Applicative
 import com.typesafe.config.{Config => TsConfig}
 import domains.Domain.Domain
 import domains.events.EventLogger._
@@ -24,10 +25,10 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.Future
 import scala.util.Try
 
-class DistributedPubSubEventStore(globalConfig: TsConfig,
-                                  config: DistributedEventsConfig,
-                                  lifecycle: ApplicationLifecycle)
-    extends EventStore[Future] {
+class DistributedPubSubEventStore[F[_]: Applicative](globalConfig: TsConfig,
+                                                     config: DistributedEventsConfig,
+                                                     lifecycle: ApplicationLifecycle)
+    extends EventStore[F] {
 
   logger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}")
 
@@ -44,9 +45,9 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
   private val actor =
     s.actorOf(DistributedEventsPublisherActor.props(queue, config))
 
-  override def publish(event: IzanamiEvent): Future[Done] = {
+  override def publish(event: IzanamiEvent): F[Done] = {
     actor ! DistributedEventsPublisherActor.Publish(event)
-    FastFuture.successful(Done)
+    Applicative[F].pure(Done)
   }
 
   override def events(domains: Seq[Domain],
@@ -69,7 +70,7 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
     s.terminate()
   }
 
-  override def check(): Future[Unit] = FastFuture.successful(())
+  override def check(): F[Unit] = Applicative[F].pure(())
 }
 
 class CustomSerializer extends SerializerWithStringManifest {

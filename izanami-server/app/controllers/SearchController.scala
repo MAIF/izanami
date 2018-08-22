@@ -5,30 +5,30 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{GraphDSL, Interleave, Sink, Source}
 import akka.stream.{ActorMaterializer, SourceShape}
+import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.abtesting.ExperimentStore
 import domains.config.ConfigStore
-import domains.feature.FeatureStore
+import domains.feature.FeatureService
 import domains.script.GlobalScriptStore
 import domains.webhook.WebhookStore
-import env.Env
 import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import store.{DefaultPagingResult, PagingResult}
 
 import scala.concurrent.Future
 
-class SearchController(env: Env,
-                       configStore: ConfigStore[Future],
-                       featureStore: FeatureStore[Future],
-                       experimentStore: ExperimentStore[Future],
-                       globalScriptStore: GlobalScriptStore[Future],
-                       webhookStore: WebhookStore[Future],
-                       system: ActorSystem,
-                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       cc: ControllerComponents)
+class SearchController[F[_]: Effect](configStore: ConfigStore[F],
+                                     featureStore: FeatureService[F],
+                                     experimentStore: ExperimentStore[F],
+                                     globalScriptStore: GlobalScriptStore[F],
+                                     webhookStore: WebhookStore[F],
+                                     system: ActorSystem,
+                                     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                     cc: ControllerComponents)
     extends AbstractController(cc) {
 
+  import cats.effect.implicits._
   import system.dispatcher
   implicit val mat = ActorMaterializer()(system)
 
@@ -53,6 +53,8 @@ class SearchController(env: Env,
           if (features)
             featureStore
               .getByIdLike(allPatterns, 1, 10)
+              .toIO
+              .unsafeToFuture()
               .source()
               .map(value => Json.obj("type" -> "features", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]
@@ -61,6 +63,8 @@ class SearchController(env: Env,
           if (configs)
             configStore
               .getByIdLike(allPatterns, 1, 10)
+              .toIO
+              .unsafeToFuture()
               .source()
               .map(value => Json.obj("type" -> "configurations", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]
@@ -69,6 +73,8 @@ class SearchController(env: Env,
           if (experiments)
             experimentStore
               .getByIdLike(allPatterns, 1, 10)
+              .toIO
+              .unsafeToFuture()
               .source()
               .map(value => Json.obj("type" -> "experiments", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]
@@ -77,6 +83,8 @@ class SearchController(env: Env,
           if (scripts)
             globalScriptStore
               .getByIdLike(allPatterns, 1, 10)
+              .toIO
+              .unsafeToFuture()
               .source()
               .map(value => Json.obj("type" -> "scripts", "id" -> Json.toJson(value.id)))
           else Source.empty[JsValue]

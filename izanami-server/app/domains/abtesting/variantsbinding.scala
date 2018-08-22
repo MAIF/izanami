@@ -4,6 +4,7 @@ import akka.{Done, NotUsed}
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import cats.Monad
+import cats.effect.Effect
 import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
@@ -43,28 +44,30 @@ case class VariantBinding(variantBindingKey: VariantBindingKey, variantId: Strin
 object VariantBinding {
   implicit val format = Json.format[VariantBinding]
 
-  def importData(
-      variantBindingStore: VariantBindingStore[Future]
+  def importData[F[_]: Effect](
+      variantBindingStore: VariantBindingStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
+    import cats.effect.implicits._
     import store.Result.AppErrors._
 
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[VariantBinding]) }
       .mapAsync(4) {
         case (_, JsSuccess(obj, _)) =>
-          variantBindingStore.create(obj.variantBindingKey, obj) map { ImportResult.fromResult }
+          variantBindingStore.create(obj.variantBindingKey, obj).map { ImportResult.fromResult }.toIO.unsafeToFuture()
         case (s, JsError(_)) =>
           FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }
 
-  def variantFor(experimentKey: ExperimentKey, clientId: String)(
+  def variantFor[F[_]: Effect](experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      experimentStore: ExperimentStore[Future],
-      VariantBindingStore: VariantBindingStore[Future]
-  ): Future[Result[Variant]] =
+      experimentStore: ExperimentStore[F],
+      VariantBindingStore: VariantBindingStore[F]
+  ): F[Result[Variant]] = {
+    import cats.implicits._
     VariantBindingStore
       .getById(VariantBindingKey(experimentKey, clientId))
       .flatMap {
@@ -81,16 +84,19 @@ object VariantBinding {
               Result.error("error.experiment.missing")
           }
       }
+  }
 
-  def createVariantForClient(experimentKey: ExperimentKey, clientId: String)(
+  def createVariantForClient[F[_]: Effect](experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      experimentStore: ExperimentStore[Future],
-      VariantBindingStore: VariantBindingStore[Future]
-  ): Future[Result[Variant]] = {
+      experimentStore: ExperimentStore[F],
+      VariantBindingStore: VariantBindingStore[F]
+  ): F[Result[Variant]] = {
 
     import cats.implicits._
-    import libs.functional.EitherTOps._
     import libs.functional.syntax._
+
+    object OPs extends EitherTSyntax[F]
+    import OPs._
 
     // Each step is an EitherT[Future, StoreError, ?]. EitherT is a monad transformer where map, flatMap, withFilter is implemented for Future[Either[L, R]]
     // something  |> someOp, aim to transform "something" into EitherT[Future, StoreError, ?]

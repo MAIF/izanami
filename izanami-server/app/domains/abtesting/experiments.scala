@@ -5,6 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.Monad
+import cats.effect.Effect
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
 import domains.feature.Feature
@@ -48,37 +49,44 @@ object Experiment {
 
   implicit val format = Json.format[Experiment]
 
-  def importData(
-      experimentStore: ExperimentStore[Future]
+  def importData[F[_]: Effect](
+      experimentStore: ExperimentStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
+    import cats.effect.implicits._
     import store.Result.AppErrors._
 
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[Experiment]) }
       .mapAsync(4) {
         case (_, JsSuccess(obj, _)) =>
-          experimentStore.create(obj.id, obj) map { ImportResult.fromResult }
+          experimentStore
+            .create(obj.id, obj)
+            .map { ImportResult.fromResult }
+            .toIO
+            .unsafeToFuture()
         case (s, JsError(_)) =>
           FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }
 
-  def toGraph(clientId: String)(
+  def toGraph[F[_]: Effect](clientId: String)(
       implicit ec: ExecutionContext,
-      experimentStore: ExperimentStore[Future],
-      variantBindingStore: VariantBindingStore[Future]
+      experimentStore: ExperimentStore[F],
+      variantBindingStore: VariantBindingStore[F]
   ): Flow[Experiment, JsObject, NotUsed] = {
     import VariantBinding._
+    import cats.implicits._
+    import libs.streams.syntax._
     Flow[Experiment]
       .filter(_.enabled)
-      .mapAsyncUnordered(2) { experiment =>
+      .mapAsyncUnorderedF(2) { experiment =>
         variantBindingStore
           .getById(VariantBindingKey(experiment.id, clientId))
           .flatMap {
             case Some(v) =>
-              FastFuture.successful(
+              Effect[F].pure(
                 (experiment.id.jsPath \ "variant")
                   .write[String]
                   .writes(v.variantId)

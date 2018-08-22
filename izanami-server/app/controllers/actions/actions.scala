@@ -23,8 +23,9 @@ case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extend
     authInfo.authorizedPattern.split(",")
 }
 
-class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
-    extends ActionBuilder[AuthContext, AnyContent]
+class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(
+    implicit val executionContext: ExecutionContext
+) extends ActionBuilder[AuthContext, AnyContent]
     with ActionFunction[Request, AuthContext] {
 
   override def invokeBlock[A](request: Request[A], block: (AuthContext[A]) => Future[Result]): Future[Result] = {
@@ -41,8 +42,9 @@ class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(implicit val 
   }
 }
 
-class SecuredAction(val env: Env, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
-    extends ActionBuilder[SecuredAuthContext, AnyContent]
+class SecuredAction(val env: Env, val parser: BodyParser[AnyContent])(
+    implicit val executionContext: ExecutionContext
+) extends ActionBuilder[SecuredAuthContext, AnyContent]
     with ActionFunction[Request, SecuredAuthContext] {
 
   override def invokeBlock[A](request: Request[A], block: (SecuredAuthContext[A]) => Future[Result]): Future[Result] = {

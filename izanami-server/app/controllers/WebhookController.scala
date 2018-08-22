@@ -1,41 +1,39 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
+import cats.effect.{Effect, IO}
 import controllers.actions.SecuredAuthContext
-import domains.user.{User, UserNoPassword}
 import domains.webhook.{Webhook, WebhookStore}
-import domains.{Import, ImportResult, Key}
-import env.Env
+import domains.{Import, Key}
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.{AppErrors, ErrorMessage}
+import store.Result.{AppErrors}
+import libs.functional.EitherTSyntax
 
-import scala.concurrent.Future
-
-class WebhookController(env: Env,
-                        webhookStore: WebhookStore[Future],
-                        system: ActorSystem,
-                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                        cc: ControllerComponents)
-    extends AbstractController(cc) {
+class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
+                                      system: ActorSystem,
+                                      AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                      cc: ControllerComponents)
+    extends AbstractController(cc)
+    with EitherTSyntax[F] {
 
   import AppErrors._
   import cats.implicits._
-  import libs.functional.EitherTOps._
+  import cats.effect.implicits._
+  import libs.http._
   import libs.functional.syntax._
   import system.dispatcher
 
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncF(parse.empty) { ctx =>
       import Webhook._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
 
@@ -56,7 +54,7 @@ class WebhookController(env: Env,
         }
     }
 
-  def create(): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Webhook._
 
     for {
@@ -70,7 +68,7 @@ class WebhookController(env: Env,
 
   }
 
-  def get(id: String): Action[Unit] = AuthAction.async(parse.empty) { ctx =>
+  def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
     import Webhook._
     val key = Key(id)
     for {
@@ -81,7 +79,7 @@ class WebhookController(env: Env,
     } yield Ok(Json.toJson(webhook))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Webhook._
     for {
       webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
@@ -94,7 +92,7 @@ class WebhookController(env: Env,
     } yield Ok(Json.toJson(webhook))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Webhook._
     val key = Key(id)
     for {
@@ -108,7 +106,7 @@ class WebhookController(env: Env,
     } yield Ok(Json.toJson(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     import Webhook._
     val key = Key(id)
     for {
@@ -119,14 +117,14 @@ class WebhookController(env: Env,
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.async { ctx =>
+    AuthAction.asyncEitherT { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       for {
         deletes <- webhookStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
-  def count(): Action[Unit] = AuthAction.async(parse.empty) { ctx =>
+  def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
     webhookStore.count(patterns).map { count =>
       Ok(Json.obj("count" -> count))
@@ -137,7 +135,7 @@ class WebhookController(env: Env,
     val source = webhookStore
       .getByIdLike(ctx.authorizedPatterns)
       .map { case (_, data) => Json.toJson(data) }
-      .map(Json.stringify _)
+      .map(Json.stringify)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(

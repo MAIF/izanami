@@ -1,36 +1,33 @@
 package store
 
 import akka.actor.ActorSystem
+import cats.Applicative
 import domains.Key
 import domains.abtesting.{ExperimentStore, ExperimentVariantEventStore, VariantBindingKey, VariantBindingStore}
 import domains.apikey.ApikeyStore
 import domains.config.ConfigStore
 import domains.events.EventStore
-import domains.feature.FeatureStore
+import domains.feature.FeatureService
 import domains.script.GlobalScriptStore
 import domains.user.UserStore
 import domains.webhook.WebhookStore
 
-import scala.concurrent.Future
-
-class Healthcheck(
-    eventStore: EventStore[Future],
-    globalScriptStore: GlobalScriptStore[Future],
-    configStore: ConfigStore[Future],
-    featureStore: FeatureStore[Future],
-    experimentStore: ExperimentStore[Future],
-    variantBindingStore: VariantBindingStore[Future],
-    experimentVariantEventStore: ExperimentVariantEventStore,
-    webhookStore: WebhookStore[Future],
-    userStore: UserStore[Future],
-    apikeyStore: ApikeyStore[Future]
+class Healthcheck[F[_]: Applicative](
+    eventStore: EventStore[F],
+    globalScriptStore: GlobalScriptStore[F],
+    configStore: ConfigStore[F],
+    featureStore: FeatureService[F],
+    experimentStore: ExperimentStore[F],
+    variantBindingStore: VariantBindingStore[F],
+    experimentVariantEventStore: ExperimentVariantEventStore[F],
+    webhookStore: WebhookStore[F],
+    userStore: UserStore[F],
+    apikeyStore: ApikeyStore[F]
 )(implicit system: ActorSystem) {
 
-  import system.dispatcher
-  import cats._
   import cats.implicits._
 
-  def check(): Future[Unit] = {
+  def check(): F[Unit] = {
     val key = Key("test")
 
     (

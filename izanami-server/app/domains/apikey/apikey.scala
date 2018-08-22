@@ -6,6 +6,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import cats.Monad
 import cats.data.EitherT
+import cats.effect.Effect
 import domains.AuthorizedPattern.AuthorizedPattern
 import domains.abtesting.Experiment.ExperimentKey
 import domains.apikey.Apikey.ApikeyKey
@@ -53,21 +54,19 @@ object Apikey {
   def isAllowed(pattern: String)(auth: Option[AuthInfo]) =
     Key.isAllowed(pattern)(auth)
 
-  def importData(
-      apikeyStore: ApikeyStore[Future]
+  def importData[F[_]: Effect](
+      apikeyStore: ApikeyStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
     import AppErrors._
-
+    import libs.streams.syntax._
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[Apikey]) }
-      .mapAsync(4) {
+      .mapAsyncF(4) {
         case (_, JsSuccess(obj, _)) =>
-          apikeyStore.create(Key(obj.clientId), obj) map {
-            ImportResult.fromResult _
-          }
+          apikeyStore.create(Key(obj.clientId), obj).map { ImportResult.fromResult }
         case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }

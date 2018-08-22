@@ -1,18 +1,20 @@
 package domains.abtesting.impl
 
 import java.io.File
+import java.util.regex.Pattern
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
+import cats.Applicative
+import cats.effect.{Async, Effect}
 import domains.abtesting._
 import domains.events.EventStore
 import env.{DbDomainConfig, LevelDbConfig}
 import org.iq80.leveldb.{DB, Options}
-import org.iq80.leveldb.impl.Iq80DBFactory.factory
+import org.iq80.leveldb.impl.Iq80DBFactory.{asString, bytes, factory}
 import play.api.Logger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
@@ -20,46 +22,53 @@ import store.Result.Result
 import store.Result
 import store.leveldb.LevelDBRedisCommand
 
+import scala.collection.immutable
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
+import scala.util.control.NonFatal
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    LEVEL DB     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventLevelDBStore {
-  def apply(levelDbConfig: LevelDbConfig,
-            configdb: DbDomainConfig,
-            eventStore: EventStore[Future],
-            actorSystem: ActorSystem,
-            applicationLifecycle: ApplicationLifecycle): ExperimentVariantEventLevelDBStore =
-    new ExperimentVariantEventLevelDBStore(levelDbConfig, configdb, eventStore, actorSystem, applicationLifecycle)
+  def apply[F[_]: Effect](levelDbConfig: LevelDbConfig,
+                          configdb: DbDomainConfig,
+                          eventStore: EventStore[F],
+                          actorSystem: ActorSystem,
+                          applicationLifecycle: ApplicationLifecycle): ExperimentVariantEventLevelDBStore[F] =
+    new ExperimentVariantEventLevelDBStore[F](levelDbConfig, configdb, eventStore, actorSystem, applicationLifecycle)
 }
 
-class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
-                                         configdb: DbDomainConfig,
-                                         eventStore: EventStore[Future],
-                                         actorSystem: ActorSystem,
-                                         applicationLifecycle: ApplicationLifecycle)
-    extends ExperimentVariantEventStore {
+class ExperimentVariantEventLevelDBStore[F[_]: Effect](levelDbConfig: LevelDbConfig,
+                                                       configdb: DbDomainConfig,
+                                                       eventStore: EventStore[F],
+                                                       actorSystem: ActorSystem,
+                                                       applicationLifecycle: ApplicationLifecycle)
+    extends ExperimentVariantEventStore[F] {
 
+  import cats.implicits._
+  import cats.effect.implicits._
+  import libs.effects._
   import actorSystem.dispatcher
   import domains.events.Events._
   implicit private val s            = actorSystem
   implicit private val materializer = ActorMaterializer()
   implicit private val es           = eventStore
 
-  private val client: LevelDBRedisCommand = {
-    val namespace  = configdb.conf.namespace
-    val parentPath = levelDbConfig.parentPath
-    val dbPath: String = parentPath + "/" + namespace
-      .replaceAll(":", "_") + "_try_to_use_this_one"
+  val namespace  = configdb.conf.namespace
+  val parentPath = levelDbConfig.parentPath
+  val dbPath: String = parentPath + "/" + namespace
+    .replaceAll(":", "_") + "_try_to_use_this_one"
 
-    val db: DB =
-      factory.open(new File(dbPath), new Options().createIfMissing(true))
-    applicationLifecycle.addStopHook { () =>
-      Logger.info(s"Closing leveldb for path $parentPath")
-      Future(db.close())
-    }
+  val db: DB =
+    factory.open(new File(dbPath), new Options().createIfMissing(true))
+  applicationLifecycle.addStopHook { () =>
+    Logger.info(s"Closing leveldb for path $parentPath")
+    Future(db.close())
+  }
+
+  private val client: LevelDBRedisCommand[F] = {
     new LevelDBRedisCommand(db, actorSystem)
   }
 
@@ -74,7 +83,7 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
       won: Long,
       data: ExperimentVariantEvent,
       function: (ExperimentVariantEvent, Double) => ExperimentVariantEvent
-  )(implicit ec: ExecutionContext): Future[Result[ExperimentVariantEvent]] = {
+  )(implicit ec: ExecutionContext): F[Result[ExperimentVariantEvent]] = {
     val transformation: Double = if (displayed != 0) {
       (won * 100.0) / displayed
     } else {
@@ -91,7 +100,7 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
   }
 
   override def create(id: ExperimentVariantEventKey,
-                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
+                      data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
     // le compteur des displayed
     val displayedCounter: String =
       s"$experimentseventsdisplayedNamespace:${id.experimentId.key}:${id.variantId}"
@@ -128,6 +137,7 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
                               maybeWon.map(_.utf8String.toLong).getOrElse(0),
                               data,
                               transformationDisplayed) // add event
+          _ <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
         } yield result
       case _: ExperimentVariantWon =>
         for {
@@ -138,18 +148,21 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
                               won,
                               data,
                               transformationWon) // add event
+          _ <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
         } yield result
       case _ =>
         Logger.error("Event not recognized")
-        FastFuture.successful(Result.error("unknow.event.type"))
+        Result.error[ExperimentVariantEvent]("unknow.event.type").pure[F]
     }
-  }.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
+  }
 
   private def findEvents(eventVariantKey: String): Source[ExperimentVariantEvent, NotUsed] =
     Source
       .fromFuture(
         client
           .smembers(eventVariantKey)
+          .toIO
+          .unsafeToFuture()
           .map(
             res =>
               res
@@ -168,73 +181,107 @@ class ExperimentVariantEventLevelDBStore(levelDbConfig: LevelDbConfig,
       .mapConcat(identity)
 
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] = {
-    val eventualVariantResult: Future[List[VariantResult]] = for {
+    val eventualVariantResult: F[List[VariantResult]] = for {
       variantKeys <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-      variants <- Future.sequence {
-                   variantKeys.map(
-                     variantKey => {
-                       val currentVariantId: String =
-                         variantKey.replace(s"$experimentseventsNamespace:${experiment.id.key}:", "")
-                       val maybeVariant: Option[Variant] =
-                         experiment.variants.find(variant => {
-                           variant.id == currentVariantId
-                         })
+      variants <- variantKeys.toList.traverse { variantKey =>
+                   val currentVariantId: String =
+                     variantKey.replace(s"$experimentseventsNamespace:${experiment.id.key}:", "")
+                   val maybeVariant: Option[Variant] =
+                     experiment.variants.find(variant => {
+                       variant.id == currentVariantId
+                     })
 
-                       val fEvents: Future[Seq[ExperimentVariantEvent]] = findEvents(variantKey).runWith(Sink.seq)
-                       val fDisplayed: Future[Option[ByteString]] =
-                         client.get(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId")
-                       val fWon: Future[Option[ByteString]] =
-                         client.get(s"$experimentseventswonNamespace:${experiment.id.key}:$currentVariantId")
+                   val fEvents: F[immutable.Seq[ExperimentVariantEvent]] = findEvents(variantKey).runWith(Sink.seq).toF
+                   val fDisplayed: F[Option[ByteString]] =
+                     client.get(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId")
+                   val fWon: F[Option[ByteString]] =
+                     client.get(s"$experimentseventswonNamespace:${experiment.id.key}:$currentVariantId")
 
-                       for {
-                         events         <- fEvents
-                         maybeDisplayed <- fDisplayed
-                         maybeWon       <- fWon
-                       } yield {
-                         val displayed: Long =
-                           maybeDisplayed.map(_.utf8String.toLong).getOrElse(0)
-                         val won: Long = maybeWon.map(_.utf8String.toLong).getOrElse(0)
-                         val transformation: Double = if (displayed != 0) {
-                           (won * 100) / displayed
-                         } else {
-                           0.0
-                         }
-
-                         VariantResult(
-                           variant = maybeVariant,
-                           events = events,
-                           transformation = transformation,
-                           displayed = displayed,
-                           won = won
-                         )
-                       }
+                   for {
+                     events         <- fEvents
+                     maybeDisplayed <- fDisplayed
+                     maybeWon       <- fWon
+                   } yield {
+                     val displayed: Long =
+                       maybeDisplayed.map(_.utf8String.toLong).getOrElse(0)
+                     val won: Long = maybeWon.map(_.utf8String.toLong).getOrElse(0)
+                     val transformation: Double = if (displayed != 0) {
+                       (won * 100) / displayed
+                     } else {
+                       0.0
                      }
-                   )
-                 }
-    } yield variants.toList
 
-    Source.fromFuture(eventualVariantResult).mapConcat(identity)
+                     VariantResult(
+                       variant = maybeVariant,
+                       events = events,
+                       transformation = transformation,
+                       displayed = displayed,
+                       won = won
+                     )
+                   }
+                 }
+    } yield variants
+
+    Source.fromFuture(eventualVariantResult.toIO.unsafeToFuture()).mapConcat(identity)
   }
 
-  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
-    (
-      for {
-        displayedCounterKey <- client.keys(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
-        wonCounterKey       <- client.keys(s"$experimentseventswonNamespace:${experiment.id.key}:*")
-        eventsKey           <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-        _                   <- Future.sequence(displayedCounterKey.map(key => client.del(key))) // remove displayed counter
-        _                   <- Future.sequence(wonCounterKey.map(key => client.del(key))) // remove won counter
-        _                   <- Future.sequence(eventsKey.map(key => client.del(key))) // remove events list
-      } yield Result.ok(Done)
-    ).andPublishEvent(e => ExperimentVariantEventsDeleted(experiment))
+  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
+    for {
+      displayedCounterKey <- client.keys(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
+      wonCounterKey       <- client.keys(s"$experimentseventswonNamespace:${experiment.id.key}:*")
+      eventsKey           <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+      _                   <- displayedCounterKey.toList.traverse(key => client.del(key)) // remove displayed counter
+      _                   <- wonCounterKey.toList.traverse(key => client.del(key)) // remove won counter
+      _                   <- eventsKey.toList.traverse(key => client.del(key)) // remove events list
+      _                   <- eventStore.publish(ExperimentVariantEventsDeleted(experiment))
+    } yield Result.ok(Done)
+
+  private def get(key: String): F[Option[ByteString]] =
+    Async[F].async { cb =>
+      try {
+        val r = getValueAt(key).map(ByteString.apply)
+        cb(Right(r))
+      } catch {
+        case NonFatal(e) => cb(Left(e))
+      }
+    }
+
+  private def keys(pattern: String): F[Seq[String]] =
+    Async[F].async { cb =>
+      val regex = pattern.replaceAll("\\*", ".*")
+      val pat   = Pattern.compile(regex)
+      try {
+        val r = getAllKeys().filter { k =>
+          pat.matcher(k).find
+        }
+        cb(Right(r))
+      } catch {
+        case NonFatal(e) => cb(Left(e))
+      }
+    }
+
+  private def getValueAt(key: String): Option[String] =
+    Try(db.get(bytes(key))).toOption.flatMap(s => Option(asString(s)))
+
+  private def getAllKeys(): Seq[String] = {
+    var keys     = Seq.empty[String]
+    val iterator = db.iterator()
+    iterator.seekToFirst()
+    while (iterator.hasNext) {
+      val key = asString(iterator.peekNext.getKey)
+      keys = keys :+ key
+      iterator.next
+    }
+    keys
+  }
 
   override def listAll(patterns: Seq[String]) =
     Source
-      .fromFuture(client.keys(s"$experimentseventsNamespace:*"))
+      .fromFuture(client.keys(s"$experimentseventsNamespace:*").toIO.unsafeToFuture())
       .mapConcat(_.toList)
       .flatMapMerge(4, key => findEvents(key))
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
-  override def check(): Future[Unit] = FastFuture.successful(())
+  override def check(): F[Unit] = Applicative[F].pure(())
 
 }

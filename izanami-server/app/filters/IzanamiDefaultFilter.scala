@@ -2,6 +2,7 @@ package filters
 
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.Materializer
+import cats.effect.Effect
 import com.auth0.jwt._
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces._
@@ -17,14 +18,16 @@ import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util._
 
-class IzanamiDefaultFilter(env: Env,
-                           izanamiConfig: IzanamiConfig,
-                           config: DefaultFilter,
-                           apikeyConfig: ApikeyConfig,
-                           apikeyStore: ApikeyStore[Future])(
+class IzanamiDefaultFilter[F[_]: Effect](env: Env,
+                                         izanamiConfig: IzanamiConfig,
+                                         config: DefaultFilter,
+                                         apikeyConfig: ApikeyConfig,
+                                         apikeyStore: ApikeyStore[F])(
     implicit ec: ExecutionContext,
     val mat: Materializer
 ) extends Filter {
+
+  import cats.effect.implicits._
 
   private val logger = Logger("filter")
 
@@ -72,6 +75,8 @@ class IzanamiDefaultFilter(env: Env,
       case ("prod", Some(clientId), Some(clientSecret), _) =>
         apikeyStore
           .getById(Key(clientId))
+          .toIO
+          .unsafeToFuture()
           .map { mayBeKey =>
             Logger.debug(s"$mayBeKey: ${apikeyConfig.keys}")
             mayBeKey

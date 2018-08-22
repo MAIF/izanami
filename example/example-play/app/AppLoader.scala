@@ -46,11 +46,11 @@ object modules {
     private lazy val izanamiClient: IzanamiClient = wire[IzanamiClient]
 
     private lazy val featureClient: FeatureClient = mode match {
-//      case Dev =>
-//        izanamiClient.featureClient(
-//          DevStrategy,
-//          Features.parseJson(appConfig.izanami.fallback.features)
-//        )
+      case Dev =>
+        izanamiClient.featureClient(
+          DevStrategy,
+          Features.parseJson(appConfig.izanami.fallback.features)
+        )
       case _ =>
         izanamiClient.featureClient(
           CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
