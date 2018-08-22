@@ -5,6 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import cats.Monad
 import cats.data.EitherT
+import cats.effect.Effect
 import com.auth0.jwt.interfaces.DecodedJWT
 import domains.events.EventStore
 import domains.user.User.UserKey
@@ -113,19 +114,20 @@ object User {
       User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = AuthorizedPattern(patterns))
   }
 
-  def importData(
-      userStore: UserStore[Future]
+  def importData[F[_]: Effect](
+      userStore: UserStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
+    import libs.streams.syntax._
     import store.Result.AppErrors._
 
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, UserNoPassword.format.reads(json)) }
-      .mapAsync(4) {
+      .mapAsyncF(4) {
         case (_, JsSuccess(obj, _)) =>
           userStore.create(Key(obj.id), obj) map { ImportResult.fromResult }
         case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }

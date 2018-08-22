@@ -2,10 +2,10 @@ package domains.events.impl
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.kafka.{ConsumerSettings, ManualSubscription, Subscriptions}
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
+import cats.effect.Async
 import domains.Domain.Domain
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
@@ -18,7 +18,6 @@ import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeseria
 import play.api.{Environment, Logger}
 import play.api.libs.json.Json
 
-import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
@@ -86,11 +85,11 @@ object KafkaSettings {
   }
 }
 
-class KafkaEventStore(_env: Environment,
-                      system: ActorSystem,
-                      clusterConfig: KafkaConfig,
-                      eventsConfig: KafkaEventsConfig)
-    extends EventStore[Future] {
+class KafkaEventStore[F[_]: Async](_env: Environment,
+                                   system: ActorSystem,
+                                   clusterConfig: KafkaConfig,
+                                   eventsConfig: KafkaEventsConfig)
+    extends EventStore[F] {
 
   import scala.collection.JavaConverters._
   import system.dispatcher
@@ -112,19 +111,22 @@ class KafkaEventStore(_env: Environment,
   private val partitions: mutable.Buffer[PartitionInfo]   = tmpConsumer.partitionsFor(eventsConfig.topic).asScala
   tmpConsumer.close()
 
-  override def publish(event: IzanamiEvent): Future[Done] = {
-    val promise: Promise[RecordMetadata] = Promise[RecordMetadata]
-    try {
-      val message = Json.stringify(event.toJson)
-      producer.send(new ProducerRecord[Array[Byte], String](eventsConfig.topic, event.key.key.getBytes, message),
-                    callback(promise))
-    } catch {
-      case NonFatal(e) =>
-        promise.failure(e)
-    }
-    promise.future.map { _ =>
-      Done
-    }
+  override def publish(event: IzanamiEvent): F[Done] = {
+    import cats.implicits._
+    Async[F]
+      .async[Done] { cb =>
+        try {
+          val message = Json.stringify(event.toJson)
+          producer.send(new ProducerRecord[Array[Byte], String](eventsConfig.topic, event.key.key.getBytes, message),
+                        callback(cb))
+        } catch {
+          case NonFatal(e) =>
+            cb(Left(e))
+        }
+      }
+      .map { _ =>
+        Done
+      }
   }
 
   override def events(domains: Seq[Domain],
@@ -180,21 +182,21 @@ class KafkaEventStore(_env: Environment,
   override def close() =
     producer.close()
 
-  private def callback(promise: Promise[RecordMetadata]) = new Callback {
+  private def callback(cb: Either[Throwable, Done] => Unit) = new Callback {
     override def onCompletion(metadata: RecordMetadata, exception: Exception) =
       if (exception != null) {
-        promise.failure(exception)
+        cb(Left(exception))
       } else {
-        promise.success(metadata)
+        cb(Right(Done))
       }
   }
 
-  override def check(): Future[Unit] =
-    Future {
+  override def check(): F[Unit] =
+    Async[F].async { cb =>
       val consumer = KafkaSettings.consumerSettings(_env, system, clusterConfig).createKafkaConsumer()
       consumer.partitionsFor(eventsConfig.topic)
       consumer.close()
-      ()
-    }(system.dispatchers.lookup("izanami.blocking-dispatcher"))
+      cb(Right(()))
+    } //(system.dispatchers.lookup("izanami.blocking-dispatcher"))
 
 }

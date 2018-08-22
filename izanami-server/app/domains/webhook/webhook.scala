@@ -7,6 +7,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import cats.Monad
 import cats.data.EitherT
+import cats.effect.Effect
 import domains.Domain.Domain
 import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
@@ -57,19 +58,20 @@ object Webhook {
   def isAllowed(key: WebhookKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
 
-  def importData(
-      webhookStore: WebhookStore[Future]
+  def importData[F[_]: Effect](
+      webhookStore: WebhookStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
     import store.Result.AppErrors._
+    import libs.streams.syntax._
 
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[Webhook]) }
-      .mapAsync(4) {
+      .mapAsyncF(4) {
         case (_, JsSuccess(obj, _)) =>
-          webhookStore.create(obj.clientId, obj) map { ImportResult.fromResult }
+          webhookStore.create(obj.clientId, obj).map { ImportResult.fromResult }
         case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }

@@ -5,11 +5,11 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
+import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.script.GlobalScript
 import domains.user.{User, UserNoPassword, UserStore}
 import domains.{Import, ImportResult, Key}
-import env.Env
+import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
@@ -19,21 +19,21 @@ import store.Result.{AppErrors, ErrorMessage}
 
 import scala.concurrent.Future
 
-class UserController(env: Env,
-                     userStore: UserStore[Future],
-                     system: ActorSystem,
-                     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                     val cc: ControllerComponents)
-    extends AbstractController(cc) {
+class UserController[F[_]: Effect](userStore: UserStore[F],
+                                   system: ActorSystem,
+                                   AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                   val cc: ControllerComponents)
+    extends AbstractController(cc)
+    with EitherTSyntax[F] {
 
   import cats.implicits._
-  import libs.functional.EitherTOps._
   import libs.functional.syntax._
   import system.dispatcher
+  import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] = AuthAction.async { ctx =>
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] = AuthAction.asyncF { ctx =>
     import UserNoPassword._
     val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
     userStore
@@ -53,7 +53,7 @@ class UserController(env: Env,
       }
   }
 
-  def create(): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import UserNoPassword._
     for {
       user  <- ctx.request.body.validate[User] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
@@ -63,7 +63,7 @@ class UserController(env: Env,
 
   }
 
-  def get(id: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def get(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     import UserNoPassword._
     val key = Key(id)
     for {
@@ -71,7 +71,7 @@ class UserController(env: Env,
     } yield Ok(Json.toJson(user))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import UserNoPassword._
     for {
       user  <- ctx.request.body.validate[User] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
@@ -80,7 +80,7 @@ class UserController(env: Env,
     } yield Ok(Json.toJson(user))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import User._
     val key = Key(id)
     for {
@@ -94,7 +94,7 @@ class UserController(env: Env,
     } yield Ok(UserNoPassword.format.writes(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     import UserNoPassword._
     val key = Key(id)
     for {
@@ -105,14 +105,14 @@ class UserController(env: Env,
   }
 
   def deleteAll(patterns: String): Action[AnyContent] =
-    AuthAction.async { ctx =>
+    AuthAction.asyncEitherT { ctx =>
       val allPatterns = ctx.authorizedPatterns :+ patterns
       for {
         deletes <- userStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
-  def count(): Action[AnyContent] = AuthAction.async { ctx =>
+  def count(): Action[AnyContent] = AuthAction.asyncF { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
     userStore.count(patterns).map { count =>
       Ok(Json.obj("count" -> count))
@@ -123,7 +123,7 @@ class UserController(env: Env,
     val source = userStore
       .getByIdLike(ctx.authorizedPatterns)
       .map { case (_, data) => Json.toJson(data) }
-      .map(Json.stringify _)
+      .map(Json.stringify)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
     Result(

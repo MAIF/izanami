@@ -1,40 +1,37 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import controllers.actions.{AuthContext, SecuredAuthContext}
-import domains.{Import, ImportResult, Key}
+import cats.effect.Effect
+import controllers.actions.SecuredAuthContext
 import domains.apikey.{Apikey, ApikeyStore}
-import env.Env
+import domains.{Import, Key}
+import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.{AppErrors, ErrorMessage}
+import store.Result.AppErrors
 
-import scala.concurrent.Future
-
-class ApikeyController(env: Env,
-                       apikeyStore: ApikeyStore[Future],
-                       system: ActorSystem,
-                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       val cc: ControllerComponents)
-    extends AbstractController(cc) {
+class ApikeyController[F[_]: Effect](apikeyStore: ApikeyStore[F],
+                                     system: ActorSystem,
+                                     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                     val cc: ControllerComponents)
+    extends AbstractController(cc)
+    with EitherTSyntax[F] {
 
   import cats.implicits._
-  import libs.functional.EitherTOps._
   import libs.functional.syntax._
+  import libs.http._
   import system.dispatcher
-  import AppErrors._
 
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
-    AuthAction.async { ctx =>
+    AuthAction.asyncF[F] { ctx =>
       import Apikey._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
 
@@ -55,7 +52,7 @@ class ApikeyController(env: Env,
         }
     }
 
-  def create(): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Apikey._
 
     for {
@@ -66,26 +63,30 @@ class ApikeyController(env: Env,
 
   }
 
-  def get(id: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def get(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     import Apikey._
+
     val key = Key(id)
     for {
       apikey <- apikeyStore.getById(key) |> liftFOption[Result, Apikey](NotFound)
       _      <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
     } yield Ok(Json.toJson(apikey))
+
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Apikey._
+
     for {
       apikey <- ctx.request.body.validate[Apikey] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
       _      <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       event <- apikeyStore
                 .update(Key(id), Key(apikey.clientId), apikey) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(apikey))
+
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Apikey._
     val key = Key(id)
     for {
@@ -97,9 +98,10 @@ class ApikeyController(env: Env,
       event <- apikeyStore
                 .update(key, Key(current.clientId), updated) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(updated))
+
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     import Apikey._
     val key = Key(id)
     for {
@@ -107,17 +109,20 @@ class ApikeyController(env: Env,
       _       <- apikey.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
       deleted <- apikeyStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(apikey))
+
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.async { ctx =>
+    AuthAction.asyncEitherT { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
+
       for {
         deletes <- apikeyStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
+
     }
 
-  def count(): Action[AnyContent] = AuthAction.async { ctx =>
+  def count(): Action[AnyContent] = AuthAction.asyncF[F] { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
     apikeyStore.count(patterns).map { count =>
       Ok(Json.obj("count" -> count))

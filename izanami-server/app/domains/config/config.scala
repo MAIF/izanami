@@ -5,6 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import cats.Monad
 import cats.data.EitherT
+import cats.effect.Effect
 import domains.config.Config.ConfigKey
 import domains.events.EventStore
 import domains.{AuthInfo, ImportResult, Key}
@@ -31,19 +32,20 @@ object Config {
 
   def isAllowed(key: Key)(auth: Option[AuthInfo]) = Key.isAllowed(key)(auth)
 
-  def importData(
-      configStore: ConfigStore[Future]
+  def importData[F[_]: Effect](
+      configStore: ConfigStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
+    import libs.streams.syntax._
     import store.Result.AppErrors._
 
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[Config]) }
-      .mapAsync(4) {
+      .mapAsyncF(4) {
         case (_, JsSuccess(obj, _)) =>
-          configStore.create(obj.id, obj) map { ImportResult.fromResult }
+          configStore.create(obj.id, obj).map { ImportResult.fromResult }
         case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }

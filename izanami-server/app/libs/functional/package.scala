@@ -18,11 +18,6 @@ package object functional {
       def |>[Out](f: In => Out): Out = f(in)
 
     }
-    implicit def mergePlayResult[L <: Result, R <: Result](value: EitherT[Future, L, R])(
-        implicit ec: ExecutionContext
-    ): Future[Result] = value.value.map(_.merge)
-    implicit def mergeResult[A](value: EitherT[Future, A, A])(implicit ec: ExecutionContext): Future[A] =
-      value.value.map(_.merge)
   }
 
   trait EitherTSyntax[F[_]] {

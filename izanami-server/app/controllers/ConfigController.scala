@@ -5,11 +5,13 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
+import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.apikey.Apikey
 import domains.config.{Config, ConfigStore}
 import domains.{Import, ImportResult, Key}
 import env.Env
+import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
@@ -19,23 +21,23 @@ import store.Result.{AppErrors, ErrorMessage}
 
 import scala.concurrent.Future
 
-class ConfigController(env: Env,
-                       configStore: ConfigStore[Future],
-                       system: ActorSystem,
-                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       val cc: ControllerComponents)
-    extends AbstractController(cc) {
+class ConfigController[F[_]: Effect](configStore: ConfigStore[F],
+                                     system: ActorSystem,
+                                     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                     val cc: ControllerComponents)
+    extends AbstractController(cc)
+    with EitherTSyntax[F] {
 
   import cats.implicits._
-  import libs.functional.EitherTOps._
   import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
+  import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncF(parse.empty) { ctx =>
       import Config._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
       configStore
@@ -72,7 +74,7 @@ class ConfigController(env: Env,
         .runWith(Sink.head)
     }
 
-  def create(): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Config._
 
     for {
@@ -83,7 +85,7 @@ class ConfigController(env: Env,
 
   }
 
-  def get(id: String): Action[Unit] = AuthAction.async(parse.empty) { ctx =>
+  def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
     import Config._
     val key = Key(id)
     for {
@@ -94,7 +96,7 @@ class ConfigController(env: Env,
     } yield Ok(Json.toJson(config))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Config._
     for {
       config <- ctx.request.body.validate[Config] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
@@ -103,7 +105,7 @@ class ConfigController(env: Env,
     } yield Ok(Json.toJson(config))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.async(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
     import Config._
     val key = Key(id)
     for {
@@ -117,7 +119,7 @@ class ConfigController(env: Env,
     } yield Ok(Json.toJson(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.async { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
     import Config._
     val key = Key(id)
     for {
@@ -128,14 +130,14 @@ class ConfigController(env: Env,
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.async { ctx =>
+    AuthAction.asyncEitherT { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       for {
         deletes <- configStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
-  def count(): Action[AnyContent] = AuthAction.async { ctx =>
+  def count(): Action[AnyContent] = AuthAction.asyncF { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
     configStore.count(patterns).map { count =>
       Ok(Json.obj("count" -> count))

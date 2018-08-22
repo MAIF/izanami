@@ -9,8 +9,7 @@ import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 
-class BackOfficeController(_env: Env,
-                           AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+class BackOfficeController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                            system: ActorSystem,
                            cc: ControllerComponents)
     extends AbstractController(cc) {

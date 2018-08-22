@@ -9,6 +9,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import cats.Monad
 import cats.data.EitherT
+import cats.effect.{Async, Effect}
 import domains.events.EventStore
 import domains.events.Events.{GlobalScriptCreated, IzanamiEvent}
 import domains.script.GlobalScript.GlobalScriptKey
@@ -36,13 +37,9 @@ case class ScriptExecutionContext(actorSystem: ActorSystem) extends ExecutionCon
 }
 
 case class Script(script: String) {
-  def run(context: JsObject, env: Env): Future[Boolean] = {
+  def run[F[_]: Async](context: JsObject, env: Env): F[Boolean] = {
     import env.scriptExecutionContext
-    val exec: Future[Boolean] = Script.executeScript(script, context, env)
-    exec.onComplete {
-      case Failure(e) => Logger.error("Error executing script", e)
-      case _          =>
-    }
+    val exec: F[Boolean] = Script.executeScript[F](script, context, env)
     exec
   }
 }
@@ -55,30 +52,25 @@ object Script {
   }
   implicit val format: Format[Script] = Format(reads, writes)
 
-  def executeScript(script: String, context: JsObject, env: Env)(
+  def executeScript[F[_]: Async](script: String, context: JsObject, env: Env)(
       implicit ec: ScriptExecutionContext
-  ): Future[Boolean] = {
+  ): F[Boolean] = {
     val engineManager: ScriptEngineManager = new ScriptEngineManager
     val engine = engineManager
       .getEngineByName("nashorn")
       .asInstanceOf[ScriptEngine with Invocable]
-    val reference = Promise[Boolean]()
-    Future {
+    //val reference = Promise[Boolean]()
+    Async[F].async { cb =>
       engine.eval(script)
-      val enabled                                   = () => reference.trySuccess(true)
-      val disabled                                  = () => reference.trySuccess(false)
+      val enabled                                   = () => cb(Right(true))
+      val disabled                                  = () => cb(Right(false))
       val contextMap: java.util.Map[String, AnyRef] = jsObjectToMap(context)
       Try {
-        engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env, reference))
+        engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env, cb))
       } recover {
-        case e => reference.failure(e)
+        case e => cb(Left(e))
       }
-    }(ec).onComplete {
-      case Failure(e) => reference.failure(e)
-      case _          =>
     }
-
-    reference.future
   }
 
   private def jsObjectToMap(jsObject: JsObject): java.util.Map[String, AnyRef] = {
@@ -101,7 +93,7 @@ object Script {
 
 }
 
-class HttpClient(env: Env, promise: Promise[Boolean])(implicit ec: ScriptExecutionContext) {
+class HttpClient[F[_]](env: Env, promise: Either[Throwable, Boolean] => Unit)(implicit ec: ScriptExecutionContext) {
   def call(optionsMap: java.util.Map[String, AnyRef], callback: BiConsumer[String, String]): Unit = {
     import play.api.libs.ws.JsonBodyWritables._
 
@@ -135,17 +127,16 @@ class HttpClient(env: Env, promise: Promise[Boolean])(implicit ec: ScriptExecuti
         Try {
           callback.accept(null, response.body)
         }.recover {
-          case e => promise.failure(e)
+          case e => promise(Left(e))
         }
       case Failure(e) =>
         Logger.debug(s"Script call $url, method=[$method], headers: $headers, body=[$body], call failed", e)
         Try {
           callback.accept(e.getMessage, null)
         }.recover {
-          case e => promise.failure(e)
+          case e => promise(Left(e))
         }
     }
-
   }
 }
 
@@ -162,19 +153,20 @@ object GlobalScript {
 
   implicit val format = Json.format[GlobalScript]
 
-  def importData(
-      globalScriptStore: GlobalScriptStore[Future]
+  def importData[F[_]: Effect](
+      globalScriptStore: GlobalScriptStore[F]
   )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._
+    import libs.streams.syntax._
     import store.Result.AppErrors._
 
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[GlobalScript]) }
-      .mapAsync(4) {
+      .mapAsyncF(4) {
         case (_, JsSuccess(obj, _)) =>
           globalScriptStore.create(obj.id, obj) map { ImportResult.fromResult }
         case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
   }

@@ -6,11 +6,13 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
-import cats.Monad
+import cats.effect.{Async, Effect}
+import cats.{Applicative, Monad}
 import domains.events.EventStore
 import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureType._
-import domains.script.{GlobalScript, Script}
+import domains.feature.IsActive.FeatureActive
+import domains.script.{GlobalScript, GlobalScriptStore, Script}
 import domains.{AuthInfo, ImportResult, Key}
 import env.Env
 import libs.functional.EitherTSyntax
@@ -33,12 +35,18 @@ sealed trait Feature {
 
   def isAllowed = Key.isAllowed(id) _
 
-  def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
-    FastFuture.successful(Result.ok(true))
-
   def toJson(active: Boolean) =
     Json.toJson(this).as[JsObject] ++ Json.obj("active" -> active)
 
+}
+
+trait IsActive[F[_], A <: Feature] {
+  def isActive(feature: A, context: JsObject, env: Env): F[Result[Boolean]]
+}
+
+object IsActive {
+  type FeatureActive[F[_]] = IsActive[F, Feature]
+  def apply[F[_]](implicit A: IsActive[F, Feature]): IsActive[F, Feature] = A
 }
 
 /* *************************************************
@@ -67,20 +75,18 @@ object DefaultFeature {
     }
 
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
+
+  def isActive[F[_]: Applicative]: IsActive[F, DefaultFeature] = new IsActive[F, DefaultFeature] {
+    override def isActive(feature: DefaultFeature, context: JsObject, env: Env): F[Result[Boolean]] =
+      Applicative[F].pure(Result.ok(true))
+  }
 }
 
 /* *************************************************
  ************** GLOBAL SCRIPT FEATURE **************
  ***************************************************/
 
-case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
-    env.globalScriptStore.getById(Key(ref)).flatMap {
-      case Some(gs: GlobalScript) =>
-        gs.source.run(context, env).map(Result.ok)
-      case None => FastFuture.successful(Result.error("script.not.found"))
-    }
-}
+case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String) extends Feature
 
 object GlobalScriptFeature {
 
@@ -103,17 +109,25 @@ object GlobalScriptFeature {
 
   implicit val format: Format[GlobalScriptFeature] = Format(reads, writes)
 
+  def isActive[F[_]: Async](implicit gs: GlobalScriptStore[F]): IsActive[F, GlobalScriptFeature] =
+    new IsActive[F, GlobalScriptFeature] {
+      import cats.implicits._
+      override def isActive(feature: GlobalScriptFeature, context: JsObject, env: Env): F[Result[Boolean]] =
+        gs.getById(Key(feature.ref)).flatMap {
+          case Some(gs: GlobalScript) =>
+            gs.source.run(context, env).map(Result.ok)
+          case None =>
+            Async[F].pure(Result.error("script.not.found"))
+        }
+    }
+
 }
 
 /* *************************************************
  ****************** SCRIPT FEATURE *****************
  ***************************************************/
 
-case class ScriptFeature(id: FeatureKey, enabled: Boolean, script: Script) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
-    script.run(context, env).map(Result.ok)
-
-}
+case class ScriptFeature(id: FeatureKey, enabled: Boolean, script: Script) extends Feature
 
 object ScriptFeature {
 
@@ -136,19 +150,18 @@ object ScriptFeature {
 
   implicit val format: Format[ScriptFeature] = Format(reads, writes)
 
+  def isActive[F[_]: Async]: IsActive[F, ScriptFeature] = new IsActive[F, ScriptFeature] {
+    import cats.implicits._
+    override def isActive(feature: ScriptFeature, context: JsObject, env: Env): F[Result[Boolean]] =
+      feature.script.run(context, env).map(Result.ok)
+  }
 }
 
 /* *************************************************
  *************** DATE RANGE FEATURE ****************
  ***************************************************/
 
-case class DateRangeFeature(id: FeatureKey, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
-    val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-    val active             = (now.isAfter(from) || now.isEqual(from)) && (now.isBefore(to) || now.isEqual(to))
-    FastFuture.successful(Result.ok(active))
-  }
-}
+case class DateRangeFeature(id: FeatureKey, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature
 
 object DateRangeFeature {
   import play.api.libs.functional.syntax._
@@ -178,18 +191,25 @@ object DateRangeFeature {
   }
 
   implicit val format: Format[DateRangeFeature] = Format(reads, writes)
+
+  def isActive[F[_]: Applicative]: IsActive[F, DateRangeFeature] = new IsActive[F, DateRangeFeature] {
+    import cats.implicits._
+    override def isActive(feature: DateRangeFeature, context: JsObject, env: Env): F[Result[Boolean]] = {
+      val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
+      val active = (now.isAfter(feature.from) || now.isEqual(feature.from)) && (now.isBefore(feature.to) || now.isEqual(
+        feature.to
+      ))
+      Result.ok(active).pure[F]
+    }
+  }
+
 }
 
 /* *************************************************
  ************** RELEASE DATE FEATURE ***************
  ***************************************************/
 
-case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, date: LocalDateTime) extends Feature {
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] = {
-    val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-    FastFuture.successful(Result.ok(now.isAfter(date)))
-  }
-}
+case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, date: LocalDateTime) extends Feature
 
 object ReleaseDateFeature {
   import play.api.libs.functional.syntax._
@@ -219,29 +239,21 @@ object ReleaseDateFeature {
   }
 
   implicit val format: Format[ReleaseDateFeature] = Format(reads, writes)
+
+  def isActive[F[_]: Applicative]: IsActive[F, ReleaseDateFeature] = new IsActive[F, ReleaseDateFeature] {
+    import cats.implicits._
+    override def isActive(feature: ReleaseDateFeature, context: JsObject, env: Env): F[Result[Boolean]] = {
+      val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
+      Result.ok(now.isAfter(feature.date)).pure[F]
+    }
+  }
 }
 
 /* *************************************************
  *************** PERCENTAGE FEATURE ****************
  ***************************************************/
 
-case class PercentageFeature(id: FeatureKey, enabled: Boolean, percentage: Int) extends Feature {
-
-  override def isActive(context: JsObject, env: Env)(implicit ec: ExecutionContext): Future[Result[Boolean]] =
-    ((context \ "id").asOpt[String], enabled) match {
-      case (Some(theId), true) =>
-        val hash: Int = Math.abs(MurmurHash3.stringHash(theId))
-        if (hash % 100 < percentage) {
-          FastFuture.successful(Result.ok(true))
-        } else {
-          FastFuture.successful(Result.ok(false))
-        }
-      case (None, true) =>
-        FastFuture.successful(Result.error("context.id.missing"))
-      case _ =>
-        FastFuture.successful(Result.ok(false))
-    }
-}
+case class PercentageFeature(id: FeatureKey, enabled: Boolean, percentage: Int) extends Feature
 
 object PercentageFeature {
   import play.api.libs.functional.syntax._
@@ -262,6 +274,24 @@ object PercentageFeature {
   }
 
   implicit val format: Format[PercentageFeature] = Format(reads, writes)
+
+  def isActive[F[_]: Applicative]: IsActive[F, PercentageFeature] = new IsActive[F, PercentageFeature] {
+    import cats.implicits._
+    override def isActive(feature: PercentageFeature, context: JsObject, env: Env): F[Result[Boolean]] =
+      ((context \ "id").asOpt[String], feature.enabled) match {
+        case (Some(theId), true) =>
+          val hash: Int = Math.abs(MurmurHash3.stringHash(theId))
+          if (hash % 100 < feature.percentage) {
+            Result.ok(true).pure[F]
+          } else {
+            Result.ok(false).pure[F]
+          }
+        case (None, true) =>
+          Result.error[Boolean]("context.id.missing").pure[F]
+        case _ =>
+          Result.ok(false).pure[F]
+      }
+  }
 }
 
 /* *************************************************
@@ -288,18 +318,21 @@ object Feature {
   def isAllowed(key: FeatureKey)(auth: Option[AuthInfo]) =
     Key.isAllowed(key)(auth)
 
-  def importData(
-      featureStore: FeatureStore[Future]
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] =
+  def importData[F[_]: Effect](
+      featureStore: FeatureService[F]
+  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import libs.streams.syntax._
     Flow[(String, JsValue)]
       .map { case (s, json) => (s, json.validate[Feature]) }
-      .mapAsync(4) {
+      .mapAsyncF(4) {
         case (_, JsSuccess(obj, _)) =>
-          featureStore.create(obj.id, obj).map(ImportResult.fromResult)
+          featureStore.create(obj.id, obj).map(ImportResult.fromResult _)
         case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
       }
       .fold(ImportResult()) { _ |+| _ }
+  }
 
   def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] { feature =>
     val path = feature.id.segments.foldLeft[JsPath](JsPath) { (path, seq) =>
@@ -309,33 +342,59 @@ object Feature {
     writer.writes(active)
   }
 
-  def withActive(context: JsObject,
-                 env: Env)(implicit ec: ExecutionContext): Flow[Feature, (Boolean, Feature), NotUsed] =
+  implicit def isActive[F[_]: Effect](implicit gs: GlobalScriptStore[F]): IsActive[F, Feature] =
+    new IsActive[F, Feature] {
+      override def isActive(feature: Feature, context: JsObject, env: Env): F[Result[Boolean]] =
+        feature match {
+          case f: DefaultFeature      => DefaultFeature.isActive[F].isActive(f, context, env)
+          case f: GlobalScriptFeature => GlobalScriptFeature.isActive[F].isActive(f, context, env)
+          case f: ScriptFeature       => ScriptFeature.isActive[F].isActive(f, context, env)
+          case f: DateRangeFeature    => DateRangeFeature.isActive[F].isActive(f, context, env)
+          case f: ReleaseDateFeature  => ReleaseDateFeature.isActive[F].isActive(f, context, env)
+          case f: PercentageFeature   => PercentageFeature.isActive[F].isActive(f, context, env)
+        }
+    }
+
+  def withActive[F[_]: Effect](context: JsObject, env: Env)(
+      implicit ec: ExecutionContext,
+      isActive: IsActive[F, Feature]
+  ): Flow[Feature, (Boolean, Feature), NotUsed] = {
+    import cats.implicits._
     Flow[Feature]
       .mapAsyncUnordered(2) { feature =>
-        feature
-          .isActive(context, env)
-          .map {
-            case Right(active) => (active && feature.enabled, feature)
-            case Left(_)       => (false, feature)
-          }
+        import cats.effect.implicits._
+        isActive
+          .isActive(feature, context, env)
+          .map(
+            _.map(act => (act && feature.enabled, feature))
+              .getOrElse((false, feature))
+          )
+          .toIO
+          .unsafeToFuture()
           .recover {
             case _ => (false, feature)
           }
       }
+  }
 
-  def flat(context: JsObject, env: Env)(implicit ec: ExecutionContext): Flow[Feature, JsValue, NotUsed] =
+  def flat[F[_]: Effect](
+      context: JsObject,
+      env: Env
+  )(implicit ec: ExecutionContext, isActive: IsActive[F, Feature]): Flow[Feature, JsValue, NotUsed] =
     Flow[Feature]
-      .via(withActive(context, env))
+      .via(withActive[F](context, env))
       .map {
         case (active, f) => f.toJson(active)
       }
       .fold(Seq.empty[JsValue]) { _ :+ _ }
       .map(JsArray(_))
 
-  def toGraph(context: JsObject, env: Env)(implicit ec: ExecutionContext): Flow[Feature, JsObject, NotUsed] =
+  def toGraph[F[_]: Effect](context: JsObject, env: Env)(
+      implicit ec: ExecutionContext,
+      isActive: IsActive[F, Feature]
+  ): Flow[Feature, JsObject, NotUsed] =
     Flow[Feature]
-      .via(withActive(context, env))
+      .via(withActive[F](context, env))
       .map {
         case (active, f) => Feature.graphWrites(active).writes(f)
       }
@@ -343,8 +402,10 @@ object Feature {
         acc.deepMerge(js.as[JsObject])
       }
 
-  def tree(flatRepr: Boolean)(context: JsObject,
-                              env: Env)(implicit ec: ExecutionContext): Flow[Feature, JsValue, NotUsed] =
+  def tree[F[_]: Effect](
+      flatRepr: Boolean
+  )(context: JsObject, env: Env)(implicit ec: ExecutionContext,
+                                 isActive: IsActive[F, Feature]): Flow[Feature, JsValue, NotUsed] =
     if (flatRepr) flat(context, env)
     else toGraph(context, env)
 
@@ -388,19 +449,42 @@ object Feature {
 
 }
 
-trait FeatureStore[F[_]] extends DataStore[F, FeatureKey, Feature]
+trait FeatureService[F[_]] {
+  def create(id: Key, data: Feature): F[Result[Feature]]
+  def update(oldId: Key, id: Key, data: Feature): F[Result[Feature]]
+  def delete(id: Key): F[Result[Feature]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def getById(id: Key): F[Option[Feature]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Feature]]
+  def getByIdLike(patterns: Seq[String]): Source[(Key, Feature), NotUsed]
+  def count(patterns: Seq[String]): F[Long]
+  def getByIdLikeActive(env: Env,
+                        context: JsObject,
+                        patterns: Seq[String],
+                        page: Int,
+                        nbElementPerPage: Int): F[PagingResult[(Feature, Boolean)]]
+  def getByIdActive(env: Env, context: JsObject, id: FeatureKey): F[Option[(Feature, Boolean)]]
 
-class FeatureStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F])(
-    implicit system: ActorSystem
-) extends FeatureStore[F]
+  def getFeatureTree(patterns: Seq[String], flat: Boolean, context: JsObject, env: Env)(
+      implicit ec: ExecutionContext
+  ): Source[JsValue, NotUsed]
+}
+
+class FeatureServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
+                                       eventStore: EventStore[F],
+                                       globalScriptStore: GlobalScriptStore[F])
+    extends FeatureService[F]
     with EitherTSyntax[F] {
 
   import Feature._
   import cats.data._
+  import cats.syntax._
   import cats.implicits._
   import domains.events.Events._
   import libs.functional.syntax._
   import store.Result._
+
+  implicit val gs = globalScriptStore
 
   override def create(id: FeatureKey, data: Feature): F[Result[Feature]] = {
     // format: off
@@ -449,10 +533,41 @@ class FeatureStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Eve
       .getById(id)
       .map(_.flatMap(_.validate[Feature].asOpt))
 
+  override def getByIdActive(env: Env, context: JsObject, id: FeatureKey): F[Option[(Feature, Boolean)]] =
+    getById(id).flatMap { f =>
+      f.traverse { f =>
+        isActive.isActive(f, context, env).map { active =>
+          (f, active.getOrElse(false))
+        }
+      }
+    }
+
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Feature]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
+
+  override def getByIdLikeActive(
+      env: Env,
+      context: JsObject,
+      patterns: Seq[String],
+      page: Int,
+      nbElementPerPage: Int
+  ): F[PagingResult[(Feature, Boolean)]] =
+    getByIdLike(patterns, page, nbElementPerPage)
+      .flatMap { p =>
+        p.results.toList
+          .traverse { f =>
+            isActive
+              .isActive(f, context, env)
+              .map { active =>
+                (f, active.getOrElse(false))
+              }
+          }
+          .map { r =>
+            DefaultPagingResult(r, p.page, p.pageSize, p.count)
+          }
+      }
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, Feature), NotUsed] =
     jsonStore.getByIdLike(patterns).map {
@@ -462,4 +577,8 @@ class FeatureStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Eve
   override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
 
+  override def getFeatureTree(patterns: Seq[String], flat: Boolean, context: JsObject, env: Env)(
+      implicit ec: ExecutionContext
+  ): Source[JsValue, NotUsed] =
+    getByIdLike(patterns).map(_._2).via(Feature.tree(flat)(context, env))
 }

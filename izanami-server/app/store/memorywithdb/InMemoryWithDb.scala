@@ -5,6 +5,7 @@ import akka.actor.{ActorSystem, Cancellable}
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
 import akka.stream.{ActorMaterializer, Materializer}
+import cats.effect.Effect
 import domains.Key
 import domains.events.EventStore
 import domains.events.Events._
@@ -18,7 +19,6 @@ import store.memory.BaseInMemoryJsonDataStore
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationDouble
-import scala.util.Success
 
 sealed trait CacheEvent
 case class Create(id: Key, data: JsValue)             extends CacheEvent
@@ -36,14 +36,14 @@ object InMemoryWithDbStore {
   import domains.abtesting.VariantBinding
   import domains.apikey.Apikey
 
-  def apply(
+  def apply[F[_]: Effect](
       dbConfig: InMemoryWithDbConfig,
       dbDomainConfig: DbDomainConfig,
-      underlyingDataStore: JsonDataStore[Future],
-      eventStore: EventStore[Future],
+      underlyingDataStore: JsonDataStore[F],
+      eventStore: EventStore[F],
       eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
       applicationLifecycle: ApplicationLifecycle
-  )(implicit system: ActorSystem): InMemoryWithDbStore = {
+  )(implicit system: ActorSystem): InMemoryWithDbStore[F] = {
     val namespace = dbDomainConfig.conf.namespace
     new InMemoryWithDbStore(dbConfig, namespace, underlyingDataStore, eventStore, eventAdapter, applicationLifecycle)
   }
@@ -103,15 +103,16 @@ object InMemoryWithDbStore {
 
 }
 
-class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
-                          name: String,
-                          underlyingDataStore: JsonDataStore[Future],
-                          eventStore: EventStore[Future],
-                          eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-                          applicationLifecycle: ApplicationLifecycle)(implicit system: ActorSystem)
+class InMemoryWithDbStore[F[_]: Effect](dbConfig: InMemoryWithDbConfig,
+                                        name: String,
+                                        underlyingDataStore: JsonDataStore[F],
+                                        eventStore: EventStore[F],
+                                        eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
+                                        applicationLifecycle: ApplicationLifecycle)(implicit system: ActorSystem)
     extends BaseInMemoryJsonDataStore(name)
-    with JsonDataStore[Future] {
+    with JsonDataStore[F] {
 
+  import cats.implicits._
   import system.dispatcher
   private implicit val materializer: Materializer = ActorMaterializer()
 
@@ -168,52 +169,40 @@ class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
           Done
       }
 
-  override def create(id: Key, data: JsValue): Future[Result[JsValue]] = {
-    val res = underlyingDataStore.create(id, data)
-    res.onComplete {
-      case Success(Right(_)) => createSync(id, data)
-      case _                 =>
-    }
-    res
-  }
+  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
+    for {
+      res <- underlyingDataStore.create(id, data)
+      _   <- createSync(id, data).pure[F]
+    } yield res
 
-  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] = {
-    val res = underlyingDataStore.update(oldId, id, data)
-    res.onComplete {
-      case Success(Right(_)) => updateSync(oldId, id, data)
-      case _                 =>
-    }
-    res
-  }
+  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+    for {
+      res <- underlyingDataStore.update(oldId, id, data)
+      _   <- updateSync(oldId, id, data).pure[F]
+    } yield res
 
-  override def delete(id: Key): Future[Result[JsValue]] = {
-    val res = underlyingDataStore.delete(id)
-    res.onComplete {
-      case Success(Right(_)) => deleteSync(id)
-      case _                 =>
-    }
-    res
-  }
+  override def delete(id: Key): F[Result[JsValue]] =
+    for {
+      res <- underlyingDataStore.delete(id)
+      _   <- deleteSync(id).pure[F]
+    } yield res
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] = {
-    val res = underlyingDataStore.deleteAll(patterns)
-    res.onComplete {
-      case Success(Right(_)) => deleteAllSync(patterns)
-      case _                 =>
-    }
-    res
-  }
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
+    for {
+      res <- underlyingDataStore.deleteAll(patterns)
+      _   <- deleteAllSync(patterns).pure[F]
+    } yield res
 
-  override def getById(id: Key): Future[Option[JsValue]] =
-    FastFuture.successful(getByIdSync(id))
+  override def getById(id: Key): F[Option[JsValue]] =
+    getByIdSync(id).pure[F]
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
-    FastFuture.successful(getByIdLikeSync(patterns, page, nbElementPerPage))
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+    getByIdLikeSync(patterns, page, nbElementPerPage).pure[F]
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     Source(getByIdLikeSync(patterns))
 
-  override def count(patterns: Seq[String]): Future[Long] =
-    FastFuture.successful(countSync(patterns))
+  override def count(patterns: Seq[String]): F[Long] =
+    countSync(patterns).pure[F]
 
 }

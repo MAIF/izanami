@@ -4,10 +4,41 @@ import akka.NotUsed
 import akka.stream.OverflowStrategy.backpressure
 import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Source, SourceQueueWithComplete, Zip}
 import akka.stream.{FlowShape, Materializer, QueueOfferResult}
+import cats.effect.Effect
 import libs.streams.CacheableQueue.{Element, QueueElement}
 import play.api.Logger
 
 import scala.concurrent.Future
+
+object syntax {
+  import cats.effect.implicits._
+
+  implicit class FlowOps[-In, +Out, +Mat](flow: Flow[In, Out, Mat]) {
+
+    def mapAsyncF[F[_]: Effect, T](parallelism: Int)(f: Out => F[T]): Flow[In, T, Mat] = flow.mapAsync(parallelism) {
+      elt =>
+        f(elt).toIO.unsafeToFuture()
+    }
+
+    def mapAsyncUnorderedF[F[_]: Effect, T](parallelism: Int)(f: Out => F[T]): Flow[In, T, Mat] =
+      flow.mapAsyncUnordered(parallelism) { elt =>
+        f(elt).toIO.unsafeToFuture()
+      }
+  }
+
+  implicit class SourceOps[+In, +Mat](flow: Source[In, Mat]) {
+
+    def mapAsyncF[F[_]: Effect, T](parallelism: Int)(f: In => F[T]): Source[T, Mat] = flow.mapAsync(parallelism) {
+      elt =>
+        f(elt).toIO.unsafeToFuture()
+    }
+
+    def mapAsyncUnorderedF[F[_]: Effect, T](parallelism: Int)(f: In => F[T]): Source[T, Mat] =
+      flow.mapAsyncUnordered(parallelism) { elt =>
+        f(elt).toIO.unsafeToFuture()
+      }
+  }
+}
 
 object Flows {
 
@@ -28,6 +59,7 @@ object Flows {
         FlowShape(bcast.in, zip.out)
       }
     }
+
 }
 
 case class CacheableQueue[T](queue: SourceQueueWithComplete[QueueElement[T]],
