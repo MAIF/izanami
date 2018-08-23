@@ -44,7 +44,7 @@ object LevelDBJsonDataStore {
       stores.stores.put(dbPath, store)
       store
     } else {
-      stores.stores.get(dbPath).asInstanceOf[LevelDBJsonDataStore[F]]
+      stores.stores.get(dbPath)
     }
   }
 }
