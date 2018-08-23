@@ -3,13 +3,18 @@ package domains.feature
 import java.time.{LocalDateTime, ZoneId}
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
+import cats.effect.{Effect, IO}
 import domains.Key
-import domains.script.Script
+import domains.script.GlobalScript.GlobalScriptKey
+import domains.script.{GlobalScript, GlobalScriptStore, Script}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, Json}
+import store.PagingResult
+import store.Result.Result
 import test.IzanamiSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -175,14 +180,22 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
                           DefaultFeature(Key("a:b:c"), true),
                           DefaultFeature(Key("a:b:d"), false))
 
+      import cats._
+      import cats.effect.implicits._
       implicit val system = ActorSystem("test")
       import system.dispatcher
-      implicit val mat = ActorMaterializer()
+      implicit val globalScript: GlobalScriptStore[IO] = fakeGlobalScriptRepository[IO]
+      implicit val mat                                 = ActorMaterializer()
+      implicit def isActive                            = Feature.isActive[IO]
 
-      val graph = Source(features) via Feature.toGraph(
-        Json.obj(),
-        null
-      ) runWith Sink.head
+      val graph = Source(features)
+        .via(
+          Feature.toGraph[IO](
+            Json.obj(),
+            null
+          )
+        )
+        .runWith(Sink.head)
 
       graph.futureValue must be(
         Json.obj(
@@ -199,13 +212,26 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
+  def fakeGlobalScriptRepository[F[_]: Effect]: GlobalScriptStore[F] = new GlobalScriptStore[F] {
+    override def create(id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]]                         = ???
+    override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]] = ???
+    override def delete(id: GlobalScriptKey): F[Result[GlobalScript]]                                             = ???
+    override def deleteAll(patterns: Seq[String]): F[Result[Done]]                                                = ???
+    override def getById(id: GlobalScriptKey): F[Option[GlobalScript]]                                            = ???
+    override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
+      ???
+    override def getByIdLike(patterns: Seq[String]): Source[(GlobalScriptKey, GlobalScript), NotUsed] = ???
+    override def count(patterns: Seq[String]): F[Long]                                                = ???
+  }
+
   "Date range feature" must {
     "active" in {
       val from    = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
 
-      feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(true)
+      import cats._
+      DateRangeFeature.isActive[Id].isActive(feature, Json.obj(), null).getOrElse(false) must be(true)
     }
 
     "inactive" in {
@@ -213,7 +239,8 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(2, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
 
-      feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(false)
+      import cats._
+      DateRangeFeature.isActive[Id].isActive(feature, Json.obj(), null).getOrElse(false) must be(false)
     }
   }
 
@@ -237,9 +264,12 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   }
 
   private def calcPercentage(feature: PercentageFeature)(mkString: Int => String) = {
+
+    import cats._
     val count = (0 to 1000)
       .map { i =>
-        val isActive = feature.isActive(Json.obj("id" -> mkString(i)), null).futureValue.getOrElse(false)
+        val isActive =
+          PercentageFeature.isActive[Id].isActive(feature, Json.obj("id" -> mkString(i)), null).getOrElse(false)
         isActive
       }
       .count(identity) / 10
