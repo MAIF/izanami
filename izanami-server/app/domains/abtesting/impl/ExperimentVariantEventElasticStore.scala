@@ -91,7 +91,7 @@ class ExperimentVariantEventElasticStore[F[_]: Effect](client: Elastic[JsValue],
                                       |             "currentPopulation": { "type" : "integer" }
                                       |           }
                                       |         },
-                                      |         "date": { "type": "date", "format" : "date_time" },
+                                      |         "date": { "type": "date", "format" : "date_time||date_hour_minute_second_millis" },
                                       |         "transformation": { "type" : "double" },
                                       |         "experimentId": { "type" : "keyword" },
                                       |         "variantId": { "type" : "keyword" }
