@@ -32,10 +32,7 @@ object ElasticJsonDataStore {
   ): ElasticJsonDataStore[F] =
     new ElasticJsonDataStore(elastic, elasticConfig, dbDomainConfig)
 
-  case class EsDocument(key: Key,
-                        value: JsValue,
-                        deathDate: Option[LocalDateTime] = None,
-                        lastUpdate: LocalDateTime = LocalDateTime.now())
+  case class EsDocument(key: Key, value: JsValue)
 
   object EsDocument {
     import playjson.all._
@@ -95,17 +92,14 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
   private val index = elastic.index(esIndex / esType)
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] =
-    genCreate(id, data, None)
+    genCreate(id, data)
 
   override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
-    genUpdate(oldId, id, data, None)
+    genUpdate(oldId, id, data)
 
-  private def genCreate(id: Key, data: JsValue, mayBeTtl: Option[FiniteDuration]): F[Result[JsValue]] = {
-    val mayBeDeathDate = mayBeTtl.map { ttl =>
-      LocalDateTime.now().plus(ttl.toMillis, ChronoUnit.MILLIS)
-    }
+  private def genCreate(id: Key, data: JsValue): F[Result[JsValue]] =
     index
-      .index[EsDocument](EsDocument(id, data, deathDate = mayBeDeathDate),
+      .index[EsDocument](EsDocument(id, data),
                          id = Some(id.key),
                          create = true,
                          refresh = elasticConfig.automaticRefresh)
@@ -117,17 +111,11 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
           Result.errors(ErrorMessage("error.data.exists", id.key))
       }
       .toF
-  }
 
-  private def genUpdate(oldId: Key, id: Key, data: JsValue, mayBeTtl: Option[FiniteDuration]): F[Result[JsValue]] = {
-    val mayBeDeathDate = mayBeTtl.map { ttl =>
-      LocalDateTime.now().plus(ttl.toMillis, ChronoUnit.MILLIS)
-    }
+  private def genUpdate(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     if (oldId == id) {
       index
-        .index[EsDocument](EsDocument(id, data, deathDate = mayBeDeathDate),
-                           id = Some(id.key),
-                           refresh = elasticConfig.automaticRefresh)
+        .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
         .toF
         .map { _ =>
           Result.ok(data)
@@ -135,10 +123,9 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
     } else {
       for {
         _       <- delete(id)
-        created <- genCreate(id, data, mayBeTtl)
+        created <- genCreate(id, data)
       } yield created
     }
-  }
 
   override def delete(id: Key): F[Result[JsValue]] =
     getById(id)
@@ -176,7 +163,6 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
         case r @ GetResponse(_, _, _, _, true, _) =>
           r.as[EsDocument]
             .some
-            .filter(d => d.deathDate.forall(d => LocalDateTime.now().isBefore(d)))
             .map(_.value)
         case _ =>
           none[JsValue]

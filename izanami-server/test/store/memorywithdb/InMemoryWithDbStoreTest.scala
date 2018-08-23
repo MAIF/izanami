@@ -51,8 +51,8 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
       Thread.sleep(500)
 
-      inMemoryWithDb.getById(key1) mustBe Json.toJson(feature1Updated).some
-      inMemoryWithDb.getById(key2) mustBe Json.toJson(feature2).some
+      inMemoryWithDb.getById(key1).unsafeRunSync() mustBe Json.toJson(feature1Updated).some
+      inMemoryWithDb.getById(key2).unsafeRunSync() mustBe Json.toJson(feature2).some
 
     }
   }
@@ -76,12 +76,12 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       FakeApplicationLifecycle()
     )
     Thread.sleep(500)
-    inMemoryWithDb.getById(key1) mustBe Json.toJson(feature1).some
+    inMemoryWithDb.getById(key1).unsafeRunSync() mustBe Json.toJson(feature1).some
     val feature1Updated = feature1.copy(enabled = true)
-    underlyingStore.update(key1, key1, Json.toJson(feature1Updated))
-    inMemoryWithDb.getById(key1) mustBe Json.toJson(feature1).some
+    underlyingStore.update(key1, key1, Json.toJson(feature1Updated)).unsafeRunSync()
+    inMemoryWithDb.getById(key1).unsafeRunSync() mustBe Json.toJson(feature1).some
     Thread.sleep(600)
-    inMemoryWithDb.getById(key1) mustBe Json.toJson(feature1Updated).some
+    inMemoryWithDb.getById(key1).unsafeRunSync() mustBe Json.toJson(feature1Updated).some
   }
 
 }
