@@ -59,16 +59,18 @@ object Script {
     val engine = engineManager
       .getEngineByName("nashorn")
       .asInstanceOf[ScriptEngine with Invocable]
-    //val reference = Promise[Boolean]()
+
     Async[F].async { cb =>
-      engine.eval(script)
-      val enabled                                   = () => cb(Right(true))
-      val disabled                                  = () => cb(Right(false))
-      val contextMap: java.util.Map[String, AnyRef] = jsObjectToMap(context)
-      Try {
-        engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env, cb))
-      } recover {
-        case e => cb(Left(e))
+      ec.execute { () =>
+        engine.eval(script)
+        val enabled                                   = () => cb(Right(true))
+        val disabled                                  = () => cb(Right(false))
+        val contextMap: java.util.Map[String, AnyRef] = jsObjectToMap(context)
+        Try {
+          engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env, cb))
+        } recover {
+          case e => cb(Left(e))
+        }
       }
     }
   }

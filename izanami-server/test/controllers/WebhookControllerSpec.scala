@@ -202,7 +202,7 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
           .map { json =>
             (json \ "type").as[String]
           }
-        //strings must have size 2
+
         strings must be(Seq("CONFIG_CREATED"))
       }
 
