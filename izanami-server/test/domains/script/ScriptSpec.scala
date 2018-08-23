@@ -1,5 +1,6 @@
 package domains.script
 
+import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import controllers.AssetsComponents
 import env._
@@ -27,7 +28,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     import play.api.routing.Router
     import play.api.routing.sird._
 
-    def globalScripStore: GlobalScriptStore = null
+    def globalScripStore: GlobalScriptStore[IO] = null
 
     lazy val router: Router = Router.from({
       case GET(p"/surname") =>
@@ -90,7 +91,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
         ScriptExecutionContext(testComponents.actorSystem)
 
       val result: Boolean = Script
-        .executeScript(
+        .executeScript[IO](
           script,
           Json.obj("name" -> "Ragnar"),
           Env(
@@ -98,11 +99,10 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
             testComponents.environment,
             testComponents.actorSystem,
             testComponents.wsClient,
-            testComponents.globalScripStore,
             testComponents.assetsFinder
           )
         )
-        .futureValue
+        .unsafeRunSync()
 
       result must be(true)
     }
@@ -112,7 +112,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
         ScriptExecutionContext(testComponents.actorSystem)
 
       val result: Boolean = Script
-        .executeScript(
+        .executeScript[IO](
           script,
           Json.obj("name" -> "Floki"),
           Env(
@@ -120,11 +120,10 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
             testComponents.environment,
             testComponents.actorSystem,
             testComponents.wsClient,
-            testComponents.globalScripStore,
             testComponents.assetsFinder
           )
         )
-        .futureValue
+        .unsafeRunSync()
 
       result must be(false)
     }
