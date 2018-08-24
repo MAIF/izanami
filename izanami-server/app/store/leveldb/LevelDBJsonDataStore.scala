@@ -38,13 +38,13 @@ object LevelDBJsonDataStore {
     val namespace      = config.conf.namespace
     val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-    if (stores.stores.get(dbPath) == null) {
+    if (stores.stores.get(namespace) == null) {
       Logger.info(s"Load store LevelDB for namespace $namespace")
       val store = new LevelDBJsonDataStore(dbPath, applicationLifecycle)
-      stores.stores.put(dbPath, store)
+      stores.stores.put(namespace, store)
       store
     } else {
-      stores.stores.get(dbPath)
+      stores.stores.get(namespace)
     }
   }
 }
@@ -57,7 +57,13 @@ class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applicationLifecycle: A
   import libs.effects._
   import libs.streams.syntax._
 
-  private val client: DB = factory.open(new File(dbPath), new Options().createIfMissing(true))
+  private val client: DB = try {
+    factory.open(new File(dbPath), new Options().createIfMissing(true))
+  } catch {
+    case e: Throwable =>
+      Logger.error(s"Error opening db for path $dbPath", e)
+      throw new RuntimeException(s"Error opening db for path $dbPath", e)
+  }
 
   applicationLifecycle.addStopHook { () =>
     Logger.info(s"Closing leveldb for path $dbPath")

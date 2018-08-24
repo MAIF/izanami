@@ -27,7 +27,7 @@ private[impl] object OldConfig {
 
 class ConfigsPatch[F[_]: Effect](
     izanamiConfig: IzanamiConfig,
-    //configStore: => ConfigService[F],
+    configStore: => ConfigService[F],
     drivers: Drivers,
     eventStore: EventStore[F],
     applicationLifecycle: ApplicationLifecycle
@@ -55,8 +55,8 @@ class ConfigsPatch[F[_]: Effect](
       .map(_._2)
       .mapAsyncF(2) { l =>
         val config: OldConfig = OldConfig.format.reads(l).get
-        //configStore.update(config.id, config.id, Config(config.id, Json.parse(config.value)))
-        Result.ok(()).pure[F]
+        configStore.update(config.id, config.id, Config(config.id, Json.parse(config.value)))
+      //Result.ok(()).pure[F]
       }
       .runWith(Sink.foreach {
         case Right(e) => Logger.debug(s"Config updated with success => $e")
