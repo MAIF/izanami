@@ -32,19 +32,21 @@ import scala.util.control.NonFatal
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventLevelDBStore {
-  def apply[F[_]: Effect](levelDbConfig: LevelDbConfig,
-                          configdb: DbDomainConfig,
-                          eventStore: EventStore[F],
-                          actorSystem: ActorSystem,
-                          applicationLifecycle: ApplicationLifecycle): ExperimentVariantEventLevelDBStore[F] =
-    new ExperimentVariantEventLevelDBStore[F](levelDbConfig, configdb, eventStore, actorSystem, applicationLifecycle)
+  def apply[F[_]: Effect](
+      levelDbConfig: LevelDbConfig,
+      configdb: DbDomainConfig,
+      eventStore: EventStore[F],
+      applicationLifecycle: ApplicationLifecycle
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBStore[F] =
+    new ExperimentVariantEventLevelDBStore[F](levelDbConfig, configdb, eventStore, applicationLifecycle)
 }
 
-class ExperimentVariantEventLevelDBStore[F[_]: Effect](levelDbConfig: LevelDbConfig,
-                                                       configdb: DbDomainConfig,
-                                                       eventStore: EventStore[F],
-                                                       actorSystem: ActorSystem,
-                                                       applicationLifecycle: ApplicationLifecycle)
+class ExperimentVariantEventLevelDBStore[F[_]: Effect](
+    levelDbConfig: LevelDbConfig,
+    configdb: DbDomainConfig,
+    eventStore: EventStore[F],
+    applicationLifecycle: ApplicationLifecycle
+)(implicit actorSystem: ActorSystem)
     extends ExperimentVariantEventStore[F] {
 
   import cats.implicits._
@@ -53,7 +55,7 @@ class ExperimentVariantEventLevelDBStore[F[_]: Effect](levelDbConfig: LevelDbCon
   import actorSystem.dispatcher
   import domains.events.Events._
   import ExperimentVariantEventInstances._
-  implicit private val s            = actorSystem
+
   implicit private val materializer = ActorMaterializer()
   implicit private val es           = eventStore
 

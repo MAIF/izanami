@@ -31,16 +31,15 @@ import scala.util.{Failure, Success}
 //////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventRedisStore {
-  def apply[F[_]: Effect](maybeRedis: Option[RedisWrapper],
-                          eventStore: EventStore[F],
-                          actorSystem: ActorSystem): ExperimentVariantEventRedisStore[F] =
-    new ExperimentVariantEventRedisStore[F](maybeRedis, eventStore, actorSystem)
+  def apply[F[_]: Effect](maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
+      implicit actorSystem: ActorSystem
+  ): ExperimentVariantEventRedisStore[F] =
+    new ExperimentVariantEventRedisStore[F](maybeRedis, eventStore)
 }
 
-class ExperimentVariantEventRedisStore[F[_]: Effect](maybeRedis: Option[RedisWrapper],
-                                                     eventStore: EventStore[F],
-                                                     actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore[F]
+class ExperimentVariantEventRedisStore[F[_]: Effect](maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
+    implicit actorSystem: ActorSystem
+) extends ExperimentVariantEventStore[F]
     with EitherTSyntax[F] {
 
   import actorSystem.dispatcher
@@ -53,7 +52,6 @@ class ExperimentVariantEventRedisStore[F[_]: Effect](maybeRedis: Option[RedisWra
   import ExperimentVariantEventInstances._
 
   implicit private val es   = eventStore
-  implicit private val s    = actorSystem
   implicit val materializer = ActorMaterializer()
 
   val experimentseventsdisplayedNamespace: String =

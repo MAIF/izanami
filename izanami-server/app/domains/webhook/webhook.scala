@@ -2,6 +2,7 @@ package domains.webhook
 
 import java.time.LocalDateTime
 
+import akka.actor.ActorSystem
 import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Flow, Source}
 import cats.data.EitherT
@@ -10,10 +11,12 @@ import domains.Domain.Domain
 import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
 import domains._
-import env.DbDomainConfig
+import domains.webhook.notifications.WebHooksActor
+import env.{DbDomainConfig, WebhookConfig}
 import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
+import play.api.libs.ws.WSClient
 import store.Result.Result
 import store.SourceUtils.SourceKV
 import store._
@@ -45,7 +48,11 @@ trait WebhookStore[F[_]] {
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
-class WebhookStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], config: DbDomainConfig, eventStore: EventStore[F])
+class WebhookStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
+                                     config: DbDomainConfig,
+                                     webHookConfig: WebhookConfig,
+                                     eventStore: EventStore[F],
+                                     wsClient: WSClient)(implicit actorSystem: ActorSystem)
     extends WebhookStore[F]
     with EitherTSyntax[F] {
 
@@ -55,6 +62,8 @@ class WebhookStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], config: DbDoma
   import libs.functional.syntax._
   import domains.events.Events._
   import store.Result._
+
+  actorSystem.actorOf(WebHooksActor.props[F](wsClient, eventStore, this, webHookConfig), "webhooks")
 
   override def create(id: WebhookKey, data: Webhook): F[Result[Webhook]] = {
     // format: off

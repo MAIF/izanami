@@ -30,19 +30,20 @@ import scala.concurrent.{Await, Future}
 //////////////////////////////////////////////////////////////////////////////////////////
 object ExperimentVariantEventElasticStore {
 
-  def apply[F[_]: Effect](elastic: Elastic[JsValue],
-                          elasticConfig: ElasticConfig,
-                          config: DbDomainConfig,
-                          eventStore: EventStore[F],
-                          actorSystem: ActorSystem): ExperimentVariantEventElasticStore[F] =
-    new ExperimentVariantEventElasticStore(elastic, elasticConfig, config, eventStore, actorSystem)
+  def apply[F[_]: Effect](
+      elastic: Elastic[JsValue],
+      elasticConfig: ElasticConfig,
+      config: DbDomainConfig,
+      eventStore: EventStore[F]
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventElasticStore[F] =
+    new ExperimentVariantEventElasticStore(elastic, elasticConfig, config, eventStore)
 }
 
 class ExperimentVariantEventElasticStore[F[_]: Effect](client: Elastic[JsValue],
                                                        elasticConfig: ElasticConfig,
                                                        dbDomainConfig: DbDomainConfig,
                                                        eventStore: EventStore[F],
-                                                       actorSystem: ActorSystem)
+)(implicit actorSystem: ActorSystem)
     extends ExperimentVariantEventStore[F] {
 
   import elastic.implicits._
@@ -53,7 +54,6 @@ class ExperimentVariantEventElasticStore[F[_]: Effect](client: Elastic[JsValue],
   import actorSystem.dispatcher
   import ExperimentVariantEventInstances._
 
-  private implicit val s   = actorSystem
   private implicit val mat = ActorMaterializer()
   private implicit val es  = eventStore
 
