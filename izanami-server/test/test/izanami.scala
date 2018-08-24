@@ -1,6 +1,7 @@
 package test
 
 import akka.http.scaladsl.util.FastFuture
+import cats.effect.IO
 import controllers.actions.{AuthContext, SecuredAuthContext}
 import domains.AuthorizedPattern
 import domains.user.User
@@ -16,10 +17,16 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{ActionBuilder, _}
+import store.leveldb.DbStores
+import StoresTest._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 trait IzanamiSpec extends WordSpec with MustMatchers with OptionValues
+
+object StoresTest {
+  implicit val lDbStores: DbStores[IO] = new DbStores[IO]
+}
 
 class TestAuthAction(user: => User, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
     extends ActionBuilder[AuthContext, AnyContent]
