@@ -7,11 +7,11 @@ import akka.stream.scaladsl.{GraphDSL, Interleave, Sink, Source}
 import akka.stream.{ActorMaterializer, SourceShape}
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.abtesting.ExperimentStore
+import domains.abtesting.ExperimentService
 import domains.config.ConfigService
 import domains.feature.FeatureService
 import domains.script.GlobalScriptService
-import domains.webhook.WebhookStore
+import domains.webhook.WebhookService
 import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import store.{DefaultPagingResult, PagingResult}
@@ -20,9 +20,9 @@ import scala.concurrent.Future
 
 class SearchController[F[_]: Effect](configStore: ConfigService[F],
                                      featureStore: FeatureService[F],
-                                     experimentStore: ExperimentStore[F],
+                                     experimentStore: ExperimentService[F],
                                      globalScriptStore: GlobalScriptService[F],
-                                     webhookStore: WebhookStore[F],
+                                     webhookStore: WebhookService[F],
                                      system: ActorSystem,
                                      AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                                      cc: ControllerComponents)

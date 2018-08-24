@@ -7,7 +7,7 @@ import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.user.{User, UserInstances, UserNoPasswordInstances, UserStore}
+import domains.user.{User, UserInstances, UserNoPasswordInstances, UserService}
 import domains.{Import, ImportResult, IsAllowed, Key}
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
@@ -19,7 +19,7 @@ import store.Result.{AppErrors, ErrorMessage}
 
 import scala.concurrent.Future
 
-class UserController[F[_]: Effect](userStore: UserStore[F],
+class UserController[F[_]: Effect](userStore: UserService[F],
                                    system: ActorSystem,
                                    AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                                    val cc: ControllerComponents)

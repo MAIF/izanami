@@ -67,7 +67,7 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
 
 object ExperimentVariantEvent {}
 
-trait ExperimentVariantEventStore[F[_]] extends StoreOps {
+trait ExperimentVariantEventService[F[_]] extends StoreOps {
 
   def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]]
 

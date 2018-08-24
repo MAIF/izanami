@@ -38,7 +38,7 @@ object Experiment {
   type ExperimentKey = Key
 }
 
-trait ExperimentStore[F[_]] {
+trait ExperimentService[F[_]] {
   def create(id: ExperimentKey, data: Experiment): F[Result[Experiment]]
   def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment): F[Result[Experiment]]
   def delete(id: ExperimentKey): F[Result[Experiment]]
@@ -49,15 +49,15 @@ trait ExperimentStore[F[_]] {
   def count(patterns: Seq[String]): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
   def toGraph(clientId: String)(implicit ec: ExecutionContext,
-                                variantBindingStore: VariantBindingStore[F]): Flow[Experiment, JsObject, NotUsed]
+                                variantBindingStore: VariantBindingService[F]): Flow[Experiment, JsObject, NotUsed]
   def variantFor(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      VariantBindingStore: VariantBindingStore[F]
+      VariantBindingStore: VariantBindingService[F]
   ): F[Result[Variant]]
 }
 
-class ExperimentStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F], system: ActorSystem)
-    extends ExperimentStore[F]
+class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F], system: ActorSystem)
+    extends ExperimentService[F]
     with EitherTSyntax[F] {
 
   import cats.data._
@@ -143,7 +143,7 @@ class ExperimentStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore:
 
   def toGraph(clientId: String)(
       implicit ec: ExecutionContext,
-      variantBindingStore: VariantBindingStore[F]
+      variantBindingStore: VariantBindingService[F]
   ): Flow[Experiment, JsObject, NotUsed] = {
     import VariantBinding._
     import cats.implicits._
@@ -182,7 +182,7 @@ class ExperimentStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore:
 
   override def variantFor(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      VariantBindingStore: VariantBindingStore[F]
+      VariantBindingStore: VariantBindingService[F]
   ): F[Result[Variant]] = {
     import cats.implicits._
     implicit val es = this

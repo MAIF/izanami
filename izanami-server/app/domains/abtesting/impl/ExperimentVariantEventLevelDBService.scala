@@ -31,23 +31,23 @@ import scala.util.control.NonFatal
 ////////////////////////////////////    LEVEL DB     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventLevelDBStore {
+object ExperimentVariantEventLevelDBService {
   def apply[F[_]: Effect](
       levelDbConfig: LevelDbConfig,
       configdb: DbDomainConfig,
       eventStore: EventStore[F],
       applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBStore[F] =
-    new ExperimentVariantEventLevelDBStore[F](levelDbConfig, configdb, eventStore, applicationLifecycle)
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService[F] =
+    new ExperimentVariantEventLevelDBService[F](levelDbConfig, configdb, eventStore, applicationLifecycle)
 }
 
-class ExperimentVariantEventLevelDBStore[F[_]: Effect](
+class ExperimentVariantEventLevelDBService[F[_]: Effect](
     levelDbConfig: LevelDbConfig,
     configdb: DbDomainConfig,
     eventStore: EventStore[F],
     applicationLifecycle: ApplicationLifecycle
 )(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore[F] {
+    extends ExperimentVariantEventService[F] {
 
   import cats.implicits._
   import cats.effect.implicits._

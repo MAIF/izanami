@@ -72,7 +72,7 @@ object User {
 
 }
 
-trait UserStore[F[_]] {
+trait UserService[F[_]] {
   def create(id: UserKey, data: User): F[Result[User]]
   def update(oldId: UserKey, id: UserKey, data: User): F[Result[User]]
   def delete(id: UserKey): F[Result[User]]
@@ -84,8 +84,8 @@ trait UserStore[F[_]] {
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
-class UserStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
-    extends UserStore[F]
+class UserServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
+    extends UserService[F]
     with EitherTSyntax[F] {
 
   import cats.implicits._

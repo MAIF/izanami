@@ -15,7 +15,7 @@ import patches.PatchInstance
 import play.api.Logger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
-import store.JsonDataStore
+import store.{JsonDataStore, Result}
 import store.leveldb.DbStores
 import store.memorywithdb.CacheEvent
 
@@ -27,16 +27,15 @@ private[impl] object OldConfig {
 
 class ConfigsPatch[F[_]: Effect](
     izanamiConfig: IzanamiConfig,
-    configStore: => ConfigService[F],
+    //configStore: => ConfigService[F],
     drivers: Drivers,
     eventStore: EventStore[F],
-    applicationLifecycle: ApplicationLifecycle,
-    actorSystem: ActorSystem
-)(implicit store: DbStores[F])
+    applicationLifecycle: ApplicationLifecycle
+)(implicit store: DbStores[F], system: ActorSystem)
     extends PatchInstance[F] {
 
   import libs.effects._
-  implicit val system: ActorSystem        = actorSystem
+  import cats.implicits._
   implicit val materializer: Materializer = ActorMaterializer()
 
   import system.dispatcher
@@ -56,7 +55,8 @@ class ConfigsPatch[F[_]: Effect](
       .map(_._2)
       .mapAsyncF(2) { l =>
         val config: OldConfig = OldConfig.format.reads(l).get
-        configStore.update(config.id, config.id, Config(config.id, Json.parse(config.value)))
+        //configStore.update(config.id, config.id, Config(config.id, Json.parse(config.value)))
+        Result.ok(()).pure[F]
       }
       .runWith(Sink.foreach {
         case Right(e) => Logger.debug(s"Config updated with success => $e")

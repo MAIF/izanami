@@ -30,16 +30,16 @@ import scala.util.{Failure, Success}
 ////////////////////////////////////    REDIS     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventRedisStore {
+object ExperimentVariantEventRedisService {
   def apply[F[_]: Effect](maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
       implicit actorSystem: ActorSystem
-  ): ExperimentVariantEventRedisStore[F] =
-    new ExperimentVariantEventRedisStore[F](maybeRedis, eventStore)
+  ): ExperimentVariantEventRedisService[F] =
+    new ExperimentVariantEventRedisService[F](maybeRedis, eventStore)
 }
 
-class ExperimentVariantEventRedisStore[F[_]: Effect](maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
+class ExperimentVariantEventRedisService[F[_]: Effect](maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
     implicit actorSystem: ActorSystem
-) extends ExperimentVariantEventStore[F]
+) extends ExperimentVariantEventService[F]
     with EitherTSyntax[F] {
 
   import actorSystem.dispatcher

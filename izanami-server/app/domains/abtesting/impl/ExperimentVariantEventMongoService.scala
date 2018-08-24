@@ -42,18 +42,18 @@ object ExperimentVariantEventDocument {
   implicit val format = Json.format[ExperimentVariantEventDocument]
 }
 
-object ExperimentVariantEventMongoStore {
+object ExperimentVariantEventMongoService {
   def apply[F[_]: Effect](config: DbDomainConfig, mongoApi: ReactiveMongoApi, eventStore: EventStore[F])(
       implicit system: ActorSystem
-  ): ExperimentVariantEventMongoStore[F] =
-    new ExperimentVariantEventMongoStore(config.conf.namespace, mongoApi, eventStore)
+  ): ExperimentVariantEventMongoService[F] =
+    new ExperimentVariantEventMongoService(config.conf.namespace, mongoApi, eventStore)
 }
 
-class ExperimentVariantEventMongoStore[F[_]: Effect](namespace: String,
-                                                     mongoApi: ReactiveMongoApi,
-                                                     eventStore: EventStore[F])(
+class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
+                                                       mongoApi: ReactiveMongoApi,
+                                                       eventStore: EventStore[F])(
     implicit system: ActorSystem
-) extends ExperimentVariantEventStore[F] {
+) extends ExperimentVariantEventService[F] {
 
   import system.dispatcher
   import cats.implicits._
