@@ -23,19 +23,19 @@ import scala.concurrent.Future
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventCassandreStore {
-  def apply[F[_]: Effect](session: Session,
-                          config: DbDomainConfig,
-                          cassandraConfig: CassandraConfig,
-                          eventStore: EventStore[F],
-                          actorSystem: ActorSystem): ExperimentVariantEventCassandreStore[F] =
-    new ExperimentVariantEventCassandreStore(session, config, cassandraConfig, eventStore, actorSystem)
+  def apply[F[_]: Effect](
+      session: Session,
+      config: DbDomainConfig,
+      cassandraConfig: CassandraConfig,
+      eventStore: EventStore[F]
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandreStore[F] =
+    new ExperimentVariantEventCassandreStore(session, config, cassandraConfig, eventStore)
 }
 
 class ExperimentVariantEventCassandreStore[F[_]: Effect](session: Session,
                                                          config: DbDomainConfig,
                                                          cassandraConfig: CassandraConfig,
-                                                         eventStore: EventStore[F],
-                                                         actorSystem: ActorSystem)
+                                                         eventStore: EventStore[F])(implicit actorSystem: ActorSystem)
     extends ExperimentVariantEventStore[F] {
 
   private val namespaceFormatted = config.conf.namespace.replaceAll(":", "_")
@@ -45,7 +45,6 @@ class ExperimentVariantEventCassandreStore[F[_]: Effect](session: Session,
   import cats.effect.implicits._
   import domains.events.Events._
 
-  implicit private val s    = actorSystem
   implicit private val mat  = ActorMaterializer()
   implicit private val sess = session
   implicit private val es   = eventStore

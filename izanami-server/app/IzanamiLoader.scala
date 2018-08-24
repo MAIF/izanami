@@ -5,18 +5,18 @@ import cats.effect.IO
 import com.softwaremill.macwire._
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
-import domains.config.{Config, ConfigService, ConfigServiceImpl}
+import domains.config.{ConfigService, ConfigServiceImpl}
 import domains.Import
 import domains.abtesting.impl._
 import domains.abtesting.{ExperimentVariantEventStore, _}
-import domains.apikey.{Apikey, ApikeyService, ApikeyStoreImpl}
+import domains.apikey.{ApikeyService, ApikeyStoreImpl}
 import domains.events.Events.IzanamiEvent
 import domains.events._
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
-import domains.feature.{Feature, FeatureService, FeatureServiceImpl}
-import domains.script.{GlobalScript, GlobalScriptService, GlobalScriptServiceImpl}
-import domains.user.{User, UserStore, UserStoreImpl}
-import domains.webhook.{Webhook, WebhookStore, WebhookStoreImpl}
+import domains.feature.{FeatureService, FeatureServiceImpl}
+import domains.script.{GlobalScriptService, GlobalScriptServiceImpl}
+import domains.user.{UserStore, UserStoreImpl}
+import domains.webhook.{WebhookStore, WebhookStoreImpl}
 import libs.database.Drivers
 import env._
 import filters.{IzanamiDefaultFilter, OtoroshiFilter}
@@ -155,11 +155,11 @@ package object modules {
       // format: off
 
       def getExperimentVariantEventStore(dbType: DbType): ExperimentVariantEventStore[IO] = dbType match {
-        case InMemory  => ExperimentVariantEventInMemoryStore(conf, actorSystem)
-        case Redis     => ExperimentVariantEventRedisStore(drivers.redisClient, eventStore, actorSystem)
-        case LevelDB   => ExperimentVariantEventLevelDBStore(izanamiConfig.db.leveldb.get, conf, eventStore, actorSystem, applicationLifecycle)
-        case Cassandra => ExperimentVariantEventCassandreStore(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore, actorSystem)
-        case Elastic   => ExperimentVariantEventElasticStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore, actorSystem)
+        case InMemory  => ExperimentVariantEventInMemoryStore(conf)
+        case Redis     => ExperimentVariantEventRedisStore(drivers.redisClient, eventStore)
+        case LevelDB   => ExperimentVariantEventLevelDBStore(izanamiConfig.db.leveldb.get, conf, eventStore, applicationLifecycle)
+        case Cassandra => ExperimentVariantEventCassandreStore(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore)
+        case Elastic   => ExperimentVariantEventElasticStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore)
         case Mongo    =>  ExperimentVariantEventMongoStore(conf, drivers.mongoApi.get, eventStore)
         case _ => throw new IllegalArgumentException("Unsupported store type ")
       }

@@ -16,11 +16,13 @@ import cats.effect.{Effect}
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventInMemoryStore {
-  def apply[F[_]: Effect](configdb: DbDomainConfig, actorSystem: ActorSystem): ExperimentVariantEventInMemoryStore[F] =
-    new ExperimentVariantEventInMemoryStore(configdb, actorSystem)
+  def apply[F[_]: Effect](
+      configdb: DbDomainConfig
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventInMemoryStore[F] =
+    new ExperimentVariantEventInMemoryStore(configdb)
 }
 
-class ExperimentVariantEventInMemoryStore[F[_]: Effect](configdb: DbDomainConfig, actorSystem: ActorSystem)
+class ExperimentVariantEventInMemoryStore[F[_]: Effect](configdb: DbDomainConfig)(implicit actorSystem: ActorSystem)
     extends ExperimentVariantEventStore[F] {
 
   import actorSystem.dispatcher
