@@ -20,12 +20,13 @@ import play.api.libs.json.{JsValue, Json}
 import store.Result.{ErrorMessage, Result}
 import store._
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import scala.util.control.NonFatal
 
 class DbStores[F[_]] {
-  val stores = new ConcurrentHashMap[String, LevelDBJsonDataStore[F]]()
+  val stores = TrieMap.empty[String, LevelDBJsonDataStore[F]]
 }
 
 object LevelDBJsonDataStore {
@@ -38,18 +39,14 @@ object LevelDBJsonDataStore {
     val namespace      = config.conf.namespace
     val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-    if (stores.stores.get(namespace) == null) {
+    stores.stores.getOrElseUpdate(dbPath, {
       Logger.info(s"Load store LevelDB for namespace $namespace")
-      val store = new LevelDBJsonDataStore(dbPath, applicationLifecycle)
-      stores.stores.put(namespace, store)
-      store
-    } else {
-      stores.stores.get(namespace)
-    }
+      new LevelDBJsonDataStore[F](dbPath, applicationLifecycle)
+    })
   }
 }
 
-class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applicationLifecycle: ApplicationLifecycle)(
+private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applicationLifecycle: ApplicationLifecycle)(
     implicit system: ActorSystem
 ) extends JsonDataStore[F] {
 

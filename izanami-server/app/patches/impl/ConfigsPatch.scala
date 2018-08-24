@@ -47,7 +47,7 @@ class ConfigsPatch[F[_]: Effect](
     Logger.info(s"Patch for configs starting for DB ${conf.`type`}")
 
     // format: off
-    lazy val jsonDataStore = JsonDataStore(drivers, izanamiConfig, conf, eventStore, Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent]), applicationLifecycle)
+    lazy val jsonDataStore = JsonDataStore[F](drivers, izanamiConfig, conf, eventStore, Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent]), applicationLifecycle)
     // format: on
     Logger.info(s"Patch for configs starting for DB ${conf.`type`} with ${jsonDataStore.getClass.getSimpleName}")
     jsonDataStore
