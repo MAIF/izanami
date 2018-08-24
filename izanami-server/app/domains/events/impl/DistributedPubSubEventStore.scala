@@ -47,6 +47,7 @@ class DistributedPubSubEventStore[F[_]: Applicative](globalConfig: TsConfig,
 
   override def publish(event: IzanamiEvent): F[Done] = {
     actor ! DistributedEventsPublisherActor.Publish(event)
+    s.eventStream.publish(event)
     Applicative[F].pure(Done)
   }
 

@@ -33,10 +33,10 @@ object KafkaSettings {
 
   def consumerSettings(_env: Environment,
                        system: ActorSystem,
-                       config: KafkaConfig): ConsumerSettings[Array[Byte], String] = {
+                       config: KafkaConfig): ConsumerSettings[String, String] = {
 
     val settings = ConsumerSettings
-      .create(system, new ByteArrayDeserializer, new StringDeserializer())
+      .create(system, new StringDeserializer(), new StringDeserializer())
       .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
       .withBootstrapServers(config.servers)
@@ -61,9 +61,9 @@ object KafkaSettings {
 
   def producerSettings(_env: Environment,
                        system: ActorSystem,
-                       config: KafkaConfig): ProducerSettings[Array[Byte], String] = {
+                       config: KafkaConfig): ProducerSettings[String, String] = {
     val settings = ProducerSettings
-      .create(system, new ByteArraySerializer(), new StringSerializer())
+      .create(system, new StringSerializer(), new StringSerializer())
       .withBootstrapServers(config.servers)
 
     val s = for {
@@ -99,26 +99,26 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
   private lazy val producerSettings =
     KafkaSettings.producerSettings(_env, system, clusterConfig)
 
-  private lazy val producer: KafkaProducer[Array[Byte], String] =
+  private lazy val producer: KafkaProducer[String, String] =
     producerSettings.createKafkaProducer
 
-  val settings: ConsumerSettings[Array[Byte], String] = KafkaSettings
+  val settings: ConsumerSettings[String, String] = KafkaSettings
     .consumerSettings(_env, system, clusterConfig)
     .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
 
-  private val tmpConsumer: KConsumer[Array[Byte], String] = settings.createKafkaConsumer()
-  private val partitions: mutable.Buffer[PartitionInfo]   = tmpConsumer.partitionsFor(eventsConfig.topic).asScala
+  private val tmpConsumer: KConsumer[String, String]    = settings.createKafkaConsumer()
+  private val partitions: mutable.Buffer[PartitionInfo] = tmpConsumer.partitionsFor(eventsConfig.topic).asScala
   tmpConsumer.close()
 
   override def publish(event: IzanamiEvent): F[Done] = {
     import cats.implicits._
+    system.eventStream.publish(event)
     Async[F]
       .async[Done] { cb =>
         try {
           val message = Json.stringify(event.toJson)
-          producer.send(new ProducerRecord[Array[Byte], String](eventsConfig.topic, event.key.key.getBytes, message),
-                        callback(cb))
+          producer.send(new ProducerRecord[String, String](eventsConfig.topic, event.key.key, message), callback(cb))
         } catch {
           case NonFatal(e) =>
             cb(Left(e))
@@ -133,7 +133,7 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
                       patterns: Seq[String],
                       lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] = {
 
-    val kafkaConsumer: KConsumer[Array[Byte], String] =
+    val kafkaConsumer: KConsumer[String, String] =
       settings.createKafkaConsumer()
 
     val subscription: ManualSubscription = lastEventId.map { id =>
@@ -152,7 +152,7 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
     }
 
     Consumer
-      .plainSource[Array[Byte], String](settings, subscription)
+      .plainSource[String, String](settings, subscription)
       .map(_.value())
       .map(Json.parse)
       .mapConcat(

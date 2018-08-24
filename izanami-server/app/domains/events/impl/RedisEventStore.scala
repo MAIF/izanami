@@ -73,7 +73,7 @@ class RedisEventStore[F[_]: Effect](client: RedisWrapper, config: RedisEventsCon
 
   override def publish(event: IzanamiEvent): F[Done] = {
     logger.debug(s"Publishing event $event to Redis topic izanamiEvents")
-
+    s.eventStream.publish(event)
     connection
       .async()
       .publish(config.topic, Json.stringify(event.toJson))
