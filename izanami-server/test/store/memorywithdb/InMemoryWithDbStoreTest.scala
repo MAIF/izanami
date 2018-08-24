@@ -23,7 +23,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
   "InMemoryWithDbStore" must {
     "update is cache on event" in {
-
+      import domains.feature.FeatureInstances._
       val name            = "test"
       val underlyingStore = new InMemoryJsonDataStore[IO](name)
 
@@ -58,6 +58,8 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
   }
 
   "scheduler should reload cache" in {
+    import domains.feature.FeatureInstances._
+
     val name            = "test"
     val underlyingStore = new InMemoryJsonDataStore[IO](name)
 

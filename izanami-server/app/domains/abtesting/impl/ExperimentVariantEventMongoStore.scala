@@ -37,6 +37,8 @@ case class ExperimentVariantEventDocument(id: ExperimentVariantEventKey,
                                           data: ExperimentVariantEvent)
 
 object ExperimentVariantEventDocument {
+  implicit val eveKF  = ExperimentVariantEventKeyInstances.format
+  implicit val eveF   = ExperimentVariantEventInstances.format
   implicit val format = Json.format[ExperimentVariantEventDocument]
 }
 
@@ -57,6 +59,7 @@ class ExperimentVariantEventMongoStore[F[_]: Effect](namespace: String,
   import cats.implicits._
   import libs.effects._
   import libs.streams.syntax._
+  import ExperimentVariantEventInstances._
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
   private implicit val mat: ActorMaterializer = ActorMaterializer()

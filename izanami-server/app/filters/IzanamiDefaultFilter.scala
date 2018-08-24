@@ -6,7 +6,7 @@ import cats.effect.Effect
 import com.auth0.jwt._
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces._
-import domains.apikey.ApikeyStore
+import domains.apikey.ApikeyService
 import domains.user.User
 import domains.{AuthInfo, AuthorizedPattern, Key}
 import env._
@@ -22,7 +22,7 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
                                          izanamiConfig: IzanamiConfig,
                                          config: DefaultFilter,
                                          apikeyConfig: ApikeyConfig,
-                                         apikeyStore: ApikeyStore[F])(
+                                         apikeyStore: ApikeyService[F])(
     implicit ec: ExecutionContext,
     val mat: Materializer
 ) extends Filter {

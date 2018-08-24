@@ -6,17 +6,17 @@ import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.script.{GlobalScript, GlobalScriptStore}
-import domains.{Import, ImportResult, Key}
+import domains.script.{GlobalScript, GlobalScriptInstances, GlobalScriptService}
+import domains.{Import, IsAllowed, Key}
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.{AppErrors, ErrorMessage}
+import store.Result.{AppErrors}
 
-class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[F],
+class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptService[F],
                                            system: ActorSystem,
                                            AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                                            cc: ControllerComponents)
@@ -33,7 +33,7 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
 
   def list(pattern: String, name_only: Option[Boolean], page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
-      import GlobalScript._
+      import GlobalScriptInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
       globalScriptStore
         .getByIdLike(patternsSeq, page, nbElementPerPage)
@@ -72,12 +72,12 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
     }
 
   def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import GlobalScript._
+    import GlobalScriptInstances._
     for {
       globalScript <- ctx.request.body.validate[GlobalScript] |> liftJsResult(
                        err => BadRequest(AppErrors.fromJsError(err).toJson)
                      )
-      _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
+      _ <- IsAllowed[GlobalScript].isAllowed(globalScript)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       event <- globalScriptStore
@@ -86,10 +86,10 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
   }
 
   def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
-    import GlobalScript._
+    import GlobalScriptInstances._
     val key = Key(id)
     for {
-      _ <- GlobalScript.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
+      _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       globalScript <- globalScriptStore
@@ -98,12 +98,12 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
   }
 
   def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import GlobalScript._
+    import GlobalScriptInstances._
     for {
       globalScript <- ctx.request.body.validate[GlobalScript] |> liftJsResult(
                        err => BadRequest(AppErrors.fromJsError(err).toJson)
                      )
-      _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
+      _ <- IsAllowed[GlobalScript].isAllowed(globalScript)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       event <- globalScriptStore.update(Key(id), globalScript.id, globalScript) |> mapLeft(
@@ -113,11 +113,13 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
   }
 
   def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import GlobalScript._
+    import GlobalScriptInstances._
     val key = Key(id)
     for {
       current <- globalScriptStore.getById(key) |> liftFOption[Result, GlobalScript](NotFound)
-      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[GlobalScript].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
@@ -127,12 +129,12 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    import GlobalScript._
+    import GlobalScriptInstances._
     val key = Key(id)
     for {
       globalScript <- globalScriptStore
                        .getById(key) |> liftFOption[Result, GlobalScript](NotFound)
-      _ <- globalScript.isAllowed(ctx.auth) |> liftBooleanTrue[Result](
+      _ <- IsAllowed[GlobalScript].isAllowed(globalScript)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       deleted <- globalScriptStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
@@ -147,6 +149,7 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
+    import GlobalScriptInstances._
     val source = globalScriptStore
       .getByIdLike(ctx.authorizedPatterns)
       .map { case (_, data) => Json.toJson(data) }
@@ -161,7 +164,7 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptStore[
 
   def upload() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .via(GlobalScript.importData(globalScriptStore))
+      .via(globalScriptStore.importData)
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))

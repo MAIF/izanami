@@ -6,14 +6,14 @@ import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import cats.effect.{Effect, IO}
 import controllers.actions.SecuredAuthContext
-import domains.webhook.{Webhook, WebhookStore}
-import domains.{Import, Key}
+import domains.webhook.{Webhook, WebhookInstances, WebhookStore}
+import domains.{Import, IsAllowed, Key}
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.{AppErrors}
+import store.Result.AppErrors
 import libs.functional.EitherTSyntax
 
 class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
@@ -34,7 +34,7 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
-      import Webhook._
+      import WebhookInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
 
       webhookStore
@@ -55,13 +55,15 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
     }
 
   def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import Webhook._
+    import WebhookInstances._
 
     for {
       webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
-      _ <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Webhook].isAllowed(webhook)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       event <- webhookStore
                 .create(webhook.clientId, webhook) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(webhook))
@@ -69,10 +71,10 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
   }
 
   def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
-    import Webhook._
+    import WebhookInstances._
     val key = Key(id)
     for {
-      _ <- Webhook.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
+      _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       webhook <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
@@ -80,12 +82,14 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
   }
 
   def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import Webhook._
+    import WebhookInstances._
     for {
       webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
-      _ <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Webhook].isAllowed(webhook)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       event <- webhookStore.update(Key(id), webhook.clientId, webhook) |> mapLeft(
                 err => BadRequest(err.toJson)
               )
@@ -93,11 +97,13 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
   }
 
   def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import Webhook._
+    import WebhookInstances._
     val key = Key(id)
     for {
       current <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
-      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Webhook].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
@@ -107,11 +113,13 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    import Webhook._
+    import WebhookInstances._
     val key = Key(id)
     for {
       webhook <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
-      _       <- webhook.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Webhook].isAllowed(webhook)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       deleted <- webhookStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(webhook))
   }
@@ -132,6 +140,7 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
+    import WebhookInstances._
     val source = webhookStore
       .getByIdLike(ctx.authorizedPatterns)
       .map { case (_, data) => Json.toJson(data) }
@@ -146,7 +155,7 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
 
   def upload() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .via(Webhook.importData(webhookStore))
+      .via(webhookStore.importData)
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))

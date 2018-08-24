@@ -1,16 +1,15 @@
 package controllers
 
-import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.scaladsl.{Flow, Sink}
+import akka.stream.scaladsl.{Sink}
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import cats.data.EitherT
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.feature.{Feature, FeatureService, IsActive}
-import domains.{AuthInfo, Import, ImportResult, Key}
+import domains.feature.{Feature, FeatureInstances, FeatureService}
+import domains._
 import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
@@ -18,9 +17,7 @@ import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
-import store.Result.{AppErrors, ErrorMessage}
-
-import scala.concurrent.{ExecutionContext, Future}
+import store.Result.{AppErrors}
 
 class FeatureController[F[_]: Effect](env: Env,
                                       featureStore: FeatureService[F],
@@ -34,15 +31,14 @@ class FeatureController[F[_]: Effect](env: Env,
   import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
-  import Feature._
   import libs.http._
+  import FeatureInstances._
 
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
-      import Feature._
-
+      import FeatureInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
 
       if (active) {
@@ -51,7 +47,9 @@ class FeatureController[F[_]: Effect](env: Env,
           .map { pagingResult =>
             val results: Seq[JsValue] = pagingResult.results.map {
               case (feature, isActive) =>
-                Json.toJson(feature).as[JsObject] ++ Json.obj("active" -> (isActive && feature.enabled))
+                FeatureInstances.format.writes(feature).as[JsObject] ++ Json.obj(
+                  "active" -> (isActive && feature.enabled)
+                )
             }
             Ok(
               Json.obj(
@@ -86,8 +84,6 @@ class FeatureController[F[_]: Effect](env: Env,
 
   def listWithContext(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[JsValue] =
     AuthAction.asyncF(parse.json) { ctx =>
-      import Feature._
-
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
       ctx.body match {
         case context: JsObject =>
@@ -96,7 +92,9 @@ class FeatureController[F[_]: Effect](env: Env,
             .map { pagingResult =>
               val results: Seq[JsValue] = pagingResult.results.map {
                 case (feature, isActive) =>
-                  Json.toJson(feature).as[JsObject] ++ Json.obj("active" -> (isActive && feature.enabled))
+                  FeatureInstances.format.writes(feature).as[JsObject] ++ Json.obj(
+                    "active" -> (isActive && feature.enabled)
+                  )
               }
               Ok(
                 Json.obj(
@@ -139,21 +137,23 @@ class FeatureController[F[_]: Effect](env: Env,
   }
 
   def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import Feature._
+    import FeatureInstances._
     for {
       feature <- ctx.request.body.validate[Feature] |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
-      _ <- feature.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Feature].isAllowed(feature)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       _ <- featureStore.create(feature.id, feature) |> mapLeft(err => BadRequest(err.toJson))
     } yield Created(Json.toJson(feature))
   }
 
   def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
-    import Feature._
+    import FeatureInstances._
     val key = Key(id)
     for {
-      _ <- Feature.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
+      _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       feature <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
@@ -172,32 +172,36 @@ class FeatureController[F[_]: Effect](env: Env,
   private def checkFeatureWithcontext(id: String,
                                       user: Option[AuthInfo],
                                       contextJson: JsValue): EitherT[F, Result, Result] = {
-    import Feature._
+    import FeatureInstances._
     val key = Key(id)
     for {
       context <- contextJson.validate[JsObject] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _       <- Feature.isAllowed(key)(user) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
+      _       <- Key.isAllowed(key)(user) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
       pair    <- featureStore.getByIdActive(env, context, key) |> liftFOption(NotFound(Json.obj()))
     } yield Ok(Json.obj("active" -> (pair._2 && pair._1.enabled)))
   }
 
   def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import Feature._
+    import FeatureInstances._
     for {
       feature <- ctx.request.body.validate[Feature] |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
-      _     <- feature.isAllowed(ctx.auth) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Feature].isAllowed(feature)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       event <- featureStore.update(Key(id), feature.id, feature) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(feature))
   }
 
   def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import Feature._
+    import FeatureInstances._
     val key = Key(id)
     for {
       current <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
-      _       <- current.isAllowed(ctx.auth) |> liftBooleanTrue(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Feature].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
                   err => BadRequest(AppErrors.fromJsError(err).toJson)
                 )
@@ -207,13 +211,14 @@ class FeatureController[F[_]: Effect](env: Env,
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    import Feature._
     val key = Key(id)
     for {
       feature <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
-      _       <- feature.isAllowed(ctx.auth) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
+      _ <- IsAllowed[Feature].isAllowed(feature)(ctx.auth) |> liftBooleanTrue[Result](
+            Forbidden(AppErrors.error("error.forbidden").toJson)
+          )
       deleted <- featureStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
-    } yield Ok(Json.toJson(feature))
+    } yield Ok(FeatureInstances.format.writes(feature))
   }
 
   def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
@@ -235,7 +240,7 @@ class FeatureController[F[_]: Effect](env: Env,
   def download(): Action[AnyContent] = AuthAction { ctx =>
     val source = featureStore
       .getByIdLike(ctx.authorizedPatterns)
-      .map { case (_, data) => Json.toJson(data) }
+      .map { case (_, data) => FeatureInstances.format.writes(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
       .map(ByteString.apply)
@@ -247,7 +252,7 @@ class FeatureController[F[_]: Effect](env: Env,
 
   def upload() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
-      .via(Feature.importData(featureStore))
+      .via(featureStore.importData)
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))

@@ -2,7 +2,7 @@ package env
 
 import akka.actor.ActorSystem
 import controllers.AssetsFinder
-import domains.script.{GlobalScriptStore, ScriptExecutionContext}
+import domains.script.{GlobalScriptService, ScriptExecutionContext}
 import play.api.libs.ws.WSClient
 import play.api.{Environment, Logger, Mode}
 

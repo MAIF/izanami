@@ -52,6 +52,7 @@ class ExperimentVariantEventLevelDBStore[F[_]: Effect](levelDbConfig: LevelDbCon
   import libs.effects._
   import actorSystem.dispatcher
   import domains.events.Events._
+  import ExperimentVariantEventInstances._
   implicit private val s            = actorSystem
   implicit private val materializer = ActorMaterializer()
   implicit private val es           = eventStore
@@ -93,7 +94,7 @@ class ExperimentVariantEventLevelDBStore[F[_]: Effect](levelDbConfig: LevelDbCon
     val dataToSave = function(data, transformation)
 
     client
-      .sadd(eventsKey, Json.stringify(ExperimentVariantEvent.format.writes(dataToSave)))
+      .sadd(eventsKey, Json.stringify(ExperimentVariantEventInstances.format.writes(dataToSave)))
       .map { _ =>
         Result.ok(dataToSave)
       }
@@ -170,7 +171,7 @@ class ExperimentVariantEventLevelDBStore[F[_]: Effect](levelDbConfig: LevelDbCon
                 .map(Json.parse)
                 .map(
                   value =>
-                    ExperimentVariantEvent.format
+                    ExperimentVariantEventInstances.format
                       .reads(value)
                       .get
                 )

@@ -3,24 +3,22 @@ package domains.webhook
 import java.time.LocalDateTime
 
 import akka.{Done, NotUsed}
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
-import cats.Monad
 import cats.data.EitherT
 import cats.effect.Effect
 import domains.Domain.Domain
 import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
-import domains.{AuthInfo, Domain, ImportResult, Key}
+import domains._
 import env.DbDomainConfig
 import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
-import store.Result.ErrorMessage
+import store.Result.Result
 import store.SourceUtils.SourceKV
 import store._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 case class Webhook(clientId: WebhookKey,
                    callbackUrl: String,
@@ -29,61 +27,29 @@ case class Webhook(clientId: WebhookKey,
                    types: Seq[String] = Seq.empty[String],
                    headers: JsObject = Json.obj(),
                    created: LocalDateTime = LocalDateTime.now(),
-                   isBanned: Boolean = false) {
-  def isAllowed = Key.isAllowed(clientId) _
-}
+                   isBanned: Boolean = false)
 
 object Webhook {
-
-  import Domain._
-  import play.api.libs.json._
-  import playjson.rules._
-  import shapeless.syntax.singleton._
-
   type WebhookKey = Key
-
-  private val reads: Reads[Webhook] = jsonRead[Webhook].withRules(
-    'domains ->> orElse(Seq.empty[Domain]) and
-    'patterns ->> orElse(Seq.empty[String]) and
-    'types ->> orElse(Seq.empty[String]) and
-    'headers ->> orElse(Json.obj()) and
-    'created ->> orElse(LocalDateTime.now()) and
-    'isBanned ->> orElse(false)
-  )
-
-  private val writes = Json.writes[Webhook]
-
-  implicit val format = Format(reads, writes)
-
-  def isAllowed(key: WebhookKey)(auth: Option[AuthInfo]) =
-    Key.isAllowed(key)(auth)
-
-  def importData[F[_]: Effect](
-      webhookStore: WebhookStore[F]
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import store.Result.AppErrors._
-    import libs.streams.syntax._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[Webhook]) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          webhookStore.create(obj.clientId, obj).map { ImportResult.fromResult }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
 }
 
-trait WebhookStore[F[_]] extends DataStore[F, WebhookKey, Webhook]
+trait WebhookStore[F[_]] {
+  def create(id: WebhookKey, data: Webhook): F[Result[Webhook]]
+  def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): F[Result[Webhook]]
+  def delete(id: WebhookKey): F[Result[Webhook]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def getById(id: WebhookKey): F[Option[Webhook]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Webhook]]
+  def getByIdLike(patterns: Seq[String]): Source[(WebhookKey, Webhook), NotUsed]
+  def count(patterns: Seq[String]): F[Long]
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+}
 
-class WebhookStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], config: DbDomainConfig, eventStore: EventStore[F])
+class WebhookStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], config: DbDomainConfig, eventStore: EventStore[F])
     extends WebhookStore[F]
     with EitherTSyntax[F] {
 
-  import Webhook._
+  import WebhookInstances._
 
   import cats.implicits._
   import libs.functional.syntax._
@@ -93,7 +59,7 @@ class WebhookStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], config: DbDomai
   override def create(id: WebhookKey, data: Webhook): F[Result[Webhook]] = {
     // format: off
     val r: EitherT[F, AppErrors, Webhook] = for {
-      created     <- jsonStore.create(id, Webhook.format.writes(data))   |> liftFEither
+      created     <- jsonStore.create(id, WebhookInstances.format.writes(data))   |> liftFEither
       user        <- created.validate[Webhook]                           |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(WebhookCreated(id, user))        |> liftF[AppErrors, Done]
     } yield user
@@ -105,7 +71,7 @@ class WebhookStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], config: DbDomai
     // format: off
     val r: EitherT[F, AppErrors, Webhook] = for {
       oldValue    <- getById(oldId)                                                |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, Webhook.format.writes(data))      |> liftFEither
+      updated     <- jsonStore.update(oldId, id, WebhookInstances.format.writes(data))      |> liftFEither
       user        <- updated.validate[Webhook]                                     |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(WebhookUpdated(id, oldValue, user))        |> liftF[AppErrors, Done]
     } yield user
@@ -140,6 +106,22 @@ class WebhookStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], config: DbDomai
 
   override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
+
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+    import libs.streams.syntax._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, WebhookInstances.format.reads(json)) }
+      .mapAsyncF(4) {
+        case (_, JsSuccess(obj, _)) =>
+          create(obj.clientId, obj).map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 
   private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
     Logger.error(s"Error parsing json from database $err")

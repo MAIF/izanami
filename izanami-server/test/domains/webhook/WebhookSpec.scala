@@ -11,7 +11,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "Webhook" should {
 
     "read json" in {
-      import Webhook._
+      import WebhookInstances._
       val date = DateTimeFormatter.ISO_TIME.format(LocalDateTime.now())
       val json = Json.obj("clientId" -> "my:path",
                           "callbackUrl"         -> "http://localhost:5000",
@@ -23,7 +23,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "read json missing fields" in {
-      import Webhook._
+      import WebhookInstances._
       val json =
         Json.obj("clientId" -> "my:path", "callbackUrl" -> "http://localhost:5000", "notificationPattern" -> "*")
       val result = json.validate[Webhook]
