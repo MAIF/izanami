@@ -1,5 +1,6 @@
 package domains.abtesting
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 import domains.Key
 import play.api.libs.json._
@@ -18,8 +19,8 @@ object ExperimentVariantDisplayedInstances {
   implicit val format = {
     import ExperimentInstances._
     implicit val kf                                   = ExperimentVariantEventKeyInstances.format
-    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.DefaultLocalDateTimeReads
-    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
+    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.localDateTimeReads("yyyy-MM-dd'T'HH:mm:ss.SSS")
+    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.temporalWrites("yyyy-MM-dd'T'HH:mm:ss.SSS")
     Json.format[ExperimentVariantDisplayed]
   }
 }
@@ -28,8 +29,8 @@ object ExperimentVariantWonInstances {
   implicit val format = {
     import ExperimentInstances._
     implicit val kf                                   = ExperimentVariantEventKeyInstances.format
-    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.DefaultLocalDateTimeReads
-    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
+    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.localDateTimeReads("yyyy-MM-dd'T'HH:mm:ss.SSS")
+    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.temporalWrites("yyyy-MM-dd'T'HH:mm:ss.SSS")
     Json.format[ExperimentVariantWon]
   }
 }

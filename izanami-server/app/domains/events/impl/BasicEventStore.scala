@@ -24,9 +24,11 @@ class BasicEventStore[F[_]: Applicative](implicit system: ActorSystem) extends E
   private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
   system.actorOf(EventStreamActor.props(queue))
 
-  override def publish(event: IzanamiEvent): F[Done] =
+  override def publish(event: IzanamiEvent): F[Done] = {
     //Already published
+    system.eventStream.publish(event)
     Applicative[F].pure(Done)
+  }
 
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],
