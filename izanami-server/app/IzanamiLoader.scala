@@ -27,6 +27,7 @@ import patches.impl.ConfigsPatch
 import play.api.ApplicationLoader.Context
 import play.api._
 import play.api.http.HttpErrorHandler
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
@@ -35,7 +36,7 @@ import store.leveldb.DbStores
 import store.{Healthcheck, JsonDataStore}
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 
-import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
 class IzanamiLoader extends ApplicationLoader {
   def load(context: Context) = {
@@ -50,9 +51,8 @@ package object modules {
 
   class IzanamiComponentsInstances(context: Context)
       extends BuiltInComponentsFromContext(context)
-      with IzanamiMainComponents {}
-
-  trait IzanamiMainComponents extends BuiltInComponentsFromContext with AssetsComponents with AhcWSComponents {
+      with AssetsComponents
+      with AhcWSComponents {
 
     import cats.effect.implicits._
 
@@ -221,18 +221,11 @@ package object modules {
     lazy val eventsController: effect.EventsControllerEff = wire[EventsController[IO]]
 
     if (izanamiConfig.patchEnabled) {
-      lazy val conf: DbDomainConfig = izanamiConfig.patch.db
-      lazy val eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] =
-        Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent])
-      lazy val jsonStore: JsonDataStore[IO] =
-        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
-      lazy val jsonStoreOpt: Option[JsonDataStore[IO]] = Some(jsonStore)
-      lazy val configsPatch: ConfigsPatch[IO]          = wire[ConfigsPatch[IO]]
-
-      lazy val allPatchs: Map[Int, PatchInstance[IO]] = Map(1 -> configsPatch)
-
-      lazy val patchs: Patchs[IO] = new Patchs[IO](jsonStoreOpt, allPatchs)
-      patchs.run().unsafeToFuture()
+      system.scheduler
+        .scheduleOnce(2.second, new Runnable {
+          override def run(): Unit =
+            applyPath(izanamiConfig, drivers, eventStore, applicationLifecycle, configStore)
+        })
     }
 
     lazy val searchController: effect.SearchControllerEff = wire[SearchController[IO]]
@@ -261,4 +254,29 @@ package object modules {
       new ErrorHandler(environment, configuration, None, Some(router))
   }
 
+  def applyPath(
+      izanamiConfig: IzanamiConfig,
+      drivers: Drivers,
+      eventStore: EventStore[IO],
+      applicationLifecycle: ApplicationLifecycle,
+      configService: => ConfigService[IO]
+  )(implicit system: ActorSystem, dbStores: DbStores[IO]) = {
+
+    import cats.implicits._
+    import cats.effect.implicits._
+
+    lazy val conf: DbDomainConfig = izanamiConfig.patch.db
+    lazy val eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] =
+      Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent])
+    lazy val jsonStore: JsonDataStore[IO] =
+      JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+    lazy val jsonStoreOpt: Option[JsonDataStore[IO]] = Some(jsonStore)
+    lazy val configsPatch: ConfigsPatch[IO] =
+      new ConfigsPatch[IO](izanamiConfig, configService, drivers, eventStore, applicationLifecycle)
+
+    lazy val allPatchs: Map[Int, PatchInstance[IO]] = Map(1 -> configsPatch)
+
+    lazy val patchs: Patchs[IO] = new Patchs[IO](jsonStoreOpt, allPatchs)
+    patchs.run().unsafeToFuture()
+  }
 }
