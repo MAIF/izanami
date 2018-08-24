@@ -15,15 +15,15 @@ import cats.effect.{Effect}
 ////////////////////////////////////    IN MEMORY     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventInMemoryStore {
+object ExperimentVariantEventInMemoryService {
   def apply[F[_]: Effect](
       configdb: DbDomainConfig
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventInMemoryStore[F] =
-    new ExperimentVariantEventInMemoryStore(configdb)
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventInMemoryService[F] =
+    new ExperimentVariantEventInMemoryService(configdb)
 }
 
-class ExperimentVariantEventInMemoryStore[F[_]: Effect](configdb: DbDomainConfig)(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore[F] {
+class ExperimentVariantEventInMemoryService[F[_]: Effect](configdb: DbDomainConfig)(implicit actorSystem: ActorSystem)
+    extends ExperimentVariantEventService[F] {
 
   import actorSystem.dispatcher
   import akka.pattern._

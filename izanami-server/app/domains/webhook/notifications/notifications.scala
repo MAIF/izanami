@@ -12,7 +12,7 @@ import domains.events.Events.{IzanamiEvent, WebhookCreated, WebhookDeleted, Webh
 import domains.events.{EventStore, Events}
 import domains.webhook.Webhook.WebhookKey
 import domains.webhook.notifications.WebHookActor._
-import domains.webhook.{Webhook, WebhookStore}
+import domains.webhook.{Webhook, WebhookService}
 import env.WebhookConfig
 import play.api.Logger
 import play.api.libs.json._
@@ -28,14 +28,14 @@ object WebHooksActor {
 
   def props[F[_]: Effect](wSClient: WSClient,
                           eventStore: EventStore[F],
-                          webhookStore: WebhookStore[F],
+                          webhookStore: WebhookService[F],
                           config: WebhookConfig): Props =
     Props(new WebHooksActor[F](wSClient, eventStore, webhookStore, config))
 }
 
 class WebHooksActor[F[_]: Effect](wSClient: WSClient,
                                   eventStore: EventStore[F],
-                                  webhookStore: WebhookStore[F],
+                                  webhookStore: WebhookService[F],
                                   config: WebhookConfig)
     extends Actor {
 
@@ -143,14 +143,14 @@ object WebHookActor {
   case class WebhookBannedException(id: WebhookKey) extends RuntimeException(s"Too much error on webhook ${id.key}")
 
   def props[F[_]: Effect](wSClient: WSClient,
-                          webhookStore: WebhookStore[F],
+                          webhookStore: WebhookService[F],
                           webhook: Webhook,
                           config: WebhookConfig): Props =
     Props(new WebHookActor(wSClient, webhookStore, webhook, config))
 }
 
 class WebHookActor[F[_]: Effect](wSClient: WSClient,
-                                 webhookStore: WebhookStore[F],
+                                 webhookStore: WebhookService[F],
                                  webhook: Webhook,
                                  config: WebhookConfig)
     extends Actor {

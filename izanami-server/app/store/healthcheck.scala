@@ -3,25 +3,25 @@ package store
 import akka.actor.ActorSystem
 import cats.Applicative
 import domains.Key
-import domains.abtesting.{ExperimentStore, ExperimentVariantEventStore, VariantBindingKey, VariantBindingStore}
+import domains.abtesting.{ExperimentService, ExperimentVariantEventService, VariantBindingKey, VariantBindingService}
 import domains.apikey.ApikeyService
 import domains.config.ConfigService
 import domains.events.EventStore
 import domains.feature.FeatureService
 import domains.script.GlobalScriptService
-import domains.user.UserStore
-import domains.webhook.WebhookStore
+import domains.user.UserService
+import domains.webhook.WebhookService
 
 class Healthcheck[F[_]: Applicative](
     eventStore: EventStore[F],
     globalScriptStore: GlobalScriptService[F],
     configStore: ConfigService[F],
     featureStore: FeatureService[F],
-    experimentStore: ExperimentStore[F],
-    variantBindingStore: VariantBindingStore[F],
-    experimentVariantEventStore: ExperimentVariantEventStore[F],
-    webhookStore: WebhookStore[F],
-    userStore: UserStore[F],
+    experimentStore: ExperimentService[F],
+    variantBindingStore: VariantBindingService[F],
+    experimentVariantEventStore: ExperimentVariantEventService[F],
+    webhookStore: WebhookService[F],
+    userStore: UserService[F],
     apikeyStore: ApikeyService[F]
 )(implicit system: ActorSystem) {
 

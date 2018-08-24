@@ -28,17 +28,16 @@ object Patchs {
 
 }
 
-class Patchs[F[_]: Effect](mayBeJsonStore: Option[JsonDataStore[F]],
-                           allpatches: Map[Int, PatchInstance[F]],
-                           actorSystem: ActorSystem) {
+class Patchs[F[_]: Effect](mayBeJsonStore: Option[JsonDataStore[F]], allpatches: Map[Int, PatchInstance[F]])(
+    implicit val system: ActorSystem
+) {
 
   import Patchs._
-  import actorSystem.dispatcher
+  import system.dispatcher
   import cats.implicits._
   import libs.effects._
   import libs.streams.syntax._
-  implicit val system: ActorSystem = actorSystem
-  implicit val materializer        = ActorMaterializer()
+  implicit val materializer = ActorMaterializer()
 
   val key = Key("last:patch")
 

@@ -36,7 +36,7 @@ object Webhook {
   type WebhookKey = Key
 }
 
-trait WebhookStore[F[_]] {
+trait WebhookService[F[_]] {
   def create(id: WebhookKey, data: Webhook): F[Result[Webhook]]
   def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): F[Result[Webhook]]
   def delete(id: WebhookKey): F[Result[Webhook]]
@@ -48,12 +48,12 @@ trait WebhookStore[F[_]] {
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
-class WebhookStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
-                                     config: DbDomainConfig,
-                                     webHookConfig: WebhookConfig,
-                                     eventStore: EventStore[F],
-                                     wsClient: WSClient)(implicit actorSystem: ActorSystem)
-    extends WebhookStore[F]
+class WebhookServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
+                                       config: DbDomainConfig,
+                                       webHookConfig: WebhookConfig,
+                                       eventStore: EventStore[F],
+                                       wsClient: WSClient)(implicit actorSystem: ActorSystem)
+    extends WebhookService[F]
     with EitherTSyntax[F] {
 
   import WebhookInstances._

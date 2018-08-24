@@ -6,7 +6,7 @@ import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import cats.effect.{Effect, IO}
 import controllers.actions.SecuredAuthContext
-import domains.webhook.{Webhook, WebhookInstances, WebhookStore}
+import domains.webhook.{Webhook, WebhookInstances, WebhookService}
 import domains.{Import, IsAllowed, Key}
 import libs.patch.Patch
 import play.api.Logger
@@ -16,7 +16,7 @@ import play.api.mvc._
 import store.Result.AppErrors
 import libs.functional.EitherTSyntax
 
-class WebhookController[F[_]: Effect](webhookStore: WebhookStore[F],
+class WebhookController[F[_]: Effect](webhookStore: WebhookService[F],
                                       system: ActorSystem,
                                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                                       cc: ControllerComponents)

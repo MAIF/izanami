@@ -22,21 +22,21 @@ import scala.concurrent.Future
 ////////////////////////////////////    CASSANDRA     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventCassandreStore {
+object ExperimentVariantEventCassandreService {
   def apply[F[_]: Effect](
       session: Session,
       config: DbDomainConfig,
       cassandraConfig: CassandraConfig,
       eventStore: EventStore[F]
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandreStore[F] =
-    new ExperimentVariantEventCassandreStore(session, config, cassandraConfig, eventStore)
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandreService[F] =
+    new ExperimentVariantEventCassandreService(session, config, cassandraConfig, eventStore)
 }
 
-class ExperimentVariantEventCassandreStore[F[_]: Effect](session: Session,
-                                                         config: DbDomainConfig,
-                                                         cassandraConfig: CassandraConfig,
-                                                         eventStore: EventStore[F])(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore[F] {
+class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
+                                                           config: DbDomainConfig,
+                                                           cassandraConfig: CassandraConfig,
+                                                           eventStore: EventStore[F])(implicit actorSystem: ActorSystem)
+    extends ExperimentVariantEventService[F] {
 
   private val namespaceFormatted = config.conf.namespace.replaceAll(":", "_")
   private val keyspace           = cassandraConfig.keyspace

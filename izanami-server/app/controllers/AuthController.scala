@@ -7,7 +7,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import controllers.actions.AuthContext
 import domains.{AuthorizedPattern, Key}
-import domains.user.{User, UserStore}
+import domains.user.{User, UserService}
 import env.Env
 import libs.crypto.Sha
 import play.api.libs.json.{JsObject, JsValue, Json}
@@ -22,7 +22,7 @@ object Auth {
 }
 
 class AuthController[F[_]: Effect](_env: Env,
-                                   userStore: UserStore[F],
+                                   userStore: UserService[F],
                                    AuthAction: ActionBuilder[AuthContext, AnyContent],
                                    system: ActorSystem,
                                    cc: ControllerComponents)

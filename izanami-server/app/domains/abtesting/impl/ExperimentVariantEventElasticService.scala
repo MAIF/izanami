@@ -28,23 +28,23 @@ import scala.concurrent.{Await, Future}
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////     ELASTIC      ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-object ExperimentVariantEventElasticStore {
+object ExperimentVariantEventElasticService {
 
   def apply[F[_]: Effect](
       elastic: Elastic[JsValue],
       elasticConfig: ElasticConfig,
       config: DbDomainConfig,
       eventStore: EventStore[F]
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventElasticStore[F] =
-    new ExperimentVariantEventElasticStore(elastic, elasticConfig, config, eventStore)
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventElasticService[F] =
+    new ExperimentVariantEventElasticService(elastic, elasticConfig, config, eventStore)
 }
 
-class ExperimentVariantEventElasticStore[F[_]: Effect](client: Elastic[JsValue],
-                                                       elasticConfig: ElasticConfig,
-                                                       dbDomainConfig: DbDomainConfig,
-                                                       eventStore: EventStore[F],
+class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue],
+                                                         elasticConfig: ElasticConfig,
+                                                         dbDomainConfig: DbDomainConfig,
+                                                         eventStore: EventStore[F],
 )(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore[F] {
+    extends ExperimentVariantEventService[F] {
 
   import elastic.implicits._
   import cats.implicits._

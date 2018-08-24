@@ -35,7 +35,7 @@ case class VariantBinding(variantBindingKey: VariantBindingKey, variantId: Strin
 
 object VariantBinding {}
 
-trait VariantBindingStore[F[_]] {
+trait VariantBindingService[F[_]] {
   def create(id: VariantBindingKey, data: VariantBinding): F[Result[VariantBinding]]
   def deleteAll(patterns: Seq[String]): F[Result[Done]]
   def getById(id: VariantBindingKey): F[Option[VariantBinding]]
@@ -44,13 +44,13 @@ trait VariantBindingStore[F[_]] {
   def count(patterns: Seq[String]): F[Long]
   def createVariantForClient(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      experimentStore: ExperimentStore[F]
+      experimentStore: ExperimentService[F]
   ): F[Result[Variant]]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
-class VariantBindingStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
-    extends VariantBindingStore[F]
+class VariantBindingServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
+    extends VariantBindingService[F]
     with EitherTSyntax[F] {
 
   import cats.data._
@@ -99,7 +99,7 @@ class VariantBindingStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventSt
 
   def createVariantForClient(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      experimentStore: ExperimentStore[F]
+      experimentStore: ExperimentService[F]
   ): F[Result[Variant]] = {
 
     import cats.implicits._

@@ -19,9 +19,9 @@ import store.Result.{AppErrors}
 
 import scala.util.{Failure, Success}
 
-class ExperimentController[F[_]: Effect](experimentStore: ExperimentStore[F],
-                                         variantBindingStore: VariantBindingStore[F],
-                                         eVariantEventStore: ExperimentVariantEventStore[F],
+class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
+                                         variantBindingStore: VariantBindingService[F],
+                                         eVariantEventStore: ExperimentVariantEventService[F],
                                          system: ActorSystem,
                                          AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                                          cc: ControllerComponents)
