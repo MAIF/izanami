@@ -31,6 +31,7 @@ class ExperimentVariantEventInMemoryStore[F[_]: Effect](configdb: DbDomainConfig
   import libs.effects._
 
   import scala.concurrent.duration.DurationInt
+  import ExperimentVariantEventInstances._
 
   private implicit val timeout = Timeout(1.second)
 

@@ -28,7 +28,7 @@ class AuthController[F[_]: Effect](_env: Env,
                                    cc: ControllerComponents)
     extends AbstractController(cc) {
 
-  import domains.user.UserNoPassword._
+  import domains.user.UserNoPasswordInstances._
   import cats.implicits._
   import libs.http._
 

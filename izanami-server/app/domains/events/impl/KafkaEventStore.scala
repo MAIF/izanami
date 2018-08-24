@@ -192,8 +192,8 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
   }
 
   override def check(): F[Unit] =
-      Async[F].async { cb =>
-        system.dispatchers.lookup("izanami.blocking-dispatcher").execute { () =>
+    Async[F].async { cb =>
+      system.dispatchers.lookup("izanami.blocking-dispatcher").execute { () =>
         try {
           val consumer = KafkaSettings.consumerSettings(_env, system, clusterConfig).createKafkaConsumer()
           consumer.partitionsFor(eventsConfig.topic)

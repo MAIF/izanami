@@ -25,14 +25,6 @@ case class VariantBindingKey(experimentId: ExperimentKey, clientId: String) {
 }
 
 object VariantBindingKey {
-
-  implicit val format: Format[VariantBindingKey] = Format(
-    Key.format.map { k =>
-      VariantBindingKey(k)
-    },
-    Writes[VariantBindingKey](vk => Key.format.writes(vk.key))
-  )
-
   def apply(key: Key): VariantBindingKey = {
     val last :: rest = key.segments.toList.reverse
     VariantBindingKey(Key(rest.reverse), last)
@@ -41,105 +33,23 @@ object VariantBindingKey {
 
 case class VariantBinding(variantBindingKey: VariantBindingKey, variantId: String)
 
-object VariantBinding {
-  implicit val format = Json.format[VariantBinding]
+object VariantBinding {}
 
-  def importData[F[_]: Effect](
-      variantBindingStore: VariantBindingStore[F]
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import cats.effect.implicits._
-    import store.Result.AppErrors._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[VariantBinding]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          variantBindingStore.create(obj.variantBindingKey, obj).map { ImportResult.fromResult }.toIO.unsafeToFuture()
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
-
-  def variantFor[F[_]: Effect](experimentKey: ExperimentKey, clientId: String)(
+trait VariantBindingStore[F[_]] {
+  def create(id: VariantBindingKey, data: VariantBinding): F[Result[VariantBinding]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def getById(id: VariantBindingKey): F[Option[VariantBinding]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[VariantBinding]]
+  def getByIdLike(patterns: Seq[String]): Source[(VariantBindingKey, VariantBinding), NotUsed]
+  def count(patterns: Seq[String]): F[Long]
+  def createVariantForClient(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      experimentStore: ExperimentStore[F],
-      VariantBindingStore: VariantBindingStore[F]
-  ): F[Result[Variant]] = {
-    import cats.implicits._
-    VariantBindingStore
-      .getById(VariantBindingKey(experimentKey, clientId))
-      .flatMap {
-        case None =>
-          createVariantForClient(experimentKey, clientId)
-        case Some(v) =>
-          experimentStore.getById(experimentKey).map {
-            case Some(e) =>
-              e.variants
-                .find(_.id == v.variantId)
-                .map(Result.ok)
-                .getOrElse(Result.error("error.variant.missing"))
-            case None =>
-              Result.error("error.experiment.missing")
-          }
-      }
-  }
-
-  def createVariantForClient[F[_]: Effect](experimentKey: ExperimentKey, clientId: String)(
-      implicit ec: ExecutionContext,
-      experimentStore: ExperimentStore[F],
-      VariantBindingStore: VariantBindingStore[F]
-  ): F[Result[Variant]] = {
-
-    import cats.implicits._
-    import libs.functional.syntax._
-
-    object OPs extends EitherTSyntax[F]
-    import OPs._
-
-    // Each step is an EitherT[Future, StoreError, ?]. EitherT is a monad transformer where map, flatMap, withFilter is implemented for Future[Either[L, R]]
-    // something  |> someOp, aim to transform "something" into EitherT[Future, StoreError, ?]
-    (
-      for {
-        //Get experiment, if empty : StoreError
-        experiment <- experimentStore.getById(experimentKey) |> liftFOption(
-                       AppErrors(Seq(ErrorMessage("error.experiment.missing")))
-                     )
-        // Sum of the distinct client connected
-        sum = experiment.variants.map { _.currentPopulation.getOrElse(0) }.sum
-        // We find the variant with the less value
-        lastChosenSoFar = experiment.variants.maxBy {
-          case v if sum == 0 => 0
-          case v =>
-            val pourcentReached = v.currentPopulation.getOrElse(0).toFloat / sum
-            val diff            = v.traffic - pourcentReached
-            //println(s"${v.id} => traffic: ${v.traffic} diff: $diff, reached: $pourcentReached, current ${v.currentPopulation.getOrElse(0).toFloat}, sum: $sum")
-            v.traffic - v.currentPopulation.getOrElse(0).toFloat / sum
-        }
-        // Update of the variant
-        newLeastChosenVariantSoFar = lastChosenSoFar.incrementPopulation
-        // Update of the experiment
-        newExperiment = experiment.addOrReplaceVariant(newLeastChosenVariantSoFar)
-        // Update OPS on store for experiment
-        experimentUpdated <- experimentStore.update(experimentKey, experimentKey, newExperiment) |> liftFEither[
-                              AppErrors,
-                              Experiment
-                            ]
-        // Variant binding creation
-        variantBindingKey       = VariantBindingKey(experimentKey, clientId)
-        binding: VariantBinding = VariantBinding(variantBindingKey, newLeastChosenVariantSoFar.id)
-        variantBindingCreated <- VariantBindingStore.create(variantBindingKey, binding) |> liftFEither[AppErrors,
-                                                                                                       VariantBinding]
-      } yield newLeastChosenVariantSoFar
-    ).value
-  }
-
+      experimentStore: ExperimentStore[F]
+  ): F[Result[Variant]]
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
-trait VariantBindingStore[F[_]] extends DataStore[F, VariantBindingKey, VariantBinding]
-
-class VariantBindingStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
+class VariantBindingStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
     extends VariantBindingStore[F]
     with EitherTSyntax[F] {
 
@@ -147,39 +57,17 @@ class VariantBindingStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventSto
   import cats.implicits._
   import store.Result._
   import libs.functional.syntax._
+  import libs.streams.syntax._
   import domains.events.Events._
 
-  import VariantBinding._
+  import VariantBindingInstances._
 
   override def create(id: VariantBindingKey, data: VariantBinding): F[Result[VariantBinding]] = {
     // format: off
     val r: EitherT[F, AppErrors, VariantBinding] = for {
-      created     <- jsonStore.create(id.key, VariantBinding.format.writes(data))   |> liftFEither
+      created     <- jsonStore.create(id.key, VariantBindingInstances.format.writes(data))   |> liftFEither
       vBinding    <- created.validate[VariantBinding]                               |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(VariantBindingCreated(id, vBinding))        |> liftF[AppErrors, Done]
-    } yield vBinding
-    // format: on
-    r.value
-  }
-
-  override def update(oldId: VariantBindingKey,
-                      id: VariantBindingKey,
-                      data: VariantBinding): F[Result[VariantBinding]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, VariantBinding] = for {
-      oldValue    <- getById(oldId)                                                   |> liftFOption(AppErrors.error("error.data.missing", oldId.key.key))
-      updated     <- jsonStore.update(oldId.key, id.key, VariantBinding.format.writes(data))  |> liftFEither
-      vBinding    <- updated.validate[VariantBinding]                                   |> liftJsResult{ handleJsError }
-    } yield vBinding
-    // format: on
-    r.value
-  }
-
-  override def delete(id: VariantBindingKey): F[Result[VariantBinding]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, VariantBinding] = for {
-      deleted   <- jsonStore.delete(id.key)             |> liftFEither
-      vBinding  <- deleted.validate[VariantBinding]     |> liftJsResult{ handleJsError }
     } yield vBinding
     // format: on
     r.value
@@ -208,4 +96,65 @@ class VariantBindingStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventSto
     Logger.error(s"Error parsing json from database $err")
     AppErrors.error("error.json.parsing")
   }
+
+  def createVariantForClient(experimentKey: ExperimentKey, clientId: String)(
+      implicit ec: ExecutionContext,
+      experimentStore: ExperimentStore[F]
+  ): F[Result[Variant]] = {
+
+    import cats.implicits._
+    import libs.functional.syntax._
+
+    // Each step is an EitherT[Future, StoreError, ?]. EitherT is a monad transformer where map, flatMap, withFilter is implemented for Future[Either[L, R]]
+    // something  |> someOp, aim to transform "something" into EitherT[Future, StoreError, ?]
+    (
+      for {
+        //Get experiment, if empty : StoreError
+        experiment <- experimentStore.getById(experimentKey) |> liftFOption(
+                       AppErrors(Seq(ErrorMessage("error.experiment.missing")))
+                     )
+        // Sum of the distinct client connected
+        sum = experiment.variants.map { _.currentPopulation.getOrElse(0) }.sum
+        // We find the variant with the less value
+        lastChosenSoFar = experiment.variants.maxBy {
+          case v if sum == 0 => 0
+          case v =>
+            val pourcentReached = v.currentPopulation.getOrElse(0).toFloat / sum
+            val diff            = v.traffic - pourcentReached
+            //println(s"${v.id} => traffic: ${v.traffic} diff: $diff, reached: $pourcentReached, current ${v.currentPopulation.getOrElse(0).toFloat}, sum: $sum")
+            v.traffic - v.currentPopulation.getOrElse(0).toFloat / sum
+        }
+        // Update of the variant
+        newLeastChosenVariantSoFar = lastChosenSoFar.incrementPopulation
+        // Update of the experiment
+        newExperiment = experiment.addOrReplaceVariant(newLeastChosenVariantSoFar)
+        // Update OPS on store for experiment
+        _ <- experimentStore.update(experimentKey, experimentKey, newExperiment) |> liftFEither[
+              AppErrors,
+              Experiment
+            ]
+        // Variant binding creation
+        variantBindingKey       = VariantBindingKey(experimentKey, clientId)
+        binding: VariantBinding = VariantBinding(variantBindingKey, newLeastChosenVariantSoFar.id)
+        _                       <- create(variantBindingKey, binding) |> liftFEither[AppErrors, VariantBinding]
+      } yield newLeastChosenVariantSoFar
+    ).value
+  }
+
+  override def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import cats.effect.implicits._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, VariantBindingInstances.format.reads(json)) }
+      .mapAsyncF(4) {
+        case (_, JsSuccess(obj, _)) =>
+          create(obj.variantBindingKey, obj).map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
+
 }

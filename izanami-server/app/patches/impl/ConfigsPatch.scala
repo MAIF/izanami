@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.effect.Effect
 import domains.config.Config.ConfigKey
-import domains.config.{Config, ConfigStore}
+import domains.config.{Config, ConfigService}
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env._
@@ -27,7 +27,7 @@ private[impl] object OldConfig {
 
 class ConfigsPatch[F[_]: Effect](
     izanamiConfig: IzanamiConfig,
-    configStore: => ConfigStore[F],
+    configStore: => ConfigService[F],
     drivers: Drivers,
     eventStore: EventStore[F],
     applicationLifecycle: ApplicationLifecycle,

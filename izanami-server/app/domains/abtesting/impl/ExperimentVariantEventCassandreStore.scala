@@ -151,7 +151,7 @@ class ExperimentVariantEventCassandreStore[F[_]: Effect](session: Session,
       id.clientId,
       id.namespace,
       id.id,
-      Json.stringify(Json.toJson(data))
+      Json.stringify(ExperimentVariantEventInstances.format.writes(data))
     ).map(_ => Result.ok(data))
   }
 
@@ -204,7 +204,7 @@ class ExperimentVariantEventCassandreStore[F[_]: Effect](session: Session,
       )
     ).map(r => r.getString("value"))
       .map(Json.parse)
-      .mapConcat(_.validate[ExperimentVariantEvent].asOpt.toList)
+      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
       .fold(Seq.empty[ExperimentVariantEvent])(_ :+ _)
 
     val won: Source[Long, NotUsed] =
@@ -235,7 +235,7 @@ class ExperimentVariantEventCassandreStore[F[_]: Effect](session: Session,
       )
     ).map(r => r.getString("value"))
       .map(Json.parse)
-      .mapConcat(_.validate[ExperimentVariantEvent].asOpt.toList)
+      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
   override def check(): F[Unit] = executeWithSession("SELECT now() FROM system.local").map(_ => ())

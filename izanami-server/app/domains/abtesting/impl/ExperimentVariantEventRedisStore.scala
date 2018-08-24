@@ -50,6 +50,7 @@ class ExperimentVariantEventRedisStore[F[_]: Effect](maybeRedis: Option[RedisWra
   import libs.streams.syntax._
   import cats.implicits._
   import cats.effect.implicits._
+  import ExperimentVariantEventInstances._
 
   implicit private val es   = eventStore
   implicit private val s    = actorSystem
@@ -144,7 +145,7 @@ class ExperimentVariantEventRedisStore[F[_]: Effect](maybeRedis: Option[RedisWra
                        eventsKey,
                        ScoredValue.just(
                          now(),
-                         Json.stringify(ExperimentVariantEvent.format.writes(dataToSave))
+                         Json.stringify(ExperimentVariantEventInstances.format.writes(dataToSave))
                        )
                      )
                      .toF
@@ -164,7 +165,7 @@ class ExperimentVariantEventRedisStore[F[_]: Effect](maybeRedis: Option[RedisWra
                        eventsKey,
                        ScoredValue.just(
                          now(),
-                         Json.stringify(ExperimentVariantEvent.format.writes(dataToSave))
+                         Json.stringify(ExperimentVariantEventInstances.format.writes(dataToSave))
                        )
                      )
                      .toF

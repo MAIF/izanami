@@ -8,9 +8,9 @@ import akka.stream.{ActorMaterializer, SourceShape}
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.abtesting.ExperimentStore
-import domains.config.ConfigStore
+import domains.config.ConfigService
 import domains.feature.FeatureService
-import domains.script.GlobalScriptStore
+import domains.script.GlobalScriptService
 import domains.webhook.WebhookStore
 import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
@@ -18,10 +18,10 @@ import store.{DefaultPagingResult, PagingResult}
 
 import scala.concurrent.Future
 
-class SearchController[F[_]: Effect](configStore: ConfigStore[F],
+class SearchController[F[_]: Effect](configStore: ConfigService[F],
                                      featureStore: FeatureService[F],
                                      experimentStore: ExperimentStore[F],
-                                     globalScriptStore: GlobalScriptStore[F],
+                                     globalScriptStore: GlobalScriptService[F],
                                      webhookStore: WebhookStore[F],
                                      system: ActorSystem,
                                      AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],

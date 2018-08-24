@@ -7,8 +7,15 @@ import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.effect.Effect
 import domains.Key
+import domains.abtesting.{ExperimentInstances, VariantBindingInstances}
+import domains.apikey.ApikeyInstances
+import domains.config.ConfigInstances
 import domains.events.EventStore
 import domains.events.Events._
+import domains.feature.FeatureInstances
+import domains.script.GlobalScriptInstances
+import domains.user.UserInstances
+import domains.webhook.WebhookInstances
 import env.{DbDomainConfig, InMemoryWithDbConfig}
 import play.api.Logger
 import play.api.inject.ApplicationLifecycle
@@ -49,54 +56,54 @@ object InMemoryWithDbStore {
   }
 
   lazy val globalScriptEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case GlobalScriptCreated(id, script, _, _)       => Create(id, GlobalScript.format.writes(script))
-    case GlobalScriptUpdated(id, old, script, _, _)  => Update(old.id, id, GlobalScript.format.writes(script))
+    case GlobalScriptCreated(id, script, _, _)       => Create(id, GlobalScriptInstances.format.writes(script))
+    case GlobalScriptUpdated(id, old, script, _, _)  => Update(old.id, id, GlobalScriptInstances.format.writes(script))
     case GlobalScriptDeleted(id, _, _, _)            => Delete(id)
     case GlobalScriptsDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val configEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ConfigCreated(id, value, _, _)        => Create(id, Config.format.writes(value))
-    case ConfigUpdated(id, old, value, _, _)   => Update(old.id, id, Config.format.writes(value))
+    case ConfigCreated(id, value, _, _)        => Create(id, ConfigInstances.format.writes(value))
+    case ConfigUpdated(id, old, value, _, _)   => Update(old.id, id, ConfigInstances.format.writes(value))
     case ConfigDeleted(id, _, _, _)            => Delete(id)
     case ConfigsDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val featureEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case FeatureCreated(id, value, _, _)        => Create(id, Feature.format.writes(value))
-    case FeatureUpdated(id, old, value, _, _)   => Update(old.id, id, Feature.format.writes(value))
+    case FeatureCreated(id, value, _, _)        => Create(id, FeatureInstances.format.writes(value))
+    case FeatureUpdated(id, old, value, _, _)   => Update(old.id, id, FeatureInstances.format.writes(value))
     case FeatureDeleted(id, _, _, _)            => Delete(id)
     case FeaturesDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val experimentEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ExperimentCreated(id, value, _, _)        => Create(id, Experiment.format.writes(value))
-    case ExperimentUpdated(id, old, value, _, _)   => Update(old.id, id, Experiment.format.writes(value))
+    case ExperimentCreated(id, value, _, _)        => Create(id, ExperimentInstances.format.writes(value))
+    case ExperimentUpdated(id, old, value, _, _)   => Update(old.id, id, ExperimentInstances.format.writes(value))
     case ExperimentDeleted(id, _, _, _)            => Delete(id)
     case ExperimentsDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val variantBindingEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case VariantBindingCreated(id, value, _, _) => Create(id.key, VariantBinding.format.writes(value))
+    case VariantBindingCreated(id, value, _, _) => Create(id.key, VariantBindingInstances.format.writes(value))
   }
 
   lazy val webhookEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case WebhookCreated(id, value, _, _)        => Create(id, Webhook.format.writes(value))
-    case WebhookUpdated(id, old, value, _, _)   => Update(old.clientId, id, Webhook.format.writes(value))
+    case WebhookCreated(id, value, _, _)        => Create(id, WebhookInstances.format.writes(value))
+    case WebhookUpdated(id, old, value, _, _)   => Update(old.clientId, id, WebhookInstances.format.writes(value))
     case WebhookDeleted(id, _, _, _)            => Delete(id)
     case WebhooksDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val userEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case UserCreated(id, value, _, _)        => Create(id, User.format.writes(value))
-    case UserUpdated(id, old, value, _, _)   => Update(Key(old.id), id, User.format.writes(value))
+    case UserCreated(id, value, _, _)        => Create(id, UserInstances.format.writes(value))
+    case UserUpdated(id, old, value, _, _)   => Update(Key(old.id), id, UserInstances.format.writes(value))
     case UserDeleted(id, _, _, _)            => Delete(id)
     case UsersDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val apikeyEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ApikeyCreated(id, value, _, _)        => Create(id, Apikey.format.writes(value))
-    case ApikeyUpdated(id, old, value, _, _)   => Update(Key(old.clientId), id, Apikey.format.writes(value))
+    case ApikeyCreated(id, value, _, _)        => Create(id, ApikeyInstances.format.writes(value))
+    case ApikeyUpdated(id, old, value, _, _)   => Update(Key(old.clientId), id, ApikeyInstances.format.writes(value))
     case ApikeyDeleted(id, _, _, _)            => Delete(id)
     case ApikeysDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }

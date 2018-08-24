@@ -5,16 +5,16 @@ import cats.effect.IO
 import com.softwaremill.macwire._
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
-import domains.config.{Config, ConfigStore, ConfigStoreImpl}
+import domains.config.{Config, ConfigService, ConfigServiceImpl}
 import domains.Import
 import domains.abtesting.impl._
 import domains.abtesting.{ExperimentVariantEventStore, _}
-import domains.apikey.{Apikey, ApikeyStore, ApikeyStoreImpl}
+import domains.apikey.{Apikey, ApikeyService, ApikeyStoreImpl}
 import domains.events.Events.IzanamiEvent
 import domains.events._
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
 import domains.feature.{Feature, FeatureService, FeatureServiceImpl}
-import domains.script.{GlobalScript, GlobalScriptStore, GlobalScriptStoreImpl}
+import domains.script.{GlobalScript, GlobalScriptService, GlobalScriptServiceImpl}
 import domains.user.{User, UserStore, UserStoreImpl}
 import domains.webhook.{Webhook, WebhookStore, WebhookStoreImpl}
 import libs.database.Drivers
@@ -91,26 +91,26 @@ package object modules {
     // format: on
 
     /* Global script */
-    lazy val globalScriptStore: GlobalScriptStore[IO] = {
+    lazy val globalScriptStore: GlobalScriptService[IO] = {
       val conf              = izanamiConfig.globalScript.db
       lazy val eventAdapter = InMemoryWithDbStore.globalScriptEventAdapter
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
-      val store: GlobalScriptStore[IO] = wire[GlobalScriptStoreImpl[IO]]
-      Import.importFile(conf, GlobalScript.importData(store))
+      val store: GlobalScriptService[IO] = wire[GlobalScriptServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
     lazy val globalScripController: effect.GlobalScriptControllerEff = wire[GlobalScriptController[IO]]
 
     /* Config */
-    lazy val configStore: ConfigStore[IO] = {
+    lazy val configStore: ConfigService[IO] = {
       val conf              = izanamiConfig.config.db
       lazy val eventAdapter = InMemoryWithDbStore.configEventAdapter
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
-      val store: ConfigStore[IO] = wire[ConfigStoreImpl[IO]]
-      Import.importFile(conf, Config.importData(store))
+      val store: ConfigService[IO] = wire[ConfigServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
@@ -123,7 +123,7 @@ package object modules {
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
       val store: FeatureService[IO] = wire[FeatureServiceImpl[IO]]
-      Import.importFile(conf, Feature.importData(store))
+      Import.importFile(conf, store.importData)
       store
     }
 
@@ -136,7 +136,7 @@ package object modules {
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
       val store: ExperimentStore[IO] = wire[ExperimentStoreImpl[IO]]
-      Import.importFile(conf, Experiment.importData(store))
+      Import.importFile(conf, store.importData)
       store
     }
 
@@ -146,7 +146,7 @@ package object modules {
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
       lazy val store: VariantBindingStore[IO] = wire[VariantBindingStoreImpl[IO]]
-      Import.importFile(conf, VariantBinding.importData(store))
+      Import.importFile(conf, store.importData)
       store
     }
 
@@ -168,7 +168,7 @@ package object modules {
         case InMemoryWithDb => getExperimentVariantEventStore(izanamiConfig.db.inMemoryWithDb.get.db)
         case other => getExperimentVariantEventStore(other)
       }
-      Import.importFile(conf, ExperimentVariantEvent.importData(store))
+      Import.importFile(conf, store.importData)
       store
       // format: on
     }
@@ -183,7 +183,7 @@ package object modules {
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
       lazy val store: WebhookStore[IO] = wire[WebhookStoreImpl[IO]]
-      Import.importFile(conf, Webhook.importData(store))
+      Import.importFile(conf, store.importData)
       store
     }
 
@@ -196,20 +196,20 @@ package object modules {
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
       lazy val store: UserStore[IO] = wire[UserStoreImpl[IO]]
-      Import.importFile(conf, User.importData(store))
+      Import.importFile(conf, store.importData)
       store
     }
 
     lazy val userController: effect.UserControllerEff = wire[UserController[IO]]
 
     /* Apikey */
-    lazy val apikeyStore: ApikeyStore[IO] = {
+    lazy val apikeyStore: ApikeyService[IO] = {
       val conf              = izanamiConfig.apikey.db
       lazy val eventAdapter = InMemoryWithDbStore.apikeyEventAdapter
       lazy val dbStore: JsonDataStore[IO] =
         JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
-      lazy val store: ApikeyStore[IO] = wire[ApikeyStoreImpl[IO]]
-      Import.importFile(conf, Apikey.importData(store))
+      lazy val store: ApikeyService[IO] = wire[ApikeyStoreImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
     lazy val apikeyController: effect.ApikeyControllerEff = wire[ApikeyController[IO]]

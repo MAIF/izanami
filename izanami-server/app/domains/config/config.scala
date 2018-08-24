@@ -8,59 +8,41 @@ import cats.data.EitherT
 import cats.effect.Effect
 import domains.config.Config.ConfigKey
 import domains.events.EventStore
-import domains.{AuthInfo, ImportResult, Key}
+import domains.{AuthInfo, ImportResult, IsAllowed, Key}
 import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
-import store.Result.ErrorMessage
+import store.Result.{ErrorMessage, Result}
 import store.SourceUtils.SourceKV
 import store._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
-case class Config(id: ConfigKey, value: JsValue) {
-
-  def isAllowed = Key.isAllowed(id) _
-
-}
+case class Config(id: ConfigKey, value: JsValue)
 
 object Config {
-
   type ConfigKey = Key
-
-  implicit val format = Json.format[Config]
-
-  def isAllowed(key: Key)(auth: Option[AuthInfo]) = Key.isAllowed(key)(auth)
-
-  def importData[F[_]: Effect](
-      configStore: ConfigStore[F]
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import libs.streams.syntax._
-    import store.Result.AppErrors._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[Config]) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          configStore.create(obj.id, obj).map { ImportResult.fromResult }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
-
 }
 
-trait ConfigStore[F[_]] extends DataStore[F, ConfigKey, Config]
+trait ConfigService[F[_]] {
+  def create(id: ConfigKey, data: Config): F[Result[Config]]
+  def update(oldId: ConfigKey, id: ConfigKey, data: Config): F[Result[Config]]
+  def delete(id: ConfigKey): F[Result[Config]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def getById(id: ConfigKey): F[Option[Config]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Config]]
+  def getByIdLike(patterns: Seq[String]): Source[(ConfigKey, Config), NotUsed]
+  def count(patterns: Seq[String]): F[Long]
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+}
 
-class ConfigStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
-    extends ConfigStore[F]
+class ConfigServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
+    extends ConfigService[F]
     with EitherTSyntax[F] {
 
   import cats.implicits._
   import libs.functional.syntax._
-  import Config._
+  import ConfigInstances._
   import store.Result._
   import libs.functional.syntax._
   import domains.events.Events._
@@ -68,7 +50,7 @@ class ConfigStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Even
   override def create(id: ConfigKey, data: Config): F[Result[Config]] = {
     // format: off
     val r: EitherT[F, AppErrors, Config] = for {
-      created     <- jsonStore.create(id, Config.format.writes(data))   |> liftFEither
+      created     <- jsonStore.create(id, ConfigInstances.format.writes(data))   |> liftFEither
       apikey      <- created.validate[Config]                           |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(ConfigCreated(id, apikey))      |> liftF[AppErrors, Done]
     } yield apikey
@@ -80,7 +62,7 @@ class ConfigStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Even
     // format: off
     val r: EitherT[F, AppErrors, Config] = for {
       oldValue    <- getById(oldId)                                               |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, Config.format.writes(data))      |> liftFEither
+      updated     <- jsonStore.update(oldId, id, ConfigInstances.format.writes(data))      |> liftFEither
       experiment  <- updated.validate[Config]                                     |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(ConfigUpdated(id, oldValue, experiment))  |> liftF[AppErrors, Done]
     } yield experiment
@@ -92,7 +74,7 @@ class ConfigStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Even
     // format: off
     val r: EitherT[F, AppErrors, Config] = for {
       deleted <- jsonStore.delete(id)                               |> liftFEither
-      experiment <- deleted.validate[Config]                        |> liftJsResult{ handleJsError }
+      experiment <- ConfigInstances.format.reads(deleted)      |> liftJsResult{ handleJsError }
       _       <- eventStore.publish(ConfigDeleted(id, experiment))  |> liftF[AppErrors, Done]
     } yield experiment
     // format: on
@@ -115,6 +97,22 @@ class ConfigStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Even
 
   override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
+
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import libs.streams.syntax._
+    import store.Result.AppErrors._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, ConfigInstances.format.reads(json)) }
+      .mapAsyncF(4) {
+        case (_, JsSuccess(obj, _)) =>
+          create(obj.id, obj).map { ImportResult.fromResult _ }
+        case (s, JsError(_)) =>
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 
   private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
     Logger.error(s"Error parsing json from database $err")

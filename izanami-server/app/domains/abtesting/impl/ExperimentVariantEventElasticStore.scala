@@ -51,6 +51,7 @@ class ExperimentVariantEventElasticStore[F[_]: Effect](client: Elastic[JsValue],
   import libs.effects._
   import elastic.codec.PlayJson._
   import actorSystem.dispatcher
+  import ExperimentVariantEventInstances._
 
   private implicit val s   = actorSystem
   private implicit val mat = ActorMaterializer()

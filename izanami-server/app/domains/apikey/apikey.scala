@@ -1,95 +1,58 @@
 package domains.apikey
 
 import akka.{Done, NotUsed}
-import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
-import cats.Monad
 import cats.data.EitherT
 import cats.effect.Effect
 import domains.AuthorizedPattern.AuthorizedPattern
 import domains.abtesting.Experiment.ExperimentKey
 import domains.apikey.Apikey.ApikeyKey
 import domains.events.EventStore
-import domains.{AuthInfo, AuthorizedPattern, ImportResult, Key}
+import domains._
 import libs.functional.EitherTSyntax
 import play.api.Logger
-import play.api.libs.json.{JsPath, JsonValidationError}
-import store.Result.{AppErrors, ErrorMessage}
+import play.api.libs.json._
+import store.Result.Result
 import store.SourceUtils.SourceKV
 import store._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: AuthorizedPattern)
-    extends AuthInfo {
-  override def isAllowed(auth: Option[AuthInfo]): Boolean =
-    Key.isAllowed(authorizedPattern)(auth)
-}
+    extends AuthInfo
 
 object Apikey {
-  import play.api.libs.functional.syntax._
-  import play.api.libs.json._
-  import play.api.libs.json.Reads._
-
   type ApikeyKey = Key
-
-  private val reads: Reads[Apikey] = {
-    import domains.AuthorizedPattern._
-    (
-      (__ \ 'clientId).read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
-      (__ \ 'name).read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
-      (__ \ 'clientSecret).read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
-      (__ \ 'authorizedPattern).read[AuthorizedPattern](AuthorizedPattern.reads)
-    )(Apikey.apply _)
-  }
-
-  private val writes = {
-    import domains.AuthorizedPattern._
-    Json.writes[Apikey]
-  }
-
-  implicit val format = Format[Apikey](reads, writes)
-
-  def isAllowed(pattern: String)(auth: Option[AuthInfo]) =
-    Key.isAllowed(pattern)(auth)
-
-  def importData[F[_]: Effect](
-      apikeyStore: ApikeyStore[F]
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import AppErrors._
-    import libs.streams.syntax._
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[Apikey]) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          apikeyStore.create(Key(obj.clientId), obj).map { ImportResult.fromResult }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
-
 }
 
-trait ApikeyStore[F[_]] extends DataStore[F, ApikeyKey, Apikey]
+trait ApikeyService[F[_]] {
+  def create(id: ApikeyKey, data: Apikey): F[Result[Apikey]]
+  def update(oldId: ApikeyKey, id: Key, data: Apikey): F[Result[Apikey]]
+  def delete(id: ApikeyKey): F[Result[Apikey]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def getById(id: ApikeyKey): F[Option[Apikey]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Apikey]]
+  def getByIdLike(patterns: Seq[String]): Source[(Key, Apikey), NotUsed]
+  def count(patterns: Seq[String]): F[Long]
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+}
 
-class ApikeyStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
-    extends ApikeyStore[F]
+class ApikeyStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
+    extends ApikeyService[F]
     with EitherTSyntax[F] {
 
   import cats.syntax._
   import cats.implicits._
   import libs.functional.syntax._
   import Apikey._
+  import ApikeyInstances._
   import domains.events.Events._
   import store.Result._
 
   override def create(id: ExperimentKey, data: Apikey): F[Result[Apikey]] = {
     // format: off
     val r: EitherT[F, AppErrors, Apikey] = for {
-      created     <- jsonStore.create(id, Apikey.format.writes(data))   |> liftFEither
+      created     <- jsonStore.create(id, Json.toJson(data))   |> liftFEither
       apikey      <- created.validate[Apikey]                           |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(ApikeyCreated(id, apikey))      |> liftF[AppErrors, Done]
     } yield apikey
@@ -101,7 +64,7 @@ class ApikeyStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Even
     // format: off
     val r: EitherT[F, AppErrors, Apikey] = for {
       oldValue    <- getById(oldId)                                               |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, Apikey.format.writes(data))      |> liftFEither
+      updated     <- jsonStore.update(oldId, id, Json.toJson(data))      |> liftFEither
       experiment  <- updated.validate[Apikey]                                     |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(ApikeyUpdated(id, oldValue, experiment))  |> liftF[AppErrors, Done]
     } yield experiment
@@ -140,5 +103,20 @@ class ApikeyStoreImpl[F[_]: Monad](jsonStore: JsonDataStore[F], eventStore: Even
   private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
     Logger.error(s"Error parsing json from database $err")
     AppErrors.error("error.json.parsing")
+  }
+
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import AppErrors._
+    import libs.streams.syntax._
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, ApikeyInstances.format.reads(json)) }
+      .mapAsyncF(4) {
+        case (_, JsSuccess(obj, _)) =>
+          create(Key(obj.clientId), obj).map { ImportResult.fromResult _ }
+        case (s, JsError(_)) =>
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
   }
 }

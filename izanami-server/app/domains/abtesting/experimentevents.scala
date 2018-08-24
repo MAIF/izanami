@@ -32,13 +32,6 @@ object ExperimentVariantEventKey {
 
   private val idGenerator = IdGenerator(1024)
 
-  implicit val format: Format[ExperimentVariantEventKey] = Format(
-    Key.format.map { k =>
-      ExperimentVariantEventKey(k)
-    },
-    Writes[ExperimentVariantEventKey](vk => Key.format.writes(vk.key))
-  )
-
   def apply(key: Key): ExperimentVariantEventKey = {
     val id :: pattern :: clientId :: variantId :: experimentId =
       key.segments.toList.reverse
@@ -63,14 +56,6 @@ case class ExperimentVariantDisplayed(id: ExperimentVariantEventKey,
                                       variantId: String)
     extends ExperimentVariantEvent
 
-object ExperimentVariantDisplayed {
-  implicit val format = {
-    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.DefaultLocalDateTimeReads
-    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
-    Json.format[ExperimentVariantDisplayed]
-  }
-}
-
 case class ExperimentVariantWon(id: ExperimentVariantEventKey,
                                 experimentId: ExperimentKey,
                                 clientId: String,
@@ -80,61 +65,7 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
                                 variantId: String)
     extends ExperimentVariantEvent
 
-object ExperimentVariantWon {
-  implicit val format = {
-    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.DefaultLocalDateTimeReads
-    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.DefaultLocalDateTimeWrites
-    Json.format[ExperimentVariantWon]
-  }
-}
-
-object ExperimentVariantEvent {
-
-  private val reads: Reads[ExperimentVariantEvent] = {
-
-    Reads[ExperimentVariantEvent] {
-      case event
-          if (event \ "@type")
-            .asOpt[String]
-            .contains("VariantDisplayedEvent") =>
-        ExperimentVariantDisplayed.format.reads(event)
-      case event if (event \ "@type").asOpt[String].contains("VariantWonEvent") =>
-        ExperimentVariantWon.format.reads(event)
-      case other => JsError("error.bad.format")
-    }
-  }
-
-  private val writes: Writes[ExperimentVariantEvent] = {
-
-    Writes[ExperimentVariantEvent] {
-      case e: ExperimentVariantDisplayed =>
-        ExperimentVariantDisplayed.format.writes(e) ++ Json.obj("@type" -> "VariantDisplayedEvent")
-      case e: ExperimentVariantWon =>
-        ExperimentVariantWon.format.writes(e).as[JsObject] ++ Json.obj("@type" -> "VariantWonEvent")
-    }
-  }
-
-  implicit val format = Format(reads, writes)
-
-  def importData[F[_]: Effect](
-      eVariantEventStore: ExperimentVariantEventStore[F]
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import libs.streams.syntax._
-    import store.Result.AppErrors._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[ExperimentVariantEvent]) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          eVariantEventStore.create(obj.id, obj) map { ImportResult.fromResult }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
-
-}
+object ExperimentVariantEvent {}
 
 trait ExperimentVariantEventStore[F[_]] extends StoreOps {
 
@@ -147,5 +78,22 @@ trait ExperimentVariantEventStore[F[_]] extends StoreOps {
   def listAll(patterns: Seq[String] = Seq("*")): Source[ExperimentVariantEvent, NotUsed]
 
   def check(): F[Unit]
+
+  def importData(implicit ec: ExecutionContext, effect: Effect[F]): Flow[(String, JsValue), ImportResult, NotUsed] = {
+
+    import cats.implicits._
+    import libs.streams.syntax._
+    import ExperimentVariantEventInstances._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, json.validate[ExperimentVariantEvent]) }
+      .mapAsyncF(4) {
+        case (_, JsSuccess(obj, _)) =>
+          create(obj.id, obj).map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          effect.pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
 
 }
