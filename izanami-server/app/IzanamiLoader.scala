@@ -1,10 +1,10 @@
 import akka.actor.ActorSystem
-import akka.{Done, NotUsed}
+import akka.{NotUsed}
 import akka.stream.scaladsl.Flow
-import cats.Eval
 import cats.effect.IO
 import com.softwaremill.macwire._
 import controllers._
+import controllers.effect._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
 import domains.config.{ConfigService, ConfigServiceImpl}
 import domains.Import
@@ -27,7 +27,6 @@ import patches.impl.ConfigsPatch
 import play.api.ApplicationLoader.Context
 import play.api._
 import play.api.http.HttpErrorHandler
-import play.api.inject.ApplicationLifecycle
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
@@ -35,8 +34,6 @@ import router.Routes
 import store.leveldb.DbStores
 import store.{Healthcheck, JsonDataStore}
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
-
-import scala.concurrent.duration.DurationInt
 
 class IzanamiLoader extends ApplicationLoader {
 
@@ -57,8 +54,6 @@ package object modules {
       with AssetsComponents
       with AhcWSComponents {
 
-    import cats.effect.implicits._
-
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
     implicit val system: ActorSystem = actorSystem
@@ -78,7 +73,7 @@ package object modules {
 
     lazy val homeController: HomeController = wire[HomeController]
 
-    lazy val authController: effect.AuthControllerEff = wire[AuthController[IO]]
+    lazy val authController: AuthControllerEff = wire[AuthControllerEff]
 
     lazy val drivers: Drivers = Drivers(izanamiConfig, configuration, applicationLifecycle)
 
@@ -104,7 +99,7 @@ package object modules {
       store
     }
 
-    lazy val globalScripController: effect.GlobalScriptControllerEff = wire[GlobalScriptController[IO]]
+    lazy val globalScripController: GlobalScriptControllerEff = wire[GlobalScriptControllerEff]
 
     /* Config */
     val configStore: ConfigService[IO] = {
@@ -117,7 +112,7 @@ package object modules {
       store
     }
 
-    lazy val configController: effect.ConfigControllerEff = wire[ConfigController[IO]]
+    lazy val configController: ConfigControllerEff = wire[ConfigControllerEff]
 
     /* Feature */
     lazy val featureStore: FeatureService[IO] = {
@@ -130,7 +125,7 @@ package object modules {
       store
     }
 
-    lazy val featureController: effect.FeatureControllerEff = wire[FeatureController[IO]]
+    lazy val featureController: FeatureControllerEff = wire[FeatureControllerEff]
 
     /* Experiment */
     lazy val experimentStore: ExperimentService[IO] = {
@@ -176,7 +171,7 @@ package object modules {
       // format: on
     }
 
-    lazy val experimentController: effect.ExperimentControllerEff = wire[ExperimentController[IO]]
+    lazy val experimentController: ExperimentControllerEff = wire[ExperimentControllerEff]
 
     /* Webhook */
     lazy val webhookStore: WebhookService[IO] = {
@@ -190,7 +185,7 @@ package object modules {
       store
     }
 
-    lazy val webhookController: effect.WebhookControllerEff = wire[WebhookController[IO]]
+    lazy val webhookController: WebhookControllerEff = wire[WebhookControllerEff]
 
     /* User */
     lazy val userStore: UserService[IO] = {
@@ -203,7 +198,7 @@ package object modules {
       store
     }
 
-    lazy val userController: effect.UserControllerEff = wire[UserController[IO]]
+    lazy val userController: UserControllerEff = wire[UserControllerEff]
 
     /* Apikey */
     lazy val apikeyStore: ApikeyService[IO] = {
@@ -215,12 +210,12 @@ package object modules {
       Import.importFile(conf, store.importData)
       store
     }
-    lazy val apikeyController: effect.ApikeyControllerEff = wire[ApikeyController[IO]]
+    lazy val apikeyController: ApikeyControllerEff = wire[ApikeyControllerEff]
 
-    lazy val healthCheck: Healthcheck[IO]                           = wire[Healthcheck[IO]]
-    lazy val healthCheckController: effect.HealthCheckControllerEff = wire[HealthCheckController[IO]]
+    lazy val healthCheck: Healthcheck[IO]                    = wire[Healthcheck[IO]]
+    lazy val healthCheckController: HealthCheckControllerEff = wire[HealthCheckControllerEff]
 
-    lazy val eventsController: effect.EventsControllerEff = wire[EventsController[IO]]
+    lazy val eventsController: EventsControllerEff = wire[EventsControllerEff]
 
     val future = {
       lazy val conf: DbDomainConfig = izanamiConfig.patch.db
@@ -237,7 +232,7 @@ package object modules {
       patchs.run().unsafeToFuture()
     }
 
-    lazy val searchController: effect.SearchControllerEff = wire[SearchController[IO]]
+    lazy val searchController: SearchControllerEff = wire[SearchControllerEff]
 
     lazy val backOfficeController: BackOfficeController =
       wire[BackOfficeController]
