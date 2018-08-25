@@ -18,7 +18,7 @@ import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
 import store.Result.Result
-import store.SourceUtils.SourceKV
+
 import store._
 
 import scala.concurrent.ExecutionContext
@@ -60,6 +60,7 @@ class WebhookServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
 
   import cats.implicits._
   import libs.functional.syntax._
+  import libs.streams.syntax._
   import domains.events.Events._
   import store.Result._
 

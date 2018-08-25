@@ -15,7 +15,7 @@ import store.Result.{AppErrors, ErrorMessage, Result}
 import store._
 
 import scala.concurrent.{ExecutionContext, Future}
-import store.SourceUtils._
+
 /* ************************************************************************* */
 /*                      Variant binding                                      */
 /* ************************************************************************* */

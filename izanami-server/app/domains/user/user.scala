@@ -12,7 +12,7 @@ import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
 import store.Result.Result
-import store.SourceUtils.SourceKV
+
 import store._
 
 import scala.concurrent.ExecutionContext
@@ -90,6 +90,7 @@ class UserServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: Eve
 
   import cats.implicits._
   import libs.functional.syntax._
+  import libs.streams.syntax._
   import UserInstances._
   import domains.events.Events._
   import store.Result._

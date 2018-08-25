@@ -11,7 +11,6 @@ import domains.abtesting.Experiment.ExperimentKey
 import libs.IdGenerator
 import play.api.libs.json._
 import store.Result.{ErrorMessage, Result}
-import store.StoreOps
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -67,7 +66,7 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
 
 object ExperimentVariantEvent {}
 
-trait ExperimentVariantEventService[F[_]] extends StoreOps {
+trait ExperimentVariantEventService[F[_]] {
 
   def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]]
 

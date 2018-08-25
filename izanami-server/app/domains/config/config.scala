@@ -13,7 +13,7 @@ import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
 import store.Result.{ErrorMessage, Result}
-import store.SourceUtils.SourceKV
+
 import store._
 
 import scala.concurrent.ExecutionContext
@@ -41,7 +41,7 @@ class ConfigServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: E
     with EitherTSyntax[F] {
 
   import cats.implicits._
-  import libs.functional.syntax._
+  import libs.streams.syntax._
   import ConfigInstances._
   import store.Result._
   import libs.functional.syntax._
