@@ -13,7 +13,7 @@ import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
 import store.Result.Result
-import store.SourceUtils.SourceKV
+
 import store._
 
 import scala.concurrent.ExecutionContext
@@ -63,6 +63,7 @@ class GlobalScriptServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventSt
 
   import Script._
   import ScriptInstances._
+  import libs.streams.syntax._
   import GlobalScript._
   import GlobalScriptInstances._
   import cats.implicits._

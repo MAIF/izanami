@@ -95,7 +95,4 @@ package object functional {
       liftFEither(futureEither)
     }
   }
-
-  object EitherTOps extends EitherTSyntax[Future]
-
 }

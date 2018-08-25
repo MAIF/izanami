@@ -1,13 +1,11 @@
 package store
 
 import akka.actor.ActorSystem
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.Semigroup
 import cats.effect.Effect
 import cats.kernel.Monoid
-import cats.syntax.option._
 import domains.events.EventStore
 import domains.Key
 import domains.events.Events.IzanamiEvent
@@ -25,12 +23,10 @@ import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
 
-import scala.concurrent.{ExecutionContext, Future}
-
 object Result {
 
-  import cats.syntax.either._
   case class ErrorMessage(message: String, args: String*)
+
   object ErrorMessage {
     implicit val format = Json.format[ErrorMessage]
   }
@@ -88,7 +84,6 @@ object Result {
         AppErrors(errors, fieldErrors)
       }
     }
-
   }
 
   type Result[+E] = Either[AppErrors, E]
@@ -108,41 +103,6 @@ object Result {
         case Left(e)                          => Result.error(e)
       }
   }
-
-  implicit class FResultOps[E](value: Future[Result[E]]) {
-    def mapResult[F](func: E => F)(implicit ec: ExecutionContext): Future[Result[F]] = value.map {
-      case Right(e)  => func(e).asRight
-      case Left(err) => err.asLeft
-    }
-
-    def flatMapResult[F](func: E => Result[F])(implicit ec: ExecutionContext): Future[Result[F]] = value.map {
-      case Right(e)  => func(e)
-      case Left(err) => err.asLeft
-    }
-    def mapJsResult[F](func: E => Result[F])(implicit ec: ExecutionContext): Future[Result[F]] = value.map {
-      case Right(e)  => func(e)
-      case Left(err) => err.asLeft
-    }
-  }
-
-  implicit class JsResultOps(r: Future[Result[JsValue]]) {
-    def to[E](implicit ec: ExecutionContext, reads: Reads[E]): Future[Result[E]] =
-      r.map(as[E])
-
-  }
-
-  implicit class OptionJsResultOps(r: Future[Option[JsValue]]) {
-    def to[E](implicit ec: ExecutionContext, reads: Reads[E]): Future[Option[E]] =
-      r.map(_.map(_.validate[E].get))
-  }
-
-  def as[T](r: Result[JsValue])(implicit reads: Reads[T]): Result[T] =
-    r.flatMap(_.validate[T].asEither)
-      .leftMap { err =>
-        Logger.error(s"Error parsing json from database $err")
-        AppErrors(Seq(ErrorMessage("error.json.parsing")))
-      }
-
 }
 
 trait PagingResult[Data] {
@@ -164,45 +124,7 @@ case class JsonPagingResult[Data](jsons: PagingResult[JsValue])(implicit reads: 
 case class DefaultPagingResult[Data](results: Seq[Data], page: Int, pageSize: Int, count: Int)
     extends PagingResult[Data]
 
-object SourceUtils {
-
-  implicit class SourceKV(source: Source[(Key, JsValue), NotUsed]) {
-    def readsKV[V](implicit reads: Reads[V]): Source[(Key, V), NotUsed] =
-      source.mapConcat {
-        case (k, v) =>
-          reads
-            .reads(v)
-            .fold(
-              { err =>
-                Logger.error(s"Error parsing $v : $err")
-                List.empty[(Key, V)]
-              }, { v =>
-                List((k, v))
-              }
-            )
-      }
-  }
-}
-
-trait StoreOps {
-  import domains.events.Events._
-
-  implicit class EventsOps[E](f: Future[Result[E]]) {
-    def andPublishEvent[Event <: IzanamiEvent](
-        func: E => Event
-    )(implicit ec: ExecutionContext, actorSystem: ActorSystem, eventStore: EventStore[Future]): Future[Result[E]] = {
-      f.foreach {
-        case Right(v) =>
-          eventStore.publish(func(v).asInstanceOf[IzanamiEvent])
-          actorSystem.eventStream.publish(func(v))
-        case _ =>
-      }
-      f
-    }
-  }
-}
-
-trait DataStore[F[_], Key, Data] extends StoreOps {
+trait DataStore[F[_], Key, Data] {
   def create(id: Key, data: Data): F[Result[Data]]
   def update(oldId: Key, id: Key, data: Data): F[Result[Data]]
   def delete(id: Key): F[Result[Data]]

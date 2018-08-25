@@ -5,8 +5,10 @@ import akka.stream.OverflowStrategy.backpressure
 import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Source, SourceQueueWithComplete, Zip}
 import akka.stream.{FlowShape, Materializer, QueueOfferResult}
 import cats.effect.Effect
+import domains.Key
 import libs.streams.CacheableQueue.{Element, QueueElement}
 import play.api.Logger
+import play.api.libs.json.{JsValue, Reads}
 
 import scala.concurrent.Future
 
@@ -36,6 +38,23 @@ object syntax {
     def mapAsyncUnorderedF[F[_]: Effect, T](parallelism: Int)(f: In => F[T]): Source[T, Mat] =
       flow.mapAsyncUnordered(parallelism) { elt =>
         f(elt).toIO.unsafeToFuture()
+      }
+  }
+
+  implicit class SourceKV(source: Source[(Key, JsValue), NotUsed]) {
+    def readsKV[V](implicit reads: Reads[V]): Source[(Key, V), NotUsed] =
+      source.mapConcat {
+        case (k, v) =>
+          reads
+            .reads(v)
+            .fold(
+              { err =>
+                Logger.error(s"Error parsing $v : $err")
+                List.empty[(Key, V)]
+              }, { v =>
+                List((k, v))
+              }
+            )
       }
   }
 }

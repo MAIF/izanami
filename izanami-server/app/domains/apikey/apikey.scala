@@ -13,7 +13,7 @@ import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
 import store.Result.Result
-import store.SourceUtils.SourceKV
+
 import store._
 
 import scala.concurrent.ExecutionContext
@@ -44,6 +44,7 @@ class ApikeyStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: Eve
   import cats.syntax._
   import cats.implicits._
   import libs.functional.syntax._
+  import libs.streams.syntax._
   import Apikey._
   import ApikeyInstances._
   import domains.events.Events._
