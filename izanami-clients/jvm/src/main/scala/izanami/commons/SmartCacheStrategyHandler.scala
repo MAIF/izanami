@@ -37,7 +37,7 @@ class SmartCacheStrategyHandler[T](
         Some(
           system.scheduler
             .schedule(pollingInterval, pollingInterval, new Runnable {
-              override def run(): Unit =  { refreshCache() }
+              override def run(): Unit = refreshCache()
             })
         )
 
@@ -45,7 +45,7 @@ class SmartCacheStrategyHandler[T](
         Some(
           system.scheduler
             .schedule(pollingInterval, pollingInterval, new Runnable {
-              override def run(): Unit =  { refreshCache() }
+              override def run(): Unit = refreshCache()
             })
         )
       case _ => None
@@ -57,7 +57,7 @@ class SmartCacheStrategyHandler[T](
         log.error(e, "Error initializing smart cache retrying in 5 seconds")
         system.scheduler
           .scheduleOnce(5.seconds, new Runnable {
-            override def run(): Unit =  { refreshCache() }
+            override def run(): Unit = refreshCache()
           })
       case Success(r) =>
         setValues(r, None, triggerEvent = true)
