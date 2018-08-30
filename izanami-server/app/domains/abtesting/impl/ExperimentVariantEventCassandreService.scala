@@ -5,6 +5,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
+import cats.effect.Effect
 import com.datastax.driver.core.{Cluster, Session, SimpleStatement}
 import domains.abtesting._
 import domains.events.EventStore
@@ -21,28 +22,29 @@ import scala.concurrent.Future
 ////////////////////////////////////    CASSANDRA     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventCassandreStore {
-  def apply(session: Session,
-            config: DbDomainConfig,
-            cassandraConfig: CassandraConfig,
-            eventStore: EventStore,
-            actorSystem: ActorSystem): ExperimentVariantEventCassandreStore =
-    new ExperimentVariantEventCassandreStore(session, config, cassandraConfig, eventStore, actorSystem)
+object ExperimentVariantEventCassandreService {
+  def apply[F[_]: Effect](
+      session: Session,
+      config: DbDomainConfig,
+      cassandraConfig: CassandraConfig,
+      eventStore: EventStore[F]
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandreService[F] =
+    new ExperimentVariantEventCassandreService(session, config, cassandraConfig, eventStore)
 }
 
-class ExperimentVariantEventCassandreStore(session: Session,
-                                           config: DbDomainConfig,
-                                           cassandraConfig: CassandraConfig,
-                                           eventStore: EventStore,
-                                           actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore {
+class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
+                                                           config: DbDomainConfig,
+                                                           cassandraConfig: CassandraConfig,
+                                                           eventStore: EventStore[F])(implicit actorSystem: ActorSystem)
+    extends ExperimentVariantEventService[F] {
 
   private val namespaceFormatted = config.conf.namespace.replaceAll(":", "_")
   private val keyspace           = cassandraConfig.keyspace
   import Cassandra._
+  import cats.implicits._
+  import cats.effect.implicits._
   import domains.events.Events._
 
-  implicit private val s    = actorSystem
   implicit private val mat  = ActorMaterializer()
   implicit private val sess = session
   implicit private val es   = eventStore
@@ -93,14 +95,14 @@ class ExperimentVariantEventCassandreStore(session: Session,
          | """.stripMargin
     )
 
-  private def incrWon(experimentId: String, variantId: String): Future[Done] =
+  private def incrWon(experimentId: String, variantId: String): F[Done] =
     executeWithSession(
       s"UPDATE ${keyspace}.${namespaceFormatted}_won SET counter_value = counter_value + 1 WHERE experimentId = ? AND variantId = ? ",
       experimentId,
       variantId
     ).map(_ => Done)
 
-  private def getWon(experimentId: String, variantId: String): Future[Long] =
+  private def getWon(experimentId: String, variantId: String): F[Long] =
     executeWithSession(
       s"SELECT counter_value FROM ${keyspace}.${namespaceFormatted}_won WHERE experimentId = ? AND variantId = ? ",
       experimentId,
@@ -112,17 +114,17 @@ class ExperimentVariantEventCassandreStore(session: Session,
           .getOrElse(0)
     )
 
-  private def incrAndGetWon(experimentId: String, variantId: String): Future[Long] =
+  private def incrAndGetWon(experimentId: String, variantId: String): F[Long] =
     incrWon(experimentId, variantId).flatMap(_ => getWon(experimentId, variantId))
 
-  private def incrDisplayed(experimentId: String, variantId: String): Future[Done] =
+  private def incrDisplayed(experimentId: String, variantId: String): F[Done] =
     executeWithSession(
       s"UPDATE ${keyspace}.${namespaceFormatted}_displayed SET counter_value = counter_value + 1 WHERE experimentId = ? AND variantId = ? ",
       experimentId,
       variantId
     ).map(_ => Done)
 
-  private def getDisplayed(experimentId: String, variantId: String): Future[Long] =
+  private def getDisplayed(experimentId: String, variantId: String): F[Long] =
     executeWithSession(
       s"SELECT counter_value FROM ${keyspace}.${namespaceFormatted}_displayed WHERE experimentId = ? AND variantId = ? ",
       experimentId,
@@ -134,7 +136,7 @@ class ExperimentVariantEventCassandreStore(session: Session,
           .getOrElse(0)
     )
 
-  private def incrAndGetDisplayed(experimentId: String, variantId: String): Future[Long] =
+  private def incrAndGetDisplayed(experimentId: String, variantId: String): F[Long] =
     incrDisplayed(experimentId, variantId).flatMap(_ => getDisplayed(experimentId, variantId))
 
   private def saveToCassandra(id: ExperimentVariantEventKey, data: ExperimentVariantEvent) = {
@@ -148,13 +150,12 @@ class ExperimentVariantEventCassandreStore(session: Session,
       id.clientId,
       id.namespace,
       id.id,
-      Json.stringify(Json.toJson(data))
+      Json.stringify(ExperimentVariantEventInstances.format.writes(data))
     ).map(_ => Result.ok(data))
   }
 
-  override def create(id: ExperimentVariantEventKey,
-                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
-    val fEvent: Future[Result[ExperimentVariantEvent]] = data match {
+  override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
+    data match {
       case e: ExperimentVariantDisplayed =>
         for {
           displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
@@ -163,6 +164,7 @@ class ExperimentVariantEventCassandreStore(session: Session,
           else 0.0
           toSave = e.copy(transformation = transformation)
           result <- saveToCassandra(id, toSave) // add event
+          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
         } yield result
       case e: ExperimentVariantWon =>
         for {
@@ -172,23 +174,24 @@ class ExperimentVariantEventCassandreStore(session: Session,
           else 0.0
           toSave = e.copy(transformation = transformation)
           result <- saveToCassandra(id, toSave) // add event
+          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
         } yield result
     }
-    fEvent.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
-  }
 
-  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
-    Future
-      .sequence(experiment.variants.map { variant =>
+  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
+    experiment.variants.toList
+      .traverse { variant =>
         executeWithSession(s" DELETE FROM ${keyspace}.$namespaceFormatted  WHERE experimentId = ? AND variantId = ?",
                            experiment.id.key,
                            variant.id)
           .map { r =>
             Result.ok(r.asInstanceOf[Any])
           }
-      })
+      }
       .map(r => Result.ok(Done))
-      .andPublishEvent(e => ExperimentVariantEventsDeleted(experiment))
+      .flatMap { r =>
+        r.traverse(e => eventStore.publish(ExperimentVariantEventsDeleted(experiment)))
+      }
 
   def getVariantResult(experimentId: String, variant: Variant): Source[VariantResult, NotUsed] = {
     val variantId: String = variant.id
@@ -200,13 +203,13 @@ class ExperimentVariantEventCassandreStore(session: Session,
       )
     ).map(r => r.getString("value"))
       .map(Json.parse)
-      .mapConcat(_.validate[ExperimentVariantEvent].asOpt.toList)
+      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
       .fold(Seq.empty[ExperimentVariantEvent])(_ :+ _)
 
     val won: Source[Long, NotUsed] =
-      Source.fromFuture(getWon(experimentId, variantId))
+      Source.fromFuture(getWon(experimentId, variantId).toIO.unsafeToFuture())
     val displayed: Source[Long, NotUsed] =
-      Source.fromFuture(getDisplayed(experimentId, variantId))
+      Source.fromFuture(getDisplayed(experimentId, variantId).toIO.unsafeToFuture())
 
     events.zip(won).zip(displayed).map {
       case ((e, w), d) =>
@@ -231,9 +234,9 @@ class ExperimentVariantEventCassandreStore(session: Session,
       )
     ).map(r => r.getString("value"))
       .map(Json.parse)
-      .mapConcat(_.validate[ExperimentVariantEvent].asOpt.toList)
+      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
-  override def check(): Future[Unit] = executeWithSession("SELECT now() FROM system.local").map(_ => ())
+  override def check(): F[Unit] = executeWithSession("SELECT now() FROM system.local").map(_ => ())
 
 }

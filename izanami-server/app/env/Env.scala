@@ -2,10 +2,11 @@ package env
 
 import akka.actor.ActorSystem
 import controllers.AssetsFinder
-import domains.script.{GlobalScriptStore, ScriptExecutionContext}
+import domains.script.{GlobalScriptService, ScriptExecutionContext}
 import play.api.libs.ws.WSClient
 import play.api.{Environment, Logger, Mode}
 
+import scala.concurrent.Future
 import scala.util.Random
 
 case class Env(
@@ -13,7 +14,6 @@ case class Env(
     environment: Environment,
     actorSystem: ActorSystem,
     wSClient: WSClient,
-    globalScriptStore: GlobalScriptStore,
     assetsFinder: AssetsFinder
 ) {
 

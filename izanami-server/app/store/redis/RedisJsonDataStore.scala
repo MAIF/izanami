@@ -5,57 +5,62 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
-import cats.syntax.option._
+import cats.effect.Effect
 import domains.Key
 import env.DbDomainConfig
 import libs.streams.Flows
 import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
-import store.Result.ErrorMessage
+import store.Result.{ErrorMessage, Result}
 import store._
 import io.lettuce.core._
 import io.lettuce.core.api.async.RedisAsyncCommands
 
-import scala.concurrent.Future
 import scala.compat.java8.FutureConverters._
 import scala.collection.JavaConverters._
 
 object RedisJsonDataStore {
-  def apply(client: RedisWrapper, system: ActorSystem, name: String): RedisJsonDataStore =
-    new RedisJsonDataStore(client, system, name)
+  def apply[F[_]: Effect](client: RedisWrapper, name: String)(implicit system: ActorSystem): RedisJsonDataStore[F] =
+    new RedisJsonDataStore(client, name)
 
-  def apply(client: RedisWrapper, config: DbDomainConfig, actorSystem: ActorSystem): RedisJsonDataStore = {
+  def apply[F[_]: Effect](client: RedisWrapper,
+                          config: DbDomainConfig)(implicit system: ActorSystem): RedisJsonDataStore[F] = {
     val namespace = config.conf.namespace
     Logger.info(s"Load store Redis for namespace $namespace")
-    RedisJsonDataStore(client, actorSystem, namespace)
+    RedisJsonDataStore(client, namespace)
   }
 }
 
-class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String) extends JsonDataStore {
+class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(implicit system: ActorSystem)
+    extends JsonDataStore[F] {
 
   import system.dispatcher
+  import cats.implicits._
+  import cats.effect.implicits._
+  import libs.effects._
+  import libs.streams.syntax._
 
   private implicit val mat = ActorMaterializer()(system)
 
   private def buildKey(key: Key) = Key.Empty / name / key
 
-  private def getByKeyId(id: Key): Future[Option[JsValue]] = {
+  private def getByKeyId(id: Key): F[Option[JsValue]] = {
     val effectiveKey = buildKey(id)
     getByStringId(effectiveKey.key)
   }
 
   private def command(): RedisAsyncCommands[String, String] = client.connection.async()
 
-  private def getByStringId(key: String): Future[Option[JsValue]] =
+  private def getByStringId(key: String): F[Option[JsValue]] =
     command()
       .get(key)
-      .toScala
+      .toF
       .map { Option(_).map { Json.parse } }
 
-  private def getByIds(keys: Key*): Future[Seq[(String, JsValue)]] =
+  private def getByIds(keys: Key*): F[Seq[(String, JsValue)]] =
     command()
       .mget(keys.map(buildKey).map(_.key): _*)
-      .toScala
+      .toF
       .map { entries =>
         entries.asScala
           .map { kv =>
@@ -95,14 +100,14 @@ class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String
         .filter(k => k.matchPatterns(patterns: _*))
   }
 
-  override def create(id: Key, data: JsValue) = getByKeyId(id).flatMap {
+  override def create(id: Key, data: JsValue): F[Result[JsValue]] = getByKeyId(id).flatMap {
     case Some(_) =>
-      FastFuture.successful(Result.errors(ErrorMessage("error.data.exists", id.key)))
+      Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
 
     case None =>
       command()
         .set(buildKey(id).key, Json.stringify(data))
-        .toScala
+        .toF
         .map(_ => Result.ok(data))
   }
 
@@ -110,70 +115,77 @@ class RedisJsonDataStore(client: RedisWrapper, system: ActorSystem, name: String
     if (oldId == id) {
       command()
         .set(buildKey(id).key, Json.stringify(data))
-        .toScala
+        .toF
         .map(_ => Result.ok(data))
     } else {
       command()
         .del(buildKey(oldId).key)
-        .toScala
+        .toF
         .flatMap { _ =>
           create(id, data)
         }
     }
 
-  override def delete(id: Key) =
+  override def delete(id: Key): F[Result[JsValue]] =
     getByKeyId(id).flatMap {
       case Some(value) =>
         command()
           .del(buildKey(id).key)
-          .toScala
+          .toF
           .map(_ => Result.ok(value))
 
       case None =>
-        FastFuture.successful(Result.error(s"error.data.missing"))
+        Result.error[JsValue](s"error.data.missing").pure[F]
     }
 
-  override def deleteAll(patterns: Seq[String]) = {
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] = {
     val patternKeys: Seq[Key] = patternsToKey(patterns)
     getByIdLike(patterns)
       .mapAsync(10) {
         case (k, _) => command().del(k.key).toScala
       }
       .runWith(Sink.ignore)
+      .toF
       .map(_ => Result.ok(Done))
   }
 
-  override def getById(id: Key): Future[Option[JsValue]] =
+  override def getById(id: Key): F[Option[JsValue]] =
     getByKeyId(id)
 
   override def getByIdLike(patterns: Seq[String]) =
     findKeys(patterns)
       .grouped(50)
-      .mapAsyncUnordered(50)(getByIds)
+      .mapAsyncUnorderedF(50)(getByIds)
       .mapConcat(_.toList)
       .map {
         case (k, v) => (Key(k), v)
       }
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int) = {
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     val position = (page - 1) * nbElementPerPage
-    findKeys(patterns) via Flows.count {
-      Flow[Key]
-        .drop(position)
-        .take(nbElementPerPage)
-        .grouped(nbElementPerPage)
-        .mapAsyncUnordered(nbElementPerPage)(getByIds)
-        .map(_.map(_._2))
-        .fold(Seq.empty[JsValue])(_ ++ _)
-    } runWith Sink.head map {
-      case (results, count) =>
-        DefaultPagingResult(results, page, nbElementPerPage, count)
-    }
+    findKeys(patterns)
+      .via(Flows.count {
+        Flow[Key]
+          .drop(position)
+          .take(nbElementPerPage)
+          .grouped(nbElementPerPage)
+          .mapAsyncUnorderedF(nbElementPerPage)(getByIds)
+          .map(_.map(_._2))
+          .fold(Seq.empty[JsValue])(_ ++ _)
+      })
+      .runWith(Sink.head)
+      .toF
+      .map {
+        case (results, count) =>
+          DefaultPagingResult(results, page, nbElementPerPage, count)
+      }
   }
 
-  override def count(patterns: Seq[String]): Future[Long] =
-    getByIdLike(patterns).runFold(0L) { (acc, _) =>
-      acc + 1
-    }
+  override def count(patterns: Seq[String]): F[Long] =
+    getByIdLike(patterns)
+      .runFold(0L) { (acc, _) =>
+        acc + 1
+      }
+      .toF
 
 }

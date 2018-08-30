@@ -5,57 +5,57 @@ import java.util.regex.Pattern
 
 import akka.actor.ActorSystem
 import akka.util.ByteString
+import cats.effect.Async
 import org.iq80.leveldb._
 
 import scala.concurrent.Future
 import scala.util.Try
+import scala.util.control.NonFatal
 
-trait RedisLike {
+trait RedisLike[F[_]] {
   def start(): Unit = {}
   def stop(): Unit
-  def flushall(): Future[Boolean]
-  def get(key: String): Future[Option[ByteString]]
-  def mget(keys: String*): Future[Seq[Option[ByteString]]]
-  def set(key: String,
-          value: String,
-          exSeconds: Option[Long] = None,
-          pxMilliseconds: Option[Long] = None): Future[Boolean]
+  def flushall(): F[Boolean]
+  def get(key: String): F[Option[ByteString]]
+  def mget(keys: String*): F[Seq[Option[ByteString]]]
+  def set(key: String, value: String, exSeconds: Option[Long] = None, pxMilliseconds: Option[Long] = None): F[Boolean]
   def setBS(key: String,
             value: ByteString,
             exSeconds: Option[Long] = None,
-            pxMilliseconds: Option[Long] = None): Future[Boolean]
-  def del(keys: String*): Future[Long]
-  def incr(key: String): Future[Long]
-  def incrby(key: String, increment: Long): Future[Long]
-  def exists(key: String): Future[Boolean]
-  def keys(pattern: String): Future[Seq[String]]
-  def hdel(key: String, fields: String*): Future[Long]
-  def hgetall(key: String): Future[Map[String, ByteString]]
-  def hset(key: String, field: String, value: String): Future[Boolean]
-  def hsetBS(key: String, field: String, value: ByteString): Future[Boolean]
-  def llen(key: String): Future[Long]
-  def lpush(key: String, values: String*): Future[Long]
-  def lpushLong(key: String, values: Long*): Future[Long]
-  def lpushBS(key: String, values: ByteString*): Future[Long]
-  def lrange(key: String, start: Long, stop: Long): Future[Seq[ByteString]]
-  def ltrim(key: String, start: Long, stop: Long): Future[Boolean]
-  def pttl(key: String): Future[Long]
-  def ttl(key: String): Future[Long]
-  def expire(key: String, seconds: Int): Future[Boolean]
-  def pexpire(key: String, milliseconds: Long): Future[Boolean]
-  def sadd(key: String, members: String*): Future[Long]
-  def saddBS(key: String, members: ByteString*): Future[Long]
-  def sismember(key: String, member: String): Future[Boolean]
-  def sismemberBS(key: String, member: ByteString): Future[Boolean]
-  def smembers(key: String): Future[Seq[ByteString]]
-  def srem(key: String, members: String*): Future[Long]
-  def sremBS(key: String, members: ByteString*): Future[Long]
+            pxMilliseconds: Option[Long] = None): F[Boolean]
+  def del(keys: String*): F[Long]
+  def incr(key: String): F[Long]
+  def incrby(key: String, increment: Long): F[Long]
+  def exists(key: String): F[Boolean]
+  def keys(pattern: String): F[Seq[String]]
+  def hdel(key: String, fields: String*): F[Long]
+  def hgetall(key: String): F[Map[String, ByteString]]
+  def hset(key: String, field: String, value: String): F[Boolean]
+  def hsetBS(key: String, field: String, value: ByteString): F[Boolean]
+  def llen(key: String): F[Long]
+  def lpush(key: String, values: String*): F[Long]
+  def lpushLong(key: String, values: Long*): F[Long]
+  def lpushBS(key: String, values: ByteString*): F[Long]
+  def lrange(key: String, start: Long, stop: Long): F[Seq[ByteString]]
+  def ltrim(key: String, start: Long, stop: Long): F[Boolean]
+  def pttl(key: String): F[Long]
+  def ttl(key: String): F[Long]
+  def expire(key: String, seconds: Int): F[Boolean]
+  def pexpire(key: String, milliseconds: Long): F[Boolean]
+  def sadd(key: String, members: String*): F[Long]
+  def saddBS(key: String, members: ByteString*): F[Long]
+  def sismember(key: String, member: String): F[Boolean]
+  def sismemberBS(key: String, member: ByteString): F[Boolean]
+  def smembers(key: String): F[Seq[ByteString]]
+  def srem(key: String, members: String*): F[Long]
+  def sremBS(key: String, members: ByteString*): F[Long]
 //  def zrange(key: String, start: Long, stop: Long): Future[Seq[ByteString]];
 //  def zadd(key: String, scoreMembers: (Double, String)*): Future[Long]
 }
 
-class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
+class LevelDBRedisCommand[F[_]: Async](db: DB, actorSystem: ActorSystem) extends RedisLike[F] {
 
+  import cats.implicits._
   import actorSystem.dispatcher
   import org.iq80.leveldb._
   import org.iq80.leveldb.impl.Iq80DBFactory._
@@ -77,6 +77,15 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
     ()
   }
 
+  private def lift[T](body: => T): F[T] =
+    Async[F].async { cb =>
+      try {
+        cb(Right(body))
+      } catch {
+        case NonFatal(e) => cb(Left(e))
+      }
+    }
+
   private def getAllKeys(): Seq[String] = {
     var keys     = Seq.empty[String]
     val iterator = db.iterator()
@@ -97,40 +106,42 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
     db.close()
   }
 
-  override def flushall(): Future[Boolean] = {
-    getAllKeys().foreach(k => db.delete(bytes(k)))
-    Future.successful(true)
-  }
+  override def flushall(): F[Boolean] =
+    lift {
+      getAllKeys().foreach(k => db.delete(bytes(k)))
+      true
+    }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  override def get(key: String): Future[Option[ByteString]] =
-    Future.successful {
+  override def get(key: String): F[Option[ByteString]] =
+    lift {
       getValueAt(key).map(ByteString.apply)
     }
 
   override def set(key: String,
                    value: String,
                    exSeconds: Option[Long] = None,
-                   pxMilliseconds: Option[Long] = None): Future[Boolean] =
+                   pxMilliseconds: Option[Long] = None): F[Boolean] =
     setBS(key, ByteString(value), exSeconds, pxMilliseconds)
 
   override def setBS(key: String,
                      value: ByteString,
                      exSeconds: Option[Long] = None,
-                     pxMilliseconds: Option[Long] = None): Future[Boolean] = {
-    db.put(bytes(key), value.toArray[Byte])
-    if (exSeconds.isDefined) {
-      expire(key, exSeconds.get.toInt)
+                     pxMilliseconds: Option[Long] = None): F[Boolean] =
+    lift {
+      db.put(bytes(key), value.toArray[Byte])
+      if (exSeconds.isDefined) {
+        expire(key, exSeconds.get.toInt)
+      }
+      if (pxMilliseconds.isDefined) {
+        pexpire(key, pxMilliseconds.get)
+      }
+      true
     }
-    if (pxMilliseconds.isDefined) {
-      pexpire(key, pxMilliseconds.get)
-    }
-    Future.successful(true)
-  }
 
-  override def del(keys: String*): Future[Long] =
-    Future.successful {
+  override def del(keys: String*): F[Long] =
+    lift {
       keys
         .map { k =>
           db.delete(bytes(k))
@@ -139,28 +150,30 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
         .foldLeft(0L)((a, b) => a + b)
     }
 
-  override def incr(key: String): Future[Long] = incrby(key, 1L)
+  override def incr(key: String): F[Long] = incrby(key, 1L)
 
-  override def incrby(key: String, increment: Long): Future[Long] = {
-    val value    = getValueAt(key).map(_.toLong).getOrElse(0L)
-    val newValue = value + increment
-    db.put(bytes(key), bytes(newValue.toString))
-    Future.successful(newValue)
-  }
+  override def incrby(key: String, increment: Long): F[Long] =
+    lift {
+      val value    = getValueAt(key).map(_.toLong).getOrElse(0L)
+      val newValue = value + increment
+      db.put(bytes(key), bytes(newValue.toString))
+      newValue
+    }
 
-  override def exists(key: String): Future[Boolean] =
-    Future.successful(getValueAt(key).isDefined)
+  override def exists(key: String): F[Boolean] =
+    lift(getValueAt(key).isDefined)
 
-  override def mget(keys: String*): Future[Seq[Option[ByteString]]] =
-    Future.sequence(keys.map(k => get(k)))
+  override def mget(keys: String*): F[Seq[Option[ByteString]]] =
+    keys.toList.traverse(k => get(k)).map(_.toSeq)
 
-  override def keys(pattern: String): Future[Seq[String]] = {
-    val regex = pattern.replaceAll("\\*", ".*")
-    val pat   = Pattern.compile(regex)
-    Future.successful(getAllKeys().filter { k =>
-      pat.matcher(k).find
-    })
-  }
+  override def keys(pattern: String): F[Seq[String]] =
+    lift {
+      getAllKeys().filter { k =>
+        val regex = pattern.replaceAll("\\*", ".*")
+        val pat   = Pattern.compile(regex)
+        pat.matcher(k).find
+      }
+    }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -175,27 +188,30 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
   private def setMapAt(key: String, set: Map[String, ByteString]): Unit =
     db.put(bytes(key), bytes(set.map(t => s"${t._1}<#>${t._2.utf8String}").mkString(";;;")))
 
-  override def hdel(key: String, fields: String*): Future[Long] = {
-    val hash    = getMapAt(key)
-    val newHash = hash.filterNot(t => fields.contains(t._1))
-    setMapAt(key, newHash)
-    Future.successful(fields.size)
-  }
+  override def hdel(key: String, fields: String*): F[Long] =
+    lift {
+      val hash    = getMapAt(key)
+      val newHash = hash.filterNot(t => fields.contains(t._1))
+      setMapAt(key, newHash)
+      fields.size
+    }
 
-  override def hgetall(key: String): Future[Map[String, ByteString]] = {
-    val hash = getMapAt(key)
-    Future.successful(hash)
-  }
+  override def hgetall(key: String): F[Map[String, ByteString]] =
+    lift {
+      val hash = getMapAt(key)
+      hash
+    }
 
-  override def hset(key: String, field: String, value: String): Future[Boolean] =
+  override def hset(key: String, field: String, value: String): F[Boolean] =
     hsetBS(key, field, ByteString(value))
 
-  override def hsetBS(key: String, field: String, value: ByteString): Future[Boolean] = {
-    val hash    = getMapAt(key)
-    val newHash = hash + ((field, value))
-    setMapAt(key, newHash)
-    Future.successful(true)
-  }
+  override def hsetBS(key: String, field: String, value: ByteString): F[Boolean] =
+    lift {
+      val hash    = getMapAt(key)
+      val newHash = hash + ((field, value))
+      setMapAt(key, newHash)
+      true
+    }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -207,61 +223,66 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
   private def setListAt(key: String, set: Seq[ByteString]): Unit =
     db.put(bytes(key), bytes(set.map(_.utf8String).mkString(";;;")))
 
-  override def llen(key: String): Future[Long] =
-    Future.successful {
+  override def llen(key: String): F[Long] =
+    lift {
       getListAt(key).size
     }
 
-  override def lpush(key: String, values: String*): Future[Long] =
+  override def lpush(key: String, values: String*): F[Long] =
     lpushBS(key, values.map(ByteString.apply): _*)
 
-  override def lpushLong(key: String, values: Long*): Future[Long] =
+  override def lpushLong(key: String, values: Long*): F[Long] =
     lpushBS(key, values.map(_.toString).map(ByteString.apply): _*)
 
-  override def lpushBS(key: String, values: ByteString*): Future[Long] = {
-    val seq    = getListAt(key)
-    val newSeq = values ++ seq
-    setListAt(key, newSeq)
-    Future.successful(values.size)
-  }
+  override def lpushBS(key: String, values: ByteString*): F[Long] =
+    lift {
+      val seq    = getListAt(key)
+      val newSeq = values ++ seq
+      setListAt(key, newSeq)
+      values.size
+    }
 
-  override def lrange(key: String, start: Long, stop: Long): Future[Seq[ByteString]] = {
-    val seq    = getListAt(key)
-    val result = seq.slice(start.toInt, stop.toInt - start.toInt)
-    Future.successful(result)
-  }
+  override def lrange(key: String, start: Long, stop: Long): F[Seq[ByteString]] =
+    lift {
+      val seq    = getListAt(key)
+      val result = seq.slice(start.toInt, stop.toInt - start.toInt)
+      result
+    }
 
-  override def ltrim(key: String, start: Long, stop: Long): Future[Boolean] = {
-    val seq    = getListAt(key)
-    val result = seq.slice(start.toInt, stop.toInt - start.toInt)
-    setListAt(key, result)
-    Future.successful(true)
-  }
+  override def ltrim(key: String, start: Long, stop: Long): F[Boolean] =
+    lift {
+      val seq    = getListAt(key)
+      val result = seq.slice(start.toInt, stop.toInt - start.toInt)
+      setListAt(key, result)
+      true
+    }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  override def pttl(key: String): Future[Long] =
-    Future.successful(
+  override def pttl(key: String): F[Long] =
+    lift {
       Option(expirations.get(key))
         .map(e => {
           val ttlValue = e - System.currentTimeMillis()
           if (ttlValue < 0) 0l else ttlValue
         })
         .getOrElse(0L)
-    )
+    }
 
-  override def ttl(key: String): Future[Long] =
+  override def ttl(key: String): F[Long] =
     pttl(key).map(t => Duration(t, TimeUnit.MILLISECONDS).toSeconds)
 
-  override def expire(key: String, seconds: Int): Future[Boolean] = {
-    expirations.put(key, System.currentTimeMillis() + (seconds * 1000L))
-    Future.successful(true)
-  }
+  override def expire(key: String, seconds: Int): F[Boolean] =
+    lift {
+      expirations.put(key, System.currentTimeMillis() + (seconds * 1000L))
+      true
+    }
 
-  override def pexpire(key: String, milliseconds: Long): Future[Boolean] = {
-    expirations.put(key, System.currentTimeMillis() + milliseconds)
-    Future.successful(true)
-  }
+  override def pexpire(key: String, milliseconds: Long): F[Boolean] =
+    lift {
+      expirations.put(key, System.currentTimeMillis() + milliseconds)
+      true
+    }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -275,38 +296,42 @@ class LevelDBRedisCommand(db: DB, actorSystem: ActorSystem) extends RedisLike {
   private def setSetAt(key: String, set: Set[ByteString]): Unit =
     db.put(bytes(key), bytes(set.map(_.utf8String).mkString(";;;")))
 
-  override def sadd(key: String, members: String*): Future[Long] =
+  override def sadd(key: String, members: String*): F[Long] =
     saddBS(key, members.map(ByteString.apply): _*)
 
-  override def saddBS(key: String, members: ByteString*): Future[Long] = {
-    val seq    = getSetAt(key)
-    val newSeq = seq ++ members
-    setSetAt(key, newSeq)
-    Future.successful(members.size)
-  }
+  override def saddBS(key: String, members: ByteString*): F[Long] =
+    lift {
+      val seq    = getSetAt(key)
+      val newSeq = seq ++ members
+      setSetAt(key, newSeq)
+      members.size
+    }
 
-  override def sismember(key: String, member: String): Future[Boolean] =
+  override def sismember(key: String, member: String): F[Boolean] =
     sismemberBS(key, ByteString(member))
 
-  override def sismemberBS(key: String, member: ByteString): Future[Boolean] = {
-    val seq = getSetAt(key)
-    Future.successful(seq.contains(member))
-  }
+  override def sismemberBS(key: String, member: ByteString): F[Boolean] =
+    lift {
+      val seq = getSetAt(key)
+      seq.contains(member)
+    }
 
-  override def smembers(key: String): Future[Seq[ByteString]] = {
-    val seq = getSetAt(key)
-    Future.successful(seq.toSeq)
-  }
+  override def smembers(key: String): F[Seq[ByteString]] =
+    lift {
+      val seq = getSetAt(key)
+      seq.toSeq
+    }
 
-  override def srem(key: String, members: String*): Future[Long] =
+  override def srem(key: String, members: String*): F[Long] =
     sremBS(key, members.map(ByteString.apply): _*)
 
-  override def sremBS(key: String, members: ByteString*): Future[Long] = {
-    val seq    = getSetAt(key)
-    val newSeq = seq.filterNot(b => members.contains(b))
-    setSetAt(key, newSeq)
-    Future.successful(members.size)
-  }
+  override def sremBS(key: String, members: ByteString*): F[Long] =
+    lift {
+      val seq    = getSetAt(key)
+      val newSeq = seq.filterNot(b => members.contains(b))
+      setSetAt(key, newSeq)
+      members.size
+    }
 //
 //  override def zrange(key: String, start: Long, stop: Long): Future[Seq[ByteString]] = {
 ////    get(key).map(maybeData => {

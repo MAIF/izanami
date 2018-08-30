@@ -1,5 +1,6 @@
 package domains.script
 
+import cats.effect.IO
 import com.typesafe.config.ConfigFactory
 import controllers.AssetsComponents
 import env._
@@ -27,7 +28,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     import play.api.routing.Router
     import play.api.routing.sird._
 
-    def globalScripStore: GlobalScriptStore = null
+    def globalScripStore: GlobalScriptService[IO] = null
 
     lazy val router: Router = Router.from({
       case GET(p"/surname") =>
@@ -66,6 +67,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     Some("dev"),
     "/",
     "/",
+    false,
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
     DbConfig("", None, None, None, None, None, None, None),
     LogoutConfig(""),
@@ -86,45 +88,47 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
     "a script executed must return true" in {
 
+      import domains.script.syntax._
+      import domains.script.ScriptInstances._
+
       implicit val ec: ScriptExecutionContext =
         ScriptExecutionContext(testComponents.actorSystem)
 
-      val result: Boolean = Script
-        .executeScript(
-          script,
+      val result: Boolean = Script(script)
+        .run[IO](
           Json.obj("name" -> "Ragnar"),
           Env(
             config,
             testComponents.environment,
             testComponents.actorSystem,
             testComponents.wsClient,
-            testComponents.globalScripStore,
             testComponents.assetsFinder
           )
         )
-        .futureValue
+        .unsafeRunSync()
 
       result must be(true)
     }
     "a script executed must return false" in {
 
+      import domains.script.syntax._
+      import domains.script.ScriptInstances._
+
       implicit val ec: ScriptExecutionContext =
         ScriptExecutionContext(testComponents.actorSystem)
 
-      val result: Boolean = Script
-        .executeScript(
-          script,
+      val result: Boolean = Script(script)
+        .run[IO](
           Json.obj("name" -> "Floki"),
           Env(
             config,
             testComponents.environment,
             testComponents.actorSystem,
             testComponents.wsClient,
-            testComponents.globalScripStore,
             testComponents.assetsFinder
           )
         )
-        .futureValue
+        .unsafeRunSync()
 
       result must be(false)
     }

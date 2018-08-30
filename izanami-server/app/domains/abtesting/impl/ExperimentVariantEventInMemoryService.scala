@@ -8,56 +8,64 @@ import env.DbDomainConfig
 import store.Result.Result
 import store.Result
 
-import scala.concurrent.Future
 import ExperimentDataStoreActor._
-import akka.http.scaladsl.util.FastFuture
+import cats.effect.{Effect}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    IN MEMORY     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventInMemoryStore {
-  def apply(configdb: DbDomainConfig, actorSystem: ActorSystem): ExperimentVariantEventInMemoryStore =
-    new ExperimentVariantEventInMemoryStore(configdb, actorSystem)
+object ExperimentVariantEventInMemoryService {
+  def apply[F[_]: Effect](
+      configdb: DbDomainConfig
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventInMemoryService[F] =
+    new ExperimentVariantEventInMemoryService(configdb)
 }
 
-class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore {
+class ExperimentVariantEventInMemoryService[F[_]: Effect](configdb: DbDomainConfig)(implicit actorSystem: ActorSystem)
+    extends ExperimentVariantEventService[F] {
 
   import actorSystem.dispatcher
   import akka.pattern._
   import akka.util.Timeout
+  import cats.implicits._
+  import cats.effect.implicits._
+  import libs.effects._
 
   import scala.concurrent.duration.DurationInt
+  import ExperimentVariantEventInstances._
 
   private implicit val timeout = Timeout(1.second)
 
   private val store = actorSystem.actorOf(Props[ExperimentDataStoreActor](new ExperimentDataStoreActor()),
                                           configdb.conf.namespace + "_try_to_use_this_one")
 
-  override def create(id: ExperimentVariantEventKey,
-                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
+  override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
     (store ? AddEvent(id.experimentId.key, id.variantId, data))
       .mapTo[ExperimentVariantEvent]
+      .toF
       .map[Result[ExperimentVariantEvent]](res => Result.ok(res))
 
-  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
+  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     (store ? DeleteEvents(experiment.id.key))
       .mapTo[Done]
+      .toF
       .map[Result[Done]](res => Result.ok(res))
 
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
     Source
-      .fromFuture(Future.sequence {
-        experiment.variants
-          .map(variant => {
-
-            val fEvents: Future[List[ExperimentVariantEvent]] = (store ? FindEvents(experiment.id.key, variant.id))
+      .fromFuture(
+        experiment.variants.toList
+          .traverse { variant =>
+            val fEvents: F[List[ExperimentVariantEvent]] = (store ? FindEvents(experiment.id.key, variant.id))
               .mapTo[List[ExperimentVariantEvent]]
-            val fDisplayed: Future[Long] = (store ? FindCounterDisplayed(experiment.id.key, variant.id))
+              .toF
+            val fDisplayed: F[Long] = (store ? FindCounterDisplayed(experiment.id.key, variant.id))
               .mapTo[Long]
-            val fWon: Future[Long] = (store ? FindCounterWon(experiment.id.key, variant.id))
+              .toF
+            val fWon: F[Long] = (store ? FindCounterWon(experiment.id.key, variant.id))
               .mapTo[Long]
+              .toF
 
             for {
               events    <- fEvents
@@ -78,9 +86,10 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem:
               )
 
             }
-          })
-          .toList
-      })
+          }
+          .toIO
+          .unsafeToFuture()
+      )
       .mapConcat(identity)
 
   override def listAll(patterns: Seq[String]) =
@@ -88,7 +97,7 @@ class ExperimentVariantEventInMemoryStore(configdb: DbDomainConfig, actorSystem:
       .fromFuture((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])
       .mapConcat(_.toList)
 
-  override def check(): Future[Unit] = FastFuture.successful(())
+  override def check(): F[Unit] = ().pure[F]
 }
 
 private[abtesting] class ExperimentDataStoreActor extends Actor {

@@ -1,6 +1,6 @@
 package libs
 
-import akka.http.scaladsl.util.FastFuture
+import cats.{Applicative, Functor, Monad}
 import cats.data.EitherT
 import play.api.libs.json._
 import play.api.mvc.Result
@@ -12,39 +12,36 @@ import scala.concurrent.{ExecutionContext, Future}
  */
 package object functional {
 
-  object Implicits {
+  object syntax {
 
     implicit class Ops[In](in: In) {
       def |>[Out](f: In => Out): Out = f(in)
 
     }
-    implicit def mergePlayResult[L <: Result, R <: Result](value: EitherT[Future, L, R])(
-        implicit ec: ExecutionContext
-    ): Future[Result] = value.value.map(_.merge)
-    implicit def mergeResult[A](value: EitherT[Future, A, A])(implicit ec: ExecutionContext): Future[A] =
-      value.value.map(_.merge)
   }
 
-  object EitherTOps {
+  trait EitherTSyntax[F[_]] {
 
     import cats.data.EitherT
     import cats.implicits._
 
-    def liftFEither[E, A](f: Future[Either[E, A]])(implicit ec: ExecutionContext): EitherT[Future, E, A] = EitherT(f)
+    def liftFEither[E, A](f: F[Either[E, A]]): EitherT[F, E, A] = EitherT(f)
+
+    def liftEither[E, A](f: Either[E, A])(implicit F: Applicative[F]): EitherT[F, E, A] = EitherT.fromEither[F](f)
 
     def mapLeft[E, E1, A](
         onError: E => E1
-    )(f: Future[Either[E, A]])(implicit ec: ExecutionContext): EitherT[Future, E1, A] =
+    )(f: F[Either[E, A]])(implicit F: Functor[F]): EitherT[F, E1, A] =
       EitherT(f.map(_.left.map(onError)))
 
-    def liftFuture[E, A](f: Future[A])(implicit ec: ExecutionContext): EitherT[Future, E, A] =
-      EitherT.liftF[Future, E, A](f)
+    def liftF[E, A](f: F[A])(implicit F: Functor[F]): EitherT[F, E, A] =
+      EitherT.liftF[F, E, A](f)
 
-    def liftOption[E, A](ifNone: => E)(o: Option[A])(implicit ec: ExecutionContext): EitherT[Future, E, A] =
-      EitherT.fromOption[Future](o, ifNone)
+    def liftOption[E, A](ifNone: => E)(o: Option[A])(implicit F: Applicative[F]): EitherT[F, E, A] =
+      EitherT.fromOption[F](o, ifNone)
 
-    def liftFOption[E, A](ifNone: => E)(o: Future[Option[A]])(implicit ec: ExecutionContext): EitherT[Future, E, A] = {
-      val futureEither: Future[Either[E, A]] = o.map {
+    def liftFOption[E, A](ifNone: => E)(o: F[Option[A]])(implicit F: Functor[F]): EitherT[F, E, A] = {
+      val futureEither: F[Either[E, A]] = o.map {
         case Some(value) => Right(value)
         case None        => Left(ifNone)
       }
@@ -53,36 +50,35 @@ package object functional {
 
     def liftJsResult[E, A](
         onError: Seq[(JsPath, Seq[JsonValidationError])] => E
-    )(jsResult: JsResult[A])(implicit ec: ExecutionContext): EitherT[Future, E, A] =
+    )(jsResult: JsResult[A])(implicit M: Monad[F]): EitherT[F, E, A] =
       jsResult match {
-        case JsSuccess(value, _) => EitherT.right(FastFuture.successful(value))
+        case JsSuccess(value, _) => EitherT.right(M.pure(value))
         case JsError(errors) =>
-          EitherT.left(FastFuture.successful(onError(errors)))
+          EitherT.left(M.pure(onError(errors)))
       }
 
-    def lift[E, A](a: A)(implicit ec: ExecutionContext): EitherT[Future, E, A] =
-      EitherT.pure(a)
+    def pure[E, A](a: A)(implicit F: Applicative[F]): EitherT[F, E, A] = EitherT.pure[F, E](a)
 
     def liftBooleanTrue[E](
         ifFalse: => E
-    )(fboolean: Boolean)(implicit ec: ExecutionContext): EitherT[Future, E, Boolean] =
+    )(fboolean: Boolean)(implicit F: Applicative[F]): EitherT[F, E, Boolean] =
       fboolean match {
-        case true  => EitherT.right(FastFuture.successful(true))
-        case false => EitherT.left(FastFuture.successful(ifFalse))
+        case true  => EitherT.right(F.pure(true))
+        case false => EitherT.left(F.pure(ifFalse))
       }
 
     def liftBooleanFalse[E](
         ifTrue: => E
-    )(fboolean: Boolean)(implicit ec: ExecutionContext): EitherT[Future, E, Boolean] =
+    )(fboolean: Boolean)(implicit F: Applicative[F]): EitherT[F, E, Boolean] =
       fboolean match {
-        case true  => EitherT.left(FastFuture.successful(ifTrue))
-        case false => EitherT.right(FastFuture.successful(false))
+        case true  => EitherT.left(F.pure(ifTrue))
+        case false => EitherT.right(F.pure(false))
       }
 
     def liftFBooleanTrue[E](
         ifFalse: => E
-    )(fboolean: Future[Boolean])(implicit ec: ExecutionContext): EitherT[Future, E, Boolean] = {
-      val futureEither: Future[Either[E, Boolean]] = fboolean.map {
+    )(fboolean: F[Boolean])(implicit F: Applicative[F]): EitherT[F, E, Boolean] = {
+      val futureEither: F[Either[E, Boolean]] = fboolean.map {
         case true  => Right(true)
         case false => Left(ifFalse)
       }
@@ -91,13 +87,12 @@ package object functional {
 
     def liftFBooleanFalse[E](
         ifTrue: => E
-    )(fboolean: Future[Boolean])(implicit ec: ExecutionContext): EitherT[Future, E, Boolean] = {
-      val futureEither: Future[Either[E, Boolean]] = fboolean.map {
+    )(fboolean: F[Boolean])(implicit F: Applicative[F]): EitherT[F, E, Boolean] = {
+      val futureEither: F[Either[E, Boolean]] = fboolean.map {
         case true  => Left(ifTrue)
         case false => Right(false)
       }
       liftFEither(futureEither)
     }
   }
-
 }

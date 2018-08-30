@@ -36,7 +36,8 @@ libraryDependencies ++= Seq(
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.13.0-play26",
   "io.lettuce"               % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
-  "org.typelevel"            %% "cats-core"                     % "1.1.0", // MIT license
+  "org.typelevel"            %% "cats-core"                     % "1.2.0", // MIT license
+  "org.typelevel"            %% "cats-effect"                   % "1.0.0-RC2", // MIT license
   "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
   "com.adelegue"             %% "playjson-extended"             % "0.0.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
@@ -54,6 +55,7 @@ libraryDependencies ++= Seq(
 )
 
 scalacOptions ++= Seq(
+  "-Ypartial-unification",
   "-feature",
   "-language:higherKinds",
   "-language:implicitConversions",

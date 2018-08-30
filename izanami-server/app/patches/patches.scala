@@ -5,17 +5,17 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
+import cats.effect.Effect
 import domains.Key
 import play.api.Logger
 import play.api.libs.json.Json
 import store.JsonDataStore
 
-import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-trait PatchInstance {
+trait PatchInstance[F[_]] {
 
-  def patch(): Future[Done]
+  def patch(): F[Done]
 }
 
 object Patchs {
@@ -28,18 +28,22 @@ object Patchs {
 
 }
 
-class Patchs(mayBeJsonStore: Option[JsonDataStore], allpatches: Map[Int, PatchInstance], actorSystem: ActorSystem) {
+class Patchs[F[_]: Effect](mayBeJsonStore: Option[JsonDataStore[F]], allpatches: Map[Int, PatchInstance[F]])(
+    implicit val system: ActorSystem
+) {
 
   import Patchs._
-  import actorSystem.dispatcher
-  implicit val system: ActorSystem = actorSystem
-  implicit val materializer        = ActorMaterializer()
+  import system.dispatcher
+  import cats.implicits._
+  import libs.effects._
+  import libs.streams.syntax._
+  implicit val materializer = ActorMaterializer()
 
   val key = Key("last:patch")
 
-  def run(): Future[Done] =
+  def run(): F[Done] =
     mayBeJsonStore match {
-      case None => FastFuture.successful(Done)
+      case None => Effect[F].pure(Done)
       case Some(store) =>
         store
           .getById(key)
@@ -60,7 +64,7 @@ class Patchs(mayBeJsonStore: Option[JsonDataStore], allpatches: Map[Int, PatchIn
             Logger.info("Starting to patch Izanami ...")
             Source(allpatches.toList)
               .filter(_._1 > lastNum)
-              .mapAsync(1) {
+              .mapAsyncF(1) {
                 case (num, p) =>
                   Logger.info(s"Patch number $num from class ${p.getClass.getSimpleName}")
                   p.patch().flatMap { _ =>
@@ -75,6 +79,7 @@ class Patchs(mayBeJsonStore: Option[JsonDataStore], allpatches: Map[Int, PatchIn
                   }
               }
               .runWith(Sink.ignore)
+              .toF
           }
     }
 

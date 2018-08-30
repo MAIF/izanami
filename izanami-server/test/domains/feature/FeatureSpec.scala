@@ -3,15 +3,21 @@ package domains.feature
 import java.time.{LocalDateTime, ZoneId}
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
-import domains.Key
-import domains.script.Script
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import cats.effect.{Effect, IO}
+import domains.{ImportResult, Key}
+import domains.script.GlobalScript.GlobalScriptKey
+import domains.script.{GlobalScript, GlobalScriptService, Script}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import play.api.libs.json.{JsSuccess, Json}
+import play.api.libs.json.{JsSuccess, JsValue, Json}
+import store.PagingResult
+import store.Result.Result
 import test.IzanamiSpec
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
@@ -20,7 +26,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "Feature Deserialisation" must {
 
     "Deserialize DefaultFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -37,7 +43,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "Deserialize GlobalScriptFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -55,7 +61,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "Deserialize ScriptFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -73,7 +79,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "Deserialize ReleaseDateFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json =
         Json.parse("""
           |{
@@ -92,7 +98,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "Deserialize ReleaseDateFeature other format" in {
-      import Feature._
+      import FeatureInstances._
       val json =
         Json.parse("""
                      |{
@@ -114,7 +120,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "Feature Serialisation" should {
 
     "Serialize DefaultFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -127,7 +133,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "Deserialize GlobalScriptFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -141,7 +147,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "Deserialize ScriptFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -154,7 +160,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "Deserialize ReleaseDateFeature" in {
-      import Feature._
+      import FeatureInstances._
       val json =
         Json.parse("""
           |{
@@ -175,14 +181,22 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
                           DefaultFeature(Key("a:b:c"), true),
                           DefaultFeature(Key("a:b:d"), false))
 
-      implicit val system = ActorSystem("test")
-      import system.dispatcher
-      implicit val mat = ActorMaterializer()
+      import cats._
+      import cats.effect.implicits._
+      import FeatureInstances._
+      implicit val system                                = ActorSystem("test")
+      implicit val globalScript: GlobalScriptService[IO] = fakeGlobalScriptRepository[IO]
+      implicit val mat                                   = ActorMaterializer()
+      implicit def isActive                              = FeatureInstances.isActive[IO]
 
-      val graph = Source(features) via Feature.toGraph(
-        Json.obj(),
-        null
-      ) runWith Sink.head
+      val graph = Source(features)
+        .via(
+          Feature.toGraph[IO](
+            Json.obj(),
+            null
+          )
+        )
+        .runWith(Sink.head)
 
       graph.futureValue must be(
         Json.obj(
@@ -199,13 +213,29 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
+  def fakeGlobalScriptRepository[F[_]: Effect]: GlobalScriptService[F] = new GlobalScriptService[F] {
+    override def create(id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]]                         = ???
+    override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]] = ???
+    override def delete(id: GlobalScriptKey): F[Result[GlobalScript]]                                             = ???
+    override def deleteAll(patterns: Seq[String]): F[Result[Done]]                                                = ???
+    override def getById(id: GlobalScriptKey): F[Option[GlobalScript]]                                            = ???
+    override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
+      ???
+    override def getByIdLike(patterns: Seq[String]): Source[(GlobalScriptKey, GlobalScript), NotUsed] = ???
+    override def count(patterns: Seq[String]): F[Long]                                                = ???
+    override def importData(
+        implicit ec: ExecutionContext
+    ): Flow[(String, JsValue), ImportResult, NotUsed] = ???
+  }
+
   "Date range feature" must {
     "active" in {
       val from    = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
 
-      feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(true)
+      import cats._
+      DateRangeFeatureInstances.isActive[Id].isActive(feature, Json.obj(), null).getOrElse(false) must be(true)
     }
 
     "inactive" in {
@@ -213,7 +243,8 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(2, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
 
-      feature.isActive(Json.obj(), null).futureValue.getOrElse(false) must be(false)
+      import cats._
+      DateRangeFeatureInstances.isActive[Id].isActive(feature, Json.obj(), null).getOrElse(false) must be(false)
     }
   }
 
@@ -237,9 +268,15 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   }
 
   private def calcPercentage(feature: PercentageFeature)(mkString: Int => String) = {
+
+    import cats._
     val count = (0 to 1000)
       .map { i =>
-        val isActive = feature.isActive(Json.obj("id" -> mkString(i)), null).futureValue.getOrElse(false)
+        val isActive =
+          PercentageFeatureInstances
+            .isActive[Id]
+            .isActive(feature, Json.obj("id" -> mkString(i)), null)
+            .getOrElse(false)
         isActive
       }
       .count(identity) / 10

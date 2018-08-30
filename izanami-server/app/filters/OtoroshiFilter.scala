@@ -4,25 +4,16 @@ import akka.stream.Materializer
 import com.auth0.jwt.{JWT, JWTVerifier}
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces.DecodedJWT
-import domains.AuthInfo
-import domains.apikey.ApikeyStore
 import domains.user.User
 import env.{Env, OtoroshiFilterConfig}
 import play.api.Logger
 import play.api.libs.json.Json
-import play.api.libs.typedmap.TypedKey
 import play.api.mvc.{Filter, RequestHeader, Result, Results}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-object OtoroshiFilter {
-  def apply(env: Env, config: OtoroshiFilterConfig, apikeyStore: ApikeyStore)(implicit ec: ExecutionContext,
-                                                                              mat: Materializer): OtoroshiFilter =
-    new OtoroshiFilter(env, config)
-}
-
-class OtoroshiFilter(env: Env, config: OtoroshiFilterConfig)(implicit ec: ExecutionContext, val mat: Materializer)
+class OtoroshiFilter[F[_]](env: Env, config: OtoroshiFilterConfig)(implicit ec: ExecutionContext, val mat: Materializer)
     extends Filter {
 
   private val logger = Logger("filter")
