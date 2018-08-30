@@ -33,9 +33,9 @@ object Result {
 
   case class AppErrors(errors: Seq[ErrorMessage] = Seq.empty,
                        fieldErrors: Map[String, List[ErrorMessage]] = Map.empty) {
-    def ++(s: AppErrors) =
+    def ++(s: AppErrors): AppErrors =
       this.copy(errors = errors ++ s.errors, fieldErrors = fieldErrors ++ s.fieldErrors)
-    def addFieldError(field: String, errors: List[ErrorMessage]) =
+    def addFieldError(field: String, errors: List[ErrorMessage]): AppErrors =
       fieldErrors.get(field) match {
         case Some(err) =>
           AppErrors(errors, fieldErrors + (field -> (err ++ errors)))
@@ -45,7 +45,7 @@ object Result {
     def toJson: JsValue =
       AppErrors.format.writes(this)
 
-    def isEmpty = errors.isEmpty && fieldErrors.isEmpty
+    def isEmpty: Boolean = errors.isEmpty && fieldErrors.isEmpty
   }
 
   object AppErrors {
@@ -110,15 +110,15 @@ trait PagingResult[Data] {
   def page: Int
   def pageSize: Int
   def count: Int
-  def nbPages = Math.ceil(count.toFloat / pageSize)
+  def nbPages: Double = Math.ceil(count.toFloat / pageSize)
 }
 
 case class JsonPagingResult[Data](jsons: PagingResult[JsValue])(implicit reads: Reads[Data])
     extends PagingResult[Data] {
-  override def results  = jsons.results.flatMap(json => reads.reads(json).asOpt)
-  override def page     = jsons.page
-  override def pageSize = jsons.pageSize
-  override def count    = jsons.count
+  override def results: Seq[Data] = jsons.results.flatMap(json => reads.reads(json).asOpt)
+  override def page: Int          = jsons.page
+  override def pageSize: Int      = jsons.pageSize
+  override def count: Int         = jsons.count
 }
 
 case class DefaultPagingResult[Data](results: Seq[Data], page: Int, pageSize: Int, count: Int)
