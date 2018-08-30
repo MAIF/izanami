@@ -71,7 +71,7 @@ package object effect {
 
   class HealthCheckControllerEff(healthcheck: Healthcheck[Effect],
                                  system: ActorSystem,
-                                 AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                 AuthAction: ActionBuilder[AuthContext, AnyContent],
                                  cc: ControllerComponents)
       extends HealthCheckController[Effect](healthcheck, system, AuthAction, cc)
 
