@@ -31,7 +31,7 @@ object Configs {
   val elasticConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
       |izanami.db.default="Elastic"
-      |
+      |izanami.patchEnabled = false
       |izanami.mode= "test"
       |izanami.config.db.type=$${izanami.db.default}
       |izanami.features.db.type=$${izanami.db.default}
@@ -59,7 +59,7 @@ object Configs {
   val redisConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
          |izanami.db.default="Redis"
-         |
+         |izanami.patchEnabled = false
          |izanami.mode= "test"
          |izanami.config.db.type=$${izanami.db.default}
          |izanami.features.db.type=$${izanami.db.default}
@@ -89,7 +89,7 @@ object Configs {
   def cassandraConfiguration(keyspace: String): Configuration = Configuration(
     ConfigFactory.parseString(s"""
          |izanami.db.default="Cassandra"
-         |
+         |izanami.patchEnabled = false
          |izanami.mode= "test"
          |izanami.config.db.type=$${izanami.db.default}
          |izanami.features.db.type=$${izanami.db.default}
@@ -117,6 +117,7 @@ object Configs {
   def levelDBConfiguration(folder: String): Configuration = Configuration(
     ConfigFactory.parseString(s"""
          |izanami.db.default="LevelDB"
+         |izanami.patchEnabled = false
          |izanami.mode= "test"
          |izanami.config.db.type=$${izanami.db.default}
          |izanami.features.db.type=$${izanami.db.default}
@@ -143,6 +144,7 @@ object Configs {
     ConfigFactory
       .parseString("""
         |izanami.db.default="InMemory"
+        |izanami.patchEnabled = false
         |
         |izanami.mode= "test"
         |izanami.config.db.type=${izanami.db.default}
@@ -166,6 +168,8 @@ object Configs {
     ConfigFactory
       .parseString(s"""
        |izanami.db.default="Mongo"
+       |izanami.patchEnabled = false
+       |
        |izanami.mode= "test"
        |izanami.config.db.type=$${izanami.db.default}
        |izanami.features.db.type=$${izanami.db.default}
@@ -194,6 +198,7 @@ object Configs {
       .parseString("""
                      |izanami.db.default="InMemoryWithDb"
                      |izanami.db.inMemoryWithDb.db="InMemory"
+                     |izanami.patchEnabled = false
                      |
                      |izanami.mode= "test"
                      |izanami.config.db.type=${izanami.db.default}

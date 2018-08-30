@@ -17,7 +17,7 @@ izanami-server/target/universal/stage/bin/izanami  \
   -Dlogger.file=/Users/alexandredelegue/opun/izanami/izanami-server/conf/prod-logger.xml
 ```
 
-List features :
+### List features :
 
  * 2 threads
  * 1000 concurrent connexions 
@@ -43,7 +43,43 @@ Requests/sec:    656.21
 Transfer/sec:    787.58KB
 ```
 
-Get one feature :
+#### With script evaluation 
+
+Izanami is launched with 
+
+``` 
+izanami-server/target/universal/stage/bin/izanami  \
+  -Dizanami.db.default=InMemoryWithDb \
+  -Dizanami.db.inMemoryWithDb.db=Redis \
+  -Dizanami.events.store=Kafka \
+  -Dizanami.apikey.initialize.clientId=xxxx \
+  -Dizanami.apikey.initialize.clientSecret=xxxx \
+  -Dizanami.features.db.import=/Users/alexandredelegue/opun/izanami/izanami-benchmarks/data/features-script.ndjson \
+  -Dizanami.script-dispatcher.thread-pool-executor.fixed-pool-size=250 \
+  -Dlogger.file=/Users/alexandredelegue/opun/izanami/izanami-server/conf/prod-logger.xml
+``` 
+A pool of 250 thread is allocated for the script execution.  
+
+``` 
+wrk -t2 -c1000 -d 30s --timeout 10s --latency -H "Izanami-Client-Id: xxxx" -H "Izanami-Client-Secret: xxxx" http://localhost:9000/api/features\?active\=true
+
+Running 30s test @ http://localhost:9000/api/features?active=true
+  2 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.53s   947.58ms   9.92s    82.23%
+    Req/Sec    20.66     20.81   130.00     89.25%
+  Latency Distribution
+     50%    1.35s
+     75%    1.90s
+     90%    2.50s
+     99%    5.78s
+  959 requests in 30.09s, 3.69MB read
+  Socket errors: connect 0, read 914, write 12, timeout 25
+Requests/sec:     31.87
+Transfer/sec:    125.53KB
+```
+
+### Get one feature :
 
  * 2 threads
  * 1000 concurrent connexions
@@ -66,6 +102,44 @@ Requests/sec:  25411.92
 Transfer/sec:      4.29MB
 ```
 
+#### With a script evaluation :
+
+Izanami is launched with 
+
+``` 
+izanami-server/target/universal/stage/bin/izanami  \
+  -Dizanami.db.default=InMemoryWithDb \
+  -Dizanami.db.inMemoryWithDb.db=Redis \
+  -Dizanami.events.store=Kafka \
+  -Dizanami.apikey.initialize.clientId=xxxx \
+  -Dizanami.apikey.initialize.clientSecret=xxxx \
+  -Dizanami.features.db.import=/Users/alexandredelegue/opun/izanami/izanami-benchmarks/data/features-script.ndjson \
+  -Dizanami.script-dispatcher.thread-pool-executor.fixed-pool-size=250 \
+  -Dlogger.file=/Users/alexandredelegue/opun/izanami/izanami-server/conf/prod-logger.xml
+``` 
+A pool of 250 thread is allocated for the script execution.  
+
+
+```
+wrk -t2 -c1000 -d 30s --timeout 10s --latency -H "Izanami-Client-Id: xxxx" -H "Izanami-Client-Secret: xxxx" http://localhost:9000/api/features/a:key:1002/check
+ 
+Running 30s test @ http://localhost:9000/api/features/a:key:1002/check
+  2 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   388.17ms  427.25ms   9.88s    97.46%
+    Req/Sec   262.79    250.31     1.27k    79.74%
+  Latency Distribution
+     50%  339.68ms
+     75%  478.72ms
+     90%  628.74ms
+     99%  969.49ms
+  14335 requests in 30.10s, 1.70MB read
+  Socket errors: connect 0, read 1234, write 70, timeout 67
+Requests/sec:    476.23
+Transfer/sec:     57.67KB
+
+```
+
 ## Redis 
 
 Izanami run with :
@@ -80,7 +154,7 @@ izanami-server/target/universal/stage/bin/izanami  \
 ``` 
 
 
-List features :
+### List features :
 
  * 2 threads
  * 1000 concurrent connexions 
@@ -106,7 +180,7 @@ Requests/sec:    151.87
 Transfer/sec:    181.68KB
 ```
 
-Get one feature :
+### Get one feature :
 
  * 2 threads
  * 1000 concurrent connexions

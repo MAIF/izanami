@@ -10,6 +10,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.OptionT
+import cats.effect.Effect
 import domains.Key
 import domains.abtesting._
 import domains.events.EventStore
@@ -27,28 +28,32 @@ import scala.concurrent.{Await, Future}
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////     ELASTIC      ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-object ExperimentVariantEventElasticStore {
+object ExperimentVariantEventElasticService {
 
-  def apply(elastic: Elastic[JsValue],
-            elasticConfig: ElasticConfig,
-            config: DbDomainConfig,
-            eventStore: EventStore,
-            actorSystem: ActorSystem): ExperimentVariantEventElasticStore =
-    new ExperimentVariantEventElasticStore(elastic, elasticConfig, config, eventStore, actorSystem)
+  def apply[F[_]: Effect](
+      elastic: Elastic[JsValue],
+      elasticConfig: ElasticConfig,
+      config: DbDomainConfig,
+      eventStore: EventStore[F]
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventElasticService[F] =
+    new ExperimentVariantEventElasticService(elastic, elasticConfig, config, eventStore)
 }
 
-class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
-                                         elasticConfig: ElasticConfig,
-                                         dbDomainConfig: DbDomainConfig,
-                                         eventStore: EventStore,
-                                         actorSystem: ActorSystem)
-    extends ExperimentVariantEventStore {
+class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue],
+                                                         elasticConfig: ElasticConfig,
+                                                         dbDomainConfig: DbDomainConfig,
+                                                         eventStore: EventStore[F],
+)(implicit actorSystem: ActorSystem)
+    extends ExperimentVariantEventService[F] {
 
   import elastic.implicits._
+  import cats.implicits._
+  import cats.effect.implicits._
+  import libs.effects._
   import elastic.codec.PlayJson._
   import actorSystem.dispatcher
+  import ExperimentVariantEventInstances._
 
-  private implicit val s   = actorSystem
   private implicit val mat = ActorMaterializer()
   private implicit val es  = eventStore
 
@@ -87,7 +92,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
                                       |             "currentPopulation": { "type" : "integer" }
                                       |           }
                                       |         },
-                                      |         "date": { "type": "date", "format" : "date_hour_minute_second_millis" },
+                                      |         "date": { "type": "date", "format" : "date_time||date_hour_minute_second_millis" },
                                       |         "transformation": { "type" : "double" },
                                       |         "experimentId": { "type" : "keyword" },
                                       |         "variantId": { "type" : "keyword" }
@@ -141,21 +146,22 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
                  |}
                """.stripMargin)
 
-  private def incrWon(experimentId: String, variantId: String): Future[Done] = {
+  private def incrWon(experimentId: String, variantId: String): F[Done] = {
     val id = s"$experimentId.$variantId"
-    won.update(incrUpdateQuery, id, retry_on_conflict = Some(5)).map(_ => Done)
+    won.update(incrUpdateQuery, id, retry_on_conflict = Some(5)).toF.map(_ => Done)
   }
 
-  private def incrDisplayed(experimentId: String, variantId: String): Future[Done] = {
+  private def incrDisplayed(experimentId: String, variantId: String): F[Done] = {
     val id = s"$experimentId.$variantId"
     displayed
       .update(incrUpdateQuery, id, retry_on_conflict = Some(5))
+      .toF
       .map(_ => Done)
   }
 
-  private def getWon(experimentId: String, variantId: String): Future[Long] = {
+  private def getWon(experimentId: String, variantId: String): F[Long] = {
     val id = s"$experimentId.$variantId"
-    won
+    val eventualLong: Future[Long] = won
       .get(id)
       .map { resp =>
         (resp._source \ "counter").as[Long]
@@ -163,10 +169,12 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       .recover {
         case EsException(_, 404, _) => 0
       }
+    eventualLong.toF
   }
-  private def getDisplayed(experimentId: String, variantId: String): Future[Long] = {
+
+  private def getDisplayed(experimentId: String, variantId: String): F[Long] = {
     val id = s"$experimentId.$variantId"
-    displayed
+    val eventualLong: Future[Long] = displayed
       .get(id)
       .map { resp =>
         (resp._source \ "counter").as[Long]
@@ -174,21 +182,23 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       .recover {
         case EsException(_, 404, _) => 0
       }
+    eventualLong.toF
   }
-  private def incrAndGetDisplayed(experimentId: String, variantId: String): Future[Long] =
+
+  private def incrAndGetDisplayed(experimentId: String, variantId: String): F[Long] =
     incrDisplayed(experimentId, variantId)
       .flatMap { _ =>
         getDisplayed(experimentId, variantId)
       }
-  private def incrAndGetWon(experimentId: String, variantId: String): Future[Long] =
+
+  private def incrAndGetWon(experimentId: String, variantId: String): F[Long] =
     incrWon(experimentId, variantId)
       .flatMap { _ =>
         getWon(experimentId, variantId)
       }
 
-  override def create(id: ExperimentVariantEventKey,
-                      data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] = {
-    val res: Future[Result[ExperimentVariantEvent]] = data match {
+  override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
+    data match {
       case e: ExperimentVariantDisplayed =>
         for {
           displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
@@ -197,6 +207,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
           else 0.0
           toSave = e.copy(transformation = transformation)
           result <- saveToEs(id, toSave) // add event
+          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
         } yield result
       case e: ExperimentVariantWon =>
         for {
@@ -206,22 +217,21 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
           else 0.0
           toSave = e.copy(transformation = transformation)
           result <- saveToEs(id, toSave) // add event
+          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
         } yield result
     }
-    res.andPublishEvent(e => ExperimentVariantEventCreated(id, e))
-  }
 
-  private def saveToEs(id: ExperimentVariantEventKey,
-                       data: ExperimentVariantEvent): Future[Result[ExperimentVariantEvent]] =
+  private def saveToEs(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
     index
       .index[ExperimentVariantEvent](
         data,
         Some(id.id),
         refresh = elasticConfig.automaticRefresh
       )
+      .toF
       .map(_ => Result.ok(data))
 
-  override def deleteEventsForExperiment(experiment: Experiment): Future[Result[Done]] =
+  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     Source(experiment.variants.toList)
       .flatMapMerge(
         4, { v =>
@@ -246,6 +256,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       }
       .via(index.bulkFlow(batchSize = 500))
       .runWith(Sink.ignore)
+      .toF
       .map(_ => Result.ok(Done))
 
   private def aggRequest(experimentId: String, variant: String, interval: String): JsObject =
@@ -283,7 +294,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       )
     )
 
-  private def minOrMaxQuery(experimentId: String, order: String): Future[Option[LocalDateTime]] = {
+  private def minOrMaxQuery(experimentId: String, order: String): F[Option[LocalDateTime]] = {
     val query = Json.obj(
       "size"    -> 1,
       "_source" -> Json.arr("date"),
@@ -299,17 +310,17 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
         case SearchResponse(_, _, _, hits, _, _) =>
           hits.hits.map(h => (h._source \ "date").as[LocalDateTime]).headOption
       }
+      .toF
   }
 
-  private def max(experimentId: String): Future[Option[LocalDateTime]] =
+  private def max(experimentId: String): F[Option[LocalDateTime]] =
     minOrMaxQuery(experimentId, "desc")
-  private def min(experimentId: String): Future[Option[LocalDateTime]] =
+  private def min(experimentId: String): F[Option[LocalDateTime]] =
     minOrMaxQuery(experimentId, "asc")
 
-  private def calcInterval(experimentId: String): Future[String] = {
-    import cats.instances.future._
+  private def calcInterval(experimentId: String): F[String] = {
 
-    val minDate: Future[Option[LocalDateTime]] = min(experimentId)
+    val minDate: F[Option[LocalDateTime]] = min(experimentId)
 
     (for {
       min <- OptionT(minDate)
@@ -336,7 +347,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
     val variantId: String = variant.id
 
     val events: Source[Seq[ExperimentVariantEvent], NotUsed] = Source
-      .fromFuture(calcInterval(experimentId))
+      .fromFuture(calcInterval(experimentId).toIO.unsafeToFuture())
       .mapAsync(1) { interval =>
         val query = aggRequest(experimentId, variantId, interval)
         Logger.debug(s"Querying ${Json.prettyPrint(query)}")
@@ -379,9 +390,9 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       }
 
     val won: Source[Long, NotUsed] =
-      Source.fromFuture(getWon(experimentId, variantId))
+      Source.fromFuture(getWon(experimentId, variantId).toIO.unsafeToFuture())
     val displayed: Source[Long, NotUsed] =
-      Source.fromFuture(getDisplayed(experimentId, variantId))
+      Source.fromFuture(getDisplayed(experimentId, variantId).toIO.unsafeToFuture())
 
     events.zip(won).zip(displayed).map {
       case ((e, w), d) =>
@@ -405,7 +416,7 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
       .mapConcat(s => s.hitsAs[ExperimentVariantEvent].toList)
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
-  override def check(): Future[Unit] =
+  override def check(): F[Unit] =
     client
       .index(esIndex / esType)
       .get("test")
@@ -414,4 +425,5 @@ class ExperimentVariantEventElasticStore(client: Elastic[JsValue],
         case EsException(_, statusCode, _) if statusCode == 404 =>
           ()
       }
+      .toF
 }

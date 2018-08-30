@@ -5,9 +5,17 @@ import akka.actor.{ActorSystem, Cancellable}
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
 import akka.stream.{ActorMaterializer, Materializer}
+import cats.effect.Effect
 import domains.Key
+import domains.abtesting.{ExperimentInstances, VariantBindingInstances}
+import domains.apikey.ApikeyInstances
+import domains.config.ConfigInstances
 import domains.events.EventStore
 import domains.events.Events._
+import domains.feature.FeatureInstances
+import domains.script.GlobalScriptInstances
+import domains.user.UserInstances
+import domains.webhook.WebhookInstances
 import env.{DbDomainConfig, InMemoryWithDbConfig}
 import play.api.Logger
 import play.api.inject.ApplicationLifecycle
@@ -18,7 +26,6 @@ import store.memory.BaseInMemoryJsonDataStore
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationDouble
-import scala.util.Success
 
 sealed trait CacheEvent
 case class Create(id: Key, data: JsValue)             extends CacheEvent
@@ -36,82 +43,83 @@ object InMemoryWithDbStore {
   import domains.abtesting.VariantBinding
   import domains.apikey.Apikey
 
-  def apply(
+  def apply[F[_]: Effect](
       dbConfig: InMemoryWithDbConfig,
       dbDomainConfig: DbDomainConfig,
-      underlyingDataStore: JsonDataStore,
-      eventStore: EventStore,
+      underlyingDataStore: JsonDataStore[F],
+      eventStore: EventStore[F],
       eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
       applicationLifecycle: ApplicationLifecycle
-  )(implicit system: ActorSystem): InMemoryWithDbStore = {
+  )(implicit system: ActorSystem): InMemoryWithDbStore[F] = {
     val namespace = dbDomainConfig.conf.namespace
     new InMemoryWithDbStore(dbConfig, namespace, underlyingDataStore, eventStore, eventAdapter, applicationLifecycle)
   }
 
   lazy val globalScriptEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case GlobalScriptCreated(id, script, _, _)       => Create(id, GlobalScript.format.writes(script))
-    case GlobalScriptUpdated(id, old, script, _, _)  => Update(old.id, id, GlobalScript.format.writes(script))
+    case GlobalScriptCreated(id, script, _, _)       => Create(id, GlobalScriptInstances.format.writes(script))
+    case GlobalScriptUpdated(id, old, script, _, _)  => Update(old.id, id, GlobalScriptInstances.format.writes(script))
     case GlobalScriptDeleted(id, _, _, _)            => Delete(id)
     case GlobalScriptsDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val configEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ConfigCreated(id, value, _, _)        => Create(id, Config.format.writes(value))
-    case ConfigUpdated(id, old, value, _, _)   => Update(old.id, id, Config.format.writes(value))
+    case ConfigCreated(id, value, _, _)        => Create(id, ConfigInstances.format.writes(value))
+    case ConfigUpdated(id, old, value, _, _)   => Update(old.id, id, ConfigInstances.format.writes(value))
     case ConfigDeleted(id, _, _, _)            => Delete(id)
     case ConfigsDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val featureEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case FeatureCreated(id, value, _, _)        => Create(id, Feature.format.writes(value))
-    case FeatureUpdated(id, old, value, _, _)   => Update(old.id, id, Feature.format.writes(value))
+    case FeatureCreated(id, value, _, _)        => Create(id, FeatureInstances.format.writes(value))
+    case FeatureUpdated(id, old, value, _, _)   => Update(old.id, id, FeatureInstances.format.writes(value))
     case FeatureDeleted(id, _, _, _)            => Delete(id)
     case FeaturesDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val experimentEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ExperimentCreated(id, value, _, _)        => Create(id, Experiment.format.writes(value))
-    case ExperimentUpdated(id, old, value, _, _)   => Update(old.id, id, Experiment.format.writes(value))
+    case ExperimentCreated(id, value, _, _)        => Create(id, ExperimentInstances.format.writes(value))
+    case ExperimentUpdated(id, old, value, _, _)   => Update(old.id, id, ExperimentInstances.format.writes(value))
     case ExperimentDeleted(id, _, _, _)            => Delete(id)
     case ExperimentsDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val variantBindingEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case VariantBindingCreated(id, value, _, _) => Create(id.key, VariantBinding.format.writes(value))
+    case VariantBindingCreated(id, value, _, _) => Create(id.key, VariantBindingInstances.format.writes(value))
   }
 
   lazy val webhookEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case WebhookCreated(id, value, _, _)        => Create(id, Webhook.format.writes(value))
-    case WebhookUpdated(id, old, value, _, _)   => Update(old.clientId, id, Webhook.format.writes(value))
+    case WebhookCreated(id, value, _, _)        => Create(id, WebhookInstances.format.writes(value))
+    case WebhookUpdated(id, old, value, _, _)   => Update(old.clientId, id, WebhookInstances.format.writes(value))
     case WebhookDeleted(id, _, _, _)            => Delete(id)
     case WebhooksDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val userEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case UserCreated(id, value, _, _)        => Create(id, User.format.writes(value))
-    case UserUpdated(id, old, value, _, _)   => Update(Key(old.id), id, User.format.writes(value))
+    case UserCreated(id, value, _, _)        => Create(id, UserInstances.format.writes(value))
+    case UserUpdated(id, old, value, _, _)   => Update(Key(old.id), id, UserInstances.format.writes(value))
     case UserDeleted(id, _, _, _)            => Delete(id)
     case UsersDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
   lazy val apikeyEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ApikeyCreated(id, value, _, _)        => Create(id, Apikey.format.writes(value))
-    case ApikeyUpdated(id, old, value, _, _)   => Update(Key(old.clientId), id, Apikey.format.writes(value))
+    case ApikeyCreated(id, value, _, _)        => Create(id, ApikeyInstances.format.writes(value))
+    case ApikeyUpdated(id, old, value, _, _)   => Update(Key(old.clientId), id, ApikeyInstances.format.writes(value))
     case ApikeyDeleted(id, _, _, _)            => Delete(id)
     case ApikeysDeleted(count, patterns, _, _) => DeleteAll(patterns)
   }
 
 }
 
-class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
-                          name: String,
-                          underlyingDataStore: JsonDataStore,
-                          eventStore: EventStore,
-                          eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-                          applicationLifecycle: ApplicationLifecycle)(implicit system: ActorSystem)
+class InMemoryWithDbStore[F[_]: Effect](dbConfig: InMemoryWithDbConfig,
+                                        name: String,
+                                        underlyingDataStore: JsonDataStore[F],
+                                        eventStore: EventStore[F],
+                                        eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
+                                        applicationLifecycle: ApplicationLifecycle)(implicit system: ActorSystem)
     extends BaseInMemoryJsonDataStore(name)
-    with JsonDataStore {
+    with JsonDataStore[F] {
 
+  import cats.implicits._
   import system.dispatcher
   private implicit val materializer: Materializer = ActorMaterializer()
 
@@ -168,52 +176,40 @@ class InMemoryWithDbStore(dbConfig: InMemoryWithDbConfig,
           Done
       }
 
-  override def create(id: Key, data: JsValue): Future[Result[JsValue]] = {
-    val res = underlyingDataStore.create(id, data)
-    res.onComplete {
-      case Success(Right(_)) => createSync(id, data)
-      case _                 =>
-    }
-    res
-  }
+  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
+    for {
+      res <- underlyingDataStore.create(id, data)
+      _   <- createSync(id, data).pure[F]
+    } yield res
 
-  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] = {
-    val res = underlyingDataStore.update(oldId, id, data)
-    res.onComplete {
-      case Success(Right(_)) => updateSync(oldId, id, data)
-      case _                 =>
-    }
-    res
-  }
+  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+    for {
+      res <- underlyingDataStore.update(oldId, id, data)
+      _   <- updateSync(oldId, id, data).pure[F]
+    } yield res
 
-  override def delete(id: Key): Future[Result[JsValue]] = {
-    val res = underlyingDataStore.delete(id)
-    res.onComplete {
-      case Success(Right(_)) => deleteSync(id)
-      case _                 =>
-    }
-    res
-  }
+  override def delete(id: Key): F[Result[JsValue]] =
+    for {
+      res <- underlyingDataStore.delete(id)
+      _   <- deleteSync(id).pure[F]
+    } yield res
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] = {
-    val res = underlyingDataStore.deleteAll(patterns)
-    res.onComplete {
-      case Success(Right(_)) => deleteAllSync(patterns)
-      case _                 =>
-    }
-    res
-  }
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
+    for {
+      res <- underlyingDataStore.deleteAll(patterns)
+      _   <- deleteAllSync(patterns).pure[F]
+    } yield res
 
-  override def getById(id: Key): Future[Option[JsValue]] =
-    FastFuture.successful(getByIdSync(id))
+  override def getById(id: Key): F[Option[JsValue]] =
+    getByIdSync(id).pure[F]
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] =
-    FastFuture.successful(getByIdLikeSync(patterns, page, nbElementPerPage))
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+    getByIdLikeSync(patterns, page, nbElementPerPage).pure[F]
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     Source(getByIdLikeSync(patterns))
 
-  override def count(patterns: Seq[String]): Future[Long] =
-    FastFuture.successful(countSync(patterns))
+  override def count(patterns: Seq[String]): F[Long] =
+    countSync(patterns).pure[F]
 
 }

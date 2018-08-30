@@ -16,8 +16,9 @@ import store._
 import _root_.elastic.implicits._
 import _root_.elastic.codec.PlayJson._
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
+import cats.effect.Effect
 import play.api.Logger
 import store.Result.{ErrorMessage, Result}
 import store.elastic.ElasticJsonDataStore.EsDocument
@@ -26,25 +27,19 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{DurationDouble, FiniteDuration}
 
 object ElasticJsonDataStore {
-  def apply(elastic: Elastic[JsValue],
-            elasticConfig: ElasticConfig,
-            dbDomainConfig: DbDomainConfig,
-            actorSystem: ActorSystem): ElasticJsonDataStore =
-    new ElasticJsonDataStore(elastic, elasticConfig, dbDomainConfig, actorSystem)
+  def apply[F[_]: Effect](elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
+      implicit actorSystem: ActorSystem
+  ): ElasticJsonDataStore[F] =
+    new ElasticJsonDataStore(elastic, elasticConfig, dbDomainConfig)
 
-  case class EsDocument(key: Key,
-                        value: JsValue,
-                        deathDate: Option[LocalDateTime] = None,
-                        lastUpdate: LocalDateTime = LocalDateTime.now())
+  case class EsDocument(key: Key, value: JsValue)
 
   object EsDocument {
     import playjson.all._
     import shapeless.syntax.singleton._
 
     private val reads: Reads[EsDocument] = Json.reads[EsDocument]
-//      jsonRead[EsDocument].withRules(
-//      'created ->> read[Option[LocalDateTime]]
-//    )
+
     private val writes = Json.writes[EsDocument]
 
     implicit val format = Format(reads, writes)
@@ -52,17 +47,18 @@ object ElasticJsonDataStore {
 
 }
 
-class ElasticJsonDataStore(elastic: Elastic[JsValue],
-                           elasticConfig: ElasticConfig,
-                           dbDomainConfig: DbDomainConfig,
-                           actorSystem: ActorSystem)
-    extends JsonDataStore {
+class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
+                                         elasticConfig: ElasticConfig,
+                                         dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem)
+    extends JsonDataStore[F] {
 
+  import cats.implicits._
+  import libs.effects._
+  import libs.streams.syntax._
   import actorSystem.dispatcher
   import store.elastic.ElasticJsonDataStore.EsDocument._
 
-  private implicit val s   = actorSystem
-  private implicit val mat = ActorMaterializer()
+  private implicit val mat: Materializer = ActorMaterializer()
 
   private val esIndex = dbDomainConfig.conf.namespace.replaceAll(":", "_")
   private val esType  = "type"
@@ -95,18 +91,15 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
 
   private val index = elastic.index(esIndex / esType)
 
-  override def create(id: Key, data: JsValue): Future[Result[JsValue]] =
-    genCreate(id, data, None)
+  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
+    genCreate(id, data)
 
-  override def update(oldId: Key, id: Key, data: JsValue): Future[Result[JsValue]] =
-    genUpdate(oldId, id, data, None)
+  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+    genUpdate(oldId, id, data)
 
-  private def genCreate(id: Key, data: JsValue, mayBeTtl: Option[FiniteDuration]): Future[Result[JsValue]] = {
-    val mayBeDeathDate = mayBeTtl.map { ttl =>
-      LocalDateTime.now().plus(ttl.toMillis, ChronoUnit.MILLIS)
-    }
+  private def genCreate(id: Key, data: JsValue): F[Result[JsValue]] =
     index
-      .index[EsDocument](EsDocument(id, data, deathDate = mayBeDeathDate),
+      .index[EsDocument](EsDocument(id, data),
                          id = Some(id.key),
                          create = true,
                          refresh = elasticConfig.automaticRefresh)
@@ -117,43 +110,35 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
         case EsException(json, 409, _) =>
           Result.errors(ErrorMessage("error.data.exists", id.key))
       }
-  }
+      .toF
 
-  private def genUpdate(oldId: Key,
-                        id: Key,
-                        data: JsValue,
-                        mayBeTtl: Option[FiniteDuration]): Future[Result[JsValue]] = {
-    val mayBeDeathDate = mayBeTtl.map { ttl =>
-      LocalDateTime.now().plus(ttl.toMillis, ChronoUnit.MILLIS)
-    }
+  private def genUpdate(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     if (oldId == id) {
       index
-        .index[EsDocument](EsDocument(id, data, deathDate = mayBeDeathDate),
-                           id = Some(id.key),
-                           refresh = elasticConfig.automaticRefresh)
+        .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
+        .toF
         .map { _ =>
           Result.ok(data)
         }
     } else {
       for {
         _       <- delete(id)
-        created <- genCreate(id, data, mayBeTtl)
+        created <- genCreate(id, data)
       } yield created
     }
-  }
 
-  override def delete(id: Key): Future[Result[JsValue]] =
+  override def delete(id: Key): F[Result[JsValue]] =
     getById(id)
       .flatMap {
         case Some(value) =>
-          index.delete(id.key, refresh = elasticConfig.automaticRefresh).map { _ =>
+          index.delete(id.key, refresh = elasticConfig.automaticRefresh).toF.map { _ =>
             Result.ok(value)
           }
         case None =>
-          FastFuture.successful(Result.error(s"error.data.missing"))
+          Result.error[JsValue](s"error.data.missing").pure[F]
       }
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
     getByIdLikeSource(patterns)
       .map {
         case (id, _) =>
@@ -161,15 +146,16 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
       }
       .via(index.bulkFlow(50))
       .runWith(Sink.ignore)
+      .toF
       .flatMap { _ =>
         if (elasticConfig.automaticRefresh) {
-          elastic.refresh(esIndex).map(_ => Result.ok(Done))
+          elastic.refresh(esIndex).toF.map(_ => Result.ok(Done))
         } else {
-          FastFuture.successful(Result.ok(Done))
+          Effect[F].pure(Result.ok(Done))
         }
       }
 
-  override def getById(id: Key): Future[Option[JsValue]] = {
+  override def getById(id: Key): F[Option[JsValue]] = {
     import cats.implicits._
     index
       .get(id.key)
@@ -177,7 +163,6 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
         case r @ GetResponse(_, _, _, _, true, _) =>
           r.as[EsDocument]
             .some
-            .filter(d => d.deathDate.forall(d => LocalDateTime.now().isBefore(d)))
             .map(_.value)
         case _ =>
           none[JsValue]
@@ -186,6 +171,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
         case EsException(_, statusCode, _) if statusCode == 404 =>
           none[JsValue]
       }
+      .toF
   }
 
   private def buildSearchQuery(patterns: Seq[String]): JsObject = {
@@ -210,13 +196,13 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
     )
   }
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[JsValue]] = {
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     val query = buildSearchQuery(patterns) ++ Json.obj(
       "from" -> (page - 1) * nbElementPerPage,
       "size" -> nbElementPerPage
     )
     Logger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
-    index.search(query).map { s =>
+    index.search(query).toF.map { s =>
       val count   = s.hits.total
       val results = s.hitsAs[EsDocument].map(_.value).toList
       DefaultPagingResult(results, page, nbElementPerPage, count)
@@ -238,11 +224,11 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue],
       }
   }
 
-  override def count(patterns: Seq[String]): Future[Long] = {
+  override def count(patterns: Seq[String]): F[Long] = {
     val query = buildSearchQuery(patterns) ++ Json.obj(
       "size" -> 0
     )
-    index.search(query).map { s =>
+    index.search(query).toF.map { s =>
       s.hits.total
     }
   }

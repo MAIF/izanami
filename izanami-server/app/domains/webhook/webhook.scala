@@ -2,24 +2,26 @@ package domains.webhook
 
 import java.time.LocalDateTime
 
-import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
+import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Flow, Source}
+import cats.data.EitherT
+import cats.effect.Effect
 import domains.Domain.Domain
 import domains.events.EventStore
-import domains.events.Events.{WebhookCreated, WebhookDeleted, WebhookUpdated}
-import domains.webhook.WebhookStore._
+import domains.webhook.Webhook.WebhookKey
+import domains._
 import domains.webhook.notifications.WebHooksActor
-import domains.{AuthInfo, Domain, ImportResult, Key}
 import env.{DbDomainConfig, WebhookConfig}
+import libs.functional.EitherTSyntax
+import play.api.Logger
 import play.api.libs.json._
-import play.api.libs.ws._
-import store.Result.{ErrorMessage, Result}
-import store.SourceUtils.SourceKV
+import play.api.libs.ws.WSClient
+import store.Result.Result
+
 import store._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 case class Webhook(clientId: WebhookKey,
                    callbackUrl: String,
@@ -28,113 +30,83 @@ case class Webhook(clientId: WebhookKey,
                    types: Seq[String] = Seq.empty[String],
                    headers: JsObject = Json.obj(),
                    created: LocalDateTime = LocalDateTime.now(),
-                   isBanned: Boolean = false) {
-  def isAllowed = Key.isAllowed(clientId) _
-}
+                   isBanned: Boolean = false)
 
 object Webhook {
-
-  import Domain._
-  import play.api.libs.json._
-  import playjson.rules._
-  import shapeless.syntax.singleton._
-
-  private val reads: Reads[Webhook] = jsonRead[Webhook].withRules(
-    'domains ->> orElse(Seq.empty[Domain]) and
-    'patterns ->> orElse(Seq.empty[String]) and
-    'types ->> orElse(Seq.empty[String]) and
-    'headers ->> orElse(Json.obj()) and
-    'created ->> orElse(LocalDateTime.now()) and
-    'isBanned ->> orElse(false)
-  )
-
-  private val writes = Json.writes[Webhook]
-
-  implicit val format = Format(reads, writes)
-
-  def isAllowed(key: WebhookKey)(auth: Option[AuthInfo]) =
-    Key.isAllowed(key)(auth)
-
-  def importData(
-      webhookStore: WebhookStore
-  )(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import store.Result.AppErrors._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[Webhook]) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          webhookStore.create(obj.clientId, obj) map { ImportResult.fromResult }
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
-}
-
-trait WebhookStore extends DataStore[WebhookKey, Webhook]
-
-object WebhookStore {
-
   type WebhookKey = Key
-
-  sealed trait WebhookMessages
-
-  def apply(jsonStore: JsonDataStore,
-            eventStore: EventStore,
-            webHookConfig: WebhookConfig,
-            wsClient: WSClient,
-            actorSystem: ActorSystem): WebhookStore = {
-    val webhookStore =
-      new WebhookStoreImpl(jsonStore, webHookConfig.db, eventStore, actorSystem)
-    actorSystem.actorOf(WebHooksActor.props(wsClient, eventStore, webhookStore, webHookConfig), "webhooks")
-    webhookStore
-  }
 }
 
-class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventStore: EventStore, system: ActorSystem)
-    extends WebhookStore {
+trait WebhookService[F[_]] {
+  def create(id: WebhookKey, data: Webhook): F[Result[Webhook]]
+  def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): F[Result[Webhook]]
+  def delete(id: WebhookKey): F[Result[Webhook]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def getById(id: WebhookKey): F[Option[Webhook]]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Webhook]]
+  def getByIdLike(patterns: Seq[String]): Source[(WebhookKey, Webhook), NotUsed]
+  def count(patterns: Seq[String]): F[Long]
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+}
 
+class WebhookServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
+                                       config: DbDomainConfig,
+                                       webHookConfig: WebhookConfig,
+                                       eventStore: EventStore[F],
+                                       wsClient: WSClient)(implicit actorSystem: ActorSystem)
+    extends WebhookService[F]
+    with EitherTSyntax[F] {
+
+  import WebhookInstances._
+
+  import cats.implicits._
+  import libs.functional.syntax._
+  import libs.streams.syntax._
+  import domains.events.Events._
   import store.Result._
-  import Webhook._
-  import WebhookStore._
-  import system.dispatcher
-  private implicit val s  = system
-  private implicit val es = eventStore
 
-  private val lockKey = Key.Empty / "batch" / "lock"
+  actorSystem.actorOf(WebHooksActor.props[F](wsClient, eventStore, this, webHookConfig), "webhooks")
 
-  override def create(id: WebhookKey, data: Webhook): Future[Result[Webhook]] =
-    jsonStore.create(id, format.writes(data)).to[Webhook].andPublishEvent { r =>
-      WebhookCreated(id, r)
-    }
+  override def create(id: WebhookKey, data: Webhook): F[Result[Webhook]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Webhook] = for {
+      created     <- jsonStore.create(id, WebhookInstances.format.writes(data))   |> liftFEither
+      user        <- created.validate[Webhook]                           |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(WebhookCreated(id, user))        |> liftF[AppErrors, Done]
+    } yield user
+    // format: on
+    r.value
+  }
 
-  override def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): Future[Result[Webhook]] =
-    this.getById(oldId).flatMap {
-      case Some(oldValue) =>
-        jsonStore
-          .update(oldId, id, format.writes(data))
-          .to[Webhook]
-          .andPublishEvent { r =>
-            WebhookUpdated(id, oldValue, r)
-          }
-      case None =>
-        Future.successful(Result.errors(ErrorMessage("error.data.missing", oldId.key)))
-    }
+  override def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): F[Result[Webhook]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Webhook] = for {
+      oldValue    <- getById(oldId)                                                |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
+      updated     <- jsonStore.update(oldId, id, WebhookInstances.format.writes(data))      |> liftFEither
+      user        <- updated.validate[Webhook]                                     |> liftJsResult{ handleJsError }
+      _           <- eventStore.publish(WebhookUpdated(id, oldValue, user))        |> liftF[AppErrors, Done]
+    } yield user
+    // format: on
+    r.value
+  }
 
-  override def delete(id: WebhookKey): Future[Result[Webhook]] =
-    jsonStore.delete(id).to[Webhook].andPublishEvent { r =>
-      WebhookDeleted(id, r)
-    }
+  override def delete(id: WebhookKey): F[Result[Webhook]] = {
+    // format: off
+    val r: EitherT[F, AppErrors, Webhook] = for {
+      deleted <- jsonStore.delete(id)                       |> liftFEither
+      user    <- deleted.validate[Webhook]                     |> liftJsResult{ handleJsError }
+      _       <- eventStore.publish(WebhookDeleted(id, user))  |> liftF[AppErrors, Done]
+    } yield user
+    // format: on
+    r.value
+  }
 
-  override def deleteAll(patterns: Seq[String]): Future[Result[Done]] =
+  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
     jsonStore.deleteAll(patterns)
 
-  override def getById(id: WebhookKey): Future[Option[Webhook]] =
-    jsonStore.getById(id).to[Webhook]
+  override def getById(id: WebhookKey): F[Option[Webhook]] =
+    jsonStore.getById(id).map(_.flatMap(_.validate[Webhook].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): Future[PagingResult[Webhook]] =
+  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Webhook]] =
     jsonStore
       .getByIdLike(patterns, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
@@ -142,6 +114,28 @@ class WebhookStoreImpl(jsonStore: JsonDataStore, config: DbDomainConfig, eventSt
   override def getByIdLike(patterns: Seq[String]): Source[(Key, Webhook), NotUsed] =
     jsonStore.getByIdLike(patterns).readsKV[Webhook]
 
-  override def count(patterns: Seq[String]): Future[Long] =
+  override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)
+
+  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+    import cats.implicits._
+    import store.Result.AppErrors._
+    import libs.streams.syntax._
+
+    Flow[(String, JsValue)]
+      .map { case (s, json) => (s, WebhookInstances.format.reads(json)) }
+      .mapAsyncF(4) {
+        case (_, JsSuccess(obj, _)) =>
+          create(obj.clientId, obj).map { ImportResult.fromResult }
+        case (s, JsError(_)) =>
+          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
+      }
+      .fold(ImportResult()) { _ |+| _ }
+  }
+
+  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
+    Logger.error(s"Error parsing json from database $err")
+    AppErrors.error("error.json.parsing")
+  }
+
 }

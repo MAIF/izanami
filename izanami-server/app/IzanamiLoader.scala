@@ -1,27 +1,28 @@
 import akka.actor.ActorSystem
-import akka.{Done, NotUsed}
+import akka.{NotUsed}
 import akka.stream.scaladsl.Flow
-import com.softwaremill.macwire.wire
+import cats.effect.IO
+import com.softwaremill.macwire._
 import controllers._
+import controllers.effect._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
-import domains.config.Config
+import domains.config.{ConfigService, ConfigServiceImpl}
 import domains.Import
 import domains.abtesting.impl._
-import domains.abtesting.{ExperimentVariantEventStore, _}
-import domains.apikey.{Apikey, ApikeyStore}
-import domains.config.ConfigStore
+import domains.abtesting.{ExperimentVariantEventService, _}
+import domains.apikey.{ApikeyService, ApikeyStoreImpl}
 import domains.events.Events.IzanamiEvent
 import domains.events._
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
-import domains.feature.{Feature, FeatureStore}
-import domains.script.{GlobalScript, GlobalScriptStore}
-import domains.user.{User, UserStore}
-import domains.webhook.{Webhook, WebhookStore}
+import domains.feature.{FeatureService, FeatureServiceImpl}
+import domains.script.{GlobalScriptService, GlobalScriptServiceImpl}
+import domains.user.{UserService, UserServiceImpl}
+import domains.webhook.{WebhookService, WebhookServiceImpl}
 import libs.database.Drivers
 import env._
 import filters.{IzanamiDefaultFilter, OtoroshiFilter}
 import handlers.ErrorHandler
-import patches.Patchs
+import patches.{PatchInstance, Patchs}
 import patches.impl.ConfigsPatch
 import play.api.ApplicationLoader.Context
 import play.api._
@@ -30,12 +31,14 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
 import router.Routes
+import store.leveldb.DbStores
 import store.{Healthcheck, JsonDataStore}
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 
-import scala.concurrent.Future
-
 class IzanamiLoader extends ApplicationLoader {
+
+  implicit val lDbStores: DbStores[IO] = new DbStores[IO]
+
   def load(context: Context) = {
     LoggerConfigurator(context.environment.classLoader).foreach {
       _.configure(context.environment, context.initialConfiguration, Map.empty)
@@ -46,11 +49,10 @@ class IzanamiLoader extends ApplicationLoader {
 
 package object modules {
 
-  class IzanamiComponentsInstances(context: Context)
+  class IzanamiComponentsInstances(context: Context)(implicit val lDbStores: DbStores[IO])
       extends BuiltInComponentsFromContext(context)
-      with IzanamiMainComponents {}
-
-  trait IzanamiMainComponents extends BuiltInComponentsFromContext with AssetsComponents with AhcWSComponents {
+      with AssetsComponents
+      with AhcWSComponents {
 
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
@@ -71,88 +73,92 @@ package object modules {
 
     lazy val homeController: HomeController = wire[HomeController]
 
-    lazy val authController: AuthController = wire[AuthController]
+    lazy val authController: AuthControllerEff = wire[AuthControllerEff]
 
     lazy val drivers: Drivers = Drivers(izanamiConfig, configuration, applicationLifecycle)
 
     /* Event store */
     // format: off
-    lazy val eventStore: EventStore = izanamiConfig.events match {
-      case InMemoryEvents(_) => new BasicEventStore(actorSystem)
-      case KafkaEvents(c) => new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
-      case RedisEvents(c) => new RedisEventStore(drivers.redisClient.get, c, actorSystem)
-      case DistributedEvents(c) => new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
+    lazy val eventStore: EventStore[IO] = izanamiConfig.events match {
+      case InMemoryEvents(_) => new BasicEventStore[IO]
+      case KafkaEvents(c) => new KafkaEventStore[IO](environment, actorSystem, izanamiConfig.db.kafka.get, c)
+      case RedisEvents(c) => new RedisEventStore[IO](drivers.redisClient.get, c, actorSystem)
+      case DistributedEvents(c) => new DistributedPubSubEventStore[IO](configuration.underlying, c, applicationLifecycle)
       case other => throw new IllegalArgumentException(s"Unknown event store $other")
     }
     // format: on
 
     /* Global script */
-    lazy val globalScriptStore: GlobalScriptStore = {
-      val conf                        = izanamiConfig.globalScript.db
-      lazy val eventAdapter           = InMemoryWithDbStore.globalScriptEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[GlobalScriptStore]
-      Import.importFile(conf, GlobalScript.importData(store))
+    lazy val globalScriptStore: GlobalScriptService[IO] = {
+      val conf              = izanamiConfig.globalScript.db
+      lazy val eventAdapter = InMemoryWithDbStore.globalScriptEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      val store: GlobalScriptService[IO] = wire[GlobalScriptServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
-    lazy val globalScripController: GlobalScriptController =
-      wire[GlobalScriptController]
+    lazy val globalScripController: GlobalScriptControllerEff = wire[GlobalScriptControllerEff]
 
     /* Config */
-    lazy val configStore: ConfigStore = {
-      val conf                        = izanamiConfig.config.db
-      lazy val eventAdapter           = InMemoryWithDbStore.configEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[ConfigStore]
-      Import.importFile(conf, Config.importData(store))
+    val configStore: ConfigService[IO] = {
+      val conf              = izanamiConfig.config.db
+      lazy val eventAdapter = InMemoryWithDbStore.configEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      val store: ConfigService[IO] = wire[ConfigServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
-    lazy val configController: ConfigController = wire[ConfigController]
+    lazy val configController: ConfigControllerEff = wire[ConfigControllerEff]
 
     /* Feature */
-    lazy val featureStore: FeatureStore = {
-      val conf                        = izanamiConfig.features.db
-      lazy val eventAdapter           = InMemoryWithDbStore.featureEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[FeatureStore]
-      Import.importFile(conf, Feature.importData(store))
+    lazy val featureStore: FeatureService[IO] = {
+      val conf              = izanamiConfig.features.db
+      lazy val eventAdapter = InMemoryWithDbStore.featureEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      val store: FeatureService[IO] = wire[FeatureServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
-    lazy val featureController: FeatureController = wire[FeatureController]
+    lazy val featureController: FeatureControllerEff = wire[FeatureControllerEff]
 
     /* Experiment */
-    lazy val experimentStore: ExperimentStore = {
-      val conf                        = izanamiConfig.experiment.db
-      lazy val eventAdapter           = InMemoryWithDbStore.experimentEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[ExperimentStore]
-      Import.importFile(conf, Experiment.importData(store))
+    lazy val experimentStore: ExperimentService[IO] = {
+      val conf              = izanamiConfig.experiment.db
+      lazy val eventAdapter = InMemoryWithDbStore.experimentEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      val store: ExperimentService[IO] = wire[ExperimentServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
-    lazy val variantBindingStore: VariantBindingStore = {
-      val conf                        = izanamiConfig.variantBinding.db
-      lazy val eventAdapter           = InMemoryWithDbStore.variantBindingEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[VariantBindingStore]
-      Import.importFile(conf, VariantBinding.importData(store))
+    lazy val variantBindingStore: VariantBindingService[IO] = {
+      val conf              = izanamiConfig.variantBinding.db
+      lazy val eventAdapter = InMemoryWithDbStore.variantBindingEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      lazy val store: VariantBindingService[IO] = wire[VariantBindingServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
-    lazy val experimentVariantEventStore: ExperimentVariantEventStore = {
+    lazy val experimentVariantEventStore: ExperimentVariantEventService[IO] = {
       val conf = izanamiConfig.experimentEvent.db
       // format: off
 
-      def getExperimentVariantEventStore(dbType: DbType) = dbType match {
-        case InMemory  => ExperimentVariantEventInMemoryStore(conf, actorSystem)
-        case Redis     => ExperimentVariantEventRedisStore(drivers.redisClient, eventStore, actorSystem)
-        case LevelDB   => ExperimentVariantEventLevelDBStore(izanamiConfig.db.leveldb.get, conf, eventStore, actorSystem, applicationLifecycle)
-        case Cassandra => ExperimentVariantEventCassandreStore(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore, actorSystem)
-        case Elastic   => ExperimentVariantEventElasticStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore, actorSystem)
-        case Mongo    =>  ExperimentVariantEventMongoStore(conf, drivers.mongoApi.get, eventStore, actorSystem)
+      def getExperimentVariantEventStore(dbType: DbType): ExperimentVariantEventService[IO] = dbType match {
+        case InMemory  => ExperimentVariantEventInMemoryService(conf)
+        case Redis     => ExperimentVariantEventRedisService(drivers.redisClient, eventStore)
+        case LevelDB   => ExperimentVariantEventLevelDBService(izanamiConfig.db.leveldb.get, conf, eventStore, applicationLifecycle)
+        case Cassandra => ExperimentVariantEventCassandreService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore)
+        case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore)
+        case Mongo    =>  ExperimentVariantEventMongoService(conf, drivers.mongoApi.get, eventStore)
         case _ => throw new IllegalArgumentException("Unsupported store type ")
       }
 
@@ -160,70 +166,73 @@ package object modules {
         case InMemoryWithDb => getExperimentVariantEventStore(izanamiConfig.db.inMemoryWithDb.get.db)
         case other => getExperimentVariantEventStore(other)
       }
-      Import.importFile(conf, ExperimentVariantEvent.importData(store))
+      Import.importFile(conf, store.importData)
       store
       // format: on
     }
 
-    lazy val experimentController: ExperimentController =
-      wire[ExperimentController]
+    lazy val experimentController: ExperimentControllerEff = wire[ExperimentControllerEff]
 
     /* Webhook */
-    lazy val webhookStore: WebhookStore = {
-      lazy val webhookConfig          = izanamiConfig.webhook
-      lazy val conf                   = webhookConfig.db
-      lazy val eventAdapter           = InMemoryWithDbStore.webhookEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[WebhookStore]
-      Import.importFile(conf, Webhook.importData(store))
+    lazy val webhookStore: WebhookService[IO] = {
+      lazy val webhookConfig = izanamiConfig.webhook
+      lazy val conf          = webhookConfig.db
+      lazy val eventAdapter  = InMemoryWithDbStore.webhookEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      lazy val store: WebhookService[IO] = wire[WebhookServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
-    lazy val webhookController: WebhookController = wire[WebhookController]
+    lazy val webhookController: WebhookControllerEff = wire[WebhookControllerEff]
 
     /* User */
-    lazy val userStore: UserStore = {
-      val conf                        = izanamiConfig.user.db
-      lazy val eventAdapter           = InMemoryWithDbStore.userEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[UserStore]
-      Import.importFile(conf, User.importData(store))
+    lazy val userStore: UserService[IO] = {
+      val conf              = izanamiConfig.user.db
+      lazy val eventAdapter = InMemoryWithDbStore.userEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      lazy val store: UserService[IO] = wire[UserServiceImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
 
-    lazy val userController: UserController = wire[UserController]
+    lazy val userController: UserControllerEff = wire[UserControllerEff]
 
     /* Apikey */
-    lazy val apikeyStore: ApikeyStore = {
-      val conf                        = izanamiConfig.apikey.db
-      lazy val eventAdapter           = InMemoryWithDbStore.apikeyEventAdapter
-      lazy val dbStore: JsonDataStore = wire[JsonDataStore]
-      val store                       = wire[ApikeyStore]
-      Import.importFile(conf, Apikey.importData(store))
+    lazy val apikeyStore: ApikeyService[IO] = {
+      val conf              = izanamiConfig.apikey.db
+      lazy val eventAdapter = InMemoryWithDbStore.apikeyEventAdapter
+      lazy val dbStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      lazy val store: ApikeyService[IO] = wire[ApikeyStoreImpl[IO]]
+      Import.importFile(conf, store.importData)
       store
     }
-    lazy val apikeyController: ApikeyController = wire[ApikeyController]
+    lazy val apikeyController: ApikeyControllerEff = wire[ApikeyControllerEff]
 
-    lazy val healthCheck: Healthcheck                     = wire[Healthcheck]
-    lazy val healthCheckController: HealthCheckController = wire[HealthCheckController]
+    lazy val healthCheck: Healthcheck[IO]                    = wire[Healthcheck[IO]]
+    lazy val healthCheckController: HealthCheckControllerEff = wire[HealthCheckControllerEff]
 
-    lazy val eventsController: EventsController = wire[EventsController]
+    lazy val eventsController: EventsControllerEff = wire[EventsControllerEff]
 
-    val patchResult: Future[Done] = {
+    val future = {
       lazy val conf: DbDomainConfig = izanamiConfig.patch.db
       lazy val eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] =
         Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent])
-      lazy val jsonStore: JsonDataStore            = wire[JsonDataStore]
-      lazy val jsonStoreOpt: Option[JsonDataStore] = Some(jsonStore)
-      lazy val configsPatch: ConfigsPatch          = wire[ConfigsPatch]
+      lazy val jsonStore: JsonDataStore[IO] =
+        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
+      lazy val jsonStoreOpt: Option[JsonDataStore[IO]] = Some(jsonStore)
+      lazy val configsPatch: ConfigsPatch[IO]          = wire[ConfigsPatch[IO]]
 
-      lazy val allPatchs = Map(1 -> configsPatch)
+      lazy val allPatchs: Map[Int, PatchInstance[IO]] = Map(1 -> configsPatch)
 
-      lazy val patchs: Patchs = new Patchs(jsonStoreOpt, allPatchs, actorSystem)
-      patchs.run()
+      lazy val patchs: Patchs[IO] = new Patchs[IO](jsonStoreOpt, allPatchs)
+      patchs.run().unsafeToFuture()
     }
 
-    lazy val searchController: SearchController = wire[SearchController]
+    lazy val searchController: SearchControllerEff = wire[SearchControllerEff]
 
     lazy val backOfficeController: BackOfficeController =
       wire[BackOfficeController]
@@ -233,10 +242,10 @@ package object modules {
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) =>
         Logger.info("Using otoroshi filter")
-        Seq(new OtoroshiFilter(_env, config))
+        Seq(new OtoroshiFilter[IO](_env, config))
       case env.Default(config) =>
         Logger.info("Using default filter")
-        Seq(new IzanamiDefaultFilter(_env, izanamiConfig, config, izanamiConfig.apikey, apikeyStore))
+        Seq(new IzanamiDefaultFilter[IO](_env, izanamiConfig, config, izanamiConfig.apikey, apikeyStore))
     }
 
     lazy val router: Router = {
@@ -248,5 +257,4 @@ package object modules {
     override lazy val httpErrorHandler: HttpErrorHandler =
       new ErrorHandler(environment, configuration, None, Some(router))
   }
-
 }

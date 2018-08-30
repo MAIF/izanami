@@ -1,10 +1,10 @@
 package domains.events.impl
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
+import cats.effect.Effect
 import domains.Domain.Domain
 import domains.events.Events.IzanamiEvent
 import domains.events.{EventLogger, EventStore}
@@ -17,14 +17,15 @@ import play.api.Logger
 import play.api.libs.json.{JsError, JsResult, JsSuccess, Json}
 import store.redis.RedisWrapper
 
-import scala.compat.java8.FutureConverters._
-import scala.concurrent.Future
 import scala.util.Failure
 
-class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore {
+class RedisEventStore[F[_]: Effect](client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem)
+    extends EventStore[F] {
 
   import EventLogger._
   import system.dispatcher
+  import cats.implicits._
+  import libs.effects._
 
   implicit private val s   = system
   implicit private val mat = ActorMaterializer()
@@ -70,16 +71,19 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
 
   connectionPubSub.async().subscribe(config.topic)
 
-  override def publish(event: IzanamiEvent): Future[Done] = {
+  override def publish(event: IzanamiEvent): F[Done] = {
     logger.debug(s"Publishing event $event to Redis topic izanamiEvents")
-
-    val publish = connection.async().publish(config.topic, Json.stringify(event.toJson)).toScala.map(_ => Done)
-    publish.onComplete {
-      case Failure(e) =>
-        logger.error(s"Error publishing event to Redis", e)
-      case _ =>
-    }
-    publish
+    s.eventStream.publish(event)
+    connection
+      .async()
+      .publish(config.topic, Json.stringify(event.toJson))
+      .whenComplete { (_, e) =>
+        if (e != null) {
+          logger.error(s"Error publishing event to Redis", e)
+        }
+      }
+      .toF
+      .map(_ => Done)
   }
 
   override def events(domains: Seq[Domain],
@@ -97,5 +101,5 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
 
   override def close() = {}
 
-  override def check(): Future[Unit] = connection.async().get("test").toScala.map(_ => ())
+  override def check(): F[Unit] = connection.async().get("test").toF.map(_ => ())
 }

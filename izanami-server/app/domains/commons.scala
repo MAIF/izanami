@@ -86,7 +86,6 @@ object ImportResult {
 
 trait AuthInfo {
   def authorizedPattern: String
-  def isAllowed(auth: Option[AuthInfo]): Boolean
 }
 
 trait Jsoneable {
@@ -165,6 +164,14 @@ case class Key(key: String) {
     } else {
       this
     }
+}
+
+trait IsAllowed[T] {
+  def isAllowed(value: T)(auth: Option[AuthInfo]): Boolean
+}
+
+object IsAllowed {
+  def apply[T](implicit IsAllowed: IsAllowed[T]): IsAllowed[T] = IsAllowed
 }
 
 object Key {

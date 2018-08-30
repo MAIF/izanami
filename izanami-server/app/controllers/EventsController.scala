@@ -1,21 +1,20 @@
 package controllers
 
 import akka.actor.ActorSystem
+import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.Domain.Domain
 import domains.events.EventStore
-import env.Env
 import play.api.Logger
 import play.api.libs.EventSource
 import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNameExtractor}
 import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 
-class EventsController(env: Env,
-                       eventStore: EventStore,
-                       system: ActorSystem,
-                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       cc: ControllerComponents)
+class EventsController[F[_]](eventStore: EventStore[F],
+                             system: ActorSystem,
+                             AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                             cc: ControllerComponents)
     extends AbstractController(cc) {
 
   import domains.events.Events._

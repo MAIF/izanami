@@ -5,6 +5,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Source, SourceQueueWithComplete}
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.{Done, NotUsed}
+import cats.Applicative
 import domains.Domain.Domain
 import domains.events.EventLogger._
 import domains.events.EventStore
@@ -14,9 +15,8 @@ import libs.streams.CacheableQueue
 import scala.concurrent.Future
 import scala.util.Try
 
-class BasicEventStore(system: ActorSystem) extends EventStore {
+class BasicEventStore[F[_]: Applicative](implicit system: ActorSystem) extends EventStore[F] {
 
-  private implicit val s                 = system
   private implicit val mat: Materializer = ActorMaterializer()
 
   logger.info("Starting default event store")
@@ -24,9 +24,11 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
   private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
   system.actorOf(EventStreamActor.props(queue))
 
-  override def publish(event: IzanamiEvent): Future[Done] =
+  override def publish(event: IzanamiEvent): F[Done] = {
     //Already published
-    FastFuture.successful(Done)
+    system.eventStream.publish(event)
+    Applicative[F].pure(Done)
+  }
 
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],
@@ -43,7 +45,7 @@ class BasicEventStore(system: ActorSystem) extends EventStore {
 
   override def close() = {}
 
-  override def check(): Future[Unit] = FastFuture.successful(())
+  override def check(): F[Unit] = Applicative[F].pure(())
 }
 
 private[events] object EventStreamActor {
