@@ -778,6 +778,85 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     </tr>
   </tbody>
 </table>
+<h2><a href="#metrics" name="metrics" class="anchor"><span class="anchor-link"></span></a>Metrics</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+      <th>Default value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.metrics.verbose</code> </td>
+      <td><code>METRICS_VERBOSE</code> </td>
+      <td>If true, additional metrics are provided (detailed about endpoint) </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.consoleEnabled</code> </td>
+      <td><code>METRICS_CONSOLE_ENABLED</code> </td>
+      <td>If true, metrics are logged in the console </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.logEnabled</code> </td>
+      <td><code>METRICS_LOG_ENABLED</code> </td>
+      <td>If true, metrics are logged with slf4j </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.http.defaultFormat</code> </td>
+      <td><code>METRICS_HTTP_FORMAT</code> </td>
+      <td>The default format for http endpoint: json or prometheus </td>
+      <td><code>json</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.kafka.enabled</code> </td>
+      <td><code>METRICS_KAFKA_ENABLED</code> </td>
+      <td>If true, metrics are logged in kafka </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.kafka.topic</code> </td>
+      <td><code>METRICS_KAFKA_TOPIC</code> </td>
+      <td>The kafka topic </td>
+      <td><code>izanami-metrics</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.kafka.pushInterval</code> </td>
+      <td><code>METRICS_KAFKA_INTERVAL</code> </td>
+      <td>The logging rate </td>
+      <td><code>30 seconds</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.kafka.format</code> </td>
+      <td><code>METRICS_KAFKA_FORMAT</code> </td>
+      <td>The namespace used for experiments </td>
+      <td><code>json</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.elastic.enabled</code> </td>
+      <td><code>METRICS_ELASTIC_ENABLED</code> </td>
+      <td>If true, metrics are logged in elastic </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.elastic.index</code> </td>
+      <td><code>METRICS_ELASTIC_INDEX</code> </td>
+      <td>The namespace used for variant bindings </td>
+      <td><code>&#39;izanami-metrics-&#39;yyyy-MM-dd</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.elastic.pushInterval</code> </td>
+      <td><code>METRICS_ELASTIC_INTERVAL</code> </td>
+      <td>The db used to store experiment events </td>
+      <td><code>30 seconds</code> </td>
+    </tr>
+  </tbody>
+</table>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
 </div>
@@ -800,6 +879,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
     <li><a href="../settings/settings.html#threads-configuration" class="header">Threads configuration</a></li>
     <li><a href="../settings/settings.html#filters" class="header">Filters</a></li>
     <li><a href="../settings/settings.html#domains" class="header">Domains</a></li>
+    <li><a href="../settings/settings.html#metrics" class="header">Metrics</a></li>
   </ul></li>
 </ul>
 </div>

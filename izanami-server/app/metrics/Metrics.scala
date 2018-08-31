@@ -22,7 +22,7 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.slf4j.LoggerFactory
 import play.api.Logger
 import play.api.inject.ApplicationLifecycle
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.{JsObject, Json}
 
 import scala.util.Failure
 
