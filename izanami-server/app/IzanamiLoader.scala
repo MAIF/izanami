@@ -1,7 +1,9 @@
 import akka.actor.ActorSystem
-import akka.{NotUsed}
+import akka.NotUsed
 import akka.stream.scaladsl.Flow
+import metrics.Metrics
 import cats.effect.IO
+import com.codahale.metrics.MetricRegistry
 import com.softwaremill.macwire._
 import controllers._
 import controllers.effect._
@@ -60,6 +62,8 @@ package object modules {
 
     Logger.info(s"Configuration: \n$izanamiConfig")
 
+    lazy val metricRegistry: MetricRegistry = wire[MetricRegistry]
+
     lazy val _env: Env = izanamiConfig.baseURL match {
       case "/" => wire[Env]
       case c =>
@@ -68,14 +72,18 @@ package object modules {
         wire[Env].copy(assetsFinder = aFinder)
     }
 
-    def authAction: ActionBuilder[AuthContext, AnyContent]                       = wire[AuthAction]
-    def securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
+    val authAction: ActionBuilder[AuthContext, AnyContent] = wire[AuthAction]
+
+    val securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
 
     lazy val homeController: HomeController = wire[HomeController]
 
     lazy val authController: AuthControllerEff = wire[AuthControllerEff]
 
-    lazy val drivers: Drivers = Drivers(izanamiConfig, configuration, applicationLifecycle)
+    lazy val drivers: Drivers = wire[Drivers]
+
+    lazy val metrics: Metrics                    = wire[Metrics]
+    lazy val metricsController: MetricController = wire[MetricController]
 
     /* Event store */
     // format: off
