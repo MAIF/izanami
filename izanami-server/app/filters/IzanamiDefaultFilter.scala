@@ -6,6 +6,8 @@ import cats.effect.Effect
 import com.auth0.jwt._
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces._
+import com.codahale.metrics.MetricRegistry.name
+import com.codahale.metrics.Timer
 import domains.apikey.ApikeyService
 import domains.user.User
 import domains.{AuthInfo, AuthorizedPattern, Key}
@@ -43,6 +45,19 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
   }
 
   def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
+    env.metricRegistry.meter(name("request", "rate")).mark()
+    env.metricRegistry.meter(name("request", requestHeader.method, "rate")).mark()
+
+    val timerMethod: Option[Timer.Context] = if (izanamiConfig.metrics.verbose) {
+      env.metricRegistry.meter(name("request", requestHeader.method, requestHeader.path, "rate")).mark()
+      Some(env.metricRegistry.timer(name("request", requestHeader.method, requestHeader.path, "duration")).time())
+    } else {
+      None
+    }
+    val timerMethodPath: Timer.Context =
+      env.metricRegistry.timer(name("request", requestHeader.method, "duration")).time()
+    val timer: Timer.Context = env.metricRegistry.timer(name("request", "duration")).time()
+
     val startTime: Long = System.currentTimeMillis
     val maybeClaim      = Try(requestHeader.cookies.get(config.cookieClaim).get.value).toOption
 
@@ -78,7 +93,6 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
           .toIO
           .unsafeToFuture()
           .map { mayBeKey =>
-            Logger.debug(s"$mayBeKey: ${apikeyConfig.keys}")
             mayBeKey
               .orElse(apikeyConfig.keys)
               .filter(_.clientId == clientId)
@@ -202,8 +216,16 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
     result.onComplete {
       case Success(resp) =>
         logger.debug(s" ${requestHeader.method} ${requestHeader.uri} resp : $resp")
+        env.metricRegistry.meter(name("request", resp.header.status.toString, "rate")).mark()
+        timer.stop()
+        timerMethod.foreach(_.stop())
+        timerMethodPath.stop()
       case Failure(e) =>
         logger.error(s"Error for request ${requestHeader.method} ${requestHeader.uri}", e)
+        env.metricRegistry.meter(name("request", "500", "rate")).mark()
+        timer.stop()
+        timerMethod.foreach(_.stop())
+        timerMethodPath.stop()
     }
     result
   }
