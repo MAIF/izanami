@@ -1,12 +1,12 @@
 package env
 
 import akka.actor.ActorSystem
+import com.codahale.metrics.MetricRegistry
 import controllers.AssetsFinder
-import domains.script.{GlobalScriptService, ScriptExecutionContext}
+import domains.script.{ScriptExecutionContext}
 import play.api.libs.ws.WSClient
 import play.api.{Environment, Logger, Mode}
 
-import scala.concurrent.Future
 import scala.util.Random
 
 case class Env(
@@ -14,7 +14,8 @@ case class Env(
     environment: Environment,
     actorSystem: ActorSystem,
     wSClient: WSClient,
-    assetsFinder: AssetsFinder
+    assetsFinder: AssetsFinder,
+    metricRegistry: MetricRegistry
 ) {
 
   val env: String = izanamiConfig.mode.getOrElse(environment.mode match {

@@ -14,6 +14,7 @@ lazy val `izanami-server` = (project in file("."))
 scalaVersion := "2.12.6"
 
 val akkaVersion = "2.5.14"
+val metricsVersion = "4.0.2"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo
@@ -44,7 +45,13 @@ libraryDependencies ++= Seq(
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.19", // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.21", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"            % "0.0.11", // Apache 2.0
-  "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.0", // Apache 2.0
+  "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.1", // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-core"                   % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-jvm"                    % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-jmx"                    % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-json"                   % metricsVersion, // Apache 2.0
+  "io.prometheus"            % "simpleclient_common"            % "0.5.0", // Apache 2.0
+  "io.prometheus"            % "simpleclient_dropwizard"        % "0.5.0", // Apache 2.0
   "com.typesafe.akka"        %% "akka-http"                     % "10.0.6" % Test, // Apache 2.0
   "de.heikoseeberger"        %% "akka-http-play-json"           % "1.16.0" % Test, // Apache 2.0
   "org.scalatestplus.play"   %% "scalatestplus-play"            % "3.1.1" % Test, // Apache 2.0

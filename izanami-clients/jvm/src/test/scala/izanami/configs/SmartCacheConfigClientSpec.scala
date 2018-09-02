@@ -145,14 +145,14 @@ class SmartCacheConfigClientSpec
         ).configClient(
           strategy = CacheWithSseStrategy(
             patterns = Seq("*"),
-            pollingInterval = Some(3.second)
+            pollingInterval = None//Some(3.second)
           ),
           fallback = fallback
         )
 
         //Waiting for the client to start polling
         val configs: Configs = pattern
-          .after(2.second, system.scheduler) {
+          .after(2500.milliseconds, system.scheduler) {
             strategy.configs("*")
           }
           .futureValue

@@ -101,10 +101,22 @@ case class IzanamiConfig(
     user: UserConfig,
     apikey: ApikeyConfig,
     events: EventsConfig,
-    patch: PatchConfig
+    patch: PatchConfig,
+    metrics: MetricsConfig
 )
 
-//case class Claim(sharedKey: String, header: String, headerClientId: String, headerClientSecret: String)
+case class MetricsConfig(
+    verbose: Boolean,
+    consoleEnabled: Boolean,
+    logEnabled: Boolean,
+    http: MetricsHttpConfig,
+    kafka: MetricsKafkaConfig,
+    elastic: MetricsElasticConfig
+)
+case class MetricsHttpConfig(defaultFormat: String)
+case class MetricsKafkaConfig(enabled: Boolean, topic: String, format: String, pushInterval: FiniteDuration)
+case class MetricsElasticConfig(enabled: Boolean, index: String, pushInterval: FiniteDuration)
+
 case class LogoutConfig(url: String)
 case class ApiKeyHeaders(headerClientId: String, headerClientSecret: String)
 case class OtoroshiFilterConfig(sharedKey: String,

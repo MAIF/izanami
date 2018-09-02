@@ -1,6 +1,7 @@
 package domains.script
 
 import cats.effect.IO
+import com.codahale.metrics.MetricRegistry
 import com.typesafe.config.ConfigFactory
 import controllers.AssetsComponents
 import env._
@@ -81,7 +82,13 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     UserConfig(dbConfig, InitialUserConfig("", "")),
     ApikeyConfig(dbConfig, InitializeApiKey(None, None, "*")),
     InMemoryEvents(InMemoryEventsConfig()),
-    PatchConfig(dbConfig)
+    PatchConfig(dbConfig),
+    MetricsConfig(false,
+                  false,
+                  false,
+                  MetricsHttpConfig("json"),
+                  MetricsKafkaConfig(false, "topic", "json", 1.second),
+                  MetricsElasticConfig(false, "topic", 1.second))
   )
 
   "Script" must {
@@ -102,7 +109,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
             testComponents.environment,
             testComponents.actorSystem,
             testComponents.wsClient,
-            testComponents.assetsFinder
+            testComponents.assetsFinder,
+            new MetricRegistry()
           )
         )
         .unsafeRunSync()
@@ -125,7 +133,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
             testComponents.environment,
             testComponents.actorSystem,
             testComponents.wsClient,
-            testComponents.assetsFinder
+            testComponents.assetsFinder,
+            new MetricRegistry()
           )
         )
         .unsafeRunSync()
