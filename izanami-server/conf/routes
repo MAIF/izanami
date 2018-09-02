@@ -126,5 +126,6 @@ GET     /swagger/ui                         controllers.SwaggerController.swagge
 GET     /assets/*file                       controllers.Assets.versioned(file: String)
 
 GET     /login                              controllers.HomeController.login()
+GET     /metrics                            controllers.MetricController.metricsEndpoint()
 
 GET     /*other                             controllers.HomeController.otherRoutes(other)

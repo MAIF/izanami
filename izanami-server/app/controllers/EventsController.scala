@@ -39,10 +39,6 @@ class EventsController[F[_]](eventStore: EventStore[F],
     val lastEventId = ctx.request.headers.get("Last-Event-ID").map(_.toLong)
     val allDomains  = domains.map(JsString).flatMap(_.validate[Domain].asOpt)
 
-    Logger.debug(
-      s"New connection on event stream for domain $domains, patterns $allPatterns and last event id = $lastEventId "
-    )
-
     Ok.chunked(
         eventStore
           .events(allDomains, allPatterns, lastEventId) via EventSource.flow

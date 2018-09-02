@@ -17,6 +17,7 @@ object CassandraClient {
         new InetSocketAddress(host, port.toInt)
       }
       val builder: Cluster.Builder = Cluster.builder
+        .withoutJMXReporting()
         .addContactPointsWithPorts(adds: _*)
 
       val b: Cluster.Builder = config.clusterName.map(builder.withClusterName).getOrElse(builder)

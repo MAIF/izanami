@@ -28,6 +28,7 @@
     <logger name="application" level="INFO" />
     <logger name="filter" level="INFO" />
     <logger name="events" level="INFO" />
+    <logger name="izanami.metrics" level="INFO" />
 
     <!-- Off these ones as they are annoying, and anyway we manage configuration ourselves -->
     <logger name="com.avaje.ebean.config.PropertyMapLoader" level="OFF" />
