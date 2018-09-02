@@ -47,6 +47,7 @@ libraryDependencies ++= Seq(
   "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.0", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                   % "4.0.0", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jvm"                    % "4.0.0", // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-jmx"                    % "4.0.0", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-json"                   % "4.0.0", // Apache 2.0
   "io.prometheus"            % "simpleclient_common"            % "0.5.0", // Apache 2.0
   "io.prometheus"            % "simpleclient_dropwizard"        % "0.5.0", // Apache 2.0
