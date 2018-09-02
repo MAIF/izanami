@@ -49,10 +49,10 @@ class IzanamiTestComponentsInstances(context: Context, user: => User, conf: Conf
     extends IzanamiComponentsInstances(context) {
   override def configuration = conf(super.configuration)
 
-  override def authAction: ActionBuilder[AuthContext, AnyContent] =
+  override val authAction: ActionBuilder[AuthContext, AnyContent] =
     new TestAuthAction(user, defaultBodyParser)
 
-  override def securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] =
+  override val securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] =
     new TestSecuredAuthAction(user, defaultBodyParser)
 }
 
