@@ -10,7 +10,12 @@ object AppConfig {
     loadConfigOrThrow[AppConfig](configuration.underlying, "tvdb")
 }
 
-case class AppConfig(izanami: IzanamiConf, betaSerie: BetaSerieConfig, tvdb: TvdbConfig, dbpath: String, front: String)
+case class AppConfig(izanami: IzanamiConf,
+                     otoroshi: OtoroshiFilterConfig,
+                     betaSerie: BetaSerieConfig,
+                     tvdb: TvdbConfig,
+                     dbpath: String,
+                     front: String)
 
 case class IzanamiConf(
     host: String,
@@ -27,3 +32,12 @@ case class IzanamiFallbackConf(
 
 case class BetaSerieConfig(url: String, apiKey: String)
 case class TvdbConfig(url: String, apiKey: String, baseUrl: String)
+
+case class OtoroshiFilterConfig(enabled: Boolean,
+                                mode: String,
+                                sharedKey: String,
+                                issuer: String,
+                                headerClaim: String,
+                                headerRequestId: String,
+                                headerGatewayState: String,
+                                headerGatewayStateResp: String)

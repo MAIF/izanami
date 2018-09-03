@@ -5,6 +5,7 @@ import domains.me.{LevelDbMeRepository, MeRepository, MeService, MeServiceImpl}
 import domains.shows.{AllShows, BetaSerieShows, Shows, TvdbShows}
 import env.{AppConfig, Env}
 import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy}
+import filter.OtoroshiFilter
 import izanami.scaladsl._
 import izanami.{ClientConfig, Experiments, IzanamiDispatcher}
 import play.api.ApplicationLoader.Context
@@ -116,6 +117,11 @@ object modules {
       wire[Routes]
     }
 
-    override def httpFilters: Seq[EssentialFilter] = Seq.empty[EssentialFilter]
+    override def httpFilters: Seq[EssentialFilter] =
+      if (appConfig.otoroshi.enabled) {
+        Seq(new OtoroshiFilter(_env, appConfig.otoroshi))
+      } else {
+        Seq.empty[EssentialFilter]
+      }
   }
 }
