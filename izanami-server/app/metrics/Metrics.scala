@@ -59,7 +59,7 @@ class Metrics(_env: Env, drivers: Drivers, izanamiConfig: IzanamiConfig, applica
   }
 
   private val log: Option[Slf4jReporter] =
-    if (metricsConfig.logEnabled) {
+    if (metricsConfig.log.enabled) {
       Logger.info("Enabling slf4j metrics reporter")
       val reporter: Slf4jReporter = Slf4jReporter
         .forRegistry(metricRegistry)
@@ -67,21 +67,21 @@ class Metrics(_env: Env, drivers: Drivers, izanamiConfig: IzanamiConfig, applica
         .convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .build
-      reporter.start(30, TimeUnit.SECONDS)
+      reporter.start(metricsConfig.log.interval._1, metricsConfig.log.interval._2)
       Some(reporter)
     } else {
       None
     }
 
   private val console: Option[ConsoleReporter] =
-    if (metricsConfig.consoleEnabled) {
+    if (metricsConfig.console.enabled) {
       Logger.info("Enabling console metrics reporter")
       val reporter: ConsoleReporter = ConsoleReporter
         .forRegistry(metricRegistry)
         .convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .build
-      reporter.start(30, TimeUnit.SECONDS)
+      reporter.start(metricsConfig.console.interval._1, metricsConfig.console.interval._2)
       Some(reporter)
     } else {
       None
