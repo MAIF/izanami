@@ -84,11 +84,12 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     InMemoryEvents(InMemoryEventsConfig()),
     PatchConfig(dbConfig),
     MetricsConfig(false,
-                  false,
-                  false,
-                  MetricsHttpConfig("json"),
-                  MetricsKafkaConfig(false, "topic", "json", 1.second),
-                  MetricsElasticConfig(false, "topic", 1.second))
+      MetricsConsoleConfig(false, 1.second),
+      MetricsLogConfig(false, 1.second),
+      MetricsHttpConfig("json"),
+      MetricsKafkaConfig(false, "", "", 1.second),
+      MetricsElasticConfig(false, "", 1.second)
+    )
   )
 
   "Script" must {

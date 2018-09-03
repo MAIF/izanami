@@ -107,12 +107,14 @@ case class IzanamiConfig(
 
 case class MetricsConfig(
     verbose: Boolean,
-    consoleEnabled: Boolean,
-    logEnabled: Boolean,
+    console: MetricsConsoleConfig,
+    log: MetricsLogConfig,
     http: MetricsHttpConfig,
     kafka: MetricsKafkaConfig,
     elastic: MetricsElasticConfig
 )
+case class MetricsConsoleConfig(enabled: Boolean, interval: FiniteDuration)
+case class MetricsLogConfig(enabled: Boolean, interval: FiniteDuration)
 case class MetricsHttpConfig(defaultFormat: String)
 case class MetricsKafkaConfig(enabled: Boolean, topic: String, format: String, pushInterval: FiniteDuration)
 case class MetricsElasticConfig(enabled: Boolean, index: String, pushInterval: FiniteDuration)
