@@ -15,8 +15,7 @@ class SecuredAction(val parser: BodyParser[AnyContent])(implicit val executionCo
 
   override def invokeBlock[A](request: Request[A], block: (SecuredContext[A]) => Future[Result]): Future[Result] = {
 
-    val maybeUserId = request.cookies.get("userId")
-
+    val maybeUserId = request.cookies.get("clientId")
     maybeUserId match {
       case Some(id) => block(SecuredContext(request, id.value))
       case None =>
