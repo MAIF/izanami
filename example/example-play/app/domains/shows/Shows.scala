@@ -31,7 +31,7 @@ case class Episode(
     number: Long,
     seasonNumber: Long,
     title: String,
-    description: String,
+    description: Option[String],
     watched: Boolean
 )
 
@@ -119,7 +119,11 @@ object TvdbShows {
   object EpisodeResume {
     implicit val format = Json.format[EpisodeResume]
   }
-  case class EpisodeResume(id: Int, airedEpisodeNumber: Int, airedSeason: Int, episodeName: String, overview: String) {
+  case class EpisodeResume(id: Int,
+                           airedEpisodeNumber: Int,
+                           airedSeason: Int,
+                           episodeName: String,
+                           overview: Option[String]) {
     def toEpisode: Episode = Episode(id.toString, airedEpisodeNumber, airedSeason, episodeName, overview, false)
   }
 
@@ -244,7 +248,7 @@ object BetaSerieShows {
   object EpisodeResume {
     implicit val format = Json.format[EpisodeResume]
   }
-  case class EpisodeResume(id: Long, episode: Long, season: Long, title: String, description: String) {
+  case class EpisodeResume(id: Long, episode: Long, season: Long, title: String, description: Option[String]) {
     def toEpisode = Episode(id.toString, episode, season, title, description, false)
   }
 
