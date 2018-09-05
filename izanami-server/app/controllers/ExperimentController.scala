@@ -37,8 +37,9 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
 
   implicit val materializer = ActorMaterializer()(system)
 
-  implicit val vbStore = variantBindingStore
-  implicit val eStore  = experimentStore
+  implicit val vbStore  = variantBindingStore
+  implicit val eStore   = experimentStore
+  implicit val eVeStore = eVariantEventStore
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
@@ -241,26 +242,14 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
     }
 
   def results(experimentId: String): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncF(parse.empty) { ctx =>
+      import ExperimentInstances._
       val experimentKey = Key(experimentId)
-
-      Source
-        .fromFuture(experimentStore.getById(experimentKey).toIO.unsafeToFuture())
-        .mapConcat {
-          _.toList
-        }
-        .flatMapConcat { experiment =>
-          eVariantEventStore
-            .findVariantResult(experiment)
-            .fold(Seq.empty[VariantResult])(_ :+ _)
-            .map(variantsResult => ExperimentResult(experiment, variantsResult))
-            .orElse(Source.single(ExperimentResult(experiment, Seq.empty)))
-        }
+      experimentStore
+        .experimentResult(experimentKey)
         .map { r =>
           Ok(Json.toJson(r))
         }
-        .orElse(Source.single(NotFound))
-        .runWith(Sink.head)
     }
 
   def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
