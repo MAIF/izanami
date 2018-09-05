@@ -35,8 +35,11 @@ case class InMemoryExecutionContext(actorSystem: ActorSystem) extends ExecutionC
   override def reportFailure(cause: Throwable): Unit = _ec.reportFailure(cause)
 }
 
-class InMemoryJsonDataStoreAsync[F[_]: Async](name: String)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
-    extends BaseInMemoryJsonDataStore(name)
+class InMemoryJsonDataStoreAsync[F[_]: Async](
+    name: String,
+    inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]
+)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
+    extends BaseInMemoryJsonDataStore(name, inMemoryStore)
     with JsonDataStore[F] {
   import cats.effect._
 
@@ -80,8 +83,9 @@ class InMemoryJsonDataStoreAsync[F[_]: Async](name: String)(implicit system: Act
     }
 }
 
-class InMemoryJsonDataStore[F[_]: Applicative](name: String)
-    extends BaseInMemoryJsonDataStore(name)
+class InMemoryJsonDataStore[F[_]: Applicative](name: String,
+                                               inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue])
+    extends BaseInMemoryJsonDataStore(name, inMemoryStore)
     with JsonDataStore[F] {
 
   import cats.implicits._
@@ -111,9 +115,7 @@ class InMemoryJsonDataStore[F[_]: Applicative](name: String)
     countSync(patterns).pure[F]
 }
 
-class BaseInMemoryJsonDataStore(name: String) {
-
-  protected val inMemoryStore = TrieMap.empty[Key, JsValue]
+class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]) {
 
   protected def createSync(id: Key, data: JsValue): Result[JsValue] =
     inMemoryStore.get(id) match {
