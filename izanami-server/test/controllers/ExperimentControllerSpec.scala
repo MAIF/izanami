@@ -23,6 +23,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
   private lazy val rootPath = s"http://localhost:$port"
 
+  import ExperimentInstances._
+
   s"$name ExperimentController" should {
 
     "create read update delete deleteAll" in {
@@ -335,8 +337,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         ws.url(s"$rootPath/api/experiments/$key/results").get().futureValue
       results must beAStatus(200)
 
-      val eResult: ExperimentResult =
-        ExperimentResult.format.reads(results.json).get
+      val eResult: ExperimentResult = results.json.validate[ExperimentResult].get
 
       eResult.results.size must be(2)
 

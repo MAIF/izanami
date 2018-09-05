@@ -83,7 +83,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     ApikeyConfig(dbConfig, InitializeApiKey(None, None, "*")),
     InMemoryEvents(InMemoryEventsConfig()),
     PatchConfig(dbConfig),
-    MetricsConfig(false,
+    MetricsConfig(
+      false,
       MetricsConsoleConfig(false, 1.second),
       MetricsLogConfig(false, 1.second),
       MetricsHttpConfig("json"),

@@ -55,6 +55,7 @@ class VariantBindingServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], event
 
   import cats.data._
   import cats.implicits._
+  import cats.syntax._
   import store.Result._
   import libs.functional.syntax._
   import libs.streams.syntax._
@@ -114,22 +115,22 @@ class VariantBindingServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], event
                        AppErrors(Seq(ErrorMessage("error.experiment.missing")))
                      )
         // Sum of the distinct client connected
-        sum = experiment.variants.map { _.currentPopulation.getOrElse(0) }.sum
+        variants = experiment.variants.toList
+        sum      = variants.map { _.currentPopulation.getOrElse(0) }.sum
         // We find the variant with the less value
-        lastChosenSoFar = experiment.variants.maxBy {
+        lastChosenSoFar = variants.maxBy {
           case v if sum == 0 => 0
           case v =>
             val pourcentReached = v.currentPopulation.getOrElse(0).toFloat / sum
-            val diff            = v.traffic - pourcentReached
-            //println(s"${v.id} => traffic: ${v.traffic} diff: $diff, reached: $pourcentReached, current ${v.currentPopulation.getOrElse(0).toFloat}, sum: $sum")
-            v.traffic - v.currentPopulation.getOrElse(0).toFloat / sum
+            val diff            = v.traffic.traffic - pourcentReached
+            v.traffic.traffic - v.currentPopulation.getOrElse(0).toFloat / sum
         }
         // Update of the variant
         newLeastChosenVariantSoFar = lastChosenSoFar.incrementPopulation
         // Update of the experiment
         newExperiment = experiment.addOrReplaceVariant(newLeastChosenVariantSoFar)
         // Update OPS on store for experiment
-        _ <- experimentStore.update(experimentKey, experimentKey, newExperiment) |> liftFEither[
+        _ <- experimentStore.rawUpdate(experimentKey, experiment, experimentKey, newExperiment) |> liftFEither[
               AppErrors,
               Experiment
             ]
