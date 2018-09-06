@@ -23,6 +23,7 @@ import cats.implicits._
 import cats.data.Validated._
 
 import scala.concurrent.ExecutionContext
+import scala.util.hashing.MurmurHash3
 
 case class Traffic(traffic: Double) extends AnyVal
 
@@ -51,13 +52,32 @@ case class Experiment(id: ExperimentKey,
 
   def addOrReplaceVariant(variant: Variant): Experiment =
     copy(variants = variants.map {
-      case v if v.id == variant.id => variant
-      case v                       => v
+      case v if v.id === variant.id => variant
+      case v                        => v
     })
 }
 
 object Experiment {
   type ExperimentKey = Key
+
+  def findVariant(experiment: Experiment, id: String): Variant = {
+    val variants: NonEmptyList[Variant] = experiment.variants.sortBy(_.id)
+    val percentage: Int                 = Math.abs(MurmurHash3.stringHash(id)) % 100
+    val allPercentage: Seq[(Variant, Double)] = variants
+      .foldLeft((0.0, Seq.empty[(Variant, Double)])) {
+        case ((stack, seq), variant) =>
+          val traffic  = variant.traffic.traffic
+          val newStack = stack + (traffic * 100)
+          (newStack, seq :+ variant -> newStack)
+      }
+      ._2
+    allPercentage
+      .foldLeft(none[Variant]) {
+        case (None, (variant, perc)) if percentage <= perc => Some(variant)
+        case (any, _)                                      => any
+      }
+      .getOrElse(variants.head)
+  }
 
   def validate(experiment: Experiment): Result[Experiment] = {
     import Result._
@@ -124,7 +144,6 @@ trait ExperimentService[F[_]] {
   def create(id: ExperimentKey, data: Experiment): F[Result[Experiment]]
   def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment)(
       implicit
-      variantBindingStore: VariantBindingService[F],
       eVariantEventStore: ExperimentVariantEventService[F]
   ): F[Result[Experiment]]
   def rawUpdate(oldId: ExperimentKey, oldValue: Experiment, id: ExperimentKey, data: Experiment): F[Result[Experiment]]
@@ -135,11 +154,9 @@ trait ExperimentService[F[_]] {
   def getByIdLike(patterns: Seq[String]): Source[(ExperimentKey, Experiment), NotUsed]
   def count(patterns: Seq[String]): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
-  def toGraph(clientId: String)(implicit ec: ExecutionContext,
-                                variantBindingStore: VariantBindingService[F]): Flow[Experiment, JsObject, NotUsed]
+  def toGraph(clientId: String)(implicit ec: ExecutionContext): Flow[Experiment, JsObject, NotUsed]
   def variantFor(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      VariantBindingStore: VariantBindingService[F],
       eVariantEventStore: ExperimentVariantEventService[F]
   ): F[Result[Variant]]
 
@@ -177,7 +194,6 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
 
   override def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment)(
       implicit
-      variantBindingStore: VariantBindingService[F],
       eVariantEventStore: ExperimentVariantEventService[F]
   ): F[Result[Experiment]] = {
     // format: off
@@ -191,7 +207,6 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
       oldValue    <- getById(oldId)               |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
       _           <- if (Experiment.isTrafficChanged(oldValue, data)) {
                         val deletes: F[Result[Done]] =
-                              variantBindingStore.deleteAll(Seq(s"${oldId.key}*")) *>
                               eVariantEventStore.deleteEventsForExperiment(oldValue)
                         deletes |> liftFEither
                      } else {
@@ -269,38 +284,17 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
   }
 
   def toGraph(clientId: String)(
-      implicit ec: ExecutionContext,
-      variantBindingStore: VariantBindingService[F]
+      implicit ec: ExecutionContext
   ): Flow[Experiment, JsObject, NotUsed] = {
-    import VariantBinding._
-    import cats.implicits._
-    import libs.streams.syntax._
 
-    implicit val es = this
+    implicit val es: ExperimentServiceImpl[F] = this
     Flow[Experiment]
       .filter(_.enabled)
-      .mapAsyncUnorderedF(2) { experiment =>
-        variantBindingStore
-          .getById(VariantBindingKey(experiment.id, clientId))
-          .flatMap {
-            case Some(v) =>
-              Effect[F].pure(
-                (experiment.id.jsPath \ "variant")
-                  .write[String]
-                  .writes(v.variantId)
-              )
-            case None =>
-              variantBindingStore
-                .createVariantForClient(experiment.id, clientId)
-                .map {
-                  case Right(v) =>
-                    (experiment.id.jsPath \ "variant")
-                      .write[String]
-                      .writes(v.id)
-                  case Left(e) =>
-                    Json.obj()
-                }
-          }
+      .map { experiment =>
+        val variant = findVariant(experiment, clientId)
+        (experiment.id.jsPath \ "variant")
+          .write[String]
+          .writes(variant.id)
       }
       .fold(Json.obj()) { (acc, js) =>
         acc.deepMerge(js.as[JsObject])
@@ -309,12 +303,11 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
 
   override def variantFor(experimentKey: ExperimentKey, clientId: String)(
       implicit ec: ExecutionContext,
-      VariantBindingStore: VariantBindingService[F],
       eVariantEventStore: ExperimentVariantEventService[F]
   ): F[Result[Variant]] = {
     import cats.implicits._
-    implicit val es = this
-    val now         = LocalDateTime.now()
+    implicit val es: ExperimentServiceImpl[F] = this
+    val now                                   = LocalDateTime.now()
     // format: off
     val r: EitherT[F, AppErrors, Variant] = for {
 
@@ -323,25 +316,19 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
       variant <- experiment.campaign match {
 
           case Some(ClosedCampaign(_, _, won)) =>
-            experiment.variants.find(_.id == won) |> liftOption(Result.AppErrors.error("error.variant.missing"))
+            experiment.variants.find(_.id === won) |> liftOption(Result.AppErrors.error("error.variant.missing"))
 
-          case Some(CurrentCampaign(from, to)) if to.isAfter(now) | to.isEqual(now) =>
+          case Some(CurrentCampaign(from, to)) if to.isBefore(now) || to.isEqual(now) =>
             for {
               expResult   <- experimentResult(experimentKey)  |> liftF
               won         =  expResult.results.maxBy(_.transformation).variant.getOrElse(experiment.variants.head)
               id          =  experiment.id
               toUpdate    =  experiment.copy(campaign = ClosedCampaign(from, to, won.id).some)
-              _           <- rawUpdate(id, experiment, id, toUpdate)      |> liftFEither
+              _           <- rawUpdate(id, experiment, id, toUpdate) |> liftFEither
             } yield won
 
           case _ =>
-            for {
-              mayBeVariant <- VariantBindingStore.getById(VariantBindingKey(experimentKey, clientId)) |> liftF
-              variant      <- mayBeVariant match {
-                case None     => VariantBindingStore.createVariantForClient(experimentKey, clientId)      |> liftFEither
-                case Some(v)  => experiment.variants.find(_.id == v) |> liftOption(Result.AppErrors.error("error.variant.missing"))
-              }
-            } yield variant
+            EitherT.rightT[F, AppErrors](findVariant(experiment, clientId))
       }
 
     } yield variant

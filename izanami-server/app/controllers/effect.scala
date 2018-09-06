@@ -2,7 +2,7 @@ package controllers
 import akka.actor.ActorSystem
 import cats.effect.IO
 import controllers.actions.{AuthContext, SecuredAuthContext}
-import domains.abtesting.{ExperimentService, ExperimentVariantEventService, VariantBindingService}
+import domains.abtesting.{ExperimentService, ExperimentVariantEventService}
 import domains.apikey.ApikeyService
 import domains.config.ConfigService
 import domains.events.EventStore
@@ -44,17 +44,11 @@ package object effect {
       extends EventsController[Effect](eventStore, system, AuthAction, cc)
 
   class ExperimentControllerEff(experimentStore: ExperimentService[Effect],
-                                variantBindingStore: VariantBindingService[Effect],
                                 eVariantEventStore: ExperimentVariantEventService[Effect],
                                 system: ActorSystem,
                                 AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                                 cc: ControllerComponents)
-      extends ExperimentController[Effect](experimentStore,
-                                           variantBindingStore,
-                                           eVariantEventStore,
-                                           system,
-                                           AuthAction,
-                                           cc)
+      extends ExperimentController[Effect](experimentStore, eVariantEventStore, system, AuthAction, cc)
 
   class FeatureControllerEff(env: Env,
                              featureStore: FeatureService[Effect],
