@@ -20,7 +20,6 @@ import store.Result.{AppErrors}
 import scala.util.{Failure, Success}
 
 class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
-                                         variantBindingStore: VariantBindingService[F],
                                          eVariantEventStore: ExperimentVariantEventService[F],
                                          system: ActorSystem,
                                          AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
@@ -37,7 +36,6 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
 
   implicit val materializer = ActorMaterializer()(system)
 
-  implicit val vbStore  = variantBindingStore
   implicit val eStore   = experimentStore
   implicit val eVeStore = eVariantEventStore
 
@@ -143,9 +141,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
             Forbidden(AppErrors.error("error.forbidden").toJson)
           )
       deleted <- experimentStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
-      _ <- variantBindingStore
-            .deleteAll(Seq(s"${experiment.id.key}*")) |> liftF[Result, store.Result.Result[Done]]
-      _ <- eVariantEventStore.deleteEventsForExperiment(experiment) |> mapLeft(err => BadRequest(err.toJson))
+      _       <- eVariantEventStore.deleteEventsForExperiment(experiment) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok(Json.toJson(experiment))
   }
 
@@ -158,11 +154,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
         .map(_._2)
         .flatMapMerge(
           4, { experiment =>
-            Source
-              .fromFuture(variantBindingStore.deleteAll(Seq(s"${experiment.id.key}*")).toIO.unsafeToFuture())
-              .merge(
-                Source.fromFuture(eVariantEventStore.deleteEventsForExperiment(experiment).toIO.unsafeToFuture())
-              )
+            Source.fromFuture(eVariantEventStore.deleteEventsForExperiment(experiment).toIO.unsafeToFuture())
           }
         )
         .runWith(Sink.ignore)
@@ -183,14 +175,8 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   def getVariantForClient(experimentId: String, clientId: String): Action[Unit] =
     AuthAction.asyncEitherT(parse.empty) { ctx =>
       import ExperimentInstances._
-      val query = VariantBindingKey(Key(experimentId), clientId)
       for {
-        variantBinding <- variantBindingStore
-                           .getById(query) |> liftFOption[Result, VariantBinding](NotFound)
-        variantId = variantBinding.variantId
-        experiment <- experimentStore
-                       .getById(Key(experimentId)) |> liftFOption[Result, Experiment](NotFound)
-        variant <- experiment.variants.find(_.id == variantId) |> liftOption[Result, Variant](NotFound)
+        variant <- experimentStore.variantFor(Key(experimentId), clientId) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok(Json.toJson(variant))
     }
 
@@ -198,9 +184,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
     AuthAction.asyncEitherT { ctx =>
       import ExperimentVariantEventInstances._
 
-      val experimentKey     = Key(experimentId)
-      val variantBindingKey = VariantBindingKey(experimentKey, clientId)
-
+      val experimentKey = Key(experimentId)
       for {
         variant <- experimentStore.variantFor(experimentKey, clientId) |> mapLeft(err => BadRequest(err.toJson))
         key = ExperimentVariantEventKey(experimentKey,
@@ -221,8 +205,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   def variantWon(experimentId: String, clientId: String): Action[AnyContent] =
     AuthAction.asyncEitherT { ctx =>
       import ExperimentVariantEventInstances._
-      val experimentKey     = Key(experimentId)
-      val variantBindingKey = VariantBindingKey(experimentKey, clientId)
+      val experimentKey = Key(experimentId)
 
       for {
         variant <- experimentStore.variantFor(experimentKey, clientId) |> mapLeft(err => BadRequest(err.toJson))
@@ -282,36 +265,6 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   def uploadExperiments() = AuthAction.async(Import.ndJson) { ctx =>
     ctx.body
       .via(experimentStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
-      }
-      .recover {
-        case e: Throwable =>
-          Logger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
-  }
-
-  def downloadBindings(): Action[AnyContent] = AuthAction { ctx =>
-    import VariantBindingInstances._
-    val source = variantBindingStore
-      .getByIdLike(ctx.authorizedPatterns)
-      .map { case (_, data) => Json.toJson(data) }
-      .map(Json.stringify _)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-    Result(
-      header =
-        ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments_bindings.dnjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
-  }
-
-  def uploadBindings() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(variantBindingStore.importData)
       .map {
         case r if r.isError => BadRequest(Json.toJson(r))
         case r              => Ok(Json.toJson(r))

@@ -146,16 +146,6 @@ package object modules {
       store
     }
 
-    lazy val variantBindingStore: VariantBindingService[IO] = {
-      val conf              = izanamiConfig.variantBinding.db
-      lazy val eventAdapter = InMemoryWithDbStore.variantBindingEventAdapter
-      lazy val dbStore: JsonDataStore[IO] =
-        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
-      lazy val store: VariantBindingService[IO] = wire[VariantBindingServiceImpl[IO]]
-      Import.importFile(conf, store.importData)
-      store
-    }
-
     lazy val experimentVariantEventStore: ExperimentVariantEventService[IO] = {
       val conf = izanamiConfig.experimentEvent.db
       // format: off
