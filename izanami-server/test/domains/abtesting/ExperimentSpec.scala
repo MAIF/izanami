@@ -669,15 +669,10 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     )
 
   def expEventsService(
-      wonCount: TrieMap[String, Long] = TrieMap.empty,
-      displayCount: TrieMap[String, Long] = TrieMap.empty,
-      datas: TrieMap[String, List[ExperimentVariantEvent]] = TrieMap.empty,
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty
   ): ExperimentVariantEventService[IO] =
     new ExperimentVariantEventInMemoryService[IO](
-      wonCount,
-      displayCount,
-      datas,
+      "test",
       new TestEventStore[IO](events)
     )
 
