@@ -1,5 +1,7 @@
 package controllers
 
+import cats.data.NonEmptyList
+import domains.Key
 import domains.abtesting._
 import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
@@ -38,40 +40,44 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
+      val experiment = Experiment(
+        id = Key(key),
+        name = "a name",
+        description = Some("A description"),
+        enabled = false,
+        variants = NonEmptyList.of(
+          Variant(id = "A", name = "name A", traffic = Traffic(0.4)),
+          Variant(id = "B", name = "name B", traffic = Traffic(0.6))
+        )
+      )
       /* Create */
-      val experiment = Json.obj("id" -> key,
-                                "name"        -> "a name",
-                                "description" -> "A description",
-                                "enabled"     -> false,
-                                "variants"    -> Json.arr())
+      val jsonExperiment = Json.toJson(experiment)
+
       ws.url(s"$rootPath/api/experiments")
-        .post(experiment)
+        .post(jsonExperiment)
         .futureValue must beAStatus(201)
 
       /* Verify */
-      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experiment)
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, jsonExperiment)
 
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
-        Json.obj("results"  -> Json.arr(experiment),
+        Json.obj("results"  -> Json.arr(jsonExperiment),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
       /* Update */
-      val experimentUpdated = Json.obj("id" -> key,
-                                       "name"        -> "a name",
-                                       "description" -> "A description",
-                                       "enabled"     -> true,
-                                       "variants"    -> Json.arr())
+      val experimentUpdated     = experiment.copy(enabled = true)
+      val experimentUpdatedJson = Json.toJson(experimentUpdated)
       ws.url(s"$rootPath/api/experiments/$key")
-        .put(experimentUpdated)
+        .put(experimentUpdatedJson)
         .futureValue must beAStatus(200)
 
       /* Verify */
-      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experimentUpdated)
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experimentUpdatedJson)
 
       ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(
         200,
-        Json.obj("results"  -> Json.arr(experimentUpdated),
+        Json.obj("results"  -> Json.arr(experimentUpdatedJson),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
