@@ -311,12 +311,12 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
     // format: off
     val r: EitherT[F, AppErrors, Variant] = for {
 
-      experiment <- getById(experimentKey) |> liftFOption(Result.AppErrors.error("error.experiment.missing"))
+      experiment <- getById(experimentKey) |> liftFOption(AppErrors.error("error.experiment.missing"))
 
       variant <- experiment.campaign match {
 
           case Some(ClosedCampaign(_, _, won)) =>
-            experiment.variants.find(_.id === won) |> liftOption(Result.AppErrors.error("error.variant.missing"))
+            experiment.variants.find(_.id === won) |> liftOption(AppErrors.error("error.variant.missing"))
 
           case Some(CurrentCampaign(from, to)) if to.isBefore(now) || to.isEqual(now) =>
             for {
