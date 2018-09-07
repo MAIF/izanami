@@ -62,40 +62,38 @@ class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eve
       .fromFuture(
         experiment.variants.toList
           .traverse { variant =>
-            val fEvents: F[List[ExperimentVariantEvent]] = (store ? FindEvents(experiment.id.key, variant.id))
-              .mapTo[List[ExperimentVariantEvent]]
-              .toF
-            val fDisplayed: F[Long] = (store ? FindCounterDisplayed(experiment.id.key, variant.id))
-              .mapTo[Long]
-              .toF
-            val fWon: F[Long] = (store ? FindCounterWon(experiment.id.key, variant.id))
-              .mapTo[Long]
-              .toF
-
-            for {
-              events    <- fEvents
-              displayed <- fDisplayed
-              won       <- fWon
-            } yield {
-
-              val transformation: Double = if (displayed != 0) {
-                won * 100 / displayed
-              } else 0.0
-
+            (
+              findEvents(experiment, variant),
+              displayed(experiment, variant),
+              won(experiment, variant)
+            ).mapN { (events, displayed, won) =>
               VariantResult(
                 variant = Some(variant),
                 events = events,
-                transformation = transformation,
+                transformation = transformation(displayed, won),
                 displayed = displayed,
                 won = won
               )
-
             }
           }
           .toIO
           .unsafeToFuture()
       )
       .mapConcat(identity)
+
+  private def transformation(displayed: Double, won: Double): Double =
+    if (displayed != 0) {
+      won * 100 / displayed
+    } else 0.0
+
+  private def findEvents(experiment: Experiment, variant: Variant): F[List[ExperimentVariantEvent]] =
+    (store ? FindEvents(experiment.id.key, variant.id)).mapTo[List[ExperimentVariantEvent]].toF
+
+  private def displayed(experiment: Experiment, variant: Variant): F[Long] =
+    (store ? FindCounterDisplayed(experiment.id.key, variant.id)).mapTo[Long].toF
+
+  private def won(experiment: Experiment, variant: Variant): F[Long] =
+    (store ? FindCounterWon(experiment.id.key, variant.id)).mapTo[Long].toF
 
   override def listAll(patterns: Seq[String]) =
     Source
@@ -179,10 +177,10 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
       sender() ! Done
 
     case FindCounterDisplayed(experimentId, variantId) =>
-      sender() ! counters.getOrElse(s"$experimentseventsdisplayedNamespace:$experimentId:$variantId", 0)
+      sender() ! counters.getOrElse(s"$experimentseventsdisplayedNamespace:$experimentId:$variantId", 0L)
 
     case FindCounterWon(experimentId, variantId) =>
-      sender() ! counters.getOrElse(s"$experimentseventswonNamespace:$experimentId:$variantId", 0)
+      sender() ! counters.getOrElse(s"$experimentseventswonNamespace:$experimentId:$variantId", 0L)
 
     case m =>
       unhandled(m)

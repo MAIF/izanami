@@ -180,7 +180,7 @@ class ExperimentVariantEventRedisService[F[_]: Effect](maybeRedis: Option[RedisW
 
   private def findEvents(eventVariantKey: String): Source[ExperimentVariantEvent, NotUsed] =
     Source
-      .unfoldAsync(0L) { (lastPage: Long) =>
+      .unfoldAsync(0L) { lastPage: Long =>
         val nextPage: Long = lastPage + 50
         command()
           .zrange(eventVariantKey, lastPage, nextPage)

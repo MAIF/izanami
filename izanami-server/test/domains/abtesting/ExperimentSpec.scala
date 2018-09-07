@@ -559,8 +559,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val variants = (1 to 100).map { i =>
         service.variantFor(id, s"client$i").unsafeRunSync().right.get
       }
-      val aCount = variants.count(_.id === "A")
-      val bCount = variants.count(_.id === "B")
+      val aCount: Int = variants.count(_.id === "A")
+      val bCount: Int = variants.count(_.id === "B")
       aCount must equal(40 +- 5)
       bCount must equal(60 +- 5)
     }
@@ -670,7 +670,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty
   ): ExperimentVariantEventService[IO] =
     new ExperimentVariantEventInMemoryService[IO](
-      s"test-${Random.nextInt(1000)}",
+      s"test_${Random.nextInt(1000)}",
       new TestEventStore[IO](events)
     )
 
