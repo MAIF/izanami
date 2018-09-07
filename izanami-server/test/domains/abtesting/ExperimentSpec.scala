@@ -1,18 +1,15 @@
 package domains.abtesting
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.{ChronoUnit, TemporalUnit}
+import java.time.temporal.ChronoUnit
 
 import akka.actor.ActorSystem
 import cats.data.NonEmptyList
-import cats.data.Validated.Valid
 import cats.effect.IO
 import domains.Key
 import domains.abtesting.impl.ExperimentVariantEventInMemoryService
 import domains.events.Events
 import domains.events.Events.ExperimentCreated
-import domains.events.impl.BasicEventStore
-import env.{DbDomainConfig, DbDomainConfigDetails, InMemory}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import store.Result.{AppErrors, Result}
@@ -20,12 +17,13 @@ import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
+import scala.util.Random
 
 class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
   import ExperimentInstances._
 
-  implicit val actorSystem = ActorSystem()
+  implicit val actorSystem: ActorSystem = ActorSystem()
   import actorSystem.dispatcher
 
   "Experiment" must {
@@ -672,7 +670,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty
   ): ExperimentVariantEventService[IO] =
     new ExperimentVariantEventInMemoryService[IO](
-      "test",
+      s"test-${Random.nextInt(1000)}",
       new TestEventStore[IO](events)
     )
 

@@ -41,7 +41,7 @@ class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eve
   private implicit val timeout = Timeout(1.second)
 
   private val store = actorSystem.actorOf(Props[ExperimentDataStoreActor](new ExperimentDataStoreActor()),
-                                          namespace + "_try_to_use_this_one")
+                                          namespace + "_in_memory_exp_event")
 
   override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
     (store ? AddEvent(id.experimentId.key, id.variantId, data))
