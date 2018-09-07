@@ -26,7 +26,6 @@ class Variant extends Component {
                 <TextInput label="Id" value={this.props.variant.id} onChange={value => this.props.onChange({ ...variant, id: value })} />
                 <TextInput label="Name" value={this.props.variant.name} onChange={value => this.props.onChange({ ...variant, name: value })} />
                 <TextInput label="Traffic" value={`${Math.round(this.props.variant.traffic * 100)} %`} disabled={true}/>
-                <NumberInput label="Traffic" value={this.props.variant.traffic} onChange={value => this.props.onChange({ ...variant, traffic: value })} />
             </div>
         </div>
       </div>
