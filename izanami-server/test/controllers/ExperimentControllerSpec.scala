@@ -15,7 +15,8 @@ import play.api.libs.json.{JsObject, Json}
 import play.api.libs.ws.JsonBodyWritables._
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 
-import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
 
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec
@@ -178,7 +179,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       //val lastWin = new AtomicBoolean(true)
       val lastWin = new AtomicReference[Boolean](true)
 
-      val variants = Source(1 to 100)
+      val variants = Await.result(Source(1 to 100)
         .mapAsync(4) { i =>
           Future {
             val variant = (ws
@@ -208,8 +209,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
           }(system.dispatcher)
         }
-        .runWith(Sink.seq)
-        .futureValue
+        .runWith(Sink.seq), 5.seconds)
+
 
       val aCount = variants.count(_ == "A")
       val bCount = variants.count(_ == "B")
