@@ -1,7 +1,10 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
 import { Table, SimpleBooleanInput, TextInput, NumberInput} from '../inputs';
-import {CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area} from 'recharts'
+import {CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area} from 'recharts';
+//import ReactSlider from 'react-slider';
+// FIXME : this is a fork of react-slider to fix a bug. Waiting for a PR to be merged
+import ReactSlider from '../components/ReactSlider';
 import _ from 'lodash';
 import moment from 'moment';
 
@@ -9,26 +12,169 @@ class Variant extends Component {
   render() {
     const variant = this.props.variant;
     return (
-      <div>
-        <hr />
-        <TextInput label="Id" value={this.props.variant.id} onChange={value => this.props.onChange({ ...variant, id: value })} />
-        <TextInput label="Name" value={this.props.variant.name} onChange={value => this.props.onChange({ ...variant, name: value })} />
-        <TextInput label="Description" value={this.props.variant.description} onChange={value => this.props.onChange({ ...variant, description: value })} />
-        <NumberInput label="Traffic" value={this.props.variant.traffic} onChange={value => this.props.onChange({ ...variant, traffic: value })} />
+      <div className="col-xs-12 col-sm-4">
+        <div className="panel" style={{borderColor:"purple"}}>
+            <div className="panel-heading" style={{backgroundColor:"purple"}}>
+              <h3 className="panel-title pull-left">Traffic</h3>
+              <span className="input-group-btn">
+                  <button type="button" className="btn btn-sm btn-danger" onClick={e => this.props.remove()}>
+                      <i className="glyphicon glyphicon-trash"/>
+                  </button>
+              </span>
+            </div>
+            <div className="panel-body">
+                <TextInput label="Id" value={this.props.variant.id} onChange={value => this.props.onChange({ ...variant, id: value })} />
+                <TextInput label="Name" value={this.props.variant.name} onChange={value => this.props.onChange({ ...variant, name: value })} />
+                <TextInput label="Traffic" value={`${Math.round(this.props.variant.traffic * 100)} %`} disabled={true}/>
+                <NumberInput label="Traffic" value={this.props.variant.traffic} onChange={value => this.props.onChange({ ...variant, traffic: value })} />
+            </div>
+        </div>
       </div>
     );
   }
 }
 
+const round = (v) => {
+    return Math.round(v * 100) / 100
+};
+
+const trafficSum = (variants) => {
+    return variants.reduce((acc, e) => acc + e.traffic, 0);
+};
+
 class Variants extends Component {
+
+  static letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+
+  nextLetter = () => {
+      const lastLetter = this.props.source.variants[this.props.source.variants.length-1].id;
+      return Variants.letters[Variants.letters.indexOf(lastLetter) + 1];
+  };
+
+  getNextTraffic = () => {
+      const traffic =  1 / (this.props.source.variants.length + 1);
+      return round(traffic);
+  };
+
+  reaffectTraffic = (variants) => {
+    if(variants.length > 1) {
+        const [first, ...rest] = variants;
+        const traffic = round(1 / variants.length);
+        const allTraffic = (variants.length - 1) * traffic;
+        const remainingTraffic = round(1 - allTraffic);
+        return [{...first, traffic: remainingTraffic}, ...rest.map(v => ({...v, traffic}))];
+    } else if (variants.length === 1) {
+        return [{...variants[0], traffic: 100}];
+    } else {
+        return [];
+    }
+  };
+
+  componentDidMount() {
+    //if (trafficSum(this.props.value) < 1) {
+      //const variants = this.reaffectTraffic(this.props.value);
+      //this.props.onChange([...variants]);
+    //}
+  }
+
+  componentWillReceiveProps(nextProps) {
+      if (trafficSum(nextProps.value) < 1) {
+          const variants = this.reaffectTraffic(nextProps.value);
+          this.props.onChange([...variants]);
+      }
+  }
+
+  trafficStack = () => {
+      let stack = this.props.value
+          .reduce(
+              ([s, acc], e) => {
+                const value = s + (e.traffic * 100);
+                const newState = {id: e.id, traffic: value};
+                return [value, [...acc, newState]];
+              },
+              [0, [{id:'', traffic: 0}]]
+          );
+      return stack[1];
+  };
+
+  updateTraffic = ([first, ...values]) => {
+    const variants = values.reduce(
+        ([s, acc], p, i) => {
+          const percentage = p - s;
+          const traffic = round(percentage / 100);
+
+          const variant = this.props.value[i];
+          return [s + percentage, [...acc, {...variant, traffic}]];
+        },
+        [0, []]
+    );
+    this.props.onChange([...variants[1]]);
+  };
+
   render() {
     const variants = [ ...this.props.source.variants ];
     variants.sort((a, b) => {
       return a.id.localeCompare(b.id);
     });
+    const trafficStack = this.trafficStack();
     return (
       <div>
-        {variants.map(v => <Variant key={v.id} variant={v} onChange={variant => this.props.onChange([ ...this.props.value.filter(v => v.id !== variant.id), variant ])} />)}
+        <hr/>
+        <div className="row" >
+          <div className="form-group">
+            <label htmlFor="input-Name" className="col-sm-2 control-label">Traffic allocation</label>
+            <div className="col-sm-8">
+              <div style={{margin: '20px 10px'}}>
+                <ReactSlider
+                    className="horizontal-slider"
+                    withBars={true}
+                    defaultValue={trafficStack.map(i => i.traffic)}
+                    value={trafficStack.map(i => i.traffic)}
+                    onChange={this.updateTraffic}
+                    orientation="horizontal"
+                    min={0}
+                    max={100}>
+                    {trafficStack.map((t, i) =>
+                        <div key={`trafic-slider-${t}-${i}`}>
+                            { `${t.id ? `${t.id}: `: '' } ${t.traffic}` }
+                        </div>
+                    )}
+                </ReactSlider>
+
+              </div>
+            </div>
+            <div className="col-sm-2">
+              <button
+                  type="button"
+                  className="btn btn-sm btn-block btn-primary"
+                  onClick={() => {
+                      const id = this.nextLetter();
+                      const traffic = this.getNextTraffic();
+                      const updated = this.props.value.map(v => ({...v, traffic}));
+                      const allTraffic = updated.map(v => v.traffic).reduce((acc, e) => acc + e, 0);
+                      const remainingTraffic = round(1 - allTraffic);
+                      return this.props.onChange([ ...updated, {id, name: `Variant ${id}`, traffic: remainingTraffic}])
+                  }}
+                  style={{marginRight: "0px"}}
+              >
+                    <i className="glyphicon glyphicon-plus-sign"/> Add traffic segment
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="row" >
+          {variants.map( (v, i) =>
+              <Variant key={ `variants-${v.id}-${i}`} 
+                       variant={v}
+                       remove = { () =>
+                           this.props.onChange([ ...this.props.value.filter(variant => v.id !== variant.id)])
+                       }
+                       onChange={variant =>
+                           this.props.onChange([ ...this.props.value.filter(v => v.id !== variant.id), variant ])
+                       } 
+              />
+          )}
+        </div>
       </div>
     );
   }
@@ -206,12 +352,10 @@ export class ExperimentsPage extends Component {
               createItem={this.createItem}
               downloadLinks={[
                 {title: "DL experiments", link: "/api/experiments.ndjson"},
-                {title: "DL bindings", link: "/api/experiments/bindings.ndjson"},
                 {title: "DL events", link: "/api/experiments/events.ndjson"},
               ]}
               uploadLinks={[
                 {title: "UL experiments", link: "/api/experiments.ndjson"},
-                {title: "UL bindings", link: "/api/experiments/bindings.ndjson"},
                 {title: "UL events", link: "/api/experiments/events.ndjson"},
               ]}
               eventNames={{
