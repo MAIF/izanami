@@ -179,7 +179,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       val lastWin = new AtomicReference[Boolean](true)
 
       val variants = Source(1 to 100)
-        .mapAsync(10) { i =>
+        .mapAsync(4) { i =>
           Future {
             val variant = (ws
               .url(s"$rootPath/api/experiments/$key/variant")
