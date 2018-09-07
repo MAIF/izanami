@@ -209,7 +209,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
           }(system.dispatcher)
         }
-        .runWith(Sink.seq), 5.seconds)
+        .runWith(Sink.seq), 2.minutes)
 
 
       val aCount = variants.count(_ == "A")
