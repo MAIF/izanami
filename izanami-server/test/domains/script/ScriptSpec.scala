@@ -76,7 +76,6 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     FeaturesConfig(dbConfig),
     GlobalScriptConfig(dbConfig),
     ExperimentConfig(dbConfig),
-    VariantBindingConfig(dbConfig),
     ExperimentEventConfig(dbConfig),
     WebhookConfig(dbConfig, WebhookEventsConfig(5, 1.second, 1, 1.second)),
     UserConfig(dbConfig, InitialUserConfig("", "")),
