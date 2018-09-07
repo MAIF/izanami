@@ -17,8 +17,6 @@ import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 
 import scala.concurrent.Future
 
-class InMemoryExperimentControllerSpec extends ExperimentControllerSpec("InMemoryWithDb", Configs.inMemoryConfiguration)
-
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec
     with IzanamiMatchers
