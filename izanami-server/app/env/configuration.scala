@@ -30,15 +30,6 @@ object DbType {
   }
 }
 
-//object DbType {
-//  val cassandra = "Cassandra"
-//  val redis     = "Redis"
-//  val levelDB   = "LevelDB"
-//  val inMemory  = "InMemory"
-//  val elastic   = "Elastic"
-//  val mongo     = "Mongo"
-//}
-
 object EventStoreType {
   val redis       = "Redis"
   val inMemory    = "InMemory"
@@ -95,7 +86,6 @@ case class IzanamiConfig(
     features: FeaturesConfig,
     globalScript: GlobalScriptConfig,
     experiment: ExperimentConfig,
-    variantBinding: VariantBindingConfig,
     experimentEvent: ExperimentEventConfig,
     webhook: WebhookConfig,
     user: UserConfig,
