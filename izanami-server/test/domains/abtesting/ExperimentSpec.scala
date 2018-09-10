@@ -149,6 +149,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
 
     }
 
+    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
     "complex serialization" in {
       val from = LocalDateTime.now()
       val to   = LocalDateTime.now()
@@ -180,8 +182,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
           |  "description" : "desc",
           |  "enabled" : true,
           |  "campaign": {
-          |    "from": "${DateTimeFormatter.ISO_DATE_TIME.format(from)}",
-          |    "to": "${DateTimeFormatter.ISO_DATE_TIME.format(to)}",
+          |    "from": "${ dateFormatter.format(from)}",
+          |    "to": "${dateFormatter.format(to)}",
           |    "won": "A"
           |  },
           |  "variants" : [ {
@@ -265,8 +267,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
            |  "description" : "desc",
            |  "enabled" : true,
            |  "campaign": {
-           |    "from": "${DateTimeFormatter.ISO_DATE_TIME.format(from)}",
-           |    "to": "${DateTimeFormatter.ISO_DATE_TIME.format(to)}",
+           |    "from": "${dateFormatter.format(from)}",
+           |    "to": "${dateFormatter.format(to)}",
            |    "won": "A"
            |  },
            |  "variants" : [ {
