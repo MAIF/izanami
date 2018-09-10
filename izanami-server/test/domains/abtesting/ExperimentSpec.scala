@@ -1,7 +1,7 @@
 package domains.abtesting
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
+import java.time.temporal.{ChronoField, ChronoUnit, TemporalField}
 
 import akka.actor.ActorSystem
 import cats.data.NonEmptyList
@@ -237,8 +237,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     }
 
     "complex deserialization" in {
-      val from = LocalDateTime.now()
-      val to   = LocalDateTime.now()
+      val from = LocalDateTime.now().`with`(ChronoField.MILLI_OF_SECOND, 0)
+      val to   = LocalDateTime.now().`with`(ChronoField.MILLI_OF_SECOND, 0)
 
       val experiment = Experiment(
         id = Key("test"),
