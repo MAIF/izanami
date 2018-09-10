@@ -10,6 +10,10 @@ import '../style/datepicker.css';
 
 export class IzaDateRangePicker extends Component {
 
+    static defaultProps = {
+        disabled: false
+    };
+
     componentDidMount() {
         const { from, to, updateDateRange } = this.props;
         if (from && to && updateDateRange) {
@@ -40,6 +44,7 @@ export class IzaDateRangePicker extends Component {
                     defaultValue={[from, to]}
                     showTime={{ format: tf }}
                     format={df}
+                    disabled={this.props.disabled}
                     placeholder={['Start Time', 'End Time']}
                     onChange={this.onChange}
                     onOk={value => value}

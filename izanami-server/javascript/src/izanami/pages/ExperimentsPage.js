@@ -1,12 +1,13 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
-import { Table, SimpleBooleanInput, TextInput, NumberInput} from '../inputs';
+import { Table, SimpleBooleanInput, TextInput, OptionalField} from '../inputs';
 import {CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area} from 'recharts';
 //import ReactSlider from 'react-slider';
 // FIXME : this is a fork of react-slider to fix a bug. Waiting for a PR to be merged
 import ReactSlider from '../components/ReactSlider';
 import _ from 'lodash';
 import moment from 'moment';
+import {IzaDateRangePicker} from "../components/IzanamiDatePicker";
 
 class Variant extends Component {
   render() {
@@ -179,6 +180,27 @@ class Variants extends Component {
   }
 }
 
+const DATE_FORMAT2 = 'YYYY-MM-DD HH:mm:ss';
+
+const Campaign = (props) => {
+    const disabled =  !props.value.from;
+    const from = props.value.from ? moment(props.value.from, DATE_FORMAT2) : moment();
+    const to = props.value.to ? moment(props.value.to, DATE_FORMAT2) : moment().add(1, "day");
+    return (
+        <OptionalField
+            {...props}
+            disabled={disabled}
+            from={from}
+            to={to}
+            updateDateRange={(from, to) =>
+                props.onChange({from: from.format(DATE_FORMAT2), to: to.format(DATE_FORMAT2)})
+            }
+         >
+            <IzaDateRangePicker/>
+        </OptionalField>
+    );
+};
+
 export class ExperimentsPage extends Component {
 
   colors = [
@@ -203,6 +225,7 @@ export class ExperimentsPage extends Component {
     name: { type: 'string', props: { label: 'Name', placeholder: 'The Experiment name' }, error : { key : 'obj.name'}},
     description: { type: 'string', props: { label: 'Description', placeholder: 'The Experiment description' }, error : { key : 'obj.description'}},
     enabled: { type: 'bool', props: { label: 'Active', placeholder: `Experiment active` }, error : { key : 'obj.enabled'}},
+    campaign: {type: Campaign, props: { label: 'Campaign'}, error : { key : 'obj.campaign'}},
     variants: { type: Variants, props: { label: 'Variants' }, error : { key : 'obj.variants'}},
   };
 
@@ -222,7 +245,7 @@ export class ExperimentsPage extends Component {
       style: { textAlign: 'center', width: 150, height: '40px'},
       notFilterable: true ,
       content: item =>
-        <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"></i> see report</button>
+        <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"/> see report</button>
     },
   ];
 
@@ -230,6 +253,7 @@ export class ExperimentsPage extends Component {
     'id',
     'name',
     'description',
+    'campaign',
     'enabled',
     'variants'
   ];

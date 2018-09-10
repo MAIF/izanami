@@ -18,4 +18,5 @@ export * from './Alerts';
 export * from './FieldError';
 export * from './AsyncSelectInput';
 export * from './MultiSearch';
+export * from './OptionalField';
 //export * from './popover';
