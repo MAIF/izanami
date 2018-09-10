@@ -1,8 +1,13 @@
 package domains.abtesting
+import java.time.LocalDateTime
+
+import domains.feature.ReleaseDateFeatureInstances.{pattern, pattern2}
 import domains.{AuthInfo, IsAllowed, Key}
 import play.api.libs.json._
 import play.api.libs.json.Reads._
+import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
+import play.api.libs.json.Writes.temporalWrites
 
 object ExperimentInstances {
   import libs.json._
@@ -15,8 +20,17 @@ object ExperimentInstances {
   implicit val trafficFormat: Format[Traffic] = Format(trafficReads, trafficWrites)
   implicit val trafficEq: cats.Eq[Traffic]    = cats.Eq.fromUniversalEquals
 
-  private val currentCampaignFormat = Json.format[CurrentCampaign]
-  private val closedCampaignFormat  = Json.format[ClosedCampaign]
+  private val datePattern = "yyyy-MM-dd HH:mm:ss"
+  private val currentCampaignFormat = {
+    implicit val dateFormat: Format[LocalDateTime] =
+      Format(localDateTimeReads(datePattern), temporalWrites[LocalDateTime, String](datePattern))
+    Json.format[CurrentCampaign]
+  }
+  private val closedCampaignFormat = {
+    implicit val dateFormat: Format[LocalDateTime] =
+      Format(localDateTimeReads(datePattern), temporalWrites[LocalDateTime, String](datePattern))
+    Json.format[ClosedCampaign]
+  }
   private val campaignReads: Reads[Campaign] = Reads {
     case js: JsObject if (js \ "won").asOpt[String].isDefined => closedCampaignFormat.reads(js)
     case js: JsObject                                         => currentCampaignFormat.reads(js)
