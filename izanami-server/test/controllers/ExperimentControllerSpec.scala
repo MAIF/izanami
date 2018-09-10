@@ -180,7 +180,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       val lastWin = new AtomicReference[Boolean](true)
 
       val variants = Await.result(Source(1 to 100)
-        .mapAsync(4) { i =>
+        .mapAsync(1) { i =>
           Future {
             val variant = (ws
               .url(s"$rootPath/api/experiments/$key/variant")
@@ -209,7 +209,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
           }(system.dispatcher)
         }
-        .runWith(Sink.seq), 2.minutes)
+        .runWith(Sink.seq), 5.minutes)
 
 
       val aCount = variants.count(_ == "A")
