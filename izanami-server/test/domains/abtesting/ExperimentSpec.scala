@@ -337,8 +337,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     }
 
     "Validation fail if campaign date are wrong" in {
-      val from = LocalDateTime.now().plus(2, ChronoUnit.MONTHS)
-      val to   = LocalDateTime.now()
+      val from = LocalDateTime.now().plus(2, ChronoUnit.MONTHS).`with`(ChronoField.MILLI_OF_SECOND, 0)
+      val to   = LocalDateTime.now().`with`(ChronoField.MILLI_OF_SECOND, 0)
 
       val experiment = Experiment(
         id = Key("test"),
