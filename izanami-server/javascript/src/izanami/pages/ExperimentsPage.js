@@ -117,9 +117,19 @@ class Variants extends Component {
       return a.id.localeCompare(b.id);
     });
     const trafficStack = this.trafficStack();
+    const isUpdate = !!this.props.source.id;
     return (
       <div>
         <hr/>
+        {isUpdate &&
+            <div className="row" >
+                <div className="col-sm-8 col-lg-offset-1">
+                    <div className="alert alert-warning">
+                        <i className="fa fa-exclamation-triangle"/> Be careful, changing traffic information will drop all the datas already collected.
+                    </div>
+                </div>
+            </div>
+        }
         <div className="row" >
           <div className="form-group">
             <label htmlFor="input-Name" className="col-sm-2 control-label">Traffic allocation</label>
