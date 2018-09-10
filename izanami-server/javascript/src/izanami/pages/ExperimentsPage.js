@@ -14,8 +14,8 @@ class Variant extends Component {
     const variant = this.props.variant;
     return (
       <div className="col-xs-12 col-sm-4">
-        <div className="panel" style={{borderColor:"purple"}}>
-            <div className="panel-heading" style={{backgroundColor:"purple"}}>
+        <div className="panel variant-panel">
+            <div className="panel-heading variant-panel" >
               <h3 className="panel-title pull-left">Traffic</h3>
               <span className="input-group-btn">
                   <button type="button" className="btn btn-sm btn-danger" onClick={e => this.props.remove()}>
