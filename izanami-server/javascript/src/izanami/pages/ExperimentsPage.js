@@ -123,7 +123,7 @@ class Variants extends Component {
         <hr/>
         {isUpdate &&
             <div className="row" >
-                <div className="col-sm-8 col-lg-offset-1">
+                <div className="col-sm-10 col-sm-offset-2">
                     <div className="alert alert-warning">
                         <i className="fa fa-exclamation-triangle"/> Be careful, changing traffic information will drop all the datas already collected.
                     </div>
@@ -132,9 +132,9 @@ class Variants extends Component {
         }
         <div className="row" >
           <div className="form-group">
-            <label htmlFor="input-Name" className="col-sm-2 control-label">Traffic allocation</label>
+            <label htmlFor="input-Name" className="col-sm-2 control-label slider-label">Traffic allocation</label>
             <div className="col-sm-8">
-              <div style={{margin: '20px 10px'}}>
+              <div>
                 <ReactSlider
                     className="horizontal-slider"
                     withBars={true}
@@ -153,25 +153,27 @@ class Variants extends Component {
 
               </div>
             </div>
-            <div className="col-sm-2">
-              <button
-                  type="button"
-                  className="btn btn-sm btn-block btn-primary"
-                  onClick={() => {
-                      const id = this.nextLetter();
-                      const traffic = this.getNextTraffic();
-                      const updated = this.props.value.map(v => ({...v, traffic}));
-                      const allTraffic = updated.map(v => v.traffic).reduce((acc, e) => acc + e, 0);
-                      const remainingTraffic = round(1 - allTraffic);
-                      return this.props.onChange([ ...updated, {id, name: `Variant ${id}`, traffic: remainingTraffic}])
-                  }}
-                  style={{marginRight: "0px"}}
-              >
-                    <i className="glyphicon glyphicon-plus-sign"/> Add traffic segment
-              </button>
-            </div>
+
           </div>
         </div>
+<div className="row" >
+        <div className="col-sm-offset-10 col-sm-2">
+          <button
+              type="button"
+              className="btn btn-sm btn-block btn-primary btn-addTraffic"
+              onClick={() => {
+                  const id = this.nextLetter();
+                  const traffic = this.getNextTraffic();
+                  const updated = this.props.value.map(v => ({...v, traffic}));
+                  const allTraffic = updated.map(v => v.traffic).reduce((acc, e) => acc + e, 0);
+                  const remainingTraffic = round(1 - allTraffic);
+                  return this.props.onChange([ ...updated, {id, name: `Variant ${id}`, traffic: remainingTraffic}])
+              }}
+          >
+                <i className="glyphicon glyphicon-plus-sign"/> Add traffic segment
+          </button>
+        </div>
+    </div>
         <div className="row" >
           {variants.map( (v, i) =>
               <Variant key={ `variants-${v.id}-${i}`} 
