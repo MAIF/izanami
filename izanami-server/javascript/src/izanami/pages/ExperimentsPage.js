@@ -18,7 +18,11 @@ class Variant extends Component {
             <div className="panel-heading variant-panel" >
               <h3 className="panel-title pull-left">Traffic</h3>
               <span className="input-group-btn">
-                  <button type="button" className="btn btn-sm btn-danger" onClick={e => this.props.remove()}>
+                  <button
+                      type="button"
+                      className={`btn btn-sm ${this.props.deletable ? "btn-danger": "btn-default"}`}
+                      disabled={!this.props.deletable}
+                      onClick={e => this.props.remove()}>
                       <i className="glyphicon glyphicon-trash"/>
                   </button>
               </span>
@@ -89,10 +93,10 @@ class Variants extends Component {
           .reduce(
               ([s, acc], e) => {
                 const value = s + (e.traffic * 100);
-                const newState = {id: e.id, traffic: value};
+                const newState = {id: e.id, traffic: round(e.traffic * 100), percent: value};
                 return [value, [...acc, newState]];
               },
-              [0, [{id:'', traffic: 0}]]
+              [0, [{id:'', traffic: 0, percent: 0}]]
           );
       return stack[1];
   };
@@ -138,15 +142,15 @@ class Variants extends Component {
                 <ReactSlider
                     className="horizontal-slider"
                     withBars={true}
-                    defaultValue={trafficStack.map(i => i.traffic)}
-                    value={trafficStack.map(i => i.traffic)}
+                    defaultValue={trafficStack.map(i => i.percent)}
+                    value={trafficStack.map(i => i.percent)}
                     onChange={this.updateTraffic}
                     orientation="horizontal"
                     min={0}
                     max={100}>
                     {trafficStack.map((t, i) =>
                         <div key={`trafic-slider-${t}-${i}`}>
-                            { `${t.id ? `${t.id}: `: '' } ${t.traffic}` }
+                            { `${t.id ? `${t.id}: `: '' } ${t.traffic} %` }
                         </div>
                     )}
                 </ReactSlider>
@@ -178,6 +182,7 @@ class Variants extends Component {
           {variants.map( (v, i) =>
               <Variant key={ `variants-${v.id}-${i}`} 
                        variant={v}
+                       deletable={ i !== 0 && i !== 1 }
                        remove = { () =>
                            this.props.onChange([ ...this.props.value.filter(variant => v.id !== variant.id)])
                        }
