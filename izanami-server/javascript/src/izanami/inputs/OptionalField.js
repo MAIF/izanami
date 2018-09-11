@@ -9,6 +9,9 @@ export class OptionalField extends Component {
 
     toggleOff = (e) => {
         if (e && e.preventDefault) e.preventDefault();
+        if (this.props.onChange) {
+            this.props.onChange(null);
+        }
         this.setState({disabled: true})
     };
 
@@ -27,7 +30,9 @@ export class OptionalField extends Component {
                         {this.state.disabled && <OffSwitch onChange={this.toggleOn}/>}
                     </div>
                     <div className="col-sm-9">
-                        {React.cloneElement(this.props.children, { ...this.props, disabled: this.state.disabled })}
+                        {!this.state.disabled &&
+                            React.cloneElement(this.props.children, { ...this.props, disabled: this.state.disabled })
+                        }
                     </div>
                 </div>
             </div>
