@@ -3,7 +3,7 @@ package domains.abtesting.impl
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.{Done, NotUsed}
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Source
 import cats.effect.Effect
 import reactivemongo.akkastream._
 import domains.abtesting.Experiment.ExperimentKey
@@ -57,15 +57,11 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
   import system.dispatcher
   import cats.implicits._
   import libs.effects._
-  import libs.streams.syntax._
-  import ExperimentVariantEventInstances._
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
   private implicit val mat: ActorMaterializer = ActorMaterializer()
 
-  private val collectionName          = namespace.replaceAll(":", "_")
-  private val displayedCollectionName = s"${collectionName}_counter_displayed"
-  private val wonCollectionName       = s"${collectionName}_counter_won"
+  private val collectionName = namespace.replaceAll(":", "_")
 
   private val indexesDefinition: Seq[Index] = Seq(
     Index(Seq("id"           -> IndexType.Ascending), unique = true),
@@ -77,15 +73,11 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
     Index(Seq("id" -> IndexType.Ascending), unique = true)
   )
   Logger.debug(s"Initializing mongo collection $collectionName")
-  Logger.debug(s"Initializing mongo collection $wonCollectionName")
-  Logger.debug(s"Initializing mongo collection $displayedCollectionName")
 
   Await.result(
     Future.sequence(
       Seq(
-        MongoUtils.initIndexes(collectionName, indexesDefinition),
-        MongoUtils.initIndexes(wonCollectionName, counterIndexesDefinition),
-        MongoUtils.initIndexes(displayedCollectionName, counterIndexesDefinition)
+        MongoUtils.initIndexes(collectionName, indexesDefinition)
       )
     ),
     5.seconds
@@ -104,11 +96,10 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
   }
 
   override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
-      for {
-        result <- insert(id, data) // add event
-        _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-      } yield result
-
+    for {
+      result <- insert(id, data) // add event
+      _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
+    } yield result
 
   private def insert(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
     mongoApi.database
@@ -130,22 +121,26 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
 
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
     Source(experiment.variants.toList)
-      .flatMapMerge(4, {v => findEvents(experiment.id.key, v)})
+      .flatMapMerge(4, { v =>
+        findEvents(experiment.id.key, v)
+      })
       .via(ExperimentVariantEvent.eventAggregation(experiment))
 
   private def findEvents(experimentId: String, variant: Variant): Source[ExperimentVariantEvent, NotUsed] =
-    Source.fromFutureSource(
-      mongoApi.database.map { collection =>
-        collection
-          .collection[JSONCollection](collectionName)
-          .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant.id))
-          .cursor[ExperimentVariantEventDocument](ReadPreference.primary)
-          .documentSource()
-          .map(_.data)
-      }
-    ).mapMaterializedValue(_ => NotUsed)
+    Source
+      .fromFutureSource(
+        mongoApi.database.map { collection =>
+          collection
+            .collection[JSONCollection](collectionName)
+            .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant.id))
+            .cursor[ExperimentVariantEventDocument](ReadPreference.primary)
+            .documentSource()
+            .map(_.data)
+        }
+      )
+      .mapMaterializedValue(_ => NotUsed)
 
-  override def listAll(patterns: Seq[String]) =
+  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
     Source
       .fromFuture(mongoApi.database)
       .map(_.collection[JSONCollection](collectionName))

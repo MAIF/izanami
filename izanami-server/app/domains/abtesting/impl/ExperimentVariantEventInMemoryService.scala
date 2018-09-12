@@ -39,7 +39,7 @@ class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eve
   import scala.concurrent.duration.DurationInt
   import ExperimentVariantEventInstances._
 
-  private implicit val timeout = Timeout(1.second)
+  private implicit val timeout: Timeout = Timeout(5.second)
 
   private val store = actorSystem.actorOf(Props[ExperimentDataStoreActor](new ExperimentDataStoreActor()),
                                           namespace + "_in_memory_exp_event")
@@ -86,11 +86,7 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
 
   private var datas: Map[String, List[ExperimentVariantEvent]] =
     Map.empty[String, List[ExperimentVariantEvent]]
-  private var counters: Map[String, Long] = Map.empty[String, Long]
 
-  val experimentseventsdisplayedNamespace: String =
-    "experimentseventsdisplayed:count"
-  val experimentseventswonNamespace: String = "experimentseventswon:count"
   val experimentseventsNamespace: String    = "experimentsevents"
 
   def transformation(displayed: Long, won: Long): Double =
@@ -102,32 +98,12 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
     case AddEvent(experimentId, variantId, event) =>
       val eventKey: String =
         s"$experimentseventsNamespace:$experimentId:$variantId"
-      val displayedCounterKey: String =
-        s"$experimentseventsdisplayedNamespace:$experimentId:$variantId"
-      val wonCounterKey: String =
-        s"$experimentseventswonNamespace:$experimentId:$variantId"
 
       val events: List[ExperimentVariantEvent] =
         datas.getOrElse(eventKey, List.empty[ExperimentVariantEvent])
-      val displayed: Long = counters.getOrElse(displayedCounterKey, 0)
-      val won: Long       = counters.getOrElse(wonCounterKey, 0)
 
-      event match {
-        case e: ExperimentVariantDisplayed =>
-          val transfo: Double = transformation(displayed + 1, won)
-          val eventToSave     = e.copy(transformation = transfo)
-
-          counters = counters + (displayedCounterKey -> (displayed + 1))
-          datas = datas + (eventKey                  -> (eventToSave :: events))
-          sender() ! eventToSave
-
-        case e: ExperimentVariantWon =>
-          val transfo: Double = transformation(displayed, won + 1)
-          val eventToSave     = e.copy(transformation = transfo)
-          counters = counters + (wonCounterKey -> (won + 1))
-          datas = datas + (eventKey            -> (eventToSave :: events))
-          sender() ! eventToSave
-      }
+      datas = datas + (eventKey                  -> (event :: events))
+      sender() ! event
 
     case FindEvents(experimentId, variantId) =>
       val eventKey: String =
@@ -141,25 +117,12 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
 
     case DeleteEvents(experimentId) =>
       val eventKey: String = s"$experimentseventsNamespace:$experimentId:"
-      val displayedCounterKey: String =
-        s"$experimentseventsdisplayedNamespace:$experimentId:"
-      val wonCounterKey: String =
-        s"$experimentseventswonNamespace:$experimentId:"
 
       datas.keys
         .filter(key => key.startsWith(eventKey))
         .foreach(key => datas = datas - key)
-      counters.keys
-        .filter(key => key.startsWith(displayedCounterKey) || key.startsWith(wonCounterKey))
-        .foreach(key => datas = datas - key)
 
       sender() ! Done
-
-    case FindCounterDisplayed(experimentId, variantId) =>
-      sender() ! counters.getOrElse(s"$experimentseventsdisplayedNamespace:$experimentId:$variantId", 0L)
-
-    case FindCounterWon(experimentId, variantId) =>
-      sender() ! counters.getOrElse(s"$experimentseventswonNamespace:$experimentId:$variantId", 0L)
 
     case m =>
       unhandled(m)
@@ -178,9 +141,5 @@ private[abtesting] object ExperimentDataStoreActor {
   case class GetAll(patterns: Seq[String]) extends ExperimentDataMessages
 
   case class DeleteEvents(experimentId: String) extends ExperimentDataMessages
-
-  case class FindCounterDisplayed(experimentId: String, variantId: String) extends ExperimentDataMessages
-
-  case class FindCounterWon(experimentId: String, variantId: String) extends ExperimentDataMessages
 
 }

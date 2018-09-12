@@ -85,10 +85,10 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
   }
 
   override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
-      for {
-        result <- saveToCassandra(id, data) // add event
-        _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-      } yield result
+    for {
+      result <- saveToCassandra(id, data) // add event
+      _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
+    } yield result
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     experiment.variants.toList
@@ -113,8 +113,7 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
         experiment.id.key,
         variantId
       )
-    )
-      .map(r => r.getString("value"))
+    ).map(r => r.getString("value"))
       .map(Json.parse)
       .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
       .via(ExperimentVariantEvent.eventAggregation(experiment))

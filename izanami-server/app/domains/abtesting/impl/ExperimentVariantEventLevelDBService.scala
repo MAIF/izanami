@@ -75,14 +75,16 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
     new LevelDBRedisCommand(db, actorSystem)
   }
 
-  val experimentseventsNamespace: String    = namespace
+  val experimentseventsNamespace: String = "experimentsevents"
 
   override def create(id: ExperimentVariantEventKey,
                       data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
     val eventsKey: String =
       s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}"
     for {
-      result <- client.sadd(eventsKey, Json.stringify(ExperimentVariantEventInstances.format.writes(data))).map(l => Result.ok(data))
+      result <- client
+                 .sadd(eventsKey, Json.stringify(ExperimentVariantEventInstances.format.writes(data)))
+                 .map(l => Result.ok(data))
       _ <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
     } yield result
   }
@@ -111,19 +113,18 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
       )
       .mapConcat(identity)
 
-  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] = {
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
     Source
       .fromFuture(client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*").toIO.unsafeToFuture())
-        .mapConcat(k => k.toList)
-        .flatMapMerge(4, findEvents)
-        .via(ExperimentVariantEvent.eventAggregation(experiment))
-  }
+      .mapConcat(k => k.toList)
+      .flatMapMerge(4, findEvents)
+      .via(ExperimentVariantEvent.eventAggregation(experiment))
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     for {
-      eventsKey           <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-      _                   <- eventsKey.toList.traverse(key => client.del(key)) // remove events list
-      _                   <- eventStore.publish(ExperimentVariantEventsDeleted(experiment))
+      eventsKey <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+      _         <- eventsKey.toList.traverse(key => client.del(key)) // remove events list
+      _         <- eventStore.publish(ExperimentVariantEventsDeleted(experiment))
     } yield Result.ok(Done)
 
   private def getValueAt(key: String): Option[String] =
