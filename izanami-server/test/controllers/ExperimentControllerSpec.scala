@@ -1,13 +1,12 @@
 package controllers
 
-import java.util.concurrent.atomic.{AtomicReference}
+import java.util.concurrent.atomic.AtomicReference
 
-import akka.stream.{ActorMaterializer}
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.NonEmptyList
 import domains.Key
 import domains.abtesting._
-import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
