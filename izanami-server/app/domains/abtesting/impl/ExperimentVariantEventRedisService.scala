@@ -6,13 +6,12 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.{ActorMaterializer, Materializer}
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Sink, Source}
 import cats.effect.Effect
-import domains.Key
 import domains.abtesting._
 import domains.events.EventStore
 import env.DbDomainConfig
-import io.lettuce.core.{RedisClient, ScanArgs, ScanCursor, ScoredValue}
+import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
 import io.lettuce.core.api.async.RedisAsyncCommands
 import libs.functional.EitherTSyntax
 import play.api.libs.json.Json
@@ -22,9 +21,6 @@ import store.Result
 
 import scala.collection.JavaConverters._
 
-//////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////    REDIS     ////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventRedisService {
   def apply[F[_]: Effect](configdb: DbDomainConfig, maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
@@ -42,7 +38,6 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
 
   import actorSystem.dispatcher
   import domains.events.Events._
-  import libs.functional.syntax._
   import libs.effects._
   import libs.streams.syntax._
   import cats.implicits._
@@ -155,7 +150,7 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
     } yield r
   }
 
-  override def listAll(patterns: Seq[String]) =
+  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
     findKeys(s"$experimentseventsNamespace:*")
       .flatMapMerge(4, key => findEvents(key))
       .filter(e => e.id.key.matchPatterns(patterns: _*))
