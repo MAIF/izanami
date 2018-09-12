@@ -1,14 +1,21 @@
 package controllers
 
+import java.util.concurrent.atomic.AtomicReference
+
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Sink, Source}
+import cats.data.NonEmptyList
+import domains.Key
 import domains.abtesting._
-import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
 import play.api.libs.json.{JsObject, Json}
 import play.api.libs.ws.JsonBodyWritables._
-import play.api.libs.ws.WSResponse
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
+
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
 
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec
@@ -16,12 +23,16 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
-  override def getConfiguration(configuration: Configuration) =
+  override def getConfiguration(configuration: Configuration): Configuration =
     configuration ++ configurationSpec
 
-  private lazy val ws = izanamiComponents.wsClient
+  private lazy val ws                    = izanamiComponents.wsClient
+  private implicit lazy val system       = izanamiComponents.actorSystem
+  private implicit lazy val materializer = ActorMaterializer()
 
   private lazy val rootPath = s"http://localhost:$port"
+
+  import ExperimentInstances._
 
   s"$name ExperimentController" should {
 
@@ -36,40 +47,44 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
+      val experiment = Experiment(
+        id = Key(key),
+        name = "a name",
+        description = Some("A description"),
+        enabled = false,
+        variants = NonEmptyList.of(
+          Variant(id = "A", name = "name A", traffic = Traffic(0.4)),
+          Variant(id = "B", name = "name B", traffic = Traffic(0.6))
+        )
+      )
       /* Create */
-      val experiment = Json.obj("id" -> key,
-                                "name"        -> "a name",
-                                "description" -> "A description",
-                                "enabled"     -> false,
-                                "variants"    -> Json.arr())
+      val jsonExperiment = Json.toJson(experiment)
+
       ws.url(s"$rootPath/api/experiments")
-        .post(experiment)
+        .post(jsonExperiment)
         .futureValue must beAStatus(201)
 
       /* Verify */
-      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experiment)
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, jsonExperiment)
 
       ws.url(s"$rootPath/api/experiments").get().futureValue.json must be(
-        Json.obj("results"  -> Json.arr(experiment),
+        Json.obj("results"  -> Json.arr(jsonExperiment),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
       /* Update */
-      val experimentUpdated = Json.obj("id" -> key,
-                                       "name"        -> "a name",
-                                       "description" -> "A description",
-                                       "enabled"     -> true,
-                                       "variants"    -> Json.arr())
+      val experimentUpdated     = experiment.copy(enabled = true)
+      val experimentUpdatedJson = Json.toJson(experimentUpdated)
       ws.url(s"$rootPath/api/experiments/$key")
-        .put(experimentUpdated)
+        .put(experimentUpdatedJson)
         .futureValue must beAStatus(200)
 
       /* Verify */
-      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experimentUpdated)
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, experimentUpdatedJson)
 
       ws.url(s"$rootPath/api/experiments").get().futureValue must beAResponse(
         200,
-        Json.obj("results"  -> Json.arr(experimentUpdated),
+        Json.obj("results"  -> Json.arr(experimentUpdatedJson),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
@@ -116,139 +131,34 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         .post(experiment)
         .futureValue must beAStatus(201)
 
-      var variants = Seq.empty[String]
-
-      // Client 1 displayed and won
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "1")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "1")
-        .get()
+      val variants: Seq[String] = Source(1 to 100)
+        .mapAsync(10) { i =>
+          Future {
+            (ws
+              .url(s"$rootPath/api/experiments/$key/variant")
+              .addQueryStringParameters("clientId" -> s"$i")
+              .get()
+              .futureValue
+              .json \ "id").as[String]
+          }(system.dispatcher)
+        }
+        .runWith(Sink.seq)
         .futureValue
-        .json \ "id").as[String]
 
-      // Client 2 displayed and won
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "2")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "2")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
+      val variantCount: Map[String, Int] = variants
+        .groupBy(a => a)
+        .map {
+          case (k, l) =>
+            (k, l.size)
+        }
 
-      // Client 3 displayed and won
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "3")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "3")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      // Client 4 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "4")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "4")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      // Client 5 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "5")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "5")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      // Client 6 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "6")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "6")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      // Client 7 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "7")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "7")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      // Client 8 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "8")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "8")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      // Client 9 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "9")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "9")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      // Client 10 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "10")
-        .post("")
-        .futureValue must beAStatus(200)
-      variants = variants :+ (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "10")
-        .get()
-        .futureValue
-        .json \ "id").as[String]
-
-      val variantCount: Map[String, Int] = variants.groupBy(a => a).map {
-        case (key, l) => (key, l.size)
-      }
-
-      variantCount("A") must be(4)
-      variantCount("B") must be(6)
+      variantCount("A") must equal(40 +- 5)
+      variantCount("B") must equal(60 +- 5)
 
     }
 
     "A/B testing scenario" in {
-
+      import cats.implicits._
       /* Create */
       val key = "test2:ab:scenario"
       val experiment: JsObject = Json.obj(
@@ -265,79 +175,56 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
         .post(experiment)
         .futureValue must beAStatus(201)
 
-      // Client 1 displayed and won
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "1")
-        .post("")
-        .futureValue must beAStatus(200)
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "1")
-        .post("")
-        .futureValue must beAStatus(200)
-      val value: WSResponse = ws
-        .url(s"$rootPath/api/experiments/$key/won")
-        .addQueryStringParameters("clientId" -> "1")
-        .post("")
-        .futureValue
-      value must beAStatus(200)
+      //val lastWin = new AtomicBoolean(true)
+      val lastWin = new AtomicReference[Boolean](true)
 
-      (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "1")
-        .get()
-        .futureValue
-        .json \ "id").as[String] must be("A")
-      // Client 2 displayed and won
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "2")
-        .post("")
-        .futureValue must beAStatus(200)
-      (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "2")
-        .get()
-        .futureValue
-        .json \ "id").as[String] must be("B")
-      ws.url(s"$rootPath/api/experiments/$key/won")
-        .addQueryStringParameters("clientId" -> "2")
-        .post("")
-        .futureValue must beAStatus(200)
+      val variants = Await.result(
+        Source(1 to 100)
+          .mapAsync(10) { i =>
+            Future {
+              val variant = (ws
+                .url(s"$rootPath/api/experiments/$key/variant")
+                .addQueryStringParameters("clientId" -> s"$i")
+                .get()
+                .futureValue
+                .json \ "id").as[String]
+              // Client ! displayed and won
+              ws.url(s"$rootPath/api/experiments/$key/displayed")
+                .addQueryStringParameters("clientId" -> s"$i")
+                .post("")
+                .futureValue must beAStatus(200)
+              ws.url(s"$rootPath/api/experiments/$key/displayed")
+                .addQueryStringParameters("clientId" -> s"$i")
+                .post("")
+                .futureValue must beAStatus(200)
 
-      // Client 3 displayed and won
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "3")
-        .post("")
-        .futureValue must beAStatus(200)
-      (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "3")
-        .get()
-        .futureValue
-        .json \ "id").as[String] must be("A")
-      ws.url(s"$rootPath/api/experiments/$key/won")
-        .addQueryStringParameters("clientId" -> "3")
-        .post("")
-        .futureValue must beAStatus(200)
+              // A always win and B 1/2
+              if (variant == "A" || (variant == "B" && lastWin.getAndUpdate(v => !v))) {
+                ws.url(s"$rootPath/api/experiments/$key/won")
+                  .addQueryStringParameters("clientId" -> s"$i")
+                  .post("")
+                  .futureValue must beAStatus(200)
+              }
+              variant
 
-      // Client 4 displayed
-      ws.url(s"$rootPath/api/experiments/$key/displayed")
-        .addQueryStringParameters("clientId" -> "4")
-        .post("")
-        .futureValue must beAStatus(200)
-      (ws
-        .url(s"$rootPath/api/experiments/$key/variant")
-        .addQueryStringParameters("clientId" -> "4")
-        .get()
-        .futureValue
-        .json \ "id").as[String] must be("B")
+            }(system.dispatcher)
+          }
+          .runWith(Sink.seq),
+        5.minutes
+      )
+
+      val aCount = variants.count(_ == "A")
+      val bCount = variants.count(_ == "B")
+
+      println(s"A: $aCount")
+      println(s"B: $bCount")
 
       val results =
         ws.url(s"$rootPath/api/experiments/$key/results").get().futureValue
       results must beAStatus(200)
+      val eResult: ExperimentResult = results.json.validate[ExperimentResult].get
 
-      val eResult: ExperimentResult =
-        ExperimentResult.format.reads(results.json).get
-
+      // 2 Variants
       eResult.results.size must be(2)
 
       val variantA: VariantResult =
@@ -345,48 +232,45 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       val variantB: VariantResult =
         eResult.results.find(v => v.variant.get.id == "B").get
 
-      variantA.displayed must be(3)
-      variantA.won must be(2)
-      Math.floor(variantA.transformation) must be(66)
+      variantA.displayed must be(aCount * 2)
+      variantA.won must be(aCount)
+
+      Math.floor(variantA.transformation) must equal(50.0 +- 5)
       val eventsA: Seq[ExperimentVariantEvent] = variantA.events
       if (strict) {
-        eventsA.size must be(5)
+        eventsA.size must be(aCount * 3)
+        val won = eventsA.count {
+          case e: ExperimentVariantWon => true
+          case _                       => false
+        }
+        val displayed = eventsA.count {
+          case e: ExperimentVariantDisplayed => true
+          case _                             => false
+        }
+        displayed must equal(aCount * 2)
+        won must equal(aCount)
       } else {
         eventsA.size must be > 0
       }
-      if (strict) {
-        eventsA(0).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-        val eventA0: ExperimentVariantDisplayed =
-          eventsA(0).asInstanceOf[ExperimentVariantDisplayed]
-        eventA0.variantId must be("A")
-        eventA0.variant.id must be("A")
-        eventA0.transformation must be(0)
-        eventsA(1).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-        eventsA(2).isInstanceOf[ExperimentVariantWon] must be(true)
-        eventsA(3).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-        eventsA(4).isInstanceOf[ExperimentVariantWon] must be(true)
-        val eventA4: ExperimentVariantWon =
-          eventsA(4).asInstanceOf[ExperimentVariantWon]
-        eventA4.transformation must be(66.66666666666667)
-      }
-      variantB.displayed must be(2)
-      variantB.won must be(1)
-      variantB.transformation must be(50)
+
+      variantB.displayed must be(bCount * 2)
+      variantB.won must be(bCount / 2)
+      variantB.transformation must equal(25.0 +- 5)
       val eventsB: Seq[ExperimentVariantEvent] = variantB.events
-      eventsB.size must be > 0
       if (strict) {
-        eventsB.head.isInstanceOf[ExperimentVariantDisplayed] must be(true)
-        val eventB0: ExperimentVariantDisplayed =
-          eventsB(0).asInstanceOf[ExperimentVariantDisplayed]
-        eventB0.variantId must be("B")
-        eventB0.variant.id must be("B")
-        eventB0.transformation must be(0)
-        eventsB(1).isInstanceOf[ExperimentVariantWon] must be(true)
-        eventsB(2).isInstanceOf[ExperimentVariantDisplayed] must be(true)
-        eventsB.last match {
-          case e: ExperimentVariantWon       => e.transformation must be(50)
-          case e: ExperimentVariantDisplayed => e.transformation must be(50)
+        eventsB.size must be((bCount * 2) + (bCount / 2))
+        val won = eventsB.count {
+          case e: ExperimentVariantWon => true
+          case _                       => false
         }
+        val displayed = eventsB.count {
+          case e: ExperimentVariantDisplayed => true
+          case _                             => false
+        }
+        displayed must equal(bCount * 2)
+        won must equal(bCount / 2)
+      } else {
+        eventsB.size must be > 0
       }
     }
   }

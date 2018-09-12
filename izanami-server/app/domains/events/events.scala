@@ -261,15 +261,6 @@ object Events {
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
         } yield ExperimentsDeleted(count, patterns, _id, ts)
-      //VARIANT BINDING
-      case o: JsObject if (o \ "type").as[String] == "VARIANT_BINDING_CREATED" =>
-        import VariantBindingInstances._
-        for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[VariantBinding](VariantBindingInstances.format)
-          key     <- (o \ "key").validate[VariantBindingKey](VariantBindingInstances.keyFormat)
-        } yield VariantBindingCreated(key, payload, _id, ts)
       //VARIANT BINDING EVENT
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_VARIANT_EVENT_CREATED" =>
         for {
@@ -630,16 +621,6 @@ object Events {
   }
 
   sealed trait VariantBindingEvent extends ExperimentEvent
-
-  case class VariantBindingCreated(variantBindingKey: VariantBindingKey,
-                                   variantBinding: VariantBinding,
-                                   _id: Long = gen.nextId(),
-                                   timestamp: LocalDateTime = LocalDateTime.now())
-      extends VariantBindingEvent {
-    val `type`: String     = "VARIANT_BINDING_CREATED"
-    val key: ExperimentKey = variantBindingKey.key
-    val payload: JsValue   = VariantBindingInstances.format.writes(variantBinding)
-  }
 
   sealed trait ExperimentVariantEventEvent extends ExperimentEvent
 

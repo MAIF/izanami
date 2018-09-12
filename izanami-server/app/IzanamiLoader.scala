@@ -146,23 +146,13 @@ package object modules {
       store
     }
 
-    lazy val variantBindingStore: VariantBindingService[IO] = {
-      val conf              = izanamiConfig.variantBinding.db
-      lazy val eventAdapter = InMemoryWithDbStore.variantBindingEventAdapter
-      lazy val dbStore: JsonDataStore[IO] =
-        JsonDataStore[IO](drivers, izanamiConfig, conf, eventStore, eventAdapter, applicationLifecycle)
-      lazy val store: VariantBindingService[IO] = wire[VariantBindingServiceImpl[IO]]
-      Import.importFile(conf, store.importData)
-      store
-    }
-
     lazy val experimentVariantEventStore: ExperimentVariantEventService[IO] = {
       val conf = izanamiConfig.experimentEvent.db
       // format: off
 
       def getExperimentVariantEventStore(dbType: DbType): ExperimentVariantEventService[IO] = dbType match {
-        case InMemory  => ExperimentVariantEventInMemoryService(conf)
-        case Redis     => ExperimentVariantEventRedisService(drivers.redisClient, eventStore)
+        case InMemory  => ExperimentVariantEventInMemoryService(conf, eventStore)
+        case Redis     => ExperimentVariantEventRedisService(conf, drivers.redisClient, eventStore)
         case LevelDB   => ExperimentVariantEventLevelDBService(izanamiConfig.db.leveldb.get, conf, eventStore, applicationLifecycle)
         case Cassandra => ExperimentVariantEventCassandreService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore)
         case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore)

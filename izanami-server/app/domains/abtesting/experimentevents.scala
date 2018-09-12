@@ -64,7 +64,52 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
                                 variantId: String)
     extends ExperimentVariantEvent
 
-object ExperimentVariantEvent {}
+object ExperimentVariantEvent {
+
+  def eventAggregation(experiment: Experiment,
+                       removeDouble: Boolean = false): Flow[ExperimentVariantEvent, VariantResult, NotUsed] =
+    Flow[ExperimentVariantEvent]
+      .groupBy(experiment.variants.size, _.variant.id)
+      .statefulMapConcat(() => {
+        var displayed = 0
+        var won       = 0
+        var ids       = Seq.empty[String]
+        evt =>
+          {
+            evt match {
+              case e: ExperimentVariantDisplayed =>
+                displayed += 1
+                val transformation = if (displayed != 0) {
+                  (won * 100.0) / displayed
+                } else 0.0
+                List(
+                  VariantResult(Some(e.variant),
+                                displayed,
+                                won,
+                                transformation,
+                                Seq(e.copy(transformation = transformation)))
+                )
+              case e: ExperimentVariantWon =>
+                won += 1
+                val transformation = if (displayed != 0) {
+                  (won * 100.0) / displayed
+                } else 0.0
+                List(
+                  VariantResult(Some(e.variant),
+                                displayed,
+                                won,
+                                transformation,
+                                Seq(e.copy(transformation = transformation)))
+                )
+            }
+          }
+      })
+      .fold(VariantResult()) { (acc, r) =>
+        r.copy(events = acc.events ++ r.events)
+      }
+      .mergeSubstreams
+
+}
 
 trait ExperimentVariantEventService[F[_]] {
 

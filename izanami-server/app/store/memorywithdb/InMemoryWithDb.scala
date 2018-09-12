@@ -7,7 +7,7 @@ import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.effect.Effect
 import domains.Key
-import domains.abtesting.{ExperimentInstances, VariantBindingInstances}
+import domains.abtesting.{ExperimentInstances}
 import domains.apikey.ApikeyInstances
 import domains.config.ConfigInstances
 import domains.events.EventStore
@@ -34,14 +34,6 @@ case class Delete(id: Key)                            extends CacheEvent
 case class DeleteAll(patterns: Seq[String])           extends CacheEvent
 
 object InMemoryWithDbStore {
-  import domains.config.Config
-  import domains.feature.Feature
-  import domains.script.GlobalScript
-  import domains.abtesting.Experiment
-  import domains.webhook.Webhook
-  import domains.user.User
-  import domains.abtesting.VariantBinding
-  import domains.apikey.Apikey
 
   def apply[F[_]: Effect](
       dbConfig: InMemoryWithDbConfig,
@@ -81,10 +73,6 @@ object InMemoryWithDbStore {
     case ExperimentUpdated(id, old, value, _, _)   => Update(old.id, id, ExperimentInstances.format.writes(value))
     case ExperimentDeleted(id, _, _, _)            => Delete(id)
     case ExperimentsDeleted(count, patterns, _, _) => DeleteAll(patterns)
-  }
-
-  lazy val variantBindingEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case VariantBindingCreated(id, value, _, _) => Create(id.key, VariantBindingInstances.format.writes(value))
   }
 
   lazy val webhookEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {

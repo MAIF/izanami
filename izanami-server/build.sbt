@@ -37,14 +37,14 @@ libraryDependencies ++= Seq(
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.13.0-play26",
   "io.lettuce"               % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
-  "org.typelevel"            %% "cats-core"                     % "1.2.0", // MIT license
-  "org.typelevel"            %% "cats-effect"                   % "1.0.0-RC2", // MIT license
+  "org.typelevel"            %% "cats-core"                     % "1.3.1", // MIT license
+  "org.typelevel"            %% "cats-effect"                   % "1.0.0", // MIT license
   "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
-  "com.adelegue"             %% "playjson-extended"             % "0.0.3", // Apache 2.0
+  "com.adelegue"             %% "playjson-extended"             % "0.0.3" excludeAll ExclusionRule("org.typelevel", "cats-core"), // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.19", // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.21", // Apache 2.0
-  "com.adelegue"             %% "elastic-scala-http"            % "0.0.11", // Apache 2.0
+  "com.adelegue"             %% "elastic-scala-http"            % "0.0.11" excludeAll ExclusionRule("org.typelevel", "cats-core"), // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                   % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jvm"                    % metricsVersion, // Apache 2.0

@@ -42,28 +42,28 @@ export class BooleanInput extends Component {
         </div>
       </div>
     );
-
-    return (
-      <div>
-        <div className="form-group">
-          <label className="col-sm-2 control-label">{this.props.label}</label>
-          <div className="col-sm-10">
-            {value &&
-            <button disabled={this.props.disabled} type="button" style={{marginTop: 6}} title="Click to disable"
-                    className="btn btn-success btn-xs active" data-toggle="button" aria-pressed="true"
-                    autoComplete="off" onClick={this.toggleOff}>
-              <i className="glyphicon glyphicon-ok"/>
-            </button>}
-            {!value &&
-            <button disabled={this.props.disabled} type="button" style={{marginTop: 6}} title="Click to enable"
-                    className="btn btn-danger btn-xs" data-toggle="button" aria-pressed="false" autoComplete="off"
-                    onClick={this.toggleOn}>
-              <i className="glyphicon glyphicon-remove"/>
-            </button>}
-          </div>
-        </div>
-      </div>
-    );
+    //
+    // return (
+    //   <div>
+    //     <div className="form-group">
+    //       <label className="col-sm-2 control-label">{this.props.label}</label>
+    //       <div className="col-sm-10">
+    //         {value &&
+    //         <button disabled={this.props.disabled} type="button" style={{marginTop: 6}} title="Click to disable"
+    //                 className="btn btn-success btn-xs active" data-toggle="button" aria-pressed="true"
+    //                 autoComplete="off" onClick={this.toggleOff}>
+    //           <i className="glyphicon glyphicon-ok"/>
+    //         </button>}
+    //         {!value &&
+    //         <button disabled={this.props.disabled} type="button" style={{marginTop: 6}} title="Click to enable"
+    //                 className="btn btn-danger btn-xs" data-toggle="button" aria-pressed="false" autoComplete="off"
+    //                 onClick={this.toggleOn}>
+    //           <i className="glyphicon glyphicon-remove"/>
+    //         </button>}
+    //       </div>
+    //     </div>
+    //   </div>
+    // );
   }
 }
 

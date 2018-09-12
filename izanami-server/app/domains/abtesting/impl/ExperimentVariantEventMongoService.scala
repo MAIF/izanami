@@ -3,7 +3,7 @@ package domains.abtesting.impl
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.{Done, NotUsed}
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Source
 import cats.effect.Effect
 import reactivemongo.akkastream._
 import domains.abtesting.Experiment.ExperimentKey
@@ -22,7 +22,6 @@ import reactivemongo.play.json.collection.JSONCollection
 import store.Result
 import store.Result.Result
 
-import scala.collection.immutable
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
@@ -58,15 +57,11 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
   import system.dispatcher
   import cats.implicits._
   import libs.effects._
-  import libs.streams.syntax._
-  import ExperimentVariantEventInstances._
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
   private implicit val mat: ActorMaterializer = ActorMaterializer()
 
-  private val collectionName          = namespace.replaceAll(":", "_")
-  private val displayedCollectionName = s"${collectionName}_counter_displayed"
-  private val wonCollectionName       = s"${collectionName}_counter_won"
+  private val collectionName = namespace.replaceAll(":", "_")
 
   private val indexesDefinition: Seq[Index] = Seq(
     Index(Seq("id"           -> IndexType.Ascending), unique = true),
@@ -78,15 +73,11 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
     Index(Seq("id" -> IndexType.Ascending), unique = true)
   )
   Logger.debug(s"Initializing mongo collection $collectionName")
-  Logger.debug(s"Initializing mongo collection $wonCollectionName")
-  Logger.debug(s"Initializing mongo collection $displayedCollectionName")
 
   Await.result(
     Future.sequence(
       Seq(
-        MongoUtils.initIndexes(collectionName, indexesDefinition),
-        MongoUtils.initIndexes(wonCollectionName, counterIndexesDefinition),
-        MongoUtils.initIndexes(displayedCollectionName, counterIndexesDefinition)
+        MongoUtils.initIndexes(collectionName, indexesDefinition)
       )
     ),
     5.seconds
@@ -104,56 +95,11 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
       .map(_.map(_.value).getOrElse(0))
   }
 
-  private def getWon(experimentId: String, variantId: String): F[Long] =
-    getCounter(wonCollectionName, experimentId, variantId)
-
-  private def getDisplayed(experimentId: String, variantId: String): F[Long] =
-    getCounter(displayedCollectionName, experimentId, variantId)
-
-  private def incrAndGet(collName: String, experimentId: String, variantId: String): F[Long] = {
-    val id = s"$experimentId.$variantId"
-    mongoApi.database.flatMap { db =>
-      db.collection[JSONCollection](collName)
-        .findAndUpdate(
-          Json.obj("id"   -> id),
-          Json.obj("$inc" -> Json.obj("value" -> 1)),
-          upsert = true,
-          fetchNewObject = true
-        )
-        .map(_.result[Counter])
-        .map(_.map(_.value).getOrElse(0L))
-    }.toF
-  }
-
-  private def incrAndGetDisplayed(experimentId: String, variantId: String): F[Long] =
-    incrAndGet(displayedCollectionName, experimentId, variantId)
-
-  private def incrAndGetWon(experimentId: String, variantId: String): F[Long] =
-    incrAndGet(wonCollectionName, experimentId, variantId)
-
   override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
-    data match {
-      case e: ExperimentVariantDisplayed =>
-        for {
-          displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
-          won       <- getWon(id.experimentId.key, id.variantId)              // get won counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave = e.copy(transformation = transformation)
-          result <- insert(id, toSave) // add event
-          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-        } yield result
-      case e: ExperimentVariantWon =>
-        for {
-          won       <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-          displayed <- getDisplayed(id.experimentId.key, id.variantId)  // get display counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave = e.copy(transformation = transformation)
-          result <- insert(id, toSave) // add event
-          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-        } yield result
-    }
+    for {
+      result <- insert(id, data) // add event
+      _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
+    } yield result
 
   private def insert(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
     mongoApi.database
@@ -173,34 +119,28 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
       .toF
       .map(_ => Result.ok(Done))
 
-  private def getVariantResult(experimentId: String, variant: Variant): F[VariantResult] = {
-    val variantId: String = variant.id
-    mongoApi.database.toF
-      .flatMap { collection =>
-        val events: F[immutable.Seq[ExperimentVariantEvent]] = collection
-          .collection[JSONCollection](collectionName)
-          .find(Json.obj("experimentId" -> experimentId, "variantId" -> variantId))
-          .cursor[ExperimentVariantEventDocument](ReadPreference.primary)
-          .documentSource()
-          .map(_.data)
-          .runWith(Sink.seq)
-          .toF
-
-        val wonCount       = getWon(experimentId, variantId)
-        val displayedCount = getDisplayed(experimentId, variantId)
-
-        (events, wonCount, displayedCount).mapN { (e, w, d) =>
-          val transformation = (w * 100) / d
-          VariantResult(Some(variant), d, w, transformation, e)
-        }
-      }
-  }
-
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
     Source(experiment.variants.toList)
-      .mapAsyncF(4)(v => getVariantResult(experiment.id.key, v))
+      .flatMapMerge(4, { v =>
+        findEvents(experiment.id.key, v)
+      })
+      .via(ExperimentVariantEvent.eventAggregation(experiment))
 
-  override def listAll(patterns: Seq[String]) =
+  private def findEvents(experimentId: String, variant: Variant): Source[ExperimentVariantEvent, NotUsed] =
+    Source
+      .fromFutureSource(
+        mongoApi.database.map { collection =>
+          collection
+            .collection[JSONCollection](collectionName)
+            .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant.id))
+            .cursor[ExperimentVariantEventDocument](ReadPreference.primary)
+            .documentSource()
+            .map(_.data)
+        }
+      )
+      .mapMaterializedValue(_ => NotUsed)
+
+  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
     Source
       .fromFuture(mongoApi.database)
       .map(_.collection[JSONCollection](collectionName))
