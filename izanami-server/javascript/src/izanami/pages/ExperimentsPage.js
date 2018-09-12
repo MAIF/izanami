@@ -20,7 +20,7 @@ class Variant extends Component {
               <span className="input-group-btn">
                   <button
                       type="button"
-                      className={`btn btn-sm ${this.props.deletable ? "btn-danger": "btn-default"}`}
+                      className={`btn btn-sm ${this.props.deletable ? "btn-danger": "btn-default disabled"}`}
                       disabled={!this.props.deletable}
                       onClick={e => this.props.remove()}>
                       <i className="glyphicon glyphicon-trash"/>
@@ -161,7 +161,7 @@ class Variants extends Component {
           </div>
         </div>
 <div className="row" >
-        <div className="col-sm-offset-10 col-sm-2">
+        <div className="col-sm-offset-2 col-sm-4 col-md-2">
           <button
               type="button"
               className="btn btn-sm btn-block btn-primary btn-addTraffic"
@@ -179,6 +179,8 @@ class Variants extends Component {
         </div>
     </div>
         <div className="row" >
+          <div className="col-sm-offset-2 col-sm-10">
+          <div className="row" >
           {variants.map( (v, i) =>
               <Variant key={ `variants-${v.id}-${i}`} 
                        variant={v}
@@ -191,6 +193,8 @@ class Variants extends Component {
                        } 
               />
           )}
+          </div>
+          </div>
         </div>
       </div>
     );
