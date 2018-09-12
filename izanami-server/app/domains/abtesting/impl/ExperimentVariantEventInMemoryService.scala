@@ -9,6 +9,7 @@ import store.Result.Result
 import store.Result
 import ExperimentDataStoreActor._
 import cats.effect.Effect
+import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.EventStore
 import domains.events.Events.ExperimentVariantEventCreated
 
@@ -62,40 +63,18 @@ class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eve
       .fromFuture(
         experiment.variants.toList
           .traverse { variant =>
-            (
-              findEvents(experiment, variant),
-              displayed(experiment, variant),
-              won(experiment, variant)
-            ).mapN { (events, displayed, won) =>
-              VariantResult(
-                variant = Some(variant),
-                events = events,
-                transformation = transformation(displayed, won),
-                displayed = displayed,
-                won = won
-              )
-            }
+            findEvents(experiment, variant)
           }
           .toIO
           .unsafeToFuture()
       )
-      .mapConcat(identity)
-
-  private def transformation(displayed: Double, won: Double): Double =
-    if (displayed != 0) {
-      won * 100 / displayed
-    } else 0.0
+      .mapConcat(_.flatten)
+      .via(eventAggregation(experiment))
 
   private def findEvents(experiment: Experiment, variant: Variant): F[List[ExperimentVariantEvent]] =
     (store ? FindEvents(experiment.id.key, variant.id)).mapTo[List[ExperimentVariantEvent]].toF
 
-  private def displayed(experiment: Experiment, variant: Variant): F[Long] =
-    (store ? FindCounterDisplayed(experiment.id.key, variant.id)).mapTo[Long].toF
-
-  private def won(experiment: Experiment, variant: Variant): F[Long] =
-    (store ? FindCounterWon(experiment.id.key, variant.id)).mapTo[Long].toF
-
-  override def listAll(patterns: Seq[String]) =
+  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
     Source
       .fromFuture((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])
       .mapConcat(_.toList)

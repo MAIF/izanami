@@ -152,7 +152,7 @@ package object modules {
 
       def getExperimentVariantEventStore(dbType: DbType): ExperimentVariantEventService[IO] = dbType match {
         case InMemory  => ExperimentVariantEventInMemoryService(conf, eventStore)
-        case Redis     => ExperimentVariantEventRedisService(drivers.redisClient, eventStore)
+        case Redis     => ExperimentVariantEventRedisService(conf, drivers.redisClient, eventStore)
         case LevelDB   => ExperimentVariantEventLevelDBService(izanamiConfig.db.leveldb.get, conf, eventStore, applicationLifecycle)
         case Cassandra => ExperimentVariantEventCassandreService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore)
         case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore)
