@@ -182,7 +182,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
           |  "description" : "desc",
           |  "enabled" : true,
           |  "campaign": {
-          |    "from": "${ dateFormatter.format(from)}",
+          |    "from": "${dateFormatter.format(from)}",
           |    "to": "${dateFormatter.format(to)}",
           |    "won": "A"
           |  },

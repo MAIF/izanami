@@ -1,8 +1,8 @@
 package controllers
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicReference}
 
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer}
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.NonEmptyList
 import domains.Key
@@ -24,7 +24,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
-  override def getConfiguration(configuration: Configuration) =
+  override def getConfiguration(configuration: Configuration): Configuration =
     configuration ++ configurationSpec
 
   private lazy val ws                    = izanamiComponents.wsClient
@@ -179,38 +179,40 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       //val lastWin = new AtomicBoolean(true)
       val lastWin = new AtomicReference[Boolean](true)
 
-      val variants = Await.result(Source(1 to 100)
-        .mapAsync(1) { i =>
-          Future {
-            val variant = (ws
-              .url(s"$rootPath/api/experiments/$key/variant")
-              .addQueryStringParameters("clientId" -> s"$i")
-              .get()
-              .futureValue
-              .json \ "id").as[String]
-            // Client ! displayed and won
-            ws.url(s"$rootPath/api/experiments/$key/displayed")
-              .addQueryStringParameters("clientId" -> s"$i")
-              .post("")
-              .futureValue must beAStatus(200)
-            ws.url(s"$rootPath/api/experiments/$key/displayed")
-              .addQueryStringParameters("clientId" -> s"$i")
-              .post("")
-              .futureValue must beAStatus(200)
-
-            // A always win and B 1/2
-            if (variant == "A" || (variant == "B" && lastWin.getAndUpdate(v => !v))) {
-              ws.url(s"$rootPath/api/experiments/$key/won")
+      val variants = Await.result(
+        Source(1 to 100)
+          .mapAsync(10) { i =>
+            Future {
+              val variant = (ws
+                .url(s"$rootPath/api/experiments/$key/variant")
+                .addQueryStringParameters("clientId" -> s"$i")
+                .get()
+                .futureValue
+                .json \ "id").as[String]
+              // Client ! displayed and won
+              ws.url(s"$rootPath/api/experiments/$key/displayed")
                 .addQueryStringParameters("clientId" -> s"$i")
                 .post("")
                 .futureValue must beAStatus(200)
-            }
-            variant
+              ws.url(s"$rootPath/api/experiments/$key/displayed")
+                .addQueryStringParameters("clientId" -> s"$i")
+                .post("")
+                .futureValue must beAStatus(200)
 
-          }(system.dispatcher)
-        }
-        .runWith(Sink.seq), 5.minutes)
+              // A always win and B 1/2
+              if (variant == "A" || (variant == "B" && lastWin.getAndUpdate(v => !v))) {
+                ws.url(s"$rootPath/api/experiments/$key/won")
+                  .addQueryStringParameters("clientId" -> s"$i")
+                  .post("")
+                  .futureValue must beAStatus(200)
+              }
+              variant
 
+            }(system.dispatcher)
+          }
+          .runWith(Sink.seq),
+        5.minutes
+      )
 
       val aCount = variants.count(_ == "A")
       val bCount = variants.count(_ == "B")

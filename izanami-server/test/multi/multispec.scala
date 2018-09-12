@@ -56,20 +56,28 @@ object Configs {
       """.stripMargin).resolve()
   )
 
-  val redisConfiguration: Configuration = Configuration(
+  def redisConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
          |izanami.db.default="Redis"
          |izanami.patchEnabled = false
          |izanami.mode= "test"
+         |izanami.namespace="izanami-${Random.nextInt(1000)}"
          |izanami.config.db.type=$${izanami.db.default}
+         |izanami.config.db.conf.namespace="izanami-${Random.nextInt(1000)}:configuration"
          |izanami.features.db.type=$${izanami.db.default}
+         |izanami.features.db.conf.namespace="izanami-${Random.nextInt(1000)}:feature"
          |izanami.globalScript.db.type=$${izanami.db.default}
+         |izanami.globalScript.db.conf.namespace="izanami-${Random.nextInt(1000)}:script"
          |izanami.experiment.db.type=$${izanami.db.default}
-         |izanami.variantBinding.db.type=$${izanami.db.default}
+         |izanami.experiment.db.conf.namespace="izanami-${Random.nextInt(1000)}:experiment"
          |izanami.experimentEvent.db.type=$${izanami.db.default}
+         |izanami.experimentEvent.db.conf.namespace="izanami-${Random.nextInt(1000)}:events"
          |izanami.webhook.db.type=$${izanami.db.default}
+         |izanami.webhook.db.conf.namespace="izanami-${Random.nextInt(1000)}:hooks"
          |izanami.user.db.type=$${izanami.db.default}
+         |izanami.user.db.conf.namespace="izanami-${Random.nextInt(1000)}:user"
          |izanami.apikey.db.type=$${izanami.db.default}
+         |izanami.apikey.db.conf.namespace="izanami-${Random.nextInt(1000)}:apikey"
          |izanami.patch.db.type=$${izanami.db.default}
          |
          |izanami {
