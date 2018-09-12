@@ -1,4 +1,4 @@
-import { get } from 'lodash/get'
+import get from 'lodash/get'
 
 export const getIsActive = (features, path) => {
   return path
