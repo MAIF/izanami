@@ -87,7 +87,7 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
   private var datas: Map[String, List[ExperimentVariantEvent]] =
     Map.empty[String, List[ExperimentVariantEvent]]
 
-  val experimentseventsNamespace: String    = "experimentsevents"
+  val experimentseventsNamespace: String = "experimentsevents"
 
   def transformation(displayed: Long, won: Long): Double =
     if (displayed != 0) {
@@ -102,7 +102,7 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
       val events: List[ExperimentVariantEvent] =
         datas.getOrElse(eventKey, List.empty[ExperimentVariantEvent])
 
-      datas = datas + (eventKey                  -> (event :: events))
+      datas = datas + (eventKey -> (event :: events))
       sender() ! event
 
     case FindEvents(experimentId, variantId) =>
