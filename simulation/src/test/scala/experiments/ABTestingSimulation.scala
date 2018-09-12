@@ -35,7 +35,7 @@ class ABTestingSimulation extends Simulation {
     .acceptLanguageHeader("en-US,en;q=0.5")
 
   val scn = scenario("A/B test")
-    .repeat(10, "n") {
+    .repeat(100, "n") {
       randomSwitch(
         50d ->
         exec(
@@ -52,7 +52,7 @@ class ABTestingSimulation extends Simulation {
                 .headers(sentHeaders)
             ).pause(1.second)
           ),
-        50d ->
+        30d ->
         exec(
           http("Displayed B request")
             .post(s"/api/experiments/$experimentId/displayed?id=B&clientId=user-$${n}@maif.fr")
@@ -63,6 +63,21 @@ class ABTestingSimulation extends Simulation {
             70d -> exec(
               http("Won B request")
                 .post(s"/api/experiments/$experimentId/won?id=B&clientId=user-$${n}@gmail.com")
+                .body(StringBody("{}"))
+                .headers(sentHeaders)
+            ).pause(1.second)
+          ),
+        20d ->
+        exec(
+          http("Displayed C request")
+            .post(s"/api/experiments/$experimentId/displayed?id=C&clientId=user-$${n}@maif.fr")
+            .body(StringBody("{}"))
+            .headers(sentHeaders)
+        ).pause(1.second)
+          .randomSwitch(
+            70d -> exec(
+              http("Won C request")
+                .post(s"/api/experiments/$experimentId/won?id=C&clientId=user-$${n}@gmail.com")
                 .body(StringBody("{}"))
                 .headers(sentHeaders)
             ).pause(1.second)

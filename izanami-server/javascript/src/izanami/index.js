@@ -144,10 +144,10 @@ export class LoggedApp extends Component {
                 </a>
                 <ul className="dropdown-menu">
                   {userManagementEnabled && [
-                    <li>
+                    <li key="li-users">
                       <Link to="/users" className="" style={{cursor: 'pointer'}}>Users management</Link>
                     </li>,
-                    <li>
+                    <li key="li-apikeys">
                       <Link to="/apikeys" className="" style={{cursor: 'pointer'}}>Api Keys management</Link>
                     </li>
                     ]

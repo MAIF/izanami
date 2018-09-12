@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.Semigroup
+import cats.data.Validated
 import cats.effect.Effect
 import cats.kernel.Monoid
 import domains.events.EventStore
@@ -86,7 +87,8 @@ object Result {
     }
   }
 
-  type Result[+E] = Either[AppErrors, E]
+  type ValidatedResult[+E] = Validated[AppErrors, E]
+  type Result[+E]          = Either[AppErrors, E]
   def ok[E](event: E): Result[E]            = Right(event)
   def error[E](error: AppErrors): Result[E] = Left(error)
   def error[E](messages: String*): Result[E] =

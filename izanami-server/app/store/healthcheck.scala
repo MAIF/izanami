@@ -3,7 +3,7 @@ package store
 import akka.actor.ActorSystem
 import cats.Applicative
 import domains.Key
-import domains.abtesting.{ExperimentService, ExperimentVariantEventService, VariantBindingKey, VariantBindingService}
+import domains.abtesting.{ExperimentService, ExperimentVariantEventService}
 import domains.apikey.ApikeyService
 import domains.config.ConfigService
 import domains.events.EventStore
@@ -18,7 +18,6 @@ class Healthcheck[F[_]: Applicative](
     configStore: ConfigService[F],
     featureStore: FeatureService[F],
     experimentStore: ExperimentService[F],
-    variantBindingStore: VariantBindingService[F],
     experimentVariantEventStore: ExperimentVariantEventService[F],
     webhookStore: WebhookService[F],
     userStore: UserService[F],
@@ -36,12 +35,11 @@ class Healthcheck[F[_]: Applicative](
       configStore.getById(key),
       featureStore.getById(key),
       experimentStore.getById(key),
-      variantBindingStore.getById(VariantBindingKey(key)),
       experimentVariantEventStore.check(),
       webhookStore.getById(key),
       userStore.getById(key),
       apikeyStore.getById(key)
-    ).mapN { (_, _, _, _, _, _, _, _, _, _) =>
+    ).mapN { (_, _, _, _, _, _, _, _, _) =>
       ()
     }
   }

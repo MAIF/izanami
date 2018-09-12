@@ -6,7 +6,7 @@ import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
 import cats.effect.Effect
-import com.datastax.driver.core.{Cluster, Session, SimpleStatement}
+import com.datastax.driver.core.{Session, SimpleStatement}
 import domains.abtesting._
 import domains.events.EventStore
 import env.{CassandraConfig, DbDomainConfig}
@@ -69,76 +69,6 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
          | """.stripMargin
     )
 
-  //Won table
-  session
-    .execute(
-      s"""
-         | CREATE TABLE IF NOT EXISTS ${keyspace}.${namespaceFormatted}_won
-         |  (counter_value counter,
-         |  experimentId text,
-         |  variantId text,
-         |  PRIMARY KEY (experimentId, variantId)
-         |)
-         | """.stripMargin
-    )
-
-  //Displayed table
-  session
-    .execute(
-      s"""
-         | CREATE TABLE IF NOT EXISTS ${keyspace}.${namespaceFormatted}_displayed
-         |  (counter_value counter,
-         |  experimentId text,
-         |  variantId text,
-         |  PRIMARY KEY (experimentId, variantId)
-         |)
-         | """.stripMargin
-    )
-
-  private def incrWon(experimentId: String, variantId: String): F[Done] =
-    executeWithSession(
-      s"UPDATE ${keyspace}.${namespaceFormatted}_won SET counter_value = counter_value + 1 WHERE experimentId = ? AND variantId = ? ",
-      experimentId,
-      variantId
-    ).map(_ => Done)
-
-  private def getWon(experimentId: String, variantId: String): F[Long] =
-    executeWithSession(
-      s"SELECT counter_value FROM ${keyspace}.${namespaceFormatted}_won WHERE experimentId = ? AND variantId = ? ",
-      experimentId,
-      variantId
-    ).map(
-      rs =>
-        Option(rs.one())
-          .flatMap(o => Option(o.getLong("counter_value")))
-          .getOrElse(0)
-    )
-
-  private def incrAndGetWon(experimentId: String, variantId: String): F[Long] =
-    incrWon(experimentId, variantId).flatMap(_ => getWon(experimentId, variantId))
-
-  private def incrDisplayed(experimentId: String, variantId: String): F[Done] =
-    executeWithSession(
-      s"UPDATE ${keyspace}.${namespaceFormatted}_displayed SET counter_value = counter_value + 1 WHERE experimentId = ? AND variantId = ? ",
-      experimentId,
-      variantId
-    ).map(_ => Done)
-
-  private def getDisplayed(experimentId: String, variantId: String): F[Long] =
-    executeWithSession(
-      s"SELECT counter_value FROM ${keyspace}.${namespaceFormatted}_displayed WHERE experimentId = ? AND variantId = ? ",
-      experimentId,
-      variantId
-    ).map(
-      rs =>
-        Option(rs.one())
-          .flatMap(o => Option(o.getLong("counter_value")))
-          .getOrElse(0)
-    )
-
-  private def incrAndGetDisplayed(experimentId: String, variantId: String): F[Long] =
-    incrDisplayed(experimentId, variantId).flatMap(_ => getDisplayed(experimentId, variantId))
-
   private def saveToCassandra(id: ExperimentVariantEventKey, data: ExperimentVariantEvent) = {
     val query =
       s"INSERT INTO ${keyspace}.$namespaceFormatted (experimentId, variantId, clientId, namespace, id, value) values (?, ?, ?, ?, ?, ?) IF NOT EXISTS "
@@ -155,28 +85,10 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
   }
 
   override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
-    data match {
-      case e: ExperimentVariantDisplayed =>
-        for {
-          displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
-          won       <- getWon(id.experimentId.key, id.variantId)              // get won counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave = e.copy(transformation = transformation)
-          result <- saveToCassandra(id, toSave) // add event
-          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-        } yield result
-      case e: ExperimentVariantWon =>
-        for {
-          won       <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-          displayed <- getDisplayed(id.experimentId.key, id.variantId)  // get display counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave = e.copy(transformation = transformation)
-          result <- saveToCassandra(id, toSave) // add event
-          _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-        } yield result
-    }
+    for {
+      result <- saveToCassandra(id, data) // add event
+      _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
+    } yield result
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     experiment.variants.toList
@@ -193,39 +105,23 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
         r.traverse(e => eventStore.publish(ExperimentVariantEventsDeleted(experiment)))
       }
 
-  def getVariantResult(experimentId: String, variant: Variant): Source[VariantResult, NotUsed] = {
+  def getVariantResult(experiment: Experiment, variant: Variant): Source[VariantResult, NotUsed] = {
     val variantId: String = variant.id
-    val events: Source[Seq[ExperimentVariantEvent], NotUsed] = CassandraSource(
+    CassandraSource(
       new SimpleStatement(
         s"SELECT value FROM ${keyspace}.$namespaceFormatted WHERE experimentId = ? and variantId = ? ",
-        experimentId,
+        experiment.id.key,
         variantId
       )
     ).map(r => r.getString("value"))
       .map(Json.parse)
       .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
-      .fold(Seq.empty[ExperimentVariantEvent])(_ :+ _)
-
-    val won: Source[Long, NotUsed] =
-      Source.fromFuture(getWon(experimentId, variantId).toIO.unsafeToFuture())
-    val displayed: Source[Long, NotUsed] =
-      Source.fromFuture(getDisplayed(experimentId, variantId).toIO.unsafeToFuture())
-
-    events.zip(won).zip(displayed).map {
-      case ((e, w), d) =>
-        VariantResult(
-          variant = Some(variant),
-          displayed = d,
-          won = w,
-          transformation = if (d != 0) (w * 100.0) / d else 0.0,
-          events = e
-        )
-    }
+      .via(ExperimentVariantEvent.eventAggregation(experiment))
   }
 
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
     Source(experiment.variants.toList)
-      .flatMapMerge(4, v => getVariantResult(experiment.id.key, v))
+      .flatMapMerge(4, v => getVariantResult(experiment, v))
 
   override def listAll(patterns: Seq[String]) =
     CassandraSource(

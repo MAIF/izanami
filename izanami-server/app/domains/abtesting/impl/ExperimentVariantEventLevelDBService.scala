@@ -75,88 +75,18 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
     new LevelDBRedisCommand(db, actorSystem)
   }
 
-  val experimentseventsdisplayedNamespace: String =
-    "experimentseventsdisplayed:count"
-  val experimentseventswonNamespace: String = "experimentseventswon:count"
-  val experimentseventsNamespace: String    = "experimentsevents"
-
-  private def buildData(
-      eventsKey: String,
-      displayed: Long,
-      won: Long,
-      data: ExperimentVariantEvent,
-      function: (ExperimentVariantEvent, Double) => ExperimentVariantEvent
-  )(implicit ec: ExecutionContext): F[Result[ExperimentVariantEvent]] = {
-    val transformation: Double = if (displayed != 0) {
-      (won * 100.0) / displayed
-    } else {
-      0.0
-    }
-
-    val dataToSave = function(data, transformation)
-
-    client
-      .sadd(eventsKey, Json.stringify(ExperimentVariantEventInstances.format.writes(dataToSave)))
-      .map { _ =>
-        Result.ok(dataToSave)
-      }
-  }
+  val experimentseventsNamespace: String = "experimentsevents"
 
   override def create(id: ExperimentVariantEventKey,
                       data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
-    // le compteur des displayed
-    val displayedCounter: String =
-      s"$experimentseventsdisplayedNamespace:${id.experimentId.key}:${id.variantId}"
-    // le compteur des won
-    val wonCounter: String =
-      s"$experimentseventswonNamespace:${id.experimentId.key}:${id.variantId}"
-
     val eventsKey: String =
-      s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}" // le sorted set des events
-
-    def transformationDisplayed(data: ExperimentVariantEvent, transformation: Double): ExperimentVariantEvent = {
-      val dataToSave: ExperimentVariantDisplayed =
-        data.asInstanceOf[ExperimentVariantDisplayed]
-      dataToSave.copy(
-        transformation = transformation
-      )
-    }
-
-    def transformationWon(data: ExperimentVariantEvent, transformation: Double): ExperimentVariantEvent = {
-      val dataToSave: ExperimentVariantWon =
-        data.asInstanceOf[ExperimentVariantWon]
-      dataToSave.copy(
-        transformation = transformation
-      )
-    }
-
-    data match {
-      case _: ExperimentVariantDisplayed =>
-        for {
-          displayed <- client.incr(displayedCounter) // increment display counter
-          maybeWon  <- client.get(wonCounter)        // get won counter
-          result <- buildData(eventsKey,
-                              displayed,
-                              maybeWon.map(_.utf8String.toLong).getOrElse(0),
-                              data,
-                              transformationDisplayed) // add event
-          _ <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-        } yield result
-      case _: ExperimentVariantWon =>
-        for {
-          won            <- client.incr(wonCounter)      // increment won counter
-          maybeDisplayed <- client.get(displayedCounter) // get display counter
-          result <- buildData(eventsKey,
-                              maybeDisplayed.map(_.utf8String.toLong).getOrElse(0),
-                              won,
-                              data,
-                              transformationWon) // add event
-          _ <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-        } yield result
-      case _ =>
-        Logger.error("Event not recognized")
-        Result.error[ExperimentVariantEvent]("unknow.event.type").pure[F]
-    }
+      s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}"
+    for {
+      result <- client
+                 .sadd(eventsKey, Json.stringify(ExperimentVariantEventInstances.format.writes(data)))
+                 .map(l => Result.ok(data))
+      _ <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
+    } yield result
   }
 
   private def findEvents(eventVariantKey: String): Source[ExperimentVariantEvent, NotUsed] =
@@ -183,85 +113,19 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
       )
       .mapConcat(identity)
 
-  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] = {
-    val eventualVariantResult: F[List[VariantResult]] = for {
-      variantKeys <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-      variants <- variantKeys.toList.traverse { variantKey =>
-                   val currentVariantId: String =
-                     variantKey.replace(s"$experimentseventsNamespace:${experiment.id.key}:", "")
-                   val maybeVariant: Option[Variant] =
-                     experiment.variants.find(variant => {
-                       variant.id == currentVariantId
-                     })
-
-                   val fEvents: F[immutable.Seq[ExperimentVariantEvent]] = findEvents(variantKey).runWith(Sink.seq).toF
-                   val fDisplayed: F[Option[ByteString]] =
-                     client.get(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:$currentVariantId")
-                   val fWon: F[Option[ByteString]] =
-                     client.get(s"$experimentseventswonNamespace:${experiment.id.key}:$currentVariantId")
-
-                   for {
-                     events         <- fEvents
-                     maybeDisplayed <- fDisplayed
-                     maybeWon       <- fWon
-                   } yield {
-                     val displayed: Long =
-                       maybeDisplayed.map(_.utf8String.toLong).getOrElse(0)
-                     val won: Long = maybeWon.map(_.utf8String.toLong).getOrElse(0)
-                     val transformation: Double = if (displayed != 0) {
-                       (won * 100) / displayed
-                     } else {
-                       0.0
-                     }
-
-                     VariantResult(
-                       variant = maybeVariant,
-                       events = events,
-                       transformation = transformation,
-                       displayed = displayed,
-                       won = won
-                     )
-                   }
-                 }
-    } yield variants
-
-    Source.fromFuture(eventualVariantResult.toIO.unsafeToFuture()).mapConcat(identity)
-  }
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
+    Source
+      .fromFuture(client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*").toIO.unsafeToFuture())
+      .mapConcat(k => k.toList)
+      .flatMapMerge(4, findEvents)
+      .via(ExperimentVariantEvent.eventAggregation(experiment))
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     for {
-      displayedCounterKey <- client.keys(s"$experimentseventsdisplayedNamespace:${experiment.id.key}:*")
-      wonCounterKey       <- client.keys(s"$experimentseventswonNamespace:${experiment.id.key}:*")
-      eventsKey           <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-      _                   <- displayedCounterKey.toList.traverse(key => client.del(key)) // remove displayed counter
-      _                   <- wonCounterKey.toList.traverse(key => client.del(key)) // remove won counter
-      _                   <- eventsKey.toList.traverse(key => client.del(key)) // remove events list
-      _                   <- eventStore.publish(ExperimentVariantEventsDeleted(experiment))
+      eventsKey <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+      _         <- eventsKey.toList.traverse(key => client.del(key)) // remove events list
+      _         <- eventStore.publish(ExperimentVariantEventsDeleted(experiment))
     } yield Result.ok(Done)
-
-  private def get(key: String): F[Option[ByteString]] =
-    Async[F].async { cb =>
-      try {
-        val r = getValueAt(key).map(ByteString.apply)
-        cb(Right(r))
-      } catch {
-        case NonFatal(e) => cb(Left(e))
-      }
-    }
-
-  private def keys(pattern: String): F[Seq[String]] =
-    Async[F].async { cb =>
-      val regex = pattern.replaceAll("\\*", ".*")
-      val pat   = Pattern.compile(regex)
-      try {
-        val r = getAllKeys().filter { k =>
-          pat.matcher(k).find
-        }
-        cb(Right(r))
-      } catch {
-        case NonFatal(e) => cb(Left(e))
-      }
-    }
 
   private def getValueAt(key: String): Option[String] =
     Try(db.get(bytes(key))).toOption.flatMap(s => Option(asString(s)))

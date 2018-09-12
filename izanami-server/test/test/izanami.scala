@@ -3,7 +3,7 @@ package test
 import akka.http.scaladsl.util.FastFuture
 import cats.effect.IO
 import controllers.actions.{AuthContext, SecuredAuthContext}
-import domains.AuthorizedPattern
+import domains.{AuthorizedPattern, Domain}
 import domains.user.User
 import modules.IzanamiComponentsInstances
 import org.scalactic.Prettifier
@@ -19,7 +19,13 @@ import play.api.libs.ws.WSResponse
 import play.api.mvc.{ActionBuilder, _}
 import store.leveldb.DbStores
 import StoresTest._
+import akka.{Done, NotUsed}
+import akka.stream.scaladsl.Source
+import cats.Applicative
+import domains.events.{EventStore, Events}
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 
 trait IzanamiSpec extends WordSpec with MustMatchers with OptionValues
@@ -162,4 +168,22 @@ class FakeApplicationLifecycle extends ApplicationLifecycle {
   override def addStopHook(hook: () => Future[_]): Unit = ()
 
   override def stop(): Future[_] = FastFuture.successful(())
+}
+
+class TestEventStore[F[_]: Applicative](val events: ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty)
+    extends EventStore[F] {
+  import cats.implicits._
+
+  override def publish(event: Events.IzanamiEvent): F[Done] = {
+    events += event
+    Applicative[F].pure(Done)
+  }
+
+  override def events(domains: Seq[Domain.Domain],
+                      patterns: Seq[String],
+                      lastEventId: Option[Long]): Source[Events.IzanamiEvent, NotUsed] =
+    Source(events.toList)
+
+  override def check(): F[Unit] = ().pure[F]
+  override def close(): Unit    = ()
 }

@@ -53,8 +53,6 @@ GET     /api/tree/experiments               controllers.effect.ExperimentControl
 POST    /api/experiments                    controllers.effect.ExperimentControllerEff.create()
 GET     /api/experiments.ndjson             controllers.effect.ExperimentControllerEff.downloadExperiments()
 POST    /api/experiments.ndjson             controllers.effect.ExperimentControllerEff.uploadExperiments()
-GET     /api/experiments/bindings.ndjson    controllers.effect.ExperimentControllerEff.downloadBindings()
-POST    /api/experiments/bindings.ndjson    controllers.effect.ExperimentControllerEff.uploadBindings()
 GET     /api/experiments/events.ndjson      controllers.effect.ExperimentControllerEff.downloadEvents()
 POST    /api/experiments/events.ndjson      controllers.effect.ExperimentControllerEff.uploadEvents()
 DELETE  /api/experiments                    controllers.effect.ExperimentControllerEff.deleteAll(pattern: String ?= "*")
