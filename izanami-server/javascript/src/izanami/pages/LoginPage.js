@@ -32,6 +32,14 @@ export class LoginPage extends Component {
     })
   };
 
+  componentDidMount() {
+    window.addEventListener('keydown', this.loginOnKeyDown);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.loginOnKeyDown);
+  }
+
   login = () => {
     IzanamiServices.fetchLogin(this.state.value).then(({status, body}) => {
       if (status === 200) {
@@ -47,6 +55,12 @@ export class LoginPage extends Component {
     })
   };
 
+  loginOnKeyDown = (event) => {
+    if (event.key === 'Enter') {
+        this.login();
+    }
+  };
+
   render() {
     return (
       <div className="container-fluid">
@@ -59,21 +73,23 @@ export class LoginPage extends Component {
             onChange={value => this.setState({value})}
             flow={this.formFlow}
             schema={this.formSchema}
-          />
-          <hr/>
-          {this.state.error &&
-            <div className="col-sm-offset-2 panel-group">
-              <Alerts display={this.state.error} messages={[{message: "auth.invalid.login"}]}/>
+            onSubmit={this.login}
+          >
+            <hr/>
+            {this.state.error &&
+              <div className="col-sm-offset-2 panel-group">
+                <Alerts display={this.state.error} messages={[{message: "auth.invalid.login"}]}/>
+              </div>
+            }
+            <div className="form-buttons pull-right">
+              <button type="button" className="btn btn-danger" onClick={this.clean}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" >
+                <i className="glyphicon glyphicon-hdd"/> Login
+              </button>
             </div>
-          }
-          <div className="form-buttons pull-right">
-            <button type="button" className="btn btn-danger" onClick={this.clean}>
-              Cancel
-            </button>
-            <button type="button" className="btn btn-primary" onClick={this.login}>
-              <i className="glyphicon glyphicon-hdd"/> Login
-            </button>
-          </div>
+          </Form>
         </div>
       </div>
     );

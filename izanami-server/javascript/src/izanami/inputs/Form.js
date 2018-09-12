@@ -177,10 +177,11 @@ export class Form extends Component {
 
   render() {
     return (
-      <form className="form-horizontal" style={this.props.style}>
+      <form className="form-horizontal" style={this.props.style} {...this.props} >
         {
           this.props.flow.map((step, idx) => this.generateStep(step, idx))
         }
+        {this.props.children}
       </form>
     );
   }
