@@ -21,7 +21,6 @@ import store.Result
 
 import scala.collection.JavaConverters._
 
-
 object ExperimentVariantEventRedisService {
   def apply[F[_]: Effect](configdb: DbDomainConfig, maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
       implicit actorSystem: ActorSystem
