@@ -20,10 +20,10 @@
     "deepmerge": "^1.4.4",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.3",
-    "lodash": "^4.17.4",
+    "lodash": "^4.17.5",
     "prop-types": "15.6.0",
     "react": "16.0.0",
-    "react-dom": "16.0.0",
+    "react-dom": "16.0.1",
     "whatwg-fetch": "2.0.3"
   },
   "devDependencies": {
