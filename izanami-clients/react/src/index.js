@@ -3,8 +3,8 @@ import { FeatureProvider } from './features';
 import { ExperimentsProvider } from './experiments';
 import * as Api from './api';
 import { object, bool, string, func, oneOfType } from 'prop-types';
-import { isFunction } from 'lodash/isFunction';
-import { isString } from 'lodash/isString';
+import isFunction from 'lodash/isFunction';
+import isString from 'lodash/isString';
 
 export * as Api from './api';
 export * from './features';
