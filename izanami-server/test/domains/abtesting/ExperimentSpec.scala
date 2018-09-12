@@ -532,8 +532,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val service                                         = fakeExperimentService(store, events)
       implicit val eeS: ExperimentVariantEventService[IO] = expEventsService()
 
-      val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS)
-      val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS)
+      val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
+      val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val id   = Key("test")
       val variantA = Variant(id = "A",
                              name = "name A",
@@ -574,8 +574,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val service                                         = fakeExperimentService(store, events)
       implicit val eeS: ExperimentVariantEventService[IO] = expEventsService()
 
-      val from = LocalDateTime.now().minus(2, ChronoUnit.HOURS)
-      val to   = LocalDateTime.now().minus(1, ChronoUnit.MINUTES)
+      val from = LocalDateTime.now().minus(2, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
+      val to   = LocalDateTime.now().minus(1, ChronoUnit.MINUTES).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val id   = Key("test")
       val variantA = Variant(id = "A",
                              name = "name A",
@@ -623,8 +623,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val service                                         = fakeExperimentService(store, events)
       implicit val eeS: ExperimentVariantEventService[IO] = expEventsService()
 
-      val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS)
-      val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS)
+      val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
+      val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val id   = Key("test")
       val variantA = Variant(id = "A",
                              name = "name A",
