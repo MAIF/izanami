@@ -42,29 +42,21 @@ then
 
         PACKAGE_VERSION=$(echo "${TRAVIS_TAG}" | cut -d "v" -f 2)
         cd ${LOCATION}/izanami-clients/react
-        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
-        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
-        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
-        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
         npm version ${PACKAGE_VERSION}
         npm install
         npm publish
 
         cd ${LOCATION}/izanami-clients/node
-        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
-        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
-        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
-        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
         npm version ${PACKAGE_VERSION}
         npm publish
 
         cd ${LOCATION}/izanami-clients/angular
-        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
-        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
-        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
-        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+
         npm version ${PACKAGE_VERSION}
         npm install
         npm run packagr
