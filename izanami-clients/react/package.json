@@ -1,6 +1,6 @@
 {
   "name": "react-izanami",
-  "version": "1.0.9",
+  "version": "1.0.7",
   "description": "A set of React Component to use izanami idiomatically",
   "main": "lib/index.js",
   "author": "MAIF Team",
@@ -10,7 +10,7 @@
     "url": "git://github.com/MAIF/izanami.git"
   },
   "scripts": {
-    "prepublishOnly": "node_modules/babel-cli/bin/babel.js src --out-dir lib",
+    "prepublishOnly": "node_modules/@babel/cli/bin/babel.js src --out-dir lib",
     "bundle": "cross-env NODE_ENV=production webpack --colors --progress",
     "build": "rm -f ./dist/* && npm run bundle",
     "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3040"
