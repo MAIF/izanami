@@ -8,11 +8,11 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import domains.events.EventStore
 import domains.user.User.UserKey
 import domains._
+import libs.crypto.Sha
 import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
 import store.Result.Result
-
 import store._
 
 import scala.concurrent.ExecutionContext
@@ -98,7 +98,9 @@ class UserServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: Eve
   override def create(id: UserKey, data: User): F[Result[User]] = {
     // format: off
     val r: EitherT[F, AppErrors, User] = for {
-      created     <- jsonStore.create(id, UserInstances.format.writes(data))   |> liftFEither
+      pass        <- data.password                                             |> liftOption(AppErrors.error("password.missing"))
+      user        =  data.copy(password = Some(Sha.hexSha512(pass)))
+      created     <- jsonStore.create(id, UserInstances.format.writes(user))   |> liftFEither
       user        <- created.validate[User]                           |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(UserCreated(id, user))        |> liftF[AppErrors, Done]
     } yield user
@@ -110,7 +112,8 @@ class UserServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: Eve
     // format: off
     val r: EitherT[F, AppErrors, User] = for {
       oldValue    <- getById(oldId)                                             |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, UserInstances.format.writes(data))      |> liftFEither
+      user =      data.copy(password = data.password.map(p => Sha.hexSha512(p)))
+      updated     <- jsonStore.update(oldId, id, UserInstances.format.writes(user))      |> liftFEither
       user        <- updated.validate[User]                                     |> liftJsResult{ handleJsError }
       _           <- eventStore.publish(UserUpdated(id, oldValue, user))        |> liftF[AppErrors, Done]
     } yield user
