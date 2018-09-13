@@ -73,7 +73,6 @@ export class LoginPage extends Component {
             onChange={value => this.setState({value})}
             flow={this.formFlow}
             schema={this.formSchema}
-            onSubmit={this.login}
           >
             <hr/>
             {this.state.error &&
@@ -85,7 +84,7 @@ export class LoginPage extends Component {
               <button type="button" className="btn btn-danger" onClick={this.clean}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" >
+              <button type="button" className="btn btn-primary" onClick={this.login}>
                 <i className="glyphicon glyphicon-hdd"/> Login
               </button>
             </div>
