@@ -177,7 +177,7 @@ export class Form extends Component {
 
   render() {
     return (
-      <form className="form-horizontal" style={this.props.style} {...this.props} >
+      <form className="form-horizontal" style={this.props.style}>
         {
           this.props.flow.map((step, idx) => this.generateStep(step, idx))
         }
