@@ -86,6 +86,34 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
       )
     }
 
+    "update changing id" in {
+
+      val key  = "toto1@maif.fr"
+      val key2 = "toto2@maif.fr"
+
+      /* Create */
+      val apikey =
+        Json.obj("name" -> key, "clientId" -> key, "clientSecret" -> "clientSecret", "authorizedPattern" -> "*")
+      ws.url(s"$rootPath/api/apikeys").post(apikey).futureValue must beAStatus(201)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAResponse(200, apikey)
+
+      /* Update */
+      val apikeyUpdated =
+        Json.obj("name"              -> key2,
+                 "clientId"          -> key2,
+                 "clientSecret"      -> "clientSecret1",
+                 "authorizedPattern" -> "monclubfacile:*")
+      ws.url(s"$rootPath/api/apikeys/$key")
+        .put(apikeyUpdated)
+        .futureValue must beAStatus(200)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/apikeys/$key2").get().futureValue must beAResponse(200, apikeyUpdated)
+
+      ws.url(s"$rootPath/api/apikeys/$key").get().futureValue must beAStatus(404)
+    }
   }
 
 }

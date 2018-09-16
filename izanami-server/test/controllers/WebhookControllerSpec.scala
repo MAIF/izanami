@@ -125,7 +125,59 @@ class WebhookControllerSpec(name: String, configurationSpec: Configuration)
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
-//TO FRAGILE FOR TRAVIS => TODO: FIX IT
+
+    "update changing id" in {
+
+      val key  = "my:path:1"
+      val key2 = "my:path:2"
+
+      /* Create */
+      val webhook = Json.obj(
+        "clientId"    -> key,
+        "callbackUrl" -> "http://localhost:5000",
+        "domains"     -> Json.arr(),
+        "patterns"    -> Json.arr(),
+        "types"       -> Json.arr(),
+        "headers"     -> Json.obj(),
+        "isBanned"    -> false
+      )
+      ws.url(s"$rootPath/api/webhooks")
+        .post(webhook)
+        .futureValue must beAStatus(201)
+
+      /* Verify */
+      val getById = ws.url(s"$rootPath/api/webhooks/$key").get().futureValue
+      getById must beAStatus(200)
+      (getById.json.as[JsObject] - "created") must be(webhook)
+
+      formatResults(ws.url(s"$rootPath/api/webhooks").get().futureValue.json) must be(
+        Json.obj("results"  -> Json.arr(webhook),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
+      )
+
+      /* Update */
+      val webhookUpdated = Json.obj(
+        "clientId"    -> key2,
+        "callbackUrl" -> "http://localhost:5000/v2",
+        "domains"     -> Json.arr(),
+        "patterns"    -> Json.arr(),
+        "types"       -> Json.arr(),
+        "headers"     -> Json.obj(),
+        "isBanned"    -> false
+      )
+      ws.url(s"$rootPath/api/webhooks/$key")
+        .put(webhookUpdated)
+        .futureValue must beAStatus(200)
+
+      /* Verify */
+      val getByIdUpdated =
+        ws.url(s"$rootPath/api/webhooks/$key2").get().futureValue
+      getByIdUpdated must beAStatus(200)
+
+      ws.url(s"$rootPath/api/webhooks/$key").get().futureValue must beAStatus(404)
+    }
+
+    //TO FRAGILE FOR TRAVIS => TODO: FIX IT
 //    "call webhook on event" in {
 //
 //      withServer(buildBasicServer()) { ctx =>
