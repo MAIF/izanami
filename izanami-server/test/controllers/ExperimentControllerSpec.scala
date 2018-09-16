@@ -141,11 +141,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       val experimentUpdatedJson = Json.toJson(experiment.copy(id = Key(key2), enabled = true))
       ws.url(s"$rootPath/api/experiments/$key")
         .put(experimentUpdatedJson)
-        .futureValue must beAStatus(200)
-
-      /* Verify */
-      ws.url(s"$rootPath/api/experiments/$key2").get().futureValue must beAResponse(200, experimentUpdatedJson)
-      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAStatus(404)
+        .futureValue must beAStatus(400)
     }
 
     "A/B testing population binding" in {
