@@ -83,6 +83,31 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       )
     }
 
+    "update changing id" in {
+
+      val key  = "my:path:1"
+      val key2 = "my:path:2"
+
+      /* Create */
+      val config = Json.obj("id" -> key, "value" -> "value")
+      ws.url(s"$rootPath/api/configs").post(config).futureValue must beAStatus(201)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/configs/$key").get().futureValue must beAResponse(200, config)
+
+      /* Update */
+      val configUpdated = Json.obj("id" -> key2, "value" -> "value updated")
+      ws.url(s"$rootPath/api/configs/$key")
+        .put(configUpdated)
+        .futureValue must beAStatus(200)
+
+      /* Verify */
+      val getByIdUpdated =
+        ws.url(s"$rootPath/api/configs/$key2").get().futureValue
+      getByIdUpdated must beAResponse(200, configUpdated)
+
+      ws.url(s"$rootPath/api/configs/$key").get().futureValue must beAStatus(404)
+    }
   }
 
 }

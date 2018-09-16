@@ -121,10 +121,7 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
           Result.ok(data)
         }
     } else {
-      for {
-        _       <- delete(id)
-        created <- genCreate(id, data)
-      } yield created
+      delete(oldId) *> genCreate(id, data)
     }
 
   override def delete(id: Key): F[Result[JsValue]] =
