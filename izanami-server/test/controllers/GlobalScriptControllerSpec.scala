@@ -84,5 +84,34 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
     }
+
+    "update changing id" in {
+
+      val key  = "toto1@maif.fr"
+      val key2 = "toto2@maif.fr"
+
+      /* Create */
+      val script =
+        Json.obj("id" -> key, "name" -> "test", "description" -> "A test script", "source" -> "function() {}")
+      ws.url(s"$rootPath/api/scripts").post(script).futureValue must beAStatus(201)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/scripts/$key").get().futureValue must beAResponse(200, script)
+
+      /* Update */
+      val scriptUpdated =
+        Json.obj("id"          -> key2,
+                 "name"        -> "test",
+                 "description" -> "A test script",
+                 "source"      -> "function() { console.log('hello')}")
+      ws.url(s"$rootPath/api/scripts/$key")
+        .put(scriptUpdated)
+        .futureValue must beAStatus(200)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/scripts/$key2").get().futureValue must beAResponse(200, scriptUpdated)
+
+      ws.url(s"$rootPath/api/scripts/$key").get().futureValue must beAStatus(404)
+    }
   }
 }

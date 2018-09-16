@@ -85,6 +85,38 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       )
     }
 
+    "update changing id" in {
+
+      val key  = "toto1@maif.fr"
+      val key2 = "toto2@maif.fr"
+
+      /* Create */
+      val feature = Json.obj("id" -> key, "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
+      ws.url(s"$rootPath/api/features")
+        .post(feature)
+        .futureValue must beAStatus(201)
+
+      /* Verify */
+      val getById = ws.url(s"$rootPath/api/features/$key").get().futureValue
+      getById must beAResponse(200, feature)
+
+      ws.url(s"$rootPath/api/features").get().futureValue.json must be(
+        Json.obj("results"  -> Json.arr(feature),
+                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
+      )
+
+      /* Update */
+      val featureUpdated = Json.obj("id" -> key2, "enabled" -> true, "activationStrategy" -> "NO_STRATEGY")
+      ws.url(s"$rootPath/api/features/$key")
+        .put(featureUpdated)
+        .futureValue must beAStatus(200)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/features/$key2").get().futureValue must beAResponse(200, featureUpdated)
+      ws.url(s"$rootPath/api/features/$key").get().futureValue must beAStatus(404)
+
+    }
+
     "return graph with active or inactive features" in {
       /* We start to prune all datas */
       ws.url(s"$rootPath/api/features").delete().futureValue
