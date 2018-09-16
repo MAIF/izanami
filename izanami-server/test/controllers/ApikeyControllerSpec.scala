@@ -102,7 +102,7 @@ class ApikeyControllerSpec(name: String, configurationSpec: Configuration)
       /* Update */
       val apikeyUpdated =
         Json.obj("name"              -> key2,
-                 "clientId"          -> key,
+                 "clientId"          -> key2,
                  "clientSecret"      -> "clientSecret1",
                  "authorizedPattern" -> "monclubfacile:*")
       ws.url(s"$rootPath/api/apikeys/$key")
