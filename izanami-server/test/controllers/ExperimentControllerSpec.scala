@@ -113,6 +113,41 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       )
     }
 
+    "update changing id" in {
+
+      val key  = "toto1@maif.fr"
+      val key2 = "toto2@maif.fr"
+      val experiment = Experiment(
+        id = Key(key),
+        name = "a name",
+        description = Some("A description"),
+        enabled = false,
+        variants = NonEmptyList.of(
+          Variant(id = "A", name = "name A", traffic = Traffic(0.4)),
+          Variant(id = "B", name = "name B", traffic = Traffic(0.6))
+        )
+      )
+      /* Create */
+      val jsonExperiment = Json.toJson(experiment)
+
+      ws.url(s"$rootPath/api/experiments")
+        .post(jsonExperiment)
+        .futureValue must beAStatus(201)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAResponse(200, jsonExperiment)
+
+      /* Update */
+      val experimentUpdatedJson = Json.toJson(experiment.copy(id = Key(key2), enabled = true))
+      ws.url(s"$rootPath/api/experiments/$key")
+        .put(experimentUpdatedJson)
+        .futureValue must beAStatus(200)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/experiments/$key2").get().futureValue must beAResponse(200, experimentUpdatedJson)
+      ws.url(s"$rootPath/api/experiments/$key").get().futureValue must beAStatus(404)
+    }
+
     "A/B testing population binding" in {
 
       /* Create */

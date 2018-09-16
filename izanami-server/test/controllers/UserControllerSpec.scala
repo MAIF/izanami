@@ -83,6 +83,31 @@ class UserControllerSpec(name: String, configurationSpec: Configuration)
       )
     }
 
+    "update changing id" in {
+
+      val key  = "toto1@maif.fr"
+      val key2 = "toto2@maif.fr"
+      /* Create */
+      val user = Json.obj("id" -> key, "name" -> "toto", "email" -> key, "admin" -> true, "authorizedPattern" -> "*")
+      ws.url(s"$rootPath/api/users")
+        .post(user ++ Json.obj("password" -> "password"))
+        .futureValue must beAStatus(201)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/users/$key").get().futureValue must beAResponse(200, user)
+
+      /* Update */
+      val userUpdated =
+        Json.obj("id" -> key2, "name" -> "toto deux", "email" -> key, "admin" -> true, "authorizedPattern" -> "*")
+      ws.url(s"$rootPath/api/users/$key")
+        .put(userUpdated ++ Json.obj("password" -> "password"))
+        .futureValue must beAStatus(200)
+
+      /* Verify */
+      ws.url(s"$rootPath/api/users/$key2").get().futureValue must beAResponse(200, userUpdated)
+      ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
+    }
+
   }
 
 }

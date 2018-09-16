@@ -81,7 +81,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
       } else {
         val res = for {
           _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing") }
-          _ <- deleteRaw(id) |> liftFEither[AppErrors, Unit]
+          _ <- deleteRaw(oldId) |> liftFEither[AppErrors, Unit]
           _ <- createRaw(id, data) |> liftFEither[AppErrors, JsValue]
         } yield data
         res.value
