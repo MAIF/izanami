@@ -122,7 +122,7 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
         }
     } else {
       for {
-        _       <- delete(id)
+        _       <- delete(oldId)
         created <- genCreate(id, data)
       } yield created
     }
