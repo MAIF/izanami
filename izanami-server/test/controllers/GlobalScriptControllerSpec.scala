@@ -87,8 +87,8 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
 
     "update changing id" in {
 
-      val key  = "toto1@maif.fr"
-      val key2 = "toto2@maif.fr"
+      val key  = "my:path:1"
+      val key2 = "my:path:2"
 
       /* Create */
       val script =

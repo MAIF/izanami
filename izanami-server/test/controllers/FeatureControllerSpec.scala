@@ -87,8 +87,8 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
 
     "update changing id" in {
 
-      val key  = "toto1@maif.fr"
-      val key2 = "toto2@maif.fr"
+      val key  = "my:path:1"
+      val key2 = "my:path:2"
 
       /* Create */
       val feature = Json.obj("id" -> key, "enabled" -> false, "activationStrategy" -> "NO_STRATEGY")
@@ -114,6 +114,7 @@ class FeatureControllerSpec(name: String, configurationSpec: Configuration)
       /* Verify */
       ws.url(s"$rootPath/api/features/$key2").get().futureValue must beAResponse(200, featureUpdated)
       ws.url(s"$rootPath/api/features/$key").get().futureValue must beAStatus(404)
+      ws.url(s"$rootPath/api/features/$key2").delete().futureValue must beAStatus(200)
 
     }
 
