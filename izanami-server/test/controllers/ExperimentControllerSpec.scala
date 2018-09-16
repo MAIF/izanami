@@ -115,8 +115,8 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
     "update changing id" in {
 
-      val key  = "toto1@maif.fr"
-      val key2 = "toto2@maif.fr"
+      val key  = "my:path:1"
+      val key2 = "my:path:2"
       val experiment = Experiment(
         id = Key(key),
         name = "a name",
