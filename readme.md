@@ -14,9 +14,8 @@
 [nodeclient-badge]:     https://badge.fury.io/js/izanami-node.svg
 [reactclient]:          https://badge.fury.io/js/react-izanami
 [reactclient-badge]:    https://badge.fury.io/js/react-izanami.svg
-[docker]:               https://bintray.com/maif/docker/izanami/_latestVersion
-[docker-badge]:         https://api.bintray.com/packages/maif/docker/izanami/images/download.svg
-
+[docker]:               https://hub.docker.com/r/maif/izanami/
+[docker-badge]:         https://img.shields.io/docker/pulls/maif/izanami.svg
 
 **Izanami** is a shared configuration service well-suited for micro-service architecture implementation. In addition to shared configuration, Izanami provides feature flipping and A/B Testing. Izanami provides a UI to allow non-tech users to toggle features and to handle A/B testing.
 
