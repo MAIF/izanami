@@ -344,6 +344,44 @@ export class Table extends Component {
       });
   };
 
+  displayNode = (node, level = 0) => {
+    if (node) {
+
+      return node.flatMap( (n, i) => {
+        const spans = [];
+        for (var i = 0; i < level; i++ ) {
+          spans.push(<span className="indent" />);
+        }
+        // console.log('n', n);
+        if (n.nodes!==undefined) {
+          var hasNode="icon expand-icon glyphicon glyphicon-minus"
+          //  ou   var hasNode="icon expand-icon glyphicon glyphicon-plus" quand à déployer
+        }else{
+          var hasNode="icon glyphicon"
+        }
+
+
+          return [<li className="list-group-item node-tree" key={`node-${n.text}-${level}-${i}`}>
+          {spans}
+          <span className={hasNode}></span>
+          <div className="pull-right btn-group btn-group-xs">
+            <button type="button" className="btn btn-xs btn-success" data-toggle="tooltip" data-placement="top" title="Edit this Configuration">
+              <i className="glyphicon glyphicon-pencil"></i>
+            </button>
+            <button type="button" className="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Delete this Configuration">
+              <i className="glyphicon glyphicon-trash"></i>
+            </button>
+          </div>
+          <span className="icon node-icon"></span>
+          {n.text}
+          <div className="btn-group btn-group-sm"><button type="button" className="btn btn-xs btn-primary" data-toggle="tooltip" data-placement="top" title="Add item"><i className="glyphicon glyphicon-plus-sign"></i></button></div>
+        </li>].concat(this.displayNode(n.nodes, level + 1))
+      });
+    } else {
+      return [];
+    }
+  }
+
   uploadFile = link => e => {
     const upload = e => {
       fetch(link, {
@@ -465,6 +503,57 @@ export class Table extends Component {
         ),
       });
     }
+    var defaultData = [
+          {
+            text: 'Parent 1',
+            href: '#parent1',
+            tags: ['4'],
+            nodes: [
+              {
+                text: 'Child 1',
+                href: '#child1',
+                tags: ['2'],
+                nodes: [
+                  {
+                    text: 'Grandchild 1',
+                    href: '#grandchild1',
+                    tags: ['0']
+                  },
+                  {
+                    text: 'Grandchild 2',
+                    href: '#grandchild2',
+                    tags: ['0']
+                  }
+                ]
+              },
+              {
+                text: 'Child 2',
+                href: '#child2',
+                tags: ['0']
+              }
+            ]
+          },
+          {
+            text: 'Parent 2',
+            href: '#parent2',
+            tags: ['0']
+          },
+          {
+            text: 'Parent 3',
+            href: '#parent3',
+             tags: ['0']
+          },
+          {
+            text: 'Parent 4',
+            href: '#parent4',
+            tags: ['0']
+          },
+          {
+            text: 'Parent 5',
+            href: '#parent5'  ,
+            tags: ['0']
+          }
+        ];
     return (
       <div>
           {!this.state.showEditForm &&
@@ -481,6 +570,13 @@ export class Table extends Component {
               </div>
               <div className="row" style={{ marginBottom: 10 }}>
                 <div className="col-md-12">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ marginLeft: 10 }}
+                      {...createTooltip('Switch the view')}>
+                      <span className="glyphicon glyphicon-th-list" /> / <span className="glyphicon glyphicon-signal" style={{transform: 'rotate(90deg)'}}/>
+                    </button>
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -488,6 +584,7 @@ export class Table extends Component {
                     onClick={this.update}>
                     <span className="glyphicon glyphicon-refresh" />
                   </button>
+
                   {this.props.showActions && (
                     <button
                       type="button"
@@ -545,6 +642,11 @@ export class Table extends Component {
                     </div>
                   }
                 </div>
+              </div>
+              <div id="tree" className="treeview">
+                <ul className="list-group">
+                {this.displayNode(defaultData, 0)}
+                </ul>
               </div>
               <div className="rrow">
                 <ReactTable
