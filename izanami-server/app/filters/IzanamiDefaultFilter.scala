@@ -1,5 +1,7 @@
 package filters
 
+import java.util.Base64
+
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.Materializer
 import cats.effect.Effect
@@ -8,6 +10,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces._
 import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.Timer
+import com.google.common.base.Charsets
 import domains.apikey.ApikeyService
 import domains.user.User
 import domains.{AuthInfo, AuthorizedPattern, Key}
@@ -31,7 +34,8 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
 
   import cats.effect.implicits._
 
-  private val logger = Logger("filter")
+  private val logger  = Logger("filter")
+  private val decoder = Base64.getDecoder
 
   private val allowedPath: Seq[String] = izanamiConfig.contextPath match {
     case "/" => config.allowedPaths
@@ -61,13 +65,53 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
     val startTime: Long = System.currentTimeMillis
     val maybeClaim      = Try(requestHeader.cookies.get(config.cookieClaim).get.value).toOption
 
+    val maybeAuthorization = requestHeader.headers
+      .get("Authorization")
+      .map(_.replace("Basic ", ""))
+      .map(_.replace("basic ", ""))
+      .map(a => new String(decoder.decode(a), Charsets.UTF_8))
+      .filter(_.contains(":"))
+      .map(_.split(":").toList)
+      .collect {
+        case user :: password :: Nil => (user, password)
+      }
     val maybeClientId = requestHeader.headers.get(config.apiKeys.headerClientId)
     val maybeClientSecret =
       requestHeader.headers.get(config.apiKeys.headerClientSecret)
 
-    val t = Try((env.env, maybeClientId, maybeClientSecret, maybeClaim) match {
+    def passByApiKey(clientId: String, clientSecret: String): Future[Result] =
+      apikeyStore
+        .getById(Key(clientId))
+        .toIO
+        .unsafeToFuture()
+        .map { mayBeKey =>
+          mayBeKey
+            .orElse(apikeyConfig.keys)
+            .filter(_.clientId == clientId)
+        }
+        .flatMap {
+          case Some(apikey) if apikey.clientSecret == clientSecret =>
+            nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, Some(apikey)))
+              .map { result =>
+                val requestTime = System.currentTimeMillis - startTime
+                logger.debug(
+                  s"Request api key => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+                    .map(h => s"""   "${h._1}": "${h._2}"\n""")
+                    .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+                )
+                result
+              }
+          case _ =>
+            FastFuture.successful(
+              Results.Unauthorized(
+                Json.obj("error" -> "Bad request !!!")
+              )
+            )
+        }
+
+    val t = Try((env.env, maybeClientId, maybeClientSecret, maybeClaim, maybeAuthorization) match {
       // dev or test mode :
-      case (devOrTest, _, _, _) if devOrTest == "test" || devOrTest == "dev" =>
+      case (devOrTest, _, _, _, _) if devOrTest == "test" || devOrTest == "dev" =>
         nextFilter(
           requestHeader.addAttr(
             FilterAttrs.Attrs.AuthInfo,
@@ -87,37 +131,11 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
           result
         }
       // Prod && Api key :
-      case ("prod", Some(clientId), Some(clientSecret), _) =>
-        apikeyStore
-          .getById(Key(clientId))
-          .toIO
-          .unsafeToFuture()
-          .map { mayBeKey =>
-            mayBeKey
-              .orElse(apikeyConfig.keys)
-              .filter(_.clientId == clientId)
-          }
-          .flatMap {
-            case Some(apikey) if apikey.clientSecret == clientSecret =>
-              nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, Some(apikey)))
-                .map { result =>
-                  val requestTime = System.currentTimeMillis - startTime
-                  logger.debug(
-                    s"Request api key => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                      .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                      .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
-                  )
-                  result
-                }
-            case _ =>
-              FastFuture.successful(
-                Results.Unauthorized(
-                  Json.obj("error" -> "Bad request !!!")
-                )
-              )
-          }
+      case ("prod", Some(clientId), Some(clientSecret), _, _) => passByApiKey(clientId, clientSecret)
+      // Prod & Authorization header
+      case ("prod", _, _, _, Some((clientId, clientSecret))) => passByApiKey(clientId, clientSecret)
       // Prod && Exclusions :
-      case ("prod", _, _, Some(claim)) if allowedPath.exists(path => requestHeader.path.matches(path)) =>
+      case ("prod", _, _, Some(claim), _) if allowedPath.exists(path => requestHeader.path.matches(path)) =>
         val tryDecode = Try {
           val algorithm = Algorithm.HMAC512(config.sharedKey)
           val verifier =
@@ -145,7 +163,7 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
             )
         }
         tryDecode.get
-      case ("prod", _, _, _) if allowedPath.exists(path => requestHeader.path.matches(path)) =>
+      case ("prod", _, _, _, _) if allowedPath.exists(path => requestHeader.path.matches(path)) =>
         nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, None))
           .map {
             result =>
@@ -158,7 +176,7 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
               result
           }
       // Prod && Claim empty :
-      case ("prod", _, _, None) =>
+      case ("prod", _, _, None, _) =>
         Future.successful(
           Results
             .Unauthorized(
@@ -166,7 +184,7 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
             )
         )
       // Prod && Claim => decoding jwt :
-      case ("prod", _, _, Some(claim)) =>
+      case ("prod", _, _, Some(claim), _) =>
         val tryDecode = Try {
           val algorithm = Algorithm.HMAC512(config.sharedKey)
           val verifier =
