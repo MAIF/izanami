@@ -1,25 +1,18 @@
 package controllers
 
+import java.security.MessageDigest
+import java.util.Base64
+
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
-import akka.util.ByteString
 import cats.effect.Effect
+import com.google.common.base.Charsets
 import controllers.actions.SecuredAuthContext
-import domains.apikey.Apikey
-import domains.config.{Config, ConfigInstances, ConfigService}
-import domains.{Import, ImportResult, IsAllowed, Key}
-import env.Env
+import domains.Key
+import domains.config.ConfigService
 import libs.functional.EitherTSyntax
-import libs.patch.Patch
-import play.api.Logger
-import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
-import store.Result.{AppErrors, ErrorMessage}
-
-import scala.concurrent.Future
 
 class SpringConfigController[F[_]: Effect](configStore: ConfigService[F],
                                            system: ActorSystem,
@@ -29,20 +22,66 @@ class SpringConfigController[F[_]: Effect](configStore: ConfigService[F],
     with EitherTSyntax[F] {
 
   import cats.implicits._
-  import libs.functional.syntax._
-  import system.dispatcher
   import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def raw(rootKey: String, appName: String, profile: String): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
-    import ConfigInstances._
-    ???
-  }
+  val digester = MessageDigest.getInstance("MD5")
+  val encoder  = Base64.getEncoder
 
-  def tree(rootKey: String, appName: String, profile: String): Action[Unit] = AuthAction.async(parse.empty) { ctx =>
-    import ConfigInstances._
-    ???
-  }
+  def raw(rootKey: String, appName: String, profileName: String): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
+    val appConfigKey     = Key(s"$rootKey:$appName:$profileName:spring-config")
+    val profileConfigKey = Key(s"$rootKey:spring-profiles:$profileName:spring-config")
+    val globalConfigKey  = Key(s"$rootKey:spring-globals:spring-config")
 
+    val result = for {
+      app     <- configStore.getById(appConfigKey)
+      profile <- configStore.getById(profileConfigKey)
+      global  <- configStore.getById(globalConfigKey)
+    } yield {
+      (app, profile, global) match {
+        case (None, None, None) => NotFound(Json.obj("error" -> "No config found !"))
+        case _ => {
+          val propertySources = JsArray(
+            Seq(
+              app
+                .map(_.value)
+                .collect { case o: JsObject => o }
+                .map(
+                  c =>
+                    Json.obj("name" -> s"izanami://configs/$rootKey/$profileName/$appName/spring-config", "source" -> c)
+                ),
+              profile
+                .map(_.value)
+                .collect { case o: JsObject => o }
+                .map(
+                  c =>
+                    Json.obj("name"   -> s"izanami://configs/$rootKey/spring-profiles/$profileName/spring-config",
+                             "source" -> c)
+                ),
+              global
+                .map(_.value)
+                .collect { case o: JsObject => o }
+                .map(
+                  c => Json.obj("name" -> s"izanami://configs/$rootKey/spring-globals//spring-config", "source" -> c)
+                )
+            ).flatten
+          )
+          val payload = Json.obj(
+            "name"            -> s"$appName",
+            "profiles"        -> Json.arr(s"$profileName"),
+            "label"           -> JsNull,
+            "state"           -> JsNull,
+            "propertySources" -> propertySources
+          )
+          val version =
+            new String(encoder.encode(digester.digest(Json.stringify(payload).getBytes(Charsets.UTF_8))),
+                       Charsets.UTF_8)
+          Ok(payload ++ Json.obj("version" -> version))
+        }
+      }
+    }
+
+    result
+  }
 }

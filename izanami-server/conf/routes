@@ -21,7 +21,6 @@ GET     /api/counts/configs                 controllers.effect.ConfigControllerE
 
 #Configs spring
 GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.effect.SpringConfigControllerEff.raw(rootKey, appName, profile)
-GET     /api/config-server/tree/:rootKey/:appName/:profile  controllers.effect.SpringConfigControllerEff.tree(rootKey, appName, profile)
 
 #Features
 GET     /api/features                       controllers.effect.FeatureControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false)
