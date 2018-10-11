@@ -79,6 +79,7 @@ case class IzanamiConfig(
     contextPath: String,
     baseURL: String,
     patchEnabled: Boolean,
+    headerHost: String,
     filter: IzanamiFilter,
     db: DbConfig,
     logout: LogoutConfig,
