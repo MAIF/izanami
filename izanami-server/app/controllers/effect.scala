@@ -37,6 +37,12 @@ package object effect {
                             cc: ControllerComponents)
       extends ConfigController[Effect](configStore, system, AuthAction, cc)
 
+  class SpringConfigControllerEff(configStore: ConfigService[Effect],
+                                  system: ActorSystem,
+                                  AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                  cc: ControllerComponents)
+      extends SpringConfigController[Effect](configStore, system, AuthAction, cc)
+
   class EventsControllerEff(eventStore: EventStore[Effect],
                             system: ActorSystem,
                             AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
