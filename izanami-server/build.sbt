@@ -117,7 +117,7 @@ packageName in Docker := "izanami"
 
 maintainer in Docker := "MAIF Team <maif@maif.fr>"
 
-dockerBaseImage := "openjdk:8"
+dockerBaseImage := "openjdk:11-jre-slim"
 
 dockerCommands ++= Seq(
   Cmd("ENV", "APP_NAME izanami"),
