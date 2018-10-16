@@ -1,7 +1,7 @@
 package libs
 import cats.data.EitherT
 import cats.effect.Effect
-import play.api.mvc.{Action, ActionBuilder, BodyParser, Result}
+import play.api.mvc._
 
 object http {
 
@@ -27,4 +27,17 @@ object http {
       }
   }
 
+  implicit class RequestHeaderOps(rh: RequestHeader) {
+    def protocol: String =
+      rh.headers
+        .get("X-Forwarded-Protocol")
+        .orElse(rh.headers.get("X-Forwarded-Proto"))
+        .map(_ == "https")
+        .orElse(Some(rh.secure))
+        .map {
+          case true  => "https"
+          case false => "http"
+        }
+        .getOrElse("http")
+  }
 }

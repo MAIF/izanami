@@ -19,6 +19,9 @@ GET     /api/configs.ndjson                 controllers.effect.ConfigControllerE
 POST    /api/configs.ndjson                 controllers.effect.ConfigControllerEff.upload()
 GET     /api/counts/configs                 controllers.effect.ConfigControllerEff.count()
 
+#Configs spring
+GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.effect.SpringConfigControllerEff.raw(rootKey, appName, profile)
+
 #Features
 GET     /api/features                       controllers.effect.FeatureControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false)
 POST    /api/features/_checks               controllers.effect.FeatureControllerEff.listWithContext(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)

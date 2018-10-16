@@ -10,7 +10,7 @@ import domains.feature.FeatureService
 import domains.script.GlobalScriptService
 import domains.user.UserService
 import domains.webhook.WebhookService
-import env.Env
+import env.{Env, IzanamiConfig}
 import play.api.mvc.{ActionBuilder, AnyContent, ControllerComponents}
 import store.Healthcheck
 
@@ -36,6 +36,13 @@ package object effect {
                             AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                             cc: ControllerComponents)
       extends ConfigController[Effect](configStore, system, AuthAction, cc)
+
+  class SpringConfigControllerEff(configStore: ConfigService[Effect],
+                                  izanamiConfig: IzanamiConfig,
+                                  system: ActorSystem,
+                                  AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                                  cc: ControllerComponents)
+      extends SpringConfigController[Effect](configStore, izanamiConfig, system, AuthAction, cc)
 
   class EventsControllerEff(eventStore: EventStore[Effect],
                             system: ActorSystem,
