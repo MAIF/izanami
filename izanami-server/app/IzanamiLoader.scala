@@ -120,7 +120,8 @@ package object modules {
       store
     }
 
-    lazy val configController: ConfigControllerEff = wire[ConfigControllerEff]
+    lazy val configController: ConfigControllerEff             = wire[ConfigControllerEff]
+    lazy val springConfigController: SpringConfigControllerEff = wire[SpringConfigControllerEff]
 
     /* Feature */
     lazy val featureStore: FeatureService[IO] = {
