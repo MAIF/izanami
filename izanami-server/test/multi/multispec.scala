@@ -227,30 +227,31 @@ object Configs {
 }
 
 object Tests {
-  def getSuite(name: String, conf: Configuration): Seq[Suite] =
+  def getSuite(name: String, conf: () => Configuration): Seq[Suite] =
     Seq(
-      new ConfigControllerSpec(name, conf),
-      new ExperimentControllerSpec(name, conf),
-      new FeatureControllerSpec(name, conf),
-      new FeatureControllerStrictAccessSpec(name, conf),
-      new FeatureControllerWildcardAccessSpec(name, conf),
-      new GlobalScriptControllerSpec(name, conf),
-      new WebhookControllerSpec(name, conf),
-      new UserControllerSpec(name, conf),
-      new ApikeyControllerSpec(name, conf)
+      new ConfigControllerSpec(name, conf()),
+      new ExperimentControllerSpec(name, conf()),
+      new FeatureControllerSpec(name, conf()),
+      new FeatureControllerStrictAccessSpec(name, conf()),
+      new FeatureControllerWildcardAccessSpec(name, conf()),
+      new GlobalScriptControllerSpec(name, conf()),
+      new WebhookControllerSpec(name, conf()),
+      new UserControllerSpec(name, conf()),
+      new ApikeyControllerSpec(name, conf())
     )
 
   def getSuites(): Seq[Suite] =
     if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
-      getSuite("InMemory", Configs.inMemoryConfiguration) ++
-      getSuite("InMemoryWithDb", Configs.inMemoryWithDbConfiguration) ++
-      getSuite("Redis", Configs.redisConfiguration) ++
-      getSuite("Elastic", Configs.elasticConfiguration) ++
-      getSuite("Cassandra", Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")) ++
-      getSuite("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)) ++
-      getSuite("Mongo", Configs.mongoConfig("config"))
+      getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
+      getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration) ++
+      getSuite("Redis", () => Configs.redisConfiguration) ++
+      getSuite("Elastic", () => Configs.elasticConfiguration) ++
+      getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")) ++
+      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig)) ++
+      getSuite("Mongo", () => Configs.mongoConfig("config"))
     } else {
-      getSuite("InMemory", Configs.inMemoryConfiguration)
+      getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
+      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig))
     }
 }
 
@@ -264,10 +265,8 @@ class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeA
     }
 
   override protected def afterAll(): Unit =
-    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
-      Try {
-        FileUtils.deleteRecursively(new File("./target/leveldb"))
-      }
+    Try {
+      FileUtils.deleteRecursively(new File("./target/leveldb"))
     }
 }
 //
