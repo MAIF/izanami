@@ -241,7 +241,7 @@ object Tests {
     )
 
   def getSuites(): Seq[Suite] =
-    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isBlank)) {
+    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
       getSuite("InMemory", Configs.inMemoryConfiguration) ++
       getSuite("InMemoryWithDb", Configs.inMemoryWithDbConfiguration) ++
       getSuite("Redis", Configs.redisConfiguration) ++
@@ -256,7 +256,7 @@ object Tests {
 
 class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeAndAfterAll {
   override protected def beforeAll(): Unit =
-    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isBlank)) {
+    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
       import elastic.codec.PlayJson._
       val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
       println("Cleaning ES indices")
@@ -264,7 +264,7 @@ class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeA
     }
 
   override protected def afterAll(): Unit =
-    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isBlank)) {
+    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
       Try {
         FileUtils.deleteRecursively(new File("./target/leveldb"))
       }
