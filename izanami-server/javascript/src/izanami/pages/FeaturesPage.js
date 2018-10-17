@@ -146,9 +146,9 @@ export class FeaturesPage extends Component {
         const params = item.parameters || {};
         switch(item.activationStrategy) {
           case "SCRIPT":
-            return <span className="main-color"><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
+            return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
           case "NO_STRATEGY":
-            return  <span className="main-color">{`No strategy`}</span>;
+            return  <span >{`No strategy`}</span>;
           case "RELEASE_DATE":
             const mDate = moment(params.releaseDate, DATE_FORMAT);
             return (
@@ -164,16 +164,16 @@ export class FeaturesPage extends Component {
                     <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
                       <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
                     </time>
-                    <span> <i className="fa fa-arrow-right main-color"/> </span>
+                    <span> <i className="fa fa-arrow-right"/> </span>
                     <time dateTime={`${moment(params.to).format('YYYY-MM-DD')}`} className="icon">
                       <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
                     </time>
                 </span>
             );
           case "GLOBAL_SCRIPT":
-            return <span className="main-color"><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
+            return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
           case "PERCENTAGE":
-            return <span className="main-color">Enabled for {`${params.percentage} % of the traffic`}</span>;
+            return <span >Enabled for {`${params.percentage} % of the traffic`}</span>;
           default:
             return item.activationStrategy;
         }

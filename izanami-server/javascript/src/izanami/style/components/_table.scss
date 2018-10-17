@@ -108,12 +108,12 @@ table .displayGroupBtn {
 }
 
 time.icon {
-  color: #fff;
+  color: $grisTexte;
   cursor:default;
   span {
-    border: 1px solid white;
+    border: 1px solid $primaryColor;
     padding: 3px;
-    background-color: #ce679d;
+    //background-color: $grisTexte;
 
     &:first-child {
       border-top-left-radius: 5px;
