@@ -71,7 +71,6 @@ lazy val publishSettings =
   if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
     publishCommonsSettings ++ Seq(
       bintrayOrganization := Some("maif"),
-      bintrayCredentialsFile := file(".credentials"),
       pomIncludeRepository := { _ =>
         false
       }
@@ -86,7 +85,7 @@ lazy val publishSettings =
         Credentials("Artifactory Realm",
                     "oss.jfrog.org",
                     sys.env.getOrElse("BINTRAY_USER", ""),
-                    sys.env.getOrElse("BINTRAY_PASSWORD", ""))
+                    sys.env.getOrElse("BINTRAY_PASS", ""))
       )
     )
   }
