@@ -56,6 +56,8 @@ package object modules {
       with AssetsComponents
       with AhcWSComponents {
 
+    Logger.info(s"Starting Izanami with java ${System.getProperty("java.version")}")
+
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
     implicit val system: ActorSystem = actorSystem
