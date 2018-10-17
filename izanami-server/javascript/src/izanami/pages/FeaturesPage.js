@@ -146,21 +146,34 @@ export class FeaturesPage extends Component {
         const params = item.parameters || {};
         switch(item.activationStrategy) {
           case "SCRIPT":
-            return <span><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
+            return <span className="main-color"><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
           case "NO_STRATEGY":
-            return  <span>{`No strategy`}</span>;
+            return  <span className="main-color">{`No strategy`}</span>;
           case "RELEASE_DATE":
-            return <span><time datetime="2014-09-20" className="icon" title={`${params.releaseDate}`}><span>20</span><span>Sept.</span><span>2018</span></time>{` released on ${params.releaseDate}`}</span>;
+            const mDate = moment(params.releaseDate, DATE_FORMAT);
+            return (
+                <span data-toggle="tooltip" data-placement="top" title={`Released on ${params.releaseDate}`}>
+                  <time dateTime={`${params.releaseDate}`} className="icon">
+                      <span>{mDate.format('DD')}</span><span>{mDate.format('MMM')}</span><span>{mDate.format('YYYY')}</span>
+                  </time>
+                </span>
+            );
           case "DATE_RANGE":
             return (
-                <span data-toggle="tooltip" data-placement="top" title={`${params.from} to ${params.to}`}>
-                    {` from ${moment(params.from).format('YYYY-MM-DD')} to ${moment(params.to).format('YYYY-MM-DD')}`}
+                <span style={{textAlign: 'center'}} data-toggle="tooltip" data-placement="top" title={`Enabled between ${params.from} and ${params.to}`}>
+                    <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
+                      <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
+                    </time>
+                    <span> <i className="fa fa-arrow-right main-color"/> </span>
+                    <time dateTime={`${moment(params.to).format('YYYY-MM-DD')}`} className="icon">
+                      <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
+                    </time>
                 </span>
             );
           case "GLOBAL_SCRIPT":
-            return <span><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
+            return <span className="main-color"><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
           case "PERCENTAGE":
-            return <span>Enabled for {`${params.percentage} % of the traffic`}</span>;
+            return <span className="main-color">Enabled for {`${params.percentage} % of the traffic`}</span>;
           default:
             return item.activationStrategy;
         }

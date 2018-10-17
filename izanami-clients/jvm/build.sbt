@@ -14,7 +14,6 @@ lazy val jvm = (project in file("."))
   .settings(
     organization := "fr.maif",
     name := "izanami-client",
-    scalaVersion := "2.12.4",
     crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
     libraryDependencies ++= Seq(
       "com.typesafe.akka"          %% "akka-stream"             % akkaVersion,
