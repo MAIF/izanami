@@ -28,8 +28,8 @@ class Variant extends Component {
               </span>
             </div>
             <div className="panel-body">
-                <TextInput label="Id" value={this.props.variant.id} onChange={value => this.props.onChange({ ...variant, id: value })} />
-                <TextInput label="Name" value={this.props.variant.name} onChange={value => this.props.onChange({ ...variant, name: value })} />
+                <TextInput label="Id" value={this.props.variant.id} onChange={ (value, e) => this.props.onChange({ ...variant, id: value }, e)} />
+                <TextInput label="Name" value={this.props.variant.name} onChange={ (value, e) => this.props.onChange({ ...variant, name: value }, e)} />
                 <TextInput label="Traffic" value={`${Math.round(this.props.variant.traffic * 100)} %`} disabled={true}/>
             </div>
         </div>
@@ -50,9 +50,20 @@ class Variants extends Component {
 
   static letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
+  static findLetter = (arr, i) => {
+      if (i === 0) {
+          return Variants.letters[0];
+      }
+      const lastLetter = arr[i - 1].id;
+      if (Variants.letters.indexOf(lastLetter) >= 0) {
+          return Variants.letters[Variants.letters.indexOf(lastLetter) + 1];
+      } else {
+          return Variants.findLetter(arr, i - 1);
+      }
+  };
+
   nextLetter = () => {
-      const lastLetter = this.props.source.variants[this.props.source.variants.length-1].id;
-      return Variants.letters[Variants.letters.indexOf(lastLetter) + 1];
+      return Variants.findLetter(this.props.source.variants, this.props.source.variants.length);
   };
 
   getNextTraffic = () => {
@@ -117,9 +128,9 @@ class Variants extends Component {
 
   render() {
     const variants = [ ...this.props.source.variants ];
-    variants.sort((a, b) => {
-      return a.id.localeCompare(b.id);
-    });
+    //variants.sort((a, b) => {
+    //  return a.id.localeCompare(b.id);
+    //});
     const trafficStack = this.trafficStack();
     const isUpdate = !!this.props.source.id;
     return (
@@ -160,40 +171,41 @@ class Variants extends Component {
 
           </div>
         </div>
-<div className="row" >
-        <div className="col-sm-offset-2 col-sm-4 col-md-2">
-          <button
-              type="button"
-              className="btn btn-sm btn-block btn-primary btn-addTraffic"
-              onClick={() => {
-                  const id = this.nextLetter();
-                  const traffic = this.getNextTraffic();
-                  const updated = this.props.value.map(v => ({...v, traffic}));
-                  const allTraffic = updated.map(v => v.traffic).reduce((acc, e) => acc + e, 0);
-                  const remainingTraffic = round(1 - allTraffic);
-                  return this.props.onChange([ ...updated, {id, name: `Variant ${id}`, traffic: remainingTraffic}])
-              }}
-          >
-                <i className="glyphicon glyphicon-plus-sign"/> Add traffic segment
-          </button>
+        <div className="row" >
+            <div className="col-sm-offset-2 col-sm-4 col-md-2">
+              <button
+                  type="button"
+                  className="btn btn-sm btn-block btn-primary btn-addTraffic"
+                  onClick={() => {
+                      const id = this.nextLetter();
+                      const traffic = this.getNextTraffic();
+                      const updated = this.props.value.map(v => ({...v, traffic}));
+                      const allTraffic = updated.map(v => v.traffic).reduce((acc, e) => acc + e, 0);
+                      const remainingTraffic = round(1 - allTraffic);
+                      return this.props.onChange([ ...updated, {id, name: `Variant ${id}`, traffic: remainingTraffic}])
+                  }} >
+                    <i className="glyphicon glyphicon-plus-sign"/> Add traffic segment
+              </button>
+            </div>
         </div>
-    </div>
         <div className="row" >
           <div className="col-sm-offset-2 col-sm-10">
-          <div className="row" >
-          {variants.map( (v, i) =>
-              <Variant key={ `variants-${v.id}-${i}`} 
-                       variant={v}
-                       deletable={ i !== 0 && i !== 1 }
-                       remove = { () =>
-                           this.props.onChange([ ...this.props.value.filter(variant => v.id !== variant.id)])
-                       }
-                       onChange={variant =>
-                           this.props.onChange([ ...this.props.value.filter(v => v.id !== variant.id), variant ])
-                       } 
-              />
-          )}
-          </div>
+              <div className="row" >
+              {variants.map( (v, i) =>
+                  <Variant key={ `variants-${i}`} 
+                           variant={v}
+                           deletable={ i !== 0 && i !== 1 }
+                           remove = { () =>
+                               this.props.onChange([ ...this.props.value.filter((_, idx) => idx !== i)])
+                           }
+                           onChange={ variant => {
+                               const toUpdate = [...this.props.value];
+                               toUpdate[i] = variant;
+                               return this.props.onChange(toUpdate);
+                           }}
+                  />
+              )}
+              </div>
           </div>
         </div>
       </div>
