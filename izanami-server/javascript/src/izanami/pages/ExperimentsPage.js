@@ -198,7 +198,7 @@ class Variants extends Component {
                            remove = { () =>
                                this.props.onChange([ ...this.props.value.filter((_, idx) => idx !== i)])
                            }
-                           onChange={ (variant, e) => {
+                           onChange={ variant => {
                                const toUpdate = [...this.props.value];
                                toUpdate[i] = variant;
                                return this.props.onChange(toUpdate);
