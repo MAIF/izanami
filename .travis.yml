@@ -3,16 +3,11 @@ matrix:
   include:
     - os: linux
       language: scala
-      scala: 2.12.4
+      scala: 2.12.7
       jdk: oraclejdk8
       services:
       - docker
       before_install:
-      - openssl aes-256-cbc -K $encrypted_24ee00bdadc8_key -iv $encrypted_24ee00bdadc8_iv
-        -in secrets.tar.enc -out secrets.tar -d
-      - tar xvf secrets.tar
-      - cp .credentials izanami-clients/jvm
-      - cp .artifactory izanami-clients/jvm
       - docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
       - sudo apt-get install wget curl
       - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh |
@@ -57,6 +52,7 @@ cache:
   - "$HOME/.ivy2/cache"
   - "$HOME/.sbt/boot"
   - "$HOME/.sbt"
+  - "$HOME/.coursier"
   - "$HOME/.nvm"
   - "$HOME/.yarn-cache"
   - "$HOME/.rustup"
