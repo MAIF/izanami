@@ -13,7 +13,7 @@ lazy val `izanami-server` = (project in file("."))
 
 scalaVersion := "2.12.6"
 
-val akkaVersion    = "2.5.16"
+val akkaVersion    = "2.5.17"
 val metricsVersion = "4.0.2"
 
 resolvers ++= Seq(
