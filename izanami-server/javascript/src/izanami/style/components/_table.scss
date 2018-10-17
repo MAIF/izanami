@@ -1,9 +1,5 @@
 .table {
   color: $fondGrisclairSurvolMenu;
-
-  tr {
-    // cursor: pointer;
-  }
 }
 
 .table-striped > tbody > tr:nth-of-type(odd) {
@@ -76,7 +72,7 @@ thead {
 }
 
 .fa-download {
-  cursor: pointer;
+  cursor:pointer;
   color: $colorBleue;
 }
 
@@ -102,10 +98,33 @@ thead {
   text-align: center;
 }
 
-table .displayGroupBtn{
+table .displayGroupBtn {
   min-width: 100px;
 }
 
-.rt-thead.-header,.rt-tbody {
+.rt-tbody,
+.rt-thead.-header {
   min-width: 1000px !important;
+}
+
+time.icon {
+  color: $grisTexte;
+  cursor:default;
+  span {
+    border: 1px solid $primaryColor;
+    padding: 3px;
+    //background-color: $grisTexte;
+
+    &:first-child {
+      border-top-left-radius: 5px;
+      border-bottom-left-radius: 5px;
+      border-right: none;
+    }
+
+    &:last-child {
+      border-top-right-radius: 5px;
+      border-bottom-right-radius: 5px;
+      border-left: none;
+    }
+  }
 }
