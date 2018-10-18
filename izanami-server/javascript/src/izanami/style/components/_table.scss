@@ -110,21 +110,27 @@ table .displayGroupBtn {
 time.icon {
   color: $grisTexte;
   cursor:default;
+  font-size: 12px;
   span {
     border: 1px solid $primaryColor;
-    padding: 3px;
-    //background-color: $grisTexte;
+    padding: 4px;
 
     &:first-child {
-      border-top-left-radius: 5px;
-      border-bottom-left-radius: 5px;
+      border-top-left-radius: 3px;
+      border-bottom-left-radius: 3px;
       border-right: none;
     }
-
+    &:nth-child(2){
+      border-left-style: dotted;
+      border-right-style: dotted;
+    }
     &:last-child {
-      border-top-right-radius: 5px;
-      border-bottom-right-radius: 5px;
+      border-top-right-radius: 3px;
+      border-bottom-right-radius: 2px;
       border-left: none;
     }
+  }
+  &+span .fa-arrow-right {
+    font-size: 12px;
   }
 }
