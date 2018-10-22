@@ -365,7 +365,8 @@ export class ExperimentsPage extends Component {
   render() {
     const results = (this.state.results || { results: []}).results;
     results.sort((a, b) => a.variant.id.localeCompare(b.variant.id));
-    const population = results.reduce((a, b) => a + b.variant.currentPopulation, 0);
+    const population = results.reduce((a, b) => a + b.users, 0);
+    const displays = results.reduce((a, b) => a + b.displayed, 0);
     return (
       <div className="col-md-12">
         {!this.state.results && (
@@ -434,7 +435,7 @@ export class ExperimentsPage extends Component {
               </p>)}
               <h4>Population </h4>
               <p>
-                Tested population consist of <strong>{population}</strong> users with <strong>{displays}</strong> displays
+                Tested population consist of <strong>{population + ""}</strong> users with <strong>{displays + ""}</strong> displays
               </p>
               <h4>Variants </h4>
               <ul>
@@ -473,6 +474,6 @@ export class ExperimentsPage extends Component {
         )}
       </div>
     );
-    const displays = results.reduce((a, b) => a + b.displayed, 0);
+
   }
 }
