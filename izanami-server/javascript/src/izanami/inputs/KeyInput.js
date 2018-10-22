@@ -148,15 +148,32 @@ export class KeyInput extends Component {
     this.props.onChange(key);
   };
 
+  copyToClipboard = e => {
+      const text = this.state.key;
+
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+          document.execCommand('copy');
+      } catch (err) {}
+      document.body.removeChild(textArea);
+  };
+
   render() {
     const size = this.state.segments.length;
     return (
       <div className="form-group">
         <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{this.props.label}</label>
         <div className="col-sm-10">
+
           <div className="keypicker keypicker--multi" ref={ref => this.wrapper = ref}>
             <div className="keypicker-control">
-              <span style={{ display: 'table-cell' }} className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
+
+              <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
                 {this.state.segments.map( (part,i) => [
                   <span className="btn btn-info keypicker-value" style={{ marginLeft: '0px' }} key={`value-${i}`}>
                     <span>{part}</span>
@@ -166,17 +183,19 @@ export class KeyInput extends Component {
                   </span>
                   ]
                 )}
-                <div className="keypicker-input" style={{display: 'inline-block',  marginLeft: '12px', overflow: 'hidden'}}>
+                <div className="keypicker-input" style={{marginLeft: '12px', paddingLeft: '12px', overflow: 'hidden'}}>
                   <input
                     type="text"
                     size={`${this.state.textValue.length}`}
-                    style={{ minWidth:"100%", display: 'inline-block','marginLeft':'4px' }}
                     onChange={this.computeValue}
                     value={this.state.textValue}
                     onFocus={this.onFocus} ref={e => this.inputRef = e}
                     placeholder={"Press space or : to separate key segments"}
                   />
                 </div>
+              </span>
+              <span>
+                <button type="button" className="btn btn-small btn-success" onClick={this.copyToClipboard}><i className="fa fa-copy"/></button>
               </span>
             </div>
             {this.state.open &&
