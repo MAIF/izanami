@@ -227,10 +227,10 @@ object Configs {
 }
 
 object Tests {
-  def getSuite(name: String, conf: () => Configuration): Seq[Suite] =
+  def getSuite(name: String, conf: () => Configuration, strict: Boolean = true): Seq[Suite] =
     Seq(
       new ConfigControllerSpec(name, conf()),
-      new ExperimentControllerSpec(name, conf()),
+      new ExperimentControllerSpec(name, conf(), strict),
       new FeatureControllerSpec(name, conf()),
       new FeatureControllerStrictAccessSpec(name, conf()),
       new FeatureControllerWildcardAccessSpec(name, conf()),
@@ -245,7 +245,7 @@ object Tests {
       getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
       getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration) ++
       getSuite("Redis", () => Configs.redisConfiguration) ++
-      getSuite("Elastic", () => Configs.elasticConfiguration) ++
+      getSuite("Elastic", () => Configs.elasticConfiguration, false) ++
       getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")) ++
       getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig)) ++
       getSuite("Mongo", () => Configs.mongoConfig("config"))
