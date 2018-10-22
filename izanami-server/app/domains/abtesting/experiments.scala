@@ -129,6 +129,7 @@ case class VariantResult(variant: Option[Variant] = None,
                          displayed: Long = 0,
                          won: Long = 0,
                          transformation: Double = 0,
+                         users: Double = 0,
                          events: Seq[ExperimentVariantEvent] = Seq.empty)
 
 object VariantResult {

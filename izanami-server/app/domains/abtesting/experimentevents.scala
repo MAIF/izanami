@@ -2,7 +2,6 @@ package domains.abtesting
 
 import java.time.LocalDateTime
 
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.effect.Effect
@@ -12,7 +11,8 @@ import libs.IdGenerator
 import play.api.libs.json._
 import store.Result.{ErrorMessage, Result}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.collection.immutable.HashSet
+import scala.concurrent.{ExecutionContext}
 
 /* ************************************************************************* */
 /*                      ExperimentVariantEvent                               */
@@ -73,12 +73,13 @@ object ExperimentVariantEvent {
       .statefulMapConcat(() => {
         var displayed = 0
         var won       = 0
-        var ids       = Seq.empty[String]
+        var ids       = HashSet.empty[String]
         evt =>
           {
             evt match {
               case e: ExperimentVariantDisplayed =>
                 displayed += 1
+                ids = ids + e.clientId
                 val transformation = if (displayed != 0) {
                   (won * 100.0) / displayed
                 } else 0.0
@@ -87,10 +88,12 @@ object ExperimentVariantEvent {
                                 displayed,
                                 won,
                                 transformation,
+                                users = ids.size,
                                 Seq(e.copy(transformation = transformation)))
                 )
               case e: ExperimentVariantWon =>
                 won += 1
+                ids = ids + e.clientId
                 val transformation = if (displayed != 0) {
                   (won * 100.0) / displayed
                 } else 0.0
@@ -99,6 +102,7 @@ object ExperimentVariantEvent {
                                 displayed,
                                 won,
                                 transformation,
+                                users = ids.size,
                                 Seq(e.copy(transformation = transformation)))
                 )
             }

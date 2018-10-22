@@ -19,6 +19,6 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"     %% "akka-actor"               % akkaVersion % "test,it",
   "com.typesafe.akka"     %% "akka-stream"              % akkaVersion % "test,it",
   "com.typesafe.akka"     %% "akka-http"                % "10.1.0"    % "test,it",
-  "io.gatling.highcharts" % "gatling-charts-highcharts" % "2.3.0"     % "test,it",
-  "io.gatling"            % "gatling-test-framework"    % "2.3.0"     % "test,it"
+  "io.gatling.highcharts" % "gatling-charts-highcharts" % "2.3.1"     % "test,it",
+  "io.gatling"            % "gatling-test-framework"    % "2.3.1"     % "test,it"
 )

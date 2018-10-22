@@ -108,7 +108,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       FastFuture.successful(Done)
     case _ =>
       client.createIndex(esIndex, mapping)
-  }, 3.seconds)
+  }, 10.seconds)
 
   Logger.info(s"Initializing index $displayedIndex with type type")
   Await.result(client.verifyIndex(displayedIndex).flatMap {
@@ -116,7 +116,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       FastFuture.successful(Done)
     case _ =>
       client.createIndex(displayedIndex, counter)
-  }, 3.seconds)
+  }, 10.seconds)
 
   Logger.info(s"Initializing index $wonIndex with type type")
   Await.result(client.verifyIndex(wonIndex).flatMap {
@@ -124,7 +124,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       FastFuture.successful(Done)
     case _ =>
       client.createIndex(wonIndex, counter)
-  }, 3.seconds)
+  }, 10.seconds)
 
   private val index     = client.index(esIndex / esType)
   private val displayed = client.index(displayedIndex / "type")
@@ -259,6 +259,35 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       .toF
       .map(_ => Result.ok(Done))
 
+  private def countUsers(experimentId: String, variant: String): Future[Long] =
+    index
+      .search(
+        Json.obj(
+          "size" -> 0,
+          "query" -> Json.obj(
+            "bool" -> Json.obj(
+              "must" -> Json.arr(
+                Json.obj("term" -> Json.obj("experimentId" -> experimentId)),
+                Json.obj("term" -> Json.obj("variantId"    -> variant))
+              )
+            )
+          ),
+          "aggs" -> Json.obj(
+            "distinct_ids" -> Json.obj(
+              "cardinality" -> Json.obj(
+                "field" -> "clientId"
+              )
+            )
+          )
+        )
+      )
+      .map {
+        case SearchResponse(_, _, _, _, _, Some(aggs)) =>
+          (aggs \ "distinct_ids" \ "value").asOpt[Long].getOrElse(0L)
+        case SearchResponse(_, _, _, _, _, None) =>
+          0
+      }
+
   private def aggRequest(experimentId: String, variant: String, interval: String): JsObject =
     Json.obj(
       "size" -> 0,
@@ -315,6 +344,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
 
   private def max(experimentId: String): F[Option[LocalDateTime]] =
     minOrMaxQuery(experimentId, "desc")
+
   private def min(experimentId: String): F[Option[LocalDateTime]] =
     minOrMaxQuery(experimentId, "asc")
 
@@ -393,13 +423,15 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       Source.fromFuture(getWon(experimentId, variantId).toIO.unsafeToFuture())
     val displayed: Source[Long, NotUsed] =
       Source.fromFuture(getDisplayed(experimentId, variantId).toIO.unsafeToFuture())
+    val users = Source.fromFuture(countUsers(experimentId, variantId))
 
-    events.zip(won).zip(displayed).map {
-      case ((e, w), d) =>
+    events.zip(won).zip(displayed).zip(users).map {
+      case (((e, w), d), u) =>
         VariantResult(
           variant = Some(variant),
           displayed = d,
           won = w,
+          users = u,
           transformation = if (d != 0) (w * 100.0) / d else 0.0,
           events = e
         )
