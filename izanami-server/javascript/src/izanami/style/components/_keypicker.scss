@@ -23,7 +23,7 @@
 
 
 .keypicker--multi .keypicker-multi-value-wrapper {
-  display: inline-block;
+  flex-grow: 1;
   margin-left: 5px;
 }
 
@@ -35,7 +35,8 @@
   border-radius: 4px;
   color: #333;
   cursor: default;
-  display: table;
+  display: flex;
+  justify-content: space-between;
   border-spacing: 0;
   border-collapse: separate;
   height: 36px;
@@ -74,7 +75,8 @@
   vertical-align: top;
 }
 .keypicker--multi .keypicker-value-sep-label {
-  display: inline-block;
+  display: flex;
+  flex-grow: 1;
   vertical-align: middle;
   padding: 2px 5px;
 }
@@ -139,6 +141,7 @@
   padding-left: 3px;
   padding-right: 10px;
   vertical-align: middle;
+  flex-grow: 1;
 }
 .keypicker-input > input {
   width: 100%;
@@ -150,6 +153,7 @@
   color: white;
   font-family: inherit;
   font-size: inherit;
+
   margin: 0;
   outline: none;
   line-height: 14px;
@@ -189,7 +193,8 @@
 
 
 .keypicker-menu-outer .keypicker-multi-value-wrapper {
-  display: inline-block;
+  display: flex;
+  flex-grow: 1;
 }
 
 .keypicker-result-control {
