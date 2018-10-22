@@ -226,115 +226,83 @@ object Configs {
 
 }
 
-class InMemoryTests
-    extends Suites(
-      new ConfigControllerSpec("InMemory", Configs.inMemoryConfiguration),
-      new ExperimentControllerSpec("InMemory", Configs.inMemoryConfiguration),
-      new FeatureControllerSpec("InMemory", Configs.inMemoryConfiguration),
-      new FeatureControllerStrictAccessSpec("InMemory", Configs.inMemoryConfiguration),
-      new FeatureControllerWildcardAccessSpec("InMemory", Configs.inMemoryConfiguration),
-      new GlobalScriptControllerSpec("InMemory", Configs.inMemoryConfiguration),
-      new WebhookControllerSpec("InMemory", Configs.inMemoryConfiguration),
-      new UserControllerSpec("InMemory", Configs.inMemoryConfiguration),
-      new ApikeyControllerSpec("InMemory", Configs.inMemoryConfiguration)
-    )
-    with BeforeAndAfterAll {}
-
-class InMemoryWithDbTests
-    extends Suites(
-      new ConfigControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new ExperimentControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new FeatureControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new FeatureControllerStrictAccessSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new FeatureControllerWildcardAccessSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new GlobalScriptControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new WebhookControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new UserControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration),
-      new ApikeyControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
-    )
-    with BeforeAndAfterAll {}
-
-class RedisTests
-    extends Suites(
-      new ConfigControllerSpec("Redis", Configs.redisConfiguration),
-      new ExperimentControllerSpec("Redis", Configs.redisConfiguration),
-      new FeatureControllerSpec("Redis", Configs.redisConfiguration),
-      new FeatureControllerStrictAccessSpec("Redis", Configs.redisConfiguration),
-      new FeatureControllerWildcardAccessSpec("Redis", Configs.redisConfiguration),
-      new GlobalScriptControllerSpec("Redis", Configs.redisConfiguration),
-      new WebhookControllerSpec("Redis", Configs.redisConfiguration),
-      new UserControllerSpec("Redis", Configs.redisConfiguration),
-      new ApikeyControllerSpec("Redis", Configs.redisConfiguration)
+object Tests {
+  def getSuite(name: String, conf: () => Configuration, strict: Boolean = true): Seq[Suite] =
+    Seq(
+      new ConfigControllerSpec(name, conf()),
+      new ExperimentControllerSpec(name, conf(), strict),
+      new FeatureControllerSpec(name, conf()),
+      new FeatureControllerStrictAccessSpec(name, conf()),
+      new FeatureControllerWildcardAccessSpec(name, conf()),
+      new GlobalScriptControllerSpec(name, conf()),
+      new WebhookControllerSpec(name, conf()),
+      new UserControllerSpec(name, conf()),
+      new ApikeyControllerSpec(name, conf())
     )
 
-class ElasticTests
-    extends Suites(
-      new ConfigControllerSpec("Elastic", Configs.elasticConfiguration),
-      new ExperimentControllerSpec("Elastic", Configs.elasticConfiguration, strict = false),
-      new FeatureControllerSpec("Elastic", Configs.elasticConfiguration),
-      new FeatureControllerStrictAccessSpec("Elastic", Configs.elasticConfiguration),
-      new FeatureControllerWildcardAccessSpec("Elastic", Configs.elasticConfiguration),
-      new GlobalScriptControllerSpec("Elastic", Configs.elasticConfiguration),
-      new WebhookControllerSpec("Elastic", Configs.elasticConfiguration),
-      new UserControllerSpec("Elastic", Configs.elasticConfiguration),
-      new ApikeyControllerSpec("Elastic", Configs.elasticConfiguration)
-    )
-    with BeforeAndAfterAll {
-
-  override protected def beforeAll(): Unit = {
-    import elastic.codec.PlayJson._
-    val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
-    println("Cleaning ES indices")
-    Await.result(client.deleteIndex("izanami_*"), 5.seconds)
-  }
-
-  override protected def afterAll(): Unit = ()
+  def getSuites(): Seq[Suite] =
+    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
+      getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
+      getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration) ++
+      getSuite("Redis", () => Configs.redisConfiguration) ++
+      getSuite("Elastic", () => Configs.elasticConfiguration, false) ++
+      getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")) ++
+      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig)) ++
+      getSuite("Mongo", () => Configs.mongoConfig("config"))
+    } else {
+      getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
+      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig))
+    }
 }
 
-class CassandraTests
-    extends Suites(
-      new ConfigControllerSpec("Cassandra", Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")),
-      new ExperimentControllerSpec("Cassandra", Configs.cassandraConfiguration(s"experiment${idGenerator.nextId()}")),
-      new FeatureControllerSpec("Cassandra", Configs.cassandraConfiguration(s"features${idGenerator.nextId()}")),
-      new FeatureControllerStrictAccessSpec("Cassandra",
-                                            Configs.cassandraConfiguration(s"features${idGenerator.nextId()}")),
-      new FeatureControllerWildcardAccessSpec("Cassandra",
-                                              Configs.cassandraConfiguration(s"features${idGenerator.nextId()}")),
-      new GlobalScriptControllerSpec("Cassandra", Configs.cassandraConfiguration(s"script${idGenerator.nextId()}")),
-      new WebhookControllerSpec("Cassandra", Configs.cassandraConfiguration(s"webhook${idGenerator.nextId()}")),
-      new UserControllerSpec("Cassandra", Configs.cassandraConfiguration(s"user${idGenerator.nextId()}")),
-      new ApikeyControllerSpec("Cassandra", Configs.cassandraConfiguration(s"apikey${idGenerator.nextId()}"))
-    )
-
-class LevelDBTests
-    extends Suites(
-      new ConfigControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ExperimentControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new FeatureControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new FeatureControllerStrictAccessSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new FeatureControllerWildcardAccessSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new GlobalScriptControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new WebhookControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new UserControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)),
-      new ApikeyControllerSpec("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig))
-    )
-    with BeforeAndAfterAll {
+class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeAndAfterAll {
+  override protected def beforeAll(): Unit =
+    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
+      import elastic.codec.PlayJson._
+      val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
+      println("Cleaning ES indices")
+      Await.result(client.deleteIndex("izanami_*"), 5.seconds)
+    }
 
   override protected def afterAll(): Unit =
     Try {
       FileUtils.deleteRecursively(new File("./target/leveldb"))
     }
 }
-
-class MongoTests
-    extends Suites(
-      new ConfigControllerSpec("Mongo", Configs.mongoConfig("config")),
-      new ExperimentControllerSpec("Mongo", Configs.mongoConfig("experiment")),
-      new FeatureControllerSpec("Mongo", Configs.mongoConfig("feature")),
-      new FeatureControllerStrictAccessSpec("Mongo", Configs.mongoConfig("feature")),
-      new FeatureControllerWildcardAccessSpec("Mongo", Configs.mongoConfig("feature")),
-      new GlobalScriptControllerSpec("Mongo", Configs.mongoConfig("script")),
-      new WebhookControllerSpec("Mongo", Configs.mongoConfig("webhook")),
-      new UserControllerSpec("Mongo", Configs.mongoConfig("user")),
-      new ApikeyControllerSpec("Mongo", Configs.mongoConfig("apikey"))
-    )
+//
+//class InMemoryTests
+//    extends Suites(Tests.getSuite("InMemory", Configs.inMemoryConfiguration): _*)
+//    with BeforeAndAfterAll {}
+//
+//class InMemoryWithDbTests
+//    extends Suites(Tests.getSuite("InMemoryWithDb", Configs.inMemoryWithDbConfiguration): _*)
+//    with BeforeAndAfterAll {}
+//
+//class RedisTests extends Suites(Tests.getSuite("Redis", Configs.redisConfiguration): _*)
+//
+//class ElasticTests extends Suites(Tests.getSuite("Elastic", Configs.elasticConfiguration): _*) with BeforeAndAfterAll {
+//
+//  override protected def beforeAll(): Unit = {
+//    import elastic.codec.PlayJson._
+//    val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
+//    println("Cleaning ES indices")
+//    Await.result(client.deleteIndex("izanami_*"), 5.seconds)
+//  }
+//
+//  override protected def afterAll(): Unit = ()
+//}
+//
+//class CassandraTests
+//    extends Suites(Tests.getSuite("Cassandra", Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")): _*)
+//
+//class LevelDBTests
+//    extends Suites(Tests.getSuite("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)): _*)
+//    with BeforeAndAfterAll {
+//
+//  override protected def afterAll(): Unit =
+//    Try {
+//      FileUtils.deleteRecursively(new File("./target/leveldb"))
+//    }
+//}
+//
+//class MongoTests extends Suites(Tests.getSuite("Mongo", Configs.mongoConfig("config")): _*)
