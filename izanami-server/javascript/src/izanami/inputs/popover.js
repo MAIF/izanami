@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import $ from 'jquery';
 
-export function popover({options, state = 'hide', closeAfter, onClose}) {
+export function popover({options, state = 'hide', closeAfter, onClose, onClick}) {
   return {
     ref: r => {
         $(r).popover(options)
@@ -11,6 +11,12 @@ export function popover({options, state = 'hide', closeAfter, onClose}) {
               $popup.popover('hide');
               if (onClose) {
                 onClose();
+              }
+            });
+            $popup.find('.click').click(function (e) {
+              $popup.popover('hide');
+              if (onClick) {
+                  onClick();
               }
             });
           })
