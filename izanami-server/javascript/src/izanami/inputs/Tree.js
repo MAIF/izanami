@@ -1,5 +1,7 @@
 import React, {Component} from 'react';
 import PropTypes from "prop-types";
+import {Key} from "./Key";
+import {Link} from "react-router-dom";
 
 
 class Node extends Component {
@@ -11,7 +13,10 @@ export class Tree extends Component {
   static propTypes = {
     datas: PropTypes.array.isRequired,
     renderValue: PropTypes.func.isRequired,
-    onSearchChange: PropTypes.func.isRequired
+    onSearchChange: PropTypes.func.isRequired,
+    itemLink: PropTypes.func,
+    editAction: PropTypes.func,
+    removeAction: PropTypes.func,
   };
 
   state = {
@@ -39,16 +44,28 @@ export class Tree extends Component {
   };
 
   displayNode = (n, i) => {
-    console.log('Node', n);
+    const link = this.props.itemLink(n.value);
     return (
       <li className="node-tree" key={`node-${n.text}-${i}`}>
 
         <div className="content ">
-          <div className="btn-group btn-breadcrumb breadcrumb-info">
-            <div className="btn btn-info key-value-value">
-              <span>{n.text}</span>
+          {link &&
+            <Link to={link}>
+              <div className="btn-group btn-breadcrumb breadcrumb-info">
+                <div className="btn btn-info key-value-value">
+                  <span>{n.text}</span>
+                </div>
+              </div>
+            </Link>
+          }
+          {!link &&
+            <div className="btn-group btn-breadcrumb breadcrumb-info">
+              <div className="btn btn-info key-value-value">
+                <span>{n.text}</span>
+              </div>
             </div>
-          </div>
+          }
+
           {n.nodes && n.nodes.length > 0 &&
             <div className="btn-group btn-group-sm open-close">
               <button type="button" className="btn btn-xs btn-primary" data-toggle="tooltip" data-placement="top"
@@ -66,11 +83,11 @@ export class Tree extends Component {
               {n.value && this.props.renderValue(n.value)}
             </div>
             {n.value && <div className="action-button btn-group btn-group-xs">
-              <button type="button" className="btn btn-xs btn-success" data-toggle="tooltip" data-placement="top"
+              <button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-xs btn-success" data-toggle="tooltip" data-placement="top"
                       title="Edit this Configuration">
                 <i className="glyphicon glyphicon-pencil"/>
               </button>
-              <button type="button" className="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top"
+              <button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top"
                       title="Delete this Configuration">
                 <i className="glyphicon glyphicon-trash"/>
               </button>

@@ -244,9 +244,8 @@ export class FeaturesPage extends Component {
   }
 
   renderTreeLeaf = value => {
-    console.log('RenderTreeLeaf', value);
     return [
-      <div className="content-value-items" style={{width: 300}}>
+      <div key={`${value.id}`} className="content-value-items" style={{width: 300}}>
         {this.renderStrategy(value)}
       </div>,
       <div className="content-value-items" style={{width: 60}}>
@@ -254,6 +253,10 @@ export class FeaturesPage extends Component {
       </div>
 
     ]
+  };
+
+  itemLink = item => {
+    return item && `/features/edit/${item.id}`;
   };
 
   render() {
@@ -269,6 +272,7 @@ export class FeaturesPage extends Component {
             })}
             treeModeEnabled={true}
             renderTreeLeaf={this.renderTreeLeaf}
+            itemLink={this.itemLink}
             parentProps={this.props}
             user={this.props.user}
             defaultTitle="Features"

@@ -55,6 +55,7 @@ export class Table extends Component {
     convertItem: PropTypes.func,
     treeModeEnabled: PropTypes.bool,
     renderTreeLeaf: PropTypes.func,
+    itemLink: PropTypes.func,
   };
 
   static defaultProps = {
@@ -621,7 +622,11 @@ export class Table extends Component {
                       <Tree
                         datas={this.state.tree || []}
                         renderValue={this.renderLeaf}
-                        onSearchChange={text => this.update({filtered: [{id: 'key', value:text}]})}/>
+                        itemLink={this.props.itemLink}
+                        onSearchChange={text => this.update({filtered: [{id: 'key', value:text}]})}
+                        editAction={ (e, item) => this.showEditForm(e, item) }
+                        removeAction={ (e, item) => this.setState({confirmDeleteTable: true, toDelete: item}) }
+                      />
                     </div>
                 }
             </div>
