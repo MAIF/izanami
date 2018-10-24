@@ -6,6 +6,14 @@
   align-items: center;
 }
 
+.treeview .key-value-value:hover {
+  background-color: $colorRose!important;
+  background-image: none !important;
+}
+.treeview .key-value-value:hover:after {
+  border-left-color: $colorRose!important;
+}
+
 .content {
   display: flex;
   flex-direction: row;
@@ -64,7 +72,7 @@
 }
 
 .node-tree {
-  margin-top: 1px;
+  margin-top: 5px;
   & .content:hover {
     background-color: $fondNavbar;
   }
@@ -76,8 +84,6 @@
 .open-close {
   padding-left: 12px;
 }
-
-
 
 .root-node {
   position: relative;
