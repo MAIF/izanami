@@ -195,7 +195,7 @@ export class KeyInput extends Component {
                 </div>
               </span>
               <span>
-                <button type="button" className="btn btn-small btn-success" onClick={this.copyToClipboard}><i className="fa fa-copy"/></button>
+                <button type="button" className="btn btn-small btn-success" title="copy" onClick={this.copyToClipboard}><i className="fa fa-copy"/></button>
               </span>
             </div>
             {this.state.open &&

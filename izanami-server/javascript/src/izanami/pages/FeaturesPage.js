@@ -132,6 +132,49 @@ export class FeaturesPage extends Component {
 
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true, search: this.searchKey } } };
 
+  renderStrategy = (item) => {
+    const params = item.parameters || {};
+    switch(item.activationStrategy) {
+      case "SCRIPT":
+        return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
+      case "NO_STRATEGY":
+        return  <span >{`No strategy`}</span>;
+      case "RELEASE_DATE":
+        const mDate = moment(params.releaseDate, DATE_FORMAT);
+        return (
+          <span data-toggle="tooltip" data-placement="top" title={`Released on ${params.releaseDate}`}>
+                  <time dateTime={`${params.releaseDate}`} className="icon">
+                      <span>{mDate.format('DD')}</span><span>{mDate.format('MMM')}</span><span>{mDate.format('YYYY')}</span>
+                  </time>
+                </span>
+        );
+      case "DATE_RANGE":
+        return (
+          <span style={{textAlign: 'center'}} data-toggle="tooltip" data-placement="top" title={`Enabled between ${params.from} and ${params.to}`}>
+                    <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
+                      <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
+                    </time>
+                    <span> <i className="fa fa-arrow-right"/> </span>
+                    <time dateTime={`${moment(params.to).format('YYYY-MM-DD')}`} className="icon">
+                      <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
+                    </time>
+                </span>
+        );
+      case "GLOBAL_SCRIPT":
+        return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
+      case "PERCENTAGE":
+        return <span >Enabled for {`${params.percentage} % of the traffic`}</span>;
+      default:
+        return item.activationStrategy;
+    }
+  };
+
+  renderIsActive = item => <SimpleBooleanInput value={item.enabled} onChange={v => {
+    IzanamiServices.fetchFeature(item.id).then(feature => {
+      IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
+    })
+  }} />
+
   columns = [
     {
       title: 'Name',
@@ -142,52 +185,13 @@ export class FeaturesPage extends Component {
       title: 'Strategy',
       notFilterable: true,
       style: { textAlign: 'center', width: 300},
-      content: item => {
-        const params = item.parameters || {};
-        switch(item.activationStrategy) {
-          case "SCRIPT":
-            return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
-          case "NO_STRATEGY":
-            return  <span >{`No strategy`}</span>;
-          case "RELEASE_DATE":
-            const mDate = moment(params.releaseDate, DATE_FORMAT);
-            return (
-                <span data-toggle="tooltip" data-placement="top" title={`Released on ${params.releaseDate}`}>
-                  <time dateTime={`${params.releaseDate}`} className="icon">
-                      <span>{mDate.format('DD')}</span><span>{mDate.format('MMM')}</span><span>{mDate.format('YYYY')}</span>
-                  </time>
-                </span>
-            );
-          case "DATE_RANGE":
-            return (
-                <span style={{textAlign: 'center'}} data-toggle="tooltip" data-placement="top" title={`Enabled between ${params.from} and ${params.to}`}>
-                    <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
-                      <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
-                    </time>
-                    <span> <i className="fa fa-arrow-right"/> </span>
-                    <time dateTime={`${moment(params.to).format('YYYY-MM-DD')}`} className="icon">
-                      <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
-                    </time>
-                </span>
-            );
-          case "GLOBAL_SCRIPT":
-            return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
-          case "PERCENTAGE":
-            return <span >Enabled for {`${params.percentage} % of the traffic`}</span>;
-          default:
-            return item.activationStrategy;
-        }
-      }
+      content: this.renderStrategy
     },
     {
       title: 'Active',
       style: { textAlign: 'center', width: 60 },
       notFilterable: true ,
-      content: item => <SimpleBooleanInput value={item.enabled} onChange={v => {
-        IzanamiServices.fetchFeature(item.id).then(feature => {
-          IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
-        })
-      }} />
+      content: this.renderIsActive
     },
   ];
 
@@ -212,6 +216,12 @@ export class FeaturesPage extends Component {
     return IzanamiServices.fetchFeatures({page, pageSize, search: pattern });
   };
 
+  fetchItemsTree = (args) => {
+    const {search = []} = args;
+    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
+    return IzanamiServices.fetchFeaturesTree({search: pattern });
+  };
+
   fetchItem = (id) => {
     return IzanamiServices.fetchFeature(id);
   };
@@ -233,6 +243,19 @@ export class FeaturesPage extends Component {
     this.props.setTitle("Features");
   }
 
+  renderTreeLeaf = value => {
+    console.log('RenderTreeLeaf', value);
+    return [
+      <div className="content-value-items" style={{width: 300}}>
+        {this.renderStrategy(value)}
+      </div>,
+      <div className="content-value-items" style={{width: 60}}>
+        {this.renderIsActive(value)}
+      </div>
+
+    ]
+  };
+
   render() {
     return (
       <div className="col-md-12">
@@ -244,6 +267,8 @@ export class FeaturesPage extends Component {
               parameters: {},
               id: ""
             })}
+            treeModeEnabled={true}
+            renderTreeLeaf={this.renderTreeLeaf}
             parentProps={this.props}
             user={this.props.user}
             defaultTitle="Features"
@@ -255,6 +280,7 @@ export class FeaturesPage extends Component {
             formFlow={this.formFlow}
             columns={this.columns}
             fetchItems={this.fetchItems}
+            fetchItemsTree={this.fetchItemsTree}
             fetchItem={this.fetchItem}
             updateItem={this.updateItem}
             deleteItem={this.deleteItem}

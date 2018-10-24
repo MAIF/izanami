@@ -2,20 +2,24 @@ package controllers
 
 import akka.Done
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.{Import, IsAllowed, Key}
+import domains.abtesting.Experiment.ExperimentKey
+import domains.{Import, IsAllowed, Key, Node}
 import domains.abtesting._
+import domains.config.Config.ConfigKey
+import domains.config.{Config, ConfigInstances}
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.{AppErrors}
+import store.Result.AppErrors
 
 import scala.util.{Failure, Success}
 
@@ -60,19 +64,36 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
         }
     }
 
-  def tree(patterns: String, clientId: String): Action[Unit] =
+  def tree(patterns: String, clientId: String, render: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
-
-      experimentStore
-        .getByIdLike(patternsSeq)
-        .map(_._2)
-        .via(experimentStore.toGraph(clientId))
-        .map { graph =>
-          Ok(graph)
-        }
-        .orElse(Source.single(Ok(Json.obj())))
-        .runWith(Sink.head)
+      render match {
+        case "full" =>
+          experimentStore
+            .getByIdLike(patternsSeq)
+            .map(_._2)
+            .via(experimentStore.toGraph(clientId))
+            .map { graph =>
+              Ok(graph)
+            }
+            .orElse(Source.single(Ok(Json.obj())))
+            .runWith(Sink.head)
+        case "detailed" =>
+          import Node._
+          experimentStore
+            .getByIdLike(patternsSeq)
+            .fold(List.empty[(ExperimentKey, Experiment)])(_ :+ _)
+            .map { v =>
+              Node.valuesToNodes[Experiment](v)(ExperimentInstances.format)
+            }
+            .map { v =>
+              Json.toJson(v)
+            }
+            .map(json => Ok(json))
+            .runWith(Sink.head)
+        case _ =>
+          FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
+      }
     }
 
   def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
