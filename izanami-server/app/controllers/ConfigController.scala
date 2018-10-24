@@ -8,8 +8,9 @@ import akka.util.ByteString
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.apikey.Apikey
+import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigInstances, ConfigService}
-import domains.{Import, ImportResult, IsAllowed, Key}
+import domains._
 import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
@@ -56,21 +57,39 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
         }
     }
 
-  def tree(patterns: String): Action[Unit] =
+  def tree(patterns: String, render: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
-      import ConfigInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
-      configStore
-        .getByIdLike(patternsSeq)
-        .map {
-          case (_, config) =>
-            config.id.jsPath.write[JsValue].writes(config.value)
-        }
-        .fold(Json.obj()) { (acc, js) =>
-          acc.deepMerge(js.as[JsObject])
-        }
-        .map(json => Ok(json))
-        .runWith(Sink.head)
+      render match {
+        case "full" =>
+          configStore
+            .getByIdLike(patternsSeq)
+            .map {
+              case (_, config) =>
+                config.id.jsPath.write[JsValue].writes(config.value)
+            }
+            .fold(Json.obj()) { (acc, js) =>
+              acc.deepMerge(js.as[JsObject])
+            }
+            .map(json => Ok(json))
+            .runWith(Sink.head)
+        case "detailed" =>
+          import Node._
+          import ConfigInstances._
+          configStore
+            .getByIdLike(patternsSeq)
+            .fold(List.empty[(ConfigKey, Config)])(_ :+ _)
+            .map { v =>
+              Node.valuesToNodes[Config](v)(ConfigInstances.format)
+            }
+            .map { v =>
+              Json.toJson(v)
+            }
+            .map(json => Ok(json))
+            .runWith(Sink.head)
+        case _ =>
+          FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
+      }
     }
 
   def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>

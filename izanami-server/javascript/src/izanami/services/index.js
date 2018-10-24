@@ -54,6 +54,18 @@ export function fetchFeatures(args) {
     );
 }
 
+export function fetchFeaturesTree(args) {
+  const {search = '*'} = args;
+  return fetch(`${window.__contextPath}/api/tree/features?pattern=${search}&render=detailed`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json'
+    }
+  })
+    .then(jsonBody);
+}
+
 export function fetchFeature(id) {
   return fetch(`${window.__contextPath}/api/features/${id}`, {
     method: 'GET',

@@ -115,13 +115,17 @@ trait FeatureService[F[_]] {
   def deleteAll(patterns: Seq[String]): F[Result[Done]]
   def getById(id: Key): F[Option[Feature]]
   def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Feature]]
-  def getByIdLike(patterns: Seq[String]): Source[(Key, Feature), NotUsed]
+  def getByIdLike(patterns: Seq[String]): Source[(FeatureKey, Feature), NotUsed]
   def count(patterns: Seq[String]): F[Long]
   def getByIdLikeActive(env: Env,
                         context: JsObject,
                         patterns: Seq[String],
                         page: Int,
                         nbElementPerPage: Int): F[PagingResult[(Feature, Boolean)]]
+  def getByIdLikeActive(env: Env,
+                        context: JsObject,
+                        patterns: Seq[String]): Source[(FeatureKey, Feature, Boolean), NotUsed]
+
   def getByIdActive(env: Env, context: JsObject, id: FeatureKey): F[Option[(Feature, Boolean)]]
 
   def getFeatureTree(patterns: Seq[String], flat: Boolean, context: JsObject, env: Env)(
@@ -230,10 +234,30 @@ class FeatureServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
           }
       }
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, Feature), NotUsed] =
+  override def getByIdLike(patterns: Seq[String]): Source[(FeatureKey, Feature), NotUsed] =
     jsonStore.getByIdLike(patterns).map {
       case (k, v) => (k, v.validate[Feature].get)
     }
+
+  override def getByIdLikeActive(env: Env,
+                                 context: JsObject,
+                                 patterns: Seq[String]): Source[(FeatureKey, Feature, Boolean), NotUsed] =
+    jsonStore
+      .getByIdLike(patterns)
+      .map {
+        case (k, v) => (k, v.validate[Feature].get)
+      }
+      .mapAsyncUnordered(4) {
+        case (k, f) =>
+          import cats.effect.implicits._
+          isActive
+            .isActive(f, context, env)
+            .map { active =>
+              (k, f, active.getOrElse(false))
+            }
+            .toIO
+            .unsafeToFuture()
+      }
 
   override def count(patterns: Seq[String]): F[Long] =
     jsonStore.count(patterns)

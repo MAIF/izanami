@@ -2,7 +2,7 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.scaladsl.{Sink}
+import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import cats.data.EitherT
@@ -10,6 +10,9 @@ import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.feature.{Feature, FeatureInstances, FeatureService}
 import domains._
+import domains.config.{Config, ConfigInstances}
+import domains.config.Config.ConfigKey
+import domains.feature.Feature.FeatureKey
 import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
@@ -17,7 +20,7 @@ import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
-import store.Result.{AppErrors}
+import store.Result.AppErrors
 
 class FeatureController[F[_]: Effect](env: Env,
                                       featureStore: FeatureService[F],
@@ -113,24 +116,47 @@ class FeatureController[F[_]: Effect](env: Env,
       }
     }
 
-  def tree(patterns: String, flat: Boolean): Action[JsValue] =
+  def tree(patterns: String, flat: Boolean, render: String): Action[JsValue] =
     AuthAction.async(parse.json) { ctx =>
-      featuresTree(patterns, flat, ctx.authorizedPatterns, ctx.body)
+      featuresTree(patterns, flat, render, ctx.authorizedPatterns, ctx.body)
     }
 
-  def treeGet(patterns: String, flat: Boolean): Action[Unit] =
+  def treeGet(patterns: String, flat: Boolean, render: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
-      featuresTree(patterns, flat, ctx.authorizedPatterns, Json.obj())
+      featuresTree(patterns, flat, render, ctx.authorizedPatterns, Json.obj())
     }
 
-  private def featuresTree(patterns: String, flat: Boolean, authorizedPatterns: Seq[String], body: JsValue) = {
+  private def featuresTree(patterns: String,
+                           flat: Boolean,
+                           render: String,
+                           authorizedPatterns: Seq[String],
+                           body: JsValue) = {
     val patternsSeq: Seq[String] = authorizedPatterns ++ patterns.split(",")
     body match {
       case context: JsObject =>
-        featureStore
-          .getFeatureTree(patternsSeq, flat, context, env)
-          .map(graph => Ok(graph))
-          .runWith(Sink.head)
+        render match {
+          case "full" =>
+            featureStore
+              .getFeatureTree(patternsSeq, flat, context, env)
+              .map(graph => Ok(graph))
+              .runWith(Sink.head)
+          case "detailed" =>
+            featureStore
+              .getByIdLikeActive(env, context, patternsSeq)
+              .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
+              .map {
+                _.map { case (k, f, active) => (k, f.toJson(active)) }
+              }
+              .map { Node.valuesToNodes }
+              .map { v =>
+                Json.toJson(v)
+              }
+              .map(json => Ok(json))
+              .runWith(Sink.head)
+          case _ =>
+            FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
+        }
+
       case _ =>
         FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("error.json.invalid"))))
     }

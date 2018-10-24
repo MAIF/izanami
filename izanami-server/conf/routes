@@ -14,7 +14,7 @@ GET     /api/configs/:id                    controllers.effect.ConfigControllerE
 PUT     /api/configs/:id                    controllers.effect.ConfigControllerEff.update(id)
 PATCH   /api/configs/:id                    controllers.effect.ConfigControllerEff.patch(id)
 DELETE  /api/configs/:id                    controllers.effect.ConfigControllerEff.delete(id)
-GET     /api/tree/configs                   controllers.effect.ConfigControllerEff.tree(pattern: String ?= "*")
+GET     /api/tree/configs                   controllers.effect.ConfigControllerEff.tree(pattern: String ?= "*", render: String ?= "full")
 GET     /api/configs.ndjson                 controllers.effect.ConfigControllerEff.download()
 POST    /api/configs.ndjson                 controllers.effect.ConfigControllerEff.upload()
 GET     /api/counts/configs                 controllers.effect.ConfigControllerEff.count()
@@ -35,8 +35,8 @@ GET     /api/features/:id/check             controllers.effect.FeatureController
 POST    /api/features/:id/check             controllers.effect.FeatureControllerEff.checkWithContext(id)
 GET     /api/features.ndjson                controllers.effect.FeatureControllerEff.download()
 POST    /api/features.ndjson                controllers.effect.FeatureControllerEff.upload()
-POST    /api/tree/features                  controllers.effect.FeatureControllerEff.tree(pattern: String ?= "*", flat: Boolean = false)
-GET     /api/tree/features                  controllers.effect.FeatureControllerEff.treeGet(pattern: String ?= "*", flat: Boolean = false)
+POST    /api/tree/features                  controllers.effect.FeatureControllerEff.tree(pattern: String ?= "*", flat: Boolean = false, render: String ?= "full")
+GET     /api/tree/features                  controllers.effect.FeatureControllerEff.treeGet(pattern: String ?= "*", flat: Boolean = false, render: String ?= "full")
 GET     /api/counts/features                controllers.effect.FeatureControllerEff.count()
 
 #GlobalScript
@@ -52,7 +52,7 @@ POST    /api/scripts.ndjson                 controllers.effect.GlobalScriptContr
 
 #Experiments
 GET     /api/experiments                    controllers.effect.ExperimentControllerEff.list(pattern: String ?= "*")
-GET     /api/tree/experiments               controllers.effect.ExperimentControllerEff.tree(pattern: String ?= "*", clientId: String)
+GET     /api/tree/experiments               controllers.effect.ExperimentControllerEff.tree(pattern: String ?= "*", clientId: String, render: String ?= "full")
 POST    /api/experiments                    controllers.effect.ExperimentControllerEff.create()
 GET     /api/experiments.ndjson             controllers.effect.ExperimentControllerEff.downloadExperiments()
 POST    /api/experiments.ndjson             controllers.effect.ExperimentControllerEff.uploadExperiments()

@@ -5,6 +5,7 @@ import _ from 'lodash';
 import {createTooltip} from './tooltips';
 import {SweetModal} from './SweetModal';
 import * as Events from '../services/events';
+import {Tree} from './Tree';
 
 import ReactTable from 'react-table';
 
@@ -33,6 +34,7 @@ export class Table extends Component {
     itemName: PropTypes.string.isRequired,
     columns: PropTypes.array.isRequired,
     fetchItems: PropTypes.func.isRequired,
+    fetchItemsTree: PropTypes.func,
     fetchItem: PropTypes.func.isRequired,
     updateItem: PropTypes.func,
     deleteItem: PropTypes.func,
@@ -51,6 +53,8 @@ export class Table extends Component {
     eventNames: PropTypes.object,
     compareItem: PropTypes.func,
     convertItem: PropTypes.func,
+    treeModeEnabled: PropTypes.bool,
+    renderTreeLeaf: PropTypes.func,
   };
 
   static defaultProps = {
@@ -62,6 +66,7 @@ export class Table extends Component {
   };
 
   state = {
+    table: false,
     items: [],
     currentItem: null,
     currentItemOriginal: null,
@@ -147,7 +152,7 @@ export class Table extends Component {
     if (this.props.parentProps.location.query && this.props.parentProps.location.query.search) {
       const searched = this.props.parentProps.location.query.search;
       const defaultFiltered = this.props.columns.filter(c => !c.notFilterable).map(c => ({id: c.title, value: searched}));
-      this.setState({ defaultFiltered });
+        this.setState({ defaultFiltered });
     }
   };
 
@@ -186,13 +191,24 @@ export class Table extends Component {
       search: initialArgs.filtered,
       pageSize: initialArgs.pageSize || this.props.pageSize,
       page: initialArgs.page ? initialArgs.page + 1 : 1
+    };
+    if (this.state.table) {
+      return this.props.fetchItems(args).then(
+        ({nbPages, results}) => {
+          this.setState({ items: results || [], nbPages: nbPages == 0 ? 1 : nbPages, loading: false});
+        },
+        () => this.setState({loading: false})
+      );
+
+    } else {
+      return this.props.fetchItemsTree ? this.props.fetchItemsTree({search:initialArgs.filtered})
+        .then(
+          tree => {
+            this.setState({ tree, loading: false});
+          },
+          () => this.setState({loading: false})
+        ) : this.setState({loading: false})
     }
-    return this.props.fetchItems(args).then(
-      ({nbPages, results}) => {
-        this.setState({ items: results || [], nbPages: nbPages == 0 ? 1 : nbPages, loading: false});
-      },
-      () => this.setState({loading: false})
-    );
   };
 
   gotoItem = (e, item) => {
@@ -344,43 +360,17 @@ export class Table extends Component {
       });
   };
 
-  displayNode = (node, level = 0) => {
-    if (node) {
 
-      return node.flatMap( (n, i) => {
-        const spans = [];
-        for (var i = 0; i < level; i++ ) {
-          spans.push(<span className="indent" />);
-        }
-        // console.log('n', n);
-        if (n.nodes!==undefined) {
-          var hasNode="icon expand-icon glyphicon glyphicon-minus"
-          //  ou   var hasNode="icon expand-icon glyphicon glyphicon-plus" quand à déployer
-        }else{
-          var hasNode="icon glyphicon"
-        }
+  toggleRender = () => {
+    const table = !this.state.table;
+    this.setState({table}, () =>
+      this.update()
+    );
+  };
 
-
-          return [<li className="list-group-item node-tree" key={`node-${n.text}-${level}-${i}`}>
-          {spans}
-          <span className={hasNode}></span>
-          <div className="pull-right btn-group btn-group-xs">
-            <button type="button" className="btn btn-xs btn-success" data-toggle="tooltip" data-placement="top" title="Edit this Configuration">
-              <i className="glyphicon glyphicon-pencil"></i>
-            </button>
-            <button type="button" className="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Delete this Configuration">
-              <i className="glyphicon glyphicon-trash"></i>
-            </button>
-          </div>
-          <span className="icon node-icon"></span>
-          {n.text}
-          <div className="btn-group btn-group-sm"><button type="button" className="btn btn-xs btn-primary" data-toggle="tooltip" data-placement="top" title="Add item"><i className="glyphicon glyphicon-plus-sign"></i></button></div>
-        </li>].concat(this.displayNode(n.nodes, level + 1))
-      });
-    } else {
-      return [];
-    }
-  }
+  renderLeaf = value => {
+    return this.props.renderTreeLeaf(value);
+  };
 
   uploadFile = link => e => {
     const upload = e => {
@@ -503,57 +493,6 @@ export class Table extends Component {
         ),
       });
     }
-    var defaultData = [
-          {
-            text: 'Parent 1',
-            href: '#parent1',
-            tags: ['4'],
-            nodes: [
-              {
-                text: 'Child 1',
-                href: '#child1',
-                tags: ['2'],
-                nodes: [
-                  {
-                    text: 'Grandchild 1',
-                    href: '#grandchild1',
-                    tags: ['0']
-                  },
-                  {
-                    text: 'Grandchild 2',
-                    href: '#grandchild2',
-                    tags: ['0']
-                  }
-                ]
-              },
-              {
-                text: 'Child 2',
-                href: '#child2',
-                tags: ['0']
-              }
-            ]
-          },
-          {
-            text: 'Parent 2',
-            href: '#parent2',
-            tags: ['0']
-          },
-          {
-            text: 'Parent 3',
-            href: '#parent3',
-             tags: ['0']
-          },
-          {
-            text: 'Parent 4',
-            href: '#parent4',
-            tags: ['0']
-          },
-          {
-            text: 'Parent 5',
-            href: '#parent5'  ,
-            tags: ['0']
-          }
-        ];
     return (
       <div>
           {!this.state.showEditForm &&
@@ -570,13 +509,26 @@ export class Table extends Component {
               </div>
               <div className="row" style={{ marginBottom: 10 }}>
                 <div className="col-md-12">
+                  {this.props.treeModeEnabled && this.state.table &&
                     <button
                       type="button"
                       className="btn btn-primary"
-                      style={{ marginLeft: 10 }}
+                      style={{marginLeft: 10}}
+                      onClick={this.toggleRender}
                       {...createTooltip('Switch the view')}>
-                      <span className="glyphicon glyphicon-th-list" /> / <span className="glyphicon glyphicon-signal" style={{transform: 'rotate(90deg)'}}/>
+                      <span className="glyphicon glyphicon-signal" style={{transform: 'rotate(90deg)'}}/>
                     </button>
+                  }
+                  {this.props.treeModeEnabled && !this.state.table &&
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={this.toggleRender}
+                      style={{marginLeft: 10}}
+                      {...createTooltip('Switch the view')}>
+                      <span className="glyphicon glyphicon-th-list"/>
+                    </button>
+                  }
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -643,29 +595,35 @@ export class Table extends Component {
                   }
                 </div>
               </div>
-              <div id="tree" className="treeview">
-                <ul className="list-group">
-                {this.displayNode(defaultData, 0)}
-                </ul>
-              </div>
-              <div className="rrow">
-                <ReactTable
-                  className="fulltable -striped -highlight"
-                  data={this.state.items}
-                  loading={this.state.loading}
-                  sortable={true}
-                  filterable={true}
-                  filterAll={true}
-                  defaultSorted={[{ id: this.props.columns[0].title, desc: false }]}
-                  manual
-                  pages={this.state.nbPages}
-                  defaultPageSize={this.props.pageSize}
-                  columns={columns}
-                  LoadingComponent={LoadingComponent}
-                  onFetchData={this.onFetchData}
-                  defaultFiltered={this.state.defaultFiltered}
-                />
-              </div>
+
+                {!this.props.treeModeEnabled || this.state.table &&
+                    <div className="rrow">
+                        <ReactTable
+                            className="fulltable -striped -highlight"
+                            data={this.state.items}
+                            loading={this.state.loading}
+                            sortable={true}
+                            filterable={true}
+                            filterAll={true}
+                            defaultSorted={[{ id: this.props.columns[0].title, desc: false }]}
+                            manual
+                            pages={this.state.nbPages}
+                            defaultPageSize={this.props.pageSize}
+                            columns={columns}
+                            LoadingComponent={LoadingComponent}
+                            onFetchData={this.onFetchData}
+                            defaultFiltered={this.state.defaultFiltered}
+                        />
+                    </div>
+                }
+                {this.props.treeModeEnabled && !this.state.table &&
+                    <div>
+                      <Tree
+                        datas={this.state.tree || []}
+                        renderValue={this.renderLeaf}
+                        onSearchChange={text => this.update({filtered: [{id: 'key', value:text}]})}/>
+                    </div>
+                }
             </div>
         )}
 
