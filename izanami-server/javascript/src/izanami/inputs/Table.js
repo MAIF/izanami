@@ -412,6 +412,7 @@ export class Table extends Component {
     return [...errors, ...errorsOnFields];
   };
 
+
   render() {
     const columns = this.props.columns.map(c => ({
         Header: c.title,

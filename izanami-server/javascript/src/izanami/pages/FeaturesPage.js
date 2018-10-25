@@ -245,10 +245,12 @@ export class FeaturesPage extends Component {
 
   renderTreeLeaf = value => {
     return [
-      <div key={`${value.id}`} className="content-value-items" style={{width: 300}}>
-        {this.renderStrategy(value)}
+      <div key={`content-strategy-${value.id}`} className="content-value-items" style={{width: 300}}>
+        <div>
+          {this.renderStrategy(value)}
+        </div>
       </div>,
-      <div className="content-value-items" style={{width: 60}}>
+      <div key={`active-strategy-${value.id}`} className="content-value-items" style={{width: 60}}>
         {this.renderIsActive(value)}
       </div>
 

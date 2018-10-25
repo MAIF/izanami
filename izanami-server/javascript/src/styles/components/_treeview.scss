@@ -30,7 +30,7 @@
     .content-value {
       display: flex;
       flex-grow: 1;
-      align-items: baseline;
+      align-items: center;
       justify-content: flex-end;
       .content-value-items {
         display: flex;
@@ -41,7 +41,7 @@
     .action-button {
       width: 100px;
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: flex-end;
     }
   }
