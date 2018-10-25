@@ -67,7 +67,7 @@ export class Table extends Component {
   };
 
   state = {
-    table: false,
+    table: true,
     items: [],
     currentItem: null,
     currentItemOriginal: null,
