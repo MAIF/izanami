@@ -186,6 +186,14 @@ export class Table extends Component {
     }
   };
 
+  isTable = () => {
+    return !this.props.treeModeEnabled || this.state.table;
+  };
+
+  isTree = () => {
+    return this.props.treeModeEnabled && !this.state.table;
+  };
+
   update = (initialArgs = {}) => {
     this.setState({loading: true});
     const args = {
@@ -193,7 +201,7 @@ export class Table extends Component {
       pageSize: initialArgs.pageSize || this.props.pageSize,
       page: initialArgs.page ? initialArgs.page + 1 : 1
     };
-    if (this.state.table) {
+    if (this.isTable()) {
       return this.props.fetchItems(args).then(
         ({nbPages, results}) => {
           this.setState({ items: results || [], nbPages: nbPages == 0 ? 1 : nbPages, loading: false});
@@ -511,7 +519,7 @@ export class Table extends Component {
               </div>
               <div className="row" style={{ marginBottom: 10 }}>
                 <div className="col-md-12">
-                  {this.props.treeModeEnabled && this.state.table &&
+                  {this.props.treeModeEnabled && this.isTable() &&
                     <button
                       type="button"
                       className="btn btn-primary"
@@ -521,7 +529,7 @@ export class Table extends Component {
                       <span className="glyphicon glyphicon-signal" style={{transform: 'rotate(90deg)'}}/>
                     </button>
                   }
-                  {this.props.treeModeEnabled && !this.state.table &&
+                  {this.isTree() &&
                     <button
                       type="button"
                       className="btn btn-primary"
@@ -598,7 +606,7 @@ export class Table extends Component {
                 </div>
               </div>
 
-                {!this.props.treeModeEnabled || this.state.table &&
+                {this.isTable() &&
                     <div className="rrow">
                         <ReactTable
                             className="fulltable -striped -highlight"
@@ -618,7 +626,7 @@ export class Table extends Component {
                         />
                     </div>
                 }
-                {this.props.treeModeEnabled && !this.state.table &&
+                {!this.isTable() &&
                     <div>
                       <Tree
                         datas={this.state.tree || []}

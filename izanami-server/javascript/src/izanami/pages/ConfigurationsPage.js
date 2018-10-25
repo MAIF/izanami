@@ -1,6 +1,29 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
 import { Key, Table } from '../inputs';
+import truncate from 'lodash/truncate';
+import AceEditor from 'react-ace';
+
+const ConfigValue = ({id, value}) =>  {
+  return (
+      <AceEditor mode="javascript"
+                 name={`preview${id}`}
+                 theme="monokai"
+                 readOnly={true}
+                 minLines={1}
+                 maxLines={1}
+                 value={truncate(JSON.stringify(value), {length: 60})}
+                 editorProps={{$blockScrolling: true}}
+                 height="15px"
+                 annotations={[]}
+                 markers={[]}
+                 setOptions={{
+                  showGutter: false
+                }}
+                 width="100%" />
+  );
+};
+
 
 export class ConfigurationsPage extends Component {
 
@@ -26,6 +49,7 @@ export class ConfigurationsPage extends Component {
 
   columns = [
     { title: 'Name', content: item => <Key value={item.id} /> },
+    { title: 'Preview', content: item => <ConfigValue value={item.value} id={item.id}/> }
   ];
 
   formFlow = [
@@ -37,6 +61,12 @@ export class ConfigurationsPage extends Component {
     const {search = [], page, pageSize} = args;
     const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
     return IzanamiServices.fetchConfigs({page, pageSize, search: pattern });
+  };
+
+  fetchItemsTree = (args) => {
+    const {search = []} = args;
+    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
+    return IzanamiServices.fetchConfigsTree({search: pattern });
   };
 
   fetchItem = (id) => {
@@ -59,6 +89,19 @@ export class ConfigurationsPage extends Component {
     this.props.setTitle("Configurations");
   }
 
+  renderTreeLeaf = item => {
+    return [
+      <div key={`content-config-value-${item.id}`}  className="content-value-items" style={{width: 500}}>
+        <ConfigValue value={item.value} id={item.id}/>
+      </div>
+    ]
+  };
+
+  itemLink = item => {
+    return item && `/configurations/edit/${item.id}`;
+  };
+
+
   render() {
     return (
       <div className="col-md-12">
@@ -68,6 +111,9 @@ export class ConfigurationsPage extends Component {
               value: '{"key":"value"}',
               id: ""
             })}
+            treeModeEnabled={true}
+            renderTreeLeaf={this.renderTreeLeaf}
+            itemLink={this.itemLink}
             user={this.props.user}
             parentProps={this.props}
             defaultTitle="Configurations"
@@ -79,6 +125,7 @@ export class ConfigurationsPage extends Component {
             formFlow={this.formFlow}
             columns={this.columns}
             fetchItems={this.fetchItems}
+            fetchItemsTree={this.fetchItemsTree}
             fetchItem={this.fetchItem}
             updateItem={this.updateItem}
             deleteItem={this.deleteItem}

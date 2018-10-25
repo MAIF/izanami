@@ -37,7 +37,19 @@ export class Tree extends Component {
     };
   };
 
-  displayNode = (n, i) => {
+  toggleChilds(e) {
+    if (e.childNodes) {
+      for (let i = 0; i < e.childNodes.length; i++) {
+        const childNode = e.childNodes[i];
+        if (childNode.classList && (childNode.classList.contains("open-close") || childNode.classList.contains("content")) ) {
+          childNode.classList.add('open');
+        }
+        this.toggleChilds(childNode);
+      }
+    }
+  }
+
+  displayNode = () => (n, i) => {
     const link = this.props.itemLink(n.value);
     return (
       <li className="node-tree" key={`node-${n.text}-${i}`}>
@@ -61,14 +73,20 @@ export class Tree extends Component {
           }
 
           {n.nodes && n.nodes.length > 0 &&
-            <div className="btn-group btn-group-sm open-close">
-              <button type="button" className="btn btn-xs btn-primary" data-toggle="tooltip" data-placement="top"
+            <div className={`btn-group btn-group-sm open-close`}>
+              <button type="button" className={`btn btn-xs btn-primary`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={e => {
                         e.target.parentNode.classList.toggle('open');
                         e.target.parentNode.parentNode.classList.toggle('open');
-                      }} title="Add item">
-                <i className="glyphicon glyphicon-minus-sign"/>
-                <i className="glyphicon glyphicon-plus-sign"/>
+                      }} >
+                <i className="fa fa-minus"/>
+                <i className="fa fa-plus"/>
+              </button>
+              <button type="button" className={`btn btn-xs btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+                      onClick={e => {
+                        this.toggleChilds(e.target.parentNode.parentNode.parentNode);
+                      }}>
+                <i className="fa fa-plus-circle"/>
               </button>
             </div>
           }
@@ -76,22 +94,23 @@ export class Tree extends Component {
             <div className="content-value">
               {n.value && this.props.renderValue(n.value)}
             </div>
-            {n.value && <div className="action-button btn-group btn-group-xs">
-              <button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-xs btn-success" data-toggle="tooltip" data-placement="top"
-                      title="Edit this Configuration">
-                <i className="glyphicon glyphicon-pencil"/>
-              </button>
-              <button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top"
-                      title="Delete this Configuration">
-                <i className="glyphicon glyphicon-trash"/>
-              </button>
-            </div>
+            {n.value &&
+              <div className="action-button btn-group btn-group-sm">
+                <button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-sm btn-success" data-toggle="tooltip" data-placement="top"
+                        title="Edit this Configuration">
+                  <i className="glyphicon glyphicon-pencil"/>
+                </button>
+                <button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="top"
+                        title="Delete this Configuration">
+                  <i className="glyphicon glyphicon-trash"/>
+                </button>
+              </div>
             }
           </div>
         </div>
         {n.nodes && n.nodes.length > 0 &&
           <ul className="root-node">
-            {n.nodes.map(this.displayNode)}
+            {n.nodes.map(this.displayNode())}
           </ul>
         }
       </li>
@@ -103,7 +122,7 @@ export class Tree extends Component {
         <div id="tree" className="treeview">
           <div className="root-node">
             <ul className="root-node-tree">
-              {this.state.nodes.map(this.displayNode)}
+              {this.state.nodes.map(this.displayNode())}
             </ul>
           </div>
         </div>

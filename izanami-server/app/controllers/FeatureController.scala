@@ -32,6 +32,7 @@ class FeatureController[F[_]: Effect](env: Env,
 
   import cats.implicits._
   import libs.functional.syntax._
+  import libs.effects._
   import system.dispatcher
   import AppErrors._
   import libs.http._
@@ -39,50 +40,83 @@ class FeatureController[F[_]: Effect](env: Env,
 
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
 
-  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import FeatureInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
 
-      if (active) {
-        featureStore
-          .getByIdLikeActive(env, Json.obj(), patternsSeq, page, nbElementPerPage)
-          .map { pagingResult =>
-            val results: Seq[JsValue] = pagingResult.results.map {
-              case (feature, isActive) =>
-                FeatureInstances.format.writes(feature).as[JsObject] ++ Json.obj(
-                  "active" -> (isActive && feature.enabled)
+      render match {
+        case "flat" =>
+          if (active) {
+            featureStore
+              .getByIdLikeActive(env, Json.obj(), patternsSeq, page, nbElementPerPage)
+              .map { pagingResult =>
+                val results: Seq[JsValue] = pagingResult.results.map {
+                  case (feature, isActive) =>
+                    FeatureInstances.format.writes(feature).as[JsObject] ++ Json.obj(
+                      "active" -> (isActive && feature.enabled)
+                    )
+                }
+                Ok(
+                  Json.obj(
+                    "results" -> JsArray(results),
+                    "metadata" -> Json.obj(
+                      "page"     -> pagingResult.page,
+                      "pageSize" -> nbElementPerPage,
+                      "count"    -> pagingResult.count,
+                      "nbPages"  -> pagingResult.nbPages
+                    )
+                  )
                 )
-            }
-            Ok(
-              Json.obj(
-                "results" -> JsArray(results),
-                "metadata" -> Json.obj(
-                  "page"     -> pagingResult.page,
-                  "pageSize" -> nbElementPerPage,
-                  "count"    -> pagingResult.count,
-                  "nbPages"  -> pagingResult.nbPages
+              }
+          } else {
+            featureStore
+              .getByIdLike(patternsSeq, page, nbElementPerPage)
+              .map { pagingResult =>
+                Ok(
+                  Json.obj(
+                    "results" -> Json.toJson(pagingResult.results),
+                    "metadata" -> Json.obj(
+                      "page"     -> page,
+                      "pageSize" -> nbElementPerPage,
+                      "count"    -> pagingResult.count,
+                      "nbPages"  -> pagingResult.nbPages
+                    )
+                  )
                 )
-              )
-            )
+              }
           }
-      } else {
-        featureStore
-          .getByIdLike(patternsSeq, page, nbElementPerPage)
-          .map { pagingResult =>
-            Ok(
-              Json.obj(
-                "results" -> Json.toJson(pagingResult.results),
-                "metadata" -> Json.obj(
-                  "page"     -> page,
-                  "pageSize" -> nbElementPerPage,
-                  "count"    -> pagingResult.count,
-                  "nbPages"  -> pagingResult.nbPages
-                )
-              )
-            )
+        case "tree" =>
+          if (active) {
+            featureStore
+              .getByIdLikeActive(env, Json.obj(), patternsSeq)
+              .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
+              .map {
+                _.map { case (k, f, a) => (k, f.toJson(a)) }
+              }
+              .map { Node.valuesToNodes }
+              .map { v =>
+                Json.toJson(v)
+              }
+              .map(json => Ok(json))
+              .runWith(Sink.head)
+              .toF[F]
+          } else {
+            featureStore
+              .getByIdLike(patternsSeq)
+              .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
+              .map { Node.valuesToNodes[Feature] }
+              .map { v =>
+                Json.toJson(v)
+              }
+              .map(json => Ok(json))
+              .runWith(Sink.head)
+              .toF[F]
           }
+        case _ =>
+          BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))).pure[F]
       }
+
     }
 
   def listWithContext(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[JsValue] =
@@ -116,47 +150,24 @@ class FeatureController[F[_]: Effect](env: Env,
       }
     }
 
-  def tree(patterns: String, flat: Boolean, render: String): Action[JsValue] =
+  def tree(patterns: String, flat: Boolean): Action[JsValue] =
     AuthAction.async(parse.json) { ctx =>
-      featuresTree(patterns, flat, render, ctx.authorizedPatterns, ctx.body)
+      featuresTree(patterns, flat, ctx.authorizedPatterns, ctx.body)
     }
 
-  def treeGet(patterns: String, flat: Boolean, render: String): Action[Unit] =
+  def treeGet(patterns: String, flat: Boolean): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
-      featuresTree(patterns, flat, render, ctx.authorizedPatterns, Json.obj())
+      featuresTree(patterns, flat, ctx.authorizedPatterns, Json.obj())
     }
 
-  private def featuresTree(patterns: String,
-                           flat: Boolean,
-                           render: String,
-                           authorizedPatterns: Seq[String],
-                           body: JsValue) = {
+  private def featuresTree(patterns: String, flat: Boolean, authorizedPatterns: Seq[String], body: JsValue) = {
     val patternsSeq: Seq[String] = authorizedPatterns ++ patterns.split(",")
     body match {
       case context: JsObject =>
-        render match {
-          case "full" =>
-            featureStore
-              .getFeatureTree(patternsSeq, flat, context, env)
-              .map(graph => Ok(graph))
-              .runWith(Sink.head)
-          case "detailed" =>
-            featureStore
-              .getByIdLikeActive(env, context, patternsSeq)
-              .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
-              .map {
-                _.map { case (k, f, active) => (k, f.toJson(active)) }
-              }
-              .map { Node.valuesToNodes }
-              .map { v =>
-                Json.toJson(v)
-              }
-              .map(json => Ok(json))
-              .runWith(Sink.head)
-          case _ =>
-            FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
-        }
-
+        featureStore
+          .getFeatureTree(patternsSeq, flat, context, env)
+          .map(graph => Ok(graph))
+          .runWith(Sink.head)
       case _ =>
         FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("error.json.invalid"))))
     }
