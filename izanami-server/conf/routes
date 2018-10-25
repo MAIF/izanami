@@ -23,7 +23,7 @@ GET     /api/counts/configs                 controllers.effect.ConfigControllerE
 GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.effect.SpringConfigControllerEff.raw(rootKey, appName, profile)
 
 #Features
-GET     /api/features                       controllers.effect.FeatureControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false, render: String = "flat")
+GET     /api/features                       controllers.effect.FeatureControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false, render: String ?= "flat")
 POST    /api/features/_checks               controllers.effect.FeatureControllerEff.listWithContext(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
 POST    /api/features                       controllers.effect.FeatureControllerEff.create()
 DELETE  /api/features                       controllers.effect.FeatureControllerEff.deleteAll(pattern: String ?= "*")
