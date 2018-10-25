@@ -31,49 +31,36 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
 
   import cats.implicits._
   import libs.functional.syntax._
+  import libs.effects._
   import system.dispatcher
   import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import ConfigInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
-      configStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
-        .map { r =>
-          Ok(
-            Json.obj(
-              "results" -> Json.toJson(r.results),
-              "metadata" -> Json.obj(
-                "page"     -> page,
-                "pageSize" -> nbElementPerPage,
-                "count"    -> r.count,
-                "nbPages"  -> r.nbPages
-              )
-            )
-          )
-        }
-    }
 
-  def tree(patterns: String, render: String): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
       render match {
-        case "full" =>
+        case "flat" =>
           configStore
-            .getByIdLike(patternsSeq)
-            .map {
-              case (_, config) =>
-                config.id.jsPath.write[JsValue].writes(config.value)
+            .getByIdLike(patternsSeq, page, nbElementPerPage)
+            .map { r =>
+              Ok(
+                Json.obj(
+                  "results" -> Json.toJson(r.results),
+                  "metadata" -> Json.obj(
+                    "page"     -> page,
+                    "pageSize" -> nbElementPerPage,
+                    "count"    -> r.count,
+                    "nbPages"  -> r.nbPages
+                  )
+                )
+              )
             }
-            .fold(Json.obj()) { (acc, js) =>
-              acc.deepMerge(js.as[JsObject])
-            }
-            .map(json => Ok(json))
-            .runWith(Sink.head)
-        case "detailed" =>
+
+        case "tree" =>
           import Node._
           import ConfigInstances._
           configStore
@@ -87,9 +74,24 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
             }
             .map(json => Ok(json))
             .runWith(Sink.head)
-        case _ =>
-          FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
+            .toF[F]
       }
+    }
+
+  def tree(patterns: String): Action[Unit] =
+    AuthAction.async(parse.empty) { ctx =>
+      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
+      configStore
+        .getByIdLike(patternsSeq)
+        .map {
+          case (_, config) =>
+            config.id.jsPath.write[JsValue].writes(config.value)
+        }
+        .fold(Json.obj()) { (acc, js) =>
+          acc.deepMerge(js.as[JsObject])
+        }
+        .map(json => Ok(json))
+        .runWith(Sink.head)
     }
 
   def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>

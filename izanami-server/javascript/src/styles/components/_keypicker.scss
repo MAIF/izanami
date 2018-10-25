@@ -185,7 +185,7 @@
   position: absolute;
   top: 100%;
   width: 100%;
-  z-index: 1;
+  z-index: 5;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -213,11 +213,9 @@
   overflow: hidden;
   position: relative;
   width: 100%;
-}
-
-.keypicker-result-control {
   z-index: 5;
 }
+
 .keypicker-result-control:hover {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
 }

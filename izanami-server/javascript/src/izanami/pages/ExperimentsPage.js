@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
-import { Table, SimpleBooleanInput, TextInput, OptionalField} from '../inputs';
+import {Table, SimpleBooleanInput, TextInput, OptionalField, Key} from '../inputs';
 import {CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area} from 'recharts';
+import truncate from 'lodash/truncate';
 //import ReactSlider from 'react-slider';
 // FIXME : this is a fork of react-slider to fix a bug. Waiting for a PR to be merged
 import ReactSlider from '../components/ReactSlider';
@@ -254,7 +255,20 @@ export class ExperimentsPage extends Component {
   };
 
   formSchema = {
-    id: { type: 'string', props: { label: 'Id', placeholder: 'The Experiment id' }, error : { key : 'obj.id'}},
+    id: {
+      type: 'key',
+      props: {
+        label: 'Id',
+        placeholder: 'The Experiment id',
+        search(pattern) {
+          return IzanamiServices.fetchExperiments({page: 1, pageSize: 20, search: pattern })
+            .then(({results}) =>
+              results.map(({id}) => id)
+            )
+        }
+      },
+      error : { key : 'obj.id'}
+    },
     name: { type: 'string', props: { label: 'Name', placeholder: 'The Experiment name' }, error : { key : 'obj.name'}},
     description: { type: 'string', props: { label: 'Description', placeholder: 'The Experiment description' }, error : { key : 'obj.description'}},
     enabled: { type: 'bool', props: { label: 'Active', placeholder: `Experiment active` }, error : { key : 'obj.enabled'}},
@@ -265,22 +279,28 @@ export class ExperimentsPage extends Component {
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true } } };
 
   columns = [
-    { title: 'Id', content: item => item.id },
+    { title: 'Id', content: item => <Key value={item.id} /> },
     { title: 'Name', notFilterable: true, style: { textAlign: 'center'}, content: item => item.name},
     { title: 'Description', notFilterable: true, style: { textAlign: 'center', width: 300}, content: item => item.description },
-    { title: 'Active', notFilterable: true, style: { textAlign: 'center', width: 50}, content: item => <SimpleBooleanInput value={item.enabled} onChange={v => {
-      IzanamiServices.fetchExperiment(item.id).then(feature => {
-        IzanamiServices.updateExperiment(item.id, { ...feature, enabled: v });
-      })
-    }} /> },
+    { title: 'Active', notFilterable: true, style: { textAlign: 'center', width: 50}, content: this.activeComponent },
     {
       title: 'Results',
       style: { textAlign: 'center', width: 150, height: '40px'},
       notFilterable: true ,
-      content: item =>
-        <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"/> see report</button>
+      content: this.showResultsComponent
     },
   ];
+
+  showResultsComponent = item =>
+    <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"/> see report</button>;
+
+  activeComponent = item =>
+    <SimpleBooleanInput value={item.enabled} onChange={v => {
+      IzanamiServices.fetchExperiment(item.id).then(feature => {
+        IzanamiServices.updateExperiment(item.id, {...feature, enabled: v});
+      })
+    }}/>;
+
 
   formFlow = [
     'id',
@@ -296,6 +316,13 @@ export class ExperimentsPage extends Component {
     const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
     return IzanamiServices.fetchExperiments({page, pageSize, search: pattern });
   };
+
+  fetchItemsTree = (args) => {
+    const {search = []} = args;
+    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
+    return IzanamiServices.fetchExperimentsTree({search: pattern });
+  };
+
 
   fetchItem = (id) => {
     return IzanamiServices.fetchExperiment(id);
@@ -362,6 +389,29 @@ export class ExperimentsPage extends Component {
     this.props.setTitle("Experiments");
   }
 
+
+  renderTreeLeaf = item => {
+    return [
+      <div key={`experiment-label-${item.id}`}  className="content-value-items" style={{width: 150}}>
+        {item.name}
+      </div>,
+      <div key={`experiment-description-${item.id}`}  className="content-value-items" style={{width: 200}}>
+        {truncate(item.description, {length: 25})}
+      </div>,
+      <div key={`experiment-active-${item.id}`}  className="content-value-items" style={{width: 100}}>
+        {this.activeComponent(item)}
+      </div>,
+      <div key={`experiment-results-${item.id}`}  className="content-value-items" style={{width: 100}}>
+        {this.showResultsComponent(item)}
+      </div>
+    ]
+  };
+
+  itemLink = item => {
+    return item && `/experiments/edit/${item.id}`;
+  };
+
+
   render() {
     const results = (this.state.results || { results: []}).results;
     results.sort((a, b) => a.variant.id.localeCompare(b.variant.id));
@@ -392,6 +442,9 @@ export class ExperimentsPage extends Component {
                   }
                 ]
               })}
+              treeModeEnabled={true}
+              renderTreeLeaf={this.renderTreeLeaf}
+              itemLink={this.itemLink}
               parentProps={this.props}
               user={this.props.user}
               defaultTitle="Experiments"
@@ -403,6 +456,7 @@ export class ExperimentsPage extends Component {
               formFlow={this.formFlow}
               columns={this.columns}
               fetchItems={this.fetchItems}
+              fetchItemsTree={this.fetchItemsTree}
               fetchItem={this.fetchItem}
               updateItem={this.updateItem}
               deleteItem={this.deleteItem}

@@ -48,10 +48,16 @@
 }
 
 .treeview div.open {
-  i.glyphicon-minus-sign {
+  i.fa-minus {
     display: block;
   }
-  i.glyphicon-plus-sign {
+  i.fa-plus-circle {
+    display: none;
+  }
+  i.fa-plus {
+    display: none;
+  }
+  button.open-all {
     display: none;
   }
   & + .root-node {
@@ -60,10 +66,13 @@
 }
 
 .treeview div {
-  i.glyphicon-minus-sign {
+  i.fa-minus {
     display: none;
   }
-  i.glyphicon-plus-sign {
+  i.fa-plus-circle {
+    display: block;
+  }
+  i.fa-plus {
     display: block;
   }
   & + .root-node {
@@ -72,15 +81,12 @@
 }
 
 .node-tree {
-  margin-top: 5px;
+  margin-top: 3px;
   & .content:hover {
     background-color: $fondNavbar;
   }
-
-  & + .node-tree {
-    margin-top: 5px;
-  }
 }
+
 .open-close {
   padding-left: 12px;
 }

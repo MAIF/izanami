@@ -56,7 +56,7 @@ export function fetchFeatures(args) {
 
 export function fetchFeaturesTree(args) {
   const {search = '*'} = args;
-  return fetch(`${window.__contextPath}/api/tree/features?pattern=${search}&render=detailed`, {
+  return fetch(`${window.__contextPath}/api/features?pattern=${search}&render=tree`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -125,6 +125,18 @@ export function fetchConfigs(args) {
     .then( ({results, metadata: {page, pageSize, count, nbPages}}) =>
       ({results, nbPages, page, pageSize, count})
     );
+}
+
+export function fetchConfigsTree(args) {
+  const {search = '*'} = args;
+  return fetch(`${window.__contextPath}/api/configs?pattern=${search}&render=tree`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json'
+    }
+  })
+  .then(jsonBody);
 }
 
 export function fetchConfig(id) {  
@@ -490,6 +502,18 @@ export function fetchExperiments(args) {
   }).then(jsonBody).then( ({results, metadata: {page, pageSize, count, nbPages}}) =>
     ({results, nbPages, page, pageSize, count})
   );
+}
+
+
+export function fetchExperimentsTree(args) {
+  const {search = '*'} = args;
+  return fetch(`${window.__contextPath}/api/experiments?pattern=${search}&render=tree`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json'
+    }
+  }).then(jsonBody);
 }
 
 export function fetchExperiment(id) {

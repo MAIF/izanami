@@ -33,6 +33,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
 
   import cats.implicits._
   import cats.effect.implicits._
+  import libs.effects._
   import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
@@ -43,42 +44,29 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   implicit val eStore   = experimentStore
   implicit val eVeStore = eVariantEventStore
 
-  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import ExperimentInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
-      experimentStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
-        .map { r =>
-          Ok(
-            Json.obj(
-              "results" -> Json.toJson(r.results),
-              "metadata" -> Json.obj(
-                "page"     -> page,
-                "pageSize" -> nbElementPerPage,
-                "count"    -> r.count,
-                "nbPages"  -> r.nbPages
-              )
-            )
-          )
-        }
-    }
 
-  def tree(patterns: String, clientId: String, render: String): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
       render match {
-        case "full" =>
+        case "flat" =>
           experimentStore
-            .getByIdLike(patternsSeq)
-            .map(_._2)
-            .via(experimentStore.toGraph(clientId))
-            .map { graph =>
-              Ok(graph)
+            .getByIdLike(patternsSeq, page, nbElementPerPage)
+            .map { r =>
+              Ok(
+                Json.obj(
+                  "results" -> Json.toJson(r.results),
+                  "metadata" -> Json.obj(
+                    "page"     -> page,
+                    "pageSize" -> nbElementPerPage,
+                    "count"    -> r.count,
+                    "nbPages"  -> r.nbPages
+                  )
+                )
+              )
             }
-            .orElse(Source.single(Ok(Json.obj())))
-            .runWith(Sink.head)
-        case "detailed" =>
+        case "tree" =>
           import Node._
           experimentStore
             .getByIdLike(patternsSeq)
@@ -91,9 +79,25 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
             }
             .map(json => Ok(json))
             .runWith(Sink.head)
+            .toF[F]
         case _ =>
-          FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
+          BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))).pure[F]
       }
+
+    }
+
+  def tree(patterns: String, clientId: String): Action[Unit] =
+    AuthAction.async(parse.empty) { ctx =>
+      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
+      experimentStore
+        .getByIdLike(patternsSeq)
+        .map(_._2)
+        .via(experimentStore.toGraph(clientId))
+        .map { graph =>
+          Ok(graph)
+        }
+        .orElse(Source.single(Ok(Json.obj())))
+        .runWith(Sink.head)
     }
 
   def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
