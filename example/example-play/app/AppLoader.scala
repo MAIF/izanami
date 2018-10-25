@@ -3,7 +3,7 @@ import controllers._
 import controllers.actions.SecuredAction
 import domains.me.{LevelDbMeRepository, MeRepository, MeService, MeServiceImpl}
 import domains.shows.{AllShows, BetaSerieShows, Shows, TvdbShows}
-import env.{AppConfig, Env}
+import env._
 import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy}
 import filter.OtoroshiFilter
 import izanami.scaladsl._
@@ -36,49 +36,49 @@ object modules {
     private implicit val system            = actorSystem
     private implicit val izanamiDispatcher = IzanamiDispatcher(system = system)
 
-    private val mode: Mode = environment.mode
-
     private val _env: Env = wire[Env]
 
     private val appConfig: AppConfig = AppConfig(configuration)
+
+    private val izanmiMode: IzanamiMode = appConfig.izanami.mode
 
     private val clientConfig: ClientConfig = env.Izanami.izanamiConfig(appConfig.izanami)
 
     private lazy val izanamiClient: IzanamiClient = wire[IzanamiClient]
 
-    private lazy val featureClient: FeatureClient = mode match {
-      case Dev =>
+    private lazy val featureClient: FeatureClient = izanmiMode match {
+      case IzanamiDev =>
         izanamiClient.featureClient(
           DevStrategy,
           Features.parseJson(appConfig.izanami.fallback.features)
         )
-      case _ =>
+      case IzanamiProd =>
         izanamiClient.featureClient(
           CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
           Features.parseJson(appConfig.izanami.fallback.features)
         )
     }
 
-    private lazy val configClient: ConfigClient = mode match {
-      case Dev =>
+    private lazy val configClient: ConfigClient = izanmiMode match {
+      case IzanamiDev =>
         izanamiClient.configClient(
           DevStrategy,
           Configs.parseJson(appConfig.izanami.fallback.configs)
         )
-      case _ =>
+      case IzanamiProd =>
         izanamiClient.configClient(
           CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
           Configs.parseJson(appConfig.izanami.fallback.configs)
         )
     }
 
-    private lazy val experimentClient: ExperimentsClient = mode match {
-      case Dev =>
+    private lazy val experimentClient: ExperimentsClient = izanmiMode match {
+      case IzanamiDev =>
         izanamiClient.experimentClient(
           DevStrategy,
           Experiments.parseJson(appConfig.izanami.fallback.experiments)
         )
-      case _ =>
+      case IzanamiProd =>
         izanamiClient.experimentClient(
           FetchStrategy(),
           Experiments.parseJson(appConfig.izanami.fallback.experiments)
@@ -87,7 +87,8 @@ object modules {
 
     private lazy val proxy: Proxy = Proxy(
       featureClient = Some(featureClient),
-      configClient = Some(configClient),
+      featurePattern = "mytvshows:*",
+      configClient = None,
       experimentClient = Some(experimentClient)
     )
 

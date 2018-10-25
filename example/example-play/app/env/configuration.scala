@@ -6,8 +6,26 @@ import pureconfig._
 
 object AppConfig {
 
+  import pureconfig.ConfigConvert.viaString
+  import pureconfig.ConvertHelpers.catchReadError
+
+  implicit val dbTypeHint: ConfigConvert[IzanamiMode] =
+    viaString[IzanamiMode](catchReadError { IzanamiMode.fromString }, _.toString)
+
   def apply(configuration: Configuration): AppConfig =
     loadConfigOrThrow[AppConfig](configuration.underlying, "tvdb")
+}
+
+sealed trait IzanamiMode
+case object IzanamiDev  extends IzanamiMode
+case object IzanamiProd extends IzanamiMode
+
+object IzanamiMode {
+  def fromString(s: String) = s match {
+    case "dev"  => IzanamiDev
+    case "prod" => IzanamiProd
+    case _      => throw new IllegalArgumentException(s"Unexpected string $s from IzanamiMode, should be dev or prod")
+  }
 }
 
 case class AppConfig(izanami: IzanamiConf,
@@ -19,6 +37,7 @@ case class AppConfig(izanami: IzanamiConf,
 
 case class IzanamiConf(
     host: String,
+    mode: IzanamiMode,
     clientId: Option[String],
     clientSecret: Option[String],
     fallback: IzanamiFallbackConf
