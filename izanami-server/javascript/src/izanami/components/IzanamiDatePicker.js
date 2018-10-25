@@ -6,7 +6,7 @@ import enUS from 'antd/lib/locale-provider/en_US';
 
 import DatePicker from 'antd/lib/date-picker';
 import 'antd/lib/date-picker/style/index.css';
-import '../style/datepicker.css';
+//import '../style/datepicker.css';
 
 export class IzaDateRangePicker extends Component {
 

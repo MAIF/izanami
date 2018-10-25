@@ -19,7 +19,7 @@ import {
 import {popover} from './inputs/popover'
 import queryString from 'query-string';
 import _ from 'lodash';
-import './style/main.scss';
+import '../styles/main.scss';
 import {MultiSearch} from "./inputs";
 import {DynamicTitle} from "./components/DynamicTitle";
 import {IzanamiEvents} from './services/events'
