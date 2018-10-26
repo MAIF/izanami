@@ -1,0 +1,76 @@
+version: '3'
+services:
+  redis:
+    image: redis
+    ports:
+    - 6379:6379
+    expose:
+    - 6379
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
+    ports:
+    - 9200:9200
+    expose:
+    - 9200
+    environment:
+    - "xpack.security.enabled=false"
+    - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  zookeeper:
+    image: confluentinc/cp-zookeeper:3.2.1
+    ports:
+    - 32182:32181
+    expose:
+    - 32181
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 32181
+      ZOOKEEPER_TICK_TIME: 2000
+    extra_hosts:
+    - "moby:127.0.0.1"
+    - "localhost: 127.0.0.1"
+  kafka:
+    image: confluentinc/cp-kafka:3.2.1
+    ports:
+    - 29092:29092
+    expose:
+    - 29092
+    depends_on:
+    - zookeeper
+    environment:
+    - KAFKA_BROKER_ID=1
+    - KAFKA_ADVERTISED_LISTENERS=LISTENER_DOCKER_INTERNAL://kafka:29092
+    - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+    - KAFKA_INTER_BROKER_LISTENER_NAME=LISTENER_DOCKER_INTERNAL
+    - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
+    - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    - KAFKA_DELETE_TOPIC_ENABLE=true
+    - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+
+  izanami:
+    image: maif/izanami:1.0.9
+    ports:
+    - 9000:8080
+    expose:
+    - 9000
+    restart: on-failure
+    links:
+    - kafka
+    - redis
+    - elasticsearch
+    depends_on:
+    - kafka
+    - redis
+    - elasticsearch
+    environment:
+    - "IZANAMI_DATABASE=Redis"
+    - "REDIS_HOST=redis"
+    - "REDIS_PORT=6379"
+    - "ELASTIC_HOST=elasticsearch"
+    - "ELASTIC_PORT=9200"
+    - "EXPERIMENT_EVENT_DATABASE=Elastic"
+    - "IZANAMI_EVENT_STORE=Kafka"
+    - "KAFKA_HOST=kafka"
+    - "KAFKA_PORT=29092"
+    - "INITIAL_APIKEY_CLIENT_ID=xxxx"
+    - "INITIAL_APIKEY_CLIENT_SECRET=xxxx"
+    extra_hosts:
+    - "localhost: 127.0.0.1"
