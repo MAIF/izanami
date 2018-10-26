@@ -2,7 +2,6 @@ const webpack = require('webpack');
 const path = require('path');
 
 const isDev = process.env.NODE_ENV !== 'production';
-const ExtractTextPlugin = require("extract-text-webpack-plugin");
 
 const plugins = [
   new webpack.DefinePlugin({
@@ -16,9 +15,7 @@ const plugins = [
 if (isDev) {
   plugins.push(new webpack.HotModuleReplacementPlugin());
   plugins.push(new webpack.NoEmitOnErrorsPlugin());
-  plugins.push(new ExtractTextPlugin("styles.css"));
 } else {
-  plugins.push(new ExtractTextPlugin("styles.css"));
   plugins.push(new webpack.optimize.UglifyJsPlugin({
     compress: {
       screw_ie8: true, // React doesn't support IE8
@@ -83,13 +80,7 @@ const commons = {
       },
       {
         test: /\.scss$/,
-        use: ExtractTextPlugin.extract({
-          fallback: "style-loader",
-          use: [
-            'css-loader',
-            'sass-loader'
-          ]
-        })
+        loaders: ['style-loader', 'css-loader', 'sass-loader']
       },
       {
         test: /\.css$/,

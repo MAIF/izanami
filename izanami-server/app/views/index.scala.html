@@ -15,11 +15,7 @@
     <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet"></link>
     <link href="https://fonts.googleapis.com/css?family=Raleway:400,500" rel="stylesheet"></link>
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous"></link>
-    @if(_env.isPlayDevMode) {
-      <link rel="stylesheet" href="http://localhost:3333/assets/bundle/styles.css"></link>
-    } else {
-      <link rel="stylesheet" href="@_env.assetsFinder.path(s"bundle/styles.css?v=${_env.hash}")"></link>
-    }
+
   </head>
   <body>
     @if(_env.isPlayDevMode) {
