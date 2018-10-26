@@ -49,6 +49,10 @@ export class Tree extends Component {
     }
   }
 
+  search = e => {
+    this.props.onSearchChange(e.target.value);
+  };
+
   displayNode = () => (n, i) => {
     const link = this.props.itemLink(n.value);
     return (
@@ -125,7 +129,7 @@ export class Tree extends Component {
           <div className="form-group">
             <div className="input-group">
               <span className="input-group-addon transparent"><span className="glyphicon glyphicon-search" /></span>
-              <input id={`input-search`} className="form-control left-border-none" value={this.state.search} type="text"/>
+              <input id={`input-search`} className="form-control left-border-none" value={this.state.search} type="text" onChange={this.search}/>
             </div>
           </div>
         </form>
