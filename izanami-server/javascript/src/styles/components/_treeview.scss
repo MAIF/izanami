@@ -48,10 +48,10 @@
 }
 
 .treeview div.open {
-  i.fa-minus-circle {
+  i.fa-caret-up {
     display: block;
   }
-  i.fa-plus-circle {
+  i.fa-caret-down{
     display: none;
   }
   button.openbtn {
@@ -66,10 +66,10 @@
 }
 
 .treeview div {
-  i.fa-minus-circle {
+  i.fa-caret-up {
     display: none;
   }
-  i.fa-plus-circle {
+  i.fa-caret-down {
     display: block;
   }
   button.openbtn {
@@ -85,8 +85,6 @@
   & .content:hover {
     background-color: $fondNavbar;
   }
-  padding: 3px;
-  background-color: #3e3e3d;
 }
 
 .open-close {
@@ -98,10 +96,14 @@
   width: 100%;
 }
 
-.root-node-tree{
-  padding-left: 5px;
+.treeview .fa-caret-down,.treeview .fa-caret-up{
+  font-size:1.5em;
 }
 
+.add-child{
+  font-size: 10px !important;
+    padding-top: 7px !important;
+}
 // Hack due to a bug in webkit: https://bugs.webkit.org/show_bug.cgi?id=45168
 html {
   -webkit-animation: issueSelector infinite 1s;

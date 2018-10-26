@@ -66,6 +66,12 @@ export class Tree extends Component {
                   <span>{n.text}</span>
                 </div>
               </div>
+              <div class="btn-group btn-group-xs open-close">
+                <button type="button" className={`btn btn-primary add-child`} data-toggle="tooltip" data-placement="top" title="Add childnote"
+                        onClick="add childNode">
+                └<i className="fa fa-plus-circle"/>
+                </button>
+              </div>
             </Link>
           }
           {!link &&
@@ -77,19 +83,23 @@ export class Tree extends Component {
           }
 
           {n.nodes && n.nodes.length > 0 &&
-            <div className={`btn-group btn-group-sm open-close`}>
-              <button type="button" className={`btn btn-xs btn-primary openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+            <div className={`btn-group btn-group-xs open-close`}>
+              <button type="button" className={`btn btn-primary openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={e => {
                         e.target.parentNode.classList.toggle('open');
                         e.target.parentNode.parentNode.classList.toggle('open');
                         e.target.parentNode.parentNode.parentNode.classList.toggle('open');
                       }} >
-                <i className="fa fa-minus-circle"/>
+                <i className="fa fa-caret-up"/>
               </button>
-              <button type="button" className={`btn btn-xs btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+              <button type="button" className={`btn btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={e => {
                         this.toggleChilds(document.getElementById(`node-${n.text}-${i}`));
                       }}>
+                <i className="fa fa-caret-down"/>
+              </button>
+              <button type="button" className={`btn btn-primary`} data-toggle="tooltip" data-placement="top" title="Add item"
+                      onClick="add">
                 <i className="fa fa-plus-circle"/>
               </button>
             </div>
