@@ -40,6 +40,7 @@
     "font-awesome": "4.7.0",
     "history": "^4.7.2",
     "jquery": "3.2.1",
+    "js-cookie": "^2.2.0",
     "lodash": "4.17.5",
     "moment": "2.21.0",
     "prop-types": "15.6.0",

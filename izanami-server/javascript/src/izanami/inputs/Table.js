@@ -7,6 +7,7 @@ import {SweetModal} from './SweetModal';
 import * as Events from '../services/events';
 import {Tree} from './Tree';
 import * as TreeHelper from '../helpers/TreeData';
+import Cookies from 'js-cookie';
 
 import ReactTable from 'react-table';
 
@@ -68,7 +69,7 @@ export class Table extends Component {
   };
 
   state = {
-    table: true,
+    table: (Cookies.get('table-render') || 'table') === 'table',
     items: [],
     currentItem: null,
     currentItemOriginal: null,
@@ -401,6 +402,11 @@ export class Table extends Component {
 
   toggleRender = () => {
     const table = !this.state.table;
+    if (table) {
+      Cookies.set('table-render', 'table');
+    } else {
+      Cookies.set('table-render', 'tree');
+    }
     this.setState({table}, () =>
       this.update()
     );
