@@ -52,7 +52,7 @@ export class Tree extends Component {
   displayNode = () => (n, i) => {
     const link = this.props.itemLink(n.value);
     return (
-      <li className="node-tree" key={`node-${n.text}-${i}`}>
+      <li className="node-tree" key={`node-${n.text}-${i}`} id={`node-${n.text}-${i}`}>
 
         <div className="content ">
           {link &&
@@ -78,13 +78,14 @@ export class Tree extends Component {
                       onClick={e => {
                         e.target.parentNode.classList.toggle('open');
                         e.target.parentNode.parentNode.classList.toggle('open');
+                        e.target.parentNode.parentNode.parentNode.classList.toggle('open');
                       }} >
                 <i className="fa fa-minus"/>
                 <i className="fa fa-plus"/>
               </button>
               <button type="button" className={`btn btn-xs btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={e => {
-                        this.toggleChilds(e.target.parentNode.parentNode.parentNode);
+                        this.toggleChilds(document.getElementById(`node-${n.text}-${i}`));
                       }}>
                 <i className="fa fa-plus-circle"/>
               </button>
@@ -119,13 +120,24 @@ export class Tree extends Component {
 
   render() {
     return (
-        <div id="tree" className="treeview">
+      <div>
+        <form className="form-horizontal">
+          <div className="form-group">
+            <div className="input-group">
+              <span className="input-group-addon transparent"><span className="glyphicon glyphicon-search" /></span>
+              <input id={`input-search`} className="form-control left-border-none" value={this.state.search} type="text"/>
+            </div>
+          </div>
+        </form>
+        <div className="treeview">
           <div className="root-node">
             <ul className="root-node-tree">
               {this.state.nodes.map(this.displayNode())}
             </ul>
           </div>
         </div>
+      </div>
+
     );
   }
 }
