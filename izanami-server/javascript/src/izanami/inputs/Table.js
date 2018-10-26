@@ -103,6 +103,14 @@ export class Table extends Component {
   }
 
   handleEvent = e => {
+    if (this.isTable()) {
+      this.handleEventInTable(e)
+    } else {
+      this.handleEventInTree(e);
+    }
+  };
+
+  handleEventInTable = e => {
     let items;
     switch (e.type) {
       case this.props.eventNames.created:
@@ -129,6 +137,93 @@ export class Table extends Component {
     }
 
     this.setState({items, justUpdated: true});
+  };
+
+  addOrUpdateInTree = (segments, value, tree) => {
+    const [head, ...rest] = (segments || []);
+
+    if (!head) {
+      return [];
+    }
+
+    if (tree.find(node => node.key === head)) {
+      return tree.map (n => {
+        if (n.key === head) {
+          if (rest.length === 0) {
+            return {...n, value}
+          }
+          if (n.childs) {
+            return {
+              ...n, childs: [...this.addOrUpdateInTree(rest, value, n.childs)]
+            }
+          } else {
+            return {
+              ...n, childs: [this.createTree(segments, value)]
+            }
+          }
+        } else {
+          return n;
+        }
+      });
+    } else {
+      return [...tree, this.createTree(segments, value)];
+    }
+  };
+
+  createTree = (segments, value) => {
+    const [head, ...rest] = (segments || []);
+    if (rest.length > 0) {
+      return {
+        key: head,
+        childs: [this.createTree(rest, value)]
+      }
+    } else {
+      return {key: head, value}
+    }
+  };
+
+  deleteInTree = (segments, tree) => {
+    const [head, next, ...rest] = (segments || []);
+
+    if (!head) {
+      return tree;
+    }
+    return tree
+      .filter(n =>
+        !(n.key === head &&
+          (!n.childs || n.childs.length === 0)
+        )
+      )
+      .map ( n => {
+        if (n.key === head && !next) {
+          return {key:n.key, childs:n.childs};
+        } else if (n.key === head && next && n.childs) {
+          return {...n, childs: this.deleteInTree([next, ...rest], n.childs)};
+        } else {
+          return n;
+        }
+      });
+  };
+
+
+  handleEventInTree = e => {
+    let tree;
+    const key = this.props.extractKey(e.payload);
+    const segments = key.split(":");
+    switch (e.type) {
+      case this.props.eventNames.created:
+        tree = this.addOrUpdateInTree(segments, e.payload, this.state.tree);
+        break;
+      case this.props.eventNames.updated:
+        tree = this.addOrUpdateInTree(segments, e.payload, this.state.tree);
+        break;
+      case this.props.eventNames.deleted:
+        tree = this.deleteInTree(segments, this.state.tree);
+        break;
+      default:
+        tree = this.state.tree;
+    }
+    this.setState({tree, justUpdated: true});
   };
 
   componentWillUnmount() {
