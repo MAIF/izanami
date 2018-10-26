@@ -85,6 +85,8 @@
   & .content:hover {
     background-color: $fondNavbar;
   }
+  padding: 3px;
+  background-color: #3e3e3d;
 }
 
 .open-close {
@@ -96,6 +98,9 @@
   width: 100%;
 }
 
+.root-node-tree{
+  padding-left: 5px;
+}
 
 // Hack due to a bug in webkit: https://bugs.webkit.org/show_bug.cgi?id=45168
 html {
