@@ -2,6 +2,8 @@ import React, { Component } from 'react';
 import {Form, Alerts} from '../inputs'
 import * as IzanamiServices from "../services/index";
 import moment from 'moment'
+import Cookies from 'js-cookie';
+
 export class LoginPage extends Component {
 
   formSchema = {
@@ -45,7 +47,7 @@ export class LoginPage extends Component {
       if (status === 200) {
         if (body.changeme) {
           const d = moment().add(1, 'minute');
-          document.cookie = `notifyuser=true;expires=${d.toDate().toUTCString()};path=/`;
+          Cookies.set('notifyuser', 'true', { path: '/', expires: d.toDate() });
         }
         this.setState({error: false});
         window.location.href = window.__contextPath === '' ? '/' : window.__contextPath;
