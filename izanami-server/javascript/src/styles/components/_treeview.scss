@@ -48,14 +48,14 @@
 }
 
 .treeview div.open {
-  i.fa-minus {
+  i.fa-minus-circle {
     display: block;
   }
   i.fa-plus-circle {
     display: none;
   }
-  i.fa-plus {
-    display: none;
+  button.openbtn {
+    display: block;
   }
   button.open-all {
     display: none;
@@ -66,14 +66,14 @@
 }
 
 .treeview div {
-  i.fa-minus {
+  i.fa-minus-circle {
     display: none;
   }
   i.fa-plus-circle {
     display: block;
   }
-  i.fa-plus {
-    display: block;
+  button.openbtn {
+    display: none;
   }
   & + .root-node {
     display: none;
