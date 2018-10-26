@@ -23,7 +23,7 @@ In order to use Izanami, you can user docker compose with the file at the root o
 ```
 docker-compose -f docker-compose.izanami.yml up 
 ```
-      
+
 This will start an Izanami server listening on the port `9000` and using 
 
  * `redis` to store configs, feature and experiments
@@ -32,3 +32,44 @@ This will start an Izanami server listening on the port `9000` and using
 
 
 You can find the springboot tutorial at this link https://maif.github.io/izanami/manual/tutorials/spring.html. 
+
+
+## Run the play app 
+
+```
+git clone https://github.com/MAIF/izanami.git
+cd izanami 
+sbt -Dhttp.port=8080 'project example-play' '~run'
+```
+
+## Run the springboot app 
+
+```
+git clone https://github.com/MAIF/izanami.git
+cd izanami 
+sbt 'project example-spring' '~reStart'
+```
+
+or 
+
+```
+git clone https://github.com/MAIF/izanami.git
+cd izanami/example/example-spring
+./gradlew bootRun 
+```
+
+## Use the react frontend
+
+```
+cd izanami/example/javascript-react
+yarn install 
+yarn start 
+```
+
+## Use the angular frontend
+
+```
+cd izanami/example/javascript-angular
+yarn install 
+yarn start 
+```
