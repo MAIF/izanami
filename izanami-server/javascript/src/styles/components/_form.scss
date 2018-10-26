@@ -33,3 +33,13 @@ label {
 .has-error .form-control {
   border-color: $colorRouge;
 }
+
+.dark-input {
+  .glyphicon {
+    color: $fondBody;
+  }
+  .input-group-addon {
+    background-color: $fondNavbar;
+  }
+}
+

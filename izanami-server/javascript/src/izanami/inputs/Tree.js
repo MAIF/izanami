@@ -78,14 +78,13 @@ export class Tree extends Component {
 
           {n.nodes && n.nodes.length > 0 &&
             <div className={`btn-group btn-group-sm open-close`}>
-              <button type="button" className={`btn btn-xs btn-primary`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+              <button type="button" className={`btn btn-xs btn-primary openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={e => {
                         e.target.parentNode.classList.toggle('open');
                         e.target.parentNode.parentNode.classList.toggle('open');
                         e.target.parentNode.parentNode.parentNode.classList.toggle('open');
                       }} >
-                <i className="fa fa-minus"/>
-                <i className="fa fa-plus"/>
+                <i className="fa fa-minus-circle"/>
               </button>
               <button type="button" className={`btn btn-xs btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={e => {
@@ -127,8 +126,8 @@ export class Tree extends Component {
       <div>
         <form className="form-horizontal">
           <div className="form-group">
-            <div className="input-group">
-              <span className="input-group-addon transparent"><span className="glyphicon glyphicon-search" /></span>
+            <div className="input-group dark-input">
+              <span className="input-group-addon back-intermediate-color"><span className="back-color glyphicon glyphicon-search" /></span>
               <input id={`input-search`} className="form-control left-border-none" value={this.state.search} type="text" onChange={this.search}/>
             </div>
           </div>
