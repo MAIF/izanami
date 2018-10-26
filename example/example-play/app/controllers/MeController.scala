@@ -50,11 +50,11 @@ class MeController(env: Env,
 
   def markSeason(showId: String, season: Int, watched: Boolean) = SecuredAction.async { implicit req =>
     featureClient.featureOrElseAsync("mytvshows:season:markaswatched") {
-      FastFuture.successful(BadRequest(Json.obj()))
-    } {
       meService.markSeason(req.userId, showId, season, watched).map { me =>
         Ok(Json.toJson(me))
       }
+    } {
+      FastFuture.successful(BadRequest(Json.obj()))
     }
   }
 
