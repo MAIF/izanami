@@ -262,3 +262,17 @@
 .result-active:after {
   border-left-color: $colorRose!important;
 }
+
+.key-picker-edited-input {
+  background-color: $fondNavbar;
+  border: none;
+  border-radius: 3px;
+  &:focus {
+    border: none;
+    outline-color: $fondNavbar;
+  }
+  &:active {
+    border: none;
+    outline-color: $fondNavbar;
+  }
+}

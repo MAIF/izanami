@@ -8,6 +8,7 @@ import * as Events from '../services/events';
 import {Tree} from './Tree';
 import * as TreeHelper from '../helpers/TreeData';
 import Cookies from 'js-cookie';
+import * as Persistence from '../helpers/persistence'
 
 import ReactTable from 'react-table';
 
@@ -69,7 +70,7 @@ export class Table extends Component {
   };
 
   state = {
-    table: (Cookies.get('table-render') || 'table') === 'table',
+    table: (Persistence.get('table-render') || 'table') === 'table',
     items: [],
     currentItem: null,
     currentItemOriginal: null,
@@ -404,9 +405,9 @@ export class Table extends Component {
   toggleRender = () => {
     const table = !this.state.table;
     if (table) {
-      Cookies.set('table-render', 'table');
+      Persistence.set('table-render', 'table');
     } else {
-      Cookies.set('table-render', 'tree');
+      Persistence.set('table-render', 'tree');
     }
     this.setState({table}, () =>
       this.update()
@@ -456,6 +457,10 @@ export class Table extends Component {
     return [...errors, ...errorsOnFields];
   };
 
+  search = text => {
+    this.setState({table:true});
+    this.props.backToUrl && window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`);
+  };
 
   render() {
     const columns = this.props.columns.map(c => ({
@@ -668,6 +673,7 @@ export class Table extends Component {
                         datas={this.state.tree || []}
                         renderValue={this.renderLeaf}
                         itemLink={this.props.itemLink}
+                        search={this.search}
                         onSearchChange={text => this.update({filtered: [{id: 'key', value:text}]})}
                         editAction={ (e, item) => this.showEditForm(e, item) }
                         removeAction={ (e, item) => this.setState({confirmDeleteTable: true, toDelete: item}) }

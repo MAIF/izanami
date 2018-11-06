@@ -9,6 +9,7 @@ export class Tree extends Component {
     renderValue: PropTypes.func.isRequired,
     onSearchChange: PropTypes.func.isRequired,
     itemLink: PropTypes.func,
+    search: PropTypes.func,
     editAction: PropTypes.func,
     removeAction: PropTypes.func,
   };
@@ -103,7 +104,7 @@ export class Tree extends Component {
                 <Link to={link} type="button" className={`btn btn-primary`} data-toggle="tooltip" data-placement="top" title="Add childnote">
                   + child
                 </Link>
-                <button onClick="" type="button" className="btn btn-sm btn-success"
+                <button onClick={_ => this.props.search(n.id)} type="button" className="btn btn-sm btn-success"
                         data-toggle="tooltip" data-placement="top"
                         title="">
                   <i className="glyphicon glyphicon-th-list"/>
@@ -126,9 +127,7 @@ export class Tree extends Component {
                 </div>
                 }
               </div>
-
             </div>
-
           </div>
 
 
@@ -136,18 +135,6 @@ export class Tree extends Component {
             <div className="content-value">
               {n.value && this.props.renderValue(n.value)}
             </div>
-            {/*{n.value &&*/}
-              {/*<div className="action-button btn-group btn-group-sm">*/}
-                {/*<button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-sm btn-success" data-toggle="tooltip" data-placement="top"*/}
-                        {/*title="Edit this Configuration">*/}
-                  {/*<i className="glyphicon glyphicon-pencil"/>*/}
-                {/*</button>*/}
-                {/*<button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="top"*/}
-                        {/*title="Delete this Configuration">*/}
-                  {/*<i className="glyphicon glyphicon-trash"/>*/}
-                {/*</button>*/}
-              {/*</div>*/}
-            {/*}*/}
           </div>
         </div>
         {n.nodes && n.nodes.length > 0 &&
