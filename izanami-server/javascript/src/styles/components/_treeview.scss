@@ -96,8 +96,10 @@
   width: 100%;
 }
 
-.treeview .fa-caret-down,.treeview .fa-caret-up{
-  font-size:1.5em;
+.treeview {
+  .fa-caret-down, .fa-caret-up, .fa-caret-right {
+    font-size: 1.5em;
+  }
 }
 
 .add-child{

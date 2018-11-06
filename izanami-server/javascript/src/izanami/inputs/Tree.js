@@ -80,13 +80,13 @@ export class Tree extends Component {
         <div className="content ">
           {n.nodes && n.nodes.length > 0 &&
             <div className={`btn-group btn-group-xs open-close`}>
-              <button type="button" className={`btn btn-primary openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+              <button style={{border:'none'}} type="button" className={`btn btn-primary openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={this.toggleChild(id)} >
                 <i className="fa fa-caret-up"/>
               </button>
-              <button type="button" className={`btn btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+              <button style={{border:'none'}} type="button" className={`btn btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={this.toggleChild(id)}>
-                <i className="fa fa-caret-down"/>
+                <i className="fa fa-caret-right"/>
               </button>
             </div>
           }
@@ -95,6 +95,7 @@ export class Tree extends Component {
                 <span style={{marginLeft: '38px'}} />
             </div>
           }
+
           <div className="btn-group btn-breadcrumb breadcrumb-info" onClick={this.toggleChild(id)}>
             <div className="btn btn-info key-value-value">
               <span>{n.text}</span>
@@ -105,23 +106,40 @@ export class Tree extends Component {
               add (child)
             </Link>
           </div>
+          {n.value &&
+          <div className="action-button btn-group btn-group-xs">
+            <button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-sm btn-success"
+                    data-toggle="tooltip" data-placement="top"
+                    title="Edit this Configuration">
+              <i className="glyphicon glyphicon-pencil"/>
+            </button>
+          </div>
+          }
+          {n.value &&
+          <div className="action-button btn-group btn-group-xs">
+            <button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="top"
+                    title="Delete this Configuration">
+              <i className="glyphicon glyphicon-trash"/>
+            </button>
+          </div>
+          }
 
           <div className="main-content">
             <div className="content-value">
               {n.value && this.props.renderValue(n.value)}
             </div>
-            {n.value &&
-              <div className="action-button btn-group btn-group-sm">
-                <button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-sm btn-success" data-toggle="tooltip" data-placement="top"
-                        title="Edit this Configuration">
-                  <i className="glyphicon glyphicon-pencil"/>
-                </button>
-                <button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="top"
-                        title="Delete this Configuration">
-                  <i className="glyphicon glyphicon-trash"/>
-                </button>
-              </div>
-            }
+            {/*{n.value &&*/}
+              {/*<div className="action-button btn-group btn-group-sm">*/}
+                {/*<button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-sm btn-success" data-toggle="tooltip" data-placement="top"*/}
+                        {/*title="Edit this Configuration">*/}
+                  {/*<i className="glyphicon glyphicon-pencil"/>*/}
+                {/*</button>*/}
+                {/*<button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="top"*/}
+                        {/*title="Delete this Configuration">*/}
+                  {/*<i className="glyphicon glyphicon-trash"/>*/}
+                {/*</button>*/}
+              {/*</div>*/}
+            {/*}*/}
           </div>
         </div>
         {n.nodes && n.nodes.length > 0 &&
