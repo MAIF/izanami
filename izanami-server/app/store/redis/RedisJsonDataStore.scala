@@ -44,6 +44,8 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
 
   private def buildKey(key: Key) = Key.Empty / name / key
 
+  private def fromRawKey(strKey: String): Key = Key(strKey.substring(name.length + 1))
+
   private def getByKeyId(id: Key): F[Option[JsValue]] = {
     val effectiveKey = buildKey(id)
     getByStringId(effectiveKey.key)
@@ -152,13 +154,13 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
   override def getById(id: Key): F[Option[JsValue]] =
     getByKeyId(id)
 
-  override def getByIdLike(patterns: Seq[String]) =
+  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     findKeys(patterns)
       .grouped(50)
       .mapAsyncUnorderedF(50)(getByIds)
       .mapConcat(_.toList)
       .map {
-        case (k, v) => (Key(k), v)
+        case (k, v) => (fromRawKey(k), v)
       }
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
