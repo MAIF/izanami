@@ -1,17 +1,17 @@
-
 .node-tree {
   display: flex;
   flex-direction: column;
   width: 100%;
   align-items: center;
-}
+  margin-top: 3px;
 
-.treeview .key-value-value:hover {
-  background-color: $colorRose!important;
-  background-image: none !important;
+  & .content:hover {
+    background-color: $fondNavbar;
+  }
 }
-.treeview .key-value-value:hover:after {
-  border-left-color: $colorRose!important;
+.treeview .key-value-value:hover {
+  background-color: #41413f !important;
+  background-image: none !important;
 }
 
 .content {
@@ -32,12 +32,14 @@
       flex-grow: 1;
       align-items: center;
       justify-content: flex-end;
+
       .content-value-items {
         display: flex;
         justify-content: center;
         align-items: center;
       }
     }
+
     .action-button {
       width: 100px;
       display: flex;
@@ -49,17 +51,21 @@
 
 .treeview div.open {
   i.fa-caret-up {
-    display: block;
-  }
-  i.fa-caret-down{
     display: none;
   }
+
+  i.fa-caret-down {
+    display: block;
+  }
+
   button.openbtn {
     display: block;
   }
+
   button.open-all {
     display: none;
   }
+
   & + .root-node {
     display: block;
   }
@@ -67,28 +73,35 @@
 
 .treeview div {
   i.fa-caret-up {
-    display: none;
-  }
-  i.fa-caret-down {
     display: block;
   }
+
+  i.fa-caret-down {
+    display: none;
+  }
+
   button.openbtn {
     display: none;
   }
+
   & + .root-node {
     display: none;
   }
 }
 
-.node-tree {
-  margin-top: 3px;
-  & .content:hover {
-    background-color: $fondNavbar;
+.key-value-value {
+  .btn-submenu {
+    display: none;
+    padding-left: 15px;
+  }
+  &:hover .btn-submenu {
+    display: inline-block;
   }
 }
 
-.open-close {
-  padding-left: 12px;
+
+ul.root-node-tree {
+  padding-left: 0;
 }
 
 .root-node {
@@ -97,16 +110,18 @@
 }
 
 .treeview {
-  .fa-caret-down, .fa-caret-up, .fa-caret-right {
+  .fa-caret-down,
+  .fa-caret-right{
     font-size: 1.5em;
   }
 }
 
-.add-child{
+.add-child {
   font-size: 10px !important;
-    padding-top: 7px !important;
+  padding-top: 7px !important;
 }
 // Hack due to a bug in webkit: https://bugs.webkit.org/show_bug.cgi?id=45168
+
 html {
   -webkit-animation: issueSelector infinite 1s;
 }
@@ -114,6 +129,7 @@ html {
   0% {
     display: block;
   }
+
   100% {
     display: block;
   }

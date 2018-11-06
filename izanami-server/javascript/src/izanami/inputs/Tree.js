@@ -80,49 +80,57 @@ export class Tree extends Component {
         <div className="content ">
           {n.nodes && n.nodes.length > 0 &&
             <div className={`btn-group btn-group-xs open-close`}>
-              <button style={{border:'none'}} type="button" className={`btn btn-primary openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+              <button type="button" className={`btn  openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={this.toggleChild(id)} >
-                <i className="fa fa-caret-up"/>
+                <i className="fa fa-caret-down"/>
               </button>
-              <button style={{border:'none'}} type="button" className={`btn btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
-                      onClick={this.toggleChild(id)}>
+              <button type="button" className={`btn open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
+                      onClick={e => this.toggleChilds(document.getElementById(id))}>
                 <i className="fa fa-caret-right"/>
               </button>
             </div>
           }
           { (!n.nodes || n.nodes.length === 0) &&
             <div className={`btn-group btn-group-xs`}>
-                <span style={{marginLeft: '38px'}} />
+                <span style={{marginLeft: '8px'}} />
             </div>
           }
 
           <div className="btn-group btn-breadcrumb breadcrumb-info" onClick={this.toggleChild(id)}>
-            <div className="btn btn-info key-value-value">
+            <div className="key-value-value">
               <span>{n.text}</span>
+              <div className="btn-group btn-group-xs btn-submenu">
+                <Link to={link} type="button" className={`btn btn-primary`} data-toggle="tooltip" data-placement="top" title="Add childnote">
+                  + child
+                </Link>
+                <button onClick="" type="button" className="btn btn-sm btn-success"
+                        data-toggle="tooltip" data-placement="top"
+                        title="">
+                  <i className="glyphicon glyphicon-th-list"/>
+                </button>
+                {n.value &&
+                <div className="action-button btn-group btn-group-xs">
+                  <button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-sm btn-success"
+                          data-toggle="tooltip" data-placement="top"
+                          title="Edit this Configuration">
+                    <i className="glyphicon glyphicon-pencil"/>
+                  </button>
+                </div>
+                }
+                {n.value &&
+                <div className="action-button btn-group btn-group-xs">
+                  <button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="top"
+                          title="Delete this Configuration">
+                    <i className="glyphicon glyphicon-trash"/>
+                  </button>
+                </div>
+                }
+              </div>
+
             </div>
+
           </div>
-          <div style={{paddingLeft: '15px'}} className="btn-group btn-group-xs">
-            <Link to={link} type="button" className={`btn btn-primary`} data-toggle="tooltip" data-placement="top" title="Add childnote">
-              add (child)
-            </Link>
-          </div>
-          {n.value &&
-          <div className="action-button btn-group btn-group-xs">
-            <button onClick={e => this.props.editAction(e, n.value)} type="button" className="btn btn-sm btn-success"
-                    data-toggle="tooltip" data-placement="top"
-                    title="Edit this Configuration">
-              <i className="glyphicon glyphicon-pencil"/>
-            </button>
-          </div>
-          }
-          {n.value &&
-          <div className="action-button btn-group btn-group-xs">
-            <button onClick={e => this.props.removeAction(e, n.value)} type="button" className="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="top"
-                    title="Delete this Configuration">
-              <i className="glyphicon glyphicon-trash"/>
-            </button>
-          </div>
-          }
+
 
           <div className="main-content">
             <div className="content-value">
@@ -153,7 +161,7 @@ export class Tree extends Component {
 
   render() {
     return (
-      <div>
+      <div className="col-xs-12">
         <form className="form-horizontal">
           <div className="form-group">
             <div className="input-group dark-input">
