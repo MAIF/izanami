@@ -166,35 +166,36 @@ case class Key(key: String) {
     }
 }
 
-case class Node(key: String, childs: List[Node] = Nil, value: Option[JsValue] = None)
+case class Node(id: Key, key: String, childs: List[Node] = Nil, value: Option[JsValue] = None)
 
 object Node {
   implicit val format = Json.format[Node]
 
   def valuesToNodes[T](vals: List[(Key, T)])(implicit writes: Writes[T]): List[Node] =
-    deepMerge(vals.map {
-      case (k, v) => keyValueToNodes(k.segments.toList, writes.writes(v))
+    deepMerge(Key.Empty, vals.map {
+      case (k, v) => keyValueToNodes(k, k.segments.toList, writes.writes(v))
     })
 
   def valuesToNodes(vals: List[(Key, JsValue)]): List[Node] =
-    deepMerge(vals.map {
-      case (k, v) => keyValueToNodes(k.segments.toList, v)
+    deepMerge(Key.Empty, vals.map {
+      case (k, v) => keyValueToNodes(k, k.segments.toList, v)
     })
 
-  def keyValueToNodes(segments: List[String], jsValue: JsValue): Node =
+  def keyValueToNodes(key: Key, segments: List[String], jsValue: JsValue): Node =
     segments match {
       case Nil          => throw new IllegalArgumentException("Should not append")
-      case head :: Nil  => Node(head, Nil, Some(jsValue))
-      case head :: tail => Node(head, List(keyValueToNodes(tail, jsValue)), None)
+      case head :: Nil  => Node(key / head, head, Nil, Some(jsValue))
+      case head :: tail => Node(key / head, head, List(keyValueToNodes(key / head, tail, jsValue)), None)
     }
 
-  def deepMerge(values: List[Node]): List[Node] =
+  def deepMerge(key: Key, values: List[Node]): List[Node] =
     values
       .groupBy(_.key)
       .map {
         case (k, nodes) =>
-          val value = nodes.flatMap(_.value).headOption
-          Node(k, deepMerge(nodes.flatMap(_.childs)), value)
+          val value      = nodes.flatMap(_.value).headOption
+          val currentKey = key / k
+          Node(currentKey, k, deepMerge(currentKey, nodes.flatMap(_.childs)), value)
       }
       .toList
 }

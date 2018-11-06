@@ -172,7 +172,7 @@ export class Table extends Component {
     if (this.props.parentProps.params.taction) {
       const action = this.props.parentProps.params.taction;
       if (action === 'add') {
-        this.showAddForm();
+        this.showAddForm(null, this.props.parentProps.params.titem);
       } else if (action === 'edit') {
         const item = this.props.parentProps.params.titem;
         this.props.fetchItem(item).then(data => {
@@ -267,12 +267,13 @@ export class Table extends Component {
     this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
   };
 
-  showAddForm = e => {
+  showAddForm = (e, initialId) => {
     if (e && e.preventDefault) e.preventDefault();
     this.mountShortcuts();
     this.props.parentProps.setTitle(`Create a new ${this.props.itemName}`);
-    window.history.pushState({}, '', `${window.__contextPath}/${this.props.selfUrl}/add`);
-    this.setState({currentItem: this.props.defaultValue(), currentItemOriginal: this.props.defaultValue(), showAddForm: true, error: false, errorList: []});
+    const id = initialId ? `/${initialId}` : '';
+    window.history.pushState({}, '', `${window.__contextPath}/${this.props.selfUrl}/add${id}`);
+    this.setState({currentItem: this.props.defaultValue(initialId), currentItemOriginal: this.props.defaultValue(), showAddForm: true, error: false, errorList: []});
   };
 
   closeEditForm = e => {
