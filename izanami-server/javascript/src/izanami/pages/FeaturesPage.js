@@ -257,8 +257,14 @@ export class FeaturesPage extends Component {
     ]
   };
 
-  itemLink = item => {
-    return item && `/features/edit/${item.id}`;
+  itemLink = node => {
+    if (node && node.value) {
+      return `/features/edit/${node.id}`;
+    } else if (node && node.id) {
+      return `/features/add/${node.id}`;
+    } else {
+      return `/features/add`;
+    }
   };
 
   render() {
@@ -266,11 +272,11 @@ export class FeaturesPage extends Component {
       <div className="col-md-12">
         <div className="row">
           <Table
-            defaultValue={() => ({
+            defaultValue={id => ({
               enabled: true,
               activationStrategy: "NO_STRATEGY",
               parameters: {},
-              id: ""
+              id: id || ""
             })}
             treeModeEnabled={true}
             renderTreeLeaf={this.renderTreeLeaf}

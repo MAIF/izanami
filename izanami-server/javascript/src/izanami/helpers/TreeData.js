@@ -20,7 +20,7 @@ export function addOrUpdateInTree(segments, value, tree) {
           }
         } else {
           return {
-            ...n, childs: [createTree(segments, value)]
+            ...n, childs: [createTree(head, segments, value)]
           }
         }
       } else {
@@ -28,19 +28,21 @@ export function addOrUpdateInTree(segments, value, tree) {
       }
     });
   } else {
-    return [...tree, createTree(segments, value)];
+    return [...tree, createTree(head, segments, value)];
   }
 }
 
-function createTree(segments, value) {
+function createTree(key, segments, value) {
   const [head, ...rest] = (segments || []);
+  const id = `${key}:${head}`;
+  console.log('id', id);
   if (rest.length > 0) {
     return {
       key: head,
-      childs: [createTree(rest, value)]
+      childs: [createTree(id, rest, value)]
     }
   } else {
-    return {key: head, value}
+    return {key: head, value, id}
   }
 }
 

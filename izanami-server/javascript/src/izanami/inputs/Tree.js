@@ -31,6 +31,7 @@ export class Tree extends Component {
 
   convertNode = (node, i) => {
     return {
+      id: node.id,
       text: node.key,
       value: node.value,
       nodes: (node.childs || []).map(this.convertNode)
@@ -49,61 +50,62 @@ export class Tree extends Component {
     }
   }
 
+  toggleChild = (id) => e => {
+    const elt = document.getElementById(id);
+    for (let i = 0; i < elt.childNodes.length; i++) {
+      const childNode = elt.childNodes[i];
+      if (childNode.classList.contains("content")) {
+        childNode.classList.toggle('open');
+
+        for (let j = 0; j < childNode.childNodes.length; j++) {
+          const childNode2 = childNode.childNodes[i];
+          if (childNode2.classList.contains("open-close")) {
+            childNode2.classList.toggle('open');
+          }
+        }
+      }
+    }
+  };
+
   search = e => {
     this.props.onSearchChange(e.target.value);
   };
 
   displayNode = () => (n, i) => {
-    const link = this.props.itemLink(n.value);
+    const id = `node-${n.id}-${i}`;
+    const link = this.props.itemLink(n);
     return (
-      <li className="node-tree" key={`node-${n.text}-${i}`} id={`node-${n.text}-${i}`}>
+      <li className="node-tree" key={`node-${n.text}-${i}`} id={id}>
 
         <div className="content ">
-          {link &&
-            <Link to={link}>
-              <div className="btn-group btn-breadcrumb breadcrumb-info">
-                <div className="btn btn-info key-value-value">
-                  <span>{n.text}</span>
-                </div>
-              </div>
-              <div class="btn-group btn-group-xs open-close">
-                <button type="button" className={`btn btn-primary add-child`} data-toggle="tooltip" data-placement="top" title="Add childnote"
-                        onClick="add childNode">
-                └<i className="fa fa-plus-circle"/>
-                </button>
-              </div>
-            </Link>
-          }
-          {!link &&
-            <div className="btn-group btn-breadcrumb breadcrumb-info">
-              <div className="btn btn-info key-value-value">
-                <span>{n.text}</span>
-              </div>
-            </div>
-          }
-
           {n.nodes && n.nodes.length > 0 &&
             <div className={`btn-group btn-group-xs open-close`}>
               <button type="button" className={`btn btn-primary openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
-                      onClick={e => {
-                        e.target.parentNode.classList.toggle('open');
-                        e.target.parentNode.parentNode.classList.toggle('open');
-                        e.target.parentNode.parentNode.parentNode.classList.toggle('open');
-                      }} >
+                      onClick={this.toggleChild(id)} >
                 <i className="fa fa-caret-up"/>
               </button>
               <button type="button" className={`btn btn-primary open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
-                      onClick={e => {
-                        this.toggleChilds(document.getElementById(`node-${n.text}-${i}`));
-                      }}>
+                      onClick={this.toggleChild(id)}>
                 <i className="fa fa-caret-down"/>
-              </button>
-              <button type="button" className={`btn btn-primary`} data-toggle="tooltip" data-placement="top" title="Add item"
-                      onClick="add">
-                <i className="fa fa-plus-circle"/>
               </button>
             </div>
           }
+          { (!n.nodes || n.nodes.length === 0) &&
+            <div className={`btn-group btn-group-xs`}>
+                <span style={{marginLeft: '38px'}} />
+            </div>
+          }
+          <div className="btn-group btn-breadcrumb breadcrumb-info" onClick={this.toggleChild(id)}>
+            <div className="btn btn-info key-value-value">
+              <span>{n.text}</span>
+            </div>
+          </div>
+          <div style={{paddingLeft: '15px'}} className="btn-group btn-group-xs">
+            <Link to={link} type="button" className={`btn btn-primary`} data-toggle="tooltip" data-placement="top" title="Add childnote">
+              add (child)
+            </Link>
+          </div>
+
           <div className="main-content">
             <div className="content-value">
               {n.value && this.props.renderValue(n.value)}
