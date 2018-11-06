@@ -6,8 +6,8 @@ const Key = props => {
   return (
     <div className="btn-group btn-breadcrumb breadcrumb-info">
         {values.map( (part,i) =>
-          <div className="btn btn-info key-value-value" key={`key-value-${props.value}-${i}`} >
-            <span>{part}</span>
+          <div className="key-value-value" key={`key-value-${props.value}-${i}`} >
+            <span>{part}</span><i class="fa fa-caret-right"></i>
           </div>
         )}
     </div>

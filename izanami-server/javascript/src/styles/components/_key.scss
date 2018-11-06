@@ -11,7 +11,11 @@
   margin-left: 2px;
   vertical-align: top;
   cursor: pointer;
+  &:last-child i {
+      display: none;
+  }
 }
+
 
 .btn-breadcrumb>.btn:after {
   content: " ";
@@ -50,6 +54,9 @@
     border-left: 7px solid #373735;
 }
 
+.btn-breadcrumb .fa-caret-right {
+  margin-left: 5px;
+}
 .btn-breadcrumb>.btn {
     padding: 6px 12px 6px 24px;
     margin-right: 0px;
@@ -69,8 +76,7 @@
     margin-left: 5px;
     border: 1px solid $primaryColor;
     padding: 1px 3px;
-}
-
-.closeKeypicker:hover{
-  background-color: $primaryColor;
+    &:hover{
+      background-color: $primaryColor;
+    }
 }
