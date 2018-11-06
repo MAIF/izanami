@@ -1,9 +1,9 @@
 .key-value-value {
-  background-color: #ebf5ff;
+  // background-color: #ebf5ff;
   /* Fallback color for IE 8 */
-  background-color: rgba(0, 126, 255, 0.08);
-  border-radius: 2px;
-  border: 1px solid $primaryColor;
+  // background-color: rgba(0, 126, 255, 0.08);
+  // border-radius: 2px;
+  // border: 1px solid $primaryColor;
   color: white;
   display: inline-block;
   font-size: 0.9em;
@@ -13,7 +13,7 @@
   cursor: pointer;
 }
 
-.btn-breadcrumb .btn:after {
+.btn-breadcrumb>.btn:after {
   content: " ";
   display: block;
   width: 0;
@@ -28,7 +28,7 @@
   left: 100%;
   z-index: 3;
 }
-.btn-breadcrumb .btn:before {
+.btn-breadcrumb>.btn:before {
   content: " ";
   display: block;
   width: 0;
@@ -43,19 +43,19 @@
   left: 100%;
   z-index: 3;
 }
-.btn-breadcrumb .btn.btn-info:hover:before, .btn-breadcrumb .btn.btn-info:before {
+.btn-breadcrumb>.btn.btn-info:hover:before, .btn-breadcrumb>.btn.btn-info:before {
     border-left: 10px solid $primaryColor;
 }
-.btn-breadcrumb .btn.btn-info:after {
+.btn-breadcrumb>.btn.btn-info:after {
     border-left: 7px solid #373735;
 }
 
-.btn-breadcrumb .btn {
+.btn-breadcrumb>.btn {
     padding: 6px 12px 6px 24px;
     margin-right: 0px;
 }
 
-.btn-breadcrumb .btn {
+.btn-breadcrumb>.btn {
     border-color: $primaryColor;
     border-right: 1px solid transparent !important;
     font-size: 11px;
