@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
 import { Table } from '../inputs';
-
+import isEqual from 'lodash/isEqual';
 export class UserPage extends Component {
 
 
@@ -98,7 +98,7 @@ export class UserPage extends Component {
             compareItem={ (a, b) => {
               const  {password: p1, ...rest1} = a;
               const  {password: p2, ...rest2} = b;
-              return _.isEqual(rest1, rest2);
+              return isEqual(rest1, rest2);
             }}
             extractKey={item => item.id} />
         </div>

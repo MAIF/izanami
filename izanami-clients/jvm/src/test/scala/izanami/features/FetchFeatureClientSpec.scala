@@ -183,7 +183,7 @@ class FetchFeatureClientSpec
         val expectedEvents = Seq(
           FeatureCreated(Some(1), "id1", DefaultFeature("id1", true)),
           FeatureUpdated(Some(2), "filter:id2", DefaultFeature("id2", true), DefaultFeature("id2", false)),
-          FeatureCreated(Some(3), "filter:id3", ScriptFeature("id3", true, Some(true), "script")),
+          FeatureCreated(Some(3), "filter:id3", ScriptFeature("id3", true, Some(true), Script("javascript", "{}"))),
           FeatureDeleted(Some(4), "id4"),
           FeatureDeleted(Some(5), "id5")
         )

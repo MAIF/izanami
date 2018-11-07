@@ -8,6 +8,7 @@ import domains.config.ConfigService
 import domains.events.EventStore
 import domains.feature.FeatureService
 import domains.script.GlobalScriptService
+import domains.script.Script.ScriptCache
 import domains.user.UserService
 import domains.webhook.WebhookService
 import env.{Env, IzanamiConfig}
@@ -64,11 +65,12 @@ package object effect {
                              cc: ControllerComponents)
       extends FeatureController[Effect](env, featureStore, system, AuthAction, cc)
 
-  class GlobalScriptControllerEff(globalScriptStore: GlobalScriptService[Effect],
+  class GlobalScriptControllerEff(env: Env,
+                                  globalScriptStore: GlobalScriptService[Effect],
                                   system: ActorSystem,
                                   AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                  cc: ControllerComponents)
-      extends GlobalScriptController[Effect](globalScriptStore, system, AuthAction, cc)
+                                  cc: ControllerComponents)(implicit s: ScriptCache[Effect])
+      extends GlobalScriptController[Effect](env, globalScriptStore, system, AuthAction, cc)
 
   class HealthCheckControllerEff(healthcheck: Healthcheck[Effect],
                                  system: ActorSystem,

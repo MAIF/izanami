@@ -1,0 +1,20 @@
+
+.debug-button-res {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.debug-result-zone {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.debug-logs-zone {
+    //border: solid 1px rgb(181, 179, 179);
+    border: none;
+    min-height: 20px;
+    background-color: #0f0f0f;
+}

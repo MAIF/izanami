@@ -1,9 +1,11 @@
 package domains.script
 
+import cats.Applicative
 import cats.effect.IO
 import com.codahale.metrics.MetricRegistry
 import com.typesafe.config.ConfigFactory
 import controllers.AssetsComponents
+import domains.script.Script.ScriptCache
 import env._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
@@ -100,10 +102,12 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
       import domains.script.syntax._
       import domains.script.ScriptInstances._
 
+      implicit val cache: ScriptCache[IO] = fakeCache[IO]
       implicit val ec: ScriptExecutionContext =
         ScriptExecutionContext(testComponents.actorSystem)
 
-      val result: Boolean = Script(script)
+      val theScript: Script = JavascriptScript(script)
+      val result: ScriptExecution = theScript
         .run[IO](
           Json.obj("name" -> "Ragnar"),
           Env(
@@ -117,17 +121,19 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
         )
         .unsafeRunSync()
 
-      result must be(true)
+      result must be(ScriptExecutionSuccess(true))
     }
     "a script executed must return false" in {
 
       import domains.script.syntax._
       import domains.script.ScriptInstances._
 
+      implicit val cache: ScriptCache[IO] = fakeCache[IO]
       implicit val ec: ScriptExecutionContext =
         ScriptExecutionContext(testComponents.actorSystem)
 
-      val result: Boolean = Script(script)
+      val theScript: Script = JavascriptScript(script)
+      val result: ScriptExecution = theScript
         .run[IO](
           Json.obj("name" -> "Floki"),
           Env(
@@ -141,9 +147,14 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
         )
         .unsafeRunSync()
 
-      result must be(false)
+      result must be(ScriptExecutionSuccess(false))
     }
 
+  }
+
+  def fakeCache[F[_]: Applicative]: ScriptCache[F] = new ScriptCache[F] {
+    override def get(id: String): F[Option[FeatureScript]]      = Applicative[F].pure(None)
+    override def set(id: String, value: FeatureScript): F[Unit] = Applicative[F].pure(())
   }
 
 }

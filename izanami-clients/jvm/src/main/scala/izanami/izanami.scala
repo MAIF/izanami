@@ -347,6 +347,23 @@ case class GlobalScriptFeature(id: String, enabled: Boolean, active: Option[Bool
   def isActive(config: ClientConfig) = active.getOrElse(false)
 }
 
+case class Script(`type`: String, script: String)
+
+object Script {
+
+  private val defaultReads = Json.reads[Script]
+
+  private val reads = Reads[Script] {
+    case JsString(s) => JsSuccess(Script("javascript", s))
+    case s           => defaultReads.reads(s)
+  }
+
+  private val writes = Json.writes[Script]
+
+  implicit val format: Format[Script] = Format(reads, writes)
+
+}
+
 object ScriptFeature {
 
   import play.api.libs.functional.syntax._
@@ -356,7 +373,7 @@ object ScriptFeature {
   val writes: Writes[ScriptFeature] = (
     Feature.commonWrite and
     (__ \ "active").writeNullable[Boolean] and
-    (__ \ "parameters" \ "script").write[String]
+    (__ \ "parameters" \ "script").write[Script]
   )(unlift(ScriptFeature.unapply))
     .transform { o: JsObject =>
       o ++ Json.obj("activationStrategy" -> "SCRIPT")
@@ -369,7 +386,8 @@ object ScriptFeature {
   val format: Format[ScriptFeature] = Format(reads, writes)
 
 }
-case class ScriptFeature(id: String, enabled: Boolean, active: Option[Boolean], script: String) extends Feature {
+
+case class ScriptFeature(id: String, enabled: Boolean, active: Option[Boolean], script: Script) extends Feature {
   def isActive(config: ClientConfig) = active.getOrElse(false)
 }
 

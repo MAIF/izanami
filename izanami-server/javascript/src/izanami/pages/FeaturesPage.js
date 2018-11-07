@@ -4,27 +4,13 @@ import {Link} from 'react-router-dom';
 import {Key, Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput, TextInput, PercentageInput} from '../inputs';
 import moment from 'moment';
 import {IzaDatePicker, IzaDateRangePicker} from '../components/IzanamiDatePicker';
+import * as ScriptsTemplate from '../helpers/ScriptTemplates'
+import {JsLogo, ScalaLogo} from "../components/Logos";
 
 const DATE_FORMAT = 'DD/MM/YYYY HH:mm:ss';
 const DATE_FORMAT2 = 'YYYY-MM-DD HH:mm:ss';
 
 class FeatureParameters extends Component {
-
-  defaultScriptValue = `/**
- * context:  a JSON object containing app specific value
- *           to evaluate the state of the feature
- * enabled:  a callback to mark the feature as active
- *           for this request
- * disabled: a callback to mark the feature as inactive
- *           for this request
- * http:     a http client
- */
-function enabled(context, enabled, disabled, http) {
-  if (context.user === 'john.doe@gmail.com') {
-    return enabled();
-  }
-  return disabled();
-}`;
 
   componentWillReceiveProps(nextProps) {
     const oldStrategy = this.props.source.activationStrategy;
@@ -40,7 +26,7 @@ function enabled(context, enabled, disabled, http) {
         this.props.onChange({ percentage: undefined });
       }
       if (nextStrategy === 'SCRIPT') {
-        this.props.onChange({ script: this.defaultScriptValue });
+        this.props.onChange({ script: {type: 'javascript', script: this.defaultScriptValue } });
       } else if (nextStrategy === 'RELEASE_DATE') {
         this.props.onChange({ releaseDate: moment().format(DATE_FORMAT) });
       } else if (nextStrategy === 'PERCENTAGE') {
@@ -78,7 +64,24 @@ function enabled(context, enabled, disabled, http) {
       />;
     }
     if (this.props.source.activationStrategy === 'SCRIPT') {
-      return <CodeInput parse={false} label="Script" value={this.props.value.script || this.defaultScriptValue} onChange={v => this.props.onChange({ script: v })} />;
+      return <CodeInput
+        parse={false} 
+        label="Script"
+        debug={true}
+        languages={{
+          javascript: {
+            label: 'Javascript',
+            snippet:ScriptsTemplate.javascriptDefaultScript
+          },
+          scala: {
+            label: 'Scala',
+            snippet:ScriptsTemplate.scalaDefaultScript
+          }
+        }}
+        default={"javascript"}
+        value={this.props.value.script}
+        onChange={ ({type, script}) => this.props.onChange({script:{ type, script }})}
+      />;
     }
     if (this.props.source.activationStrategy === 'GLOBAL_SCRIPT') {
       return <AsyncSelectInput
@@ -145,7 +148,11 @@ export class FeaturesPage extends Component {
     const params = item.parameters || {};
     switch(item.activationStrategy) {
       case "SCRIPT":
-        return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
+        if (params.script.type === 'javascript') {
+          return <span><JsLogo width={'20px'}/>{` Script`}</span>;
+        } else if (params.script.type === 'scala') {
+          return <span><ScalaLogo width={'20px'}/>{` Script`}</span>;
+        }
       case "NO_STRATEGY":
         return  <span >{`No strategy`}</span>;
       case "RELEASE_DATE":
@@ -160,14 +167,14 @@ export class FeaturesPage extends Component {
       case "DATE_RANGE":
         return (
           <span style={{textAlign: 'center'}} data-toggle="tooltip" data-placement="top" title={`Enabled between ${params.from} and ${params.to}`}>
-                    <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
-                      <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
-                    </time>
-                    <span> <i className="fa fa-arrow-right"/> </span>
-                    <time dateTime={`${moment(params.to).format('YYYY-MM-DD')}`} className="icon">
-                      <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
-                    </time>
-                </span>
+              <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
+                <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
+              </time>
+              <span> <i className="fa fa-arrow-right"/> </span>
+              <time dateTime={`${moment(params.to).format('YYYY-MM-DD')}`} className="icon">
+                <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
+              </time>
+          </span>
         );
       case "GLOBAL_SCRIPT":
         return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;

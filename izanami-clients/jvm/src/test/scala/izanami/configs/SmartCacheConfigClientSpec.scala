@@ -145,7 +145,7 @@ class SmartCacheConfigClientSpec
         ).configClient(
           strategy = CacheWithSseStrategy(
             patterns = Seq("*"),
-            pollingInterval = None//Some(3.second)
+            pollingInterval = None //Some(3.second)
           ),
           fallback = fallback
         )

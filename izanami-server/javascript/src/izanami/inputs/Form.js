@@ -11,10 +11,10 @@ import {
   LabelInput,
   CodeInput,
   KeyInput,
-  FieldError,
+  FieldError, JsonInput,
 } from ".";
 
-import _ from 'lodash';
+import isFunction from 'lodash/isFunction';
 
 export class Form extends Component {
 
@@ -62,7 +62,7 @@ export class Form extends Component {
 
 
   generateStep(name, idx) {
-    if (_.isFunction(name)) {
+    if (isFunction(name)) {
       return React.createElement(name, {})
     } else if (React.isValidElement(name)) {
       return name;
@@ -119,6 +119,14 @@ export class Form extends Component {
           return (
             <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
               <CodeInput disabled={disabled}
+                         value={this.getValue(name, {type:'javascript', script: ''})} {...props}
+                         onChange={v => this.changeValue(name, v)}/>
+            </FieldError>
+          )
+        } else if (type === 'json') {
+          return (
+            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
+              <JsonInput disabled={disabled}
                          value={this.getValue(name, '')} {...props}
                          onChange={v => this.changeValue(name, v)}/>
             </FieldError>
@@ -144,7 +152,7 @@ export class Form extends Component {
                          onChange={v => this.changeValue(name, v)}/>
             </FieldError>
           )
-        } else if (_.isFunction(type)) {
+        } else if (isFunction(type)) {
           return (
             <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
               {
