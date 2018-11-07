@@ -68,6 +68,16 @@ export class Tree extends Component {
     }
   };
 
+  toggleChildOrEdit = (id, n) => e => {
+    if (n.nodes && n.nodes.length > 0 ) {
+      this.toggleChild(id)(e);
+    } else {
+      console.log('Node', n);
+      this.props.editAction(e, n.value);
+    }
+  };
+
+
   search = e => {
     this.props.onSearchChange(e.target.value);
   };
@@ -97,7 +107,7 @@ export class Tree extends Component {
             </div>
           }
 
-          <div className="btn-group btn-breadcrumb breadcrumb-info" onClick={this.toggleChild(id)}>
+          <div className="btn-group btn-breadcrumb breadcrumb-info" onClick={this.toggleChildOrEdit(id, n)}>
             <div className="key-value-value">
               <span>{n.text}</span>
               <div className="btn-group btn-group-xs btn-submenu">
