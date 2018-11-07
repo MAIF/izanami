@@ -348,7 +348,6 @@ export class ExperimentsPage extends Component {
     IzanamiServices.fetchExperimentResult(item.id).then(results => {
       this.props.setTitle("Results for " + results.experiment.name);
       const [serieNames, data] = this.buildChartData(results);
-      console.log("Results", serieNames, data);
       this.setState({ results, item, serieNames, data }, () => {
         //this.mountChart(this.chartRef)
       });
@@ -373,7 +372,6 @@ export class ExperimentsPage extends Component {
     results.forEach(res => {
       let transfo = 0.0;
       evts.forEach(e => {
-        console.log(e, res);
         if (e.variant !== res.variant.id) {
           e[res.variant.id] = parseFloat(transfo.toFixed(2));
         } else {

@@ -228,7 +228,6 @@ export class FeaturesPage extends Component {
   };
 
   createItem = (feature) => {
-    console.log('feature', feature);
     return IzanamiServices.createFeature(feature);
   };
 
