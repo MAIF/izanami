@@ -8,8 +8,9 @@ import akka.util.ByteString
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.apikey.Apikey
+import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigInstances, ConfigService}
-import domains.{Import, ImportResult, IsAllowed, Key}
+import domains._
 import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
@@ -30,35 +31,55 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
 
   import cats.implicits._
   import libs.functional.syntax._
+  import libs.effects._
   import system.dispatcher
   import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
-  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import ConfigInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
-      configStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
-        .map { r =>
-          Ok(
-            Json.obj(
-              "results" -> Json.toJson(r.results),
-              "metadata" -> Json.obj(
-                "page"     -> page,
-                "pageSize" -> nbElementPerPage,
-                "count"    -> r.count,
-                "nbPages"  -> r.nbPages
+
+      render match {
+        case "flat" =>
+          configStore
+            .getByIdLike(patternsSeq, page, nbElementPerPage)
+            .map { r =>
+              Ok(
+                Json.obj(
+                  "results" -> Json.toJson(r.results),
+                  "metadata" -> Json.obj(
+                    "page"     -> page,
+                    "pageSize" -> nbElementPerPage,
+                    "count"    -> r.count,
+                    "nbPages"  -> r.nbPages
+                  )
+                )
               )
-            )
-          )
-        }
+            }
+
+        case "tree" =>
+          import Node._
+          import ConfigInstances._
+          configStore
+            .getByIdLike(patternsSeq)
+            .fold(List.empty[(ConfigKey, Config)])(_ :+ _)
+            .map { v =>
+              Node.valuesToNodes[Config](v)(ConfigInstances.format)
+            }
+            .map { v =>
+              Json.toJson(v)
+            }
+            .map(json => Ok(json))
+            .runWith(Sink.head)
+            .toF[F]
+      }
     }
 
   def tree(patterns: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
-      import ConfigInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
       configStore
         .getByIdLike(patternsSeq)

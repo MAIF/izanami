@@ -8,7 +8,7 @@ GET     /                                   controllers.HomeController.index
 
 
 #Configs
-GET     /api/configs                        controllers.effect.ConfigControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+GET     /api/configs                        controllers.effect.ConfigControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, render: String ?= "flat")
 POST    /api/configs                        controllers.effect.ConfigControllerEff.create()
 GET     /api/configs/:id                    controllers.effect.ConfigControllerEff.get(id)
 PUT     /api/configs/:id                    controllers.effect.ConfigControllerEff.update(id)
@@ -23,7 +23,7 @@ GET     /api/counts/configs                 controllers.effect.ConfigControllerE
 GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.effect.SpringConfigControllerEff.raw(rootKey, appName, profile)
 
 #Features
-GET     /api/features                       controllers.effect.FeatureControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false)
+GET     /api/features                       controllers.effect.FeatureControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false, render: String ?= "flat")
 POST    /api/features/_checks               controllers.effect.FeatureControllerEff.listWithContext(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
 POST    /api/features                       controllers.effect.FeatureControllerEff.create()
 DELETE  /api/features                       controllers.effect.FeatureControllerEff.deleteAll(pattern: String ?= "*")
@@ -51,7 +51,7 @@ GET     /api/scripts.ndjson                 controllers.effect.GlobalScriptContr
 POST    /api/scripts.ndjson                 controllers.effect.GlobalScriptControllerEff.upload()
 
 #Experiments
-GET     /api/experiments                    controllers.effect.ExperimentControllerEff.list(pattern: String ?= "*")
+GET     /api/experiments                    controllers.effect.ExperimentControllerEff.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, render: String ?= "flat")
 GET     /api/tree/experiments               controllers.effect.ExperimentControllerEff.tree(pattern: String ?= "*", clientId: String)
 POST    /api/experiments                    controllers.effect.ExperimentControllerEff.create()
 GET     /api/experiments.ndjson             controllers.effect.ExperimentControllerEff.downloadExperiments()

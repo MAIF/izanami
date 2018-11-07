@@ -4,7 +4,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
-import cats.kernel.Monoid
+import cats.kernel.{Monoid, Semigroup}
 import env.DbDomainConfig
 import play.api.Logger
 import play.api.libs.json.Reads.pattern
@@ -164,6 +164,40 @@ case class Key(key: String) {
     } else {
       this
     }
+}
+
+case class Node(id: Key, key: String, childs: List[Node] = Nil, value: Option[JsValue] = None)
+
+object Node {
+  implicit val format = Json.format[Node]
+
+  def valuesToNodes[T](vals: List[(Key, T)])(implicit writes: Writes[T]): List[Node] =
+    deepMerge(Key.Empty, vals.map {
+      case (k, v) => keyValueToNodes(k, k.segments.toList, writes.writes(v))
+    })
+
+  def valuesToNodes(vals: List[(Key, JsValue)]): List[Node] =
+    deepMerge(Key.Empty, vals.map {
+      case (k, v) => keyValueToNodes(k, k.segments.toList, v)
+    })
+
+  def keyValueToNodes(key: Key, segments: List[String], jsValue: JsValue): Node =
+    segments match {
+      case Nil          => throw new IllegalArgumentException("Should not append")
+      case head :: Nil  => Node(key / head, head, Nil, Some(jsValue))
+      case head :: tail => Node(key / head, head, List(keyValueToNodes(key / head, tail, jsValue)), None)
+    }
+
+  def deepMerge(key: Key, values: List[Node]): List[Node] =
+    values
+      .groupBy(_.key)
+      .map {
+        case (k, nodes) =>
+          val value      = nodes.flatMap(_.value).headOption
+          val currentKey = key / k
+          Node(currentKey, k, deepMerge(currentKey, nodes.flatMap(_.childs)), value)
+      }
+      .toList
 }
 
 trait IsAllowed[T] {

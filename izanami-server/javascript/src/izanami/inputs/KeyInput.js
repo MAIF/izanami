@@ -32,20 +32,22 @@ class SearchResult extends Component {
 
   render() {
     const values = this.props.value.split(":").filter(e => !!e);
-    const size = values.length;
     return (
       <div className="keypicker-result-control ">
         <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
         {values.map( (part, i) =>
           [
             <div
-              className={`${this.classOfElt(i)} btn btn-info`}
+              className={`${this.classOfElt(i)} `}
               key={`result-${this.props.value}-${i}`}
               onClick={this.selectValue(i, values)}
               onMouseOver={this.setHoverIndex(i)}
               onMouseOut={this.resetHoverIndex}
             >
               <span className="keypicker-result-value-label">{part}</span>
+              { i < (values.length - 1) &&
+                <i className="fa fa-caret-right"/>
+              }
             </div>
           ])}
         </span>
@@ -53,6 +55,12 @@ class SearchResult extends Component {
     )
   }
 }
+
+const keys = {
+  tab: 9,
+  backspace: 8,
+  enter: 13
+};
 
 export class KeyInput extends Component {
 
@@ -62,28 +70,53 @@ export class KeyInput extends Component {
     computedValue: this.props.value,
     textValue: '',
     open: false,
-    datas: []
+    datas: [],
+    editedIndex: -1,
   };
 
   componentDidMount() {
-    document.body.addEventListener('keydown', this.tabShortcut);
+    document.body.addEventListener('keydown', this.keyboard);
     document.body.addEventListener('click', this.handleTouchOutside);
   }
 
   componentWillUnmount() {
-    document.body.removeEventListener('keydown', this.tabShortcut);
+    document.body.removeEventListener('keydown', this.keyboard);
     document.body.removeEventListener('click', this.handleTouchOutside);
   }
 
-  tabShortcut = e => {
-    if (e.keyCode === 9) {
+  keyboard = e => {
+    if ((e.keyCode === keys.tab) || (e.keyCode === keys.enter)) {
       e.preventDefault();
       if (this.state.textValue) {
         const segments = [...this.state.segments, ...this.state.textValue.split(":").map(s => s.trim()).filter(s => !!s)];
         const key = segments.join(":");
         this.setState({segments, key, textValue: '', computedValue: key});
       }
+      this.validateEditedValue();
+    } else if ( (e.keyCode === keys.backspace)) {
+      if (this.inputRef && this.inputRef === document.activeElement && this.state.textValue === '') {
+        e.preventDefault();
+        this.editLastSegment()
+      }
     }
+  };
+
+  validateEditedValue = () => {
+    if (this.state.editedValue || this.state.editedIndex) {
+      const key = this.state.segments.join(":");
+      this.setState({key, computedValue: key, editedValue: null, editedIndex: -1});
+      if (this.inputRef) {
+        this.inputRef.focus();
+      }
+    }
+  };
+
+  editLastSegment = () => {
+    const segments = this.state.segments.slice(0, -1);
+    const last = this.state.segments.slice(-1).pop();
+    const key = segments.join(":");
+    this.props.onChange(this.state.computedValue);
+    this.setState({segments, key, computedValue: key, textValue: last})
   };
 
   computeValue = (e) => {
@@ -96,10 +129,8 @@ export class KeyInput extends Component {
         () => this.search()
       );
       this.props.onChange(key);
-      this.search();
     } else {
       const computedValue = this.state.key ? this.state.key + ":" + v.trim() : v.trim();
-      //const segments = computedValue.split(":");
       this.setState(
         {computedValue, textValue: v},
         () => this.search()
@@ -108,23 +139,17 @@ export class KeyInput extends Component {
     }
   };
 
-  removeLastSegment = () => {
-    const segments = this.state.segments.slice(0, -1);
-    const key = segments.join(":");
-    this.props.onChange(key);
-    this.setState({segments, key, computedValue: key})
-  };
-
   onFocus = () => {
+    this.validateEditedValue();
     this.search();
   };
 
-  search = () => {
+  search = (open=true) => {
     if (this.state.computedValue.length > 0) {
       this.props.search(this.state.computedValue + "*")
         .then(datas => {
           _.sortBy(datas);
-          this.setState({datas})
+          this.setState({datas, open})
         })
     } else {
       this.setState({open:false})
@@ -140,17 +165,20 @@ export class KeyInput extends Component {
   };
 
   selectValue = (key) => {
-    this.setState({segments: key.split(":"), key, textValue: '', computedValue: key, datas: [], open: false});
-
-    if (this.inputRef) {
-      this.inputRef.focus();
-    }
-    this.props.onChange(key);
+    this.setState(
+      {segments: key.split(":"), key, textValue: '', computedValue: key, datas: [], open: false},
+      () => {
+        if (this.inputRef) {
+          this.inputRef.focus();
+        }
+        this.search(true);
+        this.props.onChange(key);
+      }
+    );
   };
 
   copyToClipboard = e => {
       const text = this.state.key;
-
       const textArea = document.createElement("textarea");
       textArea.value = text;
       document.body.appendChild(textArea);
@@ -161,6 +189,30 @@ export class KeyInput extends Component {
           document.execCommand('copy');
       } catch (err) {}
       document.body.removeChild(textArea);
+  };
+
+  setEditedIndex = (i,text) => e => {
+    if (this.state.segments.length - 1 === i) {
+      this.editLastSegment();
+    } else {
+      this.setState({editedIndex:i, editedValue: text})
+    }
+  };
+
+  changeEditedValue = i => e => {
+    const datas = this.state.segments;
+    const text = e.target.value;
+    if (text.endsWith(":") || text.endsWith(" ")) {
+      const truncated = text.substring(0, text.length - 1);
+      datas[i] = truncated;
+      this.setState(
+        {segments:[...datas], computedValue:datas.join(":"), open:false, editedValue: truncated},
+        () => this.validateEditedValue()
+      );
+    } else {
+      datas[i] = text;
+      this.setState({segments:[...datas], computedValue:datas.join(":"), open:false, editedValue: text})
+    }
   };
 
   render() {
@@ -174,16 +226,32 @@ export class KeyInput extends Component {
             <div className="keypicker-control">
 
               <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
-                {this.state.segments.map( (part,i) => [
-                  <span className="btn btn-info keypicker-value" style={{ marginLeft: '0px' }} key={`value-${i}`}>
-                    <span>{part}</span>
-                    {i === (size - 1) &&
-                      <span className="closeKeypicker" onClick={this.removeLastSegment}>x</span>
-                    }
-                  </span>
-                  ]
-                )}
-                <div className="keypicker-input" style={{marginLeft: '12px', paddingLeft: '12px', overflow: 'hidden'}}>
+                {this.state.segments.map( (part,i) => {
+                  if (i === this.state.editedIndex) {
+                    return (
+                      <span className="keypicker-value" style={{ marginLeft: '0px' }} key={`value-${i}`}>
+                        <input
+                          autoFocus="true"
+                          type="text"
+                          ref={e => e && e.setSelectionRange(99999, 99999)}
+                          className="key-picker-edited-input"
+                          size={`${part.length}`}
+                          onChange={this.changeEditedValue(i)}
+                          value={this.state.editedValue}
+                        />
+                        <i className="fa fa-caret-right"/>
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <span className="keypicker-value" style={{ marginLeft: '0px' }} key={`value-${i}`} onDoubleClick={this.setEditedIndex(i, part)}>
+                        <span>{part}</span>
+                        <i className="fa fa-caret-right"/>
+                      </span>
+                    );
+                  }
+                })}
+                <div className="keypicker-input" style={{overflow: 'hidden'}}>
                   <input
                     type="text"
                     size={`${this.state.textValue.length}`}
@@ -195,15 +263,13 @@ export class KeyInput extends Component {
                 </div>
               </span>
               <span>
-                <button type="button" className="btn btn-small btn-success" onClick={this.copyToClipboard}><i className="fa fa-copy"/></button>
+                <button type="button" className="btn btn-small btn-success" title="copy" onClick={this.copyToClipboard}><i className="fa fa-copy"/></button>
               </span>
             </div>
             {this.state.open &&
             <div className="keypicker-menu-outer" >
               {this.state.datas.map((d, i) =>
-                <div key={`res-${i}`}>
-                  <SearchResult value={d} onSelect={this.selectValue}/>
-                </div>
+                  <SearchResult key={`res-${i}`} value={d} onSelect={this.selectValue}/>
               )}
             </div>
             }

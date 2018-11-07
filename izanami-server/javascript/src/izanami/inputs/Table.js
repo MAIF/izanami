@@ -5,6 +5,10 @@ import _ from 'lodash';
 import {createTooltip} from './tooltips';
 import {SweetModal} from './SweetModal';
 import * as Events from '../services/events';
+import {Tree} from './Tree';
+import * as TreeHelper from '../helpers/TreeData';
+import Cookies from 'js-cookie';
+import * as Persistence from '../helpers/persistence'
 
 import ReactTable from 'react-table';
 
@@ -33,6 +37,7 @@ export class Table extends Component {
     itemName: PropTypes.string.isRequired,
     columns: PropTypes.array.isRequired,
     fetchItems: PropTypes.func.isRequired,
+    fetchItemsTree: PropTypes.func,
     fetchItem: PropTypes.func.isRequired,
     updateItem: PropTypes.func,
     deleteItem: PropTypes.func,
@@ -51,6 +56,9 @@ export class Table extends Component {
     eventNames: PropTypes.object,
     compareItem: PropTypes.func,
     convertItem: PropTypes.func,
+    treeModeEnabled: PropTypes.bool,
+    renderTreeLeaf: PropTypes.func,
+    itemLink: PropTypes.func,
   };
 
   static defaultProps = {
@@ -62,6 +70,7 @@ export class Table extends Component {
   };
 
   state = {
+    table: (Persistence.get('table-render') || 'table') === 'table',
     items: [],
     currentItem: null,
     currentItemOriginal: null,
@@ -97,6 +106,14 @@ export class Table extends Component {
   }
 
   handleEvent = e => {
+    if (this.isTable()) {
+      this.handleEventInTable(e)
+    } else {
+      this.handleEventInTree(e);
+    }
+  };
+
+  handleEventInTable = e => {
     let items;
     switch (e.type) {
       case this.props.eventNames.created:
@@ -125,6 +142,26 @@ export class Table extends Component {
     this.setState({items, justUpdated: true});
   };
 
+  handleEventInTree = e => {
+    let tree;
+    const key = this.props.extractKey(e.payload);
+    const segments = key.split(":");
+    switch (e.type) {
+      case this.props.eventNames.created:
+        tree = TreeHelper.addOrUpdateInTree(segments, e.payload, this.state.tree);
+        break;
+      case this.props.eventNames.updated:
+        tree = TreeHelper.addOrUpdateInTree(segments, e.payload, this.state.tree);
+        break;
+      case this.props.eventNames.deleted:
+        tree = TreeHelper.deleteInTree(segments, this.state.tree);
+        break;
+      default:
+        tree = this.state.tree;
+    }
+    this.setState({tree, justUpdated: true});
+  };
+
   componentWillUnmount() {
     this.unmountShortcuts();
     if (this.props.eventNames) {
@@ -136,7 +173,7 @@ export class Table extends Component {
     if (this.props.parentProps.params.taction) {
       const action = this.props.parentProps.params.taction;
       if (action === 'add') {
-        this.showAddForm();
+        this.showAddForm(null, this.props.parentProps.params.titem);
       } else if (action === 'edit') {
         const item = this.props.parentProps.params.titem;
         this.props.fetchItem(item).then(data => {
@@ -147,7 +184,7 @@ export class Table extends Component {
     if (this.props.parentProps.location.query && this.props.parentProps.location.query.search) {
       const searched = this.props.parentProps.location.query.search;
       const defaultFiltered = this.props.columns.filter(c => !c.notFilterable).map(c => ({id: c.title, value: searched}));
-      this.setState({ defaultFiltered });
+        this.setState({ defaultFiltered });
     }
   };
 
@@ -180,19 +217,38 @@ export class Table extends Component {
     }
   };
 
+  isTable = () => {
+    return !this.props.treeModeEnabled || this.state.table;
+  };
+
+  isTree = () => {
+    return this.props.treeModeEnabled && !this.state.table;
+  };
+
   update = (initialArgs = {}) => {
     this.setState({loading: true});
     const args = {
       search: initialArgs.filtered,
       pageSize: initialArgs.pageSize || this.props.pageSize,
       page: initialArgs.page ? initialArgs.page + 1 : 1
+    };
+    if (this.isTable()) {
+      return this.props.fetchItems(args).then(
+        ({nbPages, results}) => {
+          this.setState({ items: results || [], nbPages: nbPages == 0 ? 1 : nbPages, loading: false});
+        },
+        () => this.setState({loading: false})
+      );
+
+    } else {
+      return this.props.fetchItemsTree ? this.props.fetchItemsTree({search:initialArgs.filtered})
+        .then(
+          tree => {
+            this.setState({ tree, loading: false});
+          },
+          () => this.setState({loading: false})
+        ) : this.setState({loading: false})
     }
-    return this.props.fetchItems(args).then(
-      ({nbPages, results}) => {
-        this.setState({ items: results || [], nbPages: nbPages == 0 ? 1 : nbPages, loading: false});
-      },
-      () => this.setState({loading: false})
-    );
   };
 
   gotoItem = (e, item) => {
@@ -212,12 +268,13 @@ export class Table extends Component {
     this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
   };
 
-  showAddForm = e => {
+  showAddForm = (e, initialId) => {
     if (e && e.preventDefault) e.preventDefault();
     this.mountShortcuts();
     this.props.parentProps.setTitle(`Create a new ${this.props.itemName}`);
-    window.history.pushState({}, '', `${window.__contextPath}/${this.props.selfUrl}/add`);
-    this.setState({currentItem: this.props.defaultValue(), currentItemOriginal: this.props.defaultValue(), showAddForm: true, error: false, errorList: []});
+    const id = initialId ? `/${initialId}` : '';
+    window.history.pushState({}, '', `${window.__contextPath}/${this.props.selfUrl}/add${id}`);
+    this.setState({currentItem: this.props.defaultValue(initialId), currentItemOriginal: this.props.defaultValue(), showAddForm: true, error: false, errorList: []});
   };
 
   closeEditForm = e => {
@@ -344,6 +401,23 @@ export class Table extends Component {
       });
   };
 
+
+  toggleRender = () => {
+    const table = !this.state.table;
+    if (table) {
+      Persistence.set('table-render', 'table');
+    } else {
+      Persistence.set('table-render', 'tree');
+    }
+    this.setState({table}, () =>
+      this.update()
+    );
+  };
+
+  renderLeaf = value => {
+    return this.props.renderTreeLeaf(value);
+  };
+
   uploadFile = link => e => {
     const upload = e => {
       fetch(link, {
@@ -381,6 +455,11 @@ export class Table extends Component {
         )
       });
     return [...errors, ...errorsOnFields];
+  };
+
+  search = text => {
+    this.setState({table:true});
+    this.props.backToUrl && window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`);
   };
 
   render() {
@@ -430,7 +509,7 @@ export class Table extends Component {
         style: { textAlign: 'center' },
         filterable: false,
         accessor: (item, ___, index) => (
-          <div style={{ width: 140, textAlign: 'center' }}>
+          <div style={{ width: 140, textAlign: 'right' }}>
             <div className="displayGroupBtn">
               <button
                 type="button"
@@ -481,6 +560,26 @@ export class Table extends Component {
               </div>
               <div className="row" style={{ marginBottom: 10 }}>
                 <div className="col-md-12">
+                  {this.props.treeModeEnabled && this.isTable() &&
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{marginLeft: 10}}
+                      onClick={this.toggleRender}
+                      {...createTooltip('Switch the view')}>
+                      <span className="glyphicon glyphicon-signal" style={{transform: 'rotate(90deg)'}}/>
+                    </button>
+                  }
+                  {this.isTree() &&
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={this.toggleRender}
+                      style={{marginLeft: 10}}
+                      {...createTooltip('Switch the view')}>
+                      <span className="glyphicon glyphicon-th-list"/>
+                    </button>
+                  }
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -488,6 +587,7 @@ export class Table extends Component {
                     onClick={this.update}>
                     <span className="glyphicon glyphicon-refresh" />
                   </button>
+
                   {this.props.showActions && (
                     <button
                       type="button"
@@ -546,24 +646,40 @@ export class Table extends Component {
                   }
                 </div>
               </div>
-              <div className="rrow">
-                <ReactTable
-                  className="fulltable -striped -highlight"
-                  data={this.state.items}
-                  loading={this.state.loading}
-                  sortable={true}
-                  filterable={true}
-                  filterAll={true}
-                  defaultSorted={[{ id: this.props.columns[0].title, desc: false }]}
-                  manual
-                  pages={this.state.nbPages}
-                  defaultPageSize={this.props.pageSize}
-                  columns={columns}
-                  LoadingComponent={LoadingComponent}
-                  onFetchData={this.onFetchData}
-                  defaultFiltered={this.state.defaultFiltered}
-                />
-              </div>
+
+                {this.isTable() &&
+                    <div className="rrow">
+                        <ReactTable
+                            className="fulltable -striped -highlight"
+                            data={this.state.items}
+                            loading={this.state.loading}
+                            sortable={true}
+                            filterable={true}
+                            filterAll={true}
+                            defaultSorted={[{ id: this.props.columns[0].title, desc: false }]}
+                            manual
+                            pages={this.state.nbPages}
+                            defaultPageSize={this.props.pageSize}
+                            columns={columns}
+                            LoadingComponent={LoadingComponent}
+                            onFetchData={this.onFetchData}
+                            defaultFiltered={this.state.defaultFiltered}
+                        />
+                    </div>
+                }
+                {!this.isTable() &&
+                    <div>
+                      <Tree
+                        datas={this.state.tree || []}
+                        renderValue={this.renderLeaf}
+                        itemLink={this.props.itemLink}
+                        search={this.search}
+                        onSearchChange={text => this.update({filtered: [{id: 'key', value:text}]})}
+                        editAction={ (e, item) => this.showEditForm(e, item) }
+                        removeAction={ (e, item) => this.setState({confirmDeleteTable: true, toDelete: item}) }
+                      />
+                    </div>
+                }
             </div>
         )}
 
