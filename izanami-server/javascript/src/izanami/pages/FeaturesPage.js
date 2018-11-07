@@ -130,6 +130,15 @@ export class FeaturesPage extends Component {
     parameters: { type: FeatureParameters, props: { label: 'Parameters', placeholderKey: 'Parameter name', placeholderValue: 'Parameter value' }, error : { key : 'obj.parameters'}},
   };
 
+
+  searchKey = (pattern) => {
+    return IzanamiServices.fetchFeatures({page: 1, pageSize: 20, search: pattern })
+      .map(({results}) =>
+        results.map(({id}) => id)
+      )
+  };
+
+
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true, search: this.searchKey } } };
 
   renderStrategy = (item) => {
@@ -173,7 +182,7 @@ export class FeaturesPage extends Component {
     IzanamiServices.fetchFeature(item.id).then(feature => {
       IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
     })
-  }} />
+  }} />;
 
   columns = [
     {
@@ -201,13 +210,6 @@ export class FeaturesPage extends Component {
     'activationStrategy',
     'parameters'
   ];
-
-  searchKey = (pattern) => {
-    return IzanamiServices.fetchFeatures({page: 1, pageSize: 20, search: pattern })
-      .map(({results}) =>
-        results.map(({id}) => id)
-      )
-  };
 
   fetchItems = (args) => {
     const {search = [], page, pageSize} = args;
