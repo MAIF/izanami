@@ -211,7 +211,7 @@ export class FeaturesPage extends Component {
 
   fetchItems = (args) => {
     const {search = [], page, pageSize} = args;
-    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
+    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
     return IzanamiServices.fetchFeatures({page, pageSize, search: pattern });
   };
 
