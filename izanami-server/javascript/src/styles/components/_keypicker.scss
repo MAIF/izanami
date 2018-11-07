@@ -23,6 +23,8 @@
 
 
 .keypicker--multi .keypicker-multi-value-wrapper {
+  display: flex;
+  align-items: center;
   flex-grow: 1;
   margin-left: 5px;
 }
@@ -61,9 +63,6 @@
 }
 .keypicker--multi.has-value .keypicker-input {
   margin-left: 3px;
-}
-.keypicker--multi .keypicker-value {
-  margin-top: 3px;
 }
 .keypicker--multi .keypicker-value-sep {
   color: $primaryColor;
@@ -190,8 +189,6 @@
 }
 
 
-
-
 .keypicker-menu-outer .keypicker-multi-value-wrapper {
   display: flex;
   flex-grow: 1;
@@ -208,12 +205,17 @@
   display: table;
   border-spacing: 0;
   border-collapse: separate;
-  height: 36px;
+  height: 30px;
   outline: none;
   overflow: hidden;
   position: relative;
   width: 100%;
   z-index: 5;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  &:first-child {
+    padding-top: 8px;
+  }
 }
 
 .keypicker-result-control:hover {
@@ -226,41 +228,22 @@
 
 
 .keypicker-menu-outer .keypicker-result-value {
-  background-color: #ebf5ff;
-  /* Fallback color for IE 8 */
-  background-color: rgba(0, 126, 255, 0.08);
-  border-radius: 2px;
-  border: 1px solid #c2e0ff;
-  /* Fallback color for IE 8 */
-  border: 1px solid rgba(220, 95, 159, 1);
+  background-color: transparent;
   color: white;
-  display: inline-block;
-  font-size: 0.9em;
-  line-height: 1.4;
-  margin-left: 2px;
-  margin-top: 2px;
-  vertical-align: top;
-  cursor: pointer;
-}
-
-.keypicker-menu-outer .keypicker-result-value-icon,
-.keypicker-menu-outer .keypicker-result-value-label {
-  display: inline-block;
-  vertical-align: middle;
-}
-.keypicker-menu-outer .keypicker-result-value-label {
-  border-bottom-right-radius: 2px;
-  border-top-right-radius: 2px;
+  padding-top: 2px;
+  margin: 2px;
+  padding-bottom: 2px;
+  border: 1px solid $fondNavbar;
+  border-radius: 2px;
   cursor: pointer;
 }
 
 .result-active {
-  background-color: $colorRose!important;
-  background-image: none !important;
+  border: thin solid !important;
 }
 
-.result-active:after {
-  border-left-color: $colorRose!important;
+.keypicker-result-value-label {
+  margin: 2px;
 }
 
 .key-picker-edited-input {
@@ -275,4 +258,16 @@
     border: none;
     outline-color: $fondNavbar;
   }
+}
+
+
+.keypicker-value {
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-size: 1em;
+  margin-left: 2px;
+  margin-right: 2px;
+  cursor: pointer;
 }
