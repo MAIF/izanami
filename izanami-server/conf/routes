@@ -43,6 +43,7 @@ GET     /api/counts/features                controllers.effect.FeatureController
 GET     /api/scripts                        controllers.effect.GlobalScriptControllerEff.list(pattern: String ?= "*", name_only: Option[Boolean], page: Int ?= 1, pageSize: Int ?= 15)
 POST    /api/scripts                        controllers.effect.GlobalScriptControllerEff.create()
 DELETE  /api/scripts                        controllers.effect.GlobalScriptControllerEff.deleteAll(pattern: String ?= "*")
+POST    /api/scripts/_debug                 controllers.effect.GlobalScriptControllerEff.debug()
 GET     /api/scripts/:id                    controllers.effect.GlobalScriptControllerEff.get(id)
 PUT     /api/scripts/:id                    controllers.effect.GlobalScriptControllerEff.update(id)
 PATCH   /api/scripts/:id                    controllers.effect.GlobalScriptControllerEff.patch(id)

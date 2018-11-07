@@ -14,6 +14,7 @@ export * from './Form';
 export * from './Table';
 export * from './LabelInput';
 export * from './CodeInput';
+export * from './JsonInput';
 export * from './Alerts';
 export * from './FieldError';
 export * from './AsyncSelectInput';

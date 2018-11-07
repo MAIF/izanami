@@ -1,7 +1,8 @@
 .idea
 target
 ./data2
-redisdata
+data/
+redisdata/
 .credentials
 .dockercfg
 .npmrc

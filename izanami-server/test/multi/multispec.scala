@@ -224,6 +224,31 @@ object Configs {
       .resolve()
   )
 
+  def dynamoDbConfig(id: Long): Configuration = Configuration(
+    ConfigFactory
+      .parseString(s"""
+                     |izanami.db.default="Dynamo"
+                     |izanami.patchEnabled = false
+                     |
+                     |izanami.mode= "test"
+                     |izanami.config.db.type=$${izanami.db.default}
+                     |izanami.db.dynamo.tableName=izanami_$id
+                     |izanami.db.dynamo.eventsTableName=izanami_experimentevents_$id
+                     |izanami.db.dynamo.host=localhost
+                     |izanami.db.dynamo.port=8001
+                     |izanami.features.db.type=$${izanami.db.default}
+                     |izanami.globalScript.db.type=$${izanami.db.default}
+                     |izanami.experiment.db.type=$${izanami.db.default}
+                     |izanami.variantBinding.db.type=$${izanami.db.default}
+                     |izanami.experimentEvent.db.type=$${izanami.db.default}
+                     |izanami.webhook.db.type=$${izanami.db.default}
+                     |izanami.user.db.type=$${izanami.db.default}
+                     |izanami.apikey.db.type=$${izanami.db.default}
+                     |izanami.patch.db.type=$${izanami.db.default}
+      """.stripMargin)
+      .resolve()
+  )
+
 }
 
 object Tests {
@@ -249,6 +274,7 @@ object Tests {
       getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")) ++
       getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig)) ++
       getSuite("Mongo", () => Configs.mongoConfig("config"))
+      getSuite("Dynamo", () => Configs.dynamoDbConfig(1L))
     } else {
       getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
       getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig))
@@ -262,6 +288,11 @@ class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeA
       val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
       println("Cleaning ES indices")
       Await.result(client.deleteIndex("izanami_*"), 5.seconds)
+
+      System.setProperty("aws.accessKeyId", "someKeyId")
+      System.setProperty("aws.secretKey", "someSecretKey")
+
+      Thread.sleep(10000)
     }
 
   override protected def afterAll(): Unit =

@@ -179,11 +179,11 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
       .mapMaterializedValue(_ => NotUsed)
   }
 
-  override def close() =
+  override def close(): Unit =
     producer.close()
 
   private def callback(cb: Either[Throwable, Done] => Unit) = new Callback {
-    override def onCompletion(metadata: RecordMetadata, exception: Exception) =
+    override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit =
       if (exception != null) {
         cb(Left(exception))
       } else {

@@ -1,36 +1,47 @@
 import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
 import { Table } from '../inputs';
+import * as ScriptsTemplate from '../helpers/ScriptTemplates'
+import {JsLogo, ScalaLogo} from "../components/Logos";
 
 export class GlobalScriptsPage extends Component {
-
-  defaultScriptValue = `/**
- * context:  a JSON object containing app specific value 
- *           to evaluate the state of the feature
- * enabled:  a callback to mark the feature as active 
- *           for this request
- * disabled: a callback to mark the feature as inactive 
- *           for this request 
- * http:     a http client
- */ 
-function enabled(context, enabled, disabled, http) {
-  if (context.user === 'john.doe@gmail.com') {
-    return enabled();
-  }
-  return disabled();
-}`;
 
   formSchema = {
     id: { type: 'string', props: { label: 'Script Id', placeholder: 'The Script id' }, error : { key : 'obj.id'}},
     name: { type: 'string', props: { label: 'Script name', placeholder: 'The Script name' }, error : { key : 'obj.name'}},
     description: { type: 'string', props: { label: 'Script description', placeholder: 'The Script description' }, error : { key : 'obj.description'}},
-    source: { type: 'code', props: { label: 'Code', placeholder: `true` }, error : { key : 'obj.source'}},
+    source: {
+      type: 'code',
+      props: {
+        label: 'Code',
+        placeholder: `true`,
+        debug: true,
+        languages: {
+          javascript: {
+            label: 'Javascript',
+            snippet:ScriptsTemplate.javascriptDefaultScript
+          },
+          scala: {
+            label: 'Scala',
+            snippet:ScriptsTemplate.scalaDefaultScript
+          }
+        }
+      },
+      error : { key : 'obj.source'}
+    },
   };
 
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true } } };
 
   columns = [
     { title: 'Id', content: item => item.id },
+    { title: 'Language', notFilterable: true, style: { textAlign: 'center'}, content: item => {
+      if (item.source.type === 'javascript') {
+        return <span><JsLogo width={'20px'}/>{` Script`}</span>;
+      } else if (item.source.type === 'scala') {
+        return <span><ScalaLogo width={'20px'}/>{` Script`}</span>;
+      }
+    }},
     { title: 'Name', notFilterable: true, style: { textAlign: 'center'}, content: item => item.name },
     { title: 'Description', notFilterable: true, style: { textAlign: 'center'}, content: item => item.description },
   ];
@@ -77,7 +88,7 @@ function enabled(context, enabled, disabled, http) {
               id: "project:script1",
               name: 'Authorization Script',
               description: 'Authorize all members of the project team',
-              source: this.defaultScriptValue
+              source: {type: 'javascript', script: ScriptsTemplate.javascriptDefaultScript }
             })}
             user={this.props.user}
             parentProps={this.props}

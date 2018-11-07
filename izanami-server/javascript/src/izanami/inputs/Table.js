@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import PropTypes from 'prop-types';
 import {Form, Alerts} from '.';
-import _ from 'lodash';
+import isEqual from 'lodash/isEqual';
 import {createTooltip} from './tooltips';
 import {SweetModal} from './SweetModal';
 import * as Events from '../services/events';
@@ -66,7 +66,7 @@ export class Table extends Component {
     pageSize: 20,
     firstSort: null,
     convertItem: e => e,
-    compareItem: (a, b) => _.isEqual(a, b),
+    compareItem: (a, b) => isEqual(a, b),
   };
 
   state = {
@@ -214,7 +214,7 @@ export class Table extends Component {
   onFetchData = (initialArgs = {}) => {
     const {filtered, pageSize, page} = initialArgs;
     const args = {filtered, pageSize, page};
-    if (!_.isEqual(this.lastSearchArgs, args)) {
+    if (!isEqual(this.lastSearchArgs, args)) {
       this.lastSearchArgs = args;
       this.update(initialArgs);
     }
@@ -307,7 +307,7 @@ export class Table extends Component {
       this.props
         .deleteItem(item)
         .then(__ => {
-          const items = this.state.items.filter(i => !_.isEqual(i, item));
+          const items = this.state.items.filter(i => !isEqual(i, item));
           this.setState({
             items,
             showEditForm: false,
@@ -392,7 +392,7 @@ export class Table extends Component {
           this.setState({error: true, errorList: this.buildErrorList(res.errorList)});
         } else {
           const items = this.state.items.map(i => {
-            if (_.isEqual(i, currentItemOriginal)) {
+            if (isEqual(i, currentItemOriginal)) {
               return res.data;
             } else {
               return i;

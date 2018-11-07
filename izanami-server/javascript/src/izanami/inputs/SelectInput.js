@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
-import Select from 'react-select-plus';
+import Select from 'react-select';
+import {customStyles} from '../../styles/reactSelect'
 
 export class SelectInput extends Component {
 
@@ -53,7 +54,19 @@ export class SelectInput extends Component {
         <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{this.props.label}</label>
         <div className="col-sm-10">
           <div style={{ width: '100%'}}>
-            {!this.props.disabled && <Select style={{ width: this.props.more ? '100%' : '100%' }} name={`${this.props.label}-search`} isLoading={this.state.loading} value={this.state.value} placeholder={this.props.placeholder} options={this.state.values} onChange={this.onChange} />}
+            {!this.props.disabled &&
+              <Select
+                className={`react-select-container`}
+                classNamePrefix={`react-select`}
+                style={{ width: this.props.more ? '100%' : '100%' }}
+                styles={customStyles} name={`${this.props.label}-search`} 
+                isLoading={this.state.loading}
+                value={this.state.values.filter(v => v.value === this.state.value)}
+                placeholder={this.props.placeholder}
+                options={this.state.values}
+                onChange={this.onChange} 
+              />
+            }
             {this.props.disabled && <input type="text" className="form-control" disabled={true} placeholder={this.props.placeholder} value={this.state.value} onChange={this.onChange} />}
           </div>
         </div>

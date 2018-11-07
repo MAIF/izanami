@@ -17,7 +17,8 @@ import domains.events.Events.IzanamiEvent
 import domains.events._
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
 import domains.feature.{FeatureService, FeatureServiceImpl}
-import domains.script.{GlobalScriptService, GlobalScriptServiceImpl}
+import domains.script.Script.ScriptCache
+import domains.script.{GlobalScriptService, GlobalScriptServiceImpl, PlayScriptCache}
 import domains.user.{UserService, UserServiceImpl}
 import domains.webhook.{WebhookService, WebhookServiceImpl}
 import libs.database.Drivers
@@ -28,6 +29,7 @@ import patches.{PatchInstance, Patchs}
 import patches.impl.ConfigsPatch
 import play.api.ApplicationLoader.Context
 import play.api._
+import play.api.cache.ehcache.EhCacheComponents
 import play.api.http.HttpErrorHandler
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
@@ -54,6 +56,7 @@ package object modules {
   class IzanamiComponentsInstances(context: Context)(implicit val lDbStores: DbStores[IO])
       extends BuiltInComponentsFromContext(context)
       with AssetsComponents
+      with EhCacheComponents
       with AhcWSComponents {
 
     Logger.info(s"Starting Izanami with java ${System.getProperty("java.version")}")
@@ -86,6 +89,8 @@ package object modules {
 
     lazy val metrics: Metrics                    = wire[Metrics]
     lazy val metricsController: MetricController = wire[MetricController]
+
+    implicit lazy val scriptCache: ScriptCache[IO] = new PlayScriptCache[IO](defaultCacheApi)
 
     /* Event store */
     // format: off

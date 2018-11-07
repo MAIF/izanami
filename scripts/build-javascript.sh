@@ -3,5 +3,10 @@
 LOCATION=`pwd`
 
 cd $LOCATION/izanami-server/javascript
-yarn install
-yarn build
+
+npm config set scripts-prepend-node-path true
+
+#yarn install
+#yarn build
+npm install --no-optional
+npm run build
