@@ -23,7 +23,7 @@ import '../styles/main.scss';
 import {MultiSearch} from "./inputs";
 import {DynamicTitle} from "./components/DynamicTitle";
 import {IzanamiEvents} from './services/events'
-import * as Persistence from './helpers/persistence';
+import Cookies from 'js-cookie';
 const pictos = {
   configurations: "fa fa-wrench",
   features: "fa fa-toggle-on",
@@ -93,7 +93,7 @@ export class LoggedApp extends Component {
   };
 
   onChangemeClosed = () => {
-    Persistence.del('notifyuser');
+    Cookies.remove('notifyuser');
   };
 
   render() {
@@ -104,7 +104,7 @@ export class LoggedApp extends Component {
 
     const selected = (this.props.params || {}).lineId;
 
-    const changeme = Persistence.get('notifyuser') || this.props.user.changeme;
+    const changeme = Cookies.get('notifyuser') || this.props.user.changeme;
 
     return (
       <div className="container-fluid">
