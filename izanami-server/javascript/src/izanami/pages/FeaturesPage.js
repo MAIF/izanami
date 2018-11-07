@@ -178,7 +178,6 @@ export class FeaturesPage extends Component {
   columns = [
     {
       title: 'Name',
-      style: { width: 600},
       search: (s, item) => item.id.indexOf(s) > -1,
       content: item => <Link to={`/features/edit/${item.id}`}><Key value={item.id} /></Link> },
     {
