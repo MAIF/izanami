@@ -337,7 +337,6 @@ const PrivateRoute = ({ component: Component, ...rest }) => {
   return (
     <Route {...rest} render={props => {
       //User is passed from the LoginPage or send by the app in the page.
-      console.log('Location', props.location);
       const user = (rest.user && !_.isEmpty(rest.user)) ? rest.user : (props.location.user || {});
       return (
         user.email ? (
