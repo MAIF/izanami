@@ -509,7 +509,7 @@ export class Table extends Component {
         style: { textAlign: 'center' },
         filterable: false,
         accessor: (item, ___, index) => (
-          <div style={{ width: 140, textAlign: 'center' }}>
+          <div style={{ width: 140, textAlign: 'right' }}>
             <div className="displayGroupBtn">
               <button
                 type="button"

@@ -2,13 +2,13 @@ import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
 import {Table, SimpleBooleanInput, TextInput, OptionalField, Key} from '../inputs';
 import {CartesianGrid, XAxis, YAxis, Tooltip, AreaChart, Area} from 'recharts';
-import truncate from 'lodash/truncate';
 //import ReactSlider from 'react-slider';
 // FIXME : this is a fork of react-slider to fix a bug. Waiting for a PR to be merged
 import ReactSlider from '../components/ReactSlider';
-import _ from 'lodash';
 import moment from 'moment';
 import {IzaDateRangePicker} from "../components/IzanamiDatePicker";
+import truncate from 'lodash/truncate';
+import sortBy from 'lodash/sortBy';
 
 class Variant extends Component {
   render() {
@@ -250,6 +250,16 @@ export class ExperimentsPage extends Component {
     '#deb887',
   ];
 
+  activeComponent = item =>
+    <SimpleBooleanInput value={item.enabled} onChange={v => {
+      IzanamiServices.fetchExperiment(item.id).then(feature => {
+        IzanamiServices.updateExperiment(item.id, {...feature, enabled: v});
+      })
+    }}/>;
+
+  showResultsComponent = item =>
+    <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"/> see report</button>;
+
   state = {
     results: null
   };
@@ -280,27 +290,16 @@ export class ExperimentsPage extends Component {
 
   columns = [
     { title: 'Id', content: item => <Key value={item.id} /> },
-    { title: 'Name', notFilterable: true, style: { textAlign: 'center'}, content: item => item.name},
-    { title: 'Description', notFilterable: true, style: { textAlign: 'center', width: 300}, content: item => item.description },
-    { title: 'Active', notFilterable: true, style: { textAlign: 'center', width: 50}, content: this.activeComponent },
+    { title: 'Name', notFilterable: true, style: { width: 150, textAlign: 'center'}, content: item => truncate(item.name, {length: 18})},
+    { title: 'Description', notFilterable: true, style: { width: 200, textAlign: 'center'}, content: item => truncate(item.description, {length: 25})},
+    { title: 'Active', notFilterable: true, style: { textAlign: 'center', width: 40}, content: this.activeComponent },
     {
       title: 'Results',
-      style: { textAlign: 'center', width: 150, height: '40px'},
+      style: { textAlign: 'center', width: 120, height: '40px'},
       notFilterable: true ,
       content: this.showResultsComponent
     },
   ];
-
-  showResultsComponent = item =>
-    <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"/> see report</button>;
-
-  activeComponent = item =>
-    <SimpleBooleanInput value={item.enabled} onChange={v => {
-      IzanamiServices.fetchExperiment(item.id).then(feature => {
-        IzanamiServices.updateExperiment(item.id, {...feature, enabled: v});
-      })
-    }}/>;
-
 
   formFlow = [
     'id',
@@ -369,7 +368,7 @@ export class ExperimentsPage extends Component {
           [e.variantId]: parseFloat(e.transformation.toFixed(2))
         }))
     );
-    evts = _.sortBy(evts, 'date');
+    evts = sortBy(evts, 'date');
 
     results.forEach(res => {
       let transfo = 0.0;
