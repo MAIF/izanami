@@ -1,0 +1,137 @@
+.node-tree {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+  margin-top: 3px;
+
+  & .content:hover {
+    background-color: $fondNavbar;
+  }
+}
+.treeview .key-value-value:hover {
+  background-color: #41413f !important;
+  background-image: none !important;
+}
+
+.content {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+
+  .main-content {
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+
+    .content-value {
+      display: flex;
+      flex-grow: 1;
+      align-items: center;
+      justify-content: flex-end;
+
+      .content-value-items {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    }
+
+    .action-button {
+      width: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+  }
+}
+
+.treeview div.open {
+  i.fa-caret-up {
+    display: none;
+  }
+
+  i.fa-caret-down {
+    display: block;
+  }
+
+  button.openbtn {
+    display: block;
+  }
+
+  button.open-all {
+    display: none;
+  }
+
+  & + .root-node {
+    display: block;
+  }
+}
+
+.treeview div {
+  i.fa-caret-up {
+    display: block;
+  }
+
+  i.fa-caret-down {
+    display: none;
+  }
+
+  button.openbtn {
+    display: none;
+  }
+
+  & + .root-node {
+    display: none;
+  }
+}
+
+.key-value-value {
+  .btn-submenu {
+    display: none;
+    padding-left: 15px;
+  }
+  &:hover .btn-submenu {
+    display: inline-block;
+  }
+}
+
+
+ul.root-node-tree {
+  padding-left: 0;
+}
+
+.root-node {
+  position: relative;
+  width: 100%;
+}
+
+.treeview {
+  .fa-caret-down,
+  .fa-caret-right{
+    font-size: 1.5em;
+  }
+}
+
+.add-child {
+  font-size: 10px !important;
+  padding-top: 7px !important;
+}
+// Hack due to a bug in webkit: https://bugs.webkit.org/show_bug.cgi?id=45168
+
+html {
+  -webkit-animation: issueSelector infinite 1s;
+}
+@-webkit-keyframes issueSelector {
+  0% {
+    display: block;
+  }
+
+  100% {
+    display: block;
+  }
+}
+// End of the hack

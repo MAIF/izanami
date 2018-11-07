@@ -2,20 +2,24 @@ package controllers
 
 import akka.Done
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.{Import, IsAllowed, Key}
+import domains.abtesting.Experiment.ExperimentKey
+import domains.{Import, IsAllowed, Key, Node}
 import domains.abtesting._
+import domains.config.Config.ConfigKey
+import domains.config.{Config, ConfigInstances}
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.{AppErrors}
+import store.Result.AppErrors
 
 import scala.util.{Failure, Success}
 
@@ -29,6 +33,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
 
   import cats.implicits._
   import cats.effect.implicits._
+  import libs.effects._
   import libs.functional.syntax._
   import system.dispatcher
   import AppErrors._
@@ -39,31 +44,51 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   implicit val eStore   = experimentStore
   implicit val eVeStore = eVariantEventStore
 
-  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import ExperimentInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
-      experimentStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
-        .map { r =>
-          Ok(
-            Json.obj(
-              "results" -> Json.toJson(r.results),
-              "metadata" -> Json.obj(
-                "page"     -> page,
-                "pageSize" -> nbElementPerPage,
-                "count"    -> r.count,
-                "nbPages"  -> r.nbPages
+
+      render match {
+        case "flat" =>
+          experimentStore
+            .getByIdLike(patternsSeq, page, nbElementPerPage)
+            .map { r =>
+              Ok(
+                Json.obj(
+                  "results" -> Json.toJson(r.results),
+                  "metadata" -> Json.obj(
+                    "page"     -> page,
+                    "pageSize" -> nbElementPerPage,
+                    "count"    -> r.count,
+                    "nbPages"  -> r.nbPages
+                  )
+                )
               )
-            )
-          )
-        }
+            }
+        case "tree" =>
+          import Node._
+          experimentStore
+            .getByIdLike(patternsSeq)
+            .fold(List.empty[(ExperimentKey, Experiment)])(_ :+ _)
+            .map { v =>
+              Node.valuesToNodes[Experiment](v)(ExperimentInstances.format)
+            }
+            .map { v =>
+              Json.toJson(v)
+            }
+            .map(json => Ok(json))
+            .runWith(Sink.head)
+            .toF[F]
+        case _ =>
+          BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))).pure[F]
+      }
+
     }
 
   def tree(patterns: String, clientId: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
       val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
-
       experimentStore
         .getByIdLike(patternsSeq)
         .map(_._2)

@@ -2,7 +2,7 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.scaladsl.{Sink}
+import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import cats.data.EitherT
@@ -10,6 +10,9 @@ import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.feature.{Feature, FeatureInstances, FeatureService}
 import domains._
+import domains.config.{Config, ConfigInstances}
+import domains.config.Config.ConfigKey
+import domains.feature.Feature.FeatureKey
 import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
@@ -17,7 +20,7 @@ import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
-import store.Result.{AppErrors}
+import store.Result.AppErrors
 
 class FeatureController[F[_]: Effect](env: Env,
                                       featureStore: FeatureService[F],
@@ -29,6 +32,7 @@ class FeatureController[F[_]: Effect](env: Env,
 
   import cats.implicits._
   import libs.functional.syntax._
+  import libs.effects._
   import system.dispatcher
   import AppErrors._
   import libs.http._
@@ -36,50 +40,83 @@ class FeatureController[F[_]: Effect](env: Env,
 
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
 
-  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean): Action[Unit] =
+  def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import FeatureInstances._
       val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
 
-      if (active) {
-        featureStore
-          .getByIdLikeActive(env, Json.obj(), patternsSeq, page, nbElementPerPage)
-          .map { pagingResult =>
-            val results: Seq[JsValue] = pagingResult.results.map {
-              case (feature, isActive) =>
-                FeatureInstances.format.writes(feature).as[JsObject] ++ Json.obj(
-                  "active" -> (isActive && feature.enabled)
+      render match {
+        case "flat" =>
+          if (active) {
+            featureStore
+              .getByIdLikeActive(env, Json.obj(), patternsSeq, page, nbElementPerPage)
+              .map { pagingResult =>
+                val results: Seq[JsValue] = pagingResult.results.map {
+                  case (feature, isActive) =>
+                    FeatureInstances.format.writes(feature).as[JsObject] ++ Json.obj(
+                      "active" -> (isActive && feature.enabled)
+                    )
+                }
+                Ok(
+                  Json.obj(
+                    "results" -> JsArray(results),
+                    "metadata" -> Json.obj(
+                      "page"     -> pagingResult.page,
+                      "pageSize" -> nbElementPerPage,
+                      "count"    -> pagingResult.count,
+                      "nbPages"  -> pagingResult.nbPages
+                    )
+                  )
                 )
-            }
-            Ok(
-              Json.obj(
-                "results" -> JsArray(results),
-                "metadata" -> Json.obj(
-                  "page"     -> pagingResult.page,
-                  "pageSize" -> nbElementPerPage,
-                  "count"    -> pagingResult.count,
-                  "nbPages"  -> pagingResult.nbPages
+              }
+          } else {
+            featureStore
+              .getByIdLike(patternsSeq, page, nbElementPerPage)
+              .map { pagingResult =>
+                Ok(
+                  Json.obj(
+                    "results" -> Json.toJson(pagingResult.results),
+                    "metadata" -> Json.obj(
+                      "page"     -> page,
+                      "pageSize" -> nbElementPerPage,
+                      "count"    -> pagingResult.count,
+                      "nbPages"  -> pagingResult.nbPages
+                    )
+                  )
                 )
-              )
-            )
+              }
           }
-      } else {
-        featureStore
-          .getByIdLike(patternsSeq, page, nbElementPerPage)
-          .map { pagingResult =>
-            Ok(
-              Json.obj(
-                "results" -> Json.toJson(pagingResult.results),
-                "metadata" -> Json.obj(
-                  "page"     -> page,
-                  "pageSize" -> nbElementPerPage,
-                  "count"    -> pagingResult.count,
-                  "nbPages"  -> pagingResult.nbPages
-                )
-              )
-            )
+        case "tree" =>
+          if (active) {
+            featureStore
+              .getByIdLikeActive(env, Json.obj(), patternsSeq)
+              .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
+              .map {
+                _.map { case (k, f, a) => (k, f.toJson(a)) }
+              }
+              .map { Node.valuesToNodes }
+              .map { v =>
+                Json.toJson(v)
+              }
+              .map(json => Ok(json))
+              .runWith(Sink.head)
+              .toF[F]
+          } else {
+            featureStore
+              .getByIdLike(patternsSeq)
+              .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
+              .map { Node.valuesToNodes[Feature] }
+              .map { v =>
+                Json.toJson(v)
+              }
+              .map(json => Ok(json))
+              .runWith(Sink.head)
+              .toF[F]
           }
+        case _ =>
+          BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))).pure[F]
       }
+
     }
 
   def listWithContext(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[JsValue] =

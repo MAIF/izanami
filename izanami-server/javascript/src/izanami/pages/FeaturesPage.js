@@ -130,37 +130,36 @@ export class FeaturesPage extends Component {
     parameters: { type: FeatureParameters, props: { label: 'Parameters', placeholderKey: 'Parameter name', placeholderValue: 'Parameter value' }, error : { key : 'obj.parameters'}},
   };
 
+
+  searchKey = (pattern) => {
+    return IzanamiServices.fetchFeatures({page: 1, pageSize: 20, search: pattern })
+      .map(({results}) =>
+        results.map(({id}) => id)
+      )
+  };
+
+
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true, search: this.searchKey } } };
 
-  columns = [
-    {
-      title: 'Name',
-      style: { width: 600},
-      search: (s, item) => item.id.indexOf(s) > -1,
-      content: item => <Link to={`/features/edit/${item.id}`}><Key value={item.id} /></Link> },
-    {
-      title: 'Strategy',
-      notFilterable: true,
-      style: { textAlign: 'center', width: 300},
-      content: item => {
-        const params = item.parameters || {};
-        switch(item.activationStrategy) {
-          case "SCRIPT":
-            return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
-          case "NO_STRATEGY":
-            return  <span >{`No strategy`}</span>;
-          case "RELEASE_DATE":
-            const mDate = moment(params.releaseDate, DATE_FORMAT);
-            return (
-                <span data-toggle="tooltip" data-placement="top" title={`Released on ${params.releaseDate}`}>
+  renderStrategy = (item) => {
+    const params = item.parameters || {};
+    switch(item.activationStrategy) {
+      case "SCRIPT":
+        return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script`}</span>;
+      case "NO_STRATEGY":
+        return  <span >{`No strategy`}</span>;
+      case "RELEASE_DATE":
+        const mDate = moment(params.releaseDate, DATE_FORMAT);
+        return (
+          <span data-toggle="tooltip" data-placement="top" title={`Released on ${params.releaseDate}`}>
                   <time dateTime={`${params.releaseDate}`} className="icon">
                       <span>{mDate.format('DD')}</span><span>{mDate.format('MMM')}</span><span>{mDate.format('YYYY')}</span>
                   </time>
                 </span>
-            );
-          case "DATE_RANGE":
-            return (
-                <span style={{textAlign: 'center'}} data-toggle="tooltip" data-placement="top" title={`Enabled between ${params.from} and ${params.to}`}>
+        );
+      case "DATE_RANGE":
+        return (
+          <span style={{textAlign: 'center'}} data-toggle="tooltip" data-placement="top" title={`Enabled between ${params.from} and ${params.to}`}>
                     <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
                       <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
                     </time>
@@ -169,25 +168,38 @@ export class FeaturesPage extends Component {
                       <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
                     </time>
                 </span>
-            );
-          case "GLOBAL_SCRIPT":
-            return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
-          case "PERCENTAGE":
-            return <span >Enabled for {`${params.percentage} % of the traffic`}</span>;
-          default:
-            return item.activationStrategy;
-        }
-      }
+        );
+      case "GLOBAL_SCRIPT":
+        return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
+      case "PERCENTAGE":
+        return <span >Enabled for {`${params.percentage} % of the traffic`}</span>;
+      default:
+        return item.activationStrategy;
+    }
+  };
+
+  renderIsActive = item => <SimpleBooleanInput value={item.enabled} onChange={v => {
+    IzanamiServices.fetchFeature(item.id).then(feature => {
+      IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
+    })
+  }} />;
+
+  columns = [
+    {
+      title: 'Name',
+      search: (s, item) => item.id.indexOf(s) > -1,
+      content: item => <Link to={`/features/edit/${item.id}`}><Key value={item.id} /></Link> },
+    {
+      title: 'Strategy',
+      notFilterable: true,
+      style: { textAlign: 'center', width: 300},
+      content: this.renderStrategy
     },
     {
       title: 'Active',
       style: { textAlign: 'center', width: 60 },
       notFilterable: true ,
-      content: item => <SimpleBooleanInput value={item.enabled} onChange={v => {
-        IzanamiServices.fetchFeature(item.id).then(feature => {
-          IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
-        })
-      }} />
+      content: this.renderIsActive
     },
   ];
 
@@ -199,17 +211,16 @@ export class FeaturesPage extends Component {
     'parameters'
   ];
 
-  searchKey = (pattern) => {
-    return IzanamiServices.fetchFeatures({page: 1, pageSize: 20, search: pattern })
-      .map(({results}) =>
-        results.map(({id}) => id)
-      )
-  };
-
   fetchItems = (args) => {
     const {search = [], page, pageSize} = args;
-    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
+    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
     return IzanamiServices.fetchFeatures({page, pageSize, search: pattern });
+  };
+
+  fetchItemsTree = (args) => {
+    const {search = []} = args;
+    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
+    return IzanamiServices.fetchFeaturesTree({search: pattern });
   };
 
   fetchItem = (id) => {
@@ -217,7 +228,6 @@ export class FeaturesPage extends Component {
   };
 
   createItem = (feature) => {
-    console.log('feature', feature);
     return IzanamiServices.createFeature(feature);
   };
 
@@ -233,17 +243,44 @@ export class FeaturesPage extends Component {
     this.props.setTitle("Features");
   }
 
+  renderTreeLeaf = value => {
+    return [
+      <div key={`content-strategy-${value.id}`} className="content-value-items" style={{width: 300}}>
+        <div>
+          {this.renderStrategy(value)}
+        </div>
+      </div>,
+      <div key={`active-strategy-${value.id}`} className="content-value-items" style={{width: 60}}>
+        {this.renderIsActive(value)}
+      </div>
+
+    ]
+  };
+
+  itemLink = node => {
+    if (node && node.value) {
+      return `/features/edit/${node.id}`;
+    } else if (node && node.id) {
+      return `/features/add/${node.id}`;
+    } else {
+      return `/features/add`;
+    }
+  };
+
   render() {
     return (
       <div className="col-md-12">
         <div className="row">
           <Table
-            defaultValue={() => ({
+            defaultValue={id => ({
               enabled: true,
               activationStrategy: "NO_STRATEGY",
               parameters: {},
-              id: ""
+              id: id || ""
             })}
+            treeModeEnabled={true}
+            renderTreeLeaf={this.renderTreeLeaf}
+            itemLink={this.itemLink}
             parentProps={this.props}
             user={this.props.user}
             defaultTitle="Features"
@@ -255,6 +292,7 @@ export class FeaturesPage extends Component {
             formFlow={this.formFlow}
             columns={this.columns}
             fetchItems={this.fetchItems}
+            fetchItemsTree={this.fetchItemsTree}
             fetchItem={this.fetchItem}
             updateItem={this.updateItem}
             deleteItem={this.deleteItem}

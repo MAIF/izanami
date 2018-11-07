@@ -19,10 +19,11 @@ import {
 import {popover} from './inputs/popover'
 import queryString from 'query-string';
 import _ from 'lodash';
-import './style/main.scss';
+import '../styles/main.scss';
 import {MultiSearch} from "./inputs";
 import {DynamicTitle} from "./components/DynamicTitle";
 import {IzanamiEvents} from './services/events'
+import Cookies from 'js-cookie';
 const pictos = {
   configurations: "fa fa-wrench",
   features: "fa fa-toggle-on",
@@ -31,12 +32,6 @@ const pictos = {
   webhooks: "fa fa-plug"
 };
 
-function getCookie(name)
-{
-  const re = new RegExp(name + "=([^;]+)");
-  const value = re.exec(document.cookie);
-  return (value != null) ? unescape(value[1]) : null;
-}
 
 export class LoggedApp extends Component {
 
@@ -98,7 +93,7 @@ export class LoggedApp extends Component {
   };
 
   onChangemeClosed = () => {
-    document.cookie = `notifyuser=true;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/`;
+    Cookies.remove('notifyuser');
   };
 
   render() {
@@ -109,7 +104,7 @@ export class LoggedApp extends Component {
 
     const selected = (this.props.params || {}).lineId;
 
-    const changeme = getCookie('notifyuser') || this.props.user.changeme;
+    const changeme = Cookies.get('notifyuser') || this.props.user.changeme;
 
     return (
       <div className="container-fluid">
@@ -342,7 +337,6 @@ const PrivateRoute = ({ component: Component, ...rest }) => {
   return (
     <Route {...rest} render={props => {
       //User is passed from the LoginPage or send by the app in the page.
-      console.log('Location', props.location);
       const user = (rest.user && !_.isEmpty(rest.user)) ? rest.user : (props.location.user || {});
       return (
         user.email ? (
