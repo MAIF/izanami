@@ -184,7 +184,10 @@ export class Table extends Component {
     if (this.props.parentProps.location.query && this.props.parentProps.location.query.search) {
       const searched = this.props.parentProps.location.query.search;
       const defaultFiltered = this.props.columns.filter(c => !c.notFilterable).map(c => ({id: c.title, value: searched}));
-        this.setState({ defaultFiltered });
+        this.setState(
+          { defaultFiltered, searchQuery: searched },
+          () => this.update({filtered:defaultFiltered})
+        );
     }
   };
 
@@ -235,7 +238,7 @@ export class Table extends Component {
     if (this.isTable()) {
       return this.props.fetchItems(args).then(
         ({nbPages, results}) => {
-          this.setState({ items: results || [], nbPages: nbPages == 0 ? 1 : nbPages, loading: false});
+          this.setState({ items: results || [], nbPages: nbPages === 0 ? 1 : nbPages, loading: false});
         },
         () => this.setState({loading: false})
       );
@@ -458,8 +461,11 @@ export class Table extends Component {
   };
 
   search = text => {
-    this.setState({table:true});
     this.props.backToUrl && window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`);
+    const defaultFiltered = this.props.columns.filter(c => !c.notFilterable).map(c => ({id: c.title, value: text}));
+    this.setState(
+      { defaultFiltered, table:true }
+    );
   };
 
   render() {
@@ -489,7 +495,6 @@ export class Table extends Component {
           ) : (
             <div
               onClick={e => {
-                 console.log('Click!', this.props.rowNavigation);
                 if (this.props.rowNavigation) {
                   this.gotoItem(e, original);
                 }
@@ -673,6 +678,7 @@ export class Table extends Component {
                         datas={this.state.tree || []}
                         renderValue={this.renderLeaf}
                         itemLink={this.props.itemLink}
+                        initialSearch={this.props.parentProps.location.query.search}
                         search={this.search}
                         onSearchChange={text => this.update({filtered: [{id: 'key', value:text}]})}
                         editAction={ (e, item) => this.showEditForm(e, item) }
