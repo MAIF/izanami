@@ -8,6 +8,7 @@ export class Tree extends Component {
     datas: PropTypes.array.isRequired,
     renderValue: PropTypes.func.isRequired,
     onSearchChange: PropTypes.func.isRequired,
+    initialSearch: PropTypes.string,
     itemLink: PropTypes.func,
     search: PropTypes.func,
     editAction: PropTypes.func,
@@ -19,7 +20,7 @@ export class Tree extends Component {
   };
 
   componentDidMount() {
-    this.setState({nodes: this.convertDatas(this.props.datas)});
+    this.setState({nodes: this.convertDatas(this.props.datas), search: this.props.initialSearch});
   }
 
   componentWillReceiveProps(nextProps) {
@@ -72,13 +73,13 @@ export class Tree extends Component {
     if (n.nodes && n.nodes.length > 0 ) {
       this.toggleChild(id)(e);
     } else {
-      console.log('Node', n);
       this.props.editAction(e, n.value);
     }
   };
 
 
   search = e => {
+    this.setState({search: e.target.value});
     this.props.onSearchChange(e.target.value);
   };
 
