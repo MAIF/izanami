@@ -103,9 +103,7 @@ export class Tree extends Component {
             </div>
           }
           { (!n.nodes || n.nodes.length === 0) &&
-            <div className={`btn-group btn-group-xs`}>
-                <span style={{marginLeft: '8px'}} />
-            </div>
+            <div className="tree--marginLeftUniqueKey" />
           }
 
           <div className="btn-group btn-breadcrumb breadcrumb-info" onClick={this.toggleChildOrEdit(id, n)}>
@@ -117,7 +115,7 @@ export class Tree extends Component {
                 </Link>
                 <button onClick={_ => this.props.search(n.id)} type="button" className="btn btn-sm btn-success"
                         data-toggle="tooltip" data-placement="top"
-                        title="">
+                        title="Open on table view">
                   <i className="glyphicon glyphicon-th-list"/>
                 </button>
                 {n.value &&
