@@ -231,23 +231,17 @@
   background-color: transparent;
   color: white;
   padding-top: 2px;
-  margin: 2px;
+  margin-right: 2px;
   padding-bottom: 2px;
-  border: 1px solid $fondNavbar;
   border-radius: 2px;
   cursor: pointer;
-}
-
-.result-active {
-  border: thin solid !important;
-}
-
-.keypicker-result-value-label {
-  margin: 2px;
+  &.result-active {
+    background-color: $fondGrisclairSurvolMenu;
+  }
 }
 
 .key-picker-edited-input {
-  background-color: $fondNavbar;
+  background-color: $fondGrisclairSurvolMenu;
   border: none;
   border-radius: 3px;
   &:focus {
