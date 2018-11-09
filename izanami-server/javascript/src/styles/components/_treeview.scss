@@ -1,3 +1,12 @@
+.root-node {
+  position: relative;
+  width: 100%;
+}
+
+.root-node-tree {
+  padding-left: 0;
+}
+
 .node-tree {
   display: flex;
   flex-direction: column;
@@ -8,10 +17,6 @@
   & .content:hover {
     background-color: $fondNavbar;
   }
-}
-.treeview .key-value-value:hover {
-  background-color: #41413f !important;
-  background-image: none !important;
 }
 
 .content {
@@ -49,67 +54,63 @@
   }
 }
 
-.treeview div.open {
-  i.fa-caret-up {
-    display: none;
-  }
-
-  i.fa-caret-down {
-    display: block;
-  }
-
-  button.openbtn {
-    display: block;
-  }
-
-  button.open-all {
-    display: none;
-  }
-
-  & + .root-node {
-    display: block;
-  }
-}
-
-.treeview div {
-  i.fa-caret-up {
-    display: block;
-  }
-
-  i.fa-caret-down {
-    display: none;
-  }
-
-  button.openbtn {
-    display: none;
-  }
-
-  & + .root-node {
-    display: none;
-  }
-}
-
-.key-value-value {
-  .btn-submenu {
-    display: none;
-    padding-left: 15px;
-  }
-  &:hover .btn-submenu {
-    display: inline-block;
-  }
-}
-
-
-ul.root-node-tree {
-  padding-left: 0;
-}
-
-.root-node {
-  position: relative;
-  width: 100%;
-}
-
 .treeview {
+
+  .key-value-value {
+    .btn-submenu {
+      display: none;
+      padding-left: 15px;
+    }
+    &:hover .btn-submenu {
+      display: inline-block;
+    }
+  }
+
+  .key-value-value:hover {
+    background-color: #41413f !important;
+    background-image: none !important;
+  }
+
+  div {
+    i.fa-caret-up {
+      display: block;
+    }
+
+    i.fa-caret-down {
+      display: none;
+    }
+
+    button.openbtn {
+      display: none;
+    }
+
+    & + .root-node {
+      display: none;
+    }
+
+    .open {
+      i.fa-caret-up {
+        display: none;
+      }
+
+      i.fa-caret-down {
+        display: block;
+      }
+
+      button.openbtn {
+        display: block;
+      }
+
+      button.open-all {
+        display: none;
+      }
+
+      & + .root-node {
+        display: block;
+      }
+    }
+  }
+
   .fa-caret-down,
   .fa-caret-right{
     font-size: 1.5em;
@@ -119,6 +120,10 @@ ul.root-node-tree {
 .add-child {
   font-size: 10px !important;
   padding-top: 7px !important;
+}
+
+.tree--marginLeftUniqueKey{
+  margin-left: 8px;
 }
 // Hack due to a bug in webkit: https://bugs.webkit.org/show_bug.cgi?id=45168
 
