@@ -71,7 +71,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     false,
     "X-Forwarded-For",
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
-    DbConfig("", None, None, None, None, None, None, None),
+    DbConfig("", None, None, None, None, None, None, None, None),
     LogoutConfig(""),
     ConfigConfig(dbConfig),
     FeaturesConfig(dbConfig),

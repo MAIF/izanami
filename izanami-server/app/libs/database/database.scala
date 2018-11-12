@@ -1,10 +1,10 @@
 package libs.database
 
 import akka.actor.ActorSystem
+import akka.stream.alpakka.dynamodb.scaladsl.DynamoClient
 import com.datastax.driver.core.{Cluster, Session}
 import elastic.api.Elastic
 import env.IzanamiConfig
-import io.lettuce.core.RedisClient
 import play.api.inject.ApplicationLifecycle
 import play.api.{Configuration, Logger}
 import play.api.libs.json.JsValue
@@ -19,6 +19,7 @@ trait Drivers {
   def cassandraClient: Option[(Cluster, Session)]
   def elasticClient: Option[Elastic[JsValue]]
   def mongoApi: Option[ReactiveMongoApi]
+  def dynamoClient: Option[DynamoClient]
 }
 
 object Drivers {
@@ -49,12 +50,16 @@ object Drivers {
         applicationLifecycle
       )
     }
+
+    def getDynamoClient: Option[DynamoClient] =
+      store.dynamo.DynamoClient.dynamoClient(izanamiConfig.db.dynamo)
+
     new Drivers {
       override def redisClient: Option[RedisWrapper]           = getRedisClient
       override def cassandraClient: Option[(Cluster, Session)] = getCassandraClient
       override def elasticClient: Option[Elastic[JsValue]]     = getElasticClient
       override def mongoApi: Option[ReactiveMongoApi]          = getMongoApi
-
+      override def dynamoClient: Option[DynamoClient]          = getDynamoClient
     }
   }
 }
