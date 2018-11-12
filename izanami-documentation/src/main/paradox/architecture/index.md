@@ -3,7 +3,7 @@
 As said before, Izanami provide different features : 
 
 * API first 
-* Multi data store (In Memeory, Level DB, redis, cassandra, elasticsearch) 
+* Multi data store (In Memory, Level DB, redis, cassandra, elasticsearch, AWS DynamoDB) 
 * Listenable events (SSE, webhooks)
 * Multi event store (In Memory, Redis, Kafka, Akka distributed pub / sub)
  

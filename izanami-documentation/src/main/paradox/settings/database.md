@@ -203,6 +203,53 @@ bin/izanami
 
 Other settings are available, consult the @ref[settings](settings.md) page. 
 
+### AWS DynamoDB 
+
+
+To run Izanami with DynamoDB : 
+
+```bash
+bin/izanami \ 
+    -Dizanami.db.default=Dynamo \
+    -Dizanami.db.dynamo.region=eu-west-1
+    -Dizanami.db.dynamo.accessKey=xxxxx
+    -Dizanami.db.dynamo.secretKey=xxxxx
+```
+
+Or 
+
+```bash
+export IZANAMI_DATABASE=dynamo
+export DYNAMO_REGION=eu-west-1
+export DYNAMO_ACCESS_KEY=xxxxxxx
+export DYNAMO_SECRET_KEY=xxxxxxx
+
+bin/izanami 
+```
+
+If the credentials are not set in the configuration, connector will use the default credential provider chain provided by the DynamoDB Java SDK to retrieve credentials.
+
+Izanami requires the following [IAM permissions](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/api-permissions-reference.html) :
+
+* dynamodb:DeleteItem
+* dynamodb:GetItem
+* dynamodb:PutItem
+* dynamodb:Query
+* dynamodb:UpdateItem
+* dynamodb:BatchWriteItem 
+* dynamodb:DescribeTable
+
+Additionally if the DynamoDB tables don't already exist, Izanami will create them for you which will require 
+the `dynamodb:CreateTable` permission.
+
+You can create them with the following commands
+```bash
+aws dynamodb create-table --table-name izanami --attribute-definitions AttributeName=store,AttributeType=S AttributeName=id,AttributeType=S  --key-schema AttributeName=store,KeyType=HASH AttributeName=id,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+aws dynamodb create-table --table-name izanami_experimentevent --attribute-definitions AttributeName=experimentId,AttributeType=S AttributeName=variantId,AttributeType=S  --key-schema AttributeName=experimentId,KeyType=HASH AttributeName=variantId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+```
+
+Other settings are available, consult the @ref[settings](settings.md) page. 
+
 ### In Memory with Db 
 
 If your data fit in memory and you need high throughput you can use this store. 
