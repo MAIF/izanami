@@ -17,6 +17,7 @@ object InMemory       extends DbType
 object Elastic        extends DbType
 object Mongo          extends DbType
 object InMemoryWithDb extends DbType
+object Dynamo         extends DbType
 
 object DbType {
   def fromString(s: String) = s match {
@@ -27,6 +28,7 @@ object DbType {
     case "Elastic"        => Elastic
     case "Mongo"          => Mongo
     case "InMemoryWithDb" => InMemoryWithDb
+    case "Dynamo"         => Dynamo
   }
 }
 
@@ -167,6 +169,7 @@ case class DbConfig(
     kafka: Option[KafkaConfig],
     elastic: Option[ElasticConfig],
     mongo: Option[MongoConfig],
+    dynamo: Option[DynamoConfig],
     inMemoryWithDb: Option[InMemoryWithDbConfig]
 )
 
@@ -201,6 +204,15 @@ case class CassandraConfig(addresses: Seq[String],
                            keyspace: String,
                            username: Option[String] = None,
                            password: Option[String] = None)
+
+case class DynamoConfig(tableName: String,
+                        eventsTableName: String,
+                        region: String,
+                        host: String,
+                        port: Int,
+                        parallelism: Int,
+                        accessKey: Option[String] = None,
+                        secretKey: Option[String] = None)
 
 case class KafkaConfig(servers: String, keyPass: Option[String], keystore: Location, truststore: Location)
 
