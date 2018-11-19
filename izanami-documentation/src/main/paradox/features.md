@@ -21,6 +21,7 @@ Izanami provide a couple of features :
     * In-memory
     * Cassandra
     * Elastic search 
+    * AWS DynamoDB
     * more to come 
 * Multi event store support
     * redis

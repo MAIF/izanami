@@ -8,7 +8,7 @@
                          |   APIs   +--------------+-=-->| Datastore | Redis
           +--------+     |          | ApiKeys      |     |           | Cassandra
           |   μ    |     |          +--------------+     |           | Elasticsearch
-          |Services+-=-->|          | Users        |     |           |
+          |Services+-=-->|          | Users        |     |           | DynamoDB
           |        |     |          +--------------+     +-----------+
           +--------+     |          | Webhooks     |
               ^          +----------+---------+----/

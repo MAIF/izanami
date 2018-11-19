@@ -23,6 +23,7 @@ import store.memory.InMemoryJsonDataStore
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
+import store.dynamo.DynamoJsonDataStore
 
 object Result {
 
@@ -180,6 +181,7 @@ object JsonDataStore {
         CassandraJsonDataStore(drivers.cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf)
       case Elastic => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
       case Mongo   => MongoJsonDataStore(drivers.mongoApi.get, conf)
+      case Dynamo  => DynamoJsonDataStore(drivers.dynamoClient.get, izanamiConfig.db.dynamo.get, conf)
       case _       => throw new IllegalArgumentException(s"Unsupported store type $dbType")
     }
 

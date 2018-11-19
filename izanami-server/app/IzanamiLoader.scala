@@ -160,6 +160,7 @@ package object modules {
         case Cassandra => ExperimentVariantEventCassandreService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore)
         case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore)
         case Mongo    =>  ExperimentVariantEventMongoService(conf, drivers.mongoApi.get, eventStore)
+        case Dynamo   =>  ExperimentVariantEventDynamoService(izanamiConfig.db.dynamo.get, drivers.dynamoClient.get, eventStore)
         case _ => throw new IllegalArgumentException("Unsupported store type ")
       }
 

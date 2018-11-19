@@ -65,6 +65,18 @@ sbt
 > ~izanami-server/run -Dizanami.db.default=Elastic
 ```
 
+
+#### AWS DynamoDB 
+```bash 
+docker rm dynamodb && docker run --name dynamodb -p 8000:8000 amazon/dynamodb-local
+```
+
+
+```sbtshell
+sbt 
+> ~izanami-server/run -Dizanami.db.default=Dynamo -Dizanami.db.dynamo.host=localhost -Dizanami.db.dynamo.port=8000
+```
+
 ### Kafka as Event store 
 
 ```bash

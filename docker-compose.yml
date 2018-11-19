@@ -34,6 +34,10 @@ services:
     image: mongo:3.6
     ports:
       - 27017:27017
+  dynamodb:
+    image: amazon/dynamodb-local
+    ports:
+      - 8000:8000
   zookeeper:
     image: confluentinc/cp-zookeeper:3.2.1
     ports:
