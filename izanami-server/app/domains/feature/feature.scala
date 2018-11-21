@@ -7,6 +7,7 @@ import akka.{Done, NotUsed}
 import cats.effect.Effect
 import domains.events.EventStore
 import domains.feature.Feature.FeatureKey
+import domains.script.Script.ScriptCache
 import domains.script.{GlobalScriptService, Script}
 import domains.{ImportResult, Key}
 import env.Env
@@ -26,7 +27,7 @@ sealed trait Feature {
 
   def enabled: Boolean
 
-  def toJson(active: Boolean) =
+  def toJson(active: Boolean): JsValue =
     FeatureInstances.format.writes(this).as[JsObject] ++ Json.obj("active" -> active)
 
 }
@@ -135,9 +136,9 @@ trait FeatureService[F[_]] {
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
-class FeatureServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
-                                       eventStore: EventStore[F],
-                                       globalScriptStore: GlobalScriptService[F])
+class FeatureServiceImpl[F[_]: Effect: ScriptCache](jsonStore: JsonDataStore[F],
+                                                    eventStore: EventStore[F],
+                                                    globalScriptStore: GlobalScriptService[F])
     extends FeatureService[F]
     with EitherTSyntax[F] {
 

@@ -6,20 +6,23 @@ import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.script.{GlobalScript, GlobalScriptInstances, GlobalScriptService}
+import domains.script.Script.ScriptCache
+import domains.script._
 import domains.{Import, IsAllowed, Key}
+import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import play.api.Logger
 import play.api.http.HttpEntity
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
-import store.Result.{AppErrors}
+import store.Result.AppErrors
 
-class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptService[F],
+class GlobalScriptController[F[_]: Effect](env: Env,
+                                           globalScriptStore: GlobalScriptService[F],
                                            system: ActorSystem,
                                            AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                           cc: ControllerComponents)
+                                           cc: ControllerComponents)(implicit s: ScriptCache[F])
     extends AbstractController(cc)
     with EitherTSyntax[F] {
 
@@ -175,6 +178,28 @@ class GlobalScriptController[F[_]: Effect](globalScriptStore: GlobalScriptServic
           InternalServerError
       }
       .runWith(Sink.head)
+  }
+
+  case class DebugScript(context: JsObject, script: Script)
+  object DebugScript {
+
+    implicit val format = {
+      import domains.script.ScriptInstances._
+      Json.format[DebugScript]
+    }
+  }
+
+  def debug() = AuthAction.asyncEitherT(parse.json) { ctx =>
+    import DebugScript._
+    import domains.script.ScriptInstances._
+    import domains.script.syntax._
+    // format: off
+    for {
+      debugScript                  <- ctx.request.body.validate[DebugScript]  |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      DebugScript(context, script) = debugScript
+      execution                    <- script.run(context, env)                |> liftF[Result, ScriptExecution]
+    } yield Ok(Json.toJson(execution))
+    // format: on
   }
 
 }

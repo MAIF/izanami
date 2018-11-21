@@ -3,7 +3,7 @@ import 'whatwg-fetch';
 import Symbol from 'es-symbol';
 import $ from 'jquery';
 
-import 'react-select-plus/dist/react-select-plus.css';
+//import 'react-select/dist/react-select.css';
 
 import 'react-table/react-table.css';
 

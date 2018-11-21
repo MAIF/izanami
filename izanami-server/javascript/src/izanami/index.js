@@ -18,7 +18,7 @@ import {
 } from './pages';
 import {popover} from './inputs/popover'
 import queryString from 'query-string';
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 import '../styles/main.scss';
 import {MultiSearch} from "./inputs";
 import {DynamicTitle} from "./components/DynamicTitle";
@@ -337,7 +337,7 @@ const PrivateRoute = ({ component: Component, ...rest }) => {
   return (
     <Route {...rest} render={props => {
       //User is passed from the LoginPage or send by the app in the page.
-      const user = (rest.user && !_.isEmpty(rest.user)) ? rest.user : (props.location.user || {});
+      const user = (rest.user && !isEmpty(rest.user)) ? rest.user : (props.location.user || {});
       return (
         user.email ? (
           <Component {...rest} {...props} user={user} />

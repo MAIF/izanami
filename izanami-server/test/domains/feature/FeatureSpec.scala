@@ -7,10 +7,12 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import cats.Applicative
 import cats.effect.{Effect, IO}
 import domains.{ImportResult, Key}
 import domains.script.GlobalScript.GlobalScriptKey
-import domains.script.{GlobalScript, GlobalScriptService, Script}
+import domains.script.Script.ScriptCache
+import domains.script._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import store.PagingResult
@@ -74,7 +76,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(ScriptFeature(Key("id"), true, Script("script")))
+      result.get must be(ScriptFeature(Key("id"), true, JavascriptScript("script")))
 
     }
 
@@ -153,10 +155,10 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "id": "id",
           |   "enabled": true,
           |   "activationStrategy": "SCRIPT",
-          |   "parameters": { "script": "script" }
+          |   "parameters": { "script": {"type": "javascript", "script": "script"} }
           |}
         """.stripMargin)
-      Json.toJson(ScriptFeature(Key("id"), true, Script("script"))) must be(json)
+      Json.toJson(ScriptFeature(Key("id"), true, JavascriptScript("script"))) must be(json)
     }
 
     "Deserialize ReleaseDateFeature" in {
@@ -186,6 +188,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       import FeatureInstances._
       implicit val system                                = ActorSystem("test")
       implicit val globalScript: GlobalScriptService[IO] = fakeGlobalScriptRepository[IO]
+      implicit val cache: ScriptCache[IO]                = fakeCache[IO]
       implicit val mat                                   = ActorMaterializer()
       implicit def isActive                              = FeatureInstances.isActive[IO]
 
@@ -211,6 +214,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
         )
       )
     }
+  }
+
+  def fakeCache[F[_]: Applicative]: ScriptCache[F] = new ScriptCache[F] {
+    override def get(id: String): F[Option[FeatureScript]]      = Applicative[F].pure(None)
+    override def set(id: String, value: FeatureScript): F[Unit] = Applicative[F].pure(())
   }
 
   def fakeGlobalScriptRepository[F[_]: Effect]: GlobalScriptService[F] = new GlobalScriptService[F] {

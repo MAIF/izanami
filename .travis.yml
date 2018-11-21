@@ -8,15 +8,15 @@ matrix:
       services:
       - docker
       before_install:
-      - docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
       - sudo apt-get install wget curl
-      - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh |
+      - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh |
         bash
       - export NVM_DIR="/home/travis/.nvm"
       - sh $NVM_DIR/nvm.sh
-      - nvm install 8.6.0
-      - nvm use 8.6.0
-      - curl -o- -L https://yarnpkg.com/install.sh | bash
+      - nvm install 10.13.0
+      - nvm use 10.13.0
+      - curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.12.3
+      - export PATH=$HOME/.yarn/bin:$PATH
       - wget --quiet https://sh.rustup.rs -O rustupinstall.sh
       - sh ./rustupinstall.sh -y
       - export PATH=$PATH:$HOME/.cargo/bin
@@ -48,6 +48,7 @@ before_cache:
 - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
 - find $HOME/.sbt  -name "*.lock"               -print -delete
 cache:
+  yarn: true
   directories:
   - "$HOME/.ivy2/cache"
   - "$HOME/.sbt/boot"

@@ -42,7 +42,7 @@ export class ConfigurationsPage extends Component {
       },
       error : { key : 'obj.id'}
     },
-    value: { type: 'code', props: { parse: true, label: 'Value', placeholder: `true` }, error : { key : 'obj.value'}},
+    value: { type: 'json', props: { parse: true, label: 'Value', placeholder: `true` }, error : { key : 'obj.value'}},
   };
 
   editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true } } };
@@ -82,7 +82,7 @@ export class ConfigurationsPage extends Component {
   };
 
   deleteItem = (config) => {
-    return IzanamiServices.deleteConfig(config.id, config);
+    return IzanamiServices.deleteConfig(config.id);
   };
 
   componentDidMount() {

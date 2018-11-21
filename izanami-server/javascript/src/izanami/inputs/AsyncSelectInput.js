@@ -1,22 +1,21 @@
 import React, { Component } from 'react';
-import Select from 'react-select-plus';
+import {customStyles} from '../../styles/reactSelect'
+import Async from 'react-select/lib/Async';
 
 export class AsyncSelectInput extends Component {
 
   state = {
     loading: false,
-    value: this.props.value || null
+    value: this.props.value || null,
+    loadedOptions: []
   };
 
   componentDidMount() {
-  
   }
 
-  componentWillReceiveProps(nextProps) {
-  
-  }
+  componentWillReceiveProps(nextProps) {}
 
-  loadOptions = query => {
+  loadOptions = (query) => {
     return fetch(this.props.computeUrl(query), {
       method: 'GET',
       credentials: 'include',
@@ -25,13 +24,16 @@ export class AsyncSelectInput extends Component {
       },
     })
     .then(r => r.json())
-    .then(({results}) => {
-        return {options: results};
-    })
-  }
+    .then(this.props.extractResponse)
+    .then(results => {
+      this.setState({loadedOptions: results});
+      return results;
+    });
+  };
 
   onChange = (e) => {
-    this.setState({ value: e.value });
+    console.log(e);
+    this.setState({ value: e });
     this.props.onChange(e.value);
   };
 
@@ -41,11 +43,13 @@ export class AsyncSelectInput extends Component {
         <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{this.props.label}</label>
         <div className="col-sm-10">
           <div style={{ width: '100%'}}>
-            {!this.props.disabled && <Select.Async 
-                                        style={{ width: this.props.more ? '100%' : '100%' }} 
+            {!this.props.disabled && <Async
+                                        style={{ width: this.props.more ? '100%' : '100%' }}
+                                        styles={customStyles}
+                                        defaultOptions
                                         name={`${this.props.label}-search`}                                         
-                                        value={this.state.value} 
-                                        placeholder={this.props.placeholder}                                         
+                                        value={this.state.loadedOptions.find(v => v.value === this.state.value)}
+                                        placeholder={this.props.placeholder}
                                         loadOptions={this.loadOptions}
                                         onChange={this.onChange} 
                                       />

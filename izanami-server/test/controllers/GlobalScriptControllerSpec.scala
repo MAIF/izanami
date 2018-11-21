@@ -34,7 +34,10 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Create */
       val script =
-        Json.obj("id" -> key, "name" -> "test", "description" -> "A test script", "source" -> "function() {}")
+        Json.obj("id"          -> key,
+                 "name"        -> "test",
+                 "description" -> "A test script",
+                 "source"      -> Json.obj("type" -> "javascript", "script" -> "function() {}"))
       ws.url(s"$rootPath/api/scripts").post(script).futureValue must beAStatus(201)
 
       /* Verify */
@@ -50,7 +53,7 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
         Json.obj("id"          -> key,
                  "name"        -> "test",
                  "description" -> "A test script",
-                 "source"      -> "function() { console.log('hello')}")
+                 "source"      -> Json.obj("type" -> "javascript", "script" -> "function() { console.log('hello')}"))
       ws.url(s"$rootPath/api/scripts/$key")
         .put(scriptUpdated)
         .futureValue must beAStatus(200)
@@ -92,7 +95,10 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
 
       /* Create */
       val script =
-        Json.obj("id" -> key, "name" -> "test", "description" -> "A test script", "source" -> "function() {}")
+        Json.obj("id"          -> key,
+                 "name"        -> "test",
+                 "description" -> "A test script",
+                 "source"      -> Json.obj("type" -> "javascript", "script" -> "function() {}"))
       ws.url(s"$rootPath/api/scripts").post(script).futureValue must beAStatus(201)
 
       /* Verify */
@@ -103,7 +109,7 @@ class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
         Json.obj("id"          -> key2,
                  "name"        -> "test",
                  "description" -> "A test script",
-                 "source"      -> "function() { console.log('hello')}")
+                 "source"      -> Json.obj("type" -> "javascript", "script" -> "function() { console.log('hello')}"))
       ws.url(s"$rootPath/api/scripts/$key")
         .put(scriptUpdated)
         .futureValue must beAStatus(200)

@@ -173,7 +173,7 @@ export function updateConfig(id, config) {
   }).then(rawResponse);
 }
 
-export function deleteConfig(id, config) {
+export function deleteConfig(id) {
   return fetch(`${window.__contextPath}/api/configs/${id}`, {
     method: 'DELETE',
     credentials: 'include',
@@ -486,6 +486,22 @@ export function deleteScript(id, script) {
       'Accept': 'application/json'
     }
   }).then(rawResponse);
+}
+
+export function debugScript(script, language, context) {
+  return fetch(`${window.__contextPath}/api/scripts/_debug`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      context, script: {
+        type: language, script
+      }
+    })
+  }).then(jsonBody);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
