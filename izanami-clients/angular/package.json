@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@angular/cli": "1.6.8",
+    "node-sass": "^4.10.0",
     "@angular/compiler-cli": "^5.2.0",
     "@angular/language-service": "^5.2.0",
     "@types/jasmine": "~2.8.3",

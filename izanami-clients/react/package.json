@@ -11,7 +11,7 @@
   },
   "scripts": {
     "prepublishOnly": "node_modules/@babel/cli/bin/babel.js src --out-dir lib",
-    "bundle": "cross-env NODE_ENV=production webpack --colors --progress",
+    "bundle": "cross-env NODE_ENV=production webpack --mode production --colors --progress",
     "build": "rm -f ./dist/* && npm run bundle",
     "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3040"
   },
@@ -20,11 +20,13 @@
     "deepmerge": "^1.4.4",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.3",
-    "lodash": "^4.17.5",
     "prop-types": "15.6.0",
-    "react": "16.0.0",
-    "react-dom": "16.0.1",
     "whatwg-fetch": "2.0.3"
+  },
+  "peerDependencies": {
+    "lodash": "4.x",
+    "react": "16.x",
+    "react-dom": "16.x"
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
