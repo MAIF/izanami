@@ -26,13 +26,15 @@ export const scalaDefaultScript = `/**
  *           for this request
  * http:     the play http client
  */
-  override def enabled(context: play.api.libs.json.JsObject,
-              enabled: () => Unit,
-              disabled: () => Unit,
-              http: play.api.libs.ws.WSClient)(implicit ec: ExecutionContext): Unit = {
+ def enabled(context: play.api.libs.json.JsObject,
+             enabled: () => Unit,
+             disabled: () => Unit,
+             http: play.api.libs.ws.WSClient)(implicit ec: ExecutionContext): Unit = {
+             
     if ( (context \\ "user").asOpt[String].contains("john.doe@gmail.com")) {
       enabled()
     } else {
       disabled()
     }
+    
 }`;
