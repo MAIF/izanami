@@ -2,6 +2,12 @@
 
 LOCATION=`pwd`
 
+npm config set scripts-prepend-node-path true
+
+echo 'Installing npm-install-peers'
+npm install -g npm-install-peers
+
+
 if test "$TRAVIS_PULL_REQUEST" = "false"
 then
 
@@ -10,33 +16,25 @@ then
 
     if [ -z "$TRAVIS_TAG" ];
     then
-        echo 'Not a tag publishing beta to npm registry'
-#        cd ${LOCATION}/izanami-clients/react
-#        npm install
-#        PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-#        PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-beta.${TRAVIS_BUILD_NUMBER}"
-#        npm version ${PACKAGE_VERSION}
-#
-#        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
-#        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
-#        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
-#        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
-#
-#        npm publish
-#
-#        cd ${LOCATION}/izanami-clients/node
-#
-#        PACKAGE_CURRENT_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
-#        PACKAGE_VERSION="${PACKAGE_CURRENT_VERSION}-alpha.${TRAVIS_BUILD_NUMBER}"
-#        npm version ${PACKAGE_VERSION}
-#
-#        echo "//registry.npmjs.org/:_password=${NPM_PASSWORD}" > .npmrc
-#        echo "//registry.npmjs.org/:_authToken=${NPM_AUTH}" >> .npmrc
-#        echo "//registry.npmjs.org/:username=adelegue" >> .npmrc
-#        echo "//registry.npmjs.org/:email=aadelegue@gmail.com" >> .npmrc
-#
-#        npm publish
-        #sh $LOCATION/scripts/publish-npm-bintray.sh
+        echo 'Not a tag, just building'
+        echo 'Building react client ...'
+        cd ${LOCATION}/izanami-clients/react
+        echo 'Installing dependencies ...'
+        npm-install-peers
+        echo 'Building package'
+        npm run build
+
+        echo 'Building node client ...'
+        cd ${LOCATION}/izanami-clients/node
+        echo 'Installing dependencies ...'
+        npm install
+
+        echo 'Building angular client ...'
+        cd ${LOCATION}/izanami-clients/angular
+        echo 'Installing dependencies ...'
+        npm install --unsafe-perm=true
+        echo 'Building package'
+        npm run packagr
     else
         echo "Publishing npm packages for tag ${TRAVIS_TAG}"
 
@@ -44,24 +42,53 @@ then
         cd ${LOCATION}/izanami-clients/react
         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
+        echo "Setting version to ${PACKAGE_VERSION}"
         npm version ${PACKAGE_VERSION}
-        npm install
+        echo 'Installing dependencies ...'
+        npm-install-peers
+        echo 'Publishing'
         npm publish
 
         cd ${LOCATION}/izanami-clients/node
         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
+        echo "Setting version to ${PACKAGE_VERSION}"
         npm version ${PACKAGE_VERSION}
+        echo 'Publishing'
         npm publish
 
         cd ${LOCATION}/izanami-clients/angular
         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
+        echo "Setting version to ${PACKAGE_VERSION}"
         npm version ${PACKAGE_VERSION}
+        echo 'Installing dependencies ...'
         npm install
+        echo 'Building package'
         npm run packagr
+        echo 'Publishing'
         npm publish dist
     fi
+else
+    echo 'Not a tag, just building'
+    echo 'Building react client ...'
+    cd ${LOCATION}/izanami-clients/react
+    echo 'Installing dependencies ...'
+    npm-install-peers
+    echo 'Building package'
+    npm run build
+
+    echo 'Building node client ...'
+    cd ${LOCATION}/izanami-clients/node
+    echo 'Installing dependencies ...'
+    npm install
+
+    echo 'Building angular client ...'
+    cd ${LOCATION}/izanami-clients/angular
+    echo 'Installing dependencies ...'
+    npm install --unsafe-perm=true
+    echo 'Building package'
+    npm run packagr
 fi
 
 cd ${LOCATION}
