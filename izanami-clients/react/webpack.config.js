@@ -2,7 +2,6 @@ const webpack = require('webpack');
 const path = require('path');
 
 const plugins = [
-  //webpack.optimize.OccurenceOrderPlugin(),
   new webpack.DefinePlugin({
     '__DEV__': process.env.NODE_ENV === 'production',
     'process.env': {
@@ -11,26 +10,15 @@ const plugins = [
   })
 ];
 
-if (process.env.NODE_ENV === 'production') {
-  plugins.push(new webpack.optimize.UglifyJsPlugin({
-    compress: {
-      screw_ie8: true, // React doesn't support IE8
-      warnings: false
-    },
-    mangle: {
-      screw_ie8: true
-    },
-    output: {
-      comments: false,
-      screw_ie8: true
-    }
-  }));
-} else {
+if (process.env.NODE_ENV !== 'production') {
   plugins.push(new webpack.HotModuleReplacementPlugin());
   plugins.push(new webpack.NoEmitOnErrorsPlugin());
 }
 
 module.exports = {
+  optimization: {
+    minimize: true
+  },
   output: {
     path: path.resolve(__dirname, './dist/'),
     publicPath: '/assets/',
