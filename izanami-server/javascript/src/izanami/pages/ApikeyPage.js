@@ -36,7 +36,7 @@ export class ApikeyPage extends Component {
   };
   
   fetchItem = (id) => {
-    return IzanamiServices.fetchApikey(id);
+    return IzanamiServices.fetchApiKey(id);
   };
 
   createItem = (apikey) => {

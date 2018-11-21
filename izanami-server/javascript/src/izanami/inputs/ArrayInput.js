@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
-import Select from 'react-select-plus';
+import Select from 'react-select';
+import {customStyles} from '../../styles/reactSelect'
 
 export class ArrayInput extends Component {
 
@@ -74,7 +75,16 @@ export class ArrayInput extends Component {
                      placeholder={this.props.placeholder} value={value} onChange={e => this.changeValue(e, idx)} />
                 )}
                 {this.props.valuesFrom && (
-                  <Select name={`selector-${idx}`} value={value} isLoading={this.state.loading} disabled={this.props.disabled} placeholder={this.props.placeholder} options={this.state.values} onChange={e => this.changeValue({ target: { value: e.value }}, idx)} />
+                  <Select
+                    styles={customStyles}
+                    name={`selector-${idx}`}
+                    isLoading={this.state.loading}
+                    disabled={this.props.disabled}
+                    placeholder={this.props.placeholder}
+                    options={this.state.values}
+                    value={this.state.values.filter(v => v.value === value)}
+                    onChange={e => this.changeValue({ target: { value: e.value }}, idx)} 
+                  />
                 )}
                 <span className="input-group-btn">
                 <button disabled={this.props.disabled} type="button" className="btn btn-danger" onClick={e => this.remove(e, idx)}><i className="glyphicon glyphicon-trash" /></button>

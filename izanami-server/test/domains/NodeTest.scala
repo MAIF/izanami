@@ -25,29 +25,55 @@ class NodeTest extends IzanamiSpec {
           Key("otoroshi"),
           "otoroshi",
           List(
-            Node(Key("otoroshi:prod"), "prod", List(Node(Key("otoroshi:prod:seg1"), "seg1", List(Node(Key("otoroshi:prod:seg1:seg2"), "seg2", List(Node(Key("otoroshi:prod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1"))))))))),
-            Node(Key("otoroshi:preprod"), "preprod",
+            Node(
+              Key("otoroshi:prod"),
+              "prod",
+              List(
+                Node(
+                  Key("otoroshi:prod:seg1"),
+                  "seg1",
+                  List(
+                    Node(Key("otoroshi:prod:seg1:seg2"),
+                         "seg2",
+                         List(Node(Key("otoroshi:prod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))))
+                  )
+                )
+              )
+            ),
+            Node(
+              Key("otoroshi:preprod"),
+              "preprod",
+              List(
+                Node(
+                  Key("otoroshi:preprod:seg1"),
+                  "seg1",
+                  List(
+                    Node(Key("otoroshi:preprod:seg1:seg2"),
+                         "seg2",
+                         List(
+                           Node(Key("otoroshi:preprod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
+                         ))
+                  )
+                )
+              )
+            )
+          )
+        ),
+        Node(
+          Key("nio"),
+          "nio",
+          List(
+            Node(Key("nio:seg1"),
+                 "seg1",
                  List(
-                   Node(Key("otoroshi:preprod:seg1"), "seg1",
+                   Node(Key("nio:seg1:seg2"),
+                        "seg2",
                         List(
-                          Node(Key("otoroshi:preprod:seg1:seg2"), "seg2",
-                               List(
-                                 Node(Key("otoroshi:preprod:seg1:seg2:seg3"),"seg3", value = Some(JsString("v1")))
-                               ))
+                          Node(Key("nio:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
                         ))
                  ))
           )
         ),
-        Node(Key("nio"), "nio",
-             List(
-               Node(Key("nio:seg1"), "seg1",
-                    List(
-                      Node(Key("nio:seg1:seg2"), "seg2",
-                           List(
-                             Node(Key("nio:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
-                           ))
-                    ))
-             )),
         Node(
           Key("izanami"),
           "izanami",
@@ -56,7 +82,16 @@ class NodeTest extends IzanamiSpec {
               Key("izanami:prod"),
               "prod",
               List(
-                Node(Key("izanami:prod:seg1"), "seg1", List(Node(Key("izanami:prod:seg1:seg2"), "seg2", List(Node(Key("izanami:prod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))))), Some(JsString("v1")))
+                Node(
+                  Key("izanami:prod:seg1"),
+                  "seg1",
+                  List(
+                    Node(Key("izanami:prod:seg1:seg2"),
+                         "seg2",
+                         List(Node(Key("izanami:prod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))))
+                  ),
+                  Some(JsString("v1"))
+                )
               )
             ),
             Node(
@@ -68,11 +103,14 @@ class NodeTest extends IzanamiSpec {
                   "seg1",
                   List(
                     Node(Key("izanami:preprod:seg1:seg3"), "seg3", value = Some(JsString("v1"))),
-                    Node(Key("izanami:preprod:seg1:seg2"), "seg2",
-                         List(
-                           Node(Key("izanami:preprod:seg1:seg2:seg4"), "seg4", value = Some(JsString("v1"))),
-                           Node(Key("izanami:preprod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
-                         ))
+                    Node(
+                      Key("izanami:preprod:seg1:seg2"),
+                      "seg2",
+                      List(
+                        Node(Key("izanami:preprod:seg1:seg2:seg4"), "seg4", value = Some(JsString("v1"))),
+                        Node(Key("izanami:preprod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
+                      )
+                    )
                   )
                 )
               )
