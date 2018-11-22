@@ -4,22 +4,22 @@
 
 `react-izanami` is a simple set of React components to leverage the power of Izanami feature flipping and experiments.
 
-In order to use the client you need to proxify Izanami to avoid leaking the credentials to the client side. 
+In order to use the client you need to proxify Izanami to avoid leaking the credentials to the client side.
 
-## Install the client 
+## Install the client
 
 ```bash
 npm install react-izanami
 ```
 
-## Import 
+## Import
 
- 
+
 ```jsx harmony
 import {IzanamiProvider, Feature, Enabled, Disabled, Experiment, Variant, Api as IzanamiApi} from 'izanami';
 ```
 
-## Izanami provider 
+## Izanami provider
 
 You can wrap your application in the izanami provider and let izanami fetch data from the proxy you have exposed:
 
@@ -29,7 +29,7 @@ You can wrap your application in the izanami provider and let izanami fetch data
   </IzanamiProvider>
 ```
 
-You can pass fallbacks in the case of the server is not up: 
+You can pass fallbacks in the case of the server is not up:
 
 ```jsx harmony
 <IzanamiProvider fetchFrom="/api/izanami" featuresFallback={{my: {feature: {active: true}}}} experimentsFallback={{my:{experiment:{variant: 'B'}}}} >
@@ -38,7 +38,7 @@ You can pass fallbacks in the case of the server is not up:
 ```
 
 
-You can also pass features and experiments as props if you don't want the provider to fetch datas: 
+You can also pass features and experiments as props if you don't want the provider to fetch datas:
 
 ```jsx harmony
 <IzanamiProvider features={{my: {feature: {active: true}}}} experiments={{my:{experiment:{variant: 'B'}}}} >
@@ -46,7 +46,7 @@ You can also pass features and experiments as props if you don't want the provid
 </IzanamiProvider>
 ```
 
-You can trigger manual reload using the Api class. For example during router transition : 
+You can trigger manual reload using the Api class. For example during router transition :
 
 ```jsx harmony
 componentWillReceiveProps(nextProps) {
@@ -57,11 +57,11 @@ componentWillReceiveProps(nextProps) {
       IzanamiApi.izanamiReload("/api/izanami");
     }
 }
-``` 
+```
 
 ## Feature flipping
 
-Once you the provider configured, you can switch code depending on a feature : 
+Once you the provider configured, you can switch code depending on a feature :
 
 ```jsx harmony
 <Feature path="izanami.example.deleteAll">
@@ -79,7 +79,7 @@ Once you the provider configured, you can switch code depending on a feature :
 </Feature>
 ```
 
-## Experiments (A/B testing) 
+## Experiments (A/B testing)
 
 Once you the provider configured, you can displayed a specific variant for an experiment :
 
@@ -91,7 +91,7 @@ Once you the provider configured, you can displayed a specific variant for an ex
       <td>
         <Experiment path={"izanami:example:button"} notifyDisplay="/api/izanami/experiments/displayed" >
           <Variant id={"A"}>
-            <Link to={`/todos/${l.name}`} onClick={this.onTodosClick} className="btn btn-sm btn-default"><i className="fa fa-eye" aria-hidden="true" /></Link>
+            <Link to={`/todos/${l.name}`} onClick={this.onTodosClick} className="btn btn-sm btn-default"><i className="fas fa-eye" aria-hidden="true" /></Link>
             <button className="btn btn-sm btn-default" onClick={this.removeTodoList(l.name)}><i className="glyphicon glyphicon-trash" /></button>
           </Variant>
           <Variant id={"B"}>
@@ -103,11 +103,11 @@ Once you the provider configured, you can displayed a specific variant for an ex
     </tr>
 )}
 ```
-If specified, the `notifyDisplay` field will call the registered url to notify Izanami that the current variant is displayed. 
+If specified, the `notifyDisplay` field will call the registered url to notify Izanami that the current variant is displayed.
 
 You have to call yourself Izanami when a variant won because the react client can't decide this for you :).
 
-In this example, the variant won if the client click on the button. 
+In this example, the variant won if the client click on the button.
 For that we will do an http POST on `/api/izanami/experiments/won` when the client click on the link using this function :
 
 ```javascript
@@ -121,12 +121,11 @@ export function notifyWon(key) {
     }
   });
 }
-``` 
+```
 
-and then when the client click on the link: 
+and then when the client click on the link:
 ```javascript
 onTodosClick = () => {
   Service.notifyWon("izanami:example:button");
 };
 ```
- 

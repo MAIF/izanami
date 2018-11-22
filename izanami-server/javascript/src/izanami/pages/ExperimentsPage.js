@@ -141,7 +141,7 @@ class Variants extends Component {
             <div className="row" >
                 <div className="col-sm-10 col-sm-offset-2">
                     <div className="alert alert-warning">
-                        <i className="fa fa-exclamation-triangle"/> Be careful, changing traffic information will drop all the datas already collected.
+                        <i className="fas fa-exclamation-triangle"/> Be careful, changing traffic information will drop all the datas already collected.
                     </div>
                 </div>
             </div>
@@ -258,7 +258,7 @@ export class ExperimentsPage extends Component {
     }}/>;
 
   showResultsComponent = item =>
-    <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fa fa-line-chart" aria-hidden="true"/> see report</button>;
+    <button type="button" className="btn btn-sm btn-success" onClick={e => this.showResults(e, item)}><i className="fas fa-chart-line" aria-hidden="true"/> see report</button>;
 
   state = {
     results: null

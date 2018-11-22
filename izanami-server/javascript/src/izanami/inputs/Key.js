@@ -8,7 +8,7 @@ const Key = props => {
           <div className="key-value-value" key={`key-value-${props.value}-${i}`} >
             <span>{part}</span>
             {i < (values.length - 1) &&
-              <i className="fa fa-caret-right" />
+              <i className="fas fa-caret-right" />
             }
           </div>
         )}

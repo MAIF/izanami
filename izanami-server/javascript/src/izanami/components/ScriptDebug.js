@@ -8,12 +8,12 @@ import {debugScript} from '../services'
 
 const Logs = props => {
   const size = props.size === 'stretched' ? '10' : props.size === 'half' ? '6': '2';
-  const icon = props.size === 'stretched' ? 'compress' : 'expand';
+  const icon = props.size === 'stretched' ? 'compress' : 'expand-arrows-alt';
   const func = props.size === 'stretched' ? props.collapse : props.expand;
   return (
     <div className={`col-sm-${size}`}>
       <h5>{props.title} <button className="btn btn-xs btn-primary" type="button" onClick={func}>
-        <i className={`fa fa-${icon}`} />
+        <i className={`fas fa-${icon}`} />
       </button>
       </h5>
       <AceEditor mode="plain_text"
@@ -99,7 +99,7 @@ export class ScriptDebug extends Component {
               <div className="debug-button-res">
                 <div class="btn-group">
                   <button type="button" className="btn btn-success btn-large" onClick={this.runDebug}>
-                    <span>Run </span><i className="fa fa-play-circle" />
+                    <span>Run </span><i className="fas fa-play-circle" />
                   </button>
                 </div>
                 {this.state.result &&

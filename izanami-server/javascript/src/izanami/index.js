@@ -25,11 +25,11 @@ import {DynamicTitle} from "./components/DynamicTitle";
 import {IzanamiEvents} from './services/events'
 import Cookies from 'js-cookie';
 const pictos = {
-  configurations: "fa fa-wrench",
-  features: "fa fa-toggle-on",
-  experiments: "fa fa-flask",
-  scripts: "fa fa-file-text-o",
-  webhooks: "fa fa-plug"
+  configurations: "fas fa-wrench",
+  features: "fas fa-toggle-on",
+  experiments: "fas fa-flask",
+  scripts: "far fa-file-alt",
+  webhooks: "fas fa-plug"
 };
 
 
@@ -135,7 +135,7 @@ export class LoggedApp extends Component {
                   aria-haspopup="true"
                   aria-expanded="false"
                 >
-                  <i className="fa fa-cog fa-2" aria-hidden="true"/>
+                  <i className="fas fa-cog" aria-hidden="true"/>
                 </a>
                 <ul className="dropdown-menu">
                   {userManagementEnabled && [
@@ -208,28 +208,28 @@ export class LoggedApp extends Component {
                   <div className="sidebar-content">
                     <ul className="nav nav-sidebar">
                       <li className={className("/")}>
-                        <Link to="/"><h3 style={{marginTop: 0, marginLeft: -25}}><i className="fa fa-tachometer"/> Home</h3>
+                        <Link to="/"><h3 style={{marginTop: 0, marginLeft: -25}}><i className="fas fa-tachometer-alt"/> Home</h3>
                         </Link>
                       </li>
                       <li className={className("/features")}>
-                        <Link to="/features" style={{cursor: 'pointer'}} ><i className="fa fa-toggle-on" />Features</Link>
+                        <Link to="/features" style={{cursor: 'pointer'}} ><i className="fas fa-toggle-on" />Features</Link>
                       </li>
                       <li className={className("/configurations")}>
-                        <Link to="/configurations" className="" style={{cursor: 'pointer'}}><i className="fa fa-wrench" />Configurations</Link>
+                        <Link to="/configurations" className="" style={{cursor: 'pointer'}}><i className="fas fa-wrench" />Configurations</Link>
                       </li>
                       <li className={className("/experiments")}>
-                        <Link to="/experiments" className="" style={{cursor: 'pointer'}}><i className="fa fa-flask" />Experiments</Link>
+                        <Link to="/experiments" className="" style={{cursor: 'pointer'}}><i className="fas fa-flask" />Experiments</Link>
                       </li>
                       <li className={className("/scripts")}>
-                        <Link to="/scripts" className="" style={{cursor: 'pointer'}}><i className="fa fa-file-text-o" />Global Scripts</Link>
+                        <Link to="/scripts" className="" style={{cursor: 'pointer'}}><i className="far fa-file-alt" />Global Scripts</Link>
                       </li>
                       <li className={className("/webhooks")}>
-                        <Link to="/webhooks" className="" style={{cursor: 'pointer'}}><i className="fa fa-plug" />WebHooks</Link>
+                        <Link to="/webhooks" className="" style={{cursor: 'pointer'}}><i className="fas fa-plug" />WebHooks</Link>
                       </li>
                     </ul>
                     <ul className="nav nav-sidebar">
                       <li className={className("/")}>
-                        <h3 style={{marginTop: 0}}><i className="fa fa-tachometer"/> Explore
+                        <h3 style={{marginTop: 0}}><i className="fas fa-tachometer-alt"/> Explore
                         </h3>
                       </li>
                       <li className={className("/explorer/features")}>

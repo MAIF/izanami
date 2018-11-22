@@ -75,8 +75,6 @@ export class MultiSearch extends Component {
 
   loadingZone = () => {
     if (this.state.loading) {
-      //return
-      //<i className="fa fa-spinner Select-loading search-loading form-control-feedback" aria-hidden="true"/>;
       return (
         <span className="search-loading-zone form-control-feedback" aria-hidden="true">
           <span className="Select-loading" />
