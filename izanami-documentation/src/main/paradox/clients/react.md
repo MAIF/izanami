@@ -122,7 +122,7 @@ Once you the provider configured, you can displayed a specific variant for an ex
       <td>
         <Experiment path={"izanami:example:button"} notifyDisplay="/api/izanami/experiments/displayed" >
           <Variant id={"A"}>
-            <Link to={`/todos/${l.name}`} onClick={this.onTodosClick} className="btn btn-sm btn-default"><i className="fa fa-eye" aria-hidden="true" /></Link>
+            <Link to={`/todos/${l.name}`} onClick={this.onTodosClick} className="btn btn-sm btn-default"><i className="fas fa-eye" aria-hidden="true" /></Link>
             <button className="btn btn-sm btn-default" onClick={this.removeTodoList(l.name)}><i className="glyphicon glyphicon-trash" /></button>
           </Variant>
           <Variant id={"B"}>

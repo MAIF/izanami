@@ -46,7 +46,7 @@ class SearchResult extends Component {
             >
               <span className="keypicker-result-value-label">{part}</span>
               { i < (values.length - 1) &&
-                <i className="fa fa-caret-right"/>
+                <i className="fas fa-caret-right"/>
               }
             </div>
           ])}
@@ -244,14 +244,14 @@ export class KeyInput extends Component {
                           onChange={this.changeEditedValue(i)}
                           value={this.state.editedValue}
                         />
-                        <i className="fa fa-caret-right"/>
+                        <i className="fas fa-caret-right"/>
                       </span>
                     );
                   } else {
                     return (
                       <span className="keypicker-value" style={{ marginLeft: '0px' }} key={`value-${i}`} onDoubleClick={this.setEditedIndex(i, part)}>
                         <span>{part}</span>
-                        <i className="fa fa-caret-right"/>
+                        <i className="fas fa-caret-right"/>
                       </span>
                     );
                   }
@@ -268,7 +268,7 @@ export class KeyInput extends Component {
                 </div>
               </span>
               <span>
-                <button type="button" className="btn btn-small btn-success" title="copy" onClick={this.copyToClipboard}><i className="fa fa-copy"/></button>
+                <button type="button" className="btn btn-small btn-success" title="copy" onClick={this.copyToClipboard}><i className="far fa-copy"/></button>
               </span>
             </div>
             {this.state.open &&
