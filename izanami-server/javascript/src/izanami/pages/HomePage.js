@@ -71,12 +71,12 @@ export class HomePage extends Component {
         </div>
         <div style={{ marginTop: 80 }}>
           <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', marginTop: 20 }}>
-            <Metric value={this.state.configsCount}  legend="Registered Configurations" picto={"fa fa-wrench"} />
-            <Metric value={this.state.featuresCount} legend="Registered Features" picto={"fa fa-toggle-on"} />
+            <Metric value={this.state.configsCount}  legend="Registered Configurations" picto={"fas fa-wrench"} />
+            <Metric value={this.state.featuresCount} legend="Registered Features" picto={"fas fa-toggle-on"} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', marginTop: 20 }}>
-            <Metric value={this.state.experimentsCount} legend="Registered Experiments" picto={"fa fa-flask"}/>
-            <Metric value={this.state.webHooksCount} legend="Registered WebHooks" picto={"fa fa-plug"}/>
+            <Metric value={this.state.experimentsCount} legend="Registered Experiments" picto={"fas fa-flask"}/>
+            <Metric value={this.state.webHooksCount} legend="Registered WebHooks" picto={"fas fa-plug"}/>
           </div>
         </div>
       </div>
