@@ -67,7 +67,7 @@ export default class TvShow extends React.Component {
           <div className="col-md-12 details">
               <div className="row">
                     <div className="col-md-1">
-                      <Link to={"/"}><i className="fa fa-home fa-2x" aria-hidden="true"></i></Link>
+                      <Link to={"/"}><i className="fas fa-home fa-2x" aria-hidden="true"></i></Link>
                     </div>
                     <div className="col-md-10">
                       <h1 style={{textAlign: 'center'}}>{this.state.show.title}</h1>

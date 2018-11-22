@@ -99,7 +99,7 @@ Once you the provider configured, you can displayed a specific variant for an ex
 <ng-template appExperiment path="izanami:example:button"
                          notifyDisplayPath="/api/izanami/experiments/displayed" variant="A">
   <a routerLink="/todos/{{todo.name}}" (click)="onTodosClick" class="btn btn-sm btn-default">
-    <i class="fa fa-eye"></i>
+    <i class="fas fa-eye"></i>
   </a>
   <button class="btn btn-sm btn-default" (click)="removeTodoList(todo.name)"><i class="glyphicon glyphicon-trash" /></button>
 </ng-template>

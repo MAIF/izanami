@@ -94,11 +94,11 @@ export class Tree extends Component {
             <div className={`btn-group btn-group-xs open-close`}>
               <button type="button" className={`btn  openbtn`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={this.toggleChild(id)} >
-                <i className="fa fa-caret-down"/>
+                <i className="fas fa-caret-down"/>
               </button>
               <button type="button" className={`btn open-all`} data-toggle="tooltip" data-placement="top" title="Expand / collapse"
                       onClick={e => this.toggleChilds(document.getElementById(id))}>
-                <i className="fa fa-caret-right"/>
+                <i className="fas fa-caret-right"/>
               </button>
             </div>
           }

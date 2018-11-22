@@ -34,7 +34,7 @@ export default class MyTvShows extends React.Component {
                       <h3 className="media-heading">{title}</h3>
                       <Experiment path={"mytvshows:gotoepisodes:button"} notifyDisplay="/api/izanami/experiments/displayed" >
                         <Variant id={"A"}>
-                          <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right" alt="consulter"><i className="fa fa-eye"></i></Link>
+                          <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right" alt="consulter"><i className="fas fa-eye"></i></Link>
                         </Variant>
                         <Variant id={"B"}>
                           <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right" alt="consulter"><i className="glyphicon glyphicon-chevron-right"></i></Link>

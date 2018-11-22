@@ -170,14 +170,14 @@ export class FeaturesPage extends Component {
               <time dateTime={`${moment(params.from).format('YYYY-MM-DD')}`} className="icon">
                 <span>{moment(params.from).format('DD')}</span><span>{moment(params.from).format('MMM')}</span><span>{moment(params.from).format('YYYY')}</span>
               </time>
-              <span> <i className="fa fa-arrow-right"/> </span>
+              <span> <i className="fas fa-arrow-right"/> </span>
               <time dateTime={`${moment(params.to).format('YYYY-MM-DD')}`} className="icon">
                 <span>{moment(params.to).format('DD')}</span><span>{moment(params.to).format('MMM')}</span><span>{moment(params.to).format('YYYY')}</span>
               </time>
           </span>
         );
       case "GLOBAL_SCRIPT":
-        return <span ><i className="fa fa-file-text-o" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
+        return <span ><i className="far fa-file-alt" aria-hidden="true"/>{` Script based on '${params.ref}'`}</span>;
       case "PERCENTAGE":
         return <span >Enabled for {`${params.percentage} % of the traffic`}</span>;
       default:

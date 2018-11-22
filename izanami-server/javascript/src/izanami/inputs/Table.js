@@ -613,7 +613,7 @@ export class Table extends Component {
                           aria-expanded="false"
                           style={{verticalAlign: 'middle'}}
                         >
-                          <i className="fa fa-cog fa-2" aria-hidden="true"/>
+                          <i className="fas fa-cog" aria-hidden="true"/>
                         </button>
                         <ul className="dropdown-menu">
                           {
