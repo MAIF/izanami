@@ -13,23 +13,34 @@ import libs.functional.EitherTSyntax
 import play.api.Logger
 import play.api.libs.json._
 import store.Result.Result
-
 import store._
 
 import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
 
 sealed trait Script
 final case class JavascriptScript(script: String) extends Script
 final case class ScalaScript(script: String)      extends Script
+final case class KotlinScript(script: String)     extends Script
 
 sealed trait ScriptExecution
 final case class ScriptExecutionSuccess(result: Boolean, logs: Seq[String] = Seq.empty) extends ScriptExecution
 final case class ScriptExecutionFailure(logs: Seq[String] = Seq.empty, stacktrace: Seq[String] = Seq.empty)
     extends ScriptExecution
 
+object ScriptExecutionFailure {
+  def fromThrowable(logs: Seq[String] = Seq.empty, e: Throwable): ScriptExecutionFailure =
+    ScriptExecutionFailure(
+      logs,
+      Option(e.getCause).toSeq.flatMap { c =>
+        Seq(c.getClass.getName) ++ c.getStackTrace.map(stackElt => s"  ${stackElt.toString}")
+      } ++ Seq(e.getClass.getName) ++ e.getStackTrace.map(stackElt => s"  ${stackElt.toString}")
+    )
+}
+
 object Script {
 
-  type ScriptCache[F[_]] = CacheService[F, String, FeatureScript]
+  type ScriptCache[F[_]] = CacheService[F, String]
 
   object ScriptCache {
     def apply[F[_]](implicit s: ScriptCache[F]): ScriptCache[F] = s
@@ -68,11 +79,11 @@ trait GlobalScriptService[F[_]] {
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
-trait CacheService[F[_], K, T] {
+trait CacheService[F[_], K] {
 
-  def get(id: K): F[Option[T]]
+  def get[T: ClassTag](id: K): F[Option[T]]
 
-  def set(id: K, value: T): F[Unit]
+  def set[T: ClassTag](id: K, value: T): F[Unit]
 
 }
 

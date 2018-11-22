@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import * as IzanamiServices from "../services/index";
 import { Table } from '../inputs';
 import * as ScriptsTemplate from '../helpers/ScriptTemplates'
-import {JsLogo, ScalaLogo} from "../components/Logos";
+import {JsLogo, KotlinLogo, ScalaLogo} from "../components/Logos";
 
 export class GlobalScriptsPage extends Component {
 
@@ -24,6 +24,10 @@ export class GlobalScriptsPage extends Component {
           scala: {
             label: 'Scala',
             snippet:ScriptsTemplate.scalaDefaultScript
+          },
+          kotlin: {
+            label: 'Kotlin',
+            snippet:ScriptsTemplate.kotlinDefaultScript
           }
         }
       },
@@ -40,6 +44,8 @@ export class GlobalScriptsPage extends Component {
         return <span><JsLogo width={'20px'}/>{` Script`}</span>;
       } else if (item.source.type === 'scala') {
         return <span><ScalaLogo width={'20px'}/>{` Script`}</span>;
+      } else if (item.source.type === 'kotlin') {
+        return <span><KotlinLogo width={'20px'}/>{` Script`}</span>;
       }
     }},
     { title: 'Name', notFilterable: true, style: { textAlign: 'center'}, content: item => item.name },

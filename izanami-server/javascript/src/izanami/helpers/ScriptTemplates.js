@@ -38,3 +38,22 @@ export const scalaDefaultScript = `/**
     }
     
 }`;
+
+
+
+export const kotlinDefaultScript = `/**
+ * context:  a jackson JSON object containing app specific value
+ *           to evaluate the state of the feature
+ * enabled:  a callback to mark the feature as active
+ *           for this request
+ * disabled: a callback to mark the feature as inactive
+ *           for this request
+ * http:     an http client
+ */
+fun enabled(context: JsonNode, enabled: () -> Unit, disabled: () -> Unit, httpClient: KotlinHttpClient) {             
+    if ( context.get("user")?.asText()?.contains("john.doe@gmail.com") ?: false) {
+      enabled()
+    } else {
+      disabled()
+    }
+}`;

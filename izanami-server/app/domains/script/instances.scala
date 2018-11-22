@@ -4,24 +4,25 @@ import java.util.function.BiConsumer
 import akka.Done
 import akka.actor.ActorSystem
 import cats.effect.{Async, IO}
+import cats.implicits._
+import com.fasterxml.jackson.databind.node.ObjectNode
 import domains.script.Script.ScriptCache
 import domains.{AuthInfo, IsAllowed, Key}
 import env.Env
 import javax.script._
-import play.api.{Logger, Play}
+import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
+import play.api.Logger
 import play.api.Mode.Prod
 import play.api.cache.AsyncCacheApi
-import play.api.libs.json
 import play.api.libs.json._
-import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
-
-import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.hashing.MurmurHash3
-import scala.util.{Failure, Success, Try}
-import cats.implicits._
+import play.api.libs.ws.{WSRequest, WSResponse}
 
 import scala.annotation.varargs
+import scala.collection.mutable
+import scala.concurrent.{ExecutionContext, Future}
+import scala.reflect.ClassTag
+import scala.util.hashing.MurmurHash3
+import scala.util.{Failure, Success, Try}
 
 case class ScalaConsole(logs: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty) {
 
@@ -49,6 +50,15 @@ trait FeatureScript {
 
 }
 
+trait KotlinFeatureScript {
+
+  def run(println: kotlin.jvm.functions.Function1[AnyRef, Unit],
+          context: com.fasterxml.jackson.databind.JsonNode,
+          enabled: kotlin.jvm.functions.Function0[Unit],
+          disabled: kotlin.jvm.functions.Function0[Unit],
+          http: KHttpClient): Unit
+}
+
 object ScriptInstances {
 
   implicit val reads: Reads[Script] = Reads[Script] {
@@ -56,6 +66,11 @@ object ScriptInstances {
       (js \ "script")
         .asOpt[String]
         .map(s => JsSuccess(ScalaScript(s)))
+        .getOrElse(JsError("missing.field.script"))
+    case js: JsObject if (js \ "type").asOpt[String].contains("kotlin") =>
+      (js \ "script")
+        .asOpt[String]
+        .map(s => JsSuccess(KotlinScript(s)))
         .getOrElse(JsError("missing.field.script"))
     case js: JsObject if (js \ "type").asOpt[String].contains("javascript") =>
       (js \ "script")
@@ -76,6 +91,8 @@ object ScriptInstances {
       Json.obj("type" -> "javascript", "script" -> script)
     case ScalaScript(script) =>
       Json.obj("type" -> "scala", "script" -> script)
+    case KotlinScript(script) =>
+      Json.obj("type" -> "kotlin", "script" -> script)
   }
 
   implicit val executionScriptWrites = Writes[ScriptExecution] {
@@ -103,7 +120,125 @@ object ScriptInstances {
         case s: JavascriptScript =>
           Logger.debug(s"Executing javascript script $s")
           executeJavascriptScript[F](s, context, env)
+        case s: KotlinScript =>
+          Logger.debug(s"Executing kotlin script $s")
+          executeKotlinScript[F](s, context, env)
       }
+    }
+  }
+
+  private def executeKotlinScript[F[_]: Async: ScriptCache](script: KotlinScript, context: JsObject, env: Env)(
+      implicit ec: ScriptExecutionContext
+  ): F[ScriptExecution] = {
+
+    val finalScript: String =
+      s"""
+         |import domains.script.KotlinFeatureScript
+         |import domains.script.KHttpClient
+         |import scala.runtime.BoxedUnit
+         |import com.fasterxml.jackson.databind.JsonNode
+         |import play.libs.Json
+         |import java.util.function.BiConsumer
+         |
+         |private interface Intermediate: KotlinFeatureScript {
+         |  override fun run(println: (Any) -> BoxedUnit,
+         |                 context: JsonNode,
+         |                 enabled: () -> BoxedUnit,
+         |                 disabled: () -> BoxedUnit,
+         |                 http: KHttpClient) : Unit
+         |}
+         |
+         |object : Intermediate {
+         |  override fun run(println: (Any) -> BoxedUnit,
+         |                 context: JsonNode,
+         |                 e: () -> BoxedUnit,
+         |                 d: () -> BoxedUnit,
+         |                 http: KHttpClient) {
+         |
+         |       class KotlinHttpClient {
+         |          fun httpCall(m: Map<String, String>, cb: (String?, String?) -> Unit): Unit {
+         |            val javaMap = java.util.HashMap<String, Any>()
+         |            m.forEach { e -> javaMap.put(e.key, e.value) }
+         |            val javaCallBack = object : BiConsumer<String?, String?> {
+         |              override fun accept(e1: String?, e2: String?): Unit {
+         |                cb(e1, e2)
+         |              }
+         |            }
+         |            http.call(javaMap, javaCallBack)
+         |          }
+         |       }
+         |
+         |       ${script.script}
+         |       enabled(context, { e() }, { d() }, KotlinHttpClient())
+         |  }
+         |}
+      """.stripMargin
+
+    val id = MurmurHash3.stringHash(finalScript).toString
+
+    val buildScript: F[KotlinFeatureScript] =
+      Async[F].async { cb =>
+        ec.execute { () =>
+          Try {
+            val scriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
+            Logger.debug(s"Compiling script ... ")
+            val script: KotlinFeatureScript = scriptEngine.eval(finalScript).asInstanceOf[KotlinFeatureScript]
+            Logger.debug("Compilation is done !")
+            cb(Right(script))
+          } recover {
+            case e =>
+              Logger.error(s"Error building kotlin script \n $finalScript", e)
+              cb(Left(e))
+          }
+        }
+      }
+
+    def run(featureScript: KotlinFeatureScript): F[ScriptExecution] = {
+      val console = ScalaConsole()
+      Async[F]
+        .async { cb: (Either[Throwable, Boolean] => Unit) =>
+          ec.execute { () =>
+            Try {
+              val client = new KHttpClient(env, cb)(ec)
+              val ctx    = context.as[ObjectNode]
+              featureScript.run(
+                (p1: AnyRef) => console.println(p1),
+                ctx,
+                () => cb(Right(true)),
+                () => cb(Right(false)),
+                client
+              )
+            } recover {
+              case e => cb(Left(e))
+            }
+          }
+        }
+        .map { b =>
+          ScriptExecutionSuccess(b, console.scriptLogs.logs).asInstanceOf[ScriptExecution]
+        }
+        .recover {
+          case e: Exception =>
+            Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
+            ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
+        }
+    }
+
+    val scriptCache = ScriptCache[F]
+
+    (
+      for {
+        mayBeScript <- scriptCache.get[KotlinFeatureScript](id)
+        _           = Logger.debug(s"Cache for script ? : $mayBeScript")
+        script      <- mayBeScript.fold(buildScript)(_.pure[F])
+        _           = Logger.debug(s"Updating cache for id $id and script $script")
+        _           <- scriptCache.set(id, script)
+        _           = Logger.debug(s"Running kotlin script")
+        r           <- run(script)
+      } yield r
+    ).recover {
+      case e: Exception =>
+        Logger.error(s"Error executing script", e)
+        ScriptExecutionFailure.fromThrowable(Seq.empty, e)
     }
   }
 
@@ -156,19 +291,6 @@ object ScriptInstances {
                 cb(Right(script))
               case _ =>
                 cb(Left(new IllegalArgumentException("Scala scripts not supported in dev mode")))
-//
-//                val engineFactory =
-//                  engineManager.getEngineFactories.asScala.find(_.getEngineName == "Scala REPL").get
-//                Logger.debug(s"Dev, factory: $engineFactory")
-//
-//                val interpreter =
-//                  engineFactory.getScriptEngine
-//                Logger.debug(s"Dev, interpreter: $interpreter")
-//
-//                val settings = interpreter.asInstanceOf[scala.tools.nsc.interpreter.IMain].settings
-//                Logger.debug(s"Dev, setting classpath to $sbtClasspath")
-//                settings.classpath.value = s".:$sbtClasspath"
-//                interpreter
             }
 
           } recover {
@@ -185,9 +307,9 @@ object ScriptInstances {
         .async { cb: (Either[Throwable, Boolean] => Unit) =>
           ec.execute { () =>
             Try {
-              val enabled  = () => cb(Right(true))
-              val disabled = () => cb(Right(false))
-              featureScript.run(console.println, context, enabled, disabled, env.wSClient)(ec)
+              featureScript.run(console.println, context, () => cb(Right(true)), () => cb(Right(false)), env.wSClient)(
+                ec
+              )
             } recover {
               case e => cb(Left(e))
             }
@@ -199,7 +321,7 @@ object ScriptInstances {
         .recover {
           case e: Exception =>
             Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
-            ScriptExecutionFailure(console.scriptLogs.logs, e.getStackTrace.map(stackElt => stackElt.toString))
+            ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
         }
     }
 
@@ -207,7 +329,7 @@ object ScriptInstances {
 
     (
       for {
-        mayBeScript <- scriptCache.get(id)
+        mayBeScript <- scriptCache.get[FeatureScript](id)
         _           = Logger.debug(s"Cache for script ? : $mayBeScript")
         script      <- mayBeScript.fold(buildScript)(_.pure[F])
         _           = Logger.debug(s"Updating cache for id $id and script $script")
@@ -218,7 +340,7 @@ object ScriptInstances {
     ).recover {
       case e: Exception =>
         Logger.error(s"Error executing script", e)
-        ScriptExecutionFailure(Seq.empty, e.getStackTrace.map(stackElt => stackElt.toString))
+        ScriptExecutionFailure.fromThrowable(Seq.empty, e)
     }
   }
 
@@ -257,7 +379,7 @@ object ScriptInstances {
       .recover {
         case e: Exception =>
           Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
-          ScriptExecutionFailure(console.scriptLogs.logs, e.getStackTrace.map(stackElt => stackElt.toString))
+          ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
       }
   }
 
@@ -283,13 +405,12 @@ object ScriptInstances {
 
 class PlayScriptCache[F[_]: Async](api: AsyncCacheApi) extends ScriptCache[F] {
 
-  import cats._
   import cats.implicits._
 
-  override def get(id: String): F[Option[FeatureScript]] =
-    IO.fromFuture(IO(api.get[FeatureScript](id))).to[F]
+  override def get[T: ClassTag](id: String): F[Option[T]] =
+    IO.fromFuture(IO(api.get[T](id))).to[F]
 
-  override def set(id: String, value: FeatureScript): F[Unit] = {
+  override def set[T: ClassTag](id: String, value: T): F[Unit] = {
     val update = IO.fromFuture(IO(api.set(id, value))).to[F]
     for {
       mayBeResult <- get(id)
@@ -353,6 +474,10 @@ class HttpClient[F[_]](env: Env, promise: Either[Throwable, Boolean] => Unit)(
     }
   }
 }
+
+class KHttpClient(env: Env, promise: Either[Throwable, Boolean] => Unit)(
+    implicit ec: ScriptExecutionContext
+) extends HttpClient[Future](env, promise)(ec)
 
 object GlobalScriptInstances {
 
