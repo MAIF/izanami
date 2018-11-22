@@ -16,6 +16,7 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.{BuiltInComponents, BuiltInComponentsFromContext, Configuration, NoHttpFiltersComponents}
 
 import scala.concurrent.duration.DurationInt
+import scala.reflect.ClassTag
 
 /**
  * Created by adelegue on 18/07/2017.
@@ -95,9 +96,31 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     )
   )
 
+  lazy val kotlinScript =
+    s"""
+       |fun enabled(context: JsonNode, enabled: () -> Unit, disabled: () -> Unit, httpClient: KotlinHttpClient) {
+       |    val args = hashMapOf(
+       |      "method" to "get",
+       |      "url" to "http://localhost:$port/surname"
+       |    )
+       |    httpClient.httpCall(args, { error: String?, body: String?  ->
+       |      if(error != null) {
+       |        disabled()
+       |      } else {
+       |        val jsonBody = Json.parse(body)
+       |        if(jsonBody.get("surname").asText() == "Lodbrok" && context.get("name").asText() == "Ragnar") {
+       |          enabled()
+       |        } else {
+       |          disabled()
+       |        }
+       |      }
+       |    })
+       |}
+         """.stripMargin
+
   "Script" must {
 
-    "a script executed must return true" in {
+    "a javascript script executed must return true" in {
 
       import domains.script.syntax._
       import domains.script.ScriptInstances._
@@ -123,7 +146,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
       result must be(ScriptExecutionSuccess(true))
     }
-    "a script executed must return false" in {
+
+    "a javascript script executed must return false" in {
 
       import domains.script.syntax._
       import domains.script.ScriptInstances._
@@ -150,11 +174,65 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
       result must be(ScriptExecutionSuccess(false))
     }
 
+    "a kotlin script executed must return true" in {
+
+      import domains.script.syntax._
+      import domains.script.ScriptInstances._
+
+      implicit val cache: ScriptCache[IO] = fakeCache[IO]
+      implicit val ec: ScriptExecutionContext =
+        ScriptExecutionContext(testComponents.actorSystem)
+
+      val theScript: Script = KotlinScript(kotlinScript)
+      val result: ScriptExecution = theScript
+        .run[IO](
+          Json.obj("name" -> "Ragnar"),
+          Env(
+            config,
+            testComponents.environment,
+            testComponents.actorSystem,
+            testComponents.wsClient,
+            testComponents.assetsFinder,
+            new MetricRegistry()
+          )
+        )
+        .unsafeRunSync()
+
+      result must be(ScriptExecutionSuccess(true))
+    }
+
+    "a kotlin script executed must return false" in {
+
+      import domains.script.syntax._
+      import domains.script.ScriptInstances._
+
+      implicit val cache: ScriptCache[IO] = fakeCache[IO]
+      implicit val ec: ScriptExecutionContext =
+        ScriptExecutionContext(testComponents.actorSystem)
+
+      val theScript: Script = KotlinScript(kotlinScript)
+      val result: ScriptExecution = theScript
+        .run[IO](
+          Json.obj("name" -> "Floki"),
+          Env(
+            config,
+            testComponents.environment,
+            testComponents.actorSystem,
+            testComponents.wsClient,
+            testComponents.assetsFinder,
+            new MetricRegistry()
+          )
+        )
+        .unsafeRunSync()
+
+      result must be(ScriptExecutionSuccess(false))
+    }
+
   }
 
   def fakeCache[F[_]: Applicative]: ScriptCache[F] = new ScriptCache[F] {
-    override def get(id: String): F[Option[FeatureScript]]      = Applicative[F].pure(None)
-    override def set(id: String, value: FeatureScript): F[Unit] = Applicative[F].pure(())
+    override def get[T: ClassTag](id: String): F[Option[T]]      = Applicative[F].pure(None)
+    override def set[T: ClassTag](id: String, value: T): F[Unit] = Applicative[F].pure(())
   }
 
 }

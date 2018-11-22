@@ -29,3 +29,5 @@ addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.7") // Apache 2.0
 addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.3.3") // Apache 2.0
 
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.3.4")
+
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")

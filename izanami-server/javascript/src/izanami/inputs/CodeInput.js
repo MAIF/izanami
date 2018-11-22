@@ -2,6 +2,7 @@ import React, {Component} from 'react';
 import AceEditor from 'react-ace';
 import 'brace/mode/javascript';
 import 'brace/mode/scala';
+import 'brace/mode/kotlin';
 import 'brace/theme/monokai';
 import Select from "react-select";
 import {customStyles} from '../../styles/reactSelect'
