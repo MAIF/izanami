@@ -5,7 +5,7 @@ import React, { Component } from 'react';
 import { string, object, bool, func } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
-import { get } from 'lodash/get';
+import get from 'lodash/get';
 import * as Api from './api';
 
 if (!window.Symbol) {
