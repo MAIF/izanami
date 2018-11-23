@@ -155,7 +155,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "id": "id",
           |   "enabled": true,
           |   "activationStrategy": "SCRIPT",
-          |   "parameters": { "script": {"type": "javascript", "script": "script"} }
+          |   "parameters": { "type": "javascript", "script": "script" }
           |}
         """.stripMargin)
       Json.toJson(ScriptFeature(Key("id"), true, JavascriptScript("script"))) must be(json)
