@@ -1,7 +1,7 @@
 # Changelog 
 
 
-## Version 2.0.0
+## Version 1.2.0
 
 ### New scripting language 
 
@@ -25,6 +25,37 @@ Scala 2.11 is not supported anymore for the jvm izanami client.
 ### React as a peer dependency for react client
 
 React and lodash are now peer dependencies in the react client. 
+ 
+
+### Upgrading  
+
+:warning: This version break the api for global scripts and features when scripts are used. 
+
+The json payload was 
+
+```json 
+{
+   "id": "id",
+   "enabled": true,
+   "activationStrategy": "SCRIPT",
+   "parameters": { "script": " ...." }
+} 
+``` 
+
+and is now 
+
+```json 
+{
+   "id": "id",
+   "enabled": true,
+   "activationStrategy": "SCRIPT",
+   "parameters": { 
+        "type" : "",
+        "script": " ...." 
+    }
+} 
+``` 
+
 
 
 ## Version 1.1.0
