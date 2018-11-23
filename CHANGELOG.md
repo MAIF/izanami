@@ -38,7 +38,9 @@ The json payload was
    "id": "id",
    "enabled": true,
    "activationStrategy": "SCRIPT",
-   "parameters": { "script": " ...." }
+   "parameters": { 
+    "script": " ...." 
+   }
 } 
 ``` 
 
@@ -50,11 +52,13 @@ and is now
    "enabled": true,
    "activationStrategy": "SCRIPT",
    "parameters": { 
-        "type" : "",
+        "type" : "javascript", // or scala
         "script": " ...." 
     }
 } 
 ``` 
+
+This version stay compatible with the jvm client in older versions.
 
 
 

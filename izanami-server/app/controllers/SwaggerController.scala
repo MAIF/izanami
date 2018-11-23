@@ -232,6 +232,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
   private val SimpleStringType =
     Json.obj("type" -> "string", "example" -> "a string value")
   private val OptionalStringType = Json.obj("type" -> "string", "required" -> false, "example" -> "a string value")
+  private val OptionalNumberType = Json.obj("type" -> "number", "required" -> false, "example" -> "1")
   private val OptionalScriptType = Json.obj(
     "type"     -> "string",
     "required" -> false,
@@ -338,8 +339,12 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
         "required" -> false,
         "properties" -> Json.obj(
           "releaseDate" -> OptionalDateType ~~> "The activation date if activationStrategy is RELEASE_DATE",
+          "from" -> OptionalDateType ~~> "The from date if activationStrategy is DATE_RANGE",
+          "to" -> OptionalDateType ~~> "The to date if activationStrategy is DATE_RANGE",
+          "percentage" -> OptionalNumberType ~~> "The percentage if activationStrategy is PERCENTAGE",
           "ref"         -> OptionalStringType ~~> "The reference to a script if activationStrategy is GLOBAL_SCRIPT",
-          "script"      -> OptionalScriptType ~~> "Javascript code to execute if activationStrategy is SCRIPT"
+          "script"      -> OptionalScriptType ~~> "Javascript code to execute if activationStrategy is SCRIPT",
+          "type"      -> OptionalScriptType ~~> "Javascript script language (scala|javascript) if activationStrategy is SCRIPT"
         )
       )
     )

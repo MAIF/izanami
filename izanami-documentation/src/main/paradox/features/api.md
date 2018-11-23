@@ -57,6 +57,7 @@ The feature structure depends on the type of the strategy. A feature can have th
   "id": "feature:with:script",
   "enabled": true,
   "parameters": {
+    "type": "javascript",
     "script": "/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === 'ragnar.lodbrok@gmail.com') {\n    return enabled();\n  }\n  return disabled();\n}"
   },
   "activationStrategy": "SCRIPT"
@@ -120,6 +121,7 @@ Will respond with a 200 status code:
       "id": "feature:with:script",
       "enabled": true,
       "parameters": {
+        "type": "javascript",
         "script": "/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === 'ragnar.lodbrok@gmail.com') {\n    return enabled();\n  }\n  return disabled();\n}"
       },
       "activationStrategy": "SCRIPT"
@@ -433,6 +435,7 @@ The result is the following
       "id": "feature:with:script",
       "enabled": true,
       "parameters": {
+        "type": "javascript",
         "script": "/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === 'ragnar.lodbrok@gmail.com') {\n    return enabled();\n  }\n  return disabled();\n}"
       },
       "activationStrategy": "SCRIPT",
@@ -491,6 +494,7 @@ The result is the following
       "id": "feature:with:script",
       "enabled": true,
       "parameters": {
+        "type": "javascript",
         "script": "/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === 'ragnar.lodbrok@gmail.com') {\n    return enabled();\n  }\n  return disabled();\n}"
       },
       "activationStrategy": "SCRIPT",
