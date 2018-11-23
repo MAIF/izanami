@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -118,7 +118,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -230,6 +230,12 @@ yarn start
 </code></pre>
 <pre class="prettyprint"><code class="language-sbtshell">sbt 
 &gt; ~izanami-server/run -Dizanami.db.default=Elastic
+</code></pre>
+<h4><a href="#aws-dynamodb" name="aws-dynamodb" class="anchor"><span class="anchor-link"></span></a>AWS DynamoDB</h4>
+<pre class="prettyprint"><code class="language-bash ">docker rm dynamodb &amp;&amp; docker run --name dynamodb -p 8000:8000 amazon/dynamodb-local
+</code></pre>
+<pre class="prettyprint"><code class="language-sbtshell">sbt 
+&gt; ~izanami-server/run -Dizanami.db.default=Dynamo -Dizanami.db.dynamo.host=localhost -Dizanami.db.dynamo.port=8000
 </code></pre>
 <h3><a href="#kafka-as-event-store" name="kafka-as-event-store" class="anchor"><span class="anchor-link"></span></a>Kafka as Event store</h3>
 <pre class="prettyprint"><code class="language-bash">docker run -p 2181:2181 -p 9092:9092 --env ADVERTISED_HOST=127.0.0.1 --env ADVERTISED_PORT=9092 --env AUTO.CREATE.TOPICS.ENABLE spotify/kafka

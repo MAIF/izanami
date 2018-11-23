@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -118,7 +118,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -494,6 +494,54 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>izanami.db.inMemoryWithDb.pollingInterval</code> </td>
       <td><code>IN_MEMORY_WITH_DB_POLLING_INTERVAL</code> </td>
       <td>The interval used to refresh the from the underlying store </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.tableName</code> </td>
+      <td><code>DYNAMO_TABLE_NAME</code> </td>
+      <td>The name of the AWS DynamoDB table </td>
+      <td>izanami </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.eventsTableName</code> </td>
+      <td><code>DYNAMO_EVENTS_TABLE_NAME</code> </td>
+      <td>The name of the AWS DynamoDB table for A/B testing events </td>
+      <td>izanami_experimentevents </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.region</code> </td>
+      <td><code>DYNAMO_REGION</code> </td>
+      <td>The AWS region </td>
+      <td>eu-west-1 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.host</code> </td>
+      <td><code>DYNAMO_HOST</code> </td>
+      <td>The AWS host </td>
+      <td><code>&quot;dynamodb.&quot;${izanami.db.dynamo.region}&quot;.amazonaws.com&quot;</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.port</code> </td>
+      <td><code>DYNAMO_PORT</code> </td>
+      <td>The AWS port, https is used as default scheme </td>
+      <td>443 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.parallelism</code> </td>
+      <td><code>DYNAMO_PARRALLELISM</code> </td>
+      <td>Max number of in flight requests from the AwsClient - must be a power of 2 </td>
+      <td>32 </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.accessKey</code> </td>
+      <td><code>DYNAMO_ACCESS_KEY</code> </td>
+      <td>Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.dynamo.secretKey</code> </td>
+      <td><code>DYNAMO_SECRET_KEY</code> </td>
+      <td>Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain </td>
       <td> </td>
     </tr>
   </tbody>
