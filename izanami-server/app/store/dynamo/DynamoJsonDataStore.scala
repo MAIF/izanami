@@ -2,7 +2,7 @@ package store.dynamo
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.alpakka.dynamodb.scaladsl.DynamoClient
+import akka.stream.alpakka.dynamodb.scaladsl.{DynamoClient => AlpakkaClient}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
 import cats.effect.Effect
@@ -20,7 +20,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 
 object DynamoJsonDataStore {
-  def apply[F[_]: Effect](client: DynamoClient, dynamoConfig: DynamoConfig, config: DbDomainConfig)(
+  def apply[F[_]: Effect](client: AlpakkaClient, dynamoConfig: DynamoConfig, config: DbDomainConfig)(
       implicit system: ActorSystem
   ): DynamoJsonDataStore[F] = {
     val namespace = config.conf.namespace
@@ -28,13 +28,13 @@ object DynamoJsonDataStore {
     DynamoJsonDataStore(client, dynamoConfig.tableName, namespace)
   }
 
-  def apply[F[_]: Effect](client: DynamoClient, tableName: String, storeName: String)(
+  def apply[F[_]: Effect](client: AlpakkaClient, tableName: String, storeName: String)(
       implicit system: ActorSystem
   ): DynamoJsonDataStore[F] =
     new DynamoJsonDataStore(client, tableName, storeName)
 }
 
-class DynamoJsonDataStore[F[_]: Effect](client: DynamoClient, tableName: String, storeName: String)(
+class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String, storeName: String)(
     implicit actorSystem: ActorSystem
 ) extends JsonDataStore[F] {
 

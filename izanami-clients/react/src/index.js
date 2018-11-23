@@ -71,7 +71,7 @@ export class IzanamiProvider extends Component {
       if (isFunction(this.props.fetchFrom)) {
           Api.registerFetch(id, this.props.fetchFrom);
       } else if (isString(this.props.fetchFrom)) {
-          Api.registerFetch(this.props.fetchFrom, () =>
+          Api.registerFetch(id, () =>
               fetch(this.props.fetchFrom, {
                   method: 'GET',
                   credentials: 'include',
