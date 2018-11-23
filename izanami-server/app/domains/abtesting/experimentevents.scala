@@ -1,6 +1,7 @@
 package domains.abtesting
 
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
@@ -8,11 +9,12 @@ import cats.effect.Effect
 import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import libs.IdGenerator
+import play.api.Logger
 import play.api.libs.json._
 import store.Result.{ErrorMessage, Result}
 
 import scala.collection.immutable.HashSet
-import scala.concurrent.{ExecutionContext}
+import scala.concurrent.ExecutionContext
 
 /* ************************************************************************* */
 /*                      ExperimentVariantEvent                               */
@@ -66,45 +68,71 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
 
 object ExperimentVariantEvent {
 
+  private def keepEvent(from: LocalDateTime, to: LocalDateTime, interval: ChronoUnit): Boolean =
+    interval.between(from, to) > 1
+
+  def calcInterval(min: LocalDateTime, max: LocalDateTime): ChronoUnit = {
+    Logger.debug(s"Calculating the best interval between $min and $max")
+    if (ChronoUnit.MONTHS.between(min, max) > 50) {
+      ChronoUnit.MONTHS
+    } else if (ChronoUnit.WEEKS.between(min, max) > 50) {
+      ChronoUnit.WEEKS
+    } else if (ChronoUnit.DAYS.between(min, max) > 50) {
+      ChronoUnit.DAYS
+    } else if (ChronoUnit.HOURS.between(min, max) > 50) {
+      ChronoUnit.HOURS
+    } else if (ChronoUnit.MINUTES.between(min, max) > 50) {
+      ChronoUnit.MINUTES
+    } else {
+      ChronoUnit.SECONDS
+    }
+  }
+
   def eventAggregation(experiment: Experiment,
-                       removeDouble: Boolean = false): Flow[ExperimentVariantEvent, VariantResult, NotUsed] =
+                       interval: ChronoUnit = ChronoUnit.HOURS,
+                       removeDouble: Boolean = false): Flow[ExperimentVariantEvent, VariantResult, NotUsed] = {
+    Logger.debug(s"Building event results for ${experiment.id.key}, interval = $interval")
     Flow[ExperimentVariantEvent]
       .groupBy(experiment.variants.size, _.variant.id)
       .statefulMapConcat(() => {
-        var displayed = 0
-        var won       = 0
-        var ids       = HashSet.empty[String]
+        var displayed                             = 0
+        var won                                   = 0
+        var ids                                   = HashSet.empty[String]
+        var lastDateStored: Option[LocalDateTime] = None
         evt =>
           {
-            evt match {
+            val (newEvent, transformation) = evt match {
               case e: ExperimentVariantDisplayed =>
                 displayed += 1
                 ids = ids + e.clientId
                 val transformation = if (displayed != 0) {
                   (won * 100.0) / displayed
                 } else 0.0
-                List(
-                  VariantResult(Some(e.variant),
-                                displayed,
-                                won,
-                                transformation,
-                                users = ids.size,
-                                Seq(e.copy(transformation = transformation)))
-                )
+
+                (e.copy(transformation = transformation), transformation)
               case e: ExperimentVariantWon =>
                 won += 1
                 ids = ids + e.clientId
                 val transformation = if (displayed != 0) {
                   (won * 100.0) / displayed
                 } else 0.0
-                List(
-                  VariantResult(Some(e.variant),
-                                displayed,
-                                won,
-                                transformation,
-                                users = ids.size,
-                                Seq(e.copy(transformation = transformation)))
-                )
+
+                (e.copy(transformation = transformation), transformation)
+            }
+
+            val lastDate = lastDateStored.getOrElse {
+              lastDateStored = Some(evt.date)
+              evt.date
+            }
+            val currentDate = evt.date
+
+            if (keepEvent(lastDate, currentDate, interval)) {
+              lastDateStored = Some(currentDate)
+              List(
+                VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))
+              )
+            } else {
+              List.empty
             }
           }
       })
@@ -112,6 +140,7 @@ object ExperimentVariantEvent {
         r.copy(events = acc.events ++ r.events)
       }
       .mergeSubstreams
+  }
 
 }
 
