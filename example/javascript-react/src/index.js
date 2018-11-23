@@ -96,7 +96,12 @@ const MainApp = props => (
 );
 
 const IzanamiApp = props => (
-  <IzanamiProvider fetchFrom="/api/izanami">
+  <IzanamiProvider id="mytvshows" fetchFrom={() =>
+    fetch("/api/izanami", {
+      method: 'GET',
+      credentials: 'include'
+    })
+  } >
     <Router basename="/">
         <Switch>
           <Route path="/login" component={Login} rootPath={props.rootPath}/>
