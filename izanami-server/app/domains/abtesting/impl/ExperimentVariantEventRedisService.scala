@@ -1,5 +1,6 @@
 package domains.abtesting.impl
 
+import java.time.temporal.ChronoUnit
 import java.time.{LocalDateTime, ZoneId}
 
 import akka.{Done, NotUsed}
@@ -7,6 +8,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
+import cats.data.OptionT
 import cats.effect.Effect
 import domains.abtesting._
 import domains.events.EventStore
@@ -14,6 +16,7 @@ import env.DbDomainConfig
 import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
 import io.lettuce.core.api.async.RedisAsyncCommands
 import libs.functional.EitherTSyntax
+import play.api.Logger
 import play.api.libs.json.Json
 import store.Result.Result
 import store.redis.RedisWrapper
@@ -127,10 +130,39 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
       }
       .mapConcat(l => l)
 
+  private def firstFirstEvent(eventVariantKey: String): F[Option[ExperimentVariantEvent]] =
+    command()
+      .zrange(eventVariantKey, 0, 1)
+      .toF
+      .map(_.asScala.headOption)
+      .map {
+        _.map { evt =>
+          Json.parse(evt).validate[ExperimentVariantEvent].get
+        }
+      }
+
+  private def interval(eventVariantKey: String): F[ChronoUnit] =
+    (for {
+      evt <- OptionT(firstFirstEvent(eventVariantKey))
+      min = evt.date
+      max = LocalDateTime.now()
+    } yield {
+      ExperimentVariantEvent.calcInterval(min, max)
+    }).value.map(_.getOrElse(ChronoUnit.HOURS))
+
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
-    findKeys(s"$experimentseventsNamespace:*")
-      .flatMapMerge(4, key => findEvents(key))
-      .via(ExperimentVariantEvent.eventAggregation(experiment))
+    findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+      .flatMapMerge(
+        4,
+        key =>
+          Source
+            .fromFuture(interval(key).toIO.unsafeToFuture())
+            .flatMapConcat(
+              interval =>
+                findEvents(key)
+                  .via(ExperimentVariantEvent.eventAggregation(experiment, interval))
+          )
+      )
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] = {
     val deletes: F[Result[Done]] =
