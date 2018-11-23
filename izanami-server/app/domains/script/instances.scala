@@ -62,8 +62,11 @@ object ScriptInstances {
         .asOpt[String]
         .map(s => JsSuccess(JavascriptScript(s)))
         .getOrElse(JsError("missing.field.script"))
-    case JsString(str) =>
-      json.JsSuccess(JavascriptScript(str))
+    case js: JsObject =>
+      (js \ "script")
+        .asOpt[String]
+        .map(s => JsSuccess(JavascriptScript(s)))
+        .getOrElse(JsError("missing.field.script"))
     case _ =>
       JsError("invalid.script")
   }

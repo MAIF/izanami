@@ -58,7 +58,7 @@ export class CodeInput extends Component {
         <div className="col-sm-10">
           <ScriptDebug script={this.state.code || ''} language={this.state.language || 'javascript'} />
         </div>
-      </div>) : <div />
+      </div>) : <div />;
 
 
     return [
