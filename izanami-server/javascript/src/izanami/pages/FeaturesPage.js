@@ -19,14 +19,14 @@ class FeatureParameters extends Component {
       if (oldStrategy === 'RELEASE_DATE') {
         this.props.onChange({ releaseDate: undefined });
       } else if (oldStrategy === 'SCRIPT') {
-        this.props.onChange({ script: undefined });
+        this.props.onChange({ script: undefined, type: undefined });
       } else if (oldStrategy === 'GLOBAL_SCRIPT') {
         this.props.onChange({ ref: undefined });
       } else if (nextStrategy === 'PERCENTAGE') {
         this.props.onChange({ percentage: undefined });
       }
       if (nextStrategy === 'SCRIPT') {
-        this.props.onChange({ script: {type: 'javascript', script: this.defaultScriptValue } });
+        this.props.onChange({ type: 'javascript', script: ScriptsTemplate.javascriptDefaultScript } );
       } else if (nextStrategy === 'RELEASE_DATE') {
         this.props.onChange({ releaseDate: moment().format(DATE_FORMAT) });
       } else if (nextStrategy === 'PERCENTAGE') {
@@ -79,8 +79,8 @@ class FeatureParameters extends Component {
           }
         }}
         default={"javascript"}
-        value={this.props.value.script}
-        onChange={ ({type, script}) => this.props.onChange({script:{ type, script }})}
+        value={this.props.value}
+        onChange={ value => this.props.onChange({ ...value})}
       />;
     }
     if (this.props.source.activationStrategy === 'GLOBAL_SCRIPT') {
@@ -148,9 +148,9 @@ export class FeaturesPage extends Component {
     const params = item.parameters || {};
     switch(item.activationStrategy) {
       case "SCRIPT":
-        if (params.script.type === 'javascript') {
+        if (params.type === 'javascript') {
           return <span><JsLogo width={'20px'}/>{` Script`}</span>;
-        } else if (params.script.type === 'scala') {
+        } else if (params.type === 'scala') {
           return <span><ScalaLogo width={'20px'}/>{` Script`}</span>;
         }
       case "NO_STRATEGY":

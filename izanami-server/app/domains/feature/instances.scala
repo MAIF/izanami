@@ -91,7 +91,7 @@ object ScriptFeatureInstances {
 
   val writes: Writes[ScriptFeature] = (
     FeatureInstances.commonWrite and
-    (__ \ "parameters" \ "script").write[Script](ScriptInstances.writes)
+    (__ \ "parameters").write[Script](ScriptInstances.writes)
   )(unlift(ScriptFeature.unapply))
     .transform { o: JsObject =>
       o ++ Json.obj("activationStrategy" -> SCRIPT)
@@ -100,7 +100,7 @@ object ScriptFeatureInstances {
   private val reads: Reads[ScriptFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
-    (__ \ "parameters" \ "script").read[Script](ScriptInstances.reads)
+    (__ \ "parameters").read[Script](ScriptInstances.reads)
   )(ScriptFeature.apply _)
 
   implicit val format: Format[ScriptFeature] = Format(reads, writes)

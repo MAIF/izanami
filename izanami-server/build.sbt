@@ -68,6 +68,7 @@ addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.8")
 
 scalacOptions ++= Seq(
   "-Ypartial-unification",
+  "-Xfatal-warnings",
   "-feature",
   "-language:higherKinds",
   "-language:implicitConversions",
