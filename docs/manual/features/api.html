@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -118,7 +118,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -275,6 +275,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   &quot;id&quot;: &quot;feature:with:script&quot;,
   &quot;enabled&quot;: true,
   &quot;parameters&quot;: {
+    &quot;type&quot;: &quot;javascript&quot;,
     &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
   },
   &quot;activationStrategy&quot;: &quot;SCRIPT&quot;
@@ -324,6 +325,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       &quot;id&quot;: &quot;feature:with:script&quot;,
       &quot;enabled&quot;: true,
       &quot;parameters&quot;: {
+        &quot;type&quot;: &quot;javascript&quot;,
         &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
       },
       &quot;activationStrategy&quot;: &quot;SCRIPT&quot;
@@ -567,6 +569,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       &quot;id&quot;: &quot;feature:with:script&quot;,
       &quot;enabled&quot;: true,
       &quot;parameters&quot;: {
+        &quot;type&quot;: &quot;javascript&quot;,
         &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
       },
       &quot;activationStrategy&quot;: &quot;SCRIPT&quot;,
@@ -621,6 +624,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       &quot;id&quot;: &quot;feature:with:script&quot;,
       &quot;enabled&quot;: true,
       &quot;parameters&quot;: {
+        &quot;type&quot;: &quot;javascript&quot;,
         &quot;script&quot;: &quot;/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.user === &#39;ragnar.lodbrok@gmail.com&#39;) {\n    return enabled();\n  }\n  return disabled();\n}&quot;
       },
       &quot;activationStrategy&quot;: &quot;SCRIPT&quot;,

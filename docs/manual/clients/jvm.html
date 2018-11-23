@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -118,7 +118,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -264,12 +264,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 )
 </code></pre></dd>
 </dl>
-<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "1.0.7-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
+<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "1.2.1-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
   &lt;groupId&gt;fr.maif&lt;/groupId&gt;
   &lt;artifactId&gt;izanami-client_2.12&lt;/artifactId&gt;
-  &lt;version&gt;1.0.7-SNAPSHOT&lt;/version&gt;
+  &lt;version&gt;1.2.1-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  compile group: 'fr.maif', name: 'izanami-client_2.12', version: '1.0.7-SNAPSHOT'
+  compile group: 'fr.maif', name: 'izanami-client_2.12', version: '1.2.1-SNAPSHOT'
 }</code></pre></dd></dl>
 <p>The client can be used in java or scala. There is two distinct dsl. Be sure to import the correct one : </p>
 <dl>
@@ -316,7 +316,7 @@ import izanami.scaladsl._
                 .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;)
                 .withPageSize(50)
                 .withZoneId(ZoneId.of(&quot;Europe/Paris&quot;))
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L55-L66" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">implicit val system = ActorSystem(
@@ -345,7 +345,7 @@ val client = IzanamiClient(
     zoneId = ZoneId.of(&quot;Europe/Paris&quot;),
     dispatcher = &quot;izanami-example.blocking-io-dispatcher&quot;
   )
-)</code></pre></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/ClientSpec.scala#L17-L43" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <table>
   <thead>
@@ -402,7 +402,7 @@ val client = IzanamiClient(
                         Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
                 ))
         )
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L150-L157" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val configClient = client.configClient(
@@ -410,7 +410,7 @@ val client = IzanamiClient(
   fallback = Configs(
     &quot;test2&quot; -&gt; Json.obj(&quot;value&quot; -&gt; 2)
   )
-)</code></pre></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L36-L41" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>When you set up a client you have to choose a strategy : </p>
 <table>
@@ -454,7 +454,7 @@ val client = IzanamiClient(
                         Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
                 ))
         )
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L87-L97" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val configClient = client.configClient(
@@ -463,7 +463,7 @@ val client = IzanamiClient(
     pollingInterval = 3.second
   ),
   fallback = fallback
-)</code></pre></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/SmartCacheConfigClientSpec.scala#L58-L64" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>The client will cache all the configs matching this patterns. </p>
 <ul>
@@ -480,14 +480,14 @@ val client = IzanamiClient(
 futureConfigs.onSuccess( (Configs configs) -&gt; {
     JsValue config = configs.config(&quot;my:config&quot;);
     System.out.println(config.field(&quot;value&quot;).asString());
-});</code></pre></dd>
+});</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L161-L165" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val configs: Future[Configs] = izanamiClient.configs(&quot;*&quot;)
 configs.onComplete {
   case Success(c) =&gt; println(c)
   case Failure(e) =&gt; e.printStackTrace()
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L91-L95" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#get-one-config" name="get-one-config" class="anchor"><span class="anchor-link"></span></a>Get one config</h4>
 <dl>
@@ -496,14 +496,14 @@ configs.onComplete {
   <pre class="prettyprint"><code class="language-java">Future&lt;JsValue&gt; futureConfig = configClient.config(&quot;my:config&quot;);
 futureConfig.onSuccess( (JsValue config) -&gt; {
     System.out.println(config.field(&quot;value&quot;).asString());
-});</code></pre></dd>
+});</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L169-L172" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val futureConfig: Future[JsValue] = izanamiClient.config(&quot;test&quot;)
 futureConfig.onComplete {
   case Success(c) =&gt; println(c)
   case Failure(e) =&gt; e.printStackTrace()
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L116-L120" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h2><a href="#features-client" name="features-client" class="anchor"><span class="anchor-link"></span></a>Features client</h2>
 <p>To understand how features work, just visit this </p>
@@ -516,7 +516,7 @@ futureConfig.onComplete {
         Features.features(
                 Features.feature(&quot;my:feature&quot;, false)
         )
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L197-L202" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val featureClient = client.featureClient(
@@ -524,7 +524,7 @@ futureConfig.onComplete {
   fallback = Features(
     DefaultFeature(&quot;test2&quot;, true)
   )
-)</code></pre></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L38-L43" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>When you set up a client you have to choose a strategy : </p>
 <table>
@@ -565,7 +565,7 @@ futureConfig.onComplete {
         Features.features(
                 Features.feature(&quot;my:feature&quot;, false)
         )
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L101-L108" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val featureClient = client.featureClient(
@@ -574,7 +574,7 @@ futureConfig.onComplete {
     pollingInterval = 3.second
   ),
   fallback = Features(fallback: _*)
-)</code></pre></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/SmartCacheFeatureClientSpec.scala#L61-L67" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>The client will cache all the configs matching this patterns. </p>
 <ul>
@@ -599,7 +599,7 @@ futureFeatures.onSuccess(features -&gt; {
     }
     JsObject tree = features.tree();
     System.out.println(&quot;Tree is &quot; + Json.prettyPrint(tree));
-});</code></pre></dd>
+});</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L274-L285" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val futureFeatures: Future[Features] = featureClient.features(&quot;*&quot;)
@@ -616,16 +616,16 @@ futureFeatures.onComplete {
 
   case Failure(e) =&gt;
     e.printStackTrace()
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L53-L67" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#check-feature" name="check-feature" class="anchor"><span class="anchor-link"></span></a>Check feature</h4>
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-java">Future&lt;Boolean&gt; futureCheck = featureClient.checkFeature(&quot;my:feature&quot;);</code></pre></dd>
+  <pre class="prettyprint"><code class="language-java">Future&lt;Boolean&gt; futureCheck = featureClient.checkFeature(&quot;my:feature&quot;);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L206" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val futureCheck: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;)</code></pre></dd>
+  <pre class="prettyprint"><code class="language-scala">val futureCheck: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L124" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>If the feature needs a context to be evaluated: </p>
 <dl>
@@ -633,11 +633,11 @@ futureFeatures.onComplete {
   <dd>
   <pre class="prettyprint"><code class="language-java">Future&lt;Boolean&gt; futureCheckContext = featureClient.checkFeature(&quot;my:feature&quot;, Json.obj(
         Syntax.$(&quot;context&quot;, true)
-));</code></pre></dd>
+));</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L210-L212" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val context                           = Json.obj(&quot;context&quot; -&gt; true)
-val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;, context)</code></pre></dd>
+val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;, context)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L136-L137" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#conditional-code-on-feature" name="conditional-code-on-feature" class="anchor"><span class="anchor-link"></span></a>Conditional code on feature</h4>
 <p>This execute a code and return a value if a feature is active: </p>
@@ -647,14 +647,14 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <pre class="prettyprint"><code class="language-java">Future&lt;String&gt; conditonal = featureClient.featureOrElse(&quot;my:feature&quot;,
         () -&gt; &quot;Feature is active&quot;,
         () -&gt; &quot;Feature is not active&quot;
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L216-L219" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val conditonal: Future[String] = featureClient.featureOrElse(&quot;test&quot;) {
   &quot;Feature is active&quot;
 } {
   &quot;Feature is not active&quot;
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L141-L145" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>Or with a context </p>
 <dl>
@@ -665,14 +665,14 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
         Json.obj(Syntax.$(&quot;context&quot;, true)),
         () -&gt; &quot;Feature is active&quot;,
         () -&gt; &quot;Feature is not active&quot;
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L223-L228" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val conditonalWithContext: Future[String] = featureClient.featureOrElse(&quot;test&quot;, context) {
   &quot;Feature is active&quot;
 } {
   &quot;Feature is not active&quot;
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L149-L153" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h2><a href="#experiments-client" name="experiments-client" class="anchor"><span class="anchor-link"></span></a>Experiments client</h2>
 <p>To understand how experiments work, just visit this  </p>
@@ -680,11 +680,11 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-java">ExperimentsClient experimentsClient = izanamiClient.experimentClient(Strategies.fetchStrategy());</code></pre></dd>
+  <pre class="prettyprint"><code class="language-java">ExperimentsClient experimentsClient = izanamiClient.experimentClient(Strategies.fetchStrategy());</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L297" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val experimentClient = IzanamiClient(ClientConfig(host))
-  .experimentClient(Strategies.fetchStrategy())</code></pre></dd>
+  .experimentClient(Strategies.fetchStrategy())</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala#L30-L31" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>For experiments, there is only two strategies available : fetch or dev.</p>
 <h3><a href="#variants" name="variants" class="anchor"><span class="anchor-link"></span></a>Variants</h3>
@@ -706,14 +706,14 @@ futureVariant.onSuccess(mayBeVariant -&gt;
                     return phrase;
                 })
         )
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L424-L438" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val mayBeFutureVariant: Future[Option[Variant]] = experimentClient.getVariantFor(&quot;test&quot;, &quot;client1&quot;)
 mayBeFutureVariant.onComplete {
   case Success(mayBeVariant) =&gt; println(mayBeVariant)
   case Failure(e)            =&gt; e.printStackTrace()
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala#L65-L69" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#mark-variant-displayed" name="mark-variant-displayed" class="anchor"><span class="anchor-link"></span></a>Mark variant displayed</h4>
 <dl>
@@ -722,7 +722,7 @@ mayBeFutureVariant.onComplete {
   <pre class="prettyprint"><code class="language-java">Future&lt;ExperimentVariantDisplayed&gt; futureDisplayed = experimentsClient.markVariantDisplayed(&quot;my:experiment&quot;, &quot;clientId&quot;);
 futureDisplayed.onSuccess(event -&gt;
         System.out.println(event)
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L445-L448" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val futureDisplayed: Future[ExperimentVariantDisplayed] =
@@ -730,7 +730,7 @@ futureDisplayed.onSuccess(event -&gt;
 futureDisplayed.onComplete {
   case Success(event) =&gt; println(event)
   case Failure(e)     =&gt; e.printStackTrace()
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala#L88-L93" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#mark-variant-won" name="mark-variant-won" class="anchor"><span class="anchor-link"></span></a>Mark variant won</h4>
 <dl>
@@ -739,14 +739,14 @@ futureDisplayed.onComplete {
   <pre class="prettyprint"><code class="language-java">Future&lt;ExperimentVariantWon&gt; futureWon = experimentsClient.markVariantWon(&quot;my:experiment&quot;, &quot;clientId&quot;);
 futureWon.onSuccess(event -&gt;
         System.out.println(event)
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L456-L459" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val futureWon: Future[ExperimentVariantWon] = experimentClient.markVariantWon(&quot;test&quot;, &quot;client1&quot;)
 futureWon.onComplete {
   case Success(event) =&gt; println(event)
   case Failure(e)     =&gt; e.printStackTrace()
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala#L96-L100" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h3><a href="#work-with-experiment" name="work-with-experiment" class="anchor"><span class="anchor-link"></span></a>Work with experiment</h3>
 <h4><a href="#get-the-experiment" name="get-the-experiment" class="anchor"><span class="anchor-link"></span></a>Get the experiment</h4>
@@ -767,7 +767,7 @@ futureExperiment.onSuccess(mayBeExperiment -&gt;
                 return phrase;
             })
     )
-);</code></pre></dd>
+);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L397-L411" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val futureExperiment: Future[Option[ExperimentClient]] = experimentClient.experiment(&quot;test&quot;)
@@ -775,7 +775,7 @@ futureExperiment.onComplete {
   case Success(Some(exp)) =&gt; println(s&quot;Experiment is $exp&quot;)
   case Success(None)      =&gt; println(&quot;Experiment not Found&quot;)
   case Failure(e)         =&gt; e.printStackTrace()
-}</code></pre></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala#L54-L59" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>Once you get the experiment, you can get a variant for a client, mark variant displayed or mark variant won : </p>
 <dl>
@@ -784,13 +784,13 @@ futureExperiment.onComplete {
   <pre class="prettyprint"><code class="language-java">ExperimentClient experiment = mayExperiment.get();
 Future&lt;Option&lt;Variant&gt;&gt; clientId = experiment.getVariantFor(&quot;clientId&quot;);
 Future&lt;ExperimentVariantDisplayed&gt; displayed = experiment.markVariantDisplayed(&quot;clientId&quot;);
-Future&lt;ExperimentVariantWon&gt; won = experiment.markVariantWon(&quot;clientId&quot;);</code></pre></dd>
+Future&lt;ExperimentVariantWon&gt; won = experiment.markVariantWon(&quot;clientId&quot;);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L417-L420" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val experiment: ExperimentClient                  = mayBeExperiment.get
 val futureVariant: Future[Option[Variant]]        = experiment.getVariantFor(&quot;client1&quot;)
 val displayed: Future[ExperimentVariantDisplayed] = experiment.markVariantDisplayed(&quot;client1&quot;)
-val won: Future[ExperimentVariantWon]             = experiment.markVariantWon(&quot;client1&quot;)</code></pre></dd>
+val won: Future[ExperimentVariantWon]             = experiment.markVariantWon(&quot;client1&quot;)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala#L78-L81" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h3><a href="#experiment-tree" name="experiment-tree" class="anchor"><span class="anchor-link"></span></a>Experiment tree</h3>
 <p>You can get the experiments tree with associated variant for a client : </p>
@@ -808,7 +808,7 @@ futureTree.onSuccess(tree -&gt; {
                     ))
             )
     );
-});</code></pre></dd>
+});</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L466-L477" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val experimentsTree = client.tree(&quot;*&quot;, &quot;client1&quot;).futureValue
@@ -826,7 +826,7 @@ experimentsTree must be(
 val experimentsTree = client.tree(&quot;*&quot;, &quot;client1&quot;).futureValue
 experimentsTree must be(
   Json.obj()
-)</code></pre></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/experiments/FetchExperimentsClientStrategySpec.scala#L116-L150" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h2><a href="#exposing-izanami-with-a-proxy" name="exposing-izanami-with-a-proxy" class="anchor"><span class="anchor-link"></span></a>Exposing izanami with a Proxy</h2>
 <p>When you have to use Izanami from the client side, you can&rsquo;t call Izanami directly from the browser because it means the API keys are exposed to anyone. </p>
@@ -881,7 +881,7 @@ fStringResponse.onSuccess(t -&gt;
 
 Future&lt;Tuple2&lt;Integer, JsValue&gt;&gt; markVariantDisplayed = proxy.markVariantDisplayed(&quot;experiments:id&quot;, &quot;ragnars.lodbrock@gmail.com&quot;);
 Future&lt;Tuple2&lt;Integer, JsValue&gt;&gt; markVariantWon = proxy.markVariantWon(&quot;experiments:id&quot;, &quot;ragnars.lodbrock@gmail.com&quot;);
-</code></pre></dd>
+</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L484-L531" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val client = IzanamiClient(
@@ -945,7 +945,7 @@ fResponseString.onComplete {
 val fDisplayed: Future[(Int, JsValue)] =
   proxy.markVariantDisplayed(&quot;experiments:id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
 val fWon: Future[(Int, JsValue)] = proxy.markVariantWon(&quot;experiments:id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
-</code></pre></dd>
+</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/proxy/ProxySpec.scala#L25-L86" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/clients/jvm.md">here</a>.

@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -118,7 +118,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.0.7*
+1.2.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -210,6 +210,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../settings/database.html#cassandra" class="header">Cassandra</a></li>
     <li><a href="../settings/database.html#elasticsearch" class="header">Elasticsearch</a></li>
     <li><a href="../settings/database.html#mongo" class="header">Mongo</a></li>
+    <li><a href="../settings/database.html#aws-dynamodb" class="header">AWS DynamoDB</a></li>
     <li><a href="../settings/database.html#in-memory-with-db" class="header">In Memory with Db</a></li>
     <li><a href="../settings/database.html#mix-databases" class="header">Mix Databases</a></li>
   </ul></li>
@@ -344,6 +345,39 @@ bin/izanami
 export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami 
 
 bin/izanami 
+</code></pre>
+<p>Other settings are available, consult the <a href="settings.html">settings</a> page. </p>
+<h3><a href="#aws-dynamodb" name="aws-dynamodb" class="anchor"><span class="anchor-link"></span></a>AWS DynamoDB</h3>
+<p>To run Izanami with DynamoDB : </p>
+<pre class="prettyprint"><code class="language-bash">bin/izanami \ 
+    -Dizanami.db.default=Dynamo \
+    -Dizanami.db.dynamo.region=eu-west-1
+    -Dizanami.db.dynamo.accessKey=xxxxx
+    -Dizanami.db.dynamo.secretKey=xxxxx
+</code></pre>
+<p>Or </p>
+<pre class="prettyprint"><code class="language-bash">export IZANAMI_DATABASE=dynamo
+export DYNAMO_REGION=eu-west-1
+export DYNAMO_ACCESS_KEY=xxxxxxx
+export DYNAMO_SECRET_KEY=xxxxxxx
+
+bin/izanami 
+</code></pre>
+<p>If the credentials are not set in the configuration, connector will use the default credential provider chain provided by the DynamoDB Java SDK to retrieve credentials.</p>
+<p>Izanami requires the following <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/api-permissions-reference.html">IAM permissions</a> :</p>
+<ul>
+  <li>dynamodb:DeleteItem</li>
+  <li>dynamodb:GetItem</li>
+  <li>dynamodb:PutItem</li>
+  <li>dynamodb:Query</li>
+  <li>dynamodb:UpdateItem</li>
+  <li>dynamodb:BatchWriteItem</li>
+  <li>dynamodb:DescribeTable</li>
+</ul>
+<p>Additionally if the DynamoDB tables don&rsquo;t already exist, Izanami will create them for you which will require the <code>dynamodb:CreateTable</code> permission.</p>
+<p>You can create them with the following commands</p>
+<pre class="prettyprint"><code class="language-bash">aws dynamodb create-table --table-name izanami --attribute-definitions AttributeName=store,AttributeType=S AttributeName=id,AttributeType=S  --key-schema AttributeName=store,KeyType=HASH AttributeName=id,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+aws dynamodb create-table --table-name izanami_experimentevent --attribute-definitions AttributeName=experimentId,AttributeType=S AttributeName=variantId,AttributeType=S  --key-schema AttributeName=experimentId,KeyType=HASH AttributeName=variantId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
 </code></pre>
 <p>Other settings are available, consult the <a href="settings.html">settings</a> page. </p>
 <h3><a href="#in-memory-with-db" name="in-memory-with-db" class="anchor"><span class="anchor-link"></span></a>In Memory with Db</h3>
