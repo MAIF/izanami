@@ -124,6 +124,7 @@ object ExperimentVariantEvent {
               lastDateStored = Some(evt.date)
               evt.date
             }
+
             val currentDate = evt.date
 
             if (keepEvent(lastDate, currentDate, interval)) {

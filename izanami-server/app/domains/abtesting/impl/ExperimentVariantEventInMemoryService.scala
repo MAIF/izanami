@@ -1,5 +1,8 @@
 package domains.abtesting.impl
 
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
+
 import akka.{Done, NotUsed}
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.scaladsl.Source
@@ -64,12 +67,25 @@ class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eve
         experiment.variants.toList
           .traverse { variant =>
             findEvents(experiment, variant)
+              .map(l => (l.headOption, l))
           }
           .toIO
           .unsafeToFuture()
       )
-      .mapConcat(_.flatten)
-      .via(eventAggregation(experiment))
+      .mapConcat(identity)
+      .flatMapMerge(
+        4, {
+          case (first, evts) =>
+            val interval = first
+              .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
+              .getOrElse(ChronoUnit.HOURS)
+            Source(evts)
+              .via(eventAggregation(experiment, interval))
+        }
+      )
+
+  private def firstEvent(experiment: Experiment, variant: Variant): F[Option[ExperimentVariantEvent]] =
+    (store ? FindEvents(experiment.id.key, variant.id)).mapTo[Option[ExperimentVariantEvent]].toF
 
   private def findEvents(experiment: Experiment, variant: Variant): F[List[ExperimentVariantEvent]] =
     (store ? FindEvents(experiment.id.key, variant.id)).mapTo[List[ExperimentVariantEvent]].toF
@@ -105,6 +121,14 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
       datas = datas + (eventKey -> (event :: events))
       sender() ! event
 
+    case FirstEvent(experimentId, variantId) =>
+      val eventKey: String =
+        s"$experimentseventsNamespace:$experimentId:$variantId"
+      sender() ! datas
+        .getOrElse(eventKey, List.empty[ExperimentVariantEvent])
+        .sortWith((e1, e2) => e1.date.isBefore(e2.date))
+        .headOption
+
     case FindEvents(experimentId, variantId) =>
       val eventKey: String =
         s"$experimentseventsNamespace:$experimentId:$variantId"
@@ -137,6 +161,7 @@ private[abtesting] object ExperimentDataStoreActor {
       extends ExperimentDataMessages
 
   case class FindEvents(experimentId: String, variantId: String) extends ExperimentDataMessages
+  case class FirstEvent(experimentId: String, variantId: String) extends ExperimentDataMessages
 
   case class GetAll(patterns: Seq[String]) extends ExperimentDataMessages
 

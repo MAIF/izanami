@@ -339,12 +339,12 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
         "required" -> false,
         "properties" -> Json.obj(
           "releaseDate" -> OptionalDateType ~~> "The activation date if activationStrategy is RELEASE_DATE",
-          "from" -> OptionalDateType ~~> "The from date if activationStrategy is DATE_RANGE",
-          "to" -> OptionalDateType ~~> "The to date if activationStrategy is DATE_RANGE",
-          "percentage" -> OptionalNumberType ~~> "The percentage if activationStrategy is PERCENTAGE",
+          "from"        -> OptionalDateType ~~> "The from date if activationStrategy is DATE_RANGE",
+          "to"          -> OptionalDateType ~~> "The to date if activationStrategy is DATE_RANGE",
+          "percentage"  -> OptionalNumberType ~~> "The percentage if activationStrategy is PERCENTAGE",
           "ref"         -> OptionalStringType ~~> "The reference to a script if activationStrategy is GLOBAL_SCRIPT",
           "script"      -> OptionalScriptType ~~> "Javascript code to execute if activationStrategy is SCRIPT",
-          "type"      -> OptionalScriptType ~~> "Javascript script language (scala|javascript) if activationStrategy is SCRIPT"
+          "type"        -> OptionalScriptType ~~> "Javascript script language (scala|javascript) if activationStrategy is SCRIPT"
         )
       )
     )
