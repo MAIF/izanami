@@ -69,7 +69,7 @@ case class ExperimentVariantWon(id: ExperimentVariantEventKey,
 object ExperimentVariantEvent {
 
   private def keepEvent(from: LocalDateTime, to: LocalDateTime, interval: ChronoUnit): Boolean =
-    interval.between(from, to) > 1
+    interval.between(from, to) >= 1
 
   def calcInterval(min: LocalDateTime, max: LocalDateTime): ChronoUnit = {
     Logger.debug(s"Calculating the best interval between $min and $max")
@@ -88,13 +88,15 @@ object ExperimentVariantEvent {
     }
   }
 
-  def eventAggregation(experiment: Experiment,
+  def eventAggregation(experimentId: String,
+                       nbVariant: Int,
                        interval: ChronoUnit = ChronoUnit.HOURS,
                        removeDouble: Boolean = false): Flow[ExperimentVariantEvent, VariantResult, NotUsed] = {
-    Logger.debug(s"Building event results for ${experiment.id.key}, interval = $interval")
+    Logger.debug(s"Building event results for $experimentId, interval = $interval")
     Flow[ExperimentVariantEvent]
-      .groupBy(experiment.variants.size, _.variant.id)
+      .groupBy(nbVariant, _.variant.id)
       .statefulMapConcat(() => {
+        var first                                 = true
         var displayed                             = 0
         var won                                   = 0
         var ids                                   = HashSet.empty[String]
@@ -127,7 +129,8 @@ object ExperimentVariantEvent {
 
             val currentDate = evt.date
 
-            if (keepEvent(lastDate, currentDate, interval)) {
+            if (keepEvent(lastDate, currentDate, interval) || first) {
+              first = false
               lastDateStored = Some(currentDate)
               List(
                 VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))

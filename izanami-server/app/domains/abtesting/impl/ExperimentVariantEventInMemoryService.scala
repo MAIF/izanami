@@ -80,7 +80,7 @@ class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eve
               .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
               .getOrElse(ChronoUnit.HOURS)
             Source(evts)
-              .via(eventAggregation(experiment, interval))
+              .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
         }
       )
 
