@@ -83,7 +83,7 @@ class IzanamiConfigClient {
   config(key) {
     const columnKey = key.replace(/\./g, ":");
     const dottyKey = key.replace(/:/g, ".");
-    const url = this.conf.host + "/api/config/" + columnKey;
+    const url = this.conf.host + "/api/configs/" + columnKey;
     if (this.conf.env === 'DEV') {
       const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
       return new Promise((s, f) => s(value.active || {}));
@@ -101,7 +101,7 @@ class IzanamiConfigClient {
       try {
         if (r.status === 200) {
           return r.json().then(t => {
-            const value = JSON.parse(t.value);
+            const value = t.value;
             const mergedValue = deepmerge(_.get(this.conf.fallbackConfig, dottyKey), value);
             return mergedValue || {}
           });
