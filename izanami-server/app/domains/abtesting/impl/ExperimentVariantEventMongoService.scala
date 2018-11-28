@@ -133,7 +133,7 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
                 .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
                 .getOrElse(ChronoUnit.HOURS)
               findEvents(experiment.id.key, v)
-                .via(ExperimentVariantEvent.eventAggregation(experiment, interval))
+                .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
             }
 
         }

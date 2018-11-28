@@ -117,7 +117,7 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
             variantId
           )
         ).via(readValue)
-          .via(ExperimentVariantEvent.eventAggregation(experiment, interval))
+          .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
       }
   }
 

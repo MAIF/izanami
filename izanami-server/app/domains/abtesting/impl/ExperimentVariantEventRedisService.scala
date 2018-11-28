@@ -160,7 +160,7 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
             .flatMapConcat(
               interval =>
                 findEvents(key)
-                  .via(ExperimentVariantEvent.eventAggregation(experiment, interval))
+                  .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
           )
       )
 

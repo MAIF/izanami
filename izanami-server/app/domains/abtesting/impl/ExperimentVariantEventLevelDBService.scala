@@ -149,7 +149,7 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
                     .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
                     .getOrElse(ChronoUnit.HOURS)
                   Source(evts)
-                    .via(eventAggregation(experiment, interval))
+                    .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
               }
             )
         }
