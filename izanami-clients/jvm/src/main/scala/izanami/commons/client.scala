@@ -187,6 +187,16 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
     ).flatMap { parseResponse }
   }
 
+  def post(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty) =
+    singleRequest(
+      HttpRequest(
+        method = HttpMethods.POST,
+        uri = buildUri(path, params),
+        entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
+        headers = headers
+      )
+    ).flatMap { parseResponse }
+
   def eventStream(): Source[IzanamiEvent, NotUsed] =
     EventSource(
       uri = buildUri("/api/events", Seq("domains" -> "Config,Feature")),

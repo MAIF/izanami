@@ -13,6 +13,7 @@ import io.vavr.collection.List
 import io.vavr.concurrent.Future
 import io.vavr.control.{Option, Try}
 import izanami._
+import izanami.features.CUDFeatureClient
 import org.reactivecouchbase.json.{JsObject, JsValue, Json}
 import org.reactivestreams.Publisher
 
@@ -343,6 +344,25 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
   import Vavr._
   import JsonConv._
   import izanamiDispatcher.ec
+
+  /**
+   * Create a feature
+   * @param id Feature Id
+   * @param enabled If this feature is enabled by default or not
+   * @param activationStrategy activationStrategy for this feature (@see {@link izanami.FeatureType})
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def createFeature(id: String,
+                    enabled: Boolean = true,
+                    activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
+                    parameters: Option[JsObject] = Option.none()): Future[Feature] =
+    underlying
+      .createFeature(id,
+                     enabled,
+                     activationStrategy,
+                     parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
+      .toJava
 
   /**
    * Get features by pattern like my:keys:*

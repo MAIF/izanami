@@ -24,7 +24,8 @@ object SmartCacheFeatureClient {
             fallback: Features,
             config: SmartCacheStrategy)(implicit izanamiDispatcher: IzanamiDispatcher,
                                         actorSystem: ActorSystem,
-                                        materializer: Materializer): SmartCacheFeatureClient =
+                                        materializer: Materializer,
+                                        cudFeatureClient: CUDFeatureClient): SmartCacheFeatureClient =
     new SmartCacheFeatureClient(clientConfig, underlyingStrategy, fallback, config)
 }
 
@@ -33,7 +34,10 @@ private[features] class SmartCacheFeatureClient(
     underlyingStrategy: FeatureClient,
     fallback: Features,
     config: SmartCacheStrategy
-)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher,
+  actorSystem: ActorSystem,
+  val materializer: Materializer,
+  val cudFeatureClient: CUDFeatureClient)
     extends FeatureClient {
 
   import izanamiDispatcher.ec

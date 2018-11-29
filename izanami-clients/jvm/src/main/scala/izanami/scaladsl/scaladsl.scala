@@ -38,6 +38,8 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
   implicit val izanamiDispatcher =
     IzanamiDispatcher(config.dispatcher, actorSystem)
 
+  private implicit val cudFeatureClient: CUDFeatureClient = CUDFeatureClient(client)
+
   private val eventSource: Source[IzanamiEvent, NotUsed] = Source
     .lazily(
       () =>
@@ -293,6 +295,21 @@ trait FeatureClient {
 
   def materializer: Materializer
   def izanamiDispatcher: IzanamiDispatcher
+  protected def cudFeatureClient: CUDFeatureClient
+
+  /**
+   * Create a feature
+   * @param id Feature Id
+   * @param enabled If this feature is enabled by default or not
+   * @param activationStrategy activationStrategy for this feature (@see {@link izanami.FeatureType})
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def createFeature(id: String,
+                    enabled: Boolean = true,
+                    activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
+                    parameters: Option[JsObject] = None): Future[Feature] =
+    cudFeatureClient.createFeature(id, enabled, activationStrategy, parameters)
 
   /**
    * Get features by pattern like my:keys:*
