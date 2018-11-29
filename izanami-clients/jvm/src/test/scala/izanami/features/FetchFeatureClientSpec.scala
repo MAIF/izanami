@@ -28,6 +28,22 @@ class FetchFeatureClientSpec
   import system.dispatcher
 
   "FetchFeatureStrategy" should {
+    "Create feature" in {
+      val featureClient = IzanamiClient(
+        ClientConfig(host)
+      ).featureClient(
+        Strategies.fetchStrategy()
+      )
+      val featureId = "bla:bla"
+      createEnabledFeatureWithNoStrategy(featureId)
+
+      val featureCreated = featureClient.createFeature(featureId)
+      val feature = featureCreated.futureValue
+
+      feature.id must be("bla:bla")
+      feature.enabled must be(true)
+    }
+
     "List features" in {
 
       val client = IzanamiClient(
