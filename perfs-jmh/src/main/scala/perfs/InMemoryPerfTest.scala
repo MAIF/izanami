@@ -17,17 +17,23 @@ import store.memory.InMemoryJsonDataStore
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationLong
 
+import cats.effect.IO
+import cats.effect.implicits._
+
+
 object InMemoryPerfTest {
 
   @State(Scope.Benchmark)
   class BenchmarkState {
     implicit val actorSystem = ActorSystem()
     implicit val mat         = ActorMaterializer()
-    val store                = InMemoryJsonDataStore(DbDomainConfig(InMemory, DbDomainConfigDetails("test", None), None), actorSystem)
+    val store                = InMemoryJsonDataStore[IO](DbDomainConfig(InMemory, DbDomainConfigDetails("test", None), None))
+
+    import domains.feature.FeatureInstances._
     val init = Source(0 to 2000)
       .mapAsyncUnordered(50) { i =>
         val key = Key(s"a:key:$i")
-        store.create(key, Json.toJson(DefaultFeature(key, enabled = true)))
+        store.create(key, Json.toJson(DefaultFeature(key, enabled = true))).toIO.unsafeToFuture
       }
       .runWith(Sink.ignore)
 
@@ -42,7 +48,7 @@ class InMemoryPerfTest {
   @Benchmark
   def list(state: BenchmarkState): CompletionStage[PagingResult[JsValue]] = {
     import scala.compat.java8.FutureConverters._
-    state.store.getByIdLike(patterns = Seq("*"), page = 1, nbElementPerPage = 15).toJava
+    state.store.getByIdLike(patterns = Seq("*"), page = 1, nbElementPerPage = 15).toIO.unsafeToFuture().toJava
   }
 
 }

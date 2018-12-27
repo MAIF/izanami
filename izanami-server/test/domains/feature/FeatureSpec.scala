@@ -21,6 +21,7 @@ import test.IzanamiSpec
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.reflect.ClassTag
 import scala.util.Random
 
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
@@ -217,8 +218,8 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   }
 
   def fakeCache[F[_]: Applicative]: ScriptCache[F] = new ScriptCache[F] {
-    override def get(id: String): F[Option[FeatureScript]]      = Applicative[F].pure(None)
-    override def set(id: String, value: FeatureScript): F[Unit] = Applicative[F].pure(())
+    override def get[T: ClassTag](id: String): F[Option[T]]      = Applicative[F].pure(None)
+    override def set[T: ClassTag](id: String, value: T): F[Unit] = Applicative[F].pure(())
   }
 
   def fakeGlobalScriptRepository[F[_]: Effect]: GlobalScriptService[F] = new GlobalScriptService[F] {

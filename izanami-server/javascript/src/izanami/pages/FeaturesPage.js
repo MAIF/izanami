@@ -5,7 +5,7 @@ import {Key, Table, CodeInput, ObjectInput, SimpleBooleanInput, AsyncSelectInput
 import moment from 'moment';
 import {IzaDatePicker, IzaDateRangePicker} from '../components/IzanamiDatePicker';
 import * as ScriptsTemplate from '../helpers/ScriptTemplates'
-import {JsLogo, ScalaLogo} from "../components/Logos";
+import {JsLogo, KotlinLogo, ScalaLogo} from "../components/Logos";
 
 const DATE_FORMAT = 'DD/MM/YYYY HH:mm:ss';
 const DATE_FORMAT2 = 'YYYY-MM-DD HH:mm:ss';
@@ -76,6 +76,10 @@ class FeatureParameters extends Component {
           scala: {
             label: 'Scala',
             snippet:ScriptsTemplate.scalaDefaultScript
+          },
+          kotlin: {
+            label: 'Kotlin',
+            snippet:ScriptsTemplate.kotlinDefaultScript
           }
         }}
         default={"javascript"}
@@ -152,6 +156,8 @@ export class FeaturesPage extends Component {
           return <span><JsLogo width={'20px'}/>{` Script`}</span>;
         } else if (params.type === 'scala') {
           return <span><ScalaLogo width={'20px'}/>{` Script`}</span>;
+        } else if (params.type === 'kotlin') {
+          return <span><KotlinLogo width={'20px'}/>{` Script`}</span>;
         }
       case "NO_STRATEGY":
         return  <span >{`No strategy`}</span>;

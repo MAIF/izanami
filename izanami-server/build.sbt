@@ -13,6 +13,7 @@ lazy val `izanami-server` = (project in file("."))
 
 val akkaVersion    = "2.5.17"
 val metricsVersion = "4.0.2"
+val kotlinVersion  = "1.3.0"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
@@ -55,6 +56,9 @@ libraryDependencies ++= Seq(
   "io.prometheus"            % "simpleclient_dropwizard"        % "0.5.0", // Apache 2.0
   "org.scala-lang"           % "scala-compiler"                 % scalaVersion.value,
   "org.scala-lang"           % "scala-library"                  % scalaVersion.value,
+  "org.jetbrains.kotlin"     % "kotlin-script-runtime"          % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-script-util"             % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"     % kotlinVersion,
   "com.typesafe.akka"        %% "akka-http"                     % "10.0.6" % Test, // Apache 2.0
   "de.heikoseeberger"        %% "akka-http-play-json"           % "1.16.0" % Test, // Apache 2.0
   "org.scalatestplus.play"   %% "scalatestplus-play"            % "3.1.1" % Test, // Apache 2.0
@@ -72,8 +76,11 @@ scalacOptions ++= Seq(
   "-feature",
   "-language:higherKinds",
   "-language:implicitConversions",
-  "-language:existentials"
+  "-language:existentials",
+  "-Xfatal-warnings"
 )
+
+coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
 sources in (Compile, doc) := Seq.empty
 
