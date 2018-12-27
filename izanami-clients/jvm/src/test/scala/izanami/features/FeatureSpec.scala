@@ -4,11 +4,12 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json._
 
-class FeatureSpec extends IzanamiSpec
-  with BeforeAndAfterAll
-  with MockitoSugar
-  with FeatureServer
-  with FeatureMockServer {
+class FeatureSpec
+    extends IzanamiSpec
+    with BeforeAndAfterAll
+    with MockitoSugar
+    with FeatureServer
+    with FeatureMockServer {
 
   "serialization" should {
 
@@ -25,7 +26,9 @@ class FeatureSpec extends IzanamiSpec
                             """.stripMargin)
 
       val jsResult = json.validate[Feature]
-      jsResult must be(JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")), __ \ "parameters" \ "script"))
+      jsResult must be(
+        JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")), __ \ "parameters" \ "script")
+      )
     }
 
     "Feature Script" in {
@@ -41,7 +44,9 @@ class FeatureSpec extends IzanamiSpec
                             """.stripMargin)
 
       val jsResult = json.validate[Feature]
-      jsResult must be(JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")), __ \ "parameters" \ "script"))
+      jsResult must be(
+        JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")), __ \ "parameters" \ "script")
+      )
     }
   }
 

@@ -376,7 +376,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
 
     val variantId: String = variant.id
 
-    val events: Source[Seq[ExperimentVariantEvent], NotUsed] = Source
+    val events: Source[Seq[ExperimentResultEvent], NotUsed] = Source
       .fromFuture(calcInterval(experimentId).toIO.unsafeToFuture())
       .mapAsync(1) { interval =>
         val query = aggRequest(experimentId, variantId, interval)
@@ -394,28 +394,20 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
                     (event \ "avg" \ "value").asOpt[Double].getOrElse(0d)
                   (event \ "key").as[String] match {
                     case "VariantDisplayedEvent" =>
-                      ExperimentVariantDisplayed(
-                        ExperimentVariantEventKey(Key(experimentId), variantId, "NA", "displayed", "NA"),
+                      ExperimentResultEvent(
                         Key(experimentId),
-                        "NA",
                         variant,
                         date,
                         transformation,
                         variantId
                       )
                     case "VariantWonEvent" =>
-                      ExperimentVariantWon(ExperimentVariantEventKey(Key(experimentId), variantId, "NA", "won", "NA"),
-                                           Key(experimentId),
-                                           "NA",
-                                           variant,
-                                           date,
-                                           transformation,
-                                           variantId)
+                      ExperimentResultEvent(Key(experimentId), variant, date, transformation, variantId)
                   }
                 }
               }
             case SearchResponse(_, _, _, hits, _, None) =>
-              Seq.empty[ExperimentVariantEvent]
+              Seq.empty[ExperimentResultEvent]
           }
       }
 
