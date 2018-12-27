@@ -48,41 +48,11 @@ class ExperimentVariantEventTest extends IzanamiSpec with ScalaFutures with Inte
         }
 
       val expectedEvents = Seq(
-        ExperimentVariantDisplayed(experimentVariantEventKey(1),
-                                   experimentKey,
-                                   clientId(1),
-                                   variant,
-                                   date(1),
-                                   0.0,
-                                   "vId"),
-        ExperimentVariantDisplayed(experimentVariantEventKey(5),
-                                   experimentKey,
-                                   clientId(5),
-                                   variant,
-                                   date(5),
-                                   40.0,
-                                   "vId"),
-        ExperimentVariantDisplayed(experimentVariantEventKey(9),
-                                   experimentKey,
-                                   clientId(9),
-                                   variant,
-                                   date(9),
-                                   44.44444444444444,
-                                   "vId"),
-        ExperimentVariantDisplayed(experimentVariantEventKey(13),
-                                   experimentKey,
-                                   clientId(13),
-                                   variant,
-                                   date(13),
-                                   46.15384615384615,
-                                   "vId"),
-        ExperimentVariantDisplayed(experimentVariantEventKey(17),
-                                   experimentKey,
-                                   clientId(17),
-                                   variant,
-                                   date(17),
-                                   47.05882352941177,
-                                   "vId")
+        ExperimentResultEvent(experimentKey, variant, date(1), 0.0, "vId"),
+        ExperimentResultEvent(experimentKey, variant, date(5), 40.0, "vId"),
+        ExperimentResultEvent(experimentKey, variant, date(9), 44.44444444444444, "vId"),
+        ExperimentResultEvent(experimentKey, variant, date(13), 46.15384615384615, "vId"),
+        ExperimentResultEvent(experimentKey, variant, date(17), 47.05882352941177, "vId")
       )
 
       val evts      = Source(source).via(flow).runWith(Sink.seq).futureValue
