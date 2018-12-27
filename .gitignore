@@ -14,3 +14,5 @@ logs
 node_modules
 leveldb/datas
 e2e
+.metals
+.bloop

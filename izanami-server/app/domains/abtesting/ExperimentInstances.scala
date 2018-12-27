@@ -52,6 +52,8 @@ object ExperimentInstances {
   implicit val format: Format[Experiment]        = Json.format[Experiment]
   implicit val experimentEq: cats.Eq[Experiment] = cats.Eq.fromUniversalEquals
 
+  private implicit val experimentResultEventFormat = Json.format[ExperimentResultEvent]
+
   implicit val variantResultFormat: Format[VariantResult] = {
     implicit val eveFormat: Format[ExperimentVariantEvent] = ExperimentVariantEventInstances.format
     Json.format[VariantResult]

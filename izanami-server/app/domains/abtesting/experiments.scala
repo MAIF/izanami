@@ -130,7 +130,13 @@ case class VariantResult(variant: Option[Variant] = None,
                          won: Long = 0,
                          transformation: Double = 0,
                          users: Double = 0,
-                         events: Seq[ExperimentVariantEvent] = Seq.empty)
+                         events: Seq[ExperimentResultEvent] = Seq.empty)
+
+case class ExperimentResultEvent(experimentId: ExperimentKey,
+                                 variant: Variant,
+                                 date: LocalDateTime = LocalDateTime.now(),
+                                 transformation: Double,
+                                 variantId: String)
 
 object VariantResult {
   def transformation(displayed: Long, won: Long): Double = displayed match {

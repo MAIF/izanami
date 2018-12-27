@@ -104,22 +104,22 @@ object ExperimentVariantEvent {
         evt =>
           {
             val (newEvent, transformation) = evt match {
-              case e: ExperimentVariantDisplayed =>
+              case ExperimentVariantDisplayed(_, expId, clientId, variant, date, t, variantId) =>
                 displayed += 1
-                ids = ids + e.clientId
+                ids = ids + clientId
                 val transformation = if (displayed != 0) {
                   (won * 100.0) / displayed
                 } else 0.0
 
-                (e.copy(transformation = transformation), transformation)
-              case e: ExperimentVariantWon =>
+                (ExperimentResultEvent(expId, variant, date, transformation, variantId), transformation)
+              case ExperimentVariantWon(_, expId, clientId, variant, date, t, variantId) =>
                 won += 1
-                ids = ids + e.clientId
+                ids = ids + clientId
                 val transformation = if (displayed != 0) {
                   (won * 100.0) / displayed
                 } else 0.0
 
-                (e.copy(transformation = transformation), transformation)
+                (ExperimentResultEvent(expId, variant, date, transformation, variantId), transformation)
             }
 
             val lastDate = lastDateStored.getOrElse {
@@ -133,15 +133,22 @@ object ExperimentVariantEvent {
               first = false
               lastDateStored = Some(currentDate)
               List(
-                VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))
+                (displayed,
+                 won,
+                 Some(
+                   VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))
+                 ))
               )
             } else {
-              List.empty
+              List((displayed, won, None))
             }
           }
       })
-      .fold(VariantResult()) { (acc, r) =>
-        r.copy(events = acc.events ++ r.events)
+      .fold(VariantResult()) {
+        case (acc, (d, w, Some(r))) =>
+          r.copy(events = acc.events ++ r.events, displayed = d, won = w)
+        case (acc, (d, w, None)) =>
+          acc.copy(displayed = d, won = w)
       }
       .mergeSubstreams
   }
