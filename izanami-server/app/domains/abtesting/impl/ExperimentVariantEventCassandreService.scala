@@ -1,12 +1,14 @@
 package domains.abtesting.impl
 
+import java.time.LocalDateTime
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.effect.Effect
-import com.datastax.driver.core.{Session, SimpleStatement}
+import com.datastax.driver.core.{Row, Session, SimpleStatement}
 import domains.abtesting._
 import domains.events.EventStore
 import env.{CassandraConfig, DbDomainConfig}
@@ -15,8 +17,6 @@ import play.api.libs.json._
 import store.Result.Result
 import store.cassandra.Cassandra
 import store.Result
-
-import scala.concurrent.Future
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    CASSANDRA     ////////////////////////////////////
@@ -107,17 +107,29 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
 
   def getVariantResult(experiment: Experiment, variant: Variant): Source[VariantResult, NotUsed] = {
     val variantId: String = variant.id
+    firstEvent(experiment, variantId)
+      .flatMapConcat { first =>
+        val interval = ExperimentVariantEvent.calcInterval(first.date, LocalDateTime.now())
+        CassandraSource(
+          new SimpleStatement(
+            s"SELECT value FROM ${keyspace}.$namespaceFormatted WHERE experimentId = ? and variantId = ? ",
+            experiment.id.key,
+            variantId
+          )
+        ).via(readValue)
+          .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
+      }
+  }
+
+  private def firstEvent(experiment: Experiment, variantId: String): Source[ExperimentVariantEvent, NotUsed] =
     CassandraSource(
       new SimpleStatement(
-        s"SELECT value FROM ${keyspace}.$namespaceFormatted WHERE experimentId = ? and variantId = ? ",
+        s"SELECT value FROM ${keyspace}.$namespaceFormatted WHERE experimentId = ? and variantId = ? limit 1",
         experiment.id.key,
         variantId
       )
-    ).map(r => r.getString("value"))
-      .map(Json.parse)
-      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
-      .via(ExperimentVariantEvent.eventAggregation(experiment))
-  }
+    ).take(1)
+      .via(readValue)
 
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
     Source(experiment.variants.toList)
@@ -128,11 +140,15 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
       new SimpleStatement(
         s"SELECT value FROM ${keyspace}.$namespaceFormatted "
       )
-    ).map(r => r.getString("value"))
-      .map(Json.parse)
-      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
+    ).via(readValue)
       .filter(e => e.id.key.matchPatterns(patterns: _*))
 
   override def check(): F[Unit] = executeWithSession("SELECT now() FROM system.local").map(_ => ())
+
+  private val readValue: Flow[Row, ExperimentVariantEvent, NotUsed] =
+    Flow[Row]
+      .map(r => r.getString("value"))
+      .map(Json.parse)
+      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
 
 }

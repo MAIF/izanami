@@ -1,6 +1,8 @@
 package domains.abtesting.impl
 
 import java.io.File
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.util.regex.Pattern
 
 import akka.{Done, NotUsed}
@@ -10,6 +12,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import cats.Applicative
 import cats.effect.{Async, Effect}
+import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.abtesting._
 import domains.events.EventStore
 import env.{DbDomainConfig, LevelDbConfig}
@@ -96,9 +99,37 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
           .smembers(eventVariantKey)
           .toIO
           .unsafeToFuture()
-          .map(
-            res =>
-              res
+          .map { res =>
+            res
+              .map(_.utf8String)
+              .map(Json.parse)
+              .map(
+                value =>
+                  ExperimentVariantEventInstances.format
+                    .reads(value)
+                    .get
+              )
+              .sortWith((e1, e2) => e1.date.isBefore(e2.date))
+              .toList
+          }
+      )
+      .mapConcat(identity)
+
+  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
+    Source
+      .fromFuture(client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*").toIO.unsafeToFuture())
+      .mapConcat(k => k.toList)
+      .flatMapMerge(
+        4, { k =>
+          Source
+            .fromFuture(
+              client
+                .smembers(k)
+                .toIO
+                .unsafeToFuture()
+            )
+            .map { res =>
+              val r = res
                 .map(_.utf8String)
                 .map(Json.parse)
                 .map(
@@ -109,16 +140,20 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
                 )
                 .sortWith((e1, e2) => e1.date.isBefore(e2.date))
                 .toList
-          )
+              (r.headOption, r)
+            }
+            .flatMapMerge(
+              4, {
+                case (first, evts) =>
+                  val interval = first
+                    .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
+                    .getOrElse(ChronoUnit.HOURS)
+                  Source(evts)
+                    .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
+              }
+            )
+        }
       )
-      .mapConcat(identity)
-
-  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
-    Source
-      .fromFuture(client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*").toIO.unsafeToFuture())
-      .mapConcat(k => k.toList)
-      .flatMapMerge(4, findEvents)
-      .via(ExperimentVariantEvent.eventAggregation(experiment))
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     for {

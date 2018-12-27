@@ -1,5 +1,8 @@
 package domains.abtesting.impl
 
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.{Done, NotUsed}
@@ -121,10 +124,20 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
 
   override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
     Source(experiment.variants.toList)
-      .flatMapMerge(4, { v =>
-        findEvents(experiment.id.key, v)
-      })
-      .via(ExperimentVariantEvent.eventAggregation(experiment))
+      .flatMapMerge(
+        4, { v =>
+          Source
+            .fromFuture(firstEvent(experiment.id.key, v.id))
+            .flatMapConcat { mayBeEvent =>
+              val interval = mayBeEvent
+                .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
+                .getOrElse(ChronoUnit.HOURS)
+              findEvents(experiment.id.key, v)
+                .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
+            }
+
+        }
+      )
 
   private def findEvents(experimentId: String, variant: Variant): Source[ExperimentVariantEvent, NotUsed] =
     Source
@@ -133,12 +146,23 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
           collection
             .collection[JSONCollection](collectionName)
             .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant.id))
+            .sort(Json.obj("date" -> 1))
             .cursor[ExperimentVariantEventDocument](ReadPreference.primary)
             .documentSource()
             .map(_.data)
         }
       )
       .mapMaterializedValue(_ => NotUsed)
+
+  private def firstEvent(experimentId: String, variant: String): Future[Option[ExperimentVariantEvent]] =
+    mongoApi.database.flatMap { collection =>
+      collection
+        .collection[JSONCollection](collectionName)
+        .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant))
+        .sort(Json.obj("date" -> 1))
+        .one[ExperimentVariantEventDocument](ReadPreference.primary)
+        .map(_.map(_.data))
+    }
 
   override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
     Source
