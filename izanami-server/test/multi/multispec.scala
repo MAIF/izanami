@@ -267,17 +267,17 @@ object Tests {
 
   def getSuites(): Seq[Suite] =
     if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
-      getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
-      getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration) ++
-      getSuite("Redis", () => Configs.redisConfiguration) ++
+      getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
+      getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration, false) ++
+      getSuite("Redis", () => Configs.redisConfiguration, false) ++
       getSuite("Elastic", () => Configs.elasticConfiguration, false) ++
-      getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")) ++
-      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig)) ++
-      getSuite("Mongo", () => Configs.mongoConfig("config"))
-      getSuite("Dynamo", () => Configs.dynamoDbConfig(1L))
+      getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}"), false) ++
+      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false) ++
+      getSuite("Mongo", () => Configs.mongoConfig("config"), false)
+      getSuite("Dynamo", () => Configs.dynamoDbConfig(1L), false)
     } else {
-      getSuite("InMemory", () => Configs.inMemoryConfiguration) ++
-      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig))
+      getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
+      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false)
     }
 }
 
@@ -300,40 +300,3 @@ class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeA
       FileUtils.deleteRecursively(new File("./target/leveldb"))
     }
 }
-//
-//class InMemoryTests
-//    extends Suites(Tests.getSuite("InMemory", Configs.inMemoryConfiguration): _*)
-//    with BeforeAndAfterAll {}
-//
-//class InMemoryWithDbTests
-//    extends Suites(Tests.getSuite("InMemoryWithDb", Configs.inMemoryWithDbConfiguration): _*)
-//    with BeforeAndAfterAll {}
-//
-//class RedisTests extends Suites(Tests.getSuite("Redis", Configs.redisConfiguration): _*)
-//
-//class ElasticTests extends Suites(Tests.getSuite("Elastic", Configs.elasticConfiguration): _*) with BeforeAndAfterAll {
-//
-//  override protected def beforeAll(): Unit = {
-//    import elastic.codec.PlayJson._
-//    val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
-//    println("Cleaning ES indices")
-//    Await.result(client.deleteIndex("izanami_*"), 5.seconds)
-//  }
-//
-//  override protected def afterAll(): Unit = ()
-//}
-//
-//class CassandraTests
-//    extends Suites(Tests.getSuite("Cassandra", Configs.cassandraConfiguration(s"config${idGenerator.nextId()}")): _*)
-//
-//class LevelDBTests
-//    extends Suites(Tests.getSuite("LevelDb", Configs.levelDBConfiguration(Configs.folderConfig)): _*)
-//    with BeforeAndAfterAll {
-//
-//  override protected def afterAll(): Unit =
-//    Try {
-//      FileUtils.deleteRecursively(new File("./target/leveldb"))
-//    }
-//}
-//
-//class MongoTests extends Suites(Tests.getSuite("Mongo", Configs.mongoConfig("config")): _*)

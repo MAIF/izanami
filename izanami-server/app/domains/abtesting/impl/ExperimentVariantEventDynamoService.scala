@@ -1,5 +1,8 @@
 package domains.abtesting.impl
 
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
+
 import akka.stream.ActorMaterializer
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink, Source}
@@ -15,12 +18,14 @@ import scala.concurrent.ExecutionContext
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, _}
 import domains.Key
 import domains.abtesting.Experiment.ExperimentKey
+import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import libs.dynamo.DynamoMapper
 import play.api.Logger
 import store.Result
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable
 
 object ExperimentVariantEventDynamoService {
   def apply[F[_]: Effect](config: DynamoConfig, client: DynamoClient, eventStore: EventStore[F])(
@@ -131,7 +136,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
       .mapConcat(_.getItems.asScala.toList)
       .map(item => {
         val variantId: ExperimentVariantEventKey = ExperimentVariantEventKey(Key(item.get("variantId").getS))
-        val events = item
+        val events: List[ExperimentVariantEvent] = item
           .get("events")
           .getL
           .asScala
@@ -149,8 +154,17 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
     Logger.debug(s"Dynamo find variant result on $tableName with experiment $experiment")
 
     findExperimentVariantEvents(experiment)
-      .mapConcat(_._3)
-      .via(ExperimentVariantEvent.eventAggregation(experiment))
+      .flatMapMerge(
+        4, {
+          case (_, _, evts) =>
+            val first = evts.headOption
+            val interval = first
+              .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
+              .getOrElse(ChronoUnit.HOURS)
+            Source(evts)
+              .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
+        }
+      )
   }
 
   override def listAll(

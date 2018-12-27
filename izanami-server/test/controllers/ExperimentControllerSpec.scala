@@ -267,19 +267,9 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       variantA.won must be(aCount)
 
       Math.floor(variantA.transformation) must equal(50.0 +- 5)
-      val eventsA: Seq[ExperimentVariantEvent] = variantA.events
+      val eventsA: Seq[ExperimentResultEvent] = variantA.events
       if (strict) {
         eventsA.size must be(aCount * 3)
-        val won = eventsA.count {
-          case e: ExperimentVariantWon => true
-          case _                       => false
-        }
-        val displayed = eventsA.count {
-          case e: ExperimentVariantDisplayed => true
-          case _                             => false
-        }
-        displayed must equal(aCount * 2)
-        won must equal(aCount)
       } else {
         eventsA.size must be > 0
       }
@@ -287,19 +277,9 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
       variantB.displayed must be(bCount * 2)
       variantB.won must be(bCount / 2)
       variantB.transformation must equal(25.0 +- 5)
-      val eventsB: Seq[ExperimentVariantEvent] = variantB.events
+      val eventsB: Seq[ExperimentResultEvent] = variantB.events
       if (strict) {
         eventsB.size must be((bCount * 2) + (bCount / 2))
-        val won = eventsB.count {
-          case e: ExperimentVariantWon => true
-          case _                       => false
-        }
-        val displayed = eventsB.count {
-          case e: ExperimentVariantDisplayed => true
-          case _                             => false
-        }
-        displayed must equal(bCount * 2)
-        won must equal(bCount / 2)
       } else {
         eventsB.size must be > 0
       }
