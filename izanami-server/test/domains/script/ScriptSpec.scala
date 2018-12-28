@@ -3,7 +3,6 @@ package domains.script
 import cats.Applicative
 import cats.effect.IO
 import com.codahale.metrics.MetricRegistry
-import com.typesafe.config.ConfigFactory
 import controllers.AssetsComponents
 import domains.script.Script.ScriptCache
 import env._
@@ -13,7 +12,9 @@ import org.scalatestplus.play.components.OneServerPerSuiteWithComponents
 import play.api.ApplicationLoader.Context
 import play.api.libs.json.Json
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.{BuiltInComponents, BuiltInComponentsFromContext, Configuration, NoHttpFiltersComponents}
+import play.api.{BuiltInComponents, BuiltInComponentsFromContext, NoHttpFiltersComponents}
+import play.libs.ws.ahc.AhcWSClient
+import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 
 import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
@@ -31,6 +32,9 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     import play.api.mvc.Results
     import play.api.routing.Router
     import play.api.routing.sird._
+
+    def wsJavaClient: play.libs.ws.WSClient =
+      new AhcWSClient(wsClient.underlying[AsyncHttpClient], materializer)
 
     def globalScripStore: GlobalScriptService[IO] = null
 
@@ -98,23 +102,26 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
   lazy val kotlinScript =
     s"""
-       |fun enabled(context: JsonNode, enabled: () -> Unit, disabled: () -> Unit, httpClient: KotlinHttpClient) {
-       |    val args = hashMapOf(
-       |      "method" to "get",
-       |      "url" to "http://localhost:$port/surname"
-       |    )
-       |    httpClient.httpCall(args, { error: String?, body: String?  ->
-       |      if(error != null) {
-       |        disabled()
-       |      } else {
-       |        val jsonBody = Json.parse(body)
-       |        if(jsonBody.get("surname").asText() == "Lodbrok" && context.get("name").asText() == "Ragnar") {
-       |          enabled()
+       |fun enabled(context: JsonNode, enabled: () -> Unit, disabled: () -> Unit, wsClient: WSClient) {
+       |    wsClient.url("http://localhost:$port/surname")
+       |      .get()
+       |      .whenComplete { wsResponse, e ->
+       |    	  if (e != null) {
+       |            disabled()
        |        } else {
-       |          disabled()
+       |            when (wsResponse.getStatus()) {
+       |              200 -> {
+       |                val jsonBody = wsResponse.asJson()
+       |                if(jsonBody.get("surname").asText() == "Lodbrok" && context.get("name").asText() == "Ragnar") {
+       |                  enabled()
+       |                } else {
+       |                  disabled()
+       |                }
+       |              }
+       |              else -> disabled()
+       |            }
        |        }
        |      }
-       |    })
        |}
          """.stripMargin
 
@@ -122,8 +129,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
     "a javascript script executed must return true" in {
 
-      import domains.script.syntax._
       import domains.script.ScriptInstances._
+      import domains.script.syntax._
 
       implicit val cache: ScriptCache[IO] = fakeCache[IO]
       implicit val ec: ScriptExecutionContext =
@@ -131,17 +138,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
       val theScript: Script = JavascriptScript(script)
       val result: ScriptExecution = theScript
-        .run[IO](
-          Json.obj("name" -> "Ragnar"),
-          Env(
-            config,
-            testComponents.environment,
-            testComponents.actorSystem,
-            testComponents.wsClient,
-            testComponents.assetsFinder,
-            new MetricRegistry()
-          )
-        )
+        .run[IO](Json.obj("name" -> "Ragnar"), getEnv)
         .unsafeRunSync()
 
       result must be(ScriptExecutionSuccess(true))
@@ -149,8 +146,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
     "a javascript script executed must return false" in {
 
-      import domains.script.syntax._
       import domains.script.ScriptInstances._
+      import domains.script.syntax._
 
       implicit val cache: ScriptCache[IO] = fakeCache[IO]
       implicit val ec: ScriptExecutionContext =
@@ -158,17 +155,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
       val theScript: Script = JavascriptScript(script)
       val result: ScriptExecution = theScript
-        .run[IO](
-          Json.obj("name" -> "Floki"),
-          Env(
-            config,
-            testComponents.environment,
-            testComponents.actorSystem,
-            testComponents.wsClient,
-            testComponents.assetsFinder,
-            new MetricRegistry()
-          )
-        )
+        .run[IO](Json.obj("name" -> "Floki"), getEnv)
         .unsafeRunSync()
 
       result must be(ScriptExecutionSuccess(false))
@@ -176,8 +163,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
     "a kotlin script executed must return true" in {
 
-      import domains.script.syntax._
       import domains.script.ScriptInstances._
+      import domains.script.syntax._
 
       implicit val cache: ScriptCache[IO] = fakeCache[IO]
       implicit val ec: ScriptExecutionContext =
@@ -185,17 +172,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
       val theScript: Script = KotlinScript(kotlinScript)
       val result: ScriptExecution = theScript
-        .run[IO](
-          Json.obj("name" -> "Ragnar"),
-          Env(
-            config,
-            testComponents.environment,
-            testComponents.actorSystem,
-            testComponents.wsClient,
-            testComponents.assetsFinder,
-            new MetricRegistry()
-          )
-        )
+        .run[IO](Json.obj("name" -> "Ragnar"), getEnv)
         .unsafeRunSync()
 
       result must be(ScriptExecutionSuccess(true))
@@ -203,8 +180,8 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
     "a kotlin script executed must return false" in {
 
-      import domains.script.syntax._
       import domains.script.ScriptInstances._
+      import domains.script.syntax._
 
       implicit val cache: ScriptCache[IO] = fakeCache[IO]
       implicit val ec: ScriptExecutionContext =
@@ -212,17 +189,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
       val theScript: Script = KotlinScript(kotlinScript)
       val result: ScriptExecution = theScript
-        .run[IO](
-          Json.obj("name" -> "Floki"),
-          Env(
-            config,
-            testComponents.environment,
-            testComponents.actorSystem,
-            testComponents.wsClient,
-            testComponents.assetsFinder,
-            new MetricRegistry()
-          )
-        )
+        .run[IO](Json.obj("name" -> "Floki"), getEnv)
         .unsafeRunSync()
 
       result must be(ScriptExecutionSuccess(false))
@@ -230,6 +197,16 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
 
   }
 
+  private def getEnv =
+    Env(
+      config,
+      testComponents.environment,
+      testComponents.actorSystem,
+      testComponents.wsClient,
+      testComponents.wsJavaClient,
+      testComponents.assetsFinder,
+      new MetricRegistry()
+    )
   def fakeCache[F[_]: Applicative]: ScriptCache[F] = new ScriptCache[F] {
     override def get[T: ClassTag](id: String): F[Option[T]]      = Applicative[F].pure(None)
     override def set[T: ClassTag](id: String, value: T): F[Unit] = Applicative[F].pure(())
