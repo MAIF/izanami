@@ -846,7 +846,7 @@ After clicking multiple times on the buttons, the results are
 Congrats !!! You have win your first belt.  
 
 
-### Spring config
+## Spring config
 
 Izanami can be used as a spring config server. 
 

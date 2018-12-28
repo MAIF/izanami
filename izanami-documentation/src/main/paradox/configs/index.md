@@ -5,6 +5,7 @@
 
  * [UI](ui.md)
  * [APIs](api.md)
+ * [Spring config](springconfig.md)
 
 @@@
 
