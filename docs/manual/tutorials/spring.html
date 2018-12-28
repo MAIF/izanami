@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.2.1*
+1.3.2*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -58,10 +58,12 @@
   <ul>
     <li><a href="../configs/ui.html" class="page">The UI</a></li>
     <li><a href="../configs/api.html" class="page">APIs</a></li>
+    <li><a href="../configs/springconfig.html" class="page">Spring config</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/scripts.html" class="page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
@@ -118,7 +120,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.2.1*
+1.3.2*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -146,10 +148,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../configs/ui.html" class="page">The UI</a></li>
     <li><a href="../configs/api.html" class="page">APIs</a></li>
+    <li><a href="../configs/springconfig.html" class="page">Spring config</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/scripts.html" class="page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
@@ -217,6 +221,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../tutorials/spring.html#add-routes-to-the-proxy" class="header">Add routes to the proxy</a></li>
     <li><a href="../tutorials/spring.html#the-a-b-testing-with-react" class="header">The A/B testing with react</a></li>
   </ul></li>
+  <li><a href="../tutorials/spring.html#spring-config" class="header">Spring config</a></li>
 </ul>
 </div>
 <p>In this tutorial we&rsquo;re gonna see how to use Izanami in a springboot / react application. </p>
@@ -840,6 +845,23 @@ public CompletionStage&lt;ResponseEntity&lt;String&gt;&gt; markWon(
 <p>After clicking multiple times on the buttons, the results are </p>
 <p><img src="../img/tutorial/spring/ab_results.png" alt="Izanami" /> </p>
 <p>Congrats !!! You have win your first belt. </p>
+<h2><a href="#spring-config" name="spring-config" class="anchor"><span class="anchor-link"></span></a>Spring config</h2>
+<p>Izanami can be used as a spring config server. </p>
+<p>In this application, a spring config server is configured in the <code>src/main/resources/bootstrap.yml</code> file. The uri is pointing to <code>http://localhost:9000/api/config-server/raw/mytvshow</code>. </p>
+<p>This mean that you can define the following configurations in Izanami : </p>
+<ul>
+  <li><code>mytvshow:${applicatioName}:${profileName}:spring-config</code></li>
+  <li><code>mytvshow:spring-profiles:${profileName}:spring-config</code></li>
+  <li><code>mytvshow:spring-globals:spring-config</code></li>
+</ul>
+<p>In this application the title is configured with a property like this : </p>
+<pre class="prettyprint"><code class="language-java"><br/>    @Value(&quot;${config.title:Default title}&quot;)
+    private String title;
+</code></pre>
+<p>So if you set this config in Izanami, the title could be pull from Izanami with spring config: </p>
+<ul>
+  <li><code>mytvshow:application:default:spring-config</code>: <code>{&quot;config.title&quot;: &quot;Izanami title&quot;}</code></li>
+</ul>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/tutorials/spring.md">here</a>.
 </div>
@@ -861,6 +883,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
     <li><a href="../tutorials/spring.html#step-two-feature-flipping-to-switch-the-providers" class="header">Step two : feature flipping to switch the providers</a></li>
     <li><a href="../tutorials/spring.html#step-three-feature-flipping-on-the-client-side" class="header">Step three : feature flipping on the client side</a></li>
     <li><a href="../tutorials/spring.html#step-four-a-b-testing" class="header">Step four : A/B testing</a></li>
+    <li><a href="../tutorials/spring.html#spring-config" class="header">Spring config</a></li>
   </ul></li>
 </ul>
 </div>

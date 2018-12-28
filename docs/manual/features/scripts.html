@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>The UI · Izanami</title>
+<title>Scripts · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -62,8 +62,8 @@
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="../features/ui.html" class="active page">The UI</a></li>
-    <li><a href="../features/scripts.html" class="page">Scripts</a></li>
+    <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/scripts.html" class="active page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
@@ -152,8 +152,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="../features/ui.html" class="active page">The UI</a></li>
-    <li><a href="../features/scripts.html" class="page">Scripts</a></li>
+    <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/scripts.html" class="active page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
@@ -192,7 +192,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../index.html">Izanami</a></li>
   <li><a href="../features/index.html">Feature flipping</a></li>
-  <li>The UI</li>
+  <li>Scripts</li>
 </ul>
 </div>
 </div>
@@ -200,69 +200,133 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#the-ui" name="the-ui" class="anchor"><span class="anchor-link"></span></a>The UI</h1>
-<p>You can access to the features clicking &ldquo;features&rdquo; on the left menu. </p>
-<img src="../img/features/full.png" width="100%" />
-<p>You can then </p>
+<h1><a href="#scripts" name="scripts" class="anchor"><span class="anchor-link"></span></a>Scripts</h1>
+<p>With Izanami, scripts can be evaluated to decide if a feature is active or not. You have the choice between 3 languages :</p>
 <ul>
-  <li>Search using a pattern on feature key</li>
-  <li>add a feature</li>
-  <li>update a feature</li>
-  <li>delete a feature</li>
+  <li>javascript</li>
+  <li>scala</li>
+  <li>kotlin</li>
 </ul>
-<p>If you&rsquo;re admin, you can also</p>
+<p>When writing a script, you have access to </p>
 <ul>
-  <li>Download features</li>
-  <li>Upload features</li>
+  <li><code>context</code>: A json object send by the client</li>
+  <li><code>enabled</code>: A function to call, the feature is enabled</li>
+  <li><code>disabled</code>: A function to call, the feature is disabled</li>
+  <li><code>http</code>: An http client that can be used to request an API.</li>
 </ul>
-<h2><a href="#browse-features" name="browse-features" class="anchor"><span class="anchor-link"></span></a>Browse features</h2>
-<p>You have the choice between two mode :  * Flat mode: features are displayed in a table  * Tree mode: features are displayed as tree like a folder </p>
-<p>You can switch the mode using the first button on the left. </p>
-<h3><a href="#flat-mode" name="flat-mode" class="anchor"><span class="anchor-link"></span></a>Flat mode</h3>
-<img src="../img/features/full.png" width="100%" />
-<h3><a href="#tree-mode" name="tree-mode" class="anchor"><span class="anchor-link"></span></a>Tree mode</h3>
-<img src="../img/features/tree_view.png" width="100%" />
-<p>On the tree mode, an action menu appear with the mouse is over the name of a feature. With the action menu you can </p>
-<ul>
-  <li>add a node</li>
-  <li>edit a node</li>
-  <li>switch to the flat for a feature</li>
-</ul>
-<h2><a href="#edit-a-feature" name="edit-a-feature" class="anchor"><span class="anchor-link"></span></a>Edit a feature</h2>
-<p>When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT</p>
-<h3><a href="#no-strategy" name="no-strategy" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY</h3>
-<p>this is the simpler one, the feature can be active or inactive</p>
-<img src="../img/features/no_strategy.png" width="100%" />
-<h3><a href="#release-date" name="release-date" class="anchor"><span class="anchor-link"></span></a>RELEASE_DATE</h3>
-<p>this kind of strategy allow you to enable a feature on a date value in addition to the active boolean. </p>
-<img src="../img/features/release_date.png" width="100%" />
-<h3><a href="#date-range" name="date-range" class="anchor"><span class="anchor-link"></span></a>DATE_RANGE</h3>
-<p>this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean. </p>
-<img src="../img/features/date_range.png" width="100%" />
-<h3><a href="#percentage" name="percentage" class="anchor"><span class="anchor-link"></span></a>PERCENTAGE</h3>
-<p>this kind of strategy allow you to enable a feature for a percentage of clients. In this strategy, the client need to send a context with an <code>id</code> field in order to calculate if the feature is enabled or not. </p>
-<img src="../img/features/percentage.png" width="100%" />
-<h3><a href="#script" name="script" class="anchor"><span class="anchor-link"></span></a>SCRIPT</h3>
-<p>this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not. </p>
-<p>In this example, the feature is active if the user send in the context is <code>ragnar.lodbrock@gmail.com</code> : </p>
+<h2><a href="#debugging" name="debugging" class="anchor"><span class="anchor-link"></span></a>Debugging</h2>
+<p>You can debug script in the UI </p>
 <img src="../img/features/script.png" width="100%" />
-<p>You can find more details about script <a href="index.html#script">on this page</a>.</p>
-<h3><a href="#global-script" name="global-script" class="anchor"><span class="anchor-link"></span></a>GLOBAL SCRIPT</h3>
-<p>Global script strategy is the same as script except that the script are shared between features. </p>
-<h2><a href="#evaluate-a-feature" name="evaluate-a-feature" class="anchor"><span class="anchor-link"></span></a>Evaluate a feature</h2>
-<p>You can evaluate if a feature is active or with the explorer screen. </p>
-<img src="../img/features/explorer.png" width="80%" />
-<p>In this example, we have specified a pattern <code>*:script</code> to filter the feature. </p>
-<p>We have also specified a context to test the feature. The tested feature is a feature with a &ldquo;script&rdquo; strategy so we want to be sure that the script is correct. </p>
-<h2><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h2>
-<p>If you&rsquo;re admin you have the right to download or upload. </p>
-<img src="../img/download-upload.png" width="50%" />
+<p>Click on the run button to test the script, compiling errors will be printed on the right panel. </p>
+<p>You can print logs using <code>println</code> in scala or kotlin and <code>console.log</code> in javascript. The logs will be printed on the left panel. </p>
+<h2><a href="#writing-script-with-javascript" name="writing-script-with-javascript" class="anchor"><span class="anchor-link"></span></a>Writing script with javascript</h2>
+<p>The http client expose the call method that take two args :</p>
+<ul>
+  <li><code>options</code>, an object with the following possible attributes
+    <ul>
+      <li><code>url</code> (required): The url to call.</li>
+      <li><code>method</code> (default get): The http method betwwen <code>get</code>, <code>post</code>, <code>put</code>, <code>delete</code>, <code>option</code>, <code>patch</code></li>
+      <li><code>headers</code> : A object with headerName -&gt; Value</li>
+      <li><code>body</code> : An optional json string</li>
+    </ul>
+  </li>
+  <li><code>callback</code>: A bifunction with failure or success.</li>
+</ul>
+<pre class="prettyprint"><code class="language-javascript">function enabled(context, enabled, disabled, http) {
+    http.call({
+      url: &quot;http://localhost:9000/api/features/feature:with:script/check&quot;, 
+      method: &quot;post&quot;, 
+      headers: {
+        &quot;Izanami-Client-Id&quot;: &quot;xxxx&quot;,
+        &quot;Izanami-Client-Secret&quot;: &quot;xxxx&quot;, 
+        &quot;Content-Type&quot;: &quot;application/json&quot;
+      }, 
+      body: JSON.stringify({
+        user: context.user
+      })
+    }, 
+    function (error, success) {
+      if (error) {
+        return enabled()
+      } else {
+        var resp = JSON.parse(success)
+        if (resp.active) {
+          return enabled(); 
+        } else {
+          return disabled();
+        }
+      }
+    }
+  )
+}
+</code></pre>
+<h2><a href="#writing-script-with-scala" name="writing-script-with-scala" class="anchor"><span class="anchor-link"></span></a>Writing script with scala</h2>
+<p>In scala, the http client is the default playframework WSClient and the json value is play json JsValue. You can find more information here :  * http client: <a href="https://www.playframework.com/documentation/2.6.x/ScalaWS">https://www.playframework.com/documentation/2.6.x/ScalaWS</a>  * json : <a href="https://www.playframework.com/documentation/2.6.x/ScalaJson">https://www.playframework.com/documentation/2.6.x/ScalaJson</a></p>
+<p>A example script doing an http call could be </p>
+<pre class="prettyprint"><code class="language-scala">def enabled(context: play.api.libs.json.JsObject,
+             enabled: () =&gt; Unit,
+             disabled: () =&gt; Unit,
+             http: play.api.libs.ws.WSClient)(implicit ec: ExecutionContext): Unit = {
+    import scala.util._
+
+    http.url(&quot;http://localhost:9000/api/features/you:can:write:script:with:scala/check&quot;)
+        .addHttpHeaders(
+            &quot;Izanami-Client-Id&quot; -&gt; &quot;xxxx&quot;,
+            &quot;Izanami-Client-Secret&quot; -&gt; &quot;xxxx&quot;
+        )
+        .post(context)
+        .onComplete {
+            case Success(response) =&gt; 
+                response.status match {
+                    case 200 if (response.json \ &quot;active&quot;).asOpt[Boolean].contains(true) =&gt; 
+                        enabled()
+                    case other =&gt; 
+                        println(s&quot;Oups $other&quot;)
+                        disabled()
+                }
+            case Failure(e) =&gt; 
+                println(s&quot;Oups $e&quot;)
+                disabled()
+        }
+}
+</code></pre>
+<h2><a href="#writing-script-with-kotlin" name="writing-script-with-kotlin" class="anchor"><span class="anchor-link"></span></a>Writing script with kotlin</h2>
+<p>In kotlin, the http client is the default playframework java WSClient and the json value is jackson JsonValue. You can find more information here :  * http client: <a href="https://www.playframework.com/documentation/2.6.x/ScalaWS">https://www.playframework.com/documentation/2.6.x/ScalaWS</a>  * json : <a href="https://www.playframework.com/documentation/2.6.x/ScalaJson">https://www.playframework.com/documentation/2.6.x/ScalaJson</a></p>
+<p>A example script doing an http call could be </p>
+<pre class="prettyprint"><code class="language-kotlin">fun enabled(context: JsonNode, enabled: () -&gt; Unit, disabled: () -&gt; Unit, wsClient: WSClient) {             
+    wsClient.url(&quot;http://localhost:9000/api/features/you:can:write:script:with:kotlin/check&quot;)
+      .addHeader(&quot;Izanami-Client-Id&quot;, &quot;xxxx&quot;)
+      .addHeader(&quot;Izanami-Client-Secret&quot;, &quot;xxxx&quot;)
+      .post(context)
+      .whenComplete { wsResponse, e -&gt;
+    	  if (e != null) {
+            disabled()
+        } else {
+            when (wsResponse.getStatus()) {
+              200 -&gt; {
+                val jsonBody = wsResponse.asJson()
+                if(jsonBody.get(&quot;active&quot;)?.asBoolean() ?: false) {
+                  enabled()
+                } else {
+                  println(&quot;oups: ${jsonBody}&quot;)
+                  disabled()
+                }
+              }
+              else -&gt; {
+                println(&quot;oups: ${wsResponse.getStatus()} ${wsResponse.getBody()}&quot;)
+                disabled()
+              }
+            }
+        }
+      }
+}
+</code></pre>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/features/ui.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/features/scripts.md">here</a>.
 </div>
 
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../features/scripts.html">Scripts</a></p>
+<p><strong>Next:</strong> <a href="../features/api.html">APIs</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
@@ -271,12 +335,12 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 <div class="nav-title">On this page:</div>
 <div class="nav-toc">
 <ul>
-  <li><a href="../features/ui.html#the-ui" class="header">The UI</a>
+  <li><a href="../features/scripts.html#scripts" class="header">Scripts</a>
   <ul>
-    <li><a href="../features/ui.html#browse-features" class="header">Browse features</a></li>
-    <li><a href="../features/ui.html#edit-a-feature" class="header">Edit a feature</a></li>
-    <li><a href="../features/ui.html#evaluate-a-feature" class="header">Evaluate a feature</a></li>
-    <li><a href="../features/ui.html#download-and-upload" class="header">Download and Upload</a></li>
+    <li><a href="../features/scripts.html#debugging" class="header">Debugging</a></li>
+    <li><a href="../features/scripts.html#writing-script-with-javascript" class="header">Writing script with javascript</a></li>
+    <li><a href="../features/scripts.html#writing-script-with-scala" class="header">Writing script with scala</a></li>
+    <li><a href="../features/scripts.html#writing-script-with-kotlin" class="header">Writing script with kotlin</a></li>
   </ul></li>
 </ul>
 </div>

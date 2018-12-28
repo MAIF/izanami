@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>The UI · Izanami</title>
+<title>Spring config · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -58,11 +58,11 @@
   <ul>
     <li><a href="../configs/ui.html" class="page">The UI</a></li>
     <li><a href="../configs/api.html" class="page">APIs</a></li>
-    <li><a href="../configs/springconfig.html" class="page">Spring config</a></li>
+    <li><a href="../configs/springconfig.html" class="active page">Spring config</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="../features/ui.html" class="active page">The UI</a></li>
+    <li><a href="../features/ui.html" class="page">The UI</a></li>
     <li><a href="../features/scripts.html" class="page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
@@ -148,11 +148,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../configs/ui.html" class="page">The UI</a></li>
     <li><a href="../configs/api.html" class="page">APIs</a></li>
-    <li><a href="../configs/springconfig.html" class="page">Spring config</a></li>
+    <li><a href="../configs/springconfig.html" class="active page">Spring config</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="page">Feature flipping</a>
   <ul>
-    <li><a href="../features/ui.html" class="active page">The UI</a></li>
+    <li><a href="../features/ui.html" class="page">The UI</a></li>
     <li><a href="../features/scripts.html" class="page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
@@ -191,8 +191,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li><a href="../features/index.html">Feature flipping</a></li>
-  <li>The UI</li>
+  <li><a href="../configs/index.html">Shared Configs</a></li>
+  <li>Spring config</li>
 </ul>
 </div>
 </div>
@@ -200,88 +200,41 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#the-ui" name="the-ui" class="anchor"><span class="anchor-link"></span></a>The UI</h1>
-<p>You can access to the features clicking &ldquo;features&rdquo; on the left menu. </p>
-<img src="../img/features/full.png" width="100%" />
-<p>You can then </p>
+<h1><a href="#spring-config" name="spring-config" class="anchor"><span class="anchor-link"></span></a>Spring config</h1>
+<p>Izanami can be used as a spring config server. To define remote config you define configuration with keys like : </p>
 <ul>
-  <li>Search using a pattern on feature key</li>
-  <li>add a feature</li>
-  <li>update a feature</li>
-  <li>delete a feature</li>
+  <li><code>${rootPath}:${applicatioName}:${profileName}:spring-config</code></li>
+  <li><code>${rootPath}:spring-profiles:${profileName}:spring-config</code></li>
+  <li><code>${rootPath}:spring-globals:spring-config</code></li>
 </ul>
-<p>If you&rsquo;re admin, you can also</p>
+<p>The rootPath is a namespace to group keys for an application. This namespace is used to define the uri in the spring cloud config. For example if ${rootPath} is <code>myapp</code>, you will have this in the <code>bootstrap.yml</code> : </p>
+<pre class="prettyprint"><code class="language-yaml">spring:
+  cloud:
+    config:
+      uri: &quot;http://localhost:9000/api/config-server/raw/mapp&quot;
+      username: xxxx
+      password: xxxx
+</code></pre>
+<p>You can now define this key in Izanami</p>
 <ul>
-  <li>Download features</li>
-  <li>Upload features</li>
+  <li><code>mapp:application:default:spring-config</code>: <code>{&quot;key.key1&quot;: &quot;A value 1&quot;, &quot;key.key2&quot;: &quot;A value 2&quot;}</code></li>
 </ul>
-<h2><a href="#browse-features" name="browse-features" class="anchor"><span class="anchor-link"></span></a>Browse features</h2>
-<p>You have the choice between two mode :  * Flat mode: features are displayed in a table  * Tree mode: features are displayed as tree like a folder </p>
-<p>You can switch the mode using the first button on the left. </p>
-<h3><a href="#flat-mode" name="flat-mode" class="anchor"><span class="anchor-link"></span></a>Flat mode</h3>
-<img src="../img/features/full.png" width="100%" />
-<h3><a href="#tree-mode" name="tree-mode" class="anchor"><span class="anchor-link"></span></a>Tree mode</h3>
-<img src="../img/features/tree_view.png" width="100%" />
-<p>On the tree mode, an action menu appear with the mouse is over the name of a feature. With the action menu you can </p>
-<ul>
-  <li>add a node</li>
-  <li>edit a node</li>
-  <li>switch to the flat for a feature</li>
-</ul>
-<h2><a href="#edit-a-feature" name="edit-a-feature" class="anchor"><span class="anchor-link"></span></a>Edit a feature</h2>
-<p>When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT</p>
-<h3><a href="#no-strategy" name="no-strategy" class="anchor"><span class="anchor-link"></span></a>NO_STRATEGY</h3>
-<p>this is the simpler one, the feature can be active or inactive</p>
-<img src="../img/features/no_strategy.png" width="100%" />
-<h3><a href="#release-date" name="release-date" class="anchor"><span class="anchor-link"></span></a>RELEASE_DATE</h3>
-<p>this kind of strategy allow you to enable a feature on a date value in addition to the active boolean. </p>
-<img src="../img/features/release_date.png" width="100%" />
-<h3><a href="#date-range" name="date-range" class="anchor"><span class="anchor-link"></span></a>DATE_RANGE</h3>
-<p>this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean. </p>
-<img src="../img/features/date_range.png" width="100%" />
-<h3><a href="#percentage" name="percentage" class="anchor"><span class="anchor-link"></span></a>PERCENTAGE</h3>
-<p>this kind of strategy allow you to enable a feature for a percentage of clients. In this strategy, the client need to send a context with an <code>id</code> field in order to calculate if the feature is enabled or not. </p>
-<img src="../img/features/percentage.png" width="100%" />
-<h3><a href="#script" name="script" class="anchor"><span class="anchor-link"></span></a>SCRIPT</h3>
-<p>this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not. </p>
-<p>In this example, the feature is active if the user send in the context is <code>ragnar.lodbrock@gmail.com</code> : </p>
-<img src="../img/features/script.png" width="100%" />
-<p>You can find more details about script <a href="index.html#script">on this page</a>.</p>
-<h3><a href="#global-script" name="global-script" class="anchor"><span class="anchor-link"></span></a>GLOBAL SCRIPT</h3>
-<p>Global script strategy is the same as script except that the script are shared between features. </p>
-<h2><a href="#evaluate-a-feature" name="evaluate-a-feature" class="anchor"><span class="anchor-link"></span></a>Evaluate a feature</h2>
-<p>You can evaluate if a feature is active or with the explorer screen. </p>
-<img src="../img/features/explorer.png" width="80%" />
-<p>In this example, we have specified a pattern <code>*:script</code> to filter the feature. </p>
-<p>We have also specified a context to test the feature. The tested feature is a feature with a &ldquo;script&rdquo; strategy so we want to be sure that the script is correct. </p>
-<h2><a href="#download-and-upload" name="download-and-upload" class="anchor"><span class="anchor-link"></span></a>Download and Upload</h2>
-<p>If you&rsquo;re admin you have the right to download or upload. </p>
-<img src="../img/download-upload.png" width="50%" />
+<p>And use it like this </p>
+<pre class="prettyprint"><code class="language-java "><br/>    @Value(&quot;${key.key1:Default value1}&quot;)
+    private String key1;
+      
+    @Value(&quot;${key.key2}&quot;)
+    private String key2;
+</code></pre>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/features/ui.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/configs/springconfig.md">here</a>.
 </div>
 
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../features/scripts.html">Scripts</a></p>
+<p><strong>Next:</strong> <a href="../features/index.html">Feature flipping</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
-<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
-<div class="page-nav">
-<div class="nav-title">On this page:</div>
-<div class="nav-toc">
-<ul>
-  <li><a href="../features/ui.html#the-ui" class="header">The UI</a>
-  <ul>
-    <li><a href="../features/ui.html#browse-features" class="header">Browse features</a></li>
-    <li><a href="../features/ui.html#edit-a-feature" class="header">Edit a feature</a></li>
-    <li><a href="../features/ui.html#evaluate-a-feature" class="header">Evaluate a feature</a></li>
-    <li><a href="../features/ui.html#download-and-upload" class="header">Download and Upload</a></li>
-  </ul></li>
-</ul>
-</div>
-</div>
-</nav>
 </div>
 </div>
 
