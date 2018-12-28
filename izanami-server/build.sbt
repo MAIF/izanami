@@ -105,12 +105,20 @@ assemblyMergeStrategy in assembly := {
   //case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case PathList("javax", xs @ _*) =>
     MergeStrategy.first
+  case PathList("net", "jpountz", xs @ _*) =>
+    MergeStrategy.first
+  case PathList("org", "jetbrains", xs @ _*) =>
+    MergeStrategy.first
+  case PathList("META-INF", "native", xs @ _*) =>
+    MergeStrategy.first
   case PathList("org", "apache", "commons", "logging", xs @ _*) =>
     MergeStrategy.discard
   case PathList(ps @ _*) if ps.last == "io.netty.versions.properties" =>
     MergeStrategy.first
   case PathList(ps @ _*) if ps.contains("reference-overrides.conf") =>
     MergeStrategy.concat
+  case PathList(ps @ _*) if ps.exists(_.endsWith(".kotlin_module")) =>
+    MergeStrategy.first
   case PathList(ps @ _*) if ps.last endsWith ".conf" => MergeStrategy.concat
   case PathList(ps @ _*) if ps.contains("buildinfo") =>
     MergeStrategy.discard
