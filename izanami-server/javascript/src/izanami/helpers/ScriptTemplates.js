@@ -48,9 +48,9 @@ export const kotlinDefaultScript = `/**
  *           for this request
  * disabled: a callback to mark the feature as inactive
  *           for this request
- * http:     an http client
+ * http:     a playframework http client
  */
-fun enabled(context: JsonNode, enabled: () -> Unit, disabled: () -> Unit, httpClient: KotlinHttpClient) {             
+fun enabled(context: JsonNode, enabled: () -> Unit, disabled: () -> Unit, wsClient: WSClient) {             
     if ( context.get("user")?.asText()?.contains("john.doe@gmail.com") ?: false) {
       enabled()
     } else {

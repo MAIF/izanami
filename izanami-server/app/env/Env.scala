@@ -14,6 +14,7 @@ case class Env(
     environment: Environment,
     actorSystem: ActorSystem,
     wSClient: WSClient,
+    javaWsClient: play.libs.ws.WSClient,
     assetsFinder: AssetsFinder,
     metricRegistry: MetricRegistry
 ) {

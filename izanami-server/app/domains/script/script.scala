@@ -33,8 +33,8 @@ object ScriptExecutionFailure {
     ScriptExecutionFailure(
       logs,
       Option(e.getCause).toSeq.flatMap { c =>
-        Seq(c.getClass.getName) ++ c.getStackTrace.map(stackElt => s"  ${stackElt.toString}")
-      } ++ Seq(e.getClass.getName) ++ e.getStackTrace.map(stackElt => s"  ${stackElt.toString}")
+        Seq(c.toString) ++ c.getStackTrace.map(stackElt => s"  ${stackElt.toString}")
+      } ++ Seq(e.toString) ++ e.getStackTrace.map(stackElt => s"  ${stackElt.toString}")
     )
 }
 

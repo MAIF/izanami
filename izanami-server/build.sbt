@@ -22,6 +22,7 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   ws,
+  javaWs,
   ehcache,
   "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
   "com.auth0"                % "java-jwt"                       % "3.3.0", // MIT license
