@@ -1,6 +1,8 @@
 # Changelog 
 
-## Version 1.3.0
+## Version 1.3.1
+
+:warning: Version 1.3.0 was tagged but didn't complete. 
 
 ### New scripting language 
 
