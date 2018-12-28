@@ -1,0 +1,6 @@
+spring:
+  cloud:
+    config:
+      uri: "http://localhost:9000/api/config-server/raw/mytvshow"
+      username: xxxx
+      password: xxxx
