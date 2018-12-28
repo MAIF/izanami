@@ -5,7 +5,12 @@ spring:
       - dev
   mvc:
     static-path-pattern: "/assets/**"
-
+spring:
+  cloud:
+    config:
+      uri: "http://localhost:9000"
+      username: xxxx
+      password: xxxx
 frontend:
   type: "REACT"
 leveldb:
