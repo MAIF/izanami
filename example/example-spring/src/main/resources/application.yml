@@ -5,10 +5,9 @@ spring:
       - dev
   mvc:
     static-path-pattern: "/assets/**"
-spring:
   cloud:
     config:
-      uri: "http://localhost:9000"
+      uri: "http://localhost:9000/api/config-server/raw"
       username: xxxx
       password: xxxx
 frontend:
