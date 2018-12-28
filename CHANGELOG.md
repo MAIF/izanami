@@ -1,5 +1,20 @@
 # Changelog 
 
+## Version 1.3.0
+
+### New scripting language 
+
+You can now use kotlin as scripting language with the script and global script strategy on feature flipping.
+
+### Spring config documentation and sample
+
+The documentation has been improved for spring config usage. 
+The spring sample app has also been updated to use spring config with Izanami.
+
+### Bug fix 
+
+A/B testing can generate a lot of events. Before this version this event were all sent to the UI for the dashboard.   
+This version fix this problem with event aggregation.  
 
 ## Version 1.2.0
 
