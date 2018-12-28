@@ -50,7 +50,7 @@ In this example, the feature is active if the user sent in the context is `ragna
 
 <img src="../img/features/script.png" width="80%" />
 
-You can go further following this @ref[link](../scripts.md).
+You can go further following this @ref[link](./scripts.md).
 
 
 ## GLOBAL SCRIPT 

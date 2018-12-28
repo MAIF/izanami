@@ -1,9 +1,10 @@
 # Scripts
 
 With Izanami, scripts can be evaluated to decide if a feature is active or not. You have the choice between 3 languages :
- * javascript
- * scala 
- * kotlin  
+
+* javascript
+* scala 
+* kotlin  
 
 When writing a script, you have access to 
 
@@ -12,6 +13,16 @@ When writing a script, you have access to
 * `disabled`: A function to call, the feature is disabled
 * `http`: An http client that can be used to request an API.  
 
+## Debugging 
+
+You can debug script in the UI  
+
+<img src="../img/features/script.png" width="100%" />
+
+Click on the run button to test the script, compiling errors will be printed on the right panel. 
+
+You can print logs using `println` in scala or kotlin and `console.log` in javascript. 
+The logs will be printed on the left panel. 
 
 ## Writing script with javascript
 
