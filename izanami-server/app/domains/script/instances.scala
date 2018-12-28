@@ -56,7 +56,7 @@ trait KotlinFeatureScript {
           context: com.fasterxml.jackson.databind.JsonNode,
           enabled: kotlin.jvm.functions.Function0[Unit],
           disabled: kotlin.jvm.functions.Function0[Unit],
-          http: KHttpClient): Unit
+          http: play.libs.ws.WSClient): Unit
 }
 
 object ScriptInstances {
@@ -135,6 +135,8 @@ object ScriptInstances {
       s"""
          |import domains.script.KotlinFeatureScript
          |import domains.script.KHttpClient
+         |import play.libs.ws.WSClient
+         |import play.libs.ws.WSResponse
          |import scala.runtime.BoxedUnit
          |import com.fasterxml.jackson.databind.JsonNode
          |import play.libs.Json
@@ -145,7 +147,7 @@ object ScriptInstances {
          |                 context: JsonNode,
          |                 enabled: () -> BoxedUnit,
          |                 disabled: () -> BoxedUnit,
-         |                 http: KHttpClient) : Unit
+         |                 http: WSClient) : Unit
          |}
          |
          |object : Intermediate {
@@ -153,23 +155,10 @@ object ScriptInstances {
          |                 context: JsonNode,
          |                 e: () -> BoxedUnit,
          |                 d: () -> BoxedUnit,
-         |                 http: KHttpClient) {
-         |
-         |       class KotlinHttpClient {
-         |          fun httpCall(m: Map<String, String>, cb: (String?, String?) -> Unit): Unit {
-         |            val javaMap = java.util.HashMap<String, Any>()
-         |            m.forEach { e -> javaMap.put(e.key, e.value) }
-         |            val javaCallBack = object : BiConsumer<String?, String?> {
-         |              override fun accept(e1: String?, e2: String?): Unit {
-         |                cb(e1, e2)
-         |              }
-         |            }
-         |            http.call(javaMap, javaCallBack)
-         |          }
-         |       }
+         |                 http: WSClient) {
          |
          |       ${script.script}
-         |       enabled(context, { e() }, { d() }, KotlinHttpClient())
+         |       enabled(context, { e() }, { d() }, http)
          |  }
          |}
       """.stripMargin
@@ -206,7 +195,7 @@ object ScriptInstances {
                 ctx,
                 () => cb(Right(true)),
                 () => cb(Right(false)),
-                client
+                env.javaWsClient
               )
             } recover {
               case e => cb(Left(e))
