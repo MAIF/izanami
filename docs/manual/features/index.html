@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.2.1*
+1.3.2*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -58,10 +58,12 @@
   <ul>
     <li><a href="../configs/ui.html" class="page">The UI</a></li>
     <li><a href="../configs/api.html" class="page">APIs</a></li>
+    <li><a href="../configs/springconfig.html" class="page">Spring config</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="active page">Feature flipping</a>
   <ul>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/scripts.html" class="page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
@@ -118,7 +120,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.2.1*
+1.3.2*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -146,10 +148,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../configs/ui.html" class="page">The UI</a></li>
     <li><a href="../configs/api.html" class="page">APIs</a></li>
+    <li><a href="../configs/springconfig.html" class="page">Spring config</a></li>
   </ul></li>
   <li><a href="../features/index.html" class="active page">Feature flipping</a>
   <ul>
     <li><a href="../features/ui.html" class="page">The UI</a></li>
+    <li><a href="../features/scripts.html" class="page">Scripts</a></li>
     <li><a href="../features/api.html" class="page">APIs</a></li>
   </ul></li>
   <li><a href="../experiments/index.html" class="page">A/B testing</a>
@@ -206,6 +210,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../features/index.html#global-script" class="header">GLOBAL SCRIPT</a></li>
   <li><a href="../features/ui.html" class="page">The UI</a>
   <ul>
+    <li><a href="../features/ui.html#browse-features" class="header">Browse features</a>
+    <ul>
+      <li><a href="../features/ui.html#flat-mode" class="header">Flat mode</a></li>
+      <li><a href="../features/ui.html#tree-mode" class="header">Tree mode</a></li>
+    </ul></li>
     <li><a href="../features/ui.html#edit-a-feature" class="header">Edit a feature</a>
     <ul>
       <li><a href="../features/ui.html#no-strategy" class="header">NO_STRATEGY</a></li>
@@ -217,6 +226,13 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     </ul></li>
     <li><a href="../features/ui.html#evaluate-a-feature" class="header">Evaluate a feature</a></li>
     <li><a href="../features/ui.html#download-and-upload" class="header">Download and Upload</a></li>
+  </ul></li>
+  <li><a href="../features/scripts.html" class="page">Scripts</a>
+  <ul>
+    <li><a href="../features/scripts.html#debugging" class="header">Debugging</a></li>
+    <li><a href="../features/scripts.html#writing-script-with-javascript" class="header">Writing script with javascript</a></li>
+    <li><a href="../features/scripts.html#writing-script-with-scala" class="header">Writing script with scala</a></li>
+    <li><a href="../features/scripts.html#writing-script-with-kotlin" class="header">Writing script with kotlin</a></li>
   </ul></li>
   <li><a href="../features/api.html" class="page">APIs</a>
   <ul>
@@ -273,53 +289,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <p>this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not. </p>
 <p>In this example, the feature is active if the user sent in the context is <code>ragnar.lodbrock@gmail.com</code> : </p>
 <img src="../img/features/script.png" width="80%" />
-<p>When writing a script, you have access to </p>
-<ul>
-  <li><code>context</code>: A json object send by the client</li>
-  <li><code>enabled</code>: A function to call, the feature is enabled</li>
-  <li><code>disabled</code>: A function to call, the feature is disabled</li>
-  <li><code>http</code>: An http client that can be used to request an API.</li>
-</ul>
-<p>The http client expose the call method that take two args :</p>
-<ul>
-  <li><code>options</code>, an object with the following possible attributes
-    <ul>
-      <li><code>url</code> (required): The url to call.</li>
-      <li><code>method</code> (default get): The http method betwwen <code>get</code>, <code>post</code>, <code>put</code>, <code>delete</code>, <code>option</code>, <code>patch</code></li>
-      <li><code>headers</code> : A object with headerName -&gt; Value</li>
-      <li><code>body</code> : An optional json string</li>
-    </ul>
-  </li>
-  <li><code>callback</code>: A bifunction with failure or success.</li>
-</ul>
-<pre class="prettyprint"><code class="language-javascript">function enabled(context, enabled, disabled, http) {
-    http.call({
-      url: &quot;http://localhost:9000/api/features/feature:with:script/check&quot;, 
-      method: &quot;post&quot;, 
-      headers: {
-        &quot;Izanami-Client-Id&quot;: &quot;xxxx&quot;,
-        &quot;Izanami-Client-Secret&quot;: &quot;xxxx&quot;, 
-        &quot;Content-Type&quot;: &quot;application/json&quot;
-      }, 
-      body: JSON.stringify({
-        user: context.user
-      })
-    }, 
-    function (error, success) {
-      if (error) {
-        return enabled()
-      } else {
-        var resp = JSON.parse(success)
-        if (resp.active) {
-          return enabled(); 
-        } else {
-          return disabled();
-        }
-      }
-    }
-  )
-}
-</code></pre>
+<p>You can go further following this <a href="scripts.html">link</a>.</p>
 <h2><a href="#global-script" name="global-script" class="anchor"><span class="anchor-link"></span></a>GLOBAL SCRIPT</h2>
 <p>Global script strategy is the same as script except that the script are shared between features. </p>
 <p>You can find more details about global scripts <a href="../ui.html#create-or-update-a-script">on this page</a>.</p>
