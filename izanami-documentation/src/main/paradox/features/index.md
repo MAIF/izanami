@@ -4,6 +4,7 @@
 @@@ index
 
  * [UI](ui.md)
+ * [Scripts](scripts.md)
  * [APIs](api.md)
 
 @@@ 
@@ -49,51 +50,7 @@ In this example, the feature is active if the user sent in the context is `ragna
 
 <img src="../img/features/script.png" width="80%" />
 
-When writing a script, you have access to 
-
-* `context`: A json object send by the client 
-* `enabled`: A function to call, the feature is enabled
-* `disabled`: A function to call, the feature is disabled
-* `http`: An http client that can be used to request an API.  
-
-The http client expose the call method that take two args :
- 
-* `options`, an object with the following possible attributes 
-    * `url` (required): The url to call. 
-    * `method` (default get): The http method betwwen `get`, `post`, `put`, `delete`, `option`, `patch`
-    * `headers` : A object with headerName -> Value 
-    * `body` : An optional json string
-* `callback`: A bifunction with failure or success. 
-
-```javascript
-function enabled(context, enabled, disabled, http) {
-    http.call({
-      url: "http://localhost:9000/api/features/feature:with:script/check", 
-      method: "post", 
-      headers: {
-        "Izanami-Client-Id": "xxxx",
-        "Izanami-Client-Secret": "xxxx", 
-        "Content-Type": "application/json"
-      }, 
-      body: JSON.stringify({
-        user: context.user
-      })
-    }, 
-    function (error, success) {
-      if (error) {
-        return enabled()
-      } else {
-        var resp = JSON.parse(success)
-        if (resp.active) {
-          return enabled(); 
-        } else {
-          return disabled();
-        }
-      }
-    }
-  )
-}
-```
+You can go further following this @ref[link](../scripts.md).
 
 
 ## GLOBAL SCRIPT 

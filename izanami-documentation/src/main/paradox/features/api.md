@@ -52,6 +52,11 @@ The feature structure depends on the type of the strategy. A feature can have th
  
 ### SCRIPT format 
 
+The field `type`can be 
+ * javascript
+ * kotlin 
+ * scala
+
 ```json
 {
   "id": "feature:with:script",

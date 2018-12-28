@@ -34,6 +34,8 @@ import play.api.http.HttpErrorHandler
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
+import play.libs.ws.ahc.AhcWSClient
+import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 import router.Routes
 import store.leveldb.DbStores
 import store.{Healthcheck, JsonDataStore}
@@ -68,6 +70,10 @@ package object modules {
     Logger.info(s"Configuration: \n$izanamiConfig")
 
     lazy val metricRegistry: MetricRegistry = wire[MetricRegistry]
+
+    lazy val jwClient: play.libs.ws.WSClient = {
+      new AhcWSClient(wsClient.underlying[AsyncHttpClient], materializer)
+    }
 
     lazy val _env: Env = izanamiConfig.baseURL match {
       case "/" => wire[Env]
