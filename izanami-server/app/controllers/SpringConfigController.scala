@@ -13,6 +13,7 @@ import domains.config.ConfigService
 import env.IzanamiConfig
 import libs.functional.EitherTSyntax
 import org.apache.commons.codec.binary.Hex
+import play.api.Logger
 import play.api.libs.json._
 import play.api.mvc._
 
@@ -92,6 +93,7 @@ class SpringConfigController[F[_]: Effect](configStore: ConfigService[F],
             "state"           -> JsNull,
             "propertySources" -> propertySources
           )
+          Logger.debug(s"Spring config request for $rootKey, $appName, $profileName: \n $payload")
           val version: String = byteToHexString(digester.digest(Json.stringify(payload).getBytes(Charsets.UTF_8)))
           Ok(payload ++ Json.obj("version" -> version))
         }

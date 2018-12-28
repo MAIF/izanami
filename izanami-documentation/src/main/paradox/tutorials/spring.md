@@ -844,3 +844,30 @@ After clicking multiple times on the buttons, the results are
 
 
 Congrats !!! You have win your first belt.  
+
+
+## Spring config
+
+Izanami can be used as a spring config server. 
+
+In this application, a spring config server is configured in the `src/main/resources/bootstrap.yml` file.
+The uri is pointing to `http://localhost:9000/api/config-server/raw/mytvshow`. 
+
+This mean that you can define the following configurations in Izanami : 
+
+*  `mytvshow:${applicatioName}:${profileName}:spring-config` 
+*  `mytvshow:spring-profiles:${profileName}:spring-config` 
+*  `mytvshow:spring-globals:spring-config`  
+
+In this application the title is configured with a property like this : 
+
+```java
+
+    @Value("${config.title:Default title}")
+    private String title;
+```
+
+So if you set this config in Izanami, the title could be pull from Izanami with spring config: 
+
+* `mytvshow:application:default:spring-config`: `{"config.title": "Izanami title"}`
+
