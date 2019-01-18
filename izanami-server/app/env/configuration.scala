@@ -10,14 +10,15 @@ import pureconfig._
 import scala.concurrent.duration.FiniteDuration
 
 sealed trait DbType
-object Cassandra      extends DbType
-object Redis          extends DbType
-object LevelDB        extends DbType
-object InMemory       extends DbType
-object Elastic        extends DbType
-object Mongo          extends DbType
-object InMemoryWithDb extends DbType
-object Dynamo         extends DbType
+case object Cassandra      extends DbType with Product with Serializable
+case object Redis          extends DbType with Product with Serializable
+case object LevelDB        extends DbType with Product with Serializable
+case object InMemory       extends DbType with Product with Serializable
+case object Elastic        extends DbType with Product with Serializable
+case object Mongo          extends DbType with Product with Serializable
+case object InMemoryWithDb extends DbType with Product with Serializable
+case object Dynamo         extends DbType with Product with Serializable
+case object Postgresql     extends DbType with Product with Serializable
 
 object DbType {
   def fromString(s: String) = s match {
@@ -29,6 +30,7 @@ object DbType {
     case "Mongo"          => Mongo
     case "InMemoryWithDb" => InMemoryWithDb
     case "Dynamo"         => Dynamo
+    case "Postgresql"     => Postgresql
   }
 }
 
@@ -163,14 +165,15 @@ case class KafkaEventsConfig(topic: String)
 
 case class DbConfig(
     default: String,
-    redis: Option[RedisConfig],
-    leveldb: Option[LevelDbConfig],
-    cassandra: Option[CassandraConfig],
-    kafka: Option[KafkaConfig],
-    elastic: Option[ElasticConfig],
-    mongo: Option[MongoConfig],
-    dynamo: Option[DynamoConfig],
-    inMemoryWithDb: Option[InMemoryWithDbConfig]
+    redis: Option[RedisConfig] = None,
+    leveldb: Option[LevelDbConfig] = None,
+    cassandra: Option[CassandraConfig] = None,
+    kafka: Option[KafkaConfig] = None,
+    elastic: Option[ElasticConfig] = None,
+    mongo: Option[MongoConfig] = None,
+    dynamo: Option[DynamoConfig] = None,
+    inMemoryWithDb: Option[InMemoryWithDbConfig] = None,
+    postgresql: Option[PostgresqlConfig] = None
 )
 
 case class InMemoryWithDbConfig(db: DbType, pollingInterval: Option[FiniteDuration] = None)
@@ -226,6 +229,13 @@ case class ElasticConfig(host: String,
                          automaticRefresh: Boolean = false)
 
 case class MongoConfig(url: String, database: Option[String], name: Option[String])
+
+case class PostgresqlConfig(driver: String,
+                            url: String,
+                            username: String,
+                            password: String,
+                            connectionPoolSize: Int,
+                            tmpfolder: Option[String])
 
 case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails, `import`: Option[Path])
 case class InitialUserConfig(userId: String, password: String)

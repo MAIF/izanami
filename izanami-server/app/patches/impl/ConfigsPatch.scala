@@ -4,7 +4,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.{ActorMaterializer, Materializer}
-import cats.effect.Effect
+import cats.effect.{ConcurrentEffect, ContextShift, Effect}
 import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigService}
 import domains.events.EventStore
@@ -25,10 +25,10 @@ private[impl] object OldConfig {
   val format = Json.format[OldConfig]
 }
 
-class ConfigsPatch[F[_]: Effect](
+class ConfigsPatch[F[_]: ConcurrentEffect: ContextShift](
     izanamiConfig: IzanamiConfig,
     configStore: => ConfigService[F],
-    drivers: Drivers,
+    drivers: Drivers[F],
     eventStore: EventStore[F],
     applicationLifecycle: ApplicationLifecycle
 )(implicit store: DbStores[F], system: ActorSystem)
