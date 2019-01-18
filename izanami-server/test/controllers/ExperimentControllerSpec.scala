@@ -7,6 +7,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import cats.data.NonEmptyList
 import domains.Key
 import domains.abtesting._
+import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
@@ -16,6 +17,7 @@ import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
+import scala.util.Random
 
 class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
     extends PlaySpec
