@@ -1,29 +1,54 @@
 package izanami.features
 
 import akka.NotUsed
-import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Materializer}
+import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import izanami.{Feature, FeatureEvent, IzanamiDispatcher}
 import izanami.commons.IzanamiException
 import izanami.scaladsl._
+import izanami.{Feature, FeatureEvent, FeatureType, IzanamiDispatcher}
 import org.reactivestreams.{Publisher, Subscriber}
-import play.api.libs.json.{JsObject, JsValue}
+import play.api.libs.json.{JsError, JsObject, JsSuccess, Json}
 
 import scala.concurrent.Future
 
 object FallbackFeatureStategy {
   def apply(fallback: Features)(implicit izanamiDispatcher: IzanamiDispatcher,
-                                materializer: Materializer): FallbackFeatureStategy =
+                                materializer: Materializer,
+                                cudFeatureClient: CUDFeatureClient): FallbackFeatureStategy =
     new FallbackFeatureStategy(fallback)
 }
 
 class FallbackFeatureStategy(fallback: Features)(implicit val izanamiDispatcher: IzanamiDispatcher,
-                                                 val materializer: Materializer)
+                                                 val materializer: Materializer,
+                                                 val cudFeatureClient: CUDFeatureClient)
     extends FeatureClient {
 
   import izanamiDispatcher.ec
+
+  override def createFeature(
+      id: String,
+      enabled: Boolean,
+      activationStrategy: FeatureType,
+      parameters: Option[JsObject]
+  ): Future[Feature] = {
+    val payload = Json.obj("id" -> id, "enabled" -> enabled, "activationStrategy" -> activationStrategy.name) ++ parameters
+      .map(value => Json.obj("parameters" -> value))
+      .getOrElse(Json.obj())
+
+    Feature.reads.reads(payload).asOpt match {
+      case None => {
+        val message = s"Error creating feature $id : parsingFailed"
+        FastFuture.failed(IzanamiException(message))
+      }
+      case Some(feature) => {
+        fallback.copy(
+          featuresSeq = fallback.featuresSeq ++ Seq(feature)
+        )
+        FastFuture.successful(feature)
+      }
+    }
+  }
 
   override def features(pattern: String): Future[Features] =
     Future {

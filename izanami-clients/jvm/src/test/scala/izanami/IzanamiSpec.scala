@@ -252,6 +252,36 @@ trait ExperimentMockServer extends MockServer {
 trait FeatureMockServer extends MockServer {
   import com.github.tomakehurst.wiremock.client.WireMock._
 
+  def createEnabledFeatureWithNoStrategy(featureId: String): Unit = {
+    val url = s"/api/features"
+    mock.register(
+      post(urlPathEqualTo(url))
+        .withRequestBody(
+          equalToJson(
+            s"""
+               |{
+               |"id": "$featureId",
+               |"enabled": true,
+               |"activationStrategy": "NO_STRATEGY"
+               |}
+             """.stripMargin)
+        )
+        .willReturn(
+          aResponse()
+            .withStatus(201)
+            .withBody(
+              Json.stringify(
+                Json.obj(
+                  "id" -> featureId,
+                  "enabled"-> true,
+                  "activationStrategy" -> "NO_STRATEGY"
+                )
+              )
+            )
+        )
+    )
+  }
+
   def registerPage(group: Seq[Feature],
                    page: Int = 1,
                    pageSize: Int = 200,
