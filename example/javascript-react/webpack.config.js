@@ -1,6 +1,8 @@
 const webpack = require('webpack');
 const path = require('path');
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 const plugins = [
     new webpack.DefinePlugin({
         '__DEV__': process.env.NODE_ENV === 'production',
@@ -10,26 +12,12 @@ const plugins = [
     })
 ];
 
-if (process.env.NODE_ENV === 'production') {
-    plugins.push(new webpack.optimize.UglifyJsPlugin({
-        compress: {
-            screw_ie8: true, // React doesn't support IE8
-            warnings: false
-        },
-        mangle: {
-            screw_ie8: true
-        },
-        output: {
-            comments: false,
-            screw_ie8: true
-        }
-    }));
-} else {
+if (isDev) {
     plugins.push(new webpack.HotModuleReplacementPlugin());
     plugins.push(new webpack.NoEmitOnErrorsPlugin());
 }
 
-module.exports = {
+const commons = {
     output: {
         path: path.resolve(__dirname),
         publicPath: '/javascripts/bundle/',
@@ -46,52 +34,76 @@ module.exports = {
         extensions: ['*', '.js', '.css', '.scss']
     },
     devServer: {
-        port: process.env.DEV_SERVER_PORT || 3333
+        port: process.env.DEV_SERVER_PORT || 3333,
+        disableHostCheck: isDev
     },
     module: {
-        loaders: [
+        rules: [
             {
                 test: /\.js|\.jsx|\.es6$/,
                 exclude: /node_modules/,
-                loader: 'babel-loader'
-            },
-            {
-                test: /node_modules\/auth0-lock\/.*\.js$/,
-                loaders: [
-                    'transform-loader/cacheable?brfs',
-                    'transform-loader/cacheable?packageify'
-                ]
-            },
-            {
-                test: /node_modules\/auth0-lock\/.*\.ejs$/,
-                loader: 'transform-loader/cacheable?ejsify'
+                use: {
+                    loader: 'babel-loader'
+                }
             },
             {
                 test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-                loader: 'url-loader?limit=10000&minetype=application/font-woff'
+                use: [
+                    {
+                        loader: 'url-loader',
+                        options: {
+                            limit: 10000,
+                            minetype: 'application/font-woff'
+                        }
+                    }
+                ]
             },
             {
                 test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-                loader: 'file-loader'
-            },
-            {
-                test: /\.json$/,
-                loader: 'json-loader'
+                use: [
+                    {
+                        loader: 'file-loader',
+                        options: {}
+                    }
+                ]
             },
             {
                 test: /\.scss$/,
-                loaders: ['style-loader', 'css-loader', 'sass-loader']
+                use: [
+                    { loader: "style-loader" },
+                    { loader: "css-loader" },
+                    { loader: "sass-loader" }
+                ]
             },
             {
                 test: /\.css$/,
                 exclude: /\.useable\.css$/,
-                loader: 'style-loader!css-loader'
+                use: [
+                    {
+                        loader: "style-loader"
+                    },
+                    { loader: "css-loader" },
+                ],
             },
             {
                 test: /\.useable\.css$/,
-                loader: 'style-loader/useable!css-loader'
+                use: [
+                    {
+                        loader: "style-loader/useable"
+                    },
+                    { loader: "css-loader" },
+                ],
             }
         ]
     },
     plugins: plugins
 };
+
+
+if (isDev) {
+    module.exports = {...commons, devtool: 'inline-source-map', mode: 'development'};
+} else {
+    module.exports = {...commons, optimization: {minimize: true}, devtool: false, mode: 'production'};
+}
+
+
