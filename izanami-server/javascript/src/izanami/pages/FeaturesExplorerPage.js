@@ -37,7 +37,7 @@ export class FeaturesExplorerPage extends Component {
     let codeContext = this.state.context;
     return (
       <div className="col-md-12">
-        <form className="form-inline" style={{ marginBottom: 20, marginLeft: -15  }}>
+        <div className="form-inline" style={{ marginBottom: 20, marginLeft: -15  }}>
           <div className="form-group">
             <input type="text" className="form-control col-xs-12" placeholder="feature query (ie. project:env:*, mcf:preprod:frontend:*)" value={this.state.query} onChange={e => this.setState({ query: e.target.value })} />
           </div>
@@ -47,7 +47,7 @@ export class FeaturesExplorerPage extends Component {
             {!this.state.searching && 'Search'}
             {this.state.searching && 'Searching ...'}
           </button>
-        </form>
+        </div>
         <div className="row">
           <h5>User context</h5>
           <AceEditor mode="javascript"
