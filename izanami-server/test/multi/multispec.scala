@@ -1,6 +1,7 @@
 package multi
 
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.testkit.SocketUtil._
 import com.typesafe.config.ConfigFactory
@@ -37,7 +38,6 @@ object Configs {
       |izanami.features.db.type=$${izanami.db.default}
       |izanami.globalScript.db.type=$${izanami.db.default}
       |izanami.experiment.db.type=$${izanami.db.default}
-      |izanami.variantBinding.db.type=$${izanami.db.default}
       |izanami.experimentEvent.db.type=$${izanami.db.default}
       |izanami.webhook.db.type=$${izanami.db.default}
       |izanami.user.db.type=$${izanami.db.default}
@@ -103,7 +103,6 @@ object Configs {
          |izanami.features.db.type=$${izanami.db.default}
          |izanami.globalScript.db.type=$${izanami.db.default}
          |izanami.experiment.db.type=$${izanami.db.default}
-         |izanami.variantBinding.db.type=$${izanami.db.default}
          |izanami.experimentEvent.db.type=$${izanami.db.default}
          |izanami.webhook.db.type=$${izanami.db.default}
          |izanami.user.db.type=$${izanami.db.default}
@@ -131,7 +130,6 @@ object Configs {
          |izanami.features.db.type=$${izanami.db.default}
          |izanami.globalScript.db.type=$${izanami.db.default}
          |izanami.experiment.db.type=$${izanami.db.default}
-         |izanami.variantBinding.db.type=$${izanami.db.default}
          |izanami.experimentEvent.db.type=$${izanami.db.default}
          |izanami.webhook.db.type=$${izanami.db.default}
          |izanami.user.db.type=$${izanami.db.default}
@@ -213,7 +211,6 @@ object Configs {
                      |izanami.features.db.type=${izanami.db.default}
                      |izanami.globalScript.db.type=${izanami.db.default}
                      |izanami.experiment.db.type=${izanami.db.default}
-                     |izanami.variantBinding.db.type=${izanami.db.default}
                      |izanami.experimentEvent.db.type=${izanami.db.default}
                      |izanami.webhook.db.type=${izanami.db.default}
                      |izanami.user.db.type=${izanami.db.default}
@@ -236,15 +233,48 @@ object Configs {
                      |izanami.db.dynamo.eventsTableName=izanami_experimentevents_$id
                      |izanami.db.dynamo.host=localhost
                      |izanami.db.dynamo.port=8001
+                     |izanami.config.db.type=$${izanami.db.default}
                      |izanami.features.db.type=$${izanami.db.default}
                      |izanami.globalScript.db.type=$${izanami.db.default}
                      |izanami.experiment.db.type=$${izanami.db.default}
-                     |izanami.variantBinding.db.type=$${izanami.db.default}
                      |izanami.experimentEvent.db.type=$${izanami.db.default}
                      |izanami.webhook.db.type=$${izanami.db.default}
                      |izanami.user.db.type=$${izanami.db.default}
                      |izanami.apikey.db.type=$${izanami.db.default}
                      |izanami.patch.db.type=$${izanami.db.default}
+      """.stripMargin)
+      .resolve()
+  )
+
+  val inc = new AtomicInteger(0)
+
+  def pgConfig(id: Long): Configuration = Configuration(
+    ConfigFactory
+      .parseString(s"""
+                      |izanami.db.default="Postgresql"
+                      |izanami.patchEnabled = false
+                      |
+                      |izanami.mode= "test"
+                      |izanami.config.db.type=$${izanami.db.default}
+                      |izanami.db.postgresql.url="jdbc:postgresql://localhost:5556/izanami"
+                      |izanami.config.db.type=$${izanami.db.default}
+                      |izanami.config.db.conf.namespace="izanami$id:config"
+                      |izanami.features.db.type=$${izanami.db.default}
+                      |izanami.features.db.conf.namespace="izanami$id:feature"
+                      |izanami.globalScript.db.type=$${izanami.db.default}
+                      |izanami.globalScript.db.conf.namespace="izanami$id:globalscript"
+                      |izanami.experiment.db.type=$${izanami.db.default}
+                      |izanami.experiment.db.conf.namespace="izanami$id:experiment"
+                      |izanami.experimentEvent.db.type=$${izanami.db.default}
+                      |izanami.experimentEvent.db.conf.namespace="izanami$id:experimentevent"
+                      |izanami.webhook.db.type=$${izanami.db.default}
+                      |izanami.webhook.db.conf.namespace="izanami$id:webhook"
+                      |izanami.user.db.type=$${izanami.db.default}
+                      |izanami.user.db.conf.namespace="izanami$id:user"
+                      |izanami.apikey.db.type=$${izanami.db.default}
+                      |izanami.apikey.db.conf.namespace="izanami$id:apikey"
+                      |izanami.patch.db.type=$${izanami.db.default}
+                      |izanami.patch.db.conf.namespace="izanami$id:patch"
       """.stripMargin)
       .resolve()
   )
@@ -273,8 +303,9 @@ object Tests {
       getSuite("Elastic", () => Configs.elasticConfiguration, false) ++
       getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}"), false) ++
       getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false) ++
-      getSuite("Mongo", () => Configs.mongoConfig("config"), false)
-      getSuite("Dynamo", () => Configs.dynamoDbConfig(1L), false)
+      getSuite("Mongo", () => Configs.mongoConfig("config"), false) ++
+      //getSuite("Dynamo", () => Configs.dynamoDbConfig(Random.nextInt(1000)), false) ++
+      getSuite("Postgresql", () => Configs.pgConfig(Random.nextInt(1000)), false)
     } else {
       getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
       getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false)

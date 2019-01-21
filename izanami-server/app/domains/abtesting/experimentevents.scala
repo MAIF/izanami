@@ -104,7 +104,7 @@ object ExperimentVariantEvent {
         evt =>
           {
             val (newEvent, transformation) = evt match {
-              case ExperimentVariantDisplayed(_, expId, clientId, variant, date, t, variantId) =>
+              case ExperimentVariantDisplayed(_, expId, clientId, variant, date, _, variantId) =>
                 displayed += 1
                 ids = ids + clientId
                 val transformation = if (displayed != 0) {
@@ -112,7 +112,7 @@ object ExperimentVariantEvent {
                 } else 0.0
 
                 (ExperimentResultEvent(expId, variant, date, transformation, variantId), transformation)
-              case ExperimentVariantWon(_, expId, clientId, variant, date, t, variantId) =>
+              case ExperimentVariantWon(_, expId, clientId, variant, date, _, variantId) =>
                 won += 1
                 ids = ids + clientId
                 val transformation = if (displayed != 0) {
@@ -135,20 +135,21 @@ object ExperimentVariantEvent {
               List(
                 (displayed,
                  won,
+                 transformation,
                  Some(
                    VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))
                  ))
               )
             } else {
-              List((displayed, won, None))
+              List((displayed, won, transformation, None))
             }
           }
       })
       .fold(VariantResult()) {
-        case (acc, (d, w, Some(r))) =>
-          r.copy(events = acc.events ++ r.events, displayed = d, won = w)
-        case (acc, (d, w, None)) =>
-          acc.copy(displayed = d, won = w)
+        case (acc, (d, w, t, Some(r))) =>
+          r.copy(events = acc.events ++ r.events, displayed = d, won = w, transformation = t)
+        case (acc, (d, w, t, None)) =>
+          acc.copy(displayed = d, won = w, transformation = t)
       }
       .mergeSubstreams
   }

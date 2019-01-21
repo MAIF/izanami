@@ -26,7 +26,10 @@ import play.api.libs.json.{JsObject, Json}
 
 import scala.util.Failure
 
-class Metrics(_env: Env, drivers: Drivers, izanamiConfig: IzanamiConfig, applicationLifecycle: ApplicationLifecycle)(
+class Metrics[F[_]](_env: Env,
+                    drivers: Drivers[F],
+                    izanamiConfig: IzanamiConfig,
+                    applicationLifecycle: ApplicationLifecycle)(
     implicit system: ActorSystem
 ) {
 

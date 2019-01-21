@@ -9,6 +9,7 @@ import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.effect.Effect
 import com.datastax.driver.core.{Row, Session, SimpleStatement}
+import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.abtesting._
 import domains.events.EventStore
 import env.{CassandraConfig, DbDomainConfig}
@@ -72,7 +73,6 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
   private def saveToCassandra(id: ExperimentVariantEventKey, data: ExperimentVariantEvent) = {
     val query =
       s"INSERT INTO ${keyspace}.$namespaceFormatted (experimentId, variantId, clientId, namespace, id, value) values (?, ?, ?, ?, ?, ?) IF NOT EXISTS "
-    Logger.debug(s"Running query $query")
     executeWithSession(
       query,
       id.experimentId.key,
@@ -96,11 +96,8 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
         executeWithSession(s" DELETE FROM ${keyspace}.$namespaceFormatted  WHERE experimentId = ? AND variantId = ?",
                            experiment.id.key,
                            variant.id)
-          .map { r =>
-            Result.ok(r.asInstanceOf[Any])
-          }
       }
-      .map(r => Result.ok(Done))
+      .map(_ => Result.ok(Done))
       .flatMap { r =>
         r.traverse(e => eventStore.publish(ExperimentVariantEventsDeleted(experiment)))
       }
@@ -117,7 +114,7 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
             variantId
           )
         ).via(readValue)
-          .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
+          .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
       }
   }
 
@@ -149,6 +146,17 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
     Flow[Row]
       .map(r => r.getString("value"))
       .map(Json.parse)
-      .mapConcat(ExperimentVariantEventInstances.format.reads(_).asOpt.toList)
+      .mapConcat { json =>
+        ExperimentVariantEventInstances.format
+          .reads(json)
+          .fold(
+            { err =>
+              Logger.error(s"Error parsing json $json: $err")
+              List.empty
+            }, { ok =>
+              List(ok)
+            }
+          )
+      }
 
 }

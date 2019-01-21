@@ -1,0 +1,3 @@
+CREATE DATABASE izanami;
+CREATE USER izanami WITH PASSWORD 'izanami';
+GRANT ALL PRIVILEGES ON DATABASE "izanami" to izanami;

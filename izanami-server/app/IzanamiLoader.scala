@@ -1,8 +1,9 @@
 import akka.actor.ActorSystem
 import akka.NotUsed
 import akka.stream.scaladsl.Flow
+import cats.effect.internals.IOContextShift
 import metrics.Metrics
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import com.codahale.metrics.MetricRegistry
 import com.softwaremill.macwire._
 import controllers._
@@ -65,7 +66,8 @@ package object modules {
 
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
-    implicit val system: ActorSystem = actorSystem
+    implicit val system: ActorSystem  = actorSystem
+    implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
     Logger.info(s"Configuration: \n$izanamiConfig")
 
@@ -91,10 +93,10 @@ package object modules {
 
     lazy val authController: AuthControllerEff = wire[AuthControllerEff]
 
-    lazy val drivers: Drivers = wire[Drivers]
+    lazy val drivers: Drivers[IO] = Drivers[IO](izanamiConfig, configuration, applicationLifecycle)
 
-    lazy val metrics: Metrics                    = wire[Metrics]
-    lazy val metricsController: MetricController = wire[MetricController]
+    lazy val metrics: Metrics[IO]                   = wire[Metrics[IO]]
+    lazy val metricsController: MetricControllerEff = wire[MetricControllerEff]
 
     implicit lazy val scriptCache: ScriptCache[IO] = new PlayScriptCache[IO](defaultCacheApi)
 
@@ -172,6 +174,7 @@ package object modules {
         case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore)
         case Mongo    =>  ExperimentVariantEventMongoService(conf, drivers.mongoApi.get, eventStore)
         case Dynamo   =>  ExperimentVariantEventDynamoService(izanamiConfig.db.dynamo.get, drivers.dynamoClient.get, eventStore)
+        case Postgresql   =>  ExperimentVariantEventPostgresqlService(izanamiConfig.db.postgresql.get, drivers.postgresqlClient.get, conf, eventStore)
         case _ => throw new IllegalArgumentException("Unsupported store type ")
       }
 
