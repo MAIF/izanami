@@ -12,6 +12,7 @@ import domains.script.Script.ScriptCache
 import domains.user.UserService
 import domains.webhook.WebhookService
 import env.{Env, IzanamiConfig}
+import metrics.Metrics
 import play.api.mvc.{ActionBuilder, AnyContent, ControllerComponents}
 import store.Healthcheck
 
@@ -106,5 +107,10 @@ package object effect {
                              AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                              cc: ControllerComponents)
       extends WebhookController[Effect](webhookStore, system, AuthAction, cc)
+
+  class MetricControllerEff(metrics: Metrics[Effect],
+                            AuthAction: ActionBuilder[AuthContext, AnyContent],
+                            cc: ControllerComponents)
+      extends MetricController[Effect](metrics, AuthAction, cc)
 
 }

@@ -5,7 +5,7 @@ import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.Semigroup
 import cats.data.Validated
-import cats.effect.Effect
+import cats.effect.{ConcurrentEffect, ContextShift, Effect}
 import cats.kernel.Monoid
 import domains.events.EventStore
 import domains.Key
@@ -24,6 +24,7 @@ import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
 import store.dynamo.DynamoJsonDataStore
+import store.postgresql.PostgresqlJsonDataStore
 
 object Result {
 
@@ -141,8 +142,8 @@ trait DataStore[F[_], Key, Data] {
 trait JsonDataStore[F[_]] extends DataStore[F, Key, JsValue]
 
 object JsonDataStore {
-  def apply[F[_]: Effect](
-      drivers: Drivers,
+  def apply[F[_]: ContextShift: ConcurrentEffect](
+      drivers: Drivers[F],
       izanamiConfig: IzanamiConfig,
       conf: DbDomainConfig,
       eventStore: EventStore[F],
@@ -166,23 +167,25 @@ object JsonDataStore {
         storeByType(drivers, izanamiConfig, conf, other, applicationLifecycle)
     }
 
-  private def storeByType[F[_]: Effect](
-      drivers: Drivers,
+  private def storeByType[F[_]: ContextShift: ConcurrentEffect](
+      drivers: Drivers[F],
       izanamiConfig: IzanamiConfig,
       conf: DbDomainConfig,
       dbType: DbType,
       applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem, stores: DbStores[F]): JsonDataStore[F] =
+  )(implicit actorSystem: ActorSystem, stores: DbStores[F]): JsonDataStore[F] = {
+    Logger.info(s"Initializing store for $dbType")
     dbType match {
       case InMemory => InMemoryJsonDataStore(conf)
       case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf)
       case LevelDB  => LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, applicationLifecycle)
       case Cassandra =>
         CassandraJsonDataStore(drivers.cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf)
-      case Elastic => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
-      case Mongo   => MongoJsonDataStore(drivers.mongoApi.get, conf)
-      case Dynamo  => DynamoJsonDataStore(drivers.dynamoClient.get, izanamiConfig.db.dynamo.get, conf)
-      case _       => throw new IllegalArgumentException(s"Unsupported store type $dbType")
+      case Elastic    => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
+      case Mongo      => MongoJsonDataStore(drivers.mongoApi.get, conf)
+      case Dynamo     => DynamoJsonDataStore(drivers.dynamoClient.get, izanamiConfig.db.dynamo.get, conf)
+      case Postgresql => PostgresqlJsonDataStore(drivers.postgresqlClient.get, izanamiConfig.db.postgresql.get, conf)
+      case _          => throw new IllegalArgumentException(s"Unsupported store type $dbType")
     }
-
+  }
 }
