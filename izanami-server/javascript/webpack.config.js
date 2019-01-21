@@ -20,9 +20,6 @@ if (isDev) {
 }
 
 const commons = {
-  optimization: {
-    minimize: true
-  },
   output: {
     path: path.resolve(__dirname, '../public/bundle/'),
     publicPath: '/assets/bundle/',
@@ -37,7 +34,8 @@ const commons = {
     extensions: ['*', '.js', '.css', '.scss']
   },
   devServer: {
-    port: process.env.DEV_SERVER_PORT || 3333
+    port: process.env.DEV_SERVER_PORT || 3333,
+    disableHostCheck: isDev
   },
   module: {
     rules: [
@@ -103,9 +101,9 @@ const commons = {
 
 
 if (isDev) {
-  module.exports = { ...commons, devtool: 'inline-source-map' };
+  module.exports = {...commons, devtool: 'inline-source-map', mode: 'development'};
 } else {
-  module.exports = {...commons, devtool: false};
+  module.exports = {...commons, optimization: {minimize: true}, devtool: false, mode: 'production'};
 }
 
 
