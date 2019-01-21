@@ -303,6 +303,16 @@ object Feature {
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////  Features   ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////
+sealed case class FeatureType(name: String)
+
+object FeatureType {
+  object NO_STRATEGY   extends FeatureType("NO_STRATEGY")
+  object RELEASE_DATE  extends FeatureType("RELEASE_DATE")
+  object DATE_RANGE    extends FeatureType("DATE_RANGE")
+  object SCRIPT        extends FeatureType("SCRIPT")
+  object GLOBAL_SCRIPT extends FeatureType("GLOBAL_SCRIPT")
+  object PERCENTAGE    extends FeatureType("PERCENTAGE")
+}
 
 sealed trait Feature {
   def id: String
@@ -313,7 +323,7 @@ sealed trait Feature {
 object DefaultFeature {
   val reads = Json.reads[DefaultFeature]
   val writes: Writes[DefaultFeature] = Json.writes[DefaultFeature].transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> "NO_STRATEGY")
+    o ++ Json.obj("activationStrategy" -> FeatureType.NO_STRATEGY.name)
   }
   val format: Format[DefaultFeature] = Format(reads, writes)
 }
@@ -333,7 +343,7 @@ object GlobalScriptFeature {
     (__ \ "parameters" \ "ref").write[String]
   )(unlift(GlobalScriptFeature.unapply))
     .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> "GLOBAL_SCRIPT")
+      o ++ Json.obj("activationStrategy" -> FeatureType.GLOBAL_SCRIPT.name)
     }
 
   private val reads: Reads[GlobalScriptFeature] = transform(
@@ -376,7 +386,7 @@ object ScriptFeature {
     (__ \ "parameters" \ "script").write[Script]
   )(unlift(ScriptFeature.unapply))
     .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> "SCRIPT")
+      o ++ Json.obj("activationStrategy" -> FeatureType.SCRIPT.name)
     }
 
   private val reads: Reads[ScriptFeature] = transform(
@@ -416,7 +426,7 @@ object ReleaseDateFeature {
     (__ \ "parameters" \ "releaseDate")
       .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern3))
   )(unlift(ReleaseDateFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> "RELEASE_DATE")
+    o ++ Json.obj("activationStrategy" -> FeatureType.RELEASE_DATE.name)
   }
 
   val format: Format[ReleaseDateFeature] = Format(reads, writes)
@@ -460,7 +470,7 @@ object DateRangeFeature {
     (__ \ "parameters" \ "from").write[LocalDateTime](dateWrite) and
     (__ \ "parameters" \ "to").write[LocalDateTime](dateWrite)
   )(unlift(DateRangeFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> "DATE_RANGE")
+    o ++ Json.obj("activationStrategy" -> FeatureType.DATE_RANGE.name)
   }
 
   implicit val format: Format[DateRangeFeature] = Format(reads, writes)
@@ -489,7 +499,7 @@ object PercentageFeature {
     (__ \ "active").writeNullable[Boolean] and
     (__ \ "parameters" \ "percentage").write[Int]
   )(unlift(PercentageFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> "PERCENTAGE")
+    o ++ Json.obj("activationStrategy" -> FeatureType.PERCENTAGE.name)
   }
 
   implicit val format: Format[PercentageFeature] = Format(reads, writes)

@@ -26,7 +26,8 @@ object FetchFeatureClient {
       implicit
       izanamiDispatcher: IzanamiDispatcher,
       actorSystem: ActorSystem,
-      materializer: Materializer
+      materializer: Materializer,
+      cudFeatureClient: CUDFeatureClient
   ): FetchFeatureClient =
     new FetchFeatureClient(client, clientConfig, fallback, errorStrategy, events)
 }
@@ -37,7 +38,10 @@ private[features] class FetchFeatureClient(
     fallback: Features,
     errorStrategy: ErrorStrategy,
     events: Source[IzanamiEvent, NotUsed]
-)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher,
+  actorSystem: ActorSystem,
+  val materializer: Materializer,
+  val cudFeatureClient: CUDFeatureClient)
     extends FeatureClient {
 
   import client._

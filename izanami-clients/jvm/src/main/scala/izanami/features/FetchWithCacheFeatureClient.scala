@@ -23,7 +23,8 @@ object FetchWithCacheFeatureClient {
       cacheConfig: FetchWithCacheStrategy
   )(implicit izanamiDispatcher: IzanamiDispatcher,
     actorSystem: ActorSystem,
-    materializer: Materializer): FetchWithCacheFeatureClient =
+    materializer: Materializer,
+    cudFeatureClient: CUDFeatureClient): FetchWithCacheFeatureClient =
     new FetchWithCacheFeatureClient(clientConfig, underlyingStrategy, cacheConfig)
 }
 
@@ -33,7 +34,10 @@ private[features] class FetchWithCacheFeatureClient(
     clientConfig: ClientConfig,
     underlyingStrategy: FeatureClient,
     cacheConfig: FetchWithCacheStrategy
-)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
+)(implicit val izanamiDispatcher: IzanamiDispatcher,
+  actorSystem: ActorSystem,
+  val materializer: Materializer,
+  val cudFeatureClient: CUDFeatureClient)
     extends FeatureClient {
 
   import izanamiDispatcher.ec
