@@ -59,9 +59,11 @@ export class Table extends Component {
     treeModeEnabled: PropTypes.bool,
     renderTreeLeaf: PropTypes.func,
     itemLink: PropTypes.func,
+    searchColumnName: PropTypes.string,
   };
 
   static defaultProps = {
+    searchColumnName: 'key',
     rowNavigation: false,
     pageSize: 20,
     firstSort: null,
@@ -235,6 +237,17 @@ export class Table extends Component {
       pageSize: initialArgs.pageSize || this.props.pageSize,
       page: initialArgs.page ? initialArgs.page + 1 : 1
     };
+    const s = (((initialArgs.filtered || []).find(o => o.id === this.props.searchColumnName) || {}).value ||
+      ((initialArgs.filtered || [])[0] || {}).value);
+    if (s) {
+      const url = new URL(window.location);
+      url.searchParams.set('search', s);
+      window.history.pushState({}, '', url);
+    } else {
+      const url = new URL(window.location);
+      url.searchParams.delete('search');
+      window.history.pushState({}, '', url);
+    }
     if (this.isTable()) {
       return this.props.fetchItems(args).then(
         ({nbPages, results}) => {
