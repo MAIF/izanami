@@ -4759,19 +4759,16 @@ react-input-autosize@^2.1.2:
   dependencies:
     prop-types "^15.5.8"
 
-react-izanami@1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/react-izanami/-/react-izanami-1.1.0.tgz#aadac5328210bcd7346f83234eab24a28535df46"
-  integrity sha512-AVmc49KZE5NnDqpjbOJZf/yI1aocNsJseg6s8293l5FLziljVhY3M3dcoWypieNlHopFA3X+Nuqdgnbhog7FmQ==
+react-izanami@1.4.0:
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/react-izanami/-/react-izanami-1.4.0.tgz#351e25d78be4120772960762e229bd9406ece94f"
+  integrity sha512-0gWhDPyNgNoTLMSpSLuiT/cmYQy/Rz+CJbxcli7846QI5xvHarzH77EGFi3qW7uX7IO+vlzAfF7b7lvr8aRJDA==
   dependencies:
     deep-equal "^1.0.1"
     deepmerge "^1.4.4"
     es-symbol "1.1.2"
     es6-shim "0.35.3"
-    lodash "^4.17.5"
     prop-types "15.6.0"
-    react "16.0.0"
-    react-dom "16.0.1"
     whatwg-fetch "2.0.3"
 
 react-onclickoutside@^6.5.0:

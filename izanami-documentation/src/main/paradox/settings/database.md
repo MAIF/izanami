@@ -250,6 +250,33 @@ aws dynamodb create-table --table-name izanami_experimentevent --attribute-defin
 
 Other settings are available, consult the @ref[settings](settings.md) page. 
 
+### Postgresql 
+
+
+To run Izanami with Postgresql : 
+
+```bash
+bin/izanami \ 
+    -Dizanami.db.default=Postgresql \
+    -Dizanami.db.postgresql.url="jdbc:postgresql://localhost:5432/izanami" \
+    -Dizanami.db.postgresql.username=izanami \
+    -Dizanami.db.postgresql.password=izanami \
+    -Dizanami.db.postgresql.connectionPoolSize=32 
+   
+```
+
+Or 
+
+```bash
+export IZANAMI_DATABASE=Postgresql
+export JDBC_DATABASE_URL=jdbc:postgresql://localhost:5432/izanami
+export POSTGRESQL_USER=izanami
+export POSTGRESQL_PASSWORD=izanami
+export POSTGRESQL_CONNECTION_POOL_SIZE=32
+
+bin/izanami 
+```
+
 ### In Memory with Db 
 
 If your data fit in memory and you need high throughput you can use this store. 
