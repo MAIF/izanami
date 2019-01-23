@@ -1,5 +1,18 @@
 # Changelog 
 
+## Version 1.4.0
+
+### Postgresql supported as database 
+
+Postgresql is now supported as database for Izanami. 
+
+### Bugfix 
+
+The bug fixes are listed here : 
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.4.0
+
+
 ## Version 1.3.1
 
 :warning: Version 1.3.0 was tagged but didn't complete. 
