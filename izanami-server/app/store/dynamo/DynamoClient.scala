@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.alpakka.dynamodb.impl.DynamoSettings
 import akka.stream.{ActorMaterializer, Materializer}
 import env.DynamoConfig
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import akka.stream.alpakka.dynamodb.scaladsl.{DynamoClient => AlpakkaClient}
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.services.dynamodbv2.model._
@@ -17,7 +17,7 @@ object DynamoClient {
 
   def dynamoClient(mayBeConfig: Option[DynamoConfig])(implicit actorSystem: ActorSystem): Option[AlpakkaClient] =
     mayBeConfig.map { config =>
-      Logger.info(s"Initializing Dynamo cluster for $config")
+      IzanamiLogger.info(s"Initializing Dynamo cluster for $config")
       implicit val mat: Materializer    = ActorMaterializer()(actorSystem)
       implicit val ec: ExecutionContext = actorSystem.dispatcher
 
@@ -74,7 +74,7 @@ object DynamoClient {
       )
       .recover {
         case _: ResourceNotFoundException =>
-          Logger.info(s"Table $tableName did not exist, creating it")
+          IzanamiLogger.info(s"Table $tableName did not exist, creating it")
           client
             .single(
               new CreateTableRequest()
@@ -88,11 +88,11 @@ object DynamoClient {
                 )
             )
             .onComplete {
-              case Success(_)     => Logger.info(s"Table $tableName created successfully")
-              case Failure(error) => Logger.error(s"Could not create $tableName", error)
+              case Success(_)     => IzanamiLogger.info(s"Table $tableName created successfully")
+              case Failure(error) => IzanamiLogger.error(s"Could not create $tableName", error)
             }
         case error =>
-          Logger.error(s"Could not check existence of $tableName", error)
+          IzanamiLogger.error(s"Could not check existence of $tableName", error)
       }
 
 }

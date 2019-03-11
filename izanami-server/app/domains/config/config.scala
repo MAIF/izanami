@@ -10,7 +10,7 @@ import domains.config.Config.ConfigKey
 import domains.events.EventStore
 import domains.{AuthInfo, ImportResult, IsAllowed, Key}
 import libs.functional.EitherTSyntax
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import store.Result.{ErrorMessage, Result}
 
@@ -115,7 +115,7 @@ class ConfigServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: E
   }
 
   private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    Logger.error(s"Error parsing json from database $err")
+    IzanamiLogger.error(s"Error parsing json from database $err")
     AppErrors.error("error.json.parsing")
   }
 }

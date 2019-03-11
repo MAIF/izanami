@@ -17,7 +17,7 @@ import domains.script.GlobalScriptInstances
 import domains.user.UserInstances
 import domains.webhook.WebhookInstances
 import env.{DbDomainConfig, InMemoryWithDbConfig}
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import store.Result.Result
@@ -113,7 +113,7 @@ class InMemoryWithDbStore[F[_]: Effect](dbConfig: InMemoryWithDbConfig,
 
   private val cancellable: Option[Cancellable] = dbConfig.pollingInterval.map { interval =>
     system.scheduler.schedule(interval, interval, () => {
-      Logger.debug(s"Reloading data from db for $name")
+      IzanamiLogger.debug(s"Reloading data from db for $name")
       loadCacheFromDb.runWith(Sink.ignore)
       ()
     })
@@ -133,19 +133,19 @@ class InMemoryWithDbStore[F[_]: Effect](dbConfig: InMemoryWithDbConfig,
           .via(eventAdapter)
           .map {
             case e @ Create(id, data) =>
-              Logger.debug(s"Applying create event $e")
+              IzanamiLogger.debug(s"Applying create event $e")
               createSync(id, data)
               Done
             case e @ Update(oldId, id, data) =>
-              Logger.debug(s"Applying update event $e")
+              IzanamiLogger.debug(s"Applying update event $e")
               updateSync(oldId, id, data)
               Done
             case e @ Delete(id) =>
-              Logger.debug(s"Applying delete event $e")
+              IzanamiLogger.debug(s"Applying delete event $e")
               deleteSync(id)
               Done
             case e @ DeleteAll(patterns) =>
-              Logger.debug(s"Applying delete all event $e")
+              IzanamiLogger.debug(s"Applying delete all event $e")
               deleteAllSync(patterns)
               Done
           }

@@ -18,7 +18,7 @@ import domains.events.EventStore
 import env.{DbDomainConfig, LevelDbConfig}
 import org.iq80.leveldb.{DB, Options}
 import org.iq80.leveldb.impl.Iq80DBFactory.{asString, bytes, factory}
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
 import store.Result.Result
@@ -70,7 +70,7 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
   val db: DB =
     factory.open(new File(dbPath), new Options().createIfMissing(true))
   applicationLifecycle.addStopHook { () =>
-    Logger.info(s"Closing leveldb for path $parentPath")
+    IzanamiLogger.info(s"Closing leveldb for path $parentPath")
     Future(db.close())
   }
 

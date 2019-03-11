@@ -18,7 +18,7 @@ import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.DistributedEventsConfig
 import libs.streams.CacheableQueue
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
 
@@ -67,7 +67,7 @@ class DistributedPubSubEventStore[F[_]: Applicative](globalConfig: TsConfig,
   override def close() = actor ! PoisonPill
 
   lifecycle.addStopHook { () =>
-    Logger.info(s"Stopping actor system $actorSystemName")
+    IzanamiLogger.info(s"Stopping actor system $actorSystemName")
     s.terminate()
   }
 

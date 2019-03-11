@@ -7,7 +7,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import cats.effect.Effect
 import domains.Key
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.Json
 import store.JsonDataStore
 
@@ -53,7 +53,7 @@ class Patchs[F[_]: Effect](mayBeJsonStore: Option[JsonDataStore[F]], allpatches:
                 .validate[Patch]
                 .fold(
                   err => {
-                    Logger.error(s"Error reading json : $err")
+                    IzanamiLogger.error(s"Error reading json : $err")
                     0
                   },
                   _.lastPatch
@@ -61,12 +61,12 @@ class Patchs[F[_]: Effect](mayBeJsonStore: Option[JsonDataStore[F]], allpatches:
             case None => 0
           }
           .flatMap { lastNum =>
-            Logger.info("Starting to patch Izanami ...")
+            IzanamiLogger.info("Starting to patch Izanami ...")
             Source(allpatches.toList)
               .filter(_._1 > lastNum)
               .mapAsyncF(1) {
                 case (num, p) =>
-                  Logger.info(s"Patch number $num from class ${p.getClass.getSimpleName}")
+                  IzanamiLogger.info(s"Patch number $num from class ${p.getClass.getSimpleName}")
                   p.patch().flatMap { _ =>
                     store.update(key, key, Json.toJson(Patch(num)))
                   }
@@ -74,8 +74,8 @@ class Patchs[F[_]: Effect](mayBeJsonStore: Option[JsonDataStore[F]], allpatches:
               .watchTermination() {
                 case (_, done) =>
                   done.onComplete {
-                    case Success(_) => Logger.info("All patchs done with Success")
-                    case Failure(e) => Logger.error(s"Error while patching Izanami", e)
+                    case Success(_) => IzanamiLogger.info("All patchs done with Success")
+                    case Failure(e) => IzanamiLogger.error(s"Error while patching Izanami", e)
                   }
               }
               .runWith(Sink.ignore)

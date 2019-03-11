@@ -10,7 +10,7 @@ import domains.apikey.{Apikey, ApikeyInstances, ApikeyService}
 import domains.{Import, IsAllowed, Key}
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
@@ -164,7 +164,7 @@ class ApikeyController[F[_]: Effect](apikeyStore: ApikeyService[F],
       }
       .recover {
         case e: Throwable =>
-          Logger.error("Error importing file", e)
+          IzanamiLogger.error("Error importing file", e)
           InternalServerError
       }
       .runWith(Sink.head)

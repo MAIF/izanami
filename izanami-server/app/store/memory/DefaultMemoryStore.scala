@@ -7,7 +7,7 @@ import cats.Applicative
 import cats.effect.{Async}
 import domains.Key
 import env.DbDomainConfig
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, _}
 import store.Result.Result
 import store._
@@ -21,7 +21,7 @@ object InMemoryJsonDataStore {
   def apply[F[_]: Async](dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem): JsonDataStore[F] = {
     val namespace   = dbDomainConfig.conf.namespace
     implicit val ec = InMemoryExecutionContext(actorSystem)
-    Logger.info(s"Load store InMemory for namespace $namespace")
+    IzanamiLogger.info(s"Load store InMemory for namespace $namespace")
     //new InMemoryJsonDataStoreAsync(namespace)(sys, ec)
     new InMemoryJsonDataStore(namespace)
   }
@@ -132,7 +132,7 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
       inMemoryStore.put(id, data)
       Result.ok(data)
     } else {
-      Logger.error(s"Error data missing for $oldId")
+      IzanamiLogger.error(s"Error data missing for $oldId")
       Result.error("error.data.missing")
     }
 

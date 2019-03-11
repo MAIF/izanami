@@ -15,7 +15,7 @@ import domains.events.EventStore
 import domains.events.Events.ExperimentVariantEventCreated
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.ReadPreference
@@ -75,7 +75,7 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
   private val counterIndexesDefinition: Seq[Index] = Seq(
     Index(Seq("id" -> IndexType.Ascending), unique = true)
   )
-  Logger.debug(s"Initializing mongo collection $collectionName")
+  IzanamiLogger.debug(s"Initializing mongo collection $collectionName")
 
   Await.result(
     Future.sequence(

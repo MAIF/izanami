@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
 import cats.kernel.{Monoid, Semigroup}
 import env.DbDomainConfig
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.Reads.pattern
 import play.api.libs.json._
 import play.api.libs.streams.Accumulator
@@ -48,12 +48,14 @@ object Import {
       process: Flow[(String, JsValue), ImportResult, NotUsed]
   )(implicit ec: ExecutionContext, materializer: Materializer) =
     db.`import`.foreach { p =>
-      Logger.info(s"Importing file $p for namespace ${db.conf.namespace}")
+      IzanamiLogger.info(s"Importing file $p for namespace ${db.conf.namespace}")
       FileIO.fromPath(p).via(toJson).via(process).runWith(Sink.head).onComplete {
         case Success(res) if res.isError =>
-          Logger.info(s"Import end with error for file $p and namespace ${db.conf.namespace}: \n ${res.errors}")
-        case Success(_) => Logger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
-        case Failure(e) => Logger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
+          IzanamiLogger.info(s"Import end with error for file $p and namespace ${db.conf.namespace}: \n ${res.errors}")
+        case Success(_) =>
+          IzanamiLogger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
+        case Failure(e) =>
+          IzanamiLogger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
       }
     }
 }

@@ -21,7 +21,7 @@ import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import libs.dynamo.DynamoMapper
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import store.Result
 
 import scala.collection.JavaConverters._
@@ -51,7 +51,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
   ): F[Result[ExperimentVariantEvent]] = {
-    Logger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
+    IzanamiLogger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
     val key: String =
       s"${id.experimentId.key}:${id.variantId}"
 
@@ -87,7 +87,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   override def deleteEventsForExperiment(
       experiment: Experiment
   ): F[Result[Done]] = {
-    Logger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
+    IzanamiLogger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
 
     val delete = Flow[ExperimentVariantEventKey]
       .map(variantId => {
@@ -119,7 +119,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   def findExperimentVariantEvents(
       experiment: Experiment
   ): Source[(ExperimentKey, ExperimentVariantEventKey, List[ExperimentVariantEvent]), NotUsed] = {
-    Logger.debug(s"Dynamo find events on $tableName with experiment $experiment")
+    IzanamiLogger.debug(s"Dynamo find events on $tableName with experiment $experiment")
 
     val request = new QueryRequest()
       .withTableName(tableName)
@@ -151,7 +151,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   override def findVariantResult(
       experiment: Experiment
   ): Source[VariantResult, NotUsed] = {
-    Logger.debug(s"Dynamo find variant result on $tableName with experiment $experiment")
+    IzanamiLogger.debug(s"Dynamo find variant result on $tableName with experiment $experiment")
 
     findExperimentVariantEvents(experiment)
       .flatMapMerge(
@@ -170,7 +170,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   override def listAll(
       patterns: Seq[String]
   ): Source[ExperimentVariantEvent, NotUsed] = {
-    Logger.debug(s"Dynamo listAll on $tableName with patterns $patterns")
+    IzanamiLogger.debug(s"Dynamo listAll on $tableName with patterns $patterns")
 
     val request = new ScanRequest()
       .withTableName(tableName)
@@ -185,7 +185,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   }
 
   override def check(): F[Unit] = {
-    Logger.debug(s"Dynamo check on $tableName")
+    IzanamiLogger.debug(s"Dynamo check on $tableName")
 
     val request = new QueryRequest()
       .withTableName(tableName)

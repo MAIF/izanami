@@ -15,7 +15,7 @@ import cats.effect.implicits._
 import cats.implicits._
 import doobie.implicits._
 import fs2.Stream
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.JsValue
 import store.Result
 
@@ -49,28 +49,28 @@ class ExperimentVariantEventPostgresqlService[F[_]: ContextShift: ConcurrentEffe
          variant_id varchar(500) not null,
          payload jsonb not null
        )""")
-      Logger.debug(s"Applying script $frag")
+      IzanamiLogger.debug(s"Applying script $frag")
       frag
     }.update.run
 
     val experimentIdScript = {
       val frag = (sql"CREATE INDEX IF NOT EXISTS " ++
       Fragment.const(s"${tableName}_experiment_id_idx ") ++ fr" ON " ++ fragTableName ++ fr" (experiment_id)")
-      Logger.debug(s"Applying script $frag")
+      IzanamiLogger.debug(s"Applying script $frag")
       frag
     }.update.run
 
     val variantIdScript = {
       val frag = (sql"CREATE INDEX IF NOT EXISTS " ++
       Fragment.const(s"${tableName}_variant_id_idx ") ++ fr" ON " ++ fragTableName ++ fr" (variant_id)")
-      Logger.debug(s"Applying script $frag")
+      IzanamiLogger.debug(s"Applying script $frag")
       frag
     }.update.run
 
     val createdScript = {
       val frag = (sql"CREATE INDEX IF NOT EXISTS " ++
       Fragment.const(s"${tableName}_created_idx ") ++ fr" ON " ++ fragTableName ++ fr" (created)")
-      Logger.debug(s"Applying script $frag")
+      IzanamiLogger.debug(s"Applying script $frag")
       frag
     }.update.run
 
@@ -128,7 +128,7 @@ class ExperimentVariantEventPostgresqlService[F[_]: ContextShift: ConcurrentEffe
           .reads(json)
           .fold(
             { err =>
-              Logger.error(s"Error reading json $json : $err")
+              IzanamiLogger.error(s"Error reading json $json : $err")
               Stream.empty
             }, { ok =>
               Stream(ok)
@@ -148,7 +148,7 @@ class ExperimentVariantEventPostgresqlService[F[_]: ContextShift: ConcurrentEffe
               .reads(json)
               .fold(
                 { err =>
-                  Logger.error(s"Error reading json $json : $err")
+                  IzanamiLogger.error(s"Error reading json $json : $err")
                   None
                 }, { ok =>
                   Some(ok)
@@ -170,7 +170,7 @@ class ExperimentVariantEventPostgresqlService[F[_]: ContextShift: ConcurrentEffe
         .flatMap { json =>
           json.fold(
             { err =>
-              Logger.error(s"Error reading json $json : $err")
+              IzanamiLogger.error(s"Error reading json $json : $err")
               Stream.empty
             }, { ok =>
               Stream(ok)

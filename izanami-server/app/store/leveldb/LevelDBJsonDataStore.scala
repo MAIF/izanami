@@ -14,7 +14,7 @@ import env.{DbDomainConfig, LevelDbConfig}
 import libs.streams.Flows
 import org.iq80.leveldb._
 import org.iq80.leveldb.impl.Iq80DBFactory._
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
 import store.Result.{ErrorMessage, Result}
@@ -40,7 +40,7 @@ object LevelDBJsonDataStore {
     val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
     stores.stores.getOrElseUpdate(dbPath, {
-      Logger.info(s"Load store LevelDB for namespace $namespace")
+      IzanamiLogger.info(s"Load store LevelDB for namespace $namespace")
       new LevelDBJsonDataStore[F](dbPath, applicationLifecycle)
     })
   }
@@ -58,12 +58,12 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
     factory.open(new File(dbPath), new Options().createIfMissing(true))
   } catch {
     case e: Throwable =>
-      Logger.error(s"Error opening db for path $dbPath", e)
+      IzanamiLogger.error(s"Error opening db for path $dbPath", e)
       throw new RuntimeException(s"Error opening db for path $dbPath", e)
   }
 
   applicationLifecycle.addStopHook { () =>
-    Logger.info(s"Closing leveldb for path $dbPath")
+    IzanamiLogger.info(s"Closing leveldb for path $dbPath")
     Future(client.close())
   }
 

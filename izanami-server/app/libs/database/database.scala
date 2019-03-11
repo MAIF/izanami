@@ -7,6 +7,7 @@ import com.datastax.driver.core.{Cluster, Session}
 import doobie.util.transactor.Transactor
 import elastic.api.Elastic
 import env.IzanamiConfig
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.{Configuration, Logger}
 import play.api.libs.json.JsValue
@@ -53,7 +54,7 @@ object Drivers {
         val name      = c.name.getOrElse("default")
         val parsedUri = MongoConnection.parseURI(c.url).get
         val dbName    = parsedUri.db.orElse(c.database).getOrElse("default")
-        Logger.info(s"Creating mongo api driver with name:$name, dbName:$dbName, uri:$parsedUri")
+        IzanamiLogger.info(s"Creating mongo api driver with name:$name, dbName:$dbName, uri:$parsedUri")
         new DefaultReactiveMongoApi(
           name,
           parsedUri,
