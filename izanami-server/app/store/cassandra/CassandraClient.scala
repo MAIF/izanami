@@ -4,13 +4,13 @@ import java.net.InetSocketAddress
 
 import com.datastax.driver.core.{Cluster, Session}
 import env.CassandraConfig
-import play.api.Logger
+import libs.logs.IzanamiLogger
 
 object CassandraClient {
 
   def cassandraClient(mayBeConfig: Option[CassandraConfig]): Option[(Cluster, Session)] =
     mayBeConfig.map { config =>
-      Logger.info(s"Initializing Cassandra cluster for ${config}")
+      IzanamiLogger.info(s"Initializing Cassandra cluster for ${config}")
 
       val adds = config.addresses.map { add =>
         val Array(host, port) = add.split(":")

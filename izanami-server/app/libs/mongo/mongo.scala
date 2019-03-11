@@ -1,7 +1,7 @@
 package libs.mongo
 
 import akka.http.scaladsl.util.FastFuture
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.indexes.Index
 import reactivemongo.play.json.collection.JSONCollection
@@ -19,11 +19,11 @@ object MongoUtils {
           val created = if (names.contains(collectionName)) {
             FastFuture.successful(())
           } else {
-            Logger.info(s"Creating collection $collectionName")
+            IzanamiLogger.info(s"Creating collection $collectionName")
             collection.create(autoIndexId = false)
           }
           created.flatMap { _ =>
-            Logger.info(s"Creating indices for $collectionName")
+            IzanamiLogger.info(s"Creating indices for $collectionName")
             Future.sequence(indexesDefinition.map(collection.indexesManager.ensure))
           }
         }

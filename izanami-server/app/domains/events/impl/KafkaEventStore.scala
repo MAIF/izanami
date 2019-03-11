@@ -20,6 +20,7 @@ import play.api.libs.json.Json
 
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
+import libs.logs.IzanamiLogger
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
 
 import scala.collection.mutable
@@ -94,7 +95,7 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
   import scala.collection.JavaConverters._
   import system.dispatcher
 
-  Logger.info(s"Initializing kafka event store $clusterConfig")
+  IzanamiLogger.info(s"Initializing kafka event store $clusterConfig")
 
   private lazy val producerSettings =
     KafkaSettings.producerSettings(_env, system, clusterConfig)

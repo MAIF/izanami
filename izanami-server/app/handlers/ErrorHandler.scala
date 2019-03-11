@@ -1,5 +1,6 @@
 package handlers
 
+import libs.logs.IzanamiLogger
 import play.api._
 import play.api.http.DefaultHttpErrorHandler
 import play.api.mvc.Results._
@@ -17,7 +18,7 @@ class ErrorHandler(
 ) extends DefaultHttpErrorHandler(env, config, sourceMapper, router) {
 
   override def onProdServerError(request: RequestHeader, exception: UsefulException) = {
-    Logger.error(s"Error serving request ${request.method} ${request.uri}", exception)
+    IzanamiLogger.error(s"Error serving request ${request.method} ${request.uri}", exception)
     Future.successful(
       InternalServerError
     )

@@ -12,7 +12,7 @@ import domains.{Import, IsAllowed, Key}
 import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
@@ -174,7 +174,7 @@ class GlobalScriptController[F[_]: Effect](env: Env,
       }
       .recover {
         case e: Throwable =>
-          Logger.error("Error importing file", e)
+          IzanamiLogger.error("Error importing file", e)
           InternalServerError
       }
       .runWith(Sink.head)

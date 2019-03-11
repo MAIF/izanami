@@ -19,7 +19,7 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
 import cats.effect.Effect
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import store.Result.{ErrorMessage, Result}
 import store.elastic.ElasticJsonDataStore.EsDocument
 
@@ -80,7 +80,7 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
       |}
     """.stripMargin
 
-  Logger.info(s"Initializing index $esIndex with type $esType")
+  IzanamiLogger.info(s"Initializing index $esIndex with type $esType")
 
   Await.result(elastic.verifyIndex(esIndex).flatMap {
     case true =>
@@ -198,7 +198,7 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
       "from" -> (page - 1) * nbElementPerPage,
       "size" -> nbElementPerPage
     )
-    Logger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
+    IzanamiLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
     index.search(query).toF.map { s =>
       val count   = s.hits.total
       val results = s.hitsAs[EsDocument].map(_.value).toList
@@ -213,7 +213,7 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
 
   private def getByIdLikeSource(patterns: Seq[String]): Source[(String, JsValue), NotUsed] = {
     val query = buildSearchQuery(patterns)
-    Logger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
+    IzanamiLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
     index
       .scroll(query = query, scroll = "1s", size = 50)
       .mapConcat { s =>

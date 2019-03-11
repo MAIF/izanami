@@ -9,7 +9,7 @@ import controllers.actions.SecuredAuthContext
 import domains.webhook.{Webhook, WebhookInstances, WebhookService}
 import domains.{Import, IsAllowed, Key}
 import libs.patch.Patch
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
@@ -162,7 +162,7 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookService[F],
       }
       .recover {
         case e: Throwable =>
-          Logger.error("Error importing file", e)
+          IzanamiLogger.error("Error importing file", e)
           InternalServerError
       }
       .runWith(Sink.head)

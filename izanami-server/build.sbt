@@ -11,7 +11,7 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-val akkaVersion    = "2.5.17"
+val akkaVersion    = "2.5.21"
 val metricsVersion = "4.0.2"
 val kotlinVersion  = "1.3.0"
 val doobieVersion  = "0.6.0"

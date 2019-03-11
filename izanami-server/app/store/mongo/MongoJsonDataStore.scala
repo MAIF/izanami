@@ -8,7 +8,7 @@ import cats.effect.Effect
 import domains.Key
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.akkastream._
@@ -46,7 +46,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
 
   private val collectionName = namespace.replaceAll(":", "_")
 
-  Logger.debug(s"Initializing mongo collection $collectionName")
+  IzanamiLogger.debug(s"Initializing mongo collection $collectionName")
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
   private implicit val mat: Materializer      = ActorMaterializer()
@@ -61,7 +61,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
   private def storeCollection = mongoApi.database.map(_.collection[JSONCollection](collectionName))
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
-    Logger.debug(s"Creating $id => $data")
+    IzanamiLogger.debug(s"Creating $id => $data")
     storeCollection
       .map(_.insert(MongoDoc(id, data)))
       .map { _ =>
@@ -109,7 +109,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     collection.insert(MongoDoc(id, data)).toF.map(_ => Result.ok(data))
 
   private def getByIdRaw(id: Key)(implicit collection: JSONCollection): F[Option[JsValue]] = {
-    Logger.debug(s"Mongo query $collectionName findById ${id.key}")
+    IzanamiLogger.debug(s"Mongo query $collectionName findById ${id.key}")
     collection
       .find(Json.obj("id" -> id.key))
       .one[MongoDoc]
@@ -125,7 +125,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     val from    = (page - 1) * nbElementPerPage
     val options = QueryOpts(skipN = from, batchSizeN = nbElementPerPage, flagsN = 0)
     val query   = buildPatternLikeRequest(patterns)
-    Logger.debug(
+    IzanamiLogger.debug(
       s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage"
     )
     storeCollection.toF.flatMap { implicit collection =>
@@ -147,7 +147,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
   override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
     Source.fromFuture(storeCollection).flatMapConcat {
       val query = buildPatternLikeRequest(patterns)
-      Logger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
+      IzanamiLogger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
       _.find(query)
         .cursor[MongoDoc](ReadPreference.primary)
         .documentSource()
@@ -156,7 +156,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
 
   private def countRaw(patterns: Seq[String])(implicit collection: JSONCollection): F[Int] = {
     val query = buildPatternLikeRequest(patterns)
-    Logger.debug(s"Mongo query $collectionName count ${Json.stringify(query)}")
+    IzanamiLogger.debug(s"Mongo query $collectionName count ${Json.stringify(query)}")
     collection.count(Some(query)).toF
   }
 

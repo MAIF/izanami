@@ -10,7 +10,7 @@ import com.amazonaws.services.dynamodbv2.model.{ConditionalCheckFailedException,
 import domains.Key
 import env.{DbDomainConfig, DynamoConfig}
 import libs.streams.Flows
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.JsValue
 import store.Result.{ErrorMessage, Result}
 import libs.dynamo.DynamoMapper
@@ -24,7 +24,7 @@ object DynamoJsonDataStore {
       implicit system: ActorSystem
   ): DynamoJsonDataStore[F] = {
     val namespace = config.conf.namespace
-    Logger.info(s"Load store Dynamo for namespace $namespace")
+    IzanamiLogger.info(s"Load store Dynamo for namespace $namespace")
     DynamoJsonDataStore(client, dynamoConfig.tableName, namespace)
   }
 
@@ -47,7 +47,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
   override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] = {
-    Logger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
+    IzanamiLogger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
     if (oldId == id) put(id, data, createOnly = false)
     else {
       for {
@@ -58,7 +58,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
   }
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
-    Logger.debug(s"Dynamo query on $tableName and store $storeName create with id : $id and data : $data")
+    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName create with id : $id and data : $data")
 
     put(id, data, createOnly = true)
   }
@@ -88,7 +88,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
     deleteF(id).toF
 
   def deleteF(id: Key): Future[Result[JsValue]] = {
-    Logger.debug(s"Dynamo delete on $tableName and store $storeName delete with id : $id")
+    IzanamiLogger.debug(s"Dynamo delete on $tableName and store $storeName delete with id : $id")
 
     val request = new DeleteItemRequest()
       .withTableName(tableName)
@@ -110,7 +110,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
   }
 
   override def deleteAll(patterns: Seq[String]): F[Result[Done]] = {
-    Logger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $patterns")
+    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $patterns")
 
     getByIdLike(patterns)
       .mapAsync(10) { case (id, _) => deleteF(id) }
@@ -120,12 +120,12 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
   }
 
   override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] = {
-    Logger.debug(s"Dynamo query on $tableName and store $storeName getByIdLike with patterns : $patterns")
+    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName getByIdLike with patterns : $patterns")
     findKeys(patterns)
   }
 
   override def getById(id: Key): F[Option[JsValue]] = {
-    Logger.debug(s"Dynamo query on $tableName and store $storeName getById with id : $id")
+    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName getById with id : $id")
 
     val request = new GetItemRequest()
       .withTableName(tableName)
@@ -143,7 +143,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
   }
 
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
-    Logger.debug(
+    IzanamiLogger.debug(
       s"Dynamo query on $tableName and store $storeName getByIdLike with patterns : $patterns, page $page, $nbElementPerPage elements by page"
     )
 
@@ -189,7 +189,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
     countF(patterns).toF
 
   private def countF(patterns: Seq[String]): Future[Long] = {
-    Logger.debug(s"Dynamo query on $tableName and store $storeName count with patterns : $patterns")
+    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName count with patterns : $patterns")
     findKeys(patterns)
       .runFold(0L) { (acc, _) =>
         acc + 1

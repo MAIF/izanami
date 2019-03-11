@@ -13,7 +13,7 @@ import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFut
 import domains.Key
 import env.{CassandraConfig, DbDomainConfig}
 import libs.streams.Flows
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
 import store.Result.{ErrorMessage, Result}
 import store._
@@ -32,7 +32,7 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
     implicit actorSystem: ActorSystem
 ) extends JsonDataStore[F] {
 
-  Logger.info(s"Load store Cassandra for namespace $namespace")
+  IzanamiLogger.info(s"Load store Cassandra for namespace $namespace")
 
   private val namespaceFormatted = namespace.replaceAll(":", "_")
 
@@ -46,7 +46,7 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
 
   import actorSystem.dispatcher
 
-  Logger.info(s"Creating table $keyspace.$namespaceFormatted if not exists")
+  IzanamiLogger.info(s"Creating table $keyspace.$namespaceFormatted if not exists")
   session.execute(s"""
       | CREATE TABLE IF NOT EXISTS $keyspace.$namespaceFormatted (
       |   namespace text,
@@ -165,7 +165,7 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
           val stm: String = if (!s.isEmpty) s"AND $s" else ""
           val query =
             s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-          Logger.debug(s"Running query $query with args [$namespaceFormatted]")
+          IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
           val stmt: Statement =
             new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
           CassandraSource(stmt)
@@ -193,7 +193,7 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
     val query =
       s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
     val args = Seq(namespaceFormatted, id.key)
-    Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
+    IzanamiLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
     executeWithSession(
       query = query,
       args = args: _*
@@ -236,7 +236,7 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
           val stm: String = if (!s.isEmpty) s"AND $s" else ""
           val query =
             s"SELECT key, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-          Logger.debug(s"Running query $query with args [$namespaceFormatted]")
+          IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
           val stmt = new SimpleStatement(query, namespaceFormatted)
           CassandraSource(stmt).map { rs =>
             (Key(rs.getString("key")), Json.parse(rs.getString("value")))
@@ -262,7 +262,7 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
           val stm: String = if (!s.isEmpty) s"AND $s" else ""
           val query =
             s"SELECT COUNT(*) AS count FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-          Logger.debug(s"Running query $query with args [$namespaceFormatted]")
+          IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
           val stmt: SimpleStatement =
             new SimpleStatement(
               query,
@@ -287,10 +287,10 @@ object Cassandra {
   def executeWithSession[F[_]: Async](query: String, args: Any*)(implicit session: Session,
                                                                  ec: ExecutionContext): F[ResultSet] =
     if (args.isEmpty) {
-      Logger.debug(s"Running query $query ")
+      IzanamiLogger.debug(s"Running query $query ")
       session.executeAsync(query).toF
     } else {
-      Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ")
+      IzanamiLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ")
       session
         .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
         .toF

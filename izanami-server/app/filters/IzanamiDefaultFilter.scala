@@ -15,6 +15,7 @@ import domains.apikey.ApikeyService
 import domains.user.User
 import domains.{AuthInfo, AuthorizedPattern, Key}
 import env._
+import libs.logs.IzanamiLogger
 import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.typedmap._

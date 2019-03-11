@@ -3,7 +3,8 @@ package env
 import akka.actor.ActorSystem
 import com.codahale.metrics.MetricRegistry
 import controllers.AssetsFinder
-import domains.script.{ScriptExecutionContext}
+import domains.script.ScriptExecutionContext
+import libs.logs.IzanamiLogger
 import play.api.libs.ws.WSClient
 import play.api.{Environment, Logger, Mode}
 
@@ -27,7 +28,7 @@ case class Env(
 
   def isPlayDevMode = environment.mode == Mode.Dev
 
-  Logger.info(s"Starting izanami with $env mode")
+  IzanamiLogger.info(s"Starting izanami with $env mode")
 //  val sharedKey: String = izanamiConfig.claim.sharedKey
 
   def hash = Random.nextInt(100000)

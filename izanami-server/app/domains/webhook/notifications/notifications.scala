@@ -14,7 +14,7 @@ import domains.webhook.Webhook.WebhookKey
 import domains.webhook.notifications.WebHookActor._
 import domains.webhook.{Webhook, WebhookService}
 import env.WebhookConfig
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
 
@@ -50,7 +50,7 @@ class WebHooksActor[F[_]: Effect](wSClient: WSClient,
   override def supervisorStrategy: SupervisorStrategy =
     OneForOneStrategy() {
       case WebhookBannedException(id) =>
-        Logger.error(s"Webhook with id $id is banned")
+        IzanamiLogger.error(s"Webhook with id $id is banned")
         Stop
       case e =>
         Restart
@@ -60,17 +60,17 @@ class WebHooksActor[F[_]: Effect](wSClient: WSClient,
     case RefreshWebhook =>
       setUpWebHooks()
     case WebhookCreated(_, hook, _, _) =>
-      Logger.debug("WebHook created event, creating webhook actor if missing")
+      IzanamiLogger.debug("WebHook created event, creating webhook actor if missing")
       createWebhook(hook)
     case WebhookUpdated(_, _, hook, _, _) =>
-      Logger.debug("WebHook updated event, creating webhook actor if missing")
+      IzanamiLogger.debug("WebHook updated event, creating webhook actor if missing")
       createWebhook(hook)
       context.child(buildId(hook.clientId)).foreach(_ ! UpdateWebHook(hook))
     case WebhookDeleted(_, hook, _, _) =>
-      Logger.info(s"Deleting webhook ${hook.clientId.key}")
+      IzanamiLogger.info(s"Deleting webhook ${hook.clientId.key}")
       context.child(buildId(hook.clientId)).foreach(_ ! PoisonPill)
     case Terminated(r) =>
-      Logger.info(s"Webhook stopped $r")
+      IzanamiLogger.info(s"Webhook stopped $r")
   }
 
   override def preStart(): Unit = {
@@ -85,8 +85,8 @@ class WebHooksActor[F[_]: Effect](wSClient: WSClient,
           self ! event
         })
         .onComplete {
-          case Success(d) => Logger.debug(s"Stream finished")
-          case Failure(e) => Logger.error("Error consuming event stream", e)
+          case Success(d) => IzanamiLogger.debug(s"Stream finished")
+          case Failure(e) => IzanamiLogger.error("Error consuming event stream", e)
         }
     }
   }
@@ -112,11 +112,11 @@ class WebHooksActor[F[_]: Effect](wSClient: WSClient,
   private def createWebhook(hook: Webhook): Unit = {
     val childName = buildId(hook.clientId)
     if (!hook.isBanned && context.child(childName).isEmpty) {
-      Logger.info(s"Starting new webhook $childName")
+      IzanamiLogger.info(s"Starting new webhook $childName")
       val ref = context.actorOf(WebHookActor.props[F](wSClient, webhookStore, hook, config), childName)
       context.watch(ref)
     } else {
-      Logger.info(s"Webhook $hook not started")
+      IzanamiLogger.info(s"Webhook $hook not started")
     }
   }
 
@@ -189,10 +189,10 @@ class WebHookActor[F[_]: Effect](wSClient: WSClient,
       case UpdateWebHook(wh) =>
         context.become(handleMessages(wh), true)
       case event: IzanamiEvent if keepEvent(event) =>
-        Logger.debug(s"[Webhook] Queueing event ${event}")
+        IzanamiLogger.debug(s"[Webhook] Queueing event ${event}")
         queue = queue + event
         if (queue.size >= config.events.group) {
-          Logger.debug(s"[Webhook] Sending events by group ${config.events.group}")
+          IzanamiLogger.debug(s"[Webhook] Sending events by group ${config.events.group}")
           sendEvents(queue, id, callbackUrl, effectivesHeaders)
         }
 
@@ -204,7 +204,7 @@ class WebHookActor[F[_]: Effect](wSClient: WSClient,
         )
 
       case SendEvents if queue.nonEmpty =>
-        Logger.debug(s"[Webhook] Sending events within ${config.events.within}")
+        IzanamiLogger.debug(s"[Webhook] Sending events within ${config.events.within}")
         sendEvents(queue, id, callbackUrl, effectivesHeaders)
 
       case WebhookBanned =>
@@ -219,7 +219,7 @@ class WebHookActor[F[_]: Effect](wSClient: WSClient,
     val json: JsValue =
       Json.obj("objectsEdited" -> JsArray(queue.map(_.toJson).toSeq))
     queue = Set.empty[IzanamiEvent]
-    Logger.debug(s"Sending events to ${webhook.callbackUrl} : $json")
+    IzanamiLogger.debug(s"Sending events to ${webhook.callbackUrl} : $json")
     try {
       webhookStore.getById(id).toIO.unsafeToFuture().onComplete {
         case Success(Some(w)) if !w.isBanned =>
@@ -230,14 +230,14 @@ class WebHookActor[F[_]: Effect](wSClient: WSClient,
             .post(json)
             .map { resp =>
               if (resp.status != 200) {
-                Logger.error(s"Error sending to webhook $callbackUrl : ${resp.body}")
+                IzanamiLogger.error(s"Error sending to webhook $callbackUrl : ${resp.body}")
                 handleErrors(id)
               }
               Done
             }
             .recover {
               case e =>
-                Logger.error(s"Error sending to webhook $callbackUrl", e)
+                IzanamiLogger.error(s"Error sending to webhook $callbackUrl", e)
                 handleErrors(id)
                 Done
             }
@@ -248,7 +248,7 @@ class WebHookActor[F[_]: Effect](wSClient: WSClient,
 
     } catch {
       case e: Throwable =>
-        Logger.error(s"Error sending to webhook $callbackUrl", e)
+        IzanamiLogger.error(s"Error sending to webhook $callbackUrl", e)
         handleErrors(id)
     }
   }
@@ -260,9 +260,9 @@ class WebHookActor[F[_]: Effect](wSClient: WSClient,
       context.system.scheduler
         .scheduleOnce(config.events.errorReset, self, ResetErrors)
     )
-    Logger.error(s"Increasing error to $errorCount/${config.events.nbMaxErrors} for $id")
+    IzanamiLogger.error(s"Increasing error to $errorCount/${config.events.nbMaxErrors} for $id")
     if (errorCount > config.events.nbMaxErrors) {
-      Logger.error(s"$id is banned, updating db")
+      IzanamiLogger.error(s"$id is banned, updating db")
       webhookStore.update(id, id, webhook.copy(isBanned = true)).toIO.unsafeToFuture().onComplete { _ =>
         self ! WebhookBanned
       }
