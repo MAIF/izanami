@@ -1,6 +1,7 @@
 package controllers.actions
 
 import akka.http.scaladsl.util.FastFuture
+import libs.AppLogger
 import play.api.Logger
 import play.api.mvc.Results.Unauthorized
 import play.api.mvc._
@@ -19,7 +20,7 @@ class SecuredAction(val parser: BodyParser[AnyContent])(implicit val executionCo
     maybeUserId match {
       case Some(id) => block(SecuredContext(request, id.value))
       case None =>
-        Logger.debug("Auth info is empty => Forbidden")
+        AppLogger.debug("Auth info is empty => Forbidden")
         FastFuture.successful(Unauthorized)
     }
   }
