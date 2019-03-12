@@ -11,10 +11,11 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-val akkaVersion    = "2.5.21"
-val metricsVersion = "4.0.2"
-val kotlinVersion  = "1.3.0"
-val doobieVersion  = "0.6.0"
+val akkaVersion     = "2.5.21"
+val metricsVersion  = "4.0.2"
+val kotlinVersion   = "1.3.0"
+val doobieVersion   = "0.6.0"
+val akkaHttpVersion = "10.1.7"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
@@ -66,8 +67,8 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"     % "kotlin-script-runtime"          % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-script-util"             % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"     % kotlinVersion,
-  "com.typesafe.akka"        %% "akka-http"                     % "10.0.6" % Test, // Apache 2.0
-  "de.heikoseeberger"        %% "akka-http-play-json"           % "1.16.0" % Test, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-http"                     % akkaHttpVersion % Test, // Apache 2.0
+  "de.heikoseeberger"        %% "akka-http-play-json"           % "1.25.2" % Test, // Apache 2.0
   "org.scalatestplus.play"   %% "scalatestplus-play"            % "3.1.1" % Test, // Apache 2.0
   "com.github.kstyrc"        % "embedded-redis"                 % "0.6" % Test, // Apache 2.0
   "org.slf4j"                % "slf4j-api"                      % "1.7.25" % Test, // MIT license
