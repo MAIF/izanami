@@ -20,7 +20,7 @@ object MongoUtils {
             FastFuture.successful(())
           } else {
             IzanamiLogger.info(s"Creating collection $collectionName")
-            collection.create(autoIndexId = false)
+            collection.create()
           }
           created.flatMap { _ =>
             IzanamiLogger.info(s"Creating indices for $collectionName")

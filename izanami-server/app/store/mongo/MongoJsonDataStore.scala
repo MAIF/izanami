@@ -13,12 +13,13 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.akkastream._
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.api.{Cursor, QueryOpts, ReadPreference}
+import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
 import store.Result.{AppErrors, Result}
 import store._
 import libs.functional.EitherTSyntax
+
 import scala.concurrent.duration.DurationLong
 import scala.concurrent.{Await, Future}
 
@@ -63,7 +64,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
   override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
     IzanamiLogger.debug(s"Creating $id => $data")
     storeCollection
-      .map(_.insert(MongoDoc(id, data)))
+      .map(_.insert.one(MongoDoc(id, data)))
       .map { _ =>
         Result.ok(data)
       }
@@ -97,21 +98,21 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     }
 
   private def deleteRaw(id: Key)(implicit collection: JSONCollection): F[Result[Unit]] =
-    collection.remove(Json.obj("id" -> id.key)).toF.map(_ => Result.ok(()))
+    collection.delete.one(Json.obj("id" -> id.key)).toF.map(_ => Result.ok(()))
 
   override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    storeCollection.map(_.remove(Json.obj())).toF.map(_ => Result.ok(Done))
+    storeCollection.map(_.delete.element(Json.obj())).toF.map(_ => Result.ok(Done))
 
   private def updateRaw(id: Key, data: JsValue)(implicit collection: JSONCollection): F[Result[JsValue]] =
-    collection.update(Json.obj("id" -> id.key), MongoDoc(id, data), upsert = true).toF.map(_ => Result.ok(data))
+    collection.update.one(Json.obj("id" -> id.key), MongoDoc(id, data), upsert = true).toF.map(_ => Result.ok(data))
 
   private def createRaw(id: Key, data: JsValue)(implicit collection: JSONCollection): F[Result[JsValue]] =
-    collection.insert(MongoDoc(id, data)).toF.map(_ => Result.ok(data))
+    collection.insert.one(MongoDoc(id, data)).toF.map(_ => Result.ok(data))
 
   private def getByIdRaw(id: Key)(implicit collection: JSONCollection): F[Option[JsValue]] = {
     IzanamiLogger.debug(s"Mongo query $collectionName findById ${id.key}")
     collection
-      .find(Json.obj("id" -> id.key))
+      .find(Json.obj("id" -> id.key), projection = Option.empty[JsObject])
       .one[MongoDoc]
       .map(_.map(_.data))
       .toF
@@ -130,16 +131,16 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     )
     storeCollection.toF.flatMap { implicit collection =>
       val findResult: F[Seq[MongoDoc]] = collection
-        .find(query)
+        .find(query, projection = Option.empty[JsObject])
         .options(options)
         .cursor[MongoDoc](ReadPreference.primary)
         .collect[Seq](maxDocs = nbElementPerPage, Cursor.FailOnError[Seq[MongoDoc]]())
         .toF
 
-      val countResult: F[Int] = countRaw(patterns)
+      val countResult: F[Long] = countRaw(patterns)
 
       (countResult, findResult).mapN { (count, res) =>
-        DefaultPagingResult(res.map(_.data), page, nbElementPerPage, count)
+        DefaultPagingResult(res.map(_.data), page, nbElementPerPage, count.toInt)
       }
     }
   }
@@ -148,16 +149,24 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     Source.fromFuture(storeCollection).flatMapConcat {
       val query = buildPatternLikeRequest(patterns)
       IzanamiLogger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
-      _.find(query)
+      _.find(query, projection = Option.empty[JsObject])
         .cursor[MongoDoc](ReadPreference.primary)
         .documentSource()
         .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
     }
 
-  private def countRaw(patterns: Seq[String])(implicit collection: JSONCollection): F[Int] = {
+  private def countRaw(patterns: Seq[String])(implicit collection: JSONCollection): F[Long] = {
     val query = buildPatternLikeRequest(patterns)
     IzanamiLogger.debug(s"Mongo query $collectionName count ${Json.stringify(query)}")
-    collection.count(Some(query)).toF
+    collection
+      .count(
+        selector = Some(query),
+        limit = None,
+        skip = 0,
+        hint = None,
+        readConcern = ReadConcern.Majority
+      )
+      .toF[F]
   }
 
   override def count(patterns: Seq[String]): F[Long] =
