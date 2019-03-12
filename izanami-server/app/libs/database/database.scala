@@ -35,6 +35,8 @@ object Drivers {
   ): Drivers[F] =
     new Drivers[F] {
 
+      import system.dispatcher
+
       lazy val getRedisClient: Option[RedisWrapper] =
         RedisClientBuilder.redisClient(izanamiConfig.db.redis, system, applicationLifecycle)
 
@@ -56,7 +58,6 @@ object Drivers {
         val dbName    = parsedUri.db.orElse(c.database).getOrElse("default")
         IzanamiLogger.info(s"Creating mongo api driver with name:$name, dbName:$dbName, uri:$parsedUri")
         new DefaultReactiveMongoApi(
-          name,
           parsedUri,
           dbName,
           false,

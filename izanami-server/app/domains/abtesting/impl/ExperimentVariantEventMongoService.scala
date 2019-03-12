@@ -16,7 +16,7 @@ import domains.events.Events.ExperimentVariantEventCreated
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
 import libs.logs.IzanamiLogger
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.ReadPreference
 import reactivemongo.api.indexes.{Index, IndexType}
@@ -91,7 +91,7 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
     mongoApi.database
       .flatMap(
         _.collection[JSONCollection](collName)
-          .find(Json.obj("id" -> id))
+          .find(Json.obj("id" -> id), projection = Option.empty[JsObject])
           .one[Counter]
       )
       .toF
@@ -107,8 +107,8 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
   private def insert(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
     mongoApi.database
       .flatMap(
-        _.collection[JSONCollection](collectionName)
-          .insert(ExperimentVariantEventDocument(id, id.experimentId, id.variantId, data))
+        _.collection[JSONCollection](collectionName).insert
+          .one(ExperimentVariantEventDocument(id, id.experimentId, id.variantId, data))
       )
       .toF
       .map(_ => Result.ok(data))
@@ -116,8 +116,7 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     mongoApi.database
       .flatMap(
-        _.collection[JSONCollection](collectionName)
-          .remove(Json.obj("experimentId" -> experiment.id.key))
+        _.collection[JSONCollection](collectionName).delete.one(Json.obj("experimentId" -> experiment.id.key))
       )
       .toF
       .map(_ => Result.ok(Done))
@@ -145,7 +144,8 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
         mongoApi.database.map { collection =>
           collection
             .collection[JSONCollection](collectionName)
-            .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant.id))
+            .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant.id),
+                  projection = Option.empty[JsObject])
             .sort(Json.obj("date" -> 1))
             .cursor[ExperimentVariantEventDocument](ReadPreference.primary)
             .documentSource()
@@ -158,7 +158,7 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
     mongoApi.database.flatMap { collection =>
       collection
         .collection[JSONCollection](collectionName)
-        .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant))
+        .find(Json.obj("experimentId" -> experimentId, "variantId" -> variant), projection = Option.empty[JsObject])
         .sort(Json.obj("date" -> 1))
         .one[ExperimentVariantEventDocument](ReadPreference.primary)
         .map(_.map(_.data))
@@ -169,7 +169,7 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
       .fromFuture(mongoApi.database)
       .map(_.collection[JSONCollection](collectionName))
       .flatMapConcat(
-        _.find(Json.obj())
+        _.find(Json.obj(), projection = Option.empty[JsObject])
           .cursor[ExperimentVariantEventDocument](ReadPreference.primary)
           .documentSource()
           .map(_.data)
@@ -179,7 +179,7 @@ class ExperimentVariantEventMongoService[F[_]: Effect](namespace: String,
     mongoApi.database
       .flatMap(
         _.collection[JSONCollection](collectionName)
-          .find(Json.obj())
+          .find(Json.obj(), projection = Option.empty[JsObject])
           .one[JsValue]
       )
       .toF
