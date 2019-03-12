@@ -55,7 +55,7 @@ libraryDependencies ++= Seq(
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "1.0-M3", // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"             % "1.0.1", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"            % "0.0.11" excludeAll ExclusionRule("org.typelevel", "cats-core"), // Apache 2.0
-  "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.1", // Apache 2.0
+  "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                   % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jvm"                    % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jmx"                    % metricsVersion, // Apache 2.0
