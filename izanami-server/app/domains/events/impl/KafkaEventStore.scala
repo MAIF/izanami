@@ -102,7 +102,7 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
   private lazy val producerSettings =
     KafkaSettings.producerSettings(_env, system, clusterConfig)
 
-  private lazy val producer: KafkaProducer[String, String] =
+  private lazy val producer =
     producerSettings.createKafkaProducer
 
   val settings: ConsumerSettings[String, String] = KafkaSettings
