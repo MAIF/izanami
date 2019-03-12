@@ -52,8 +52,8 @@ libraryDependencies ++= Seq(
   "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
   "com.adelegue"             %% "playjson-extended"             % "0.0.3" excludeAll ExclusionRule("org.typelevel", "cats-core"), // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
-  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "0.19", // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream-kafka"             % "0.21", // Apache 2.0
+  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "1.0-M3", // Apache 2.0
+  "com.typesafe.akka"        %% "akka-stream-kafka"             % "1.0.1", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"            % "0.0.11" excludeAll ExclusionRule("org.typelevel", "cats-core"), // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.5.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                   % metricsVersion, // Apache 2.0
