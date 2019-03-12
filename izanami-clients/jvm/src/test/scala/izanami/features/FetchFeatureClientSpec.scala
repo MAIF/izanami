@@ -38,7 +38,7 @@ class FetchFeatureClientSpec
       createEnabledFeatureWithNoStrategy(featureId)
 
       val featureCreated = featureClient.createFeature(featureId)
-      val feature = featureCreated.futureValue
+      val feature        = featureCreated.futureValue
 
       feature.id must be("bla:bla")
       feature.enabled must be(true)

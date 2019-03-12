@@ -9,7 +9,7 @@ redisdata/
 npmrc
 .artifactory
 secrets.tar
-logs
+/logs/
 .DS_Store
 node_modules
 leveldb/datas
