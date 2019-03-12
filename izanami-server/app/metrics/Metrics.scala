@@ -92,8 +92,8 @@ class Metrics[F[_]](_env: Env,
 
   val kafkaScheduler: Option[Cancellable] = if (metricsConfig.kafka.enabled) {
     izanamiConfig.db.kafka.map { kafkaConfig =>
-      val producerSettings                        = KafkaSettings.producerSettings(_env.environment, system, kafkaConfig)
-      val producer: KafkaProducer[String, String] = producerSettings.createKafkaProducer
+      val producerSettings = KafkaSettings.producerSettings(_env.environment, system, kafkaConfig)
+      val producer         = producerSettings.createKafkaProducer
       system.scheduler.schedule(
         metricsConfig.kafka.pushInterval,
         metricsConfig.kafka.pushInterval,
