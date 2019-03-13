@@ -66,25 +66,9 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
 
   private val uri = Uri(config.host)
 
-  private val http: Flow[(HttpRequest, Unit), (Try[HttpResponse], Unit), HostConnectionPool] = uri.scheme match {
-    case "https" =>
-      logger.info(s"Creating https connection pool for {}:{}", uri.authority.host.address(), uri.authority.port)
-      Http().cachedHostConnectionPoolHttps(uri.authority.host.address(), uri.authority.port)
-    case _ =>
-      logger.info(s"Creating http connection pool for {}:{}", uri.authority.host.address(), uri.authority.port)
-      Http().cachedHostConnectionPool(uri.authority.host.address(), uri.authority.port)
-  }
+  private val http = Http()
 
-  private def singleRequest(r: HttpRequest): Future[HttpResponse] =
-    Source
-      .single(r -> ())
-      .via(http)
-      .map(_._1)
-      .flatMapConcat {
-        case Success(s) => Source.single(s)
-        case Failure(e) => Source.failed(e)
-      }
-      .runWith(Sink.head)
+  private def singleRequest(r: HttpRequest): Future[HttpResponse] = http.singleRequest(r)
 
   private val headers = (for {
     clientId     <- config.clientId
