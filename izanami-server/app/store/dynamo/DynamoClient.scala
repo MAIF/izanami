@@ -1,11 +1,13 @@
 package store.dynamo
 
 import akka.actor.ActorSystem
-import akka.stream.alpakka.dynamodb.impl.DynamoSettings
+import akka.stream.alpakka.dynamodb.{DynamoAttributes, DynamoSettings, DynamoClient => AlpakkaClient}
+import akka.stream.alpakka.dynamodb.AwsOp._
+import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
+import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import env.DynamoConfig
 import libs.logs.IzanamiLogger
-import akka.stream.alpakka.dynamodb.scaladsl.{DynamoClient => AlpakkaClient}
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.services.dynamodbv2.model._
 
@@ -13,7 +15,6 @@ import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 object DynamoClient {
-  import akka.stream.alpakka.dynamodb.scaladsl.DynamoImplicits._
 
   def dynamoClient(mayBeConfig: Option[DynamoConfig])(implicit actorSystem: ActorSystem): Option[AlpakkaClient] =
     mayBeConfig.map { config =>
@@ -26,11 +27,10 @@ object DynamoClient {
         secret <- config.secretKey.map(_.trim).filter(_.nonEmpty)
       } yield new AWSStaticCredentialsProvider(new BasicAWSCredentials(access, secret))
 
-      val settings = DynamoSettings(config.region,
-                                    config.host,
-                                    config.port,
-                                    config.parallelism,
-                                    credentials.getOrElse(new DefaultAWSCredentialsProviderChain()))
+      val settings = DynamoSettings(config.region, config.host)
+        .withPort(config.port)
+        .withParallelism(config.parallelism)
+        .withCredentialsProvider(credentials.getOrElse(new DefaultAWSCredentialsProviderChain()))
 
       val client = AlpakkaClient(settings)
 
@@ -66,17 +66,16 @@ object DynamoClient {
   private def createIfNotExist(client: AlpakkaClient,
                                tableName: String,
                                attributes: List[AttributeDefinition],
-                               keys: List[KeySchemaElement])(implicit ec: ExecutionContext) =
-    client
-      .single(
-        new DescribeTableRequest()
-          .withTableName(tableName)
-      )
+                               keys: List[KeySchemaElement])(implicit mat: Materializer, ec: ExecutionContext) =
+    DynamoDb
+      .source(new DescribeTableRequest().withTableName(tableName))
+      .withAttributes(DynamoAttributes.client(client))
+      .runWith(Sink.head)
       .recover {
         case _: ResourceNotFoundException =>
           IzanamiLogger.info(s"Table $tableName did not exist, creating it")
-          client
-            .single(
+          DynamoDb
+            .source(
               new CreateTableRequest()
                 .withTableName(tableName)
                 .withAttributeDefinitions(attributes: _*)
@@ -87,6 +86,8 @@ object DynamoClient {
                     .withWriteCapacityUnits(1L)
                 )
             )
+            .withAttributes(DynamoAttributes.client(client))
+            .runWith(Sink.head)
             .onComplete {
               case Success(_)     => IzanamiLogger.info(s"Table $tableName created successfully")
               case Failure(error) => IzanamiLogger.error(s"Could not create $tableName", error)
