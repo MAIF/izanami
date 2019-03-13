@@ -1,7 +1,7 @@
 package libs.database
 
 import akka.actor.ActorSystem
-import akka.stream.alpakka.dynamodb.scaladsl.DynamoClient
+import akka.stream.alpakka.dynamodb.DynamoClient
 import cats.effect.{Async, ConcurrentEffect, ContextShift}
 import com.datastax.driver.core.{Cluster, Session}
 import doobie.util.transactor.Transactor

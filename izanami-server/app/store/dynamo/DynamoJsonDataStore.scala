@@ -2,7 +2,9 @@ package store.dynamo
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.alpakka.dynamodb.scaladsl.{DynamoClient => AlpakkaClient}
+import akka.stream.alpakka.dynamodb.{DynamoClient => AlpakkaClient, _}
+import akka.stream.alpakka.dynamodb.AwsOp._
+import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
 import cats.effect.Effect
@@ -41,8 +43,6 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
   import cats.implicits._
   import libs.effects._
 
-  import akka.stream.alpakka.dynamodb.scaladsl.DynamoImplicits._
-
   private implicit val ec: ExecutionContext   = actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
@@ -75,8 +75,10 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
         ).asJava
       )
 
-    client
-      .single(request)
+    DynamoDb
+      .source(request)
+      .withAttributes(DynamoAttributes.client(client))
+      .runWith(Sink.head)
       .map(_ => Result.ok(data))
       .toF
       .recover {
@@ -101,8 +103,10 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
         ).asJava
       )
 
-    client
-      .single(request)
+    DynamoDb
+      .source(request)
+      .withAttributes(DynamoAttributes.client(client))
+      .runWith(Sink.head)
       .map(_.getAttributes.get("value"))
       .map(DynamoMapper.toJsValue)
       .map(Result.ok)
@@ -136,8 +140,10 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
         ).asJava
       )
 
-    client
-      .single(request)
+    DynamoDb
+      .source(request)
+      .withAttributes(DynamoAttributes.client(client))
+      .runWith(Sink.head)
       .toF
       .map(r => Option(r.getItem).map(_.get("value").getM).map(DynamoMapper.toJsValue))
   }
@@ -178,8 +184,9 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
           ).asJava
         )
 
-      client
+      DynamoDb
         .source(initialRequest)
+        .withAttributes(DynamoAttributes.client(client))
         .mapConcat(_.getItems.asScala.toList)
         .map(item => Key(item.get("id").getS) -> DynamoMapper.toJsValue(item.get("value").getM))
         .filter(_._1.matchPatterns(patterns: _*))

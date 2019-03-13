@@ -12,6 +12,7 @@ lazy val `izanami-server` = (project in file("."))
   .disablePlugins(BintrayPlugin)
 
 val akkaVersion     = "2.5.21"
+val alpakkaVersion  = "1.0-M3"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.0"
 val doobieVersion   = "0.6.0"
@@ -29,18 +30,19 @@ libraryDependencies ++= Seq(
   ehcache,
   "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
   "com.auth0"                % "java-jwt"                       % "3.3.0", // MIT license
-  "org.gnieh"                %% "diffson-play-json"             % "3.0.0", //
+  "org.gnieh"                %% "diffson-play-json"             % "3.1.1", //
   "com.softwaremill.macwire" %% "macros"                        % "2.3.1" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"                    % akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-slf4j"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                   % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor-typed"              % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster"                  % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster-tools"            % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion, // Apache 2.0
   "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.16.3",
-  "org.reactivemongo"        %% "reactivemongo"                 % "0.16.3",
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.16.3-play27",
-  "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"  % "0.20", // Apache 2.0
+  "com.typesafe.play"        %% "play-json"                     % "2.7.1",
+  "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"  % alpakkaVersion, // Apache 2.0
   "io.lettuce"               % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
   "org.typelevel"            %% "cats-core"                     % "1.3.1", // MIT license
@@ -52,7 +54,7 @@ libraryDependencies ++= Seq(
   "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
   "com.adelegue"             %% "playjson-extended"             % "0.0.3" excludeAll ExclusionRule("org.typelevel", "cats-core"), // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
-  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % "1.0-M3", // Apache 2.0
+  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % alpakkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"             % "1.0.1", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"            % "0.0.11" excludeAll ExclusionRule("org.typelevel", "cats-core"), // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.7.1", // Apache 2.0
