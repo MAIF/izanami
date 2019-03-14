@@ -12,7 +12,7 @@ import domains.Key
 import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import store.Result.Result
@@ -154,7 +154,7 @@ object JsonDataStore {
       case InMemoryWithDb =>
         val dbType: DbType                  = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
         val jsonDataStore: JsonDataStore[F] = storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
-        Logger.info(
+        IzanamiLogger.info(
           s"Loading InMemoryWithDbStore for namespace ${conf.conf.namespace} with underlying store ${dbType.getClass.getSimpleName}"
         )
         InMemoryWithDbStore[F](izanamiConfig.db.inMemoryWithDb.get,
@@ -174,7 +174,7 @@ object JsonDataStore {
       dbType: DbType,
       applicationLifecycle: ApplicationLifecycle
   )(implicit actorSystem: ActorSystem, stores: DbStores[F]): JsonDataStore[F] = {
-    Logger.info(s"Initializing store for $dbType")
+    IzanamiLogger.info(s"Initializing store for $dbType")
     dbType match {
       case InMemory => InMemoryJsonDataStore(conf)
       case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf)

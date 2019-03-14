@@ -11,7 +11,7 @@ import domains.user.{User, UserInstances, UserNoPasswordInstances, UserService}
 import domains.{Import, ImportResult, IsAllowed, Key}
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
@@ -153,7 +153,7 @@ class UserController[F[_]: Effect](userStore: UserService[F],
       }
       .recover {
         case e: Throwable =>
-          Logger.error("Error importing file", e)
+          IzanamiLogger.error("Error importing file", e)
           InternalServerError
       }
       .runWith(Sink.head)

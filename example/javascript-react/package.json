@@ -48,13 +48,13 @@
     "webpack-dev-server": "3.1.11"
   },
   "dependencies": {
-    "bootstrap": "3.4.0",
+    "bootstrap": "3.4.1",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.3",
     "faker": "4.1.0",
     "font-awesome": "4.7.0",
     "jquery": "3.2.1",
-    "lodash": "4.17.5",
+    "lodash": "4.17.11",
     "moment": "2.21.0",
     "prop-types": "^15.6.0",
     "react": "16.0.0",

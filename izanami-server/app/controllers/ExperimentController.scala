@@ -15,7 +15,7 @@ import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigInstances}
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
@@ -278,7 +278,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
       .map(ByteString.apply)
       .recover {
         case e =>
-          Logger.error("Error during experiments download", e)
+          IzanamiLogger.error("Error during experiments download", e)
           ByteString("")
       }
     Result(
@@ -296,7 +296,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
       }
       .recover {
         case e: Throwable =>
-          Logger.error("Error importing file", e)
+          IzanamiLogger.error("Error importing file", e)
           InternalServerError
       }
       .runWith(Sink.head)
@@ -326,7 +326,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
       }
       .recover {
         case e: Throwable =>
-          Logger.error("Error importing file", e)
+          IzanamiLogger.error("Error importing file", e)
           InternalServerError
       }
       .runWith(Sink.head)

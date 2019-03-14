@@ -7,7 +7,7 @@ import akka.stream.{FlowShape, Materializer, QueueOfferResult}
 import cats.effect.Effect
 import domains.Key
 import libs.streams.CacheableQueue.{Element, QueueElement}
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Reads}
 
 import scala.concurrent.Future
@@ -49,7 +49,7 @@ object syntax {
             .reads(v)
             .fold(
               { err =>
-                Logger.error(s"Error parsing $v : $err")
+                IzanamiLogger.error(s"Error parsing $v : $err")
                 List.empty[(Key, V)]
               }, { v =>
                 List((k, v))
@@ -154,7 +154,7 @@ object CacheableQueue {
           case State(current, _, _) =>
             List(current)
           case other =>
-            Logger.error(s"Weird message in cacheable queue, this shouldn't append $other")
+            IzanamiLogger.error(s"Weird message in cacheable queue, this shouldn't append $other")
             List.empty
         }
     }

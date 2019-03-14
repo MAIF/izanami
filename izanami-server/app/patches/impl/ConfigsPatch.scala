@@ -12,7 +12,7 @@ import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
 import patches.PatchInstance
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
 import store.{JsonDataStore, Result}
@@ -44,12 +44,14 @@ class ConfigsPatch[F[_]: ConcurrentEffect: ContextShift](
 
     import libs.streams.syntax._
     val conf: DbDomainConfig = izanamiConfig.config.db
-    Logger.info(s"Patch for configs starting for DB ${conf.`type`}")
+    IzanamiLogger.info(s"Patch for configs starting for DB ${conf.`type`}")
 
     // format: off
     lazy val jsonDataStore = JsonDataStore[F](drivers, izanamiConfig, conf, eventStore, Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent]), applicationLifecycle)
     // format: on
-    Logger.info(s"Patch for configs starting for DB ${conf.`type`} with ${jsonDataStore.getClass.getSimpleName}")
+    IzanamiLogger.info(
+      s"Patch for configs starting for DB ${conf.`type`} with ${jsonDataStore.getClass.getSimpleName}"
+    )
     jsonDataStore
       .getByIdLike(Seq("*"))
       .map(_._2)
@@ -59,8 +61,8 @@ class ConfigsPatch[F[_]: ConcurrentEffect: ContextShift](
       //Result.ok(()).pure[F]
       }
       .runWith(Sink.foreach {
-        case Right(e) => Logger.debug(s"Config updated with success => $e")
-        case Left(e)  => Logger.debug(s"Config update failure $e")
+        case Right(e) => IzanamiLogger.debug(s"Config updated with success => $e")
+        case Left(e)  => IzanamiLogger.debug(s"Config update failure $e")
       })
       .toF
 

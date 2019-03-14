@@ -13,7 +13,7 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.pubsub.api.async.RedisPubSubAsyncCommands
 import io.lettuce.core.pubsub.{RedisPubSubListener, StatefulRedisPubSubConnection}
 import libs.streams.CacheableQueue
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsError, JsResult, JsSuccess, Json}
 import store.redis.RedisWrapper
 
@@ -46,8 +46,8 @@ class RedisEventStore[F[_]: Effect](client: RedisWrapper, config: RedisEventsCon
         case JsSuccess(e, _) =>
           logger.debug(s"Receiving new event $e from Redis topic")
           queue.offer(e).onComplete {
-            case Failure(e) => Logger.error(s"Error publishing event to queue", e)
-            case r          => Logger.debug(s"Event published to queue $r")
+            case Failure(e) => IzanamiLogger.error(s"Error publishing event to queue", e)
+            case r          => IzanamiLogger.debug(s"Event published to queue $r")
           }
         case JsError(errors) =>
           logger.error(s"Error deserializing event of type ${json \ "type"} : $errors")

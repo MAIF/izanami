@@ -5,9 +5,11 @@ import com.auth0.jwt.{JWT, JWTVerifier}
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces.DecodedJWT
 import env.{Env, OtoroshiFilterConfig}
+import libs.AppLogger
 import play.api.{Logger, Mode}
 import play.api.libs.json.Json
 import play.api.mvc.{Filter, RequestHeader, Result, Results}
+
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -54,7 +56,7 @@ class OtoroshiFilter(_env: Env, config: OtoroshiFilterConfig)(implicit ec: Execu
       case ("prod", Some(claim)) =>
         val tryDecode: Try[Future[Result]] = Try {
           val decoded: DecodedJWT = verifier.verify(claim)
-          Logger.debug(s"Decoded JWT token: ${decoded.getClaims.asScala}")
+          AppLogger.debug(s"Decoded JWT token: ${decoded.getClaims.asScala}")
           nextFilter(requestHeader).map {
             result =>
               val requestTime = System.currentTimeMillis - startTime

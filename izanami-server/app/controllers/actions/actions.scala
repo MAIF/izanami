@@ -4,7 +4,7 @@ import akka.http.scaladsl.util.FastFuture
 import domains.AuthInfo
 import env.Env
 import filters.{FilterAttrs}
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.mvc.Results._
 import play.api.mvc._
 
@@ -36,7 +36,7 @@ class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(
     } match {
       case Some(ctx) => block(ctx)
       case None =>
-        Logger.info("Auth info is missing => Unauthorized")
+        IzanamiLogger.info("Auth info is missing => Unauthorized")
         FastFuture.successful(Unauthorized)
     }
   }
@@ -54,10 +54,10 @@ class SecuredAction(val env: Env, val parser: BodyParser[AnyContent])(
     maybeMaybeInfo match {
       case Some(Some(info)) => block(SecuredAuthContext(request, info))
       case Some(None) =>
-        Logger.debug("Auth info is empty => Forbidden")
+        IzanamiLogger.debug("Auth info is empty => Forbidden")
         FastFuture.successful(Forbidden)
       case _ =>
-        Logger.debug("Auth info is missing => Unauthorized")
+        IzanamiLogger.debug("Auth info is missing => Unauthorized")
         FastFuture.successful(Unauthorized)
     }
   }

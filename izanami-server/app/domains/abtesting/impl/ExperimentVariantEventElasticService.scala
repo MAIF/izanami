@@ -17,7 +17,7 @@ import domains.events.EventStore
 import domains.events.Events.ExperimentVariantEventCreated
 import elastic.api._
 import env.{DbDomainConfig, ElasticConfig}
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsObject, JsValue, Json}
 import store.Result.Result
 import store.Result
@@ -102,7 +102,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
                                       |}
     """.stripMargin)
 
-  Logger.info(s"Initializing index $esIndex with type $esType")
+  IzanamiLogger.info(s"Initializing index $esIndex with type $esType")
   Await.result(client.verifyIndex(esIndex).flatMap {
     case true =>
       FastFuture.successful(Done)
@@ -110,7 +110,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       client.createIndex(esIndex, mapping)
   }, 10.seconds)
 
-  Logger.info(s"Initializing index $displayedIndex with type type")
+  IzanamiLogger.info(s"Initializing index $displayedIndex with type type")
   Await.result(client.verifyIndex(displayedIndex).flatMap {
     case true =>
       FastFuture.successful(Done)
@@ -118,7 +118,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       client.createIndex(displayedIndex, counter)
   }, 10.seconds)
 
-  Logger.info(s"Initializing index $wonIndex with type type")
+  IzanamiLogger.info(s"Initializing index $wonIndex with type type")
   Await.result(client.verifyIndex(wonIndex).flatMap {
     case true =>
       FastFuture.successful(Done)
@@ -330,7 +330,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       "query"   -> Json.obj("term" -> Json.obj("experimentId" -> Json.obj("value" -> experimentId))),
       "sort"    -> Json.arr(Json.obj("date" -> Json.obj("order" -> order)))
     )
-    Logger.debug(s"Querying ${Json.prettyPrint(query)}")
+    IzanamiLogger.debug(s"Querying ${Json.prettyPrint(query)}")
     index
       .search(
         query
@@ -380,7 +380,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
       .fromFuture(calcInterval(experimentId).toIO.unsafeToFuture())
       .mapAsync(1) { interval =>
         val query = aggRequest(experimentId, variantId, interval)
-        Logger.debug(s"Querying ${Json.prettyPrint(query)}")
+        IzanamiLogger.debug(s"Querying ${Json.prettyPrint(query)}")
         index
           .search(query)
           .map {

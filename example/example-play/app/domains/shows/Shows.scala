@@ -6,6 +6,7 @@ import akka.http.scaladsl.util.FastFuture
 import cats.implicits._
 import env.{BetaSerieConfig, TvdbConfig}
 import izanami.scaladsl.FeatureClient
+import libs.AppLogger
 import play.api.Logger
 import play.api.libs.json.{JsPath, Json, Reads}
 import play.api.libs.ws.{WSClient, WSResponse}
@@ -56,7 +57,7 @@ class AllShows(tvdbShows: TvdbShows, betaSerieShows: BetaSerieShows, featureClie
 ) extends Shows[Future] {
 
   featureClient.onEvent("mytvshows:*") {
-    case any => Logger.info(s"New event $any")
+    case any => AppLogger.info(s"New event $any")
   }
 
   override def get(id: String): Future[Option[Show]] =
@@ -332,7 +333,7 @@ class BetaSerieShows(config: BetaSerieConfig, wSClient: WSClient)(implicit ec: E
                 .validate[BetaSerieShowResume]
                 .fold(
                   e => {
-                    Logger.error(s"Deserialization error for \n${r.json} \n Error: $e")
+                    AppLogger.error(s"Deserialization error for \n${r.json} \n Error: $e")
                     None
                   },
                   s => s.some
@@ -358,7 +359,7 @@ class BetaSerieShows(config: BetaSerieConfig, wSClient: WSClient)(implicit ec: E
             .validate[BetaSerieShow]
             .fold(
               e => {
-                Logger.error(s"Deserialization error for \n${r.json} \n Error: $e")
+                AppLogger.error(s"Deserialization error for \n${r.json} \n Error: $e")
                 None
               },
               s => s.some
