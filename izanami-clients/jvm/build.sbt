@@ -7,7 +7,7 @@ val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefin
   Seq(RevolverPlugin, BintrayPlugin)
 }
 
-val akkaVersion     = "2.5.19"
+val akkaVersion     = "2.5.21"
 val akkaHttpVersion = "10.1.7"
 
 lazy val jvm = (project in file("."))
