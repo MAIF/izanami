@@ -319,7 +319,7 @@ object Tests {
       getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}"), false) ++
       getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false) ++
       getSuite("Mongo", () => Configs.mongoConfig("config"), false) ++
-      getSuite("Dynamo", () => Configs.dynamoDbConfig(Random.nextInt(1000)), false) ++
+      //getSuite("Dynamo", () => Configs.dynamoDbConfig(Random.nextInt(1000)), false) ++
       getSuite("Postgresql", () => Configs.pgConfig(Random.nextInt(1000)), false)
     } else {
       getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
