@@ -20,6 +20,7 @@ import play.api.libs.json.Json
 
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
+import libs.logs.IzanamiLogger
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
 
 import scala.collection.mutable
@@ -49,6 +50,7 @@ object KafkaSettings {
       settings
         .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
         .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
+        .withProperty(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, null)
         .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
         .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
         .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)
@@ -74,6 +76,7 @@ object KafkaSettings {
       settings
         .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
         .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
+        .withProperty(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, null)
         .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
         .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
         .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)
@@ -94,12 +97,12 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
   import scala.collection.JavaConverters._
   import system.dispatcher
 
-  Logger.info(s"Initializing kafka event store $clusterConfig")
+  IzanamiLogger.info(s"Initializing kafka event store $clusterConfig")
 
   private lazy val producerSettings =
     KafkaSettings.producerSettings(_env, system, clusterConfig)
 
-  private lazy val producer: KafkaProducer[String, String] =
+  private lazy val producer =
     producerSettings.createKafkaProducer
 
   val settings: ConsumerSettings[String, String] = KafkaSettings

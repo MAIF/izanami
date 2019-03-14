@@ -2,6 +2,7 @@ import akka.actor.ActorSystem
 import akka.NotUsed
 import akka.stream.scaladsl.Flow
 import cats.effect.internals.IOContextShift
+import libs.logs.IzanamiLogger
 import metrics.Metrics
 import cats.effect.{ContextShift, IO}
 import com.codahale.metrics.MetricRegistry
@@ -29,7 +30,7 @@ import handlers.ErrorHandler
 import patches.{PatchInstance, Patchs}
 import patches.impl.ConfigsPatch
 import play.api.ApplicationLoader.Context
-import play.api._
+import play.api.{libs, _}
 import play.api.cache.ehcache.EhCacheComponents
 import play.api.http.HttpErrorHandler
 import play.api.libs.ws.ahc.AhcWSComponents
@@ -62,14 +63,14 @@ package object modules {
       with EhCacheComponents
       with AhcWSComponents {
 
-    Logger.info(s"Starting Izanami with java ${System.getProperty("java.version")}")
+    IzanamiLogger.info(s"Starting Izanami with java ${System.getProperty("java.version")}")
 
     lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
 
     implicit val system: ActorSystem  = actorSystem
     implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
-    Logger.info(s"Configuration: \n$izanamiConfig")
+    IzanamiLogger.info(s"Configuration: \n$izanamiConfig")
 
     lazy val metricRegistry: MetricRegistry = wire[MetricRegistry]
 
@@ -257,16 +258,16 @@ package object modules {
 
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) =>
-        Logger.info("Using otoroshi filter")
+        IzanamiLogger.info("Using otoroshi filter")
         Seq(new OtoroshiFilter[IO](_env, config))
       case env.Default(config) =>
-        Logger.info("Using default filter")
+        IzanamiLogger.info("Using default filter")
         Seq(new IzanamiDefaultFilter[IO](_env, izanamiConfig, config, izanamiConfig.apikey, apikeyStore))
     }
 
     lazy val router: Router = {
       lazy val prefix: String = izanamiConfig.contextPath
-      Logger.info(s"Initializing play router with prefix $prefix")
+      IzanamiLogger.info(s"Initializing play router with prefix $prefix")
       wire[Routes].withPrefix(prefix)
     }
 

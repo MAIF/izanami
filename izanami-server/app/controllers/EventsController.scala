@@ -5,7 +5,7 @@ import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.Domain.Domain
 import domains.events.EventStore
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.EventSource
 import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNameExtractor}
 import play.api.libs.json.{JsString, Json}

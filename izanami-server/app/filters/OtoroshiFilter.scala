@@ -6,6 +6,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces.DecodedJWT
 import domains.user.User
 import env.{Env, OtoroshiFilterConfig}
+import libs.logs.IzanamiLogger
 import play.api.Logger
 import play.api.libs.json.Json
 import play.api.mvc.{Filter, RequestHeader, Result, Results}
@@ -57,7 +58,7 @@ class OtoroshiFilter[F[_]](env: Env, config: OtoroshiFilterConfig)(implicit ec: 
         val tryDecode: Try[Future[Result]] = Try {
           val decoded: DecodedJWT     = verifier.verify(claim)
           val maybeUser: Option[User] = User.fromOtoroshiJwtToken(decoded)
-          if (maybeUser.isEmpty) Logger.debug(s"Empty auth for token ${decoded.getClaims.asScala}")
+          if (maybeUser.isEmpty) IzanamiLogger.debug(s"Empty auth for token ${decoded.getClaims.asScala}")
           nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, maybeUser)).map {
             result =>
               val requestTime = System.currentTimeMillis - startTime

@@ -12,7 +12,7 @@ import domains.script.{GlobalScriptService, Script}
 import domains.{ImportResult, Key}
 import env.Env
 import libs.functional.EitherTSyntax
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import store.Result._
 import store._
@@ -176,7 +176,7 @@ class FeatureServiceImpl[F[_]: Effect: ScriptCache](jsonStore: JsonDataStore[F],
   }
 
   private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    Logger.error(s"Error parsing json from database $err")
+    IzanamiLogger.error(s"Error parsing json from database $err")
     AppErrors.error("error.json.parsing")
   }
 

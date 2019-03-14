@@ -9,7 +9,7 @@ import cats.effect.Effect
 import domains.Key
 import env.DbDomainConfig
 import libs.streams.Flows
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
 import store.Result.{ErrorMessage, Result}
 import store._
@@ -26,7 +26,7 @@ object RedisJsonDataStore {
   def apply[F[_]: Effect](client: RedisWrapper,
                           config: DbDomainConfig)(implicit system: ActorSystem): RedisJsonDataStore[F] = {
     val namespace = config.conf.namespace
-    Logger.info(s"Load store Redis for namespace $namespace")
+    IzanamiLogger.info(s"Load store Redis for namespace $namespace")
     RedisJsonDataStore(client, namespace)
   }
 }

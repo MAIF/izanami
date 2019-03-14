@@ -13,7 +13,7 @@ import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
 import domains.{ImportResult, Key}
 import libs.functional.EitherTSyntax
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import store.Result.{AppErrors, Result, ValidatedResult}
 import store.{Result, _}
@@ -365,7 +365,7 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
   }
 
   private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    Logger.error(s"Error parsing json from database $err")
+    IzanamiLogger.error(s"Error parsing json from database $err")
     AppErrors.error("error.json.parsing")
   }
 }

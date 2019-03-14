@@ -25,6 +25,7 @@
   </appender>
 
   <logger name="play" level="INFO" />
+  <logger name="izanami" level="INFO" />
   <logger name="application" level="DEBUG" />
   <logger name="filter" level="INFO" />
   <logger name="events" level="INFO" />

@@ -11,7 +11,7 @@ import domains.{AuthInfo, IsAllowed, Key}
 import env.Env
 import javax.script._
 import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.Mode.Prod
 import play.api.cache.AsyncCacheApi
 import play.api.libs.json._
@@ -115,13 +115,13 @@ object ScriptInstances {
       import env.scriptExecutionContext
       script match {
         case s: ScalaScript =>
-          Logger.debug(s"Executing scala script $s")
+          IzanamiLogger.debug(s"Executing scala script $s")
           executeScalaScript[F](s, context, env)
         case s: JavascriptScript =>
-          Logger.debug(s"Executing javascript script $s")
+          IzanamiLogger.debug(s"Executing javascript script $s")
           executeJavascriptScript[F](s, context, env)
         case s: KotlinScript =>
-          Logger.debug(s"Executing kotlin script $s")
+          IzanamiLogger.debug(s"Executing kotlin script $s")
           executeKotlinScript[F](s, context, env)
       }
     }
@@ -170,13 +170,13 @@ object ScriptInstances {
         ec.execute { () =>
           Try {
             val scriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
-            Logger.debug(s"Compiling script ... ")
+            IzanamiLogger.debug(s"Compiling script ... ")
             val script: KotlinFeatureScript = scriptEngine.eval(finalScript).asInstanceOf[KotlinFeatureScript]
-            Logger.debug("Compilation is done !")
+            IzanamiLogger.debug("Compilation is done !")
             cb(Right(script))
           } recover {
             case e =>
-              Logger.error(s"Error building kotlin script \n $finalScript", e)
+              IzanamiLogger.error(s"Error building kotlin script \n $finalScript", e)
               cb(Left(e))
           }
         }
@@ -207,7 +207,7 @@ object ScriptInstances {
         }
         .recover {
           case e: Exception =>
-            Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
+            IzanamiLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
             ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
         }
     }
@@ -217,16 +217,16 @@ object ScriptInstances {
     (
       for {
         mayBeScript <- scriptCache.get[KotlinFeatureScript](id)
-        _           = Logger.debug(s"Cache for script ? : $mayBeScript")
+        _           = IzanamiLogger.debug(s"Cache for script ? : $mayBeScript")
         script      <- mayBeScript.fold(buildScript)(_.pure[F])
-        _           = Logger.debug(s"Updating cache for id $id and script $script")
+        _           = IzanamiLogger.debug(s"Updating cache for id $id and script $script")
         _           <- scriptCache.set(id, script)
-        _           = Logger.debug(s"Running kotlin script")
+        _           = IzanamiLogger.debug(s"Running kotlin script")
         r           <- run(script)
       } yield r
     ).recover {
       case e: Exception =>
-        Logger.error(s"Error executing script", e)
+        IzanamiLogger.error(s"Error executing script", e)
         ScriptExecutionFailure.fromThrowable(Seq.empty, e)
     }
   }
@@ -266,7 +266,7 @@ object ScriptInstances {
         ec.execute { () =>
           Try {
             val engineManager: ScriptEngineManager = new ScriptEngineManager(env.environment.classLoader)
-            Logger.debug(
+            IzanamiLogger.debug(
               s"Looking for scala engine in ${engineManager.getEngineFactories.asScala.map(_.getEngineName).mkString(",")}"
             )
 
@@ -274,9 +274,9 @@ object ScriptInstances {
               case Prod =>
                 val scriptEngine = engineManager.getEngineByName("scala")
                 val engine       = scriptEngine.asInstanceOf[ScriptEngine with Invocable]
-                Logger.debug("Compiling script ...")
+                IzanamiLogger.debug("Compiling script ...")
                 val script: FeatureScript = engine.eval(finalScript).asInstanceOf[FeatureScript]
-                Logger.debug("Compilation is done !")
+                IzanamiLogger.debug("Compilation is done !")
                 cb(Right(script))
               case _ =>
                 cb(Left(new IllegalArgumentException("Scala scripts not supported in dev mode")))
@@ -284,7 +284,7 @@ object ScriptInstances {
 
           } recover {
             case e =>
-              Logger.error(s"Error building scala script \n $finalScript", e)
+              IzanamiLogger.error(s"Error building scala script \n $finalScript", e)
               cb(Left(e))
           }
         }
@@ -309,7 +309,7 @@ object ScriptInstances {
         }
         .recover {
           case e: Exception =>
-            Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
+            IzanamiLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
             ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
         }
     }
@@ -319,16 +319,16 @@ object ScriptInstances {
     (
       for {
         mayBeScript <- scriptCache.get[FeatureScript](id)
-        _           = Logger.debug(s"Cache for script ? : $mayBeScript")
+        _           = IzanamiLogger.debug(s"Cache for script ? : $mayBeScript")
         script      <- mayBeScript.fold(buildScript)(_.pure[F])
-        _           = Logger.debug(s"Updating cache for id $id and script $script")
+        _           = IzanamiLogger.debug(s"Updating cache for id $id and script $script")
         _           <- scriptCache.set(id, script)
-        _           = Logger.debug(s"Running scala script")
+        _           = IzanamiLogger.debug(s"Running scala script")
         r           <- run(script)
       } yield r
     ).recover {
       case e: Exception =>
-        Logger.error(s"Error executing script", e)
+        IzanamiLogger.error(s"Error executing script", e)
         ScriptExecutionFailure.fromThrowable(Seq.empty, e)
     }
   }
@@ -337,7 +337,7 @@ object ScriptInstances {
       implicit ec: ScriptExecutionContext
   ): F[ScriptExecution] = {
 
-    Logger.debug(s"Creating console")
+    IzanamiLogger.debug(s"Creating console")
     val console = JsConsole()
 
     Async[F]
@@ -367,7 +367,7 @@ object ScriptInstances {
       }
       .recover {
         case e: Exception =>
-          Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
+          IzanamiLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
           ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
       }
   }
@@ -445,7 +445,7 @@ class HttpClient[F[_]](env: Env, promise: Either[Throwable, Boolean] => Unit)(
     }
     call.onComplete {
       case Success(response) =>
-        Logger.debug(
+        IzanamiLogger.debug(
           s"Script call $url, method=[$method], headers: $headers, body=[$body], response: code=${response.status} body=${response.body}"
         )
         Try {
@@ -454,7 +454,7 @@ class HttpClient[F[_]](env: Env, promise: Either[Throwable, Boolean] => Unit)(
           case e => promise(Left(e))
         }
       case Failure(e) =>
-        Logger.debug(s"Script call $url, method=[$method], headers: $headers, body=[$body], call failed", e)
+        IzanamiLogger.debug(s"Script call $url, method=[$method], headers: $headers, body=[$body], call failed", e)
         Try {
           callback.accept(e.getMessage, null)
         }.recover {

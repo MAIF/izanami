@@ -6,7 +6,9 @@ import java.time.temporal.ChronoUnit
 import akka.stream.ActorMaterializer
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.stream.alpakka.dynamodb.scaladsl.{DynamoClient, DynamoImplicits}
+import akka.stream.alpakka.dynamodb._
+import akka.stream.alpakka.dynamodb.AwsOp._
+import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
 import akka.{Done, NotUsed}
 import cats.effect.Effect
 import domains.abtesting._
@@ -21,7 +23,7 @@ import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import libs.dynamo.DynamoMapper
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import store.Result
 
 import scala.collection.JavaConverters._
@@ -31,19 +33,16 @@ object ExperimentVariantEventDynamoService {
   def apply[F[_]: Effect](config: DynamoConfig, client: DynamoClient, eventStore: EventStore[F])(
       implicit system: ActorSystem
   ): ExperimentVariantEventDynamoService[F] =
-    new ExperimentVariantEventDynamoService(config.eventsTableName, client: DynamoClient, eventStore)
+    new ExperimentVariantEventDynamoService(config.eventsTableName, eventStore)
 }
 
-class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
-                                                        client: DynamoClient,
-                                                        eventStore: EventStore[F])(
+class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, eventStore: EventStore[F])(
     implicit actorSystem: ActorSystem
 ) extends ExperimentVariantEventService[F] {
   import cats.implicits._
   import libs.effects._
   import ExperimentVariantEventInstances._
 
-  import akka.stream.alpakka.dynamodb.scaladsl.DynamoImplicits._
   private implicit val ec: ExecutionContext   = actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
@@ -51,7 +50,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
   ): F[Result[ExperimentVariantEvent]] = {
-    Logger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
+    IzanamiLogger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
     val key: String =
       s"${id.experimentId.key}:${id.variantId}"
 
@@ -75,7 +74,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
       )
 
     for {
-      res <- client
+      res <- DynamoDb
               .single(request)
               .map(_ => Result.ok(data))
               .toF
@@ -87,7 +86,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   override def deleteEventsForExperiment(
       experiment: Experiment
   ): F[Result[Done]] = {
-    Logger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
+    IzanamiLogger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
 
     val delete = Flow[ExperimentVariantEventKey]
       .map(variantId => {
@@ -100,8 +99,8 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
             ).asJava
           )
       })
-      .map(DynamoImplicits.DeleteItem)
-      .via(client.flow[DynamoImplicits.DeleteItem])
+      .map(DeleteItem)
+      .via(DynamoDb.flow[DeleteItem])
 
     val deletes = findExperimentVariantEvents(experiment)
       .map(_._2)
@@ -119,7 +118,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   def findExperimentVariantEvents(
       experiment: Experiment
   ): Source[(ExperimentKey, ExperimentVariantEventKey, List[ExperimentVariantEvent]), NotUsed] = {
-    Logger.debug(s"Dynamo find events on $tableName with experiment $experiment")
+    IzanamiLogger.debug(s"Dynamo find events on $tableName with experiment $experiment")
 
     val request = new QueryRequest()
       .withTableName(tableName)
@@ -131,7 +130,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
         ).asJava
       )
 
-    client
+    DynamoDb
       .source(request)
       .mapConcat(_.getItems.asScala.toList)
       .map(item => {
@@ -151,7 +150,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   override def findVariantResult(
       experiment: Experiment
   ): Source[VariantResult, NotUsed] = {
-    Logger.debug(s"Dynamo find variant result on $tableName with experiment $experiment")
+    IzanamiLogger.debug(s"Dynamo find variant result on $tableName with experiment $experiment")
 
     findExperimentVariantEvents(experiment)
       .flatMapMerge(
@@ -170,12 +169,12 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   override def listAll(
       patterns: Seq[String]
   ): Source[ExperimentVariantEvent, NotUsed] = {
-    Logger.debug(s"Dynamo listAll on $tableName with patterns $patterns")
+    IzanamiLogger.debug(s"Dynamo listAll on $tableName with patterns $patterns")
 
     val request = new ScanRequest()
       .withTableName(tableName)
 
-    client
+    DynamoDb
       .source(request)
       .mapConcat(_.getItems.asScala.toList)
       .map(item => Key(item.get("variantId").getS) -> item.get("events").getL.asScala.map(DynamoMapper.toJsValue))
@@ -185,12 +184,16 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String,
   }
 
   override def check(): F[Unit] = {
-    Logger.debug(s"Dynamo check on $tableName")
+    IzanamiLogger.debug(s"Dynamo check on $tableName")
 
     val request = new QueryRequest()
       .withTableName(tableName)
       .withLimit(0)
 
-    client.single(request).map(_ => ()).toF
+    DynamoDb
+      .source(request)
+      .runWith(Sink.head)
+      .map(_ => ())
+      .toF
   }
 }

@@ -13,7 +13,7 @@ import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.abtesting._
 import domains.events.EventStore
 import env.{CassandraConfig, DbDomainConfig}
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import store.Result.Result
 import store.cassandra.Cassandra
@@ -52,7 +52,7 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
 
   import actorSystem.dispatcher
 
-  Logger.info(s"Creating table ${keyspace}.$namespaceFormatted if not exists")
+  IzanamiLogger.info(s"Creating table ${keyspace}.$namespaceFormatted if not exists")
 
   //Events table
   session
@@ -151,7 +151,7 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
           .reads(json)
           .fold(
             { err =>
-              Logger.error(s"Error parsing json $json: $err")
+              IzanamiLogger.error(s"Error parsing json $json: $err")
               List.empty
             }, { ok =>
               List(ok)

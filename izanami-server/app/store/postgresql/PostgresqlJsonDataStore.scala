@@ -18,7 +18,7 @@ import doobie.Fragments._
 import fs2.Stream
 import env.{DbDomainConfig, PostgresqlConfig}
 import org.postgresql.util.PGobject
-import play.api.Logger
+import libs.logs.IzanamiLogger
 
 case class PgData(id: Key, data: JsValue)
 
@@ -74,7 +74,7 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](config: Post
 
   {
     import cats.effect.implicits._
-    Logger.debug(s"Applying script $dbScript")
+    IzanamiLogger.debug(s"Applying script $dbScript")
     dbScript.update.run.transact(xa).toIO.unsafeRunSync()
   }
 

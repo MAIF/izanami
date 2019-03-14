@@ -20,7 +20,7 @@ import io.prometheus.client.exporter.common.TextFormat
 import libs.database.Drivers
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.slf4j.LoggerFactory
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsObject, Json}
 
@@ -63,7 +63,7 @@ class Metrics[F[_]](_env: Env,
 
   private val log: Option[Slf4jReporter] =
     if (metricsConfig.log.enabled) {
-      Logger.info("Enabling slf4j metrics reporter")
+      IzanamiLogger.info("Enabling slf4j metrics reporter")
       val reporter: Slf4jReporter = Slf4jReporter
         .forRegistry(metricRegistry)
         .outputTo(LoggerFactory.getLogger("izanami.metrics"))
@@ -78,7 +78,7 @@ class Metrics[F[_]](_env: Env,
 
   private val console: Option[ConsoleReporter] =
     if (metricsConfig.console.enabled) {
-      Logger.info("Enabling console metrics reporter")
+      IzanamiLogger.info("Enabling console metrics reporter")
       val reporter: ConsoleReporter = ConsoleReporter
         .forRegistry(metricRegistry)
         .convertRatesTo(TimeUnit.SECONDS)
@@ -92,8 +92,8 @@ class Metrics[F[_]](_env: Env,
 
   val kafkaScheduler: Option[Cancellable] = if (metricsConfig.kafka.enabled) {
     izanamiConfig.db.kafka.map { kafkaConfig =>
-      val producerSettings                        = KafkaSettings.producerSettings(_env.environment, system, kafkaConfig)
-      val producer: KafkaProducer[String, String] = producerSettings.createKafkaProducer
+      val producerSettings = KafkaSettings.producerSettings(_env.environment, system, kafkaConfig)
+      val producer         = producerSettings.createKafkaProducer
       system.scheduler.schedule(
         metricsConfig.kafka.pushInterval,
         metricsConfig.kafka.pushInterval,
@@ -124,7 +124,7 @@ class Metrics[F[_]](_env: Env,
             )
             client.index(indexName / "type").index(jsonMessage).onComplete {
               case Failure(exception) =>
-                Logger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
+                IzanamiLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
               case _ =>
             }
           }

@@ -1,12 +1,11 @@
 package store.postgresql
-import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import cats.effect.{Async, ContextShift}
 import doobie.util.transactor.Transactor
 import env.PostgresqlConfig
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.db.{Database, Databases}
 import play.api.inject.ApplicationLifecycle
 
@@ -18,7 +17,7 @@ object PostgresqlClient {
                                                   applicationLifecycle: ApplicationLifecycle,
                                                   cf: Option[PostgresqlConfig]): Option[PostgresqlClient[F]] =
     cf.map { config =>
-      Logger.info(s"Creating database instance")
+      IzanamiLogger.info(s"Creating database instance")
       val database = Databases(
         config.driver,
         config.url,
@@ -33,7 +32,7 @@ object PostgresqlClient {
         FastFuture.successful(database.shutdown())
       }
 
-      Logger.info(s"Creating transactor instance")
+      IzanamiLogger.info(s"Creating transactor instance")
       val ce = system.dispatchers.lookup("izanami.jdbc-connection-dispatcher")
       val te = system.dispatchers.lookup("izanami.jdbc-transaction-dispatcher")
       PostgresqlClient(database, Transactor.fromDataSource[F](database.dataSource, ce, te))

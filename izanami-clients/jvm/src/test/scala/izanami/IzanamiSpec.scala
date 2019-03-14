@@ -257,8 +257,7 @@ trait FeatureMockServer extends MockServer {
     mock.register(
       post(urlPathEqualTo(url))
         .withRequestBody(
-          equalToJson(
-            s"""
+          equalToJson(s"""
                |{
                |"id": "$featureId",
                |"enabled": true,
@@ -272,8 +271,8 @@ trait FeatureMockServer extends MockServer {
             .withBody(
               Json.stringify(
                 Json.obj(
-                  "id" -> featureId,
-                  "enabled"-> true,
+                  "id"                 -> featureId,
+                  "enabled"            -> true,
                   "activationStrategy" -> "NO_STRATEGY"
                 )
               )

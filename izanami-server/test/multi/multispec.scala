@@ -18,6 +18,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationLong
 import scala.util.{Random, Try}
 import Configs.idGenerator
+import akka.http.scaladsl.model.Uri.Path
 
 object Configs {
 
@@ -231,8 +232,10 @@ object Configs {
                      |izanami.config.db.type=$${izanami.db.default}
                      |izanami.db.dynamo.tableName=izanami_$id
                      |izanami.db.dynamo.eventsTableName=izanami_experimentevents_$id
+                     |izanami.db.dynamo.region="eu-west-1"
                      |izanami.db.dynamo.host=localhost
                      |izanami.db.dynamo.port=8001
+                     |izanami.db.dynamo.parallelism=32
                      |izanami.config.db.type=$${izanami.db.default}
                      |izanami.features.db.type=$${izanami.db.default}
                      |izanami.globalScript.db.type=$${izanami.db.default}
@@ -242,6 +245,18 @@ object Configs {
                      |izanami.user.db.type=$${izanami.db.default}
                      |izanami.apikey.db.type=$${izanami.db.default}
                      |izanami.patch.db.type=$${izanami.db.default}
+                     |
+                     |akka.stream.alpakka.dynamodb {
+                     |  region = $${izanami.db.dynamo.region}
+                     |  host = $${izanami.db.dynamo.host}
+                     |  port = $${izanami.db.dynamo.port}
+                     |  tls = false
+                     |  parallelism = $${izanami.db.dynamo.parallelism}
+                     |  credentials {
+                     |    access-key-id = $${?DYNAMO_ACCESS_KEY}
+                     |    secret-key-id = $${?DYNAMO_SECRET_KEY}
+                     |  }
+                     |}
       """.stripMargin)
       .resolve()
   )
@@ -316,9 +331,23 @@ class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeA
   override protected def beforeAll(): Unit =
     if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
       import elastic.codec.PlayJson._
-      val client = ElasticClient[JsValue](port = Configs.elasticHttpPort)
+      val client: ElasticClient[JsValue] = ElasticClient[JsValue](port = Configs.elasticHttpPort)
       println("Cleaning ES indices")
+
       Await.result(client.deleteIndex("izanami_*"), 5.seconds)
+      Await.result(
+        client.put(
+          Path.Empty / "_cluster" / "settings",
+          Some("""
+          |{
+          |    "persistent" : {
+          |        "cluster.routing.allocation.disk.threshold_enabled" : false
+          |    }
+          |}
+        """.stripMargin)
+        ),
+        5.seconds
+      )
 
       System.setProperty("aws.accessKeyId", "someKeyId")
       System.setProperty("aws.secretKey", "someSecretKey")

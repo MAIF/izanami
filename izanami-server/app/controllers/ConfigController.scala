@@ -14,7 +14,7 @@ import domains._
 import env.Env
 import libs.functional.EitherTSyntax
 import libs.patch.Patch
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
@@ -195,7 +195,7 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
       }
       .recover {
         case e: Throwable =>
-          Logger.error("Error importing file", e)
+          IzanamiLogger.error("Error importing file", e)
           InternalServerError
       }
       .runWith(Sink.head)

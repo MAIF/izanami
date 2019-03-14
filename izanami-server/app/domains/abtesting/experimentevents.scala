@@ -9,7 +9,7 @@ import cats.effect.Effect
 import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import libs.IdGenerator
-import play.api.Logger
+import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import store.Result.{ErrorMessage, Result}
 
@@ -72,7 +72,7 @@ object ExperimentVariantEvent {
     interval.between(from, to) >= 1
 
   def calcInterval(min: LocalDateTime, max: LocalDateTime): ChronoUnit = {
-    Logger.debug(s"Calculating the best interval between $min and $max")
+    IzanamiLogger.debug(s"Calculating the best interval between $min and $max")
     if (ChronoUnit.MONTHS.between(min, max) > 50) {
       ChronoUnit.MONTHS
     } else if (ChronoUnit.WEEKS.between(min, max) > 50) {
@@ -92,7 +92,7 @@ object ExperimentVariantEvent {
                        nbVariant: Int,
                        interval: ChronoUnit = ChronoUnit.HOURS,
                        removeDouble: Boolean = false): Flow[ExperimentVariantEvent, VariantResult, NotUsed] = {
-    Logger.debug(s"Building event results for $experimentId, interval = $interval")
+    IzanamiLogger.debug(s"Building event results for $experimentId, interval = $interval")
     Flow[ExperimentVariantEvent]
       .groupBy(nbVariant, _.variant.id)
       .statefulMapConcat(() => {
