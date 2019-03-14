@@ -33,10 +33,10 @@ object DynamoJsonDataStore {
   def apply[F[_]: Effect](client: AlpakkaClient, tableName: String, storeName: String)(
       implicit system: ActorSystem
   ): DynamoJsonDataStore[F] =
-    new DynamoJsonDataStore(client, tableName, storeName)
+    new DynamoJsonDataStore(tableName, storeName)
 }
 
-class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String, storeName: String)(
+class DynamoJsonDataStore[F[_]: Effect](tableName: String, storeName: String)(
     implicit actorSystem: ActorSystem
 ) extends JsonDataStore[F] {
 
@@ -76,9 +76,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
       )
 
     DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
+      .single(request)
       .map(_ => Result.ok(data))
       .toF
       .recover {
@@ -104,9 +102,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
       )
 
     DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
+      .single(request)
       .map(_.getAttributes.get("value"))
       .map(DynamoMapper.toJsValue)
       .map(Result.ok)
@@ -141,9 +137,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
       )
 
     DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
+      .single(request)
       .toF
       .map(r => Option(r.getItem).map(_.get("value").getM).map(DynamoMapper.toJsValue))
   }
@@ -186,7 +180,6 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, tableName: String
 
       DynamoDb
         .source(initialRequest)
-        .withAttributes(DynamoAttributes.client(client))
         .mapConcat(_.getItems.asScala.toList)
         .map(item => Key(item.get("id").getS) -> DynamoMapper.toJsValue(item.get("value").getM))
         .filter(_._1.matchPatterns(patterns: _*))

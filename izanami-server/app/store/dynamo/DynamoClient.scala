@@ -35,7 +35,6 @@ object DynamoClient {
       val client = AlpakkaClient(settings)
 
       createIfNotExist(
-        client,
         config.tableName,
         List(
           new AttributeDefinition().withAttributeName("store").withAttributeType(ScalarAttributeType.S),
@@ -48,7 +47,6 @@ object DynamoClient {
       )
 
       createIfNotExist(
-        client,
         config.eventsTableName,
         List(
           new AttributeDefinition().withAttributeName("experimentId").withAttributeType(ScalarAttributeType.S),
@@ -63,19 +61,16 @@ object DynamoClient {
       client
     }
 
-  private def createIfNotExist(client: AlpakkaClient,
-                               tableName: String,
+  private def createIfNotExist(tableName: String,
                                attributes: List[AttributeDefinition],
                                keys: List[KeySchemaElement])(implicit mat: Materializer, ec: ExecutionContext) =
     DynamoDb
-      .source(new DescribeTableRequest().withTableName(tableName))
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
+      .single(new DescribeTableRequest().withTableName(tableName))
       .recover {
         case _: ResourceNotFoundException =>
           IzanamiLogger.info(s"Table $tableName did not exist, creating it")
           DynamoDb
-            .source(
+            .single(
               new CreateTableRequest()
                 .withTableName(tableName)
                 .withAttributeDefinitions(attributes: _*)
@@ -86,8 +81,6 @@ object DynamoClient {
                     .withWriteCapacityUnits(1L)
                 )
             )
-            .withAttributes(DynamoAttributes.client(client))
-            .runWith(Sink.head)
             .onComplete {
               case Success(_)     => IzanamiLogger.info(s"Table $tableName created successfully")
               case Failure(error) => IzanamiLogger.error(s"Could not create $tableName", error)

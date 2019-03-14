@@ -8,8 +8,7 @@ lazy val `example-play` = (project in file("."))
 
 scalaVersion := "2.12.6"
 
-val akkaVersion = "2.5.17"
-//val akkaVersion = "2.5.14"
+val akkaVersion = "2.5.21"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
@@ -18,15 +17,14 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   ws,
-  "de.svenkubiak" % "jBCrypt"  % "0.4.1", //  ISC/BSD
-  "com.auth0"     % "java-jwt" % "3.3.0", // MIT license
-  //"fr.maif"       %% "izanami-client" % "1.4.0",
-  "fr.maif"                  %% "izanami-client" % "1.4.0",
+  "de.svenkubiak"            % "jBCrypt"         % "0.4.1", //  ISC/BSD
+  "com.auth0"                % "java-jwt"        % "3.3.0", // MIT license
+  "fr.maif"                  %% "izanami-client" % "1.4.1",
   "com.softwaremill.macwire" %% "macros"         % "2.3.1" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"     % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"    % akkaVersion, // Apache 2.0
-  "org.typelevel"            %% "cats-core"      % "1.1.0", // MIT license
-  "org.typelevel"            %% "cats-effect"    % "1.0.0-RC2", // MIT license
+  "org.typelevel"            %% "cats-core"      % "1.6.0", // MIT license
+  "org.typelevel"            %% "cats-effect"    % "1.2.0", // MIT license
   "org.iq80.leveldb"         % "leveldb"         % "0.10", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"     % "0.8.0" // Apache 2.0
 )
