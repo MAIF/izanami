@@ -16,7 +16,7 @@
 "webpack": "3.5.5", // MIT License
 "webpack-dev-server": "2.7.1" // MIT License
 
-"bootstrap": "3.4.0", // MIT License
+"bootstrap": "3.4.1", // MIT License
 "es-symbol": "1.1.2", // MIT License
 "es6-shim": "0.35.3", // MIT License
 "faker": "4.1.0", // MIT License
