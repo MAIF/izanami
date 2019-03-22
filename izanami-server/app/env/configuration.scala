@@ -184,7 +184,8 @@ case class Master(
     port: Int,
     poolSize: Int,
     password: Option[String],
-    databaseId: Option[Int] = None
+    databaseId: Option[Int] = None,
+    cluster: Boolean = false
 ) extends RedisConfig
 
 case class Sentinel(
