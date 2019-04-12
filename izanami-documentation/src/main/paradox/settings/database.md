@@ -219,7 +219,7 @@ bin/izanami \
 Or 
 
 ```bash
-export IZANAMI_DATABASE=dynamo
+export IZANAMI_DATABASE=Dynamo
 export DYNAMO_REGION=eu-west-1
 export DYNAMO_ACCESS_KEY=xxxxxxx
 export DYNAMO_SECRET_KEY=xxxxxxx
@@ -239,13 +239,14 @@ Izanami requires the following [IAM permissions](https://docs.aws.amazon.com/ama
 * dynamodb:BatchWriteItem 
 * dynamodb:DescribeTable
 
-Additionally if the DynamoDB tables don't already exist, Izanami will create them for you which will require 
-the `dynamodb:CreateTable` permission.
+The table name required are `izanami` and `izanami_experimentevents`.
+
+Additionally if the DynamoDB tables don't already exist, Izanami will create them for you which will require the `dynamodb:CreateTable` permission.
 
 You can create them with the following commands
 ```bash
 aws dynamodb create-table --table-name izanami --attribute-definitions AttributeName=store,AttributeType=S AttributeName=id,AttributeType=S  --key-schema AttributeName=store,KeyType=HASH AttributeName=id,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
-aws dynamodb create-table --table-name izanami_experimentevent --attribute-definitions AttributeName=experimentId,AttributeType=S AttributeName=variantId,AttributeType=S  --key-schema AttributeName=experimentId,KeyType=HASH AttributeName=variantId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+aws dynamodb create-table --table-name izanami_experimentevents --attribute-definitions AttributeName=experimentId,AttributeType=S AttributeName=variantId,AttributeType=S  --key-schema AttributeName=experimentId,KeyType=HASH AttributeName=variantId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
 ```
 
 Other settings are available, consult the @ref[settings](settings.md) page. 
