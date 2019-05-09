@@ -188,7 +188,14 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, event
 
     val request = new QueryRequest()
       .withTableName(tableName)
-      .withLimit(0)
+      .withKeyConditions(
+        Map(
+          "experimentId" -> new Condition()
+            .withComparisonOperator(ComparisonOperator.EQ)
+            .withAttributeValueList(new AttributeValue().withS("dummyvalue"))
+        ).asJava
+      )
+      .withLimit(1)
 
     DynamoDb
       .source(request)
