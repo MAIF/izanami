@@ -3,12 +3,14 @@ import * as IzanamiServices from "../services/index";
 import { Table, SimpleBooleanInput } from '../inputs';
 import faker from 'faker';
 
+
+
 export class WebHooksPage extends Component {
 
   formSchema = {
     clientId:            { type: 'string', props: { label: 'WebHook Client Id', placeholder: 'abcdefg' }, error : { key : 'obj.clientId'}},
     callbackUrl:         { type: 'string', props: { label: 'WebHook URL', placeholder: 'The URL call for each notification' }, error : { key : 'obj.callbackUrl'}},
-    notificationPattern: { type: 'string', props: { label: 'WebHook pattern', placeholder: 'Pattern to filter notifications events' }, error : { key : 'obj.notificationPattern'}},
+    patterns:            { type: 'string', props: { label: 'WebHook pattern', placeholder: 'Pattern to filter notifications events' }, error : { key : 'obj.patterns'}},
     headers:             { type: 'object', props: { label: 'WebHook Headers', placeholderKey: 'Header name', placeholderValue: 'Header value' }, error : { key : 'obj.headers'}},
   };
 
@@ -16,7 +18,9 @@ export class WebHooksPage extends Component {
 
   columns = [
     { title: 'ID', content: item => item.clientId },
-    { title: 'Pattern', notFilterable: true, style: { textAlign: 'center'}, content: item => item.notificationPattern },
+    { title: 'Pattern', notFilterable: true, style: { textAlign: 'center'}, content: item => {
+      return (item.patterns || []).join(",");
+    } },
     { title: 'URL', notFilterable: true, style: { textAlign: 'center'}, content: item => item.callbackUrl },
     { title: 'Banned', notFilterable: true, style: { textAlign: 'center', width: 70 }, content: item => <SimpleBooleanInput value={!item.isBanned} onChange={v => {
         IzanamiServices.fetchWebhook(item.clientId).then(webhook => {
@@ -27,7 +31,7 @@ export class WebHooksPage extends Component {
 
   formFlow = [
     'clientId',
-    'notificationPattern',
+    'patterns',
     '---',
     'callbackUrl',
     'headers',
@@ -44,11 +48,13 @@ export class WebHooksPage extends Component {
   };
 
   createItem = (webhook) => {
-    return IzanamiServices.createWebHook(webhook);
+    const patterns = (webhook.patterns || "").split(",");
+    return IzanamiServices.createWebHook({...webhook, patterns});
   };
 
   updateItem = (webhook, webhookOriginal) => {
-    return IzanamiServices.updateWebHook(webhookOriginal.clientId, webhook);
+    const patterns = (webhook.patterns || "").split(",");
+    return IzanamiServices.updateWebHook(webhookOriginal.clientId, {...webhook, patterns});
   };
 
   deleteItem = (webhook) => {
