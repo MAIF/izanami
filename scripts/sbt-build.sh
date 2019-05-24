@@ -5,7 +5,7 @@ then
     then
         docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
         echo 'Master branch, publishing snapshots'
-        CI='true' sbt -J-Xmx2G -J-Xss20M -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";test"
+        CI='true' sbt -J-Xmx2G -J-Xss20M -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";test;it:test"
         sbt -J-Xmx2G -J-Xss20M -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publish;jvm/publishLocal;jvm/publish"
         sbt -J-Xmx2G -J-Xss20M -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION ";jvm/publishLocal;jvm/publish"
         echo "Uploading izanami.jar"
