@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.Semigroup
-import cats.data.Validated
+import cats.data.{NonEmptyList, Validated}
 import cats.effect.{ConcurrentEffect, ContextShift, Effect}
 import cats.kernel.Monoid
 import domains.events.EventStore
@@ -128,15 +128,60 @@ case class JsonPagingResult[Data](jsons: PagingResult[JsValue])(implicit reads: 
 case class DefaultPagingResult[Data](results: Seq[Data], page: Int, pageSize: Int, count: Int)
     extends PagingResult[Data]
 
+sealed trait Pattern
+final case class StringPattern(str: String) extends Pattern
+final case object EmptyPattern              extends Pattern with Product with Serializable
+
+final case class OneOfPatternClause(patterns: NonEmptyList[Pattern])
+
+object OneOfPatternClause {
+  def of(pattern: String, rest: String*): OneOfPatternClause =
+    OneOfPatternClause(NonEmptyList.of(StringPattern(pattern), rest.map(StringPattern.apply): _*))
+  def fromStrings(patterns: NonEmptyList[String]) = OneOfPatternClause(patterns.map(StringPattern.apply))
+}
+final case class Query(ands: NonEmptyList[OneOfPatternClause]) {
+  def and(patterns: NonEmptyList[String]): Query = and(OneOfPatternClause(patterns.map(StringPattern.apply)))
+  def and(pattern: String, rest: String*): Query = and(OneOfPatternClause.of(pattern, rest: _*))
+  def and(clause: OneOfPatternClause): Query     = Query(ands :+ clause)
+  def and(query: Query): Query                   = Query(ands ++ query.ands.toList)
+  def hasEmpty: Boolean                          = ands.toList.flatMap(_.patterns.toList).contains(EmptyPattern)
+}
+
+object Query {
+  def keyMatchQuery(key: Key, query: Query): Boolean =
+    query.ands.foldLeft(true) {
+      case (acc, clause) => acc && key.matchOnePatterns(clause.patterns.toList: _*)
+    }
+
+  def oneOf(patterns: NonEmptyList[String]) = Query(NonEmptyList.of(OneOfPatternClause.fromStrings(patterns)))
+  def oneOf(pattern: String, rest: String*) = Query(NonEmptyList.of(OneOfPatternClause.of(pattern, rest: _*)))
+
+  def oneOf(patterns: Seq[String]) =
+    Query(
+      NonEmptyList.of(
+        NonEmptyList
+          .fromList(patterns.toList)
+          .map(OneOfPatternClause.fromStrings)
+          .getOrElse(OneOfPatternClause(NonEmptyList.of(EmptyPattern)))
+      )
+    )
+}
+
 trait DataStore[F[_], Key, Data] {
   def create(id: Key, data: Data): F[Result[Data]]
   def update(oldId: Key, id: Key, data: Data): F[Result[Data]]
   def delete(id: Key): F[Result[Data]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def deleteAll(query: Query): F[Result[Done]]
+  def deleteAll(patterns: Seq[String]): F[Result[Done]] = deleteAll(Query.oneOf(patterns))
   def getById(id: Key): F[Option[Data]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Data]]
-  def getByIdLike(patterns: Seq[String]): Source[(Key, Data), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Data]]
+  def findByQuery(query: Query): Source[(Key, Data), NotUsed]
+  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Data]] =
+    findByQuery(Query.oneOf(patterns), page, nbElementPerPage)
+  def getByIdLike(patterns: Seq[String]): Source[(Key, Data), NotUsed] =
+    findByQuery(Query.oneOf(patterns))
+  def count(query: Query): F[Long]
+  def count(patterns: Seq[String]): F[Long] = count(Query.oneOf(patterns))
 }
 
 trait JsonDataStore[F[_]] extends DataStore[F, Key, JsValue]

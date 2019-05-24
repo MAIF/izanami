@@ -8,7 +8,11 @@ name in Universal := "izanami"
 
 scalaVersion := "2.12.8"
 
+lazy val ITest = config("it") extend Test
+
 lazy val `izanami-server` = (project in file("."))
+  .configs(ITest)
+  .settings(Defaults.itSettings: _*)
   .enablePlugins(PlayScala, DockerPlugin)
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
@@ -72,14 +76,16 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"   % "kotlin-script-runtime"          % kotlinVersion,
   "org.jetbrains.kotlin"   % "kotlin-script-util"             % kotlinVersion,
   "org.jetbrains.kotlin"   % "kotlin-compiler-embeddable"     % kotlinVersion,
-  "com.typesafe.akka"      %% "akka-http"                     % akkaHttpVersion % Test, // Apache 2.0
-  "de.heikoseeberger"      %% "akka-http-play-json"           % "1.25.2" % Test excludeAll ExclusionRule("com.typesafe.play",
-                                                                                          "play-json"), // Apache 2.0
-  "org.scalatestplus.play"   %% "scalatestplus-play" % "3.1.1"  % Test, // Apache 2.0
-  "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % Test, // Apache 2.0
-  "org.slf4j"                % "slf4j-api"           % "1.7.25" % Test, // MIT license
-  "org.apache.logging.log4j" % "log4j-api"           % "2.8.2"  % Test, // MIT license
-  "org.apache.logging.log4j" % "log4j-core"          % "2.8.2"  % Test // MIT license
+  "com.typesafe.akka"      %% "akka-http"                     % akkaHttpVersion % "it,test", // Apache 2.0
+  "de.heikoseeberger"      %% "akka-http-play-json"           % "1.25.2" % "it,test" excludeAll ExclusionRule(
+    "com.typesafe.play",
+    "play-json"
+  ), // Apache 2.0
+  "org.scalatestplus.play"   %% "scalatestplus-play" % "3.1.1"  % "it,test", // Apache 2.0
+  "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
+  "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
+  "org.apache.logging.log4j" % "log4j-api"           % "2.8.2"  % "it,test", // MIT license
+  "org.apache.logging.log4j" % "log4j-core"          % "2.8.2"  % "it,test" // MIT license
 )
 
 //dependencyOverrides ++= Seq(

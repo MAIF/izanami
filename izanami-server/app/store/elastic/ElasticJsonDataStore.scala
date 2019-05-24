@@ -193,6 +193,10 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
     )
   }
 
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = ???
+
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = ???
+
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     val query = buildSearchQuery(patterns) ++ Json.obj(
       "from" -> (page - 1) * nbElementPerPage,
@@ -220,6 +224,10 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
         s.hitsAs[EsDocument].map(d => (d.key.key, d.value)).toList
       }
   }
+
+  override def deleteAll(query: Query): F[Result[Done]] = ???
+
+  override def count(query: Query): F[Long] = ???
 
   override def count(patterns: Seq[String]): F[Long] = {
     val query = buildSearchQuery(patterns) ++ Json.obj(

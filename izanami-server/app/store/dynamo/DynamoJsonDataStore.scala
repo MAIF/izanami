@@ -16,7 +16,7 @@ import libs.logs.IzanamiLogger
 import play.api.libs.json.JsValue
 import store.Result.{ErrorMessage, Result}
 import libs.dynamo.DynamoMapper
-import store.{DefaultPagingResult, JsonDataStore, PagingResult, Result}
+import store.{DefaultPagingResult, JsonDataStore, PagingResult, Query, Result}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
@@ -142,6 +142,10 @@ class DynamoJsonDataStore[F[_]: Effect](tableName: String, storeName: String)(
       .map(r => Option(r.getItem).map(_.get("value").getM).map(DynamoMapper.toJsValue))
   }
 
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = ???
+
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = ???
+
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     IzanamiLogger.debug(
       s"Dynamo query on $tableName and store $storeName getByIdLike with patterns : $patterns, page $page, $nbElementPerPage elements by page"
@@ -182,8 +186,12 @@ class DynamoJsonDataStore[F[_]: Effect](tableName: String, storeName: String)(
         .source(initialRequest)
         .mapConcat(_.getItems.asScala.toList)
         .map(item => Key(item.get("id").getS) -> DynamoMapper.toJsValue(item.get("value").getM))
-        .filter(_._1.matchPatterns(patterns: _*))
+        .filter(_._1.matchAllPatterns(patterns: _*))
   }
+
+  override def deleteAll(query: Query): F[Result[Done]] = ???
+
+  override def count(query: Query): F[Long] = ???
 
   override def count(patterns: Seq[String]): F[Long] =
     countF(patterns).toF
