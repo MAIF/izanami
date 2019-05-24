@@ -13,7 +13,7 @@ class QueryTest extends IzanamiSpec {
         Query
           .oneOf("test1:ab:scenario:*", "test1:ab:*")
           .and(Query.oneOf("test2:ab:scenario:*", "test1:ab:*"))
-      )  must be(true)
+      ) must be(true)
     }
 
     "key doesn't match query" in {
@@ -22,7 +22,7 @@ class QueryTest extends IzanamiSpec {
         Query
           .oneOf("test1:abc:scenario:*", "test2:ab:*")
           .and(Query.oneOf("test2:ab:scenario:*", "test2:ab:*"))
-      )  must be(false)
+      ) must be(false)
     }
   }
 

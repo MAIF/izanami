@@ -54,19 +54,19 @@ class KeyTest extends IzanamiSpec {
       Key("test1:ab:scenario:B:8:displayed").matchOneStrPatterns("test2:ab:scenario:*", "test1:ab:*") must be(true)
     }
 
-
     "match one is false" in {
       Key("test1:ab:scenario:B:8:displayed").matchOneStrPatterns("test2:ab:scenario:*", "test2:ab:*") must be(false)
     }
 
     "match one pattern is true" in {
-      Key("test1:ab:scenario:B:8:displayed").matchOnePatterns(StringPattern("test2:ab:scenario:*"), StringPattern("test1:ab:*")) must be(true)
+      Key("test1:ab:scenario:B:8:displayed").matchOnePatterns(StringPattern("test2:ab:scenario:*"),
+                                                              StringPattern("test1:ab:*")) must be(true)
     }
 
     "match one pattern with empty is false" in {
-      Key("test1:ab:scenario:B:8:displayed").matchOnePatterns(StringPattern("test2:ab:scenario:*"), EmptyPattern) must be(false)
+      Key("test1:ab:scenario:B:8:displayed")
+        .matchOnePatterns(StringPattern("test2:ab:scenario:*"), EmptyPattern) must be(false)
     }
-
 
   }
 }

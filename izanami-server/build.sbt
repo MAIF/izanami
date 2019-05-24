@@ -1,4 +1,5 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
+import sbt.Keys.testOptions
 
 name := """izanami"""
 
@@ -93,6 +94,11 @@ libraryDependencies ++= Seq(
 //)
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.8")
+
+scalaSource in ITest := baseDirectory.value / "it"
+resourceDirectory in ITest := (baseDirectory apply { baseDir: File =>
+  baseDir / "it/resources"
+}).value
 
 scalacOptions ++= Seq(
   "-Ypartial-unification",
