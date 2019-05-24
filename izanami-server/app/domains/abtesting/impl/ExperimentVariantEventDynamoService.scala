@@ -178,7 +178,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, event
       .source(request)
       .mapConcat(_.getItems.asScala.toList)
       .map(item => Key(item.get("variantId").getS) -> item.get("events").getL.asScala.map(DynamoMapper.toJsValue))
-      .filter(_._1.matchPatterns(patterns: _*))
+      .filter(_._1.matchAllPatterns(patterns: _*))
       .mapConcat(_._2.toList)
       .map(_.validate[ExperimentVariantEvent].get)
   }

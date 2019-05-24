@@ -76,10 +76,10 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
   private def patternsToKey(patterns: Seq[String]): Seq[Key] =
     patterns.map(Key.apply).map(buildKey)
 
-  private def findKeys(patterns: Seq[String]): Source[Key, NotUsed] = patterns match {
-    case p if p.isEmpty || p.contains("") =>
+  private def findKeys(query: Query): Source[Key, NotUsed] = query match {
+    case q if q.hasEmpty =>
       Source.empty
-    case p =>
+    case _ =>
       Source
         .unfoldAsync(ScanCursor.INITIAL.some) {
           case Some(c) =>
@@ -99,7 +99,7 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
         .mapConcat(_.toList)
         .map(Key.apply)
         .map(_.drop(name))
-        .filter(k => k.matchPatterns(patterns: _*))
+        .filter(k => Query.keyMatchQuery(k, query))
   }
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] = getByKeyId(id).flatMap {
@@ -140,22 +140,20 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
         Result.error[JsValue](s"error.data.missing").pure[F]
     }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] = {
-    val patternKeys: Seq[Key] = patternsToKey(patterns)
-    getByIdLike(patterns)
+  override def deleteAll(query: Query): F[Result[Done]] =
+    findByQuery(query)
       .mapAsync(10) {
         case (k, _) => command().del(k.key).toScala
       }
       .runWith(Sink.ignore)
       .toF
       .map(_ => Result.ok(Done))
-  }
 
   override def getById(id: Key): F[Option[JsValue]] =
     getByKeyId(id)
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
-    findKeys(patterns)
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
+    findKeys(query)
       .grouped(50)
       .mapAsyncUnorderedF(50)(getByIds)
       .mapConcat(_.toList)
@@ -163,9 +161,9 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
         case (k, v) => (fromRawKey(k), v)
       }
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     val position = (page - 1) * nbElementPerPage
-    findKeys(patterns)
+    findKeys(query)
       .via(Flows.count {
         Flow[Key]
           .drop(position)
@@ -183,8 +181,8 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
       }
   }
 
-  override def count(patterns: Seq[String]): F[Long] =
-    getByIdLike(patterns)
+  override def count(query: Query): F[Long] =
+    findByQuery(query)
       .runFold(0L) { (acc, _) =>
         acc + 1
       }

@@ -146,7 +146,7 @@ class InMemoryWithDbStore[F[_]: Effect](dbConfig: InMemoryWithDbConfig,
               Done
             case e @ DeleteAll(patterns) =>
               IzanamiLogger.debug(s"Applying delete all event $e")
-              deleteAllSync(patterns)
+              deleteAllSync(Query.oneOf(patterns))
               Done
           }
       )
@@ -182,22 +182,22 @@ class InMemoryWithDbStore[F[_]: Effect](dbConfig: InMemoryWithDbConfig,
       _   <- deleteSync(id).pure[F]
     } yield res
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
+  override def deleteAll(query: Query): F[Result[Done]] =
     for {
-      res <- underlyingDataStore.deleteAll(patterns)
-      _   <- deleteAllSync(patterns).pure[F]
+      res <- underlyingDataStore.deleteAll(query)
+      _   <- deleteAllSync(query).pure[F]
     } yield res
 
   override def getById(id: Key): F[Option[JsValue]] =
     getByIdSync(id).pure[F]
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
-    getByIdLikeSync(patterns, page, nbElementPerPage).pure[F]
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+    findByQuerySync(query, page, nbElementPerPage).pure[F]
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
-    Source(getByIdLikeSync(patterns))
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
+    Source(findByQuerySync(query))
 
-  override def count(patterns: Seq[String]): F[Long] =
-    countSync(patterns).pure[F]
+  override def count(query: Query): F[Long] =
+    countSync(query).pure[F]
 
 }

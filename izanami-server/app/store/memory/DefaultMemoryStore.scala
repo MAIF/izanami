@@ -52,22 +52,22 @@ class InMemoryJsonDataStoreAsync[F[_]: Async](
   override def delete(id: Key): F[Result[JsValue]] =
     toAsync { deleteSync(id) }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    toAsync { deleteAllSync(patterns) }
+  override def deleteAll(query: Query): F[Result[Done]] =
+    toAsync { deleteAllSync(query) }
 
   override def getById(id: Key): F[Option[JsValue]] =
     toAsync(getByIdSync(id))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
     toAsync {
-      getByIdLikeSync(patterns, page, nbElementPerPage)
+      findByQuerySync(query, page, nbElementPerPage)
     }
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
-    Source(getByIdLikeSync(patterns))
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
+    Source(findByQuerySync(query))
 
-  override def count(patterns: Seq[String]): F[Long] =
-    toAsync(countSync(patterns))
+  override def count(query: Query): F[Long] =
+    toAsync(countSync(query))
 
   private def toAsync[T](a: => T): F[T] =
     Async[F].async { cb =>
@@ -99,20 +99,20 @@ class InMemoryJsonDataStore[F[_]: Applicative](name: String,
   override def delete(id: Key): F[Result[JsValue]] =
     deleteSync(id).pure[F]
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    deleteAllSync(patterns).pure[F]
+  override def deleteAll(query: Query): F[Result[Done]] =
+    deleteAllSync(query).pure[F]
 
   override def getById(id: Key): F[Option[JsValue]] =
     getByIdSync(id).pure[F]
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
-    getByIdLikeSync(patterns, page, nbElementPerPage).pure[F]
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+    findByQuerySync(query, page, nbElementPerPage).pure[F]
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
-    Source(getByIdLikeSync(patterns))
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
+    Source(findByQuerySync(query))
 
-  override def count(patterns: Seq[String]): F[Long] =
-    countSync(patterns).pure[F]
+  override def count(query: Query): F[Long] =
+    countSync(query).pure[F]
 }
 
 class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]) {
@@ -145,8 +145,8 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
         Result.error("error.data.missing")
     }
 
-  protected def deleteAllSync(patterns: Seq[String]): Result[Done] = {
-    val keys = find(patterns).map(_._1)
+  protected def deleteAllSync(query: Query): Result[Done] = {
+    val keys = find(query).map(_._1)
     keys.foreach { inMemoryStore.remove }
     Result.ok(Done)
   }
@@ -154,24 +154,24 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
   protected def getByIdSync(id: Key): Option[JsValue] =
     inMemoryStore.get(id)
 
-  protected def getByIdLikeSync(patterns: Seq[String], page: Int, nbElementPerPage: Int): PagingResult[JsValue] = {
+  protected def findByQuerySync(query: Query, page: Int, nbElementPerPage: Int): PagingResult[JsValue] = {
     val position = (page - 1) * nbElementPerPage
-    val values   = find(patterns)
+    val values   = find(query)
     val r        = values.slice(position, position + nbElementPerPage).map(_._2)
     DefaultPagingResult(r, page, nbElementPerPage, values.size)
   }
 
-  protected def getByIdLikeSync(patterns: Seq[String]): List[(Key, JsValue)] =
-    find(patterns)
+  protected def findByQuerySync(query: Query): List[(Key, JsValue)] =
+    find(query)
 
-  protected def countSync(patterns: Seq[String]): Long =
-    find(patterns).size.toLong
+  protected def countSync(query: Query): Long =
+    find(query).size.toLong
 
   protected def matchPatterns(patterns: Seq[String])(key: Key) =
     patterns.forall(r => key.matchPattern(r))
 
-  protected def find(patterns: Seq[String]): List[(Key, JsValue)] = {
-    val p = matchPatterns(patterns)(_)
+  protected def find(query: Query): List[(Key, JsValue)] = {
+    val p = (k: Key) => Query.keyMatchQuery(k, query)
     inMemoryStore.collect { case (k, v) if p(k) => (k, v) }.toList
   }
 }

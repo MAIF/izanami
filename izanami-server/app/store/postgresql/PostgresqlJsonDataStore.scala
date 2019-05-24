@@ -6,7 +6,7 @@ import cats.effect._
 import domains.Key
 import play.api.libs.json.{JsValue, Json}
 import store.Result.{ErrorMessage, Result}
-import store._
+import store.{Query, _}
 import cats._
 import cats.data._
 import cats.free.Free
@@ -145,21 +145,16 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](config: Post
     result.transact(xa)
   }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] = {
-    val q = sql"delete from " ++ fragTableName ++ whereAndOpt(patternsClause(patterns))
-    q.update.run.transact(xa).map(_ => Result.ok(Done))
-  }
-
   override def getById(id: Key): F[Option[JsValue]] =
     getByKeyQuery(id).map(_.map(_.data)).transact(xa)
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
 
     import Fragments._
 
     val position   = (page - 1) * nbElementPerPage
-    val findQuery  = sql"select payload from " ++ fragTableName ++ whereAndOpt(patternsClause(patterns)) ++ fr" OFFSET $position LIMIT $nbElementPerPage"
-    val countQuery = sql"select count(*) from " ++ fragTableName ++ whereAndOpt(patternsClause(patterns))
+    val findQuery  = sql"select payload from " ++ fragTableName ++ whereAnd(queryClause(query)) ++ fr" OFFSET $position LIMIT $nbElementPerPage"
+    val countQuery = sql"select count(*) from " ++ fragTableName ++ whereAnd(queryClause(query))
 
     val queries: Free[connection.ConnectionOp, PagingResult[JsValue]] = for {
       count <- countQuery.query[Int].unique
@@ -169,23 +164,42 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](config: Post
     queries.transact(xa)
   }
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] = {
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = {
     import streamz.converter._
 
-    val findQuery = sql"select id, payload from " ++ fragTableName ++ whereAndOpt(patternsClause(patterns))
+    val findQuery = sql"select id, payload from " ++ fragTableName ++ whereAnd(queryClause(query))
 
     val s: Stream[F, (Key, JsValue)] = findQuery.query[(Key, JsValue)].stream.transact(xa)
     Source.fromGraph(s.toSource)
   }
 
-  override def count(patterns: Seq[String]): F[Long] =
-    (sql"select count(*) from " ++ fragTableName ++ whereAndOpt(patternsClause(patterns)))
+  override def deleteAll(query: Query): F[Result[Done]] = {
+    val q = sql"delete from " ++ fragTableName ++ whereAnd(queryClause(query))
+    q.update.run.transact(xa).map(_ => Result.ok(Done))
+  }
+
+  override def count(query: Query): F[Long] =
+    (sql"select count(*) from " ++ fragTableName ++ whereAnd(queryClause(query)))
       .query[Long]
       .unique
       .transact(xa)
 
   private def getByKeyQuery(key: Key): ConnectionIO[Option[PgData]] =
     (sql"select id, payload from " ++ fragTableName ++ fr" where id = ${key.key}").query[PgData].option
+
+  private def queryClause(query: Query): Fragment =
+    query.ands.map(oneOfPatternClause).intercalate(fr" AND ")
+
+  private def oneOfPatternClause(query: OneOfPatternClause): Fragment =
+    fr"( " ++ query.patterns
+      .map {
+        case StringPattern(str) =>
+          val updatedP = str.replaceAll("\\*", ".*")
+          fr" id ~ $updatedP "
+        case EmptyPattern =>
+          Fragment.empty
+      }
+      .intercalate(fr" OR ") ++ fr" ) "
 
   private def patternsClause(patterns: Seq[String]): Option[Fragment] =
     NonEmptyList

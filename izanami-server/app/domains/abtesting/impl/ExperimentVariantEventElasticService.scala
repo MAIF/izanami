@@ -438,7 +438,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
     index
       .scroll(Json.obj("query" -> Json.obj("match_all" -> Json.obj())))
       .mapConcat(s => s.hitsAs[ExperimentVariantEvent].toList)
-      .filter(e => e.id.key.matchPatterns(patterns: _*))
+      .filter(e => e.id.key.matchAllPatterns(patterns: _*))
 
   override def check(): F[Unit] =
     client

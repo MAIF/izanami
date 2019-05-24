@@ -122,6 +122,10 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     storeCollection.toF
       .flatMap(getByIdRaw(id)(_))
 
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = ???
+
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = ???
+
   override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     val from    = (page - 1) * nbElementPerPage
     val options = QueryOpts(skipN = from, batchSizeN = nbElementPerPage, flagsN = 0)
@@ -168,6 +172,10 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
       )
       .toF[F]
   }
+
+  override def deleteAll(query: Query): F[Result[Done]] = ???
+
+  override def count(query: Query): F[Long] = ???
 
   override def count(patterns: Seq[String]): F[Long] =
     storeCollection.toF.flatMap(countRaw(patterns)(_)).map(_.longValue())

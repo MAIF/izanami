@@ -654,7 +654,7 @@ trait EventStore[F[_]] extends Closeable {
 
   private[events] def eventMatch(patterns: Seq[String], domains: Seq[Domain])(e: IzanamiEvent): Boolean =
     (domains.isEmpty || domains.contains(e.domain)) && (patterns.isEmpty || e.key
-      .matchPatterns(
+      .matchAllPatterns(
         patterns: _*
       ))
 
