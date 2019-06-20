@@ -31,6 +31,12 @@ yarn build
 
 ## Package the server 
 
+Allow the compiler to use more memory : 
+
+```bash
+SBT_OPTS="-Xmx2G -Xss20M -XX:MaxMetaspaceSize=512M"
+```
+
 From the root folder 
 
 ### Build the native package 
