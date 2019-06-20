@@ -14,7 +14,7 @@ lazy val `izanami-server` = (project in file("."))
   .disablePlugins(BintrayPlugin)
 
 val akkaVersion     = "2.5.22"
-val alpakkaVersion  = "1.0.4"
+val alpakkaVersion  = "1.0.2"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.0"
 val doobieVersion   = "0.6.0"
@@ -58,7 +58,7 @@ libraryDependencies ++= Seq(
   "com.adelegue"           %% "playjson-extended"             % "0.0.5", // Apache 2.0
   "com.github.pureconfig"  %% "pureconfig"                    % "0.8.0", // Apache 2.0
   "com.lightbend.akka"     %% "akka-stream-alpakka-cassandra" % alpakkaVersion, // Apache 2.0
-  "com.typesafe.akka"      %% "akka-stream-kafka"             % "1.0.1", // Apache 2.0
+  "com.typesafe.akka"      %% "akka-stream-kafka"             % "1.0.4", // Apache 2.0
   "com.adelegue"           %% "elastic-scala-http"            % "0.0.13", // Apache 2.0
   "com.datastax.cassandra" % "cassandra-driver-core"          % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"  % "metrics-core"                   % metricsVersion, // Apache 2.0
