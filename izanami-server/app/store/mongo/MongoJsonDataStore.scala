@@ -57,7 +57,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
   private def initIndexes(): Future[Unit] =
     MongoUtils.initIndexes(collectionName, indexesDefinition)
 
-  Await.result(initIndexes(), 5.second)
+  Await.result(initIndexes(), 20.second)
 
   private def storeCollection = mongoApi.database.map(_.collection[JSONCollection](collectionName))
 

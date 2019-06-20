@@ -13,12 +13,12 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-val akkaVersion     = "2.5.21"
-val alpakkaVersion  = "1.0-M3"
+val akkaVersion     = "2.5.23"
+val alpakkaVersion  = "1.0.2"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.0"
 val doobieVersion   = "0.6.0"
-val akkaHttpVersion = "10.1.7"
+val akkaHttpVersion = "10.1.8"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
@@ -41,11 +41,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"        %% "akka-cluster"             % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster-tools"       % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"             % akkaVersion, // Apache 2.0
-  "org.reactivemongo"        %% "reactivemongo-akkastream" % "0.16.3",
+  "org.reactivemongo"        %% "reactivemongo-akkastream" % "0.17.1",
   // Don't know why but reactive-mongo play27 break the app
-  "org.reactivemongo"      %% "play2-reactivemongo"           % "0.16.3-play26",
+  "org.reactivemongo"      %% "play2-reactivemongo"           % "0.17.1-play27",
   "org.scala-lang.modules" %% "scala-collection-compat"       % "0.1.1",
-  "com.typesafe.play"      %% "play-json"                     % "2.7.1",
   "com.lightbend.akka"     %% "akka-stream-alpakka-dynamodb"  % alpakkaVersion, // Apache 2.0
   "io.lettuce"             % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"       % "leveldb"                        % "0.10", // Apache 2.0
@@ -59,7 +58,7 @@ libraryDependencies ++= Seq(
   "com.adelegue"           %% "playjson-extended"             % "0.0.5", // Apache 2.0
   "com.github.pureconfig"  %% "pureconfig"                    % "0.8.0", // Apache 2.0
   "com.lightbend.akka"     %% "akka-stream-alpakka-cassandra" % alpakkaVersion, // Apache 2.0
-  "com.typesafe.akka"      %% "akka-stream-kafka"             % "1.0.1", // Apache 2.0
+  "com.typesafe.akka"      %% "akka-stream-kafka"             % "1.0.4", // Apache 2.0
   "com.adelegue"           %% "elastic-scala-http"            % "0.0.13", // Apache 2.0
   "com.datastax.cassandra" % "cassandra-driver-core"          % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"  % "metrics-core"                   % metricsVersion, // Apache 2.0
@@ -176,7 +175,7 @@ dockerCommands ++= Seq(
   Cmd("ENV", "KAFKA_HOST kafka"),
   Cmd("ENV", "KAFKA_PORT 9092"),
   Cmd("ENV", "HTTP_PORT 8080"),
-  Cmd("ENV", "APPLICATION_SECRET 123456")
+  Cmd("ENV", "APPLICATION_SECRET 2nJS=TpH/qBfB=NI6:H/jt3@5B3IBhzD4OjWi=tCH50Bjy2=JCXO^]XeZUW47Gv4")
 )
 
 dockerExposedVolumes ++= Seq(
@@ -195,9 +194,10 @@ dockerCommands :=
   }
 
 dockerEntrypoint ++= Seq(
-  """-Dlogger.file=./conf/prod-logger.xml """,
+  """-Dlogger.file=./conf/docker-logger.xml """,
   """-Dcluster.akka.remote.netty.tcp.hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
-  """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """
+  """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
+  """-Dplay.server.pidfile.path=/dev/null """
 )
 
 dockerUpdateLatest := true
