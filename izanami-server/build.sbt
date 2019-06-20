@@ -14,7 +14,7 @@ lazy val `izanami-server` = (project in file("."))
   .disablePlugins(BintrayPlugin)
 
 val akkaVersion     = "2.5.22"
-val alpakkaVersion  = "1.0-M3"
+val alpakkaVersion  = "1.0.4"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.0"
 val doobieVersion   = "0.6.0"
@@ -158,7 +158,7 @@ dockerExposedPorts := Seq(
 )
 packageName in Docker := "izanami"
 
-maintainer in Docker := "MAIF Team <maif@maif.fr>"
+maintainer in Docker := "MAIF Team <maif@maif.fr>"IzanamiIntegrationTests
 
 dockerBaseImage := "openjdk:11-jre-slim"
 
