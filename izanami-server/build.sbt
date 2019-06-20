@@ -158,7 +158,7 @@ dockerExposedPorts := Seq(
 )
 packageName in Docker := "izanami"
 
-maintainer in Docker := "MAIF Team <maif@maif.fr>"IzanamiIntegrationTests
+maintainer in Docker := "MAIF Team <maif@maif.fr>"
 
 dockerBaseImage := "openjdk:11-jre-slim"
 
@@ -196,7 +196,8 @@ dockerCommands :=
 dockerEntrypoint ++= Seq(
   """-Dlogger.file=./conf/prod-logger.xml """,
   """-Dcluster.akka.remote.netty.tcp.hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
-  """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """
+  """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
+  """-Dplay.server.pidfile.path=/dev/null """,
 )
 
 dockerUpdateLatest := true
