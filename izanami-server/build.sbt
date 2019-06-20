@@ -13,7 +13,7 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-val akkaVersion     = "2.5.21"
+val akkaVersion     = "2.5.22"
 val alpakkaVersion  = "1.0-M3"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.0"
@@ -41,11 +41,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"        %% "akka-cluster"             % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster-tools"       % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"             % akkaVersion, // Apache 2.0
-  "org.reactivemongo"        %% "reactivemongo-akkastream" % "0.16.3",
+  "org.reactivemongo"        %% "reactivemongo-akkastream" % "0.17.1",
   // Don't know why but reactive-mongo play27 break the app
-  "org.reactivemongo"      %% "play2-reactivemongo"           % "0.16.3-play26",
+  "org.reactivemongo"      %% "play2-reactivemongo"           % "0.17.1-play27",
   "org.scala-lang.modules" %% "scala-collection-compat"       % "0.1.1",
-  "com.typesafe.play"      %% "play-json"                     % "2.7.1",
   "com.lightbend.akka"     %% "akka-stream-alpakka-dynamodb"  % alpakkaVersion, // Apache 2.0
   "io.lettuce"             % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"       % "leveldb"                        % "0.10", // Apache 2.0
