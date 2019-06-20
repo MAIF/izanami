@@ -13,12 +13,12 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-val akkaVersion     = "2.5.22"
+val akkaVersion     = "2.5.23"
 val alpakkaVersion  = "1.0.2"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.0"
 val doobieVersion   = "0.6.0"
-val akkaHttpVersion = "10.1.7"
+val akkaHttpVersion = "10.1.8"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
@@ -194,10 +194,10 @@ dockerCommands :=
   }
 
 dockerEntrypoint ++= Seq(
-  """-Dlogger.file=./conf/prod-logger.xml """,
+  """-Dlogger.file=./conf/docker-logger.xml """,
   """-Dcluster.akka.remote.netty.tcp.hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
   """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
-  """-Dplay.server.pidfile.path=/dev/null """,
+  """-Dplay.server.pidfile.path=/dev/null """
 )
 
 dockerUpdateLatest := true
