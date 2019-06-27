@@ -368,10 +368,19 @@ export class FeaturesPage extends Component {
   renderIsActive = item => (
     <SimpleBooleanInput
       value={item.enabled}
-      onChange={v => {
-        IzanamiServices.fetchFeature(item.id).then(feature => {
-          IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
-        });
+      onChange={(v, input) => {
+        let confirmRes = true;
+        if (process.env.confirmationToggle) {
+          confirmRes = window.confirm("Are you sure you want to switch off " + item.id);
+        }
+
+        if (confirmRes == true) {
+          IzanamiServices.fetchFeature(item.id).then(feature => {
+            IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
+          });
+        } else {
+          input.setState({ enabled: !v });
+        }
       }}
     />
   );
