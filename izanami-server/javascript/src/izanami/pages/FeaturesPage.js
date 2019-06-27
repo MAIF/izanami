@@ -191,11 +191,20 @@ export class FeaturesPage extends Component {
     }
   };
 
-  renderIsActive = item => <SimpleBooleanInput value={item.enabled} onChange={v => {
-    IzanamiServices.fetchFeature(item.id).then(feature => {
-      IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
-    })
-  }} />;
+  renderIsActive = item => <SimpleBooleanInput value={item.enabled} onChange={(v, input) => {
+    let confirmRes = true;
+    if (process.env.NODE_ENV === 'production') {
+      confirmRes = window.confirm("Are you sure you want to switch off " + item.id);
+    }
+
+    if (confirmRes == true) {
+      IzanamiServices.fetchFeature(item.id).then(feature => {
+        IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
+      })
+    } else {
+      input.setState({ enabled: !v });
+    }
+  }}/>;
 
   columns = [
     {
