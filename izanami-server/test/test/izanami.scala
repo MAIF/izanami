@@ -162,20 +162,18 @@ trait IzanamiMatchers {
 }
 
 object FakeApplicationLifecycle {
-  def apply: ApplicationLifecycle = new FakeApplicationLifecycle
+  def apply(): ApplicationLifecycle = new FakeApplicationLifecycle()
 }
 
-class FakeApplicationLifecycle extends ApplicationLifecycle {
+class FakeApplicationLifecycle() extends ApplicationLifecycle {
 
-  val  hooks: mutable.Seq[() => Future[_]] = mutable.Seq.empty
+  val hooks: mutable.Seq[() => Future[_]] = mutable.Seq.empty
 
-  override def addStopHook(hook: () => Future[_]): Unit = {
+  override def addStopHook(hook: () => Future[_]): Unit =
     hooks :+ hook
-  }
 
-  override def stop(): Future[_] = {
+  override def stop(): Future[_] =
     FastFuture.successful(())
-  }
 }
 
 class TestEventStore[F[_]: Applicative](val events: ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty)

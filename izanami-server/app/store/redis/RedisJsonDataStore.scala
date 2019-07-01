@@ -35,7 +35,7 @@ object RedisJsonDataStore {
 
 class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(implicit system: ActorSystem)
     extends JsonDataStore[F]
-      with EitherTSyntax[F] {
+    with EitherTSyntax[F] {
 
   import system.dispatcher
   import cats.implicits._
@@ -117,22 +117,25 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
         .map(_ => Result.ok(data))
   }
 
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] = {
-      if (oldId == id) {
-        val res: EitherT[F, AppErrors, JsValue] = for {
-          _ <- getByKeyId(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing", id.key) }
-          _ <- command().set(buildKey(id).key, Json.stringify(data)).toF.map(_ => data) |> liftF[AppErrors, JsValue]
-        } yield data
-        res.value
-      } else {
-        val res: EitherT[F, AppErrors, JsValue] = for {
-          _ <- getByKeyId(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing", id.key) }
-          _ <- command().del(buildKey(oldId).key).toF |> liftF
-          _ <- create(id, data) |> liftFEither[AppErrors, JsValue]
-        } yield data
-        res.value
-      }
-  }
+  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+    if (oldId == id) {
+      val res: EitherT[F, AppErrors, JsValue] = for {
+        _ <- getByKeyId(oldId: Key) |> liftFOption[AppErrors, JsValue] {
+              AppErrors.error(s"error.data.missing", id.key)
+            }
+        _ <- command().set(buildKey(id).key, Json.stringify(data)).toF.map(_ => data) |> liftF[AppErrors, JsValue]
+      } yield data
+      res.value
+    } else {
+      val res: EitherT[F, AppErrors, JsValue] = for {
+        _ <- getByKeyId(oldId: Key) |> liftFOption[AppErrors, JsValue] {
+              AppErrors.error(s"error.data.missing", id.key)
+            }
+        _ <- command().del(buildKey(oldId).key).toF |> liftF
+        _ <- create(id, data) |> liftFEither[AppErrors, JsValue]
+      } yield data
+      res.value
+    }
 
   override def delete(id: Key): F[Result[JsValue]] =
     getByKeyId(id).flatMap {
@@ -146,18 +149,19 @@ class RedisJsonDataStore[F[_]: Effect](client: RedisWrapper, name: String)(impli
         Result.error[JsValue](s"error.data.missing").pure[F]
     }
 
-  override def deleteAll(query: Query): F[Result[Done]] = {
+  override def deleteAll(query: Query): F[Result[Done]] =
     findByQuery(query)
       .map { case (k, _) => k.key }
       .grouped(20)
       .mapAsync(10) { keys =>
-        val toDelete: Seq[String] = keys.map { k => buildKey(Key(k)).key }
-        command().del( toDelete: _* ).toScala
+        val toDelete: Seq[String] = keys.map { k =>
+          buildKey(Key(k)).key
+        }
+        command().del(toDelete: _*).toScala
       }
       .runWith(Sink.ignore)
       .toF
       .map(_ => Result.ok(Done))
-  }
 
   override def getById(id: Key): F[Option[JsValue]] =
     getByKeyId(id)

@@ -64,31 +64,37 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
     IzanamiLogger.debug(s"Creating $id => $data")
-    storeCollection.toF.flatMap{ implicit coll =>
-        getByIdRaw(id).flatMap {
-          case Some(_) =>
-            Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
-          case None =>
-            coll.insert(false, WriteConcern.Acknowledged).one(MongoDoc(id, data))
-              .map { _ =>
-                Result.ok(data)
-              }
-              .toF
-        }
+    storeCollection.toF.flatMap { implicit coll =>
+      getByIdRaw(id).flatMap {
+        case Some(_) =>
+          Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
+        case None =>
+          coll
+            .insert(false, WriteConcern.Acknowledged)
+            .one(MongoDoc(id, data))
+            .map { _ =>
+              Result.ok(data)
+            }
+            .toF
       }
+    }
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     storeCollection.toF.flatMap { implicit collection =>
       if (oldId == id) {
         val res = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing", id.key) }
+          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] {
+                AppErrors.error(s"error.data.missing", id.key)
+              }
           _ <- updateRaw(id, data) |> liftFEither[AppErrors, JsValue]
         } yield data
         res.value
       } else {
         val res: EitherT[F, AppErrors, JsValue] = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing", id.key) }
+          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] {
+                AppErrors.error(s"error.data.missing", id.key)
+              }
           _ <- deleteRaw(oldId) |> liftFEither[AppErrors, Unit]
           _ <- createRaw(id, data) |> liftFEither[AppErrors, JsValue]
         } yield data
@@ -149,14 +155,15 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     }
   }
 
-  override def findByQuery(q: Query): Source[(Key, JsValue), NotUsed] = Source.fromFuture(storeCollection).flatMapConcat {
-    val query = buildMongoQuery(q)
-    IzanamiLogger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
-    _.find(query, projection = Option.empty[JsObject])
-      .cursor[MongoDoc](ReadPreference.primary)
-      .documentSource()
-      .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
-  }
+  override def findByQuery(q: Query): Source[(Key, JsValue), NotUsed] =
+    Source.fromFuture(storeCollection).flatMapConcat {
+      val query = buildMongoQuery(q)
+      IzanamiLogger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
+      _.find(query, projection = Option.empty[JsObject])
+        .cursor[MongoDoc](ReadPreference.primary)
+        .documentSource()
+        .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
+    }
 
   private def countRaw(query: Query)(implicit collection: JSONCollection): F[Long] = {
     val q = buildMongoQuery(query)
@@ -173,12 +180,15 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
   }
 
   override def deleteAll(query: Query): F[Result[Done]] =
-      storeCollection.flatMap { col =>
+    storeCollection
+      .flatMap { col =>
         val deleteBuilder = col.delete(false, WriteConcern.Acknowledged)
         deleteBuilder.element(buildMongoQuery(query)).flatMap { toDelete =>
           deleteBuilder.many(List(toDelete))
         }
-      }.toF.map(_ => Result.ok(Done))
+      }
+      .toF
+      .map(_ => Result.ok(Done))
 
   override def count(query: Query): F[Long] =
     storeCollection.toF.flatMap(countRaw(query)(_)).map(_.longValue())
@@ -189,19 +199,20 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
       .map { clauses =>
         val andClause = clauses.patterns.toList
           .map {
-            case StringPattern(str) => str match {
-              case p if p.contains("*") =>
-                val regex = Json.obj("$regex" -> p.replaceAll("\\*", ".*"), "$options" -> "i")
-                Json.obj("id" -> regex)
-              case p =>
-                Json.obj("id" -> p)
-            }
+            case StringPattern(str) =>
+              str match {
+                case p if p.contains("*") =>
+                  val regex = Json.obj("$regex" -> p.replaceAll("\\*", ".*"), "$options" -> "i")
+                  Json.obj("id" -> regex)
+                case p =>
+                  Json.obj("id" -> p)
+              }
             case EmptyPattern =>
               Json.obj("id" -> "")
           }
         andClause match {
           case head :: Nil => head
-          case _ => Json.obj("$or" -> andClause.toList)
+          case _           => Json.obj("$or" -> andClause.toList)
         }
       }
     searchs match {

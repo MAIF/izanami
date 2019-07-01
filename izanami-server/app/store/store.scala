@@ -229,7 +229,7 @@ object JsonDataStore {
       case Elastic    => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
       case Mongo      => MongoJsonDataStore(drivers.mongoApi.get, conf)
       case Dynamo     => DynamoJsonDataStore(drivers.dynamoClient.get, izanamiConfig.db.dynamo.get, conf)
-      case Postgresql => PostgresqlJsonDataStore(drivers.postgresqlClient.get, izanamiConfig.db.postgresql.get, conf)
+      case Postgresql => PostgresqlJsonDataStore(drivers.postgresqlClient.get, conf)
       case _          => throw new IllegalArgumentException(s"Unsupported store type $dbType")
     }
   }

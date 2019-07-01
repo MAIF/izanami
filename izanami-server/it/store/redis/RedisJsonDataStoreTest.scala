@@ -15,7 +15,7 @@ class RedisJsonDataStoreTest extends AbstractJsonDataStoreTest("Redis") with Bef
   val redisWrapper: RedisWrapper = RedisClientBuilder.redisClient(
     Some(Master("localhost", 6380, 5)),
     system,
-    FakeApplicationLifecycle()
+    new FakeApplicationLifecycle()
   ).get
 
   override def dataStore(name: String): JsonDataStore[IO] =

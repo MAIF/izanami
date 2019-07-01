@@ -22,7 +22,8 @@ class MongoJsonDataStoreTest extends AbstractJsonDataStoreTest("Mongo")  with Be
 
   val mongoApi = new DefaultReactiveMongoApi(
     MongoConnection.parseURI("mongodb://localhost:27017").get,
-    s"dbtest-${Random.nextInt(50)}", false, Configuration.empty, FakeApplicationLifecycle()
+    s"dbtest-${Random.nextInt(50)}", false, Configuration.empty,
+    new FakeApplicationLifecycle()
   )
 
   override def dataStore(name: String): MongoJsonDataStore[IO] = MongoJsonDataStore[IO](

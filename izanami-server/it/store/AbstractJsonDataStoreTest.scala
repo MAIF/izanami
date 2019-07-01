@@ -16,7 +16,7 @@ import scala.util.Random
 
 abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with ScalaFutures with IntegrationPatience {
 
-  implicit val system: ActorSystem = ActorSystem("TestMongo")
+  implicit val system: ActorSystem = ActorSystem("Test")
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val mat : Materializer = ActorMaterializer()
 
@@ -25,7 +25,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
   s"$name data store" must {
 
     "crud" in {
-      val ds = dataStore(s"crud-test-${Random.nextInt(50)}")
+      val ds = dataStore(s"crud:test:${Random.nextInt(50)}")
 
       val key1 = Key("key:1")
       val value1 = Json.obj("name" -> "test")
@@ -50,7 +50,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     }
 
     "create twice" in {
-      val ds = dataStore(s"crud-test-${Random.nextInt(50)}")
+      val ds = dataStore(s"crud:test:${Random.nextInt(50)}")
       val key1 = Key("key:1")
       val value1 = Json.obj("name" -> "test")
 
@@ -62,7 +62,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     }
 
     "update if not exists" in {
-      val ds = dataStore(s"crud-test-${Random.nextInt(50)}")
+      val ds = dataStore(s"crud:test:${Random.nextInt(50)}")
       val key1 = Key("key:1")
       val value1 = Json.obj("name" -> "test")
 
@@ -72,7 +72,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     }
 
     "update changing id " in {
-      val ds = dataStore(s"crud-test-${Random.nextInt(50)}")
+      val ds = dataStore(s"crud:test:${Random.nextInt(50)}")
       val key1 = Key("key:1")
       val key2 = Key("key:2")
       val value1 = Json.obj("name" -> "test")
@@ -90,7 +90,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
 
     "find by query" in {
 
-      val ds = dataStore(s"crud-test-${Random.nextInt(50)}")
+      val ds = dataStore(s"crud:test:${Random.nextInt(50)}")
 
 
       val v1 = (Key("key:1"), Json.obj("name" -> "value1"))
@@ -123,7 +123,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
 
     "delete all" in {
 
-      val ds = dataStore(s"crud-test-${Random.nextInt(50)}")
+      val ds = dataStore(s"crud:test:${Random.nextInt(50)}")
       (1 to 10)
         .map { i => (Key(s"key:$i"), Json.obj("name" -> s"value-$i")) }
         .toList
