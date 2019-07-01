@@ -183,7 +183,7 @@ case class Master(
     host: String,
     port: Int,
     poolSize: Int,
-    password: Option[String],
+    password: Option[String] = None,
     databaseId: Option[Int] = None
 ) extends RedisConfig
 

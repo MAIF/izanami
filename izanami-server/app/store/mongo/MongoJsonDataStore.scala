@@ -4,6 +4,7 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
+import cats.data.EitherT
 import cats.effect.Effect
 import domains.Key
 import env.DbDomainConfig
@@ -13,10 +14,10 @@ import play.api.libs.json.{JsBoolean, JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.akkastream._
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference}
+import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference, WriteConcern}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.Result.{AppErrors, Result}
+import store.Result.{AppErrors, ErrorMessage, Result}
 import store._
 import libs.functional.EitherTSyntax
 
@@ -63,25 +64,31 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
     IzanamiLogger.debug(s"Creating $id => $data")
-    storeCollection
-      .map(_.insert.one(MongoDoc(id, data)))
-      .map { _ =>
-        Result.ok(data)
+    storeCollection.toF.flatMap{ implicit coll =>
+        getByIdRaw(id).flatMap {
+          case Some(_) =>
+            Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
+          case None =>
+            coll.insert(false, WriteConcern.Acknowledged).one(MongoDoc(id, data))
+              .map { _ =>
+                Result.ok(data)
+              }
+              .toF
+        }
       }
-      .toF
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     storeCollection.toF.flatMap { implicit collection =>
       if (oldId == id) {
         val res = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing") }
+          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing", id.key) }
           _ <- updateRaw(id, data) |> liftFEither[AppErrors, JsValue]
         } yield data
         res.value
       } else {
-        val res = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing") }
+        val res: EitherT[F, AppErrors, JsValue] = for {
+          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing", id.key) }
           _ <- deleteRaw(oldId) |> liftFEither[AppErrors, Unit]
           _ <- createRaw(id, data) |> liftFEither[AppErrors, JsValue]
         } yield data
@@ -124,7 +131,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     val options = QueryOpts(skipN = from, batchSizeN = nbElementPerPage, flagsN = 0)
     val query   = buildMongoQuery(q)
     IzanamiLogger.debug(
-      s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage"
+      s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage (from $from, batchSizeN $nbElementPerPage)"
     )
     storeCollection.toF.flatMap { implicit collection =>
       val findResult: F[Seq[MongoDoc]] = collection
@@ -166,17 +173,21 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
   }
 
   override def deleteAll(query: Query): F[Result[Done]] =
-    storeCollection.map(_.delete.element(buildMongoQuery(query))).toF.map(_ => Result.ok(Done))
+      storeCollection.flatMap { col =>
+        val deleteBuilder = col.delete(false, WriteConcern.Acknowledged)
+        deleteBuilder.element(buildMongoQuery(query)).flatMap { toDelete =>
+          deleteBuilder.many(List(toDelete))
+        }
+      }.toF.map(_ => Result.ok(Done))
 
   override def count(query: Query): F[Long] =
     storeCollection.toF.flatMap(countRaw(query)(_)).map(_.longValue())
 
   private def buildMongoQuery(query: Query): JsObject = {
 
-    val searchs = query.ands
+    val searchs = query.ands.toList
       .map { clauses =>
-
-        val andClause = clauses.patterns
+        val andClause = clauses.patterns.toList
           .map {
             case StringPattern(str) => str match {
               case p if p.contains("*") =>
@@ -186,11 +197,19 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
                 Json.obj("id" -> p)
             }
             case EmptyPattern =>
-              JsBoolean(false)
-          }.toList
-        Json.obj("$or" -> andClause.toList)
+              Json.obj("id" -> "")
+          }
+        andClause match {
+          case head :: Nil => head
+          case _ => Json.obj("$or" -> andClause.toList)
+        }
       }
-    Json.obj("$and" -> searchs.toList)
+    searchs match {
+      case head :: Nil =>
+        head
+      case _ =>
+        Json.obj("$and" -> searchs.toList)
+    }
   }
 
 }
