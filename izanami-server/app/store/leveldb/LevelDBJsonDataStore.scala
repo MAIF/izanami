@@ -4,7 +4,7 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import akka.{Done, NotUsed}
@@ -40,7 +40,7 @@ object LevelDBJsonDataStore {
     val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
     stores.stores.getOrElseUpdate(dbPath, {
-      IzanamiLogger.info(s"Load store LevelDB for namespace $namespace")
+      IzanamiLogger.info(s"Load store LevelDB for namespace $namespace and path $dbPath")
       new LevelDBJsonDataStore[F](dbPath, applicationLifecycle)
     })
   }
@@ -67,7 +67,8 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
     Future(client.close())
   }
 
-  implicit val mat = ActorMaterializer()
+  implicit val mat: Materializer = ActorMaterializer()
+
   private implicit val ec: ExecutionContext =
     system.dispatchers.lookup("izanami.level-db-dispatcher")
 
@@ -164,9 +165,14 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
 
   override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     toAsync {
-      client.delete(bytes(oldId.key))
-      client.put(bytes(id.key), bytes(Json.stringify(data)))
-      Result.ok(data)
+      Try(client.get(bytes(oldId.key))).toOption.flatMap(s => Option(asString(s))) match {
+        case Some(_) =>
+          client.delete(bytes(oldId.key))
+          client.put(bytes(id.key), bytes(Json.stringify(data)))
+          Result.ok(data)
+        case None =>
+          Result.errors[JsValue](ErrorMessage("error.data.missing", id.key))
+      }
     }
 
   override def delete(id: Key): F[Result[JsValue]] =
