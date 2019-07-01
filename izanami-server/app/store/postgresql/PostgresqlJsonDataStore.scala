@@ -49,13 +49,11 @@ object PgData {
 object PostgresqlJsonDataStore {
 
   def apply[F[_]: ContextShift: ConcurrentEffect](client: PostgresqlClient[F],
-                                                  config: PostgresqlConfig,
                                                   domainConfig: DbDomainConfig): PostgresqlJsonDataStore[F] =
-    new PostgresqlJsonDataStore[F](config, client, domainConfig.conf.namespace)
+    new PostgresqlJsonDataStore[F](client, domainConfig.conf.namespace)
 }
 
-class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](config: PostgresqlConfig,
-                                                                    client: PostgresqlClient[F],
+class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: PostgresqlClient[F],
                                                                     namespace: String)
     extends JsonDataStore[F] {
 

@@ -16,7 +16,7 @@ class LevelDBJsonDataStoreTest extends AbstractJsonDataStoreTest("LevelDb") with
 
   implicit val dbStores: DbStores[IO] = new DbStores
 
-  private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle
+  private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle()
 
   override def dataStore(name: String): JsonDataStore[IO] = LevelDBJsonDataStore[IO](
     LevelDbConfig(s"./target/leveldb-test/data-${Random.nextInt(1000)}"),
