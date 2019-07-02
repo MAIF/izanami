@@ -53,7 +53,7 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
                                          elasticConfig: ElasticConfig,
                                          dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem)
     extends JsonDataStore[F]
-      with EitherTSyntax[F] {
+    with EitherTSyntax[F] {
 
   import cats.implicits._
   import libs.effects._
@@ -120,19 +120,21 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
     if (oldId == id) {
       val res = for {
         _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
-          AppErrors.error(s"error.data.missing", id.key)
-        }
-        _ <- index.index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh).toF
-                  .map { _ =>
-                    Result.ok(data)
-                  } |> liftFEither[AppErrors, JsValue]
+              AppErrors.error(s"error.data.missing", id.key)
+            }
+        _ <- index
+              .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
+              .toF
+              .map { _ =>
+                Result.ok(data)
+              } |> liftFEither[AppErrors, JsValue]
       } yield data
       res.value
     } else {
       val res: EitherT[F, AppErrors, JsValue] = for {
         _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
-          AppErrors.error(s"error.data.missing", id.key)
-        }
+              AppErrors.error(s"error.data.missing", id.key)
+            }
         _ <- delete(oldId) |> liftFEither[AppErrors, JsValue]
         _ <- create(id, data) |> liftFEither[AppErrors, JsValue]
       } yield data
@@ -157,7 +159,6 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
 //      Result.errors(ErrorMessage("error.data.missing", id.key)).pure[F]
 //  }
 
-
   override def delete(id: Key): F[Result[JsValue]] =
     getById(id)
       .flatMap {
@@ -168,7 +169,6 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
         case None =>
           Result.error[JsValue](s"error.data.missing").pure[F]
       }
-
 
   override def getById(id: Key): F[Option[JsValue]] = {
     import cats.implicits._
@@ -192,7 +192,6 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
   private def buildSearchQuery(query: Query): JsObject = {
 
     val jsonQuery: List[JsValue] = query.ands.map { clauses =>
-
       val jsonClauses: List[JsValue] = clauses.patterns.toList.map {
         case StringPattern(str) =>
           Json.obj("wildcard" -> Json.obj("key" -> Json.obj("value" -> str)))
@@ -202,9 +201,9 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
 
       Json.obj(
         "bool" -> Json.obj(
-          "should" -> JsArray(jsonClauses),
-              "minimum_should_match" -> 1
-          )
+          "should"               -> JsArray(jsonClauses),
+          "minimum_should_match" -> 1
+        )
       )
     }.toList
 
