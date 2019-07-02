@@ -213,7 +213,8 @@ case class DynamoConfig(tableName: String,
                         region: String,
                         host: String,
                         port: Int,
-                        parallelism: Int,
+                        tls: Boolean = true,
+                        parallelism: Int = 32,
                         accessKey: Option[String] = None,
                         secretKey: Option[String] = None)
 

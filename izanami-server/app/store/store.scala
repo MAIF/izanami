@@ -129,10 +129,15 @@ case class DefaultPagingResult[Data](results: Seq[Data], page: Int, pageSize: In
     extends PagingResult[Data]
 
 sealed trait Pattern
-final case class StringPattern(str: String) extends Pattern
-final case object EmptyPattern              extends Pattern with Product with Serializable
+final case class StringPattern(str: String) extends Pattern {
+  override def toString: String = str
+}
+final case object EmptyPattern extends Pattern with Product with Serializable
 
-final case class OneOfPatternClause(patterns: NonEmptyList[Pattern])
+final case class OneOfPatternClause(patterns: NonEmptyList[Pattern]) {
+  override def toString: String =
+    patterns.map(_.toString).toList.mkString(" OR ")
+}
 
 object OneOfPatternClause {
   def of(pattern: String, rest: String*): OneOfPatternClause =
@@ -145,6 +150,9 @@ final case class Query(ands: NonEmptyList[OneOfPatternClause]) {
   def and(clause: OneOfPatternClause): Query     = Query(ands :+ clause)
   def and(query: Query): Query                   = Query(ands ++ query.ands.toList)
   def hasEmpty: Boolean                          = ands.toList.flatMap(_.patterns.toList).contains(EmptyPattern)
+
+  override def toString: String =
+    ands.map(c => s"(${c.toString})").toList.mkString(" AND ")
 }
 
 object Query {
