@@ -322,8 +322,8 @@ object Tests {
       //getSuite("Dynamo", () => Configs.dynamoDbConfig(Random.nextInt(1000)), false) ++
       getSuite("Postgresql", () => Configs.pgConfig(Random.nextInt(1000)), false)
     } else {
-      getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
-      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false)
+      getSuite("InMemory", () => Configs.inMemoryConfiguration, false)
+      //getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false)
     }
 }
 
