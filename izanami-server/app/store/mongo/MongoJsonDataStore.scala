@@ -84,7 +84,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     storeCollection.toF.flatMap { implicit collection =>
       if (oldId == id) {
         val res = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] {
+          _ <- getByIdRaw(oldId) |> liftFOption[AppErrors, JsValue] {
                 AppErrors.error(s"error.data.missing", id.key)
               }
           _ <- updateRaw(id, data) |> liftFEither[AppErrors, JsValue]
@@ -92,7 +92,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
         res.value
       } else {
         val res: EitherT[F, AppErrors, JsValue] = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] {
+          _ <- getByIdRaw(oldId) |> liftFOption[AppErrors, JsValue] {
                 AppErrors.error(s"error.data.missing", id.key)
               }
           _ <- deleteRaw(oldId) |> liftFEither[AppErrors, Unit]

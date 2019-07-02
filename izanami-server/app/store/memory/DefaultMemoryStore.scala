@@ -4,16 +4,16 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import cats.Applicative
-import cats.effect.{Async}
+import cats.effect.Async
 import domains.Key
 import env.DbDomainConfig
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, _}
-import store.Result.Result
+import store.Result.{ErrorMessage, Result}
 import store._
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.{ExecutionContext}
+import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 object InMemoryJsonDataStore {
@@ -120,7 +120,7 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
   protected def createSync(id: Key, data: JsValue): Result[JsValue] =
     inMemoryStore.get(id) match {
       case Some(_) =>
-        Result.error("error.data.exists")
+        Result.errors[JsValue](ErrorMessage("error.data.exists", id.key))
       case None =>
         inMemoryStore.put(id, data)
         Result.ok(data)
@@ -133,7 +133,7 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
       Result.ok(data)
     } else {
       IzanamiLogger.error(s"Error data missing for $oldId")
-      Result.error("error.data.missing")
+      Result.errors[JsValue](ErrorMessage("error.data.missing", id.key))
     }
 
   protected def deleteSync(id: Key): Result[JsValue] =

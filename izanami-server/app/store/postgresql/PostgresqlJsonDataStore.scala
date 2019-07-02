@@ -53,8 +53,7 @@ object PostgresqlJsonDataStore {
     new PostgresqlJsonDataStore[F](client, domainConfig.conf.namespace)
 }
 
-class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: PostgresqlClient[F],
-                                                                    namespace: String)
+class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: PostgresqlClient[F], namespace: String)
     extends JsonDataStore[F] {
 
   private val xa                = client.transactor

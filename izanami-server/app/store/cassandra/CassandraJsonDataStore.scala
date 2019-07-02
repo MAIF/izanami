@@ -121,7 +121,7 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
       getByIdRaw(id)
         .flatMap {
           case Some(_) => updateRaw(id: Key, data)
-          case None    => Result.error[JsValue]("error.data.missing").pure[F]
+          case None    => Result.errors[JsValue](ErrorMessage("error.data.missing", id.key)).pure[F]
         }
     } else {
       deleteRaw(oldId)
