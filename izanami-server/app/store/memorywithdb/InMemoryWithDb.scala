@@ -157,7 +157,7 @@ class InMemoryWithDbStore[F[_]: Effect](dbConfig: InMemoryWithDbConfig,
 
   private def loadCacheFromDb =
     underlyingDataStore
-      .getByIdLike(Seq("*"))
+      .findByQuery(Query.oneOf("*"))
       .map {
         case (k, v) =>
           inMemoryStore.put(k, v)

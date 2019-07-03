@@ -18,6 +18,7 @@ import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
+import store.Query
 import store.Result.{AppErrors, ErrorMessage}
 
 import scala.concurrent.Future
@@ -40,12 +41,12 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import ConfigInstances._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
       render match {
         case "flat" =>
           configStore
-            .getByIdLike(patternsSeq, page, nbElementPerPage)
+            .findByQuery(query, page, nbElementPerPage)
             .map { r =>
               Ok(
                 Json.obj(
@@ -64,7 +65,7 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
           import Node._
           import ConfigInstances._
           configStore
-            .getByIdLike(patternsSeq)
+            .findByQuery(query)
             .fold(List.empty[(ConfigKey, Config)])(_ :+ _)
             .map { v =>
               Node.valuesToNodes[Config](v)(ConfigInstances.format)
@@ -80,9 +81,9 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
 
   def tree(patterns: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(patterns.split(",").toList)
       configStore
-        .getByIdLike(patternsSeq)
+        .findByQuery(query)
         .map {
           case (_, config) =>
             config.id.jsPath.write[JsValue].writes(config.value)
@@ -159,23 +160,24 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
     AuthAction.asyncEitherT { ctx =>
-      val allPatterns = patterns.toList.flatMap(_.split(","))
+      val query: Query = Query.oneOf(ctx.authorizedPatterns)
       for {
-        deletes <- configStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
+        deletes <- configStore.deleteAll(query) |> mapLeft(err => BadRequest(err.toJson))
       } yield Ok
     }
 
   def count(): Action[AnyContent] = AuthAction.asyncF { ctx =>
-    val patterns: Seq[String] = ctx.authorizedPatterns
-    configStore.count(patterns).map { count =>
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
+    configStore.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
     import ConfigInstances._
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
     val source = configStore
-      .getByIdLike(ctx.authorizedPatterns)
+      .findByQuery(query)
       .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")

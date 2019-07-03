@@ -15,7 +15,7 @@ import patches.PatchInstance
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
-import store.{JsonDataStore, Result}
+import store.{JsonDataStore, Query, Result}
 import store.leveldb.DbStores
 import store.memorywithdb.CacheEvent
 
@@ -53,7 +53,7 @@ class ConfigsPatch[F[_]: ConcurrentEffect: ContextShift](
       s"Patch for configs starting for DB ${conf.`type`} with ${jsonDataStore.getClass.getSimpleName}"
     )
     jsonDataStore
-      .getByIdLike(Seq("*"))
+      .findByQuery(Query.oneOf("*"))
       .map(_._2)
       .mapAsyncF(2) { l =>
         val config: OldConfig = OldConfig.format.reads(l).get

@@ -31,9 +31,9 @@ trait ApikeyService[F[_]] {
   def delete(id: ApikeyKey): F[Result[Apikey]]
   def deleteAll(patterns: Seq[String]): F[Result[Done]]
   def getById(id: ApikeyKey): F[Option[Apikey]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Apikey]]
-  def getByIdLike(patterns: Seq[String]): Source[(Key, Apikey), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Apikey]]
+  def findByQuery(query: Query): Source[(Key, Apikey), NotUsed]
+  def count(query: Query): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
@@ -90,16 +90,16 @@ class ApikeyStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: Eve
   override def getById(id: ApikeyKey): F[Option[Apikey]] =
     jsonStore.getById(id).map(_.flatMap(_.validate[Apikey].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Apikey]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Apikey]] =
     jsonStore
-      .getByIdLike(patterns, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, Apikey), NotUsed] =
-    jsonStore.getByIdLike(patterns).readsKV[Apikey]
+  override def findByQuery(query: Query): Source[(Key, Apikey), NotUsed] =
+    jsonStore.findByQuery(query).readsKV[Apikey]
 
-  override def count(patterns: Seq[String]): F[Long] =
-    jsonStore.count(patterns)
+  override def count(query: Query): F[Long] =
+    jsonStore.count(query)
 
   private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
     IzanamiLogger.error(s"Error parsing json from database $err")

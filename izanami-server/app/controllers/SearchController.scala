@@ -14,7 +14,7 @@ import domains.script.GlobalScriptService
 import domains.webhook.WebhookService
 import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
-import store.{DefaultPagingResult, PagingResult}
+import store.{DefaultPagingResult, PagingResult, Query}
 
 import scala.concurrent.Future
 
@@ -44,7 +44,7 @@ class SearchController[F[_]: Effect](configStore: ConfigService[F],
 
   def search(pattern: String, features: Boolean, configs: Boolean, experiments: Boolean, scripts: Boolean) =
     AuthAction.async { ctx =>
-      val allPatterns: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
       val all = Source.fromGraph(GraphDSL.create() { implicit builder =>
         import GraphDSL.Implicits._
@@ -52,7 +52,7 @@ class SearchController[F[_]: Effect](configStore: ConfigService[F],
         val featuresRes: Source[JsValue, NotUsed] =
           if (features)
             featureStore
-              .getByIdLike(allPatterns, 1, 10)
+              .findByQuery(query, 1, 10)
               .toIO
               .unsafeToFuture()
               .source()
@@ -62,7 +62,7 @@ class SearchController[F[_]: Effect](configStore: ConfigService[F],
         val configsRes: Source[JsValue, NotUsed] =
           if (configs)
             configStore
-              .getByIdLike(allPatterns, 1, 10)
+              .findByQuery(query, 1, 10)
               .toIO
               .unsafeToFuture()
               .source()
@@ -72,7 +72,7 @@ class SearchController[F[_]: Effect](configStore: ConfigService[F],
         val experimentsRes: Source[JsValue, NotUsed] =
           if (experiments)
             experimentStore
-              .getByIdLike(allPatterns, 1, 10)
+              .findByQuery(query, 1, 10)
               .toIO
               .unsafeToFuture()
               .source()
@@ -82,7 +82,7 @@ class SearchController[F[_]: Effect](configStore: ConfigService[F],
         val scriptsRes: Source[JsValue, NotUsed] =
           if (scripts)
             globalScriptStore
-              .getByIdLike(allPatterns, 1, 10)
+              .findByQuery(query, 1, 10)
               .toIO
               .unsafeToFuture()
               .source()
