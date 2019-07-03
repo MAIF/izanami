@@ -70,29 +70,34 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
 
   private val regex = """[\*]?(([\w@\.0-9\-]+)(:?))+[\*]?""".r
 
-  private def patternStatement(field: String, patterns: Seq[String]): Result[String] = {
-    val hasError: Boolean = patterns
-      .map {
-        case "*"       => false
-        case regex(_*) => false
-        case _         => true
-      }
-      .foldLeft(false)(_ || _)
-
-    if (hasError) {
-      Result.error("pattern.invalid")
-    } else {
-      Result.ok(
-        patterns
-          .collect {
-            case str if str != "*" =>
-              s" $field LIKE '${str.replaceAll("\\*", "%")}' "
-          }
-          .mkString(" OR ")
-      )
-    }
-
-  }
+//  private def patternStatement(field: String, query: Query): Result[String] = {
+//    val hasError: Boolean = query.ands.toList
+//      .flatMap { _.patterns.toList.collect{ case StringPattern(str) => str } }
+//      .map {
+//        case "*"       => false
+//        case regex(_*) => false
+//        case _         => true
+//      }
+//      .foldLeft(false)(_ || _)
+//
+//    if (hasError) {
+//      Result.error("pattern.invalid")
+//    } else {
+//      val cassandraQuery = query.ands.map {
+//          _.patterns
+//            .collect {
+//              case StringPattern(str) if str != "*" =>
+//                s" ( $field LIKE '${str.replaceAll("\\*", "%")}' ) "
+//            }
+//            .mkString("(", " OR ", ")")
+//            //.mkString(" OR ")
+//        }
+//        .toList
+//        .mkString(" AND ")
+//
+//      Result.ok(cassandraQuery)
+//    }
+//  }
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] =
     getByIdRaw(id)
@@ -156,36 +161,6 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
     ).map(_ => ())
   }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    if (patterns.isEmpty || patterns.contains("")) {
-      Effect[F].pure(Result.ok(Done))
-    } else {
-      patternStatement("key", patterns) match {
-        case Right(s) =>
-          val stm: String = if (!s.isEmpty) s"AND $s" else ""
-          val query =
-            s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-          IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
-          val stmt: Statement =
-            new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
-          CassandraSource(stmt)
-            .map { rs =>
-              (rs.getString("namespace"), rs.getString("id"))
-            }
-            .mapAsyncF(4) {
-              case (n, id) =>
-                val query =
-                  s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
-                val args = Seq(n, id)
-                executeWithSession(query, n, id)
-            }
-            .runFold(0)((acc, _) => acc + 1)
-            .toF
-            .map(_ => Result.ok(Done))
-        case Left(s) => Result.error[Done](s).pure[F]
-      }
-    }
-
   override def getById(id: Key): F[Option[JsValue]] =
     getByIdRaw(id)
 
@@ -207,12 +182,8 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
     }
   }
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = ???
-
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = ???
-
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
-    getByIdLikeRaw(patterns)
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
+    getByIdLikeRaw(query)
       .via(Flows.count {
         Flow[(Key, JsValue)]
           .map(_._2)
@@ -228,62 +199,65 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
       .runWith(Sink.head)
       .toF
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
-    getByIdLikeRaw(patterns)
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
+    getByIdLikeRaw(query)
 
-  private def getByIdLikeRaw(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
-    if (patterns.isEmpty || patterns.contains("")) {
+  private def getByIdLikeRaw(q: Query): Source[(Key, JsValue), NotUsed] =
+    if (q.hasEmpty) {
       Source.empty
     } else {
-      patternStatement("key", patterns) match {
-        case Right(s) =>
-          val stm: String = if (!s.isEmpty) s"AND $s" else ""
-          val query =
-            s"SELECT key, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-          IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
-          val stmt = new SimpleStatement(query, namespaceFormatted)
-          CassandraSource(stmt).map { rs =>
-            (Key(rs.getString("key")), Json.parse(rs.getString("value")))
+        val query =
+          s"SELECT key, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
+        IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
+        val stmt = new SimpleStatement(query, namespaceFormatted)
+        CassandraSource(stmt).map { rs =>
+          (Key(rs.getString("key")), Json.parse(rs.getString("value")))
+        }.filter { case (k, _) => Query.keyMatchQuery(k, q) }
+    }
+
+  override def deleteAll(q: Query): F[Result[Done]] =
+    if (q.hasEmpty) {
+      Effect[F].pure(Result.ok(Done))
+    } else {
+        val query =
+          s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
+        IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
+        val stmt: Statement =
+          new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
+        CassandraSource(stmt)
+          .map { rs =>
+            (rs.getString("namespace"), rs.getString("id"))
           }
-        case Left(err) =>
-          Source.failed(new IllegalArgumentException("pattern.invalid"))
-      }
+          .filter { case (_, k) => Query.keyMatchQuery(Key(k), q) }
+          .mapAsyncF(4) {
+            case (n, id) =>
+              val query =
+                s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
+              val args = Seq(n, id)
+              executeWithSession(query, n, id)
+          }
+          .runFold(0)((acc, _) => acc + 1)
+          .toF
+          .map(_ => Result.ok(Done))
     }
 
-  override def deleteAll(query: Query): F[Result[Done]] = ???
 
-  override def count(query: Query): F[Long] = ???
+  override def count(query: Query): F[Long] = countRaw(query).flatMap {
+    case Right(r) => r.pure[F]
+    case Left(r) =>
+      Effect[F].raiseError(new IllegalArgumentException("pattern.invalid"))
+  }
 
-  override def count(patterns: Seq[String]): F[Long] =
-    countRaw(patterns).flatMap {
-      case Right(r) => r.pure[F]
-      case Left(r) =>
-        Effect[F].raiseError(new IllegalArgumentException("pattern.invalid"))
-    }
-
-  private def countRaw(patterns: Seq[String]): F[Result[Long]] =
-    if (patterns.isEmpty || patterns.contains("")) {
+  private def countRaw(query: Query): F[Result[Long]] =
+    if (query.hasEmpty) {
       Result.ok(0L).pure[F]
     } else {
-      patternStatement("key", patterns) match {
-        case Right(s) =>
-          val stm: String = if (!s.isEmpty) s"AND $s" else ""
-          val query =
-            s"SELECT COUNT(*) AS count FROM $keyspace.$namespaceFormatted WHERE namespace = ? $stm"
-          IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
-          val stmt: SimpleStatement =
-            new SimpleStatement(
-              query,
-              namespaceFormatted
-            )
-          CassandraSource(stmt)
-            .map { rs =>
-              Result.ok(rs.getLong("count"))
-            }
-            .runWith(Sink.head)
-            .toF
-        case Left(err) => Result.error[Long](err).pure[F]
-      }
+        getByIdLikeRaw(query)
+          .runFold(0L) { (acc, _) => acc + 1 }
+          .map { rs =>
+            Result.ok(rs)
+          }
+          .toF
     }
 }
 
