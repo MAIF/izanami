@@ -228,7 +228,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     override def delete(id: GlobalScriptKey): F[Result[GlobalScript]]                                             = ???
     override def deleteAll(patterns: Seq[String]): F[Result[Done]]                                                = ???
     override def getById(id: GlobalScriptKey): F[Option[GlobalScript]]                                            = ???
-    override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
+    override def findByQuery(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
       ???
     override def getByIdLike(patterns: Seq[String]): Source[(GlobalScriptKey, GlobalScript), NotUsed] = ???
     override def count(patterns: Seq[String]): F[Long]                                                = ???

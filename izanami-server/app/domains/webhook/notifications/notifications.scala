@@ -17,6 +17,7 @@ import env.WebhookConfig
 import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
+import store.Query
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -93,7 +94,7 @@ class WebHooksActor[F[_]: Effect](wSClient: WSClient,
 
   private def setUpWebHooks(): Future[Done] =
     webhookStore
-      .getByIdLike(Seq("*"))
+      .findByQuery(Query.oneOf("*"))
       .map(_._2)
       .filterNot(_.isBanned)
       .fold(Seq.empty[Webhook]) { _ :+ _ }

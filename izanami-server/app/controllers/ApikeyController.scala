@@ -14,6 +14,7 @@ import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
+import store.Query
 import store.Result.AppErrors
 
 class ApikeyController[F[_]: Effect](apikeyStore: ApikeyService[F],
@@ -33,10 +34,10 @@ class ApikeyController[F[_]: Effect](apikeyStore: ApikeyService[F],
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
     AuthAction.asyncF[F] { ctx =>
       import ApikeyInstances._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
       apikeyStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
+        .findByQuery(query, page, nbElementPerPage)
         .map { r =>
           Ok(
             Json.obj(
@@ -135,16 +136,17 @@ class ApikeyController[F[_]: Effect](apikeyStore: ApikeyService[F],
     }
 
   def count(): Action[AnyContent] = AuthAction.asyncF[F] { ctx =>
-    val patterns: Seq[String] = ctx.authorizedPatterns
-    apikeyStore.count(patterns).map { count =>
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
+    apikeyStore.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
     import ApikeyInstances._
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
     val source = apikeyStore
-      .getByIdLike(ctx.authorizedPatterns)
+      .findByQuery(query)
       .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")

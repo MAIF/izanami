@@ -6,6 +6,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.abtesting.Experiment.ExperimentKey
@@ -19,6 +20,7 @@ import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
+import store.Query
 import store.Result.AppErrors
 
 import scala.util.{Failure, Success}
@@ -47,12 +49,12 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import ExperimentInstances._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
       render match {
         case "flat" =>
           experimentStore
-            .getByIdLike(patternsSeq, page, nbElementPerPage)
+            .findByQuery(query, page, nbElementPerPage)
             .map { r =>
               Ok(
                 Json.obj(
@@ -69,7 +71,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
         case "tree" =>
           import Node._
           experimentStore
-            .getByIdLike(patternsSeq)
+            .findByQuery(query)
             .fold(List.empty[(ExperimentKey, Experiment)])(_ :+ _)
             .map { v =>
               Node.valuesToNodes[Experiment](v)(ExperimentInstances.format)
@@ -88,9 +90,9 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
 
   def tree(patterns: String, clientId: String): Action[Unit] =
     AuthAction.async(parse.empty) { ctx =>
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns ++ patterns.split(",")
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(patterns.split(",").toList)
       experimentStore
-        .getByIdLike(patternsSeq)
+        .findByQuery(query)
         .map(_._2)
         .via(experimentStore.toGraph(clientId))
         .map { graph =>
@@ -171,11 +173,11 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   }
 
   def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+    val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
     val experimentsRelationsDeletes: F[Done] = Effect[F].async { cb =>
       experimentStore
-        .getByIdLike(patternsSeq)
+        .findByQuery(query)
         .map(_._2)
         .flatMapMerge(
           4, { experiment =>
@@ -191,7 +193,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
 
     for {
       _       <- experimentsRelationsDeletes |> liftF
-      deletes <- experimentStore.deleteAll(patternsSeq) |> mapLeft(err => BadRequest(err.toJson))
+      deletes <- experimentStore.deleteAll(query) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok
   }
 
@@ -262,7 +264,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
 
   def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
-    experimentStore.count(patterns).map { count =>
+    experimentStore.count(Query.oneOf(patterns)).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
@@ -270,7 +272,7 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
   def downloadExperiments(): Action[AnyContent] = AuthAction { ctx =>
     import ExperimentInstances._
     val source = experimentStore
-      .getByIdLike(ctx.authorizedPatterns)
+      .findByQuery(Query.oneOf(ctx.authorizedPatterns))
       .map(_._2)
       .map(data => Json.toJson(data))
       .map(Json.stringify _)

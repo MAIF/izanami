@@ -155,11 +155,11 @@ trait ExperimentService[F[_]] {
   ): F[Result[Experiment]]
   def rawUpdate(oldId: ExperimentKey, oldValue: Experiment, id: ExperimentKey, data: Experiment): F[Result[Experiment]]
   def delete(id: ExperimentKey): F[Result[Experiment]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def deleteAll(patterns: Query): F[Result[Done]]
   def getById(id: ExperimentKey): F[Option[Experiment]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Experiment]]
-  def getByIdLike(patterns: Seq[String]): Source[(ExperimentKey, Experiment), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
+  def findByQuery(patterns: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Experiment]]
+  def findByQuery(patterns: Query): Source[(ExperimentKey, Experiment), NotUsed]
+  def count(patterns: Query): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
   def toGraph(clientId: String)(implicit ec: ExecutionContext): Flow[Experiment, JsObject, NotUsed]
   def variantFor(experimentKey: ExperimentKey, clientId: String)(
@@ -219,7 +219,7 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
                      } else {
                         EitherT.rightT(Done)
                      }
-      experiment  <- rawUpdate(oldId, oldValue, id, data)   |> liftFEither
+      experiment  <- rawUpdate(oldId, oldValue, id, data)   |> liftFEither[AppErrors, Experiment]
     } yield experiment
     // format: on
     r.value
@@ -251,26 +251,26 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
     r.value
   }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    jsonStore.deleteAll(patterns)
+  override def deleteAll(q: Query): F[Result[Done]] =
+    jsonStore.deleteAll(q)
 
   override def getById(id: ExperimentKey): F[Option[Experiment]] =
     jsonStore.getById(id).map(_.flatMap(_.validate[Experiment].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Experiment]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Experiment]] =
     jsonStore
-      .getByIdLike(patterns, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, Experiment), NotUsed] =
+  override def findByQuery(query: Query): Source[(Key, Experiment), NotUsed] =
     jsonStore
-      .getByIdLike(patterns)
+      .findByQuery(query)
       .map {
         case (k, v) => (k, v.validate[Experiment].get)
       }
 
-  override def count(patterns: Seq[String]): F[Long] =
-    jsonStore.count(patterns)
+  override def count(query: Query): F[Long] =
+    jsonStore.count(query)
 
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._

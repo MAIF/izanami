@@ -42,9 +42,9 @@ trait WebhookService[F[_]] {
   def delete(id: WebhookKey): F[Result[Webhook]]
   def deleteAll(patterns: Seq[String]): F[Result[Done]]
   def getById(id: WebhookKey): F[Option[Webhook]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Webhook]]
-  def getByIdLike(patterns: Seq[String]): Source[(WebhookKey, Webhook), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Webhook]]
+  def findByQuery(query: Query): Source[(WebhookKey, Webhook), NotUsed]
+  def count(query: Query): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
@@ -106,16 +106,16 @@ class WebhookServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
   override def getById(id: WebhookKey): F[Option[Webhook]] =
     jsonStore.getById(id).map(_.flatMap(_.validate[Webhook].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Webhook]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Webhook]] =
     jsonStore
-      .getByIdLike(patterns, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, Webhook), NotUsed] =
-    jsonStore.getByIdLike(patterns).readsKV[Webhook]
+  override def findByQuery(query: Query): Source[(Key, Webhook), NotUsed] =
+    jsonStore.findByQuery(query).readsKV[Webhook]
 
-  override def count(patterns: Seq[String]): F[Long] =
-    jsonStore.count(patterns)
+  override def count(query: Query): F[Long] =
+    jsonStore.count(query)
 
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._

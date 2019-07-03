@@ -131,16 +131,6 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
       .recover { case _: ConditionalCheckFailedException => Result.error[JsValue](s"error.data.missing") }
   }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] = {
-    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $patterns")
-
-    getByIdLike(patterns)
-      .mapAsync(10) { case (id, _) => deleteF(id) }
-      .runWith(Sink.ignore)
-      .toF
-      .map(_ => Result.ok(Done.done()))
-  }
-
   override def getById(id: Key): F[Option[JsValue]] = {
     IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName getById with id : $id")
 
@@ -163,7 +153,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
 
   override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     IzanamiLogger.debug(
-      s"Dynamo query on $tableName and store $storeName getByIdLike with patterns : $query, page $page, $nbElementPerPage elements by page"
+      s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query, page $page, $nbElementPerPage elements by page"
     )
 
     val position = (page - 1) * nbElementPerPage
@@ -185,7 +175,7 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
   }
 
   override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = {
-    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName getByIdLike with patterns : $query")
+    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query")
     findKeys(query)
   }
 

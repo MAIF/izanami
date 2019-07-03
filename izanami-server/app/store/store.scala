@@ -146,6 +146,8 @@ object OneOfPatternClause {
 }
 final case class Query(ands: NonEmptyList[OneOfPatternClause]) {
   def and(patterns: NonEmptyList[String]): Query = and(OneOfPatternClause(patterns.map(StringPattern.apply)))
+  def and(patterns: Seq[String]): Query =
+    and(OneOfPatternClause(NonEmptyList.fromList(patterns.toList).get.map(StringPattern.apply)))
   def and(pattern: String, rest: String*): Query = and(OneOfPatternClause.of(pattern, rest: _*))
   def and(clause: OneOfPatternClause): Query     = Query(ands :+ clause)
   def and(query: Query): Query                   = Query(ands ++ query.ands.toList)
@@ -184,12 +186,7 @@ trait DataStore[F[_], Key, Data] {
   def getById(id: Key): F[Option[Data]]
   def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Data]]
   def findByQuery(query: Query): Source[(Key, Data), NotUsed]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Data]] =
-    findByQuery(Query.oneOf(patterns), page, nbElementPerPage)
-  def getByIdLike(patterns: Seq[String]): Source[(Key, Data), NotUsed] =
-    findByQuery(Query.oneOf(patterns))
   def count(query: Query): F[Long]
-  def count(patterns: Seq[String]): F[Long] = count(Query.oneOf(patterns))
 }
 
 trait JsonDataStore[F[_]] extends DataStore[F, Key, JsValue]

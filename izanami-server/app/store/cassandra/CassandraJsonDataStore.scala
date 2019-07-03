@@ -206,41 +206,42 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
     if (q.hasEmpty) {
       Source.empty
     } else {
-        val query =
-          s"SELECT key, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
-        IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
-        val stmt = new SimpleStatement(query, namespaceFormatted)
-        CassandraSource(stmt).map { rs =>
+      val query =
+        s"SELECT key, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
+      IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
+      val stmt = new SimpleStatement(query, namespaceFormatted)
+      CassandraSource(stmt)
+        .map { rs =>
           (Key(rs.getString("key")), Json.parse(rs.getString("value")))
-        }.filter { case (k, _) => Query.keyMatchQuery(k, q) }
+        }
+        .filter { case (k, _) => Query.keyMatchQuery(k, q) }
     }
 
   override def deleteAll(q: Query): F[Result[Done]] =
     if (q.hasEmpty) {
       Effect[F].pure(Result.ok(Done))
     } else {
-        val query =
-          s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
-        IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
-        val stmt: Statement =
-          new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
-        CassandraSource(stmt)
-          .map { rs =>
-            (rs.getString("namespace"), rs.getString("id"))
-          }
-          .filter { case (_, k) => Query.keyMatchQuery(Key(k), q) }
-          .mapAsyncF(4) {
-            case (n, id) =>
-              val query =
-                s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
-              val args = Seq(n, id)
-              executeWithSession(query, n, id)
-          }
-          .runFold(0)((acc, _) => acc + 1)
-          .toF
-          .map(_ => Result.ok(Done))
+      val query =
+        s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
+      IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
+      val stmt: Statement =
+        new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
+      CassandraSource(stmt)
+        .map { rs =>
+          (rs.getString("namespace"), rs.getString("id"))
+        }
+        .filter { case (_, k) => Query.keyMatchQuery(Key(k), q) }
+        .mapAsyncF(4) {
+          case (n, id) =>
+            val query =
+              s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
+            val args = Seq(n, id)
+            executeWithSession(query, n, id)
+        }
+        .runFold(0)((acc, _) => acc + 1)
+        .toF
+        .map(_ => Result.ok(Done))
     }
-
 
   override def count(query: Query): F[Long] = countRaw(query).flatMap {
     case Right(r) => r.pure[F]
@@ -252,12 +253,14 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
     if (query.hasEmpty) {
       Result.ok(0L).pure[F]
     } else {
-        getByIdLikeRaw(query)
-          .runFold(0L) { (acc, _) => acc + 1 }
-          .map { rs =>
-            Result.ok(rs)
-          }
-          .toF
+      getByIdLikeRaw(query)
+        .runFold(0L) { (acc, _) =>
+          acc + 1
+        }
+        .map { rs =>
+          Result.ok(rs)
+        }
+        .toF
     }
 }
 

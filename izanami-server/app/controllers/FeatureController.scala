@@ -20,6 +20,7 @@ import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
+import store.Query
 import store.Result.AppErrors
 
 class FeatureController[F[_]: Effect](env: Env,
@@ -43,13 +44,13 @@ class FeatureController[F[_]: Effect](env: Env,
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import FeatureInstances._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
       render match {
         case "flat" =>
           if (active) {
             featureStore
-              .getByIdLikeActive(env, Json.obj(), patternsSeq, page, nbElementPerPage)
+              .findByQueryActive(env, Json.obj(), query, page, nbElementPerPage)
               .map { pagingResult =>
                 val results: Seq[JsValue] = pagingResult.results.map {
                   case (feature, isActive) =>
@@ -71,7 +72,7 @@ class FeatureController[F[_]: Effect](env: Env,
               }
           } else {
             featureStore
-              .getByIdLike(patternsSeq, page, nbElementPerPage)
+              .findByQuery(query, page, nbElementPerPage)
               .map { pagingResult =>
                 Ok(
                   Json.obj(
@@ -89,7 +90,7 @@ class FeatureController[F[_]: Effect](env: Env,
         case "tree" =>
           if (active) {
             featureStore
-              .getByIdLikeActive(env, Json.obj(), patternsSeq)
+              .findByQueryActive(env, Json.obj(), query)
               .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
               .map {
                 _.map { case (k, f, a) => (k, f.toJson(a)) }
@@ -103,7 +104,7 @@ class FeatureController[F[_]: Effect](env: Env,
               .toF[F]
           } else {
             featureStore
-              .getByIdLike(patternsSeq)
+              .findByQuery(query)
               .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
               .map { Node.valuesToNodes[Feature] }
               .map { v =>
@@ -121,11 +122,11 @@ class FeatureController[F[_]: Effect](env: Env,
 
   def listWithContext(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[JsValue] =
     AuthAction.asyncF(parse.json) { ctx =>
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
       ctx.body match {
         case context: JsObject =>
           featureStore
-            .getByIdLikeActive(env, context, patternsSeq, page, nbElementPerPage)
+            .findByQueryActive(env, context, query, page, nbElementPerPage)
             .map { pagingResult =>
               val results: Seq[JsValue] = pagingResult.results.map {
                 case (feature, isActive) =>
@@ -161,11 +162,11 @@ class FeatureController[F[_]: Effect](env: Env,
     }
 
   private def featuresTree(patterns: String, flat: Boolean, authorizedPatterns: Seq[String], body: JsValue) = {
-    val patternsSeq: Seq[String] = authorizedPatterns ++ patterns.split(",")
+    val query: Query = Query.oneOf(authorizedPatterns).and(patterns.split(",").toList)
     body match {
       case context: JsObject =>
         featureStore
-          .getFeatureTree(patternsSeq, flat, context, env)
+          .getFeatureTree(query, flat, context, env)
           .map(graph => Ok(graph))
           .runWith(Sink.head)
       case _ =>
@@ -259,24 +260,25 @@ class FeatureController[F[_]: Effect](env: Env,
   }
 
   def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+    val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
     for {
-      deletes <- featureStore.deleteAll(patternsSeq) |> mapLeft(
+      deletes <- featureStore.deleteAll(query) |> mapLeft(
                   err => BadRequest(err.toJson)
                 )
     } yield Ok
   }
 
   def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
-    val patterns: Seq[String] = ctx.authorizedPatterns
-    featureStore.count(patterns).map { count =>
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
+    featureStore.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
     val source = featureStore
-      .getByIdLike(ctx.authorizedPatterns)
+      .findByQuery(query)
       .map { case (_, data) => FeatureInstances.format.writes(data) }
       .map(Json.stringify _)
       .intersperse("", "\n", "\n")
