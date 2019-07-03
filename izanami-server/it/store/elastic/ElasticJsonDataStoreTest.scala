@@ -20,8 +20,17 @@ class ElasticJsonDataStoreTest extends AbstractJsonDataStoreTest("Elastic")  wit
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
     super.before(fun)
+    cleanUpElastic
+  }
+
+  private def cleanUpElastic = {
     import _root_.elastic.implicits._
     import _root_.elastic.codec.PlayJson._
     elastic.deleteIndex("*").futureValue
+  }
+
+  override protected def afterAll(): Unit = {
+    super.afterAll()
+    cleanUpElastic
   }
 }
