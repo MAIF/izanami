@@ -44,7 +44,7 @@ class FeatureController[F[_]: Effect](env: Env,
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import FeatureInstances._
-      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(Query.oneOf(pattern.split(",").toList))
 
       render match {
         case "flat" =>
@@ -122,7 +122,8 @@ class FeatureController[F[_]: Effect](env: Env,
 
   def listWithContext(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[JsValue] =
     AuthAction.asyncF(parse.json) { ctx =>
-      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(Query.oneOf(pattern.split(",").toList))
+
       ctx.body match {
         case context: JsObject =>
           featureStore

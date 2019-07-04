@@ -174,7 +174,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
         limit = None,
         skip = 0,
         hint = None,
-        readConcern = ReadConcern.Majority
+        readConcern = ReadConcern.Local
       )
       .toF[F]
   }
