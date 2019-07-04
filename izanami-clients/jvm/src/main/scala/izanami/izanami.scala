@@ -4,7 +4,7 @@ import java.time.{LocalDateTime, ZoneId}
 
 import akka.actor.ActorSystem
 import izanami.Strategy._
-import izanami.commons.IzanamiException
+import izanami.commons.{IzanamiException, PatternsUtil}
 import play.api.libs.json._
 import shapeless.syntax
 
@@ -217,6 +217,8 @@ object ExperimentVariantWon {
 
 case class ExperimentFallback(id: String, name: String, description: String, enabled: Boolean, variant: Variant) {
   def experiment = Experiment(id, name, description, enabled, Seq(variant))
+
+  def matchPatterns(patterns: Seq[String]) = patterns.exists(p => PatternsUtil.matchPattern(p)(id))
 
   def tree: JsObject =
     (id.split(":").foldLeft[JsPath](JsPath)(_ \ _) \ "variant")

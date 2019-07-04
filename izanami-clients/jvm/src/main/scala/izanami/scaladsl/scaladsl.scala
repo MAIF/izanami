@@ -10,7 +10,7 @@ import izanami.FeatureEvent.{FeatureCreated, FeatureUpdated}
 import izanami.IzanamiBackend.SseBackend
 import izanami.Strategy.DevStrategy
 import izanami._
-import izanami.commons.{HttpClient, IzanamiException}
+import izanami.commons.{HttpClient, IzanamiException, PatternsUtil}
 import izanami.configs._
 import izanami.experiments.{FallbackExperimentStrategy, FetchExperimentsStrategy}
 import izanami.features._
@@ -316,6 +316,7 @@ trait FeatureClient {
    * Get features by pattern like my:keys:*
    */
   def features(pattern: String): Future[Features] = features(Seq(pattern))
+
   /**
    * Get features by pattern like my:keys:*
    */
@@ -473,6 +474,12 @@ case class Features(clientConfig: ClientConfig, featuresSeq: Seq[Feature], fallb
         fallback.find(_.id == key).exists(_.isActive(clientConfig))
       )
 
+  def filterWith(patterns: Seq[String]): Features =
+    this.copy(
+      featuresSeq = featuresSeq.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id))),
+      fallback = fallback.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id)))
+    )
+
   def tree(): JsObject = {
     val fallbackTree: JsObject =
       fallback.map(json).foldLeft(Json.obj())(_ deepMerge _)
@@ -558,6 +565,11 @@ object Configs {
 
 case class Configs(configs: Seq[Config], fallback: Seq[Config] = Seq.empty) {
 
+  def filterWith(patterns: Seq[String]): Configs =
+    this.copy(
+      configs = configs.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id)))
+    )
+
   def tree(): JsObject = {
     val fbTree = fallback
       .map(_.asJson)
@@ -599,7 +611,7 @@ trait ConfigClient {
   /**
    * Get configs by pattern like my:keys:*
    */
-  def configs(pattern: Seq[String] = Seq("*")): Future[Configs]
+  def configs(pattern: Seq[String]): Future[Configs]
 
   /**
    * Get a config by his key
@@ -696,6 +708,10 @@ case class ExperimentClient(experimentsClient: ExperimentsClient, experiment: Ex
   def description: String    = experiment.description
   def enabled: Boolean       = experiment.enabled
   def variants: Seq[Variant] = experiment.variants
+
+  def matchPattern(patterns: Seq[String]): Boolean = {
+    patterns.exists(p => PatternsUtil.matchPattern(p)(id))
+  }
 
   /**
    * Get the variant if exists, associated to the user id for an experiment.

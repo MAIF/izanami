@@ -95,6 +95,7 @@ private[features] class FetchFeatureClient(
       .fetchPages("/api/features", query)
       .map(json => Features(clientConfig, parseFeatures(json), fallback.featuresSeq))
       .recoverWith(handleFailure(fallback))
+      .map(_.filterWith(pattern))
   }
 
   override def features(pattern: Seq[String], context: JsObject): Future[Features] = {
@@ -107,6 +108,7 @@ private[features] class FetchFeatureClient(
         Features(clientConfig, parseFeatures(json), fallback.featuresSeq)
       })
       .recoverWith(handleFailure(fallback))
+      .map(_.filterWith(pattern))
   }
 
   override def checkFeature(key: String): Future[Boolean] =

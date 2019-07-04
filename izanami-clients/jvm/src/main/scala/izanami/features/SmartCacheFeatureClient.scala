@@ -82,8 +82,8 @@ private[features] class SmartCacheFeatureClient(
     })
 
   override def features(pattern: String): Future[Features] = {
-    val convertedPattern: String =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+    val convertedPattern: Seq[String] =
+      Option(pattern).map(_.replace(".", ":")).toSeq
     smartCacheStrategyHandler
       .getByPattern(convertedPattern)
       .mapTo[Seq[Feature]]
@@ -116,17 +116,18 @@ private[features] class SmartCacheFeatureClient(
     }
 
   override def features(pattern: Seq[String]): Future[Features] = {
-    val convertedPattern: String =
-      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
+    val convertedPattern: Seq[String] =
+      Option(pattern).map(_.map(_.replace(".", ":"))).getOrElse(Seq.empty)
     smartCacheStrategyHandler
       .getByPattern(convertedPattern)
       .mapTo[Seq[Feature]]
       .map(features => Features(clientConfig, features, fallback = fallback.featuresSeq))
       .recoverWith(handleFailure(fallback))
+      .map(_.filterWith(pattern))
   }
 
   override def features(pattern: Seq[String], context: JsObject): Future[Features] =
-    context match {
+    (context match {
       case JsObject(v) if v.isEmpty =>
         features(pattern)
       case ctx =>
@@ -147,7 +148,7 @@ private[features] class SmartCacheFeatureClient(
           case _ =>
         }
         features
-    }
+    }).map(_.filterWith(pattern))
 
   override def checkFeature(key: String): Future[Boolean] = {
     require(key != null, "key should not be null")

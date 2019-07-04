@@ -79,7 +79,7 @@ class SmartCacheConfigClient(
 
   override def configs(pattern: Seq[String]): Future[Configs] = {
     val convertedPattern =
-      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
+      Option(pattern).map(_.map(_.replace(".", ":"))).getOrElse(Seq.empty)
     smartCacheStrategyHandler
       .getByPattern(convertedPattern)
       .mapTo[Seq[Config]]
