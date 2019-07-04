@@ -50,12 +50,12 @@ class FallbackFeatureStategy(fallback: Features)(implicit val izanamiDispatcher:
     }
   }
 
-  override def features(pattern: String): Future[Features] =
+  override def features(pattern: Seq[String]): Future[Features] =
     Future {
       fallback.copy()
     }
 
-  override def features(pattern: String, context: JsObject): Future[Features] =
+  override def features(pattern: Seq[String], context: JsObject): Future[Features] =
     Future {
       fallback.copy()
     }

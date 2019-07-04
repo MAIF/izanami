@@ -48,9 +48,9 @@ private[configs] class FetchWithCacheConfigClient(
     .expireAfterWrite(cacheConfig.duration.toMillis, TimeUnit.MILLISECONDS)
     .build[String, Seq[Config]]()
 
-  override def configs(pattern: String) = {
+  override def configs(pattern: Seq[String]): Future[Configs] = {
     val convertedPattern =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
     Option(cache.getIfPresent(convertedPattern)) match {
       case Some(configs) => FastFuture.successful(Configs(configs))
       case None =>

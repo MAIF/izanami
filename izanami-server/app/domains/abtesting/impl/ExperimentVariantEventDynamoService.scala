@@ -27,16 +27,17 @@ import libs.logs.IzanamiLogger
 import store.Result
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable
 
 object ExperimentVariantEventDynamoService {
   def apply[F[_]: Effect](config: DynamoConfig, client: DynamoClient, eventStore: EventStore[F])(
       implicit system: ActorSystem
   ): ExperimentVariantEventDynamoService[F] =
-    new ExperimentVariantEventDynamoService(config.eventsTableName, eventStore)
+    new ExperimentVariantEventDynamoService(client, config.eventsTableName, eventStore)
 }
 
-class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, eventStore: EventStore[F])(
+class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
+                                                        tableName: String,
+                                                        eventStore: EventStore[F])(
     implicit actorSystem: ActorSystem
 ) extends ExperimentVariantEventService[F] {
   import cats.implicits._
@@ -75,7 +76,9 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, event
 
     for {
       res <- DynamoDb
-              .single(request)
+              .source(request)
+              .withAttributes(DynamoAttributes.client(client))
+              .runWith(Sink.head)
               .map(_ => Result.ok(data))
               .toF
       _ <- eventStore.publish(ExperimentVariantEventCreated(id, data))
@@ -100,7 +103,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, event
           )
       })
       .map(DeleteItem)
-      .via(DynamoDb.flow[DeleteItem])
+      .via(DynamoDb.flow[DeleteItem].withAttributes(DynamoAttributes.client(client)))
 
     val deletes = findExperimentVariantEvents(experiment)
       .map(_._2)
@@ -132,6 +135,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, event
 
     DynamoDb
       .source(request)
+      .withAttributes(DynamoAttributes.client(client))
       .mapConcat(_.getItems.asScala.toList)
       .map(item => {
         val variantId: ExperimentVariantEventKey = ExperimentVariantEventKey(Key(item.get("variantId").getS))
@@ -176,6 +180,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, event
 
     DynamoDb
       .source(request)
+      .withAttributes(DynamoAttributes.client(client))
       .mapConcat(_.getItems.asScala.toList)
       .map(item => Key(item.get("variantId").getS) -> item.get("events").getL.asScala.map(DynamoMapper.toJsValue))
       .filter(_._1.matchAllPatterns(patterns: _*))
@@ -199,6 +204,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](tableName: String, event
 
     DynamoDb
       .source(request)
+      .withAttributes(DynamoAttributes.client(client))
       .runWith(Sink.head)
       .map(_ => ())
       .toF

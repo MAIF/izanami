@@ -1,7 +1,6 @@
 import akka.actor.ActorSystem
 import akka.NotUsed
 import akka.stream.scaladsl.Flow
-import cats.effect.internals.IOContextShift
 import libs.logs.IzanamiLogger
 import metrics.Metrics
 import cats.effect.{ContextShift, IO}
@@ -47,7 +46,7 @@ class IzanamiLoader extends ApplicationLoader {
 
   implicit val lDbStores: DbStores[IO] = new DbStores[IO]
 
-  def load(context: Context) = {
+  def load(context: Context): Application = {
     LoggerConfigurator(context.environment.classLoader).foreach {
       _.configure(context.environment, context.initialConfiguration, Map.empty)
     }
