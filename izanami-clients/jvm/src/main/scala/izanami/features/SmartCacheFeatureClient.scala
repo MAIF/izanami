@@ -115,6 +115,40 @@ private[features] class SmartCacheFeatureClient(
         features
     }
 
+  override def features(pattern: Seq[String]): Future[Features] = {
+    val convertedPattern: String =
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
+    smartCacheStrategyHandler
+      .getByPattern(convertedPattern)
+      .mapTo[Seq[Feature]]
+      .map(features => Features(clientConfig, features, fallback = fallback.featuresSeq))
+      .recoverWith(handleFailure(fallback))
+  }
+
+  override def features(pattern: Seq[String], context: JsObject): Future[Features] =
+    context match {
+      case JsObject(v) if v.isEmpty =>
+        features(pattern)
+      case ctx =>
+        val features: Future[Features] =
+          underlyingStrategy.features(pattern, ctx)
+        features.onComplete {
+          case Success(f) =>
+            // Updating the cache for features without context
+            f.featuresSeq
+              .filter {
+                case _: ScriptFeature       => false
+                case _: GlobalScriptFeature => false
+                case _                      => true
+              }
+              .foreach { f =>
+                smartCacheStrategyHandler.setValues(Seq((f.id, f)), None, triggerEvent = true)
+              }
+          case _ =>
+        }
+        features
+    }
+
   override def checkFeature(key: String): Future[Boolean] = {
     require(key != null, "key should not be null")
     val convertedKey = key.replace(".", ":")

@@ -81,9 +81,9 @@ private[configs] class FetchConfigClient(
     }
     .mapConcat(_.toList)
 
-  override def configs(pattern: String): Future[Configs] = {
+  override def configs(pattern: Seq[String]): Future[Configs] = {
     val convertedPattern =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
     val query = Seq("pattern" -> convertedPattern)
     client
       .fetchPages("/api/configs", query)

@@ -87,9 +87,9 @@ private[features] class FetchFeatureClient(
     }
     .mapConcat(_.toList)
 
-  override def features(pattern: String): Future[Features] = {
+  override def features(pattern: Seq[String]): Future[Features] = {
     val convertedPattern =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
     val query = Seq("pattern" -> convertedPattern, "active" -> "true")
     client
       .fetchPages("/api/features", query)
@@ -97,9 +97,9 @@ private[features] class FetchFeatureClient(
       .recoverWith(handleFailure(fallback))
   }
 
-  override def features(pattern: String, context: JsObject): Future[Features] = {
+  override def features(pattern: Seq[String], context: JsObject): Future[Features] = {
     val convertedPattern =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
     val query = Seq("pattern" -> convertedPattern)
     client
       .fetchPagesWithContext("/api/features/_checks", context, query)
