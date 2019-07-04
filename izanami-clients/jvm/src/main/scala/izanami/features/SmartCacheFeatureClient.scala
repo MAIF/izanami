@@ -82,8 +82,8 @@ private[features] class SmartCacheFeatureClient(
     })
 
   override def features(pattern: String): Future[Features] = {
-    val convertedPattern: String =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+    val convertedPattern: Seq[String] =
+      Option(pattern).map(_.replace(".", ":")).toSeq
     smartCacheStrategyHandler
       .getByPattern(convertedPattern)
       .mapTo[Seq[Feature]]
@@ -114,6 +114,41 @@ private[features] class SmartCacheFeatureClient(
         }
         features
     }
+
+  override def features(pattern: Seq[String]): Future[Features] = {
+    val convertedPattern: Seq[String] =
+      Option(pattern).map(_.map(_.replace(".", ":"))).getOrElse(Seq.empty)
+    smartCacheStrategyHandler
+      .getByPattern(convertedPattern)
+      .mapTo[Seq[Feature]]
+      .map(features => Features(clientConfig, features, fallback = fallback.featuresSeq))
+      .recoverWith(handleFailure(fallback))
+      .map(_.filterWith(pattern))
+  }
+
+  override def features(pattern: Seq[String], context: JsObject): Future[Features] =
+    (context match {
+      case JsObject(v) if v.isEmpty =>
+        features(pattern)
+      case ctx =>
+        val features: Future[Features] =
+          underlyingStrategy.features(pattern, ctx)
+        features.onComplete {
+          case Success(f) =>
+            // Updating the cache for features without context
+            f.featuresSeq
+              .filter {
+                case _: ScriptFeature       => false
+                case _: GlobalScriptFeature => false
+                case _                      => true
+              }
+              .foreach { f =>
+                smartCacheStrategyHandler.setValues(Seq((f.id, f)), None, triggerEvent = true)
+              }
+          case _ =>
+        }
+        features
+    }).map(_.filterWith(pattern))
 
   override def checkFeature(key: String): Future[Boolean] = {
     require(key != null, "key should not be null")

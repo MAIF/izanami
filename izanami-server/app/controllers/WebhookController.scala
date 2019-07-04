@@ -15,6 +15,7 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Result.AppErrors
 import libs.functional.EitherTSyntax
+import store.Query
 
 class WebhookController[F[_]: Effect](webhookStore: WebhookService[F],
                                       system: ActorSystem,
@@ -35,10 +36,10 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookService[F],
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import WebhookInstances._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
       webhookStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
+        .findByQuery(query, page, nbElementPerPage)
         .map { r =>
           Ok(
             Json.obj(
@@ -133,16 +134,17 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookService[F],
     }
 
   def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
-    val patterns: Seq[String] = ctx.authorizedPatterns
-    webhookStore.count(patterns).map { count =>
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
+    webhookStore.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
     import WebhookInstances._
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
     val source = webhookStore
-      .getByIdLike(ctx.authorizedPatterns)
+      .findByQuery(query)
       .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify)
       .intersperse("", "\n", "\n")

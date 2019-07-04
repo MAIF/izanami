@@ -184,7 +184,7 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
   override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
     findKeys(s"$experimentseventsNamespace:*")
       .flatMapMerge(4, key => findEvents(key))
-      .filter(e => e.id.key.matchPatterns(patterns: _*))
+      .filter(e => e.id.key.matchAllPatterns(patterns: _*))
 
   override def check(): F[Unit] = command().get("test").toF.map(_ => ())
 }

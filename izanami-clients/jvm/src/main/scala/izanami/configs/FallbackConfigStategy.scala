@@ -29,6 +29,11 @@ class FallbackConfigStategy(fallback: Configs)(implicit val izanamiDispatcher: I
       fallback
     }
 
+  override def configs(pattern: Seq[String]): Future[Configs] =
+    Future {
+      fallback
+    }
+
   override def config(key: String): Future[JsValue] =
     Future {
       fallback.get(key)

@@ -21,13 +21,16 @@ class FallbackExperimentStrategy(fallback: Experiments) extends ExperimentsClien
       ExperimentClient(this, fb.experiment)
     })
 
-  override def list(pattern: String): Future[Seq[ExperimentClient]] =
-    FastFuture.successful(fallback.experiments.map(fb => ExperimentClient(this, fb.experiment)))
+  override def list(pattern: Seq[String]): Future[Seq[ExperimentClient]] =
+    FastFuture.successful(fallback.experiments.map(fb =>
+      ExperimentClient(this, fb.experiment)).filter(ec => ec.matchPattern(pattern)
+    ))
 
-  override def tree(pattern: String, clientId: String): Future[JsObject] =
+  override def tree(pattern: Seq[String], clientId: String): Future[JsObject] =
     FastFuture.successful(
       fallback.experiments
         .filter(_.enabled)
+        .filter(ec => ec.matchPatterns(pattern))
         .map { _.tree }
         .foldLeft(Json.obj())(_ deepMerge _)
     )

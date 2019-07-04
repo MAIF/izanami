@@ -12,6 +12,7 @@ import env.Env
 import libs.crypto.Sha
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
+import store.Query
 
 import scala.concurrent.Future
 
@@ -59,7 +60,7 @@ class AuthController[F[_]: Effect](_env: Env,
             }
           case None =>
             userStore
-              .count(Seq("*"))
+              .count(Query.oneOf("*"))
               .map {
                 case count
                     if count == 0 && auth.userId == _env.izanamiConfig.user.initialize.userId && auth.password == _env.izanamiConfig.user.initialize.password => {

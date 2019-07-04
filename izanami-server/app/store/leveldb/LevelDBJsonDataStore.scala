@@ -4,7 +4,7 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import akka.{Done, NotUsed}
@@ -40,7 +40,7 @@ object LevelDBJsonDataStore {
     val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
     stores.stores.getOrElseUpdate(dbPath, {
-      IzanamiLogger.info(s"Load store LevelDB for namespace $namespace")
+      IzanamiLogger.info(s"Load store LevelDB for namespace $namespace and path $dbPath")
       new LevelDBJsonDataStore[F](dbPath, applicationLifecycle)
     })
   }
@@ -67,7 +67,8 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
     Future(client.close())
   }
 
-  implicit val mat = ActorMaterializer()
+  implicit val mat: Materializer = ActorMaterializer()
+
   private implicit val ec: ExecutionContext =
     system.dispatchers.lookup("izanami.level-db-dispatcher")
 
@@ -122,10 +123,12 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
   private def patternsToKey(patterns: Seq[String]): Seq[Key] =
     patterns.map(Key.apply).map(buildKey)
 
-  private def keys(patterns: String*): Source[Key, NotUsed] =
+  private def keys(query: Query): Source[Key, NotUsed] =
     getAllKeys()
       .map { Key.apply }
-      .filter { _.matchPatterns(patterns: _*) }
+      .filter { k =>
+        Query.keyMatchQuery(k, query)
+      }
 
   private def getAllKeys(): Source[String, NotUsed] = {
     val iterator = client.iterator()
@@ -162,9 +165,14 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
 
   override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     toAsync {
-      client.delete(bytes(oldId.key))
-      client.put(bytes(id.key), bytes(Json.stringify(data)))
-      Result.ok(data)
+      Try(client.get(bytes(oldId.key))).toOption.flatMap(s => Option(asString(s))) match {
+        case Some(_) =>
+          client.delete(bytes(oldId.key))
+          client.put(bytes(id.key), bytes(Json.stringify(data)))
+          Result.ok(data)
+        case None =>
+          Result.errors[JsValue](ErrorMessage("error.data.missing", id.key))
+      }
     }
 
   override def delete(id: Key): F[Result[JsValue]] =
@@ -179,28 +187,12 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
           Result.error[JsValue]("error.data.missing").pure[F]
       }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    toAsync {
-      val p = patternsToKey(patterns).map(_.key).map(_.replaceAll("\\*", ".*"))
-      p.foreach(key => client.delete(bytes(key)))
-      Result.ok(Done)
-    }
-
   override def getById(id: Key): F[Option[JsValue]] =
     getByKeyId(id)
 
-  override def getByIdLike(patterns: Seq[String]) =
-    keys(patterns: _*)
-      .grouped(50)
-      .mapAsyncF(4)(getByKeys)
-      .mapConcat(_.toList)
-      .map {
-        case (k, v) => (Key(k), v)
-      }
-
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     val position = (page - 1) * nbElementPerPage
-    keys(patterns: _*)
+    keys(query)
       .via(Flows.count {
         Flow[Key]
           .drop(position)
@@ -218,8 +210,26 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
       }
   }
 
-  override def count(patterns: Seq[String]): F[Long] =
-    getByIdLike(patterns)
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
+    keys(query)
+      .grouped(50)
+      .mapAsyncF(4)(getByKeys)
+      .mapConcat(_.toList)
+      .map {
+        case (k, v) => (Key(k), v)
+      }
+
+  override def deleteAll(query: Query): F[Result[Done]] =
+    keys(query)
+      .mapAsyncF(4)(delete)
+      .runWith(Sink.ignore)
+      .toF
+      .map { _ =>
+        Result.ok(Done)
+      }
+
+  override def count(query: Query): F[Long] =
+    findByQuery(query)
       .runFold(0L) { (acc, _) =>
         acc + 1
       }

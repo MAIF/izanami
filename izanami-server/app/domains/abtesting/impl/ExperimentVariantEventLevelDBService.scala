@@ -182,7 +182,7 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
       .fromFuture(client.keys(s"$experimentseventsNamespace:*").toIO.unsafeToFuture())
       .mapConcat(_.toList)
       .flatMapMerge(4, key => findEvents(key))
-      .filter(e => e.id.key.matchPatterns(patterns: _*))
+      .filter(e => e.id.key.matchAllPatterns(patterns: _*))
 
   override def check(): F[Unit] = Applicative[F].pure(())
 

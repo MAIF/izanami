@@ -28,11 +28,11 @@ trait ConfigService[F[_]] {
   def create(id: ConfigKey, data: Config): F[Result[Config]]
   def update(oldId: ConfigKey, id: ConfigKey, data: Config): F[Result[Config]]
   def delete(id: ConfigKey): F[Result[Config]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def deleteAll(query: Query): F[Result[Done]]
   def getById(id: ConfigKey): F[Option[Config]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Config]]
-  def getByIdLike(patterns: Seq[String]): Source[(ConfigKey, Config), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Config]]
+  def findByQuery(query: Query): Source[(ConfigKey, Config), NotUsed]
+  def count(query: Query): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
@@ -81,22 +81,22 @@ class ConfigServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: E
     r.value
   }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    jsonStore.deleteAll(patterns)
+  override def deleteAll(query: Query): F[Result[Done]] =
+    jsonStore.deleteAll(query)
 
   override def getById(id: ConfigKey): F[Option[Config]] =
     jsonStore.getById(id).map(_.flatMap(_.validate[Config].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Config]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Config]] =
     jsonStore
-      .getByIdLike(patterns, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, Config), NotUsed] =
-    jsonStore.getByIdLike(patterns).readsKV[Config]
+  override def findByQuery(query: Query): Source[(Key, Config), NotUsed] =
+    jsonStore.findByQuery(query).readsKV[Config]
 
-  override def count(patterns: Seq[String]): F[Long] =
-    jsonStore.count(patterns)
+  override def count(query: Query): F[Long] =
+    jsonStore.count(query)
 
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._

@@ -180,10 +180,10 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments, er
       }
   }
 
-  override def list(pattern: String): Future[Seq[ExperimentClient]] = {
+  override def list(pattern: Seq[String]): Future[Seq[ExperimentClient]] = {
 
-    val effectivePattern: String =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+    val effectivePattern =
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
 
     val fetchedList: Future[Seq[ExperimentClient]] = httpClient
       .fetchPages(s"/api/experiments", Seq("pattern" -> effectivePattern))
@@ -211,12 +211,13 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments, er
         logger.error(s"Error getting experiment list for $pattern, recovering with fallback", e)
         fallback.experiments.map(fb => ExperimentClient(this, fb.experiment))
     }
+    .map(_.filter(ec => ec.matchPattern(pattern)))
   }
 
-  override def tree(pattern: String, clientId: String): Future[JsObject] = {
+  override def tree(pattern: Seq[String], clientId: String): Future[JsObject] = {
 
-    val effectivePattern: String =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+    val effectivePattern =
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
 
     (
       for {

@@ -113,23 +113,21 @@ trait FeatureService[F[_]] {
   def create(id: Key, data: Feature): F[Result[Feature]]
   def update(oldId: Key, id: Key, data: Feature): F[Result[Feature]]
   def delete(id: Key): F[Result[Feature]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def deleteAll(query: Query): F[Result[Done]]
   def getById(id: Key): F[Option[Feature]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Feature]]
-  def getByIdLike(patterns: Seq[String]): Source[(FeatureKey, Feature), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
-  def getByIdLikeActive(env: Env,
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Feature]]
+  def findByQuery(query: Query): Source[(FeatureKey, Feature), NotUsed]
+  def count(query: Query): F[Long]
+  def findByQueryActive(env: Env,
                         context: JsObject,
-                        patterns: Seq[String],
+                        query: Query,
                         page: Int,
                         nbElementPerPage: Int): F[PagingResult[(Feature, Boolean)]]
-  def getByIdLikeActive(env: Env,
-                        context: JsObject,
-                        patterns: Seq[String]): Source[(FeatureKey, Feature, Boolean), NotUsed]
+  def findByQueryActive(env: Env, context: JsObject, query: Query): Source[(FeatureKey, Feature, Boolean), NotUsed]
 
   def getByIdActive(env: Env, context: JsObject, id: FeatureKey): F[Option[(Feature, Boolean)]]
 
-  def getFeatureTree(patterns: Seq[String], flat: Boolean, context: JsObject, env: Env)(
+  def getFeatureTree(query: Query, flat: Boolean, context: JsObject, env: Env)(
       implicit ec: ExecutionContext
   ): Source[JsValue, NotUsed]
 
@@ -191,8 +189,8 @@ class FeatureServiceImpl[F[_]: Effect: ScriptCache](jsonStore: JsonDataStore[F],
     r.value
   }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    jsonStore.deleteAll(patterns)
+  override def deleteAll(query: Query): F[Result[Done]] =
+    jsonStore.deleteAll(query)
 
   override def getById(id: FeatureKey): F[Option[Feature]] =
     jsonStore
@@ -208,19 +206,19 @@ class FeatureServiceImpl[F[_]: Effect: ScriptCache](jsonStore: JsonDataStore[F],
       }
     }
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[Feature]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Feature]] =
     jsonStore
-      .getByIdLike(patterns, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLikeActive(
+  override def findByQueryActive(
       env: Env,
       context: JsObject,
-      patterns: Seq[String],
+      query: Query,
       page: Int,
       nbElementPerPage: Int
   ): F[PagingResult[(Feature, Boolean)]] =
-    getByIdLike(patterns, page, nbElementPerPage)
+    findByQuery(query, page, nbElementPerPage)
       .flatMap { p =>
         p.results.toList
           .traverse { f =>
@@ -235,16 +233,16 @@ class FeatureServiceImpl[F[_]: Effect: ScriptCache](jsonStore: JsonDataStore[F],
           }
       }
 
-  override def getByIdLike(patterns: Seq[String]): Source[(FeatureKey, Feature), NotUsed] =
-    jsonStore.getByIdLike(patterns).map {
+  override def findByQuery(query: Query): Source[(FeatureKey, Feature), NotUsed] =
+    jsonStore.findByQuery(query).map {
       case (k, v) => (k, v.validate[Feature].get)
     }
 
-  override def getByIdLikeActive(env: Env,
+  override def findByQueryActive(env: Env,
                                  context: JsObject,
-                                 patterns: Seq[String]): Source[(FeatureKey, Feature, Boolean), NotUsed] =
+                                 query: Query): Source[(FeatureKey, Feature, Boolean), NotUsed] =
     jsonStore
-      .getByIdLike(patterns)
+      .findByQuery(query)
       .map {
         case (k, v) => (k, v.validate[Feature].get)
       }
@@ -260,13 +258,13 @@ class FeatureServiceImpl[F[_]: Effect: ScriptCache](jsonStore: JsonDataStore[F],
             .unsafeToFuture()
       }
 
-  override def count(patterns: Seq[String]): F[Long] =
-    jsonStore.count(patterns)
+  override def count(query: Query): F[Long] =
+    jsonStore.count(query)
 
-  override def getFeatureTree(patterns: Seq[String], flat: Boolean, context: JsObject, env: Env)(
+  override def getFeatureTree(query: Query, flat: Boolean, context: JsObject, env: Env)(
       implicit ec: ExecutionContext
   ): Source[JsValue, NotUsed] =
-    getByIdLike(patterns).map(_._2).via(tree(flat)(context, env))
+    findByQuery(query).map(_._2).via(tree(flat)(context, env))
 
   override def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._

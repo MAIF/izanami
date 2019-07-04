@@ -16,6 +16,7 @@ import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
+import store.Query
 import store.Result.AppErrors
 
 class GlobalScriptController[F[_]: Effect](env: Env,
@@ -37,9 +38,9 @@ class GlobalScriptController[F[_]: Effect](env: Env,
   def list(pattern: String, name_only: Option[Boolean], page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncF(parse.empty) { ctx =>
       import GlobalScriptInstances._
-      val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
       globalScriptStore
-        .getByIdLike(patternsSeq, page, nbElementPerPage)
+        .findByQuery(query, page, nbElementPerPage)
         .map { r =>
           name_only match {
             case Some(true) =>
@@ -145,16 +146,17 @@ class GlobalScriptController[F[_]: Effect](env: Env,
   }
 
   def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+    val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
     for {
-      deletes <- globalScriptStore.deleteAll(patternsSeq) |> mapLeft(err => BadRequest(err.toJson))
+      deletes <- globalScriptStore.deleteAll(query) |> mapLeft(err => BadRequest(err.toJson))
     } yield Ok
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
     import GlobalScriptInstances._
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
     val source = globalScriptStore
-      .getByIdLike(ctx.authorizedPatterns)
+      .findByQuery(query)
       .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify)
       .intersperse("", "\n", "\n")

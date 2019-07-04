@@ -19,7 +19,7 @@ libraryDependencies ++= Seq(
   ws,
   "de.svenkubiak"            % "jBCrypt"         % "0.4.1", //  ISC/BSD
   "com.auth0"                % "java-jwt"        % "3.3.0", // MIT license
-  "fr.maif"                  %% "izanami-client" % "1.4.1",
+  "fr.maif"                  %% "izanami-client" % "1.4.2",
   "com.softwaremill.macwire" %% "macros"         % "2.3.1" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"     % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"    % akkaVersion, // Apache 2.0

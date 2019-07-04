@@ -39,7 +39,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
         underlyingStore,
         eventStore,
         InMemoryWithDbStore.featureEventAdapter,
-        FakeApplicationLifecycle()
+        new FakeApplicationLifecycle()
       )
       Thread.sleep(500)
 
@@ -75,7 +75,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       underlyingStore,
       eventStore,
       InMemoryWithDbStore.featureEventAdapter,
-      FakeApplicationLifecycle()
+      new FakeApplicationLifecycle()
     )
     Thread.sleep(500)
     inMemoryWithDb.getById(key1).unsafeRunSync() mustBe Json.toJson(feature1).some

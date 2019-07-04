@@ -77,9 +77,9 @@ class SmartCacheConfigClient(
       case ValueDeleted(k, _)      => queue.offer(ConfigDeleted(None, k))
     }
 
-  override def configs(pattern: String): Future[Configs] = {
-    val convertedPattern: String =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
+  override def configs(pattern: Seq[String]): Future[Configs] = {
+    val convertedPattern =
+      Option(pattern).map(_.map(_.replace(".", ":"))).getOrElse(Seq.empty)
     smartCacheStrategyHandler
       .getByPattern(convertedPattern)
       .mapTo[Seq[Config]]
