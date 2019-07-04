@@ -15,6 +15,7 @@ import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
+import store.Query
 import store.Result.{AppErrors, ErrorMessage}
 
 import scala.concurrent.Future
@@ -35,9 +36,9 @@ class UserController[F[_]: Effect](userStore: UserService[F],
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] = AuthAction.asyncF { ctx =>
     import UserNoPasswordInstances._
-    val patternsSeq: Seq[String] = ctx.authorizedPatterns :+ pattern
+    val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
     userStore
-      .getByIdLike(patternsSeq, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map { r =>
         Ok(
           Json.obj(
@@ -123,16 +124,17 @@ class UserController[F[_]: Effect](userStore: UserService[F],
     }
 
   def count(): Action[AnyContent] = AuthAction.asyncF { ctx =>
-    val patterns: Seq[String] = ctx.authorizedPatterns
-    userStore.count(patterns).map { count =>
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
+    userStore.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
   def download(): Action[AnyContent] = AuthAction { ctx =>
     import UserInstances._
+    val query: Query = Query.oneOf(ctx.authorizedPatterns)
     val source = userStore
-      .getByIdLike(ctx.authorizedPatterns)
+      .findByQuery(query)
       .map { case (_, data) => Json.toJson(data) }
       .map(Json.stringify)
       .intersperse("", "\n", "\n")

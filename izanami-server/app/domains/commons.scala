@@ -11,6 +11,7 @@ import play.api.libs.json.Reads.pattern
 import play.api.libs.json._
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParser
+import store.{EmptyPattern, Pattern, StringPattern}
 import store.Result.{AppErrors, ErrorMessage, Result}
 
 import scala.concurrent.ExecutionContext
@@ -133,9 +134,22 @@ case class Key(key: String) {
     val regex = Key.buildRegexPattern(str)
     key.matches(regex)
   }
+  def matchPattern(pattern: Pattern): Boolean =
+    pattern match {
+      case EmptyPattern => false
+      case StringPattern(str) =>
+        val regex = Key.buildRegexPattern(str)
+        key.matches(regex)
+    }
 
-  def matchPatterns(str: String*): Boolean =
+  def matchAllPatterns(str: String*): Boolean =
     str.forall(s => matchPattern(s))
+
+  def matchOneStrPatterns(str: String*): Boolean =
+    str.exists(matchPattern)
+
+  def matchOnePatterns(str: Pattern*): Boolean =
+    str.exists(matchPattern)
 
   def /(path: String): Key = key match {
     case "" => Key(s"$path")

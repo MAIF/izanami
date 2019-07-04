@@ -13,6 +13,7 @@ import izanami._
 import izanami.scaladsl.{FeatureClient, Features}
 import play.api.libs.json.{JsObject, Json}
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
@@ -52,12 +53,13 @@ private[features] class FetchWithCacheFeatureClient(
     .expireAfterWrite(cacheConfig.duration.toMillis, TimeUnit.MILLISECONDS)
     .build[CacheKey, Seq[Feature]]()
 
-  override def features(pattern: String) = features(pattern, Json.obj())
+  override def features(pattern: Seq[String]): Future[Features] =
+    features(pattern, Json.obj()).map(_.filterWith(pattern))
 
-  override def features(pattern: String, context: JsObject) = {
+  override def features(pattern: Seq[String], context: JsObject): Future[Features] = {
     val convertedPattern =
-      Option(pattern).map(_.replace(".", ":")).getOrElse("*")
-    Option(cache.getIfPresent(CacheKey(convertedPattern, context))) match {
+      Option(pattern).map(_.map(_.replace(".", ":")).mkString("*")).getOrElse("*")
+    (Option(cache.getIfPresent(CacheKey(convertedPattern, context))) match {
       case Some(features) =>
         FastFuture.successful(Features(clientConfig, features))
       case None =>
@@ -69,7 +71,7 @@ private[features] class FetchWithCacheFeatureClient(
           case Failure(e) => logger.error(e, "Error fetching features")
         }
         futureFeatures
-    }
+    }).map(_.filterWith(pattern))
   }
 
   override def checkFeature(key: String) = checkFeature(key, Json.obj())

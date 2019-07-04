@@ -4,19 +4,20 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
+import cats.data.EitherT
 import cats.effect.Effect
 import domains.Key
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
 import libs.logs.IzanamiLogger
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.{JsBoolean, JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.akkastream._
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference}
+import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference, WriteConcern}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.Result.{AppErrors, Result}
+import store.Result.{AppErrors, ErrorMessage, Result}
 import store._
 import libs.functional.EitherTSyntax
 
@@ -63,25 +64,37 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
 
   override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
     IzanamiLogger.debug(s"Creating $id => $data")
-    storeCollection
-      .map(_.insert.one(MongoDoc(id, data)))
-      .map { _ =>
-        Result.ok(data)
+    storeCollection.toF.flatMap { implicit coll =>
+      getByIdRaw(id).flatMap {
+        case Some(_) =>
+          Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
+        case None =>
+          coll
+            .insert(false, WriteConcern.Acknowledged)
+            .one(MongoDoc(id, data))
+            .map { _ =>
+              Result.ok(data)
+            }
+            .toF
       }
-      .toF
+    }
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     storeCollection.toF.flatMap { implicit collection =>
       if (oldId == id) {
         val res = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing") }
+          _ <- getByIdRaw(oldId) |> liftFOption[AppErrors, JsValue] {
+                AppErrors.error(s"error.data.missing", id.key)
+              }
           _ <- updateRaw(id, data) |> liftFEither[AppErrors, JsValue]
         } yield data
         res.value
       } else {
-        val res = for {
-          _ <- getByIdRaw(oldId: Key) |> liftFOption[AppErrors, JsValue] { AppErrors.error(s"error.data.missing") }
+        val res: EitherT[F, AppErrors, JsValue] = for {
+          _ <- getByIdRaw(oldId) |> liftFOption[AppErrors, JsValue] {
+                AppErrors.error(s"error.data.missing", id.key)
+              }
           _ <- deleteRaw(oldId) |> liftFEither[AppErrors, Unit]
           _ <- createRaw(id, data) |> liftFEither[AppErrors, JsValue]
         } yield data
@@ -99,9 +112,6 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
 
   private def deleteRaw(id: Key)(implicit collection: JSONCollection): F[Result[Unit]] =
     collection.delete.one(Json.obj("id" -> id.key)).toF.map(_ => Result.ok(()))
-
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    storeCollection.map(_.delete.element(Json.obj())).toF.map(_ => Result.ok(Done))
 
   private def updateRaw(id: Key, data: JsValue)(implicit collection: JSONCollection): F[Result[JsValue]] =
     collection.update.one(Json.obj("id" -> id.key), MongoDoc(id, data), upsert = true).toF.map(_ => Result.ok(data))
@@ -122,12 +132,12 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     storeCollection.toF
       .flatMap(getByIdRaw(id)(_))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+  override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
     val from    = (page - 1) * nbElementPerPage
     val options = QueryOpts(skipN = from, batchSizeN = nbElementPerPage, flagsN = 0)
-    val query   = buildPatternLikeRequest(patterns)
+    val query   = buildMongoQuery(q)
     IzanamiLogger.debug(
-      s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage"
+      s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage (from $from, batchSizeN $nbElementPerPage)"
     )
     storeCollection.toF.flatMap { implicit collection =>
       val findResult: F[Seq[MongoDoc]] = collection
@@ -137,7 +147,7 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
         .collect[Seq](maxDocs = nbElementPerPage, Cursor.FailOnError[Seq[MongoDoc]]())
         .toF
 
-      val countResult: F[Long] = countRaw(patterns)
+      val countResult: F[Long] = countRaw(q)
 
       (countResult, findResult).mapN { (count, res) =>
         DefaultPagingResult(res.map(_.data), page, nbElementPerPage, count.toInt)
@@ -145,9 +155,9 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
     }
   }
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
+  override def findByQuery(q: Query): Source[(Key, JsValue), NotUsed] =
     Source.fromFuture(storeCollection).flatMapConcat {
-      val query = buildPatternLikeRequest(patterns)
+      val query = buildMongoQuery(q)
       IzanamiLogger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
       _.find(query, projection = Option.empty[JsObject])
         .cursor[MongoDoc](ReadPreference.primary)
@@ -155,32 +165,62 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
         .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
     }
 
-  private def countRaw(patterns: Seq[String])(implicit collection: JSONCollection): F[Long] = {
-    val query = buildPatternLikeRequest(patterns)
-    IzanamiLogger.debug(s"Mongo query $collectionName count ${Json.stringify(query)}")
+  private def countRaw(query: Query)(implicit collection: JSONCollection): F[Long] = {
+    val q = buildMongoQuery(query)
+    IzanamiLogger.debug(s"Mongo query $collectionName count ${Json.stringify(q)}")
     collection
       .count(
-        selector = Some(query),
+        selector = Some(q),
         limit = None,
         skip = 0,
         hint = None,
-        readConcern = ReadConcern.Majority
+        readConcern = ReadConcern.Local
       )
       .toF[F]
   }
 
-  override def count(patterns: Seq[String]): F[Long] =
-    storeCollection.toF.flatMap(countRaw(patterns)(_)).map(_.longValue())
+  override def deleteAll(query: Query): F[Result[Done]] =
+    storeCollection
+      .flatMap { col =>
+        val deleteBuilder = col.delete(false, WriteConcern.Acknowledged)
+        deleteBuilder.element(buildMongoQuery(query)).flatMap { toDelete =>
+          deleteBuilder.many(List(toDelete))
+        }
+      }
+      .toF
+      .map(_ => Result.ok(Done))
 
-  private def buildPatternLikeRequest(patterns: Seq[String]): JsObject = {
-    val searchs = patterns.map {
-      case p if p.contains("*") =>
-        val regex = Json.obj("$regex" -> p.replaceAll("\\*", ".*"), "$options" -> "i")
-        Json.obj("id" -> regex)
-      case p =>
-        Json.obj("id" -> p)
+  override def count(query: Query): F[Long] =
+    storeCollection.toF.flatMap(countRaw(query)(_)).map(_.longValue())
+
+  private def buildMongoQuery(query: Query): JsObject = {
+
+    val searchs = query.ands.toList
+      .map { clauses =>
+        val andClause = clauses.patterns.toList
+          .map {
+            case StringPattern(str) =>
+              str match {
+                case p if p.contains("*") =>
+                  val regex = Json.obj("$regex" -> p.replaceAll("\\*", ".*"), "$options" -> "i")
+                  Json.obj("id" -> regex)
+                case p =>
+                  Json.obj("id" -> p)
+              }
+            case EmptyPattern =>
+              Json.obj("id" -> "")
+          }
+        andClause match {
+          case head :: Nil => head
+          case _           => Json.obj("$or" -> andClause.toList)
+        }
+      }
+    searchs match {
+      case head :: Nil =>
+        head
+      case _ =>
+        Json.obj("$and" -> searchs.toList)
     }
-    Json.obj("$and" -> searchs)
   }
 
 }

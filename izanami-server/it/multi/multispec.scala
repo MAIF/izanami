@@ -310,21 +310,22 @@ object Tests {
       new ApikeyControllerSpec(name, conf())
     )
 
-  def getSuites(): Seq[Suite] =
-    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
-      getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
-      getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration, false) ++
-      getSuite("Redis", () => Configs.redisConfiguration, false) ++
-      getSuite("Elastic", () => Configs.elasticConfiguration, false) ++
-      getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}"), false) ++
-      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false) ++
-      getSuite("Mongo", () => Configs.mongoConfig("config"), false) ++
-      //getSuite("Dynamo", () => Configs.dynamoDbConfig(Random.nextInt(1000)), false) ++
-      getSuite("Postgresql", () => Configs.pgConfig(Random.nextInt(1000)), false)
-    } else {
-      getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
-      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false)
-    }
+  def getSuites(): Seq[Suite] = getSuite("InMemory", () => Configs.inMemoryConfiguration, false)
+//    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
+//      getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
+//      getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration, false) ++
+//      getSuite("Redis", () => Configs.redisConfiguration, false) ++
+//      getSuite("Elastic", () => Configs.elasticConfiguration, false) ++
+//      getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}"), false) ++
+//      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false) ++
+//      getSuite("Mongo", () => Configs.mongoConfig("config"), false) ++
+//      //getSuite("Dynamo", () => Configs.dynamoDbConfig(Random.nextInt(1000)), false) ++
+//      getSuite("Postgresql", () => Configs.pgConfig(Random.nextInt(1000)), false)
+//    } else {
+//
+//      getSuite("InMemory", () => Configs.inMemoryConfiguration, false)
+//      //getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false)
+//    }
 }
 
 class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeAndAfterAll {

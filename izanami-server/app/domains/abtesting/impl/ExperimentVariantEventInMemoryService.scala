@@ -137,7 +137,7 @@ private[abtesting] class ExperimentDataStoreActor extends Actor {
         .sortWith((e1, e2) => e1.date.isBefore(e2.date))
 
     case GetAll(patterns) =>
-      sender() ! datas.values.flatten.filter(e => e.id.key.matchPatterns(patterns: _*))
+      sender() ! datas.values.flatten.filter(e => e.id.key.matchAllPatterns(patterns: _*))
 
     case DeleteEvents(experimentId) =>
       val eventKey: String = s"$experimentseventsNamespace:$experimentId:"

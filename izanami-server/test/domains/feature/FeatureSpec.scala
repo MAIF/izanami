@@ -14,6 +14,7 @@ import domains.script.GlobalScript.GlobalScriptKey
 import domains.script.Script.ScriptCache
 import domains.script._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.selenium.WebBrowser.Query
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import store.PagingResult
 import store.Result.Result
@@ -226,15 +227,12 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     override def create(id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]]                         = ???
     override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]] = ???
     override def delete(id: GlobalScriptKey): F[Result[GlobalScript]]                                             = ???
-    override def deleteAll(patterns: Seq[String]): F[Result[Done]]                                                = ???
+    override def deleteAll(query: store.Query): F[Result[Done]]                                                   = ???
     override def getById(id: GlobalScriptKey): F[Option[GlobalScript]]                                            = ???
-    override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
-      ???
-    override def getByIdLike(patterns: Seq[String]): Source[(GlobalScriptKey, GlobalScript), NotUsed] = ???
-    override def count(patterns: Seq[String]): F[Long]                                                = ???
-    override def importData(
-        implicit ec: ExecutionContext
-    ): Flow[(String, JsValue), ImportResult, NotUsed] = ???
+    override def findByQuery(query: store.Query, page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] = ???
+    override def findByQuery(query: store.Query): Source[(GlobalScriptKey, GlobalScript), NotUsed]                = ???
+    override def count(query: store.Query): F[Long]                                                               = ???
+    override def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]        = ???
   }
 
   "Date range feature" must {

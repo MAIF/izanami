@@ -71,11 +71,11 @@ trait GlobalScriptService[F[_]] {
   def create(id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]]
   def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]]
   def delete(id: GlobalScriptKey): F[Result[GlobalScript]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]]
+  def deleteAll(query: Query): F[Result[Done]]
   def getById(id: GlobalScriptKey): F[Option[GlobalScript]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[GlobalScript]]
-  def getByIdLike(patterns: Seq[String]): Source[(GlobalScriptKey, GlobalScript), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[GlobalScript]]
+  def findByQuery(query: Query): Source[(GlobalScriptKey, GlobalScript), NotUsed]
+  def count(query: Query): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
@@ -142,22 +142,22 @@ class GlobalScriptServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventSt
     r.value
   }
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    jsonStore.deleteAll(patterns)
+  override def deleteAll(query: Query): F[Result[Done]] =
+    jsonStore.deleteAll(query)
 
   override def getById(id: GlobalScriptKey): F[Option[GlobalScript]] =
     jsonStore.getById(id).map(_.flatMap(_.validate[GlobalScript].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
     jsonStore
-      .getByIdLike(patterns, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, GlobalScript), NotUsed] =
-    jsonStore.getByIdLike(patterns).readsKV[GlobalScript]
+  override def findByQuery(query: Query): Source[(Key, GlobalScript), NotUsed] =
+    jsonStore.findByQuery(query).readsKV[GlobalScript]
 
-  override def count(patterns: Seq[String]): F[Long] =
-    jsonStore.count(patterns)
+  override def count(query: Query): F[Long] =
+    jsonStore.count(query)
 
   override def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._

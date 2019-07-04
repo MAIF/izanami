@@ -17,6 +17,7 @@ import izanami.features.CUDFeatureClient
 import org.reactivecouchbase.json.{JsObject, JsValue, Json}
 import org.reactivestreams.Publisher
 
+import scala.annotation.varargs
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
@@ -218,12 +219,15 @@ case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: Actor
     this.copy(underlying = underlying.withConfigClient(configClient.underlying))
   def withExperimentsClient(experimentsClient: ExperimentsClient) =
     this.copy(underlying = underlying.withExperimentsClient(experimentsClient.underlying))
-  def withFeaturePattern(pattern: String) =
-    this.copy(underlying = underlying.withFeaturePattern(pattern))
-  def withConfigPattern(pattern: String) =
-    this.copy(underlying = underlying.withFeaturePattern(pattern))
-  def withExperimentPattern(pattern: String) =
-    this.copy(underlying = underlying.withExperimentPattern(pattern))
+  @annotation.varargs
+  def withFeaturePattern(pattern: String*) =
+    this.copy(underlying = underlying.withFeaturePattern(pattern: _*))
+  @annotation.varargs
+  def withConfigPattern(pattern: String*) =
+    this.copy(underlying = underlying.withFeaturePattern(pattern: _*))
+  @annotation.varargs
+  def withExperimentPattern(pattern: String*) =
+    this.copy(underlying = underlying.withExperimentPattern(pattern: _*))
 
   def statusAndJsonResponse(context: JsObject, userId: String): Future[Tuple2[Integer, JsValue]] =
     statusAndJsonResponse(Option.some(context), Option.some(userId))
@@ -373,6 +377,14 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
     underlying.features(pattern).map(Features.apply _).toJava
 
   /**
+   * Get features by pattern like my:keys:*
+   * @param pattern
+   * @return
+   */
+  def features(pattern: io.vavr.collection.Seq[String]): Future[Features] =
+    underlying.features(pattern.toScala()).map(Features.apply _).toJava
+
+  /**
    * Get features by pattern like my:keys:* with a json context
    * @param pattern
    * @return
@@ -380,6 +392,17 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
   def features(pattern: String, context: JsObject): Future[Features] =
     underlying
       .features(pattern, context.toScala().as[play.api.libs.json.JsObject])
+      .map(Features.apply _)
+      .toJava
+
+  /**
+   * Get features by pattern like my:keys:* with a json context
+   * @param pattern
+   * @return
+   */
+  def features(pattern: io.vavr.collection.Seq[String], context: JsObject): Future[Features] =
+    underlying
+      .features(pattern.toScala(), context.toScala().as[play.api.libs.json.JsObject])
       .map(Features.apply _)
       .toJava
 
@@ -614,6 +637,19 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
       .toJava
 
   /**
+   * Get configs for a pattern like my:keys:*
+   * @param pattern
+   * @return
+   */
+  def configs(pattern: io.vavr.collection.Seq[String]): Future[Configs] =
+    underlying
+      .configs(pattern.toScala())
+      .map { c =>
+        Configs(c)
+      }
+      .toJava
+
+  /**
    * Get a config by his key.
    * @param key
    * @return a json value. Empty if the config is not set.
@@ -718,9 +754,9 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
    * @param pattern
    * @return
    */
-  def list(pattern: String): Future[List[ExperimentClient]] =
+  def list(pattern: io.vavr.collection.Seq[String]): Future[List[ExperimentClient]] =
     underlying
-      .list(pattern)
+      .list(pattern.toScala())
       .map(exps => List.ofAll(exps.map(e => new ExperimentClient(e)).asJava))
       .toJava
 
@@ -733,6 +769,16 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
    */
   def tree(pattern: String, clientId: String): Future[JsValue] =
     underlying.tree(pattern, clientId).map(_.toJava()).toJava
+
+  /**
+   * Return experiments and the associated variants as a tree form.
+   *
+   * @param pattern
+   * @param clientId
+   * @return
+   */
+  def tree(pattern: io.vavr.collection.Seq[String], clientId: String): Future[JsValue] =
+    underlying.tree(pattern.toScala(), clientId).map(_.toJava()).toJava
 
   /**
    * Return the variant for a client id if exists
@@ -813,6 +859,13 @@ private[javadsl] object JsonConv {
 }
 
 private[javadsl] object Vavr {
+
+  implicit class ToScalaSeq[T](o: io.vavr.collection.Seq[T]) {
+    def toScala(): scala.Seq[T] = {
+      import scala.collection.JavaConverters._
+      o.asJava().asScala
+    }
+  }
 
   implicit class ToScalaOption[T](o: Option[T]) {
     def toScala(): scala.Option[T] =

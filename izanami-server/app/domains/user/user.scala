@@ -78,9 +78,9 @@ trait UserService[F[_]] {
   def delete(id: UserKey): F[Result[User]]
   def deleteAll(patterns: Seq[String]): F[Result[Done]]
   def getById(id: UserKey): F[Option[User]]
-  def getByIdLike(patterns: Seq[String], page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[User]]
-  def getByIdLike(patterns: Seq[String]): Source[(UserKey, User), NotUsed]
-  def count(patterns: Seq[String]): F[Long]
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[User]]
+  def findByQuery(query: Query): Source[(UserKey, User), NotUsed]
+  def count(query: Query): F[Long]
   def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
 }
 
@@ -138,16 +138,16 @@ class UserServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: Eve
   override def getById(id: UserKey): F[Option[User]] =
     jsonStore.getById(id).map(_.flatMap(_.validate[User].asOpt))
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[User]] =
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[User]] =
     jsonStore
-      .getByIdLike(patterns, page, nbElementPerPage)
+      .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, User), NotUsed] =
-    jsonStore.getByIdLike(patterns).readsKV[User]
+  override def findByQuery(query: Query): Source[(Key, User), NotUsed] =
+    jsonStore.findByQuery(query).readsKV[User]
 
-  override def count(patterns: Seq[String]): F[Long] =
-    jsonStore.count(patterns)
+  override def count(query: Query): F[Long] =
+    jsonStore.count(query)
 
   override def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
     import cats.implicits._

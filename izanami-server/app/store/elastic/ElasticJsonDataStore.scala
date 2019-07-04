@@ -18,9 +18,11 @@ import _root_.elastic.codec.PlayJson._
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
+import cats.data.EitherT
 import cats.effect.Effect
+import libs.functional.EitherTSyntax
 import libs.logs.IzanamiLogger
-import store.Result.{ErrorMessage, Result}
+import store.Result.{AppErrors, ErrorMessage, Result}
 import store.elastic.ElasticJsonDataStore.EsDocument
 
 import scala.concurrent.{Await, Future}
@@ -50,11 +52,13 @@ object ElasticJsonDataStore {
 class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
                                          elasticConfig: ElasticConfig,
                                          dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem)
-    extends JsonDataStore[F] {
+    extends JsonDataStore[F]
+    with EitherTSyntax[F] {
 
   import cats.implicits._
   import libs.effects._
   import libs.streams.syntax._
+  import libs.functional.syntax._
   import actorSystem.dispatcher
   import store.elastic.ElasticJsonDataStore.EsDocument._
 
@@ -114,15 +118,46 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
 
   private def genUpdate(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
     if (oldId == id) {
-      index
-        .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
-        .toF
-        .map { _ =>
-          Result.ok(data)
-        }
+      val res = for {
+        _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
+              AppErrors.error(s"error.data.missing", id.key)
+            }
+        _ <- index
+              .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
+              .toF
+              .map { _ =>
+                Result.ok(data)
+              } |> liftFEither[AppErrors, JsValue]
+      } yield data
+      res.value
     } else {
-      delete(oldId) *> genCreate(id, data)
+      val res: EitherT[F, AppErrors, JsValue] = for {
+        _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
+              AppErrors.error(s"error.data.missing", id.key)
+            }
+        _ <- delete(oldId) |> liftFEither[AppErrors, JsValue]
+        _ <- create(id, data) |> liftFEither[AppErrors, JsValue]
+      } yield data
+      res.value
     }
+//
+//
+//    getById(oldId).flatMap {
+//    case Some(_) =>
+//      val r: F[Result[JsValue]] = if (oldId == id) {
+//        index
+//          .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
+//          .toF
+//          .map { _ =>
+//            Result.ok(data)
+//          }
+//      } else {
+//        delete(oldId) *> genCreate(id, data)
+//      }
+//      r
+//    case None =>
+//      Result.errors(ErrorMessage("error.data.missing", id.key)).pure[F]
+//  }
 
   override def delete(id: Key): F[Result[JsValue]] =
     getById(id)
@@ -133,23 +168,6 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
           }
         case None =>
           Result.error[JsValue](s"error.data.missing").pure[F]
-      }
-
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    getByIdLikeSource(patterns)
-      .map {
-        case (id, _) =>
-          Bulk[EsDocument](BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))), None)
-      }
-      .via(index.bulkFlow(50))
-      .runWith(Sink.ignore)
-      .toF
-      .flatMap { _ =>
-        if (elasticConfig.automaticRefresh) {
-          elastic.refresh(esIndex).toF.map(_ => Result.ok(Done))
-        } else {
-          Effect[F].pure(Result.ok(Done))
-        }
       }
 
   override def getById(id: Key): F[Option[JsValue]] = {
@@ -171,30 +189,35 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
       .toF
   }
 
-  private def buildSearchQuery(patterns: Seq[String]): JsObject = {
+  private def buildSearchQuery(query: Query): JsObject = {
 
-    val queryWithoutTTL = Json.obj(
-      "bool" -> Json.obj(
-        "must" -> JsArray(
-          patterns.map { pattern =>
-            Json.obj("wildcard" -> Json.obj("key" -> Json.obj("value" -> pattern)))
-          }
+    val jsonQuery: List[JsValue] = query.ands.map { clauses =>
+      val jsonClauses: List[JsValue] = clauses.patterns.toList.map {
+        case StringPattern(str) =>
+          Json.obj("wildcard" -> Json.obj("key" -> Json.obj("value" -> str)))
+        case EmptyPattern =>
+          JsNull
+      }
+
+      Json.obj(
+        "bool" -> Json.obj(
+          "should"               -> JsArray(jsonClauses),
+          "minimum_should_match" -> 1
         )
       )
-    )
+    }.toList
 
     Json.obj(
       "query" -> Json.obj(
         "bool" -> Json.obj(
-          "should"               -> Json.arr(queryWithoutTTL),
-          "minimum_should_match" -> 1
+          "must" -> JsArray(jsonQuery)
         )
       )
     )
   }
 
-  override def getByIdLike(patterns: Seq[String], page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
-    val query = buildSearchQuery(patterns) ++ Json.obj(
+  override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+    val query = buildSearchQuery(q) ++ Json.obj(
       "from" -> (page - 1) * nbElementPerPage,
       "size" -> nbElementPerPage
     )
@@ -206,13 +229,12 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
     }
   }
 
-  override def getByIdLike(patterns: Seq[String]): Source[(Key, JsValue), NotUsed] =
-    getByIdLikeSource(patterns).map {
-      case (k, v) => (Key(k), v)
-    }
+  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = findByQuerySource(query).map {
+    case (k, v) => (Key(k), v)
+  }
 
-  private def getByIdLikeSource(patterns: Seq[String]): Source[(String, JsValue), NotUsed] = {
-    val query = buildSearchQuery(patterns)
+  private def findByQuerySource(q: Query): Source[(String, JsValue), NotUsed] = {
+    val query = buildSearchQuery(q)
     IzanamiLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
     index
       .scroll(query = query, scroll = "1s", size = 50)
@@ -221,12 +243,30 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
       }
   }
 
-  override def count(patterns: Seq[String]): F[Long] = {
-    val query = buildSearchQuery(patterns) ++ Json.obj(
+  override def deleteAll(query: Query): F[Result[Done]] =
+    findByQuerySource(query)
+      .map {
+        case (id, _) =>
+          Bulk[EsDocument](BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))), None)
+      }
+      .via(index.bulkFlow(50))
+      .runWith(Sink.ignore)
+      .toF
+      .flatMap { _ =>
+        if (elasticConfig.automaticRefresh) {
+          elastic.refresh(esIndex).toF.map(_ => Result.ok(Done))
+        } else {
+          Effect[F].pure(Result.ok(Done))
+        }
+      }
+
+  override def count(q: Query): F[Long] = {
+    val query = buildSearchQuery(q) ++ Json.obj(
       "size" -> 0
     )
     index.search(query).toF.map { s =>
       s.hits.total
     }
   }
+
 }

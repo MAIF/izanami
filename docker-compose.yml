@@ -35,7 +35,7 @@ services:
     ports:
       - 27017:27017
   dynamodb:
-    image: amazon/dynamodb-local
+    image: deangiberson/aws-dynamodb-local
     ports:
       - 8000:8000
   postgres:

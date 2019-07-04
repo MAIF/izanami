@@ -10,7 +10,7 @@ import izanami.FeatureEvent.{FeatureCreated, FeatureUpdated}
 import izanami.IzanamiBackend.SseBackend
 import izanami.Strategy.DevStrategy
 import izanami._
-import izanami.commons.{HttpClient, IzanamiException}
+import izanami.commons.{HttpClient, IzanamiException, PatternsUtil}
 import izanami.configs._
 import izanami.experiments.{FallbackExperimentStrategy, FetchExperimentsStrategy}
 import izanami.features._
@@ -171,9 +171,9 @@ case class Proxy(
     featureClient: Option[FeatureClient],
     configClient: Option[ConfigClient],
     experimentClient: Option[ExperimentsClient],
-    featurePattern: String = "*",
-    configPattern: String = "*",
-    experimentPattern: String = "*"
+    featurePattern: Seq[String] = Seq("*"),
+    configPattern: Seq[String] = Seq("*"),
+    experimentPattern: Seq[String] = Seq("*")
 )(implicit actorSystem: ActorSystem, izanamiDispatcher: IzanamiDispatcher) {
 
   import izanamiDispatcher.ec
@@ -185,9 +185,10 @@ case class Proxy(
     this.copy(configClient = Some(configClient))
   def withExperimentsClient(experimentsClient: ExperimentsClient) =
     this.copy(experimentClient = Some(experimentsClient))
-  def withFeaturePattern(pattern: String) = this.copy(featurePattern = pattern)
-  def withConfigPattern(pattern: String)  = this.copy(configPattern = pattern)
-  def withExperimentPattern(pattern: String) =
+
+  def withFeaturePattern(pattern: String*) = this.copy(featurePattern = pattern)
+  def withConfigPattern(pattern: String*)  = this.copy(configPattern = pattern)
+  def withExperimentPattern(pattern: String*) =
     this.copy(experimentPattern = pattern)
 
   def statusAndJsonResponse(context: Option[JsObject] = None, userId: Option[String] = None): Future[(Int, JsValue)] = {
@@ -314,12 +315,22 @@ trait FeatureClient {
   /**
    * Get features by pattern like my:keys:*
    */
-  def features(pattern: String): Future[Features]
+  def features(pattern: String): Future[Features] = features(Seq(pattern))
+
+  /**
+   * Get features by pattern like my:keys:*
+   */
+  def features(pattern: Seq[String]): Future[Features]
 
   /**
    * Get features by pattern like my:keys:* for a context
    */
-  def features(pattern: String, context: JsObject): Future[Features]
+  def features(pattern: String, context: JsObject): Future[Features] = features(Seq(pattern), context)
+
+  /**
+   * Get features by pattern like my:keys:* for a context
+   */
+  def features(pattern: Seq[String], context: JsObject): Future[Features]
 
   /**
    * Check if a feature is active
@@ -463,6 +474,12 @@ case class Features(clientConfig: ClientConfig, featuresSeq: Seq[Feature], fallb
         fallback.find(_.id == key).exists(_.isActive(clientConfig))
       )
 
+  def filterWith(patterns: Seq[String]): Features =
+    this.copy(
+      featuresSeq = featuresSeq.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id))),
+      fallback = fallback.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id)))
+    )
+
   def tree(): JsObject = {
     val fallbackTree: JsObject =
       fallback.map(json).foldLeft(Json.obj())(_ deepMerge _)
@@ -548,6 +565,11 @@ object Configs {
 
 case class Configs(configs: Seq[Config], fallback: Seq[Config] = Seq.empty) {
 
+  def filterWith(patterns: Seq[String]): Configs =
+    this.copy(
+      configs = configs.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id)))
+    )
+
   def tree(): JsObject = {
     val fbTree = fallback
       .map(_.asJson)
@@ -584,7 +606,12 @@ trait ConfigClient {
   /**
    * Get configs by pattern like my:keys:*
    */
-  def configs(pattern: String = "*"): Future[Configs]
+  def configs(pattern: String = "*"): Future[Configs] = configs(Seq(pattern))
+
+  /**
+   * Get configs by pattern like my:keys:*
+   */
+  def configs(pattern: Seq[String]): Future[Configs]
 
   /**
    * Get a config by his key
@@ -639,13 +666,24 @@ trait ExperimentsClient {
   /**
    * Get experiments by pattern like my:keys:*
    */
-  def list(pattern: String): Future[Seq[ExperimentClient]]
+  def list(pattern: String): Future[Seq[ExperimentClient]] = list(Seq(pattern))
+
+  /**
+   * Get experiments by pattern like my:keys:*
+   */
+  def list(pattern: Seq[String]): Future[Seq[ExperimentClient]]
 
   /**
    * Get experiments and the variant associated to the user id, for by pattern like my:keys:*.
    * The result is formatted as a tree form.
    */
-  def tree(pattern: String, clientId: String): Future[JsObject]
+  def tree(pattern: String, clientId: String): Future[JsObject] = tree(Seq(pattern), clientId)
+
+  /**
+   * Get experiments and the variant associated to the user id, for by pattern like my:keys:*.
+   * The result is formatted as a tree form.
+   */
+  def tree(pattern: Seq[String], clientId: String): Future[JsObject]
 
   /**
    * Get the variant if exists, associated to the user id for an experiment.
@@ -670,6 +708,10 @@ case class ExperimentClient(experimentsClient: ExperimentsClient, experiment: Ex
   def description: String    = experiment.description
   def enabled: Boolean       = experiment.enabled
   def variants: Seq[Variant] = experiment.variants
+
+  def matchPattern(patterns: Seq[String]): Boolean = {
+    patterns.exists(p => PatternsUtil.matchPattern(p)(id))
+  }
 
   /**
    * Get the variant if exists, associated to the user id for an experiment.
