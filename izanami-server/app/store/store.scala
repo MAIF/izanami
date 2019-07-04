@@ -159,9 +159,7 @@ final case class Query(ands: NonEmptyList[OneOfPatternClause]) {
 
 object Query {
   def keyMatchQuery(key: Key, query: Query): Boolean =
-    query.ands.foldLeft(true) {
-      case (acc, clause) => acc && key.matchOnePatterns(clause.patterns.toList: _*)
-    }
+    query.ands.forall(clause => key.matchOnePatterns(clause.patterns.toList: _*))
 
   def oneOf(patterns: NonEmptyList[String]) = Query(NonEmptyList.of(OneOfPatternClause.fromStrings(patterns)))
   def oneOf(pattern: String, rest: String*) = Query(NonEmptyList.of(OneOfPatternClause.of(pattern, rest: _*)))
