@@ -206,11 +206,12 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments, er
         fetched  <- fetchedList
         fallback <- fallbackStrategy.list(pattern)
       } yield fallback.filter(e => !fetched.exists(_.id == e.id)) ++ fetched
-      ).recover {
+    ).recover {
       case e =>
         logger.error(s"Error getting experiment list for $pattern, recovering with fallback", e)
         fallback.experiments.map(fb => ExperimentClient(this, fb.experiment))
     }
+    .map(_.filter(ec => ec.matchPattern(pattern)))
   }
 
   override def tree(pattern: Seq[String], clientId: String): Future[JsObject] = {

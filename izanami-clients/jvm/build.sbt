@@ -7,8 +7,8 @@ val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefin
   Seq(RevolverPlugin, BintrayPlugin)
 }
 
-val akkaVersion     = "2.5.21"
-val akkaHttpVersion = "10.1.7"
+val akkaVersion     = "2.5.23"
+val akkaHttpVersion = "10.1.8"
 
 lazy val jvm = (project in file("."))
   .disablePlugins(disabledPlugins: _*)
@@ -20,7 +20,7 @@ lazy val jvm = (project in file("."))
       "com.typesafe.akka"          %% "akka-stream"             % akkaVersion,
       "com.typesafe.akka"          %% "akka-slf4j"              % akkaVersion,
       "com.typesafe.akka"          %% "akka-http"               % akkaHttpVersion,
-      "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "1.0-M3",
+      "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "1.1.0",
       "io.vavr"                    % "vavr"                     % "0.9.2",
       "org.reactivecouchbase.json" % "json-lib"                 % "1.0.0",
       "com.google.guava"           % "guava"                    % "25.1-jre",

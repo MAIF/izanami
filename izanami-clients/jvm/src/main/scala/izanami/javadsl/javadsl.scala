@@ -221,13 +221,13 @@ case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: Actor
     this.copy(underlying = underlying.withExperimentsClient(experimentsClient.underlying))
   @annotation.varargs
   def withFeaturePattern(pattern: String*) =
-    this.copy(underlying = underlying.withFeaturePattern(pattern:_*))
+    this.copy(underlying = underlying.withFeaturePattern(pattern: _*))
   @annotation.varargs
   def withConfigPattern(pattern: String*) =
-    this.copy(underlying = underlying.withFeaturePattern(pattern:_*))
+    this.copy(underlying = underlying.withFeaturePattern(pattern: _*))
   @annotation.varargs
   def withExperimentPattern(pattern: String*) =
-    this.copy(underlying = underlying.withExperimentPattern(pattern:_*))
+    this.copy(underlying = underlying.withExperimentPattern(pattern: _*))
 
   def statusAndJsonResponse(context: JsObject, userId: String): Future[Tuple2[Integer, JsValue]] =
     statusAndJsonResponse(Option.some(context), Option.some(userId))
@@ -375,6 +375,7 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    */
   def features(pattern: String): Future[Features] =
     underlying.features(pattern).map(Features.apply _).toJava
+
   /**
    * Get features by pattern like my:keys:*
    * @param pattern

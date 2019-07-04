@@ -92,9 +92,9 @@ class SmartCacheStrategyHandler[T](
       }
     }
 
-  def getByPattern(pattern: String): Future[Seq[T]] =
-    if (patterns.contains(pattern)) {
-      def matchP = PatternsUtil.matchPattern(pattern) _
+  def getByPattern(pattern: Seq[String]): Future[Seq[T]] =
+    if (pattern.exists(p => patterns.contains(p))) {
+      def matchP = (s: String) => pattern.exists(p => PatternsUtil.matchPattern(p)(s))
       val values: Seq[T] = cache
         .filter {
           case (k, _) => matchP(k)
@@ -103,8 +103,8 @@ class SmartCacheStrategyHandler[T](
         .toSeq
       FastFuture.successful(values)
     } else {
-      val futureValues: Future[Seq[(String, T)]] = fetchData(List(pattern))
-      patternsRef.set(patterns :+ pattern)
+      val futureValues: Future[Seq[(String, T)]] = fetchData(pattern)
+      patternsRef.set(patterns ++ pattern)
 
       // Update internal cache
       futureValues.onComplete {
