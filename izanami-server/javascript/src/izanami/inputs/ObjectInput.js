@@ -1,13 +1,12 @@
 import React, { Component } from 'react';
 
 function convert(values) {
-    let convertion = values
+    return values
+        .reverse()
         .filter(([k]) => !!k)
         .reduce((acc, [k, v]) => {
             return {[k]: v, ...acc};
         }, {});
-    console.log('Before', values, 'after', convertion);
-    return convertion;
 }
 
 export class ObjectInput extends Component {
@@ -27,7 +26,8 @@ export class ObjectInput extends Component {
   }
 
   changeValue = (e, name, index) => {
-    if (e && e.preventDefault) e.preventDefault();
+      if (e && e.preventDefault) e.preventDefault();
+
       const values = this.state.values.map(([k, v], i) => {
           if (i === index) {
               return [k, e.target.value];
@@ -35,6 +35,7 @@ export class ObjectInput extends Component {
               return [k, v];
           }
       });
+
       this.setState({values});
       this.props.onChange(convert(values));
   };
@@ -71,7 +72,7 @@ export class ObjectInput extends Component {
 
   remove = (e, idx) => {
     if (e && e.preventDefault) e.preventDefault();
-    const values = this.state.values.filter((_, i) => i !==idx);
+    const values = this.state.values.filter((_, i) => i !== idx);
     this.setState({values});
     //this.props.onChange(convert(values));
   };
