@@ -225,7 +225,7 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
     index
       .index[ExperimentVariantEvent](
         data,
-        Some(id.id),
+        Some(id.key.key),
         refresh = elasticConfig.automaticRefresh
       )
       .toF
@@ -250,11 +250,19 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
           )
         }
       )
-      .mapConcat { _.hits.hits.map(_._id).toList }
-      .map { id =>
-        Bulk[ExperimentVariantEvent](BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))), None)
+      .mapConcat { _.hits.hits.map(doc => (doc._index, doc._id)).toList }
+      .map { case (index, id) =>
+        println(s"to delete $id")
+        Bulk[ExperimentVariantEvent](BulkOpType(delete = Some(BulkOpDetail(Some(index), None, Some(id)))), None)
       }
       .via(index.bulkFlow(batchSize = 500))
+      .mapAsync(1) { input =>
+        if (elasticConfig.automaticRefresh) {
+          client.refresh(esIndex).map(_ => input)
+        } else {
+          FastFuture.successful(input)
+        }
+      }
       .runWith(Sink.ignore)
       .toF
       .map(_ => Result.ok(Done))
