@@ -1,21 +1,22 @@
-package store.elastic
+package domains.abtesting.impl
 
 import cats.effect.IO
+import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.events.impl.BasicEventStore
 import elastic.api.Elastic
 import env.{DbDomainConfig, DbDomainConfigDetails, ElasticConfig}
 import org.scalactic.source.Position
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSuite}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import play.api.libs.json.JsValue
-import store.{AbstractJsonDataStoreTest, JsonDataStore}
+import store.elastic.ElasticClient
 
-class ElasticJsonDataStoreTest extends AbstractJsonDataStoreTest("Elastic") with BeforeAndAfter with BeforeAndAfterAll {
-
+class ExperimentVariantEventElasticServiceTest extends AbstractExperimentServiceTest("Elastic") with BeforeAndAfter with BeforeAndAfterAll {
 
   private val config = ElasticConfig("localhost", 9210, "http", None, None, true)
   val elastic: Elastic[JsValue] = ElasticClient(config, system)
 
-  override def dataStore(dataStore: String): JsonDataStore[IO] = ElasticJsonDataStore[IO](
-    elastic, config, DbDomainConfig(env.Elastic, DbDomainConfigDetails(dataStore, None), None)
+  override def dataStore(name: String): ExperimentVariantEventService[IO] = ExperimentVariantEventElasticService[IO](
+    elastic, config, DbDomainConfig(env.Elastic, DbDomainConfigDetails(name, None), None), new BasicEventStore[IO]
   )
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
@@ -24,7 +25,6 @@ class ElasticJsonDataStoreTest extends AbstractJsonDataStoreTest("Elastic") with
   }
 
   private def cleanUpElastic = {
-    import _root_.elastic.implicits._
     import _root_.elastic.codec.PlayJson._
     elastic.deleteIndex("*").futureValue
   }
@@ -33,4 +33,5 @@ class ElasticJsonDataStoreTest extends AbstractJsonDataStoreTest("Elastic") with
     super.afterAll()
     cleanUpElastic
   }
+
 }
