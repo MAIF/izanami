@@ -6,10 +6,11 @@ import { string, object, bool, func } from 'prop-types';
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
 import get from 'lodash/get';
+import '@ungap/global-this';
 import * as Api from './api';
 
-if (!window.Symbol) {
-    window.Symbol = Symbol;
+if (!globalThis.Symbol) {
+    globalThis.Symbol = Symbol;
 }
 
 export class Variant extends Component {
