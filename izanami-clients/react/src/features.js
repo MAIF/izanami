@@ -6,13 +6,14 @@ import { func, string, bool, object, node, oneOfType, arrayOf } from 'prop-types
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
 import isFunction from "lodash/isFunction";
+import '@ungap/global-this';
 import * as Api from './api';
 import Debug from './debug';
 import { arrayPathToString, getCleanedArrayPath, getIsActive } from './util';
 
 
-if (!window.Symbol) {
-    window.Symbol = Symbol;
+if (!globalThis.Symbol) {
+    globalThis.Symbol = Symbol;
 }
 
 export class Enabled extends Component {

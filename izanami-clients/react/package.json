@@ -16,6 +16,7 @@
     "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3040"
   },
   "dependencies": {
+    "@ungap/global-this": "^0.3.1",
     "deep-equal": "^1.0.1",
     "deepmerge": "^1.4.4",
     "es-symbol": "1.1.2",
