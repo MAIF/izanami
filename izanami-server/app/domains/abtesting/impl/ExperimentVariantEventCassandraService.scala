@@ -70,7 +70,8 @@ class ExperimentVariantEventCassandraService[F[_]: Effect](session: Session,
          | """.stripMargin
     )
 
-  private def saveToCassandra(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
+  private def saveToCassandra(id: ExperimentVariantEventKey,
+                              data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
     val query =
       s"INSERT INTO ${keyspace}.$namespaceFormatted (experimentId, variantId, clientId, namespace, id, value) values (?, ?, ?, ?, ?, ?) IF NOT EXISTS "
 
@@ -85,15 +86,14 @@ class ExperimentVariantEventCassandraService[F[_]: Effect](session: Session,
     ).map(_ => Result.ok(data))
   }
 
-  override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
-      for {
+  override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
+    for {
       result <- saveToCassandra(id, data) // add event
       _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
     } yield {
-        IzanamiLogger.debug(s"Result $result")
-        result
+      IzanamiLogger.debug(s"Result $result")
+      result
     }
-  }
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     experiment.variants.toList

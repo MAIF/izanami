@@ -77,12 +77,13 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
       )
 
     for {
-      res <- DynamoDb
-              .source(request)
-              .withAttributes(DynamoAttributes.client(client))
-              .runWith(Sink.head)
-              .map(_ => Result.ok(data))
-              .toF
+      res <- convertToF[F](
+              DynamoDb
+                .source(request)
+                .withAttributes(DynamoAttributes.client(client))
+                .runWith(Sink.head)
+                .map(_ => Result.ok(data))
+            )
       _ <- eventStore.publish(ExperimentVariantEventCreated(id, data))
     } yield res
 
@@ -107,12 +108,13 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
       .map(DeleteItem)
       .via(DynamoDb.flow[DeleteItem].withAttributes(DynamoAttributes.client(client)))
 
-    val deletes = findExperimentVariantEvents(experiment)
-      .map(_._2)
-      .via(delete)
-      .runWith(Sink.ignore)
-      .toF
-      .map(_ => Result.ok(Done))
+    val deletes = convertToF[F](
+      findExperimentVariantEvents(experiment)
+        .map(_._2)
+        .via(delete)
+        .runWith(Sink.ignore)
+        .map(_ => Result.ok(Done))
+    )
 
     for {
       r <- deletes
@@ -203,12 +205,12 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
         ).asJava
       )
       .withLimit(1)
-
-    DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
-      .map(_ => ())
-      .toF
+    convertToF[F](
+      DynamoDb
+        .source(request)
+        .withAttributes(DynamoAttributes.client(client))
+        .runWith(Sink.head)
+        .map(_ => ())
+    )
   }
 }

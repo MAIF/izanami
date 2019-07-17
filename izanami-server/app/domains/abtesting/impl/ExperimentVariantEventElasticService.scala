@@ -251,8 +251,9 @@ class ExperimentVariantEventElasticService[F[_]: Effect](client: Elastic[JsValue
         }
       )
       .mapConcat { _.hits.hits.map(doc => (doc._index, doc._id)).toList }
-      .map { case (index, id) =>
-        Bulk[ExperimentVariantEvent](BulkOpType(delete = Some(BulkOpDetail(Some(index), None, Some(id)))), None)
+      .map {
+        case (index, id) =>
+          Bulk[ExperimentVariantEvent](BulkOpType(delete = Some(BulkOpDetail(Some(index), None, Some(id)))), None)
       }
       .via(index.bulkFlow(batchSize = 500))
       .mapAsync(1) { input =>
