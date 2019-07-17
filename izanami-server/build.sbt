@@ -163,16 +163,22 @@ packageAll := {
 }
 
 /// DOCKER CONFIG
-
 dockerExposedPorts := Seq(
   2551,
   8080
 )
 packageName in Docker := "izanami"
 
+dockerPackageMappings in Docker += (baseDirectory.value / "docker" / "start.sh") -> "/opt/docker/bin/start.sh"
+
 maintainer in Docker := "MAIF Team <maif@maif.fr>"
 
 dockerBaseImage := "openjdk:11-jre-slim"
+
+dockerCommands := dockerCommands.value.filterNot {
+  case ExecCmd("CMD", args @ _*) => true
+  case cmd                       => false
+}
 
 dockerCommands ++= Seq(
   Cmd("ENV", "APP_NAME izanami"),
@@ -197,19 +203,6 @@ dockerExposedVolumes ++= Seq(
 
 dockerUsername := Some("maif")
 
-//dockerRepository := Some("maif-docker-docker.bintray.io")
-
-dockerCommands :=
-  dockerCommands.value.flatMap {
-    case ExecCmd("ENTRYPOINT", args @ _*) => Seq(Cmd("ENTRYPOINT", args.mkString(" ")))
-    case v                                => Seq(v)
-  }
-
-dockerEntrypoint ++= Seq(
-  """-Dlogger.file=./conf/docker-logger.xml """,
-  """-Dcluster.akka.remote.netty.tcp.hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
-  """-Dcluster.akka.remote.netty.tcp.bind-hostname="$(eval "awk 'END{print $1}' /etc/hosts")" """,
-  """-Dplay.server.pidfile.path=/dev/null """
-)
+dockerEntrypoint := Seq("/opt/docker/bin/start.sh")
 
 dockerUpdateLatest := true
