@@ -273,16 +273,22 @@ object Cassandra {
                                                                  ec: ExecutionContext): F[ResultSet] =
     if (args.isEmpty) {
       IzanamiLogger.debug(s"Running query $query ")
-      IO.fromFuture(IO(
-          session.executeAsync(query).toFuture
-      )).to[F]
+      IO.fromFuture(
+          IO(
+            session.executeAsync(query).toFuture
+          )
+        )
+        .to[F]
     } else {
       IzanamiLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ")
-      IO.fromFuture(IO(
-        session
-          .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
-          .toFuture
-      )).to[F]
+      IO.fromFuture(
+          IO(
+            session
+              .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
+              .toFuture
+          )
+        )
+        .to[F]
     }
 
   def executeWithSession[F[_]: Async](query: Statement)(implicit session: Session, ec: ExecutionContext): F[ResultSet] =
@@ -295,8 +301,8 @@ object Cassandra {
       Futures.addCallback(
         f,
         new FutureCallback[T] {
-          override def onFailure(t: Throwable): Unit = {promise.failure(t)}
-          override def onSuccess(result: T): Unit    = {promise.success(result)}
+          override def onFailure(t: Throwable): Unit = promise.failure(t)
+          override def onSuccess(result: T): Unit    = promise.success(result)
         },
         ExecutorConversions.toExecutor(ec)
       )

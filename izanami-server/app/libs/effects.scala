@@ -8,9 +8,11 @@ import scala.util.{Failure, Success}
 
 object effects {
 
-  def convertToF[F[_]: Async, T](call : => Future[T]): F[T] = {
-    cats.effect.IO.fromFuture(cats.effect.IO(call)).to[F]
+  private[libs] class ConvertBuilder[F[_]](private val dummy: Boolean = true) extends AnyVal {
+    def apply[T](call: => Future[T])(implicit A: Async[F]): F[T] = cats.effect.IO.fromFuture(cats.effect.IO(call)).to[F]
   }
+
+  def convertToF[F[_]] = new ConvertBuilder[F]
 
   implicit class CSOps[T](cs: CompletionStage[T]) {
     def toF[F[_]: Async]: F[T] = Async[F].async { cb =>
