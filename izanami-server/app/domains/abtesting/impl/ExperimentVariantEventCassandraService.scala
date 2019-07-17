@@ -23,17 +23,17 @@ import store.Result
 ////////////////////////////////////    CASSANDRA     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventCassandreService {
+object ExperimentVariantEventCassandraService {
   def apply[F[_]: Effect](
       session: Session,
       config: DbDomainConfig,
       cassandraConfig: CassandraConfig,
       eventStore: EventStore[F]
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandreService[F] =
-    new ExperimentVariantEventCassandreService(session, config, cassandraConfig, eventStore)
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandraService[F] =
+    new ExperimentVariantEventCassandraService(session, config, cassandraConfig, eventStore)
 }
 
-class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
+class ExperimentVariantEventCassandraService[F[_]: Effect](session: Session,
                                                            config: DbDomainConfig,
                                                            cassandraConfig: CassandraConfig,
                                                            eventStore: EventStore[F])(implicit actorSystem: ActorSystem)
@@ -70,9 +70,11 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
          | """.stripMargin
     )
 
-  private def saveToCassandra(id: ExperimentVariantEventKey, data: ExperimentVariantEvent) = {
+  private def saveToCassandra(id: ExperimentVariantEventKey,
+                              data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
     val query =
       s"INSERT INTO ${keyspace}.$namespaceFormatted (experimentId, variantId, clientId, namespace, id, value) values (?, ?, ?, ?, ?, ?) IF NOT EXISTS "
+
     executeWithSession(
       query,
       id.experimentId.key,
@@ -88,7 +90,10 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
     for {
       result <- saveToCassandra(id, data) // add event
       _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-    } yield result
+    } yield {
+      IzanamiLogger.debug(s"Result $result")
+      result
+    }
 
   override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
     experiment.variants.toList
@@ -99,7 +104,7 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
       }
       .map(_ => Result.ok(Done))
       .flatMap { r =>
-        r.traverse(e => eventStore.publish(ExperimentVariantEventsDeleted(experiment)))
+        r.traverse(_ => eventStore.publish(ExperimentVariantEventsDeleted(experiment)))
       }
 
   def getVariantResult(experiment: Experiment, variant: Variant): Source[VariantResult, NotUsed] = {
@@ -132,13 +137,13 @@ class ExperimentVariantEventCassandreService[F[_]: Effect](session: Session,
     Source(experiment.variants.toList)
       .flatMapMerge(4, v => getVariantResult(experiment, v))
 
-  override def listAll(patterns: Seq[String]) =
-    CassandraSource(
-      new SimpleStatement(
-        s"SELECT value FROM ${keyspace}.$namespaceFormatted "
-      )
-    ).via(readValue)
+  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] = {
+    val query = s"SELECT value FROM ${keyspace}.$namespaceFormatted "
+    IzanamiLogger.debug(s"Running query $query")
+    CassandraSource(new SimpleStatement(query).setFetchSize(200))
+      .via(readValue)
       .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+  }
 
   override def check(): F[Unit] = executeWithSession("SELECT now() FROM system.local").map(_ => ())
 

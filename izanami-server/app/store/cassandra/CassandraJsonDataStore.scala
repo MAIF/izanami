@@ -7,7 +7,7 @@ import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.{Done, NotUsed}
-import cats.effect.{Async, Effect}
+import cats.effect.{Async, Effect, IO}
 import com.datastax.driver.core._
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import domains.Key
@@ -18,7 +18,7 @@ import play.api.libs.json.{JsValue, Json}
 import store.Result.{ErrorMessage, Result}
 import store._
 
-import scala.concurrent.{ExecutionContext, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 object CassandraJsonDataStore {
   def apply[F[_]: Effect](session: Session, cassandraConfig: CassandraConfig, config: DbDomainConfig)(
@@ -267,37 +267,60 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
 object Cassandra {
 
   def session[F[_]: Async]()(implicit cluster: Cluster, ec: ExecutionContext): F[Session] =
-    cluster.connectAsync().toF
+    IO.fromFuture(IO(cluster.connectAsync().toFuture)).to[F]
 
   def executeWithSession[F[_]: Async](query: String, args: Any*)(implicit session: Session,
                                                                  ec: ExecutionContext): F[ResultSet] =
     if (args.isEmpty) {
       IzanamiLogger.debug(s"Running query $query ")
-      session.executeAsync(query).toF
+      IO.fromFuture(
+          IO(
+            session.executeAsync(query).toFuture
+          )
+        )
+        .to[F]
     } else {
       IzanamiLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ")
-      session
-        .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
-        .toF
+      IO.fromFuture(
+          IO(
+            session
+              .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
+              .toFuture
+          )
+        )
+        .to[F]
     }
 
   def executeWithSession[F[_]: Async](query: Statement)(implicit session: Session, ec: ExecutionContext): F[ResultSet] =
-    session.executeAsync(query).toF
+    IO.fromFuture(IO(session.executeAsync(query).toFuture)).to[F]
 
   implicit class AsyncConvertions[T](f: ListenableFuture[T]) {
-    def toF[F[_]: Async](implicit ec: ExecutionContext): F[T] = {
+
+    def toFuture(implicit ec: ExecutionContext): Future[T] = {
       val promise: Promise[T] = Promise[T]
-      Async[F].async { cb =>
-        Futures.addCallback(
-          f,
-          new FutureCallback[T] {
-            override def onFailure(t: Throwable): Unit = cb(Left(t))
-            override def onSuccess(result: T): Unit    = cb(Right(result))
-          },
-          ExecutorConversions.toExecutor(ec)
-        )
-      }
+      Futures.addCallback(
+        f,
+        new FutureCallback[T] {
+          override def onFailure(t: Throwable): Unit = promise.failure(t)
+          override def onSuccess(result: T): Unit    = promise.success(result)
+        },
+        ExecutorConversions.toExecutor(ec)
+      )
+      promise.future
     }
+//
+//    def toF[F[_]: Async](implicit ec: ExecutionContext): F[T] = {
+//      Async[F].async { cb =>
+//        Futures.addCallback(
+//          f,
+//          new FutureCallback[T] {
+//            override def onFailure(t: Throwable): Unit = cb(Left(t))
+//            override def onSuccess(result: T): Unit    = cb(Right(result))
+//          },
+//          ExecutorConversions.toExecutor(ec)
+//        )
+//      }
+//    }
   }
 
   object ExecutorConversions {

@@ -170,7 +170,7 @@ package object modules {
         case InMemory  => ExperimentVariantEventInMemoryService(conf, eventStore)
         case Redis     => ExperimentVariantEventRedisService(conf, drivers.redisClient, eventStore)
         case LevelDB   => ExperimentVariantEventLevelDBService(izanamiConfig.db.leveldb.get, conf, eventStore, applicationLifecycle)
-        case Cassandra => ExperimentVariantEventCassandreService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore)
+        case Cassandra => ExperimentVariantEventCassandraService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get, eventStore)
         case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf, eventStore)
         case Mongo    =>  ExperimentVariantEventMongoService(conf, drivers.mongoApi.get, eventStore)
         case Dynamo   =>  ExperimentVariantEventDynamoService(izanamiConfig.db.dynamo.get, drivers.dynamoClient.get, eventStore)
