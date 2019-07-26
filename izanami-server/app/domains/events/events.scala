@@ -3,6 +3,7 @@ package domains.events
 import java.io.Closeable
 import java.time.LocalDateTime
 
+import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import domains.Domain.Domain
@@ -13,6 +14,7 @@ import domains.apikey.Apikey.ApikeyKey
 import domains.config.{Config, ConfigInstances}
 import domains.config.Config.ConfigKey
 import domains.events.Events.IzanamiEvent
+import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
 import domains.feature.{Feature, FeatureInstances}
 import domains.feature.Feature.FeatureKey
 import domains.script.{GlobalScript, GlobalScriptInstances}
@@ -22,9 +24,18 @@ import domains.user.User.UserKey
 import domains.webhook.{Webhook, WebhookInstances}
 import domains.webhook.Webhook.WebhookKey
 import domains.{Domain, Key}
+import env.{DistributedEvents, InMemoryEvents, IzanamiConfig, KafkaEvents, RedisEvents}
 import libs.IdGenerator
+import libs.database.Drivers
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.{Environment, Logger}
+import store.Result.IzanamiErrors
+import store.Result
+import zio.{RIO, Task, ZIO}
+import libs.logs.LoggerModule
+import domains.AuthInfoModule
+import domains.AuthInfo
 
 object Events {
 
@@ -36,6 +47,7 @@ object Events {
     def _id: Long
     def `type`: String
     def domain: Domain
+    def authInfo: Option[AuthInfo]
     def key: Key
     def timestamp: LocalDateTime
     def payload: JsValue
@@ -54,11 +66,12 @@ object Events {
       //CONFIGS
       case o: JsObject if (o \ "type").as[String] == "CONFIG_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Config](ConfigInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield ConfigCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Config](ConfigInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ConfigCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "CONFIG_UPDATED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
@@ -66,29 +79,33 @@ object Events {
           payload  <- (o \ "payload").validate[Config](ConfigInstances.format)
           key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Config](ConfigInstances.format)
-        } yield ConfigUpdated(key, oldValue, payload, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ConfigUpdated(key, oldValue, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "CONFIG_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Config](ConfigInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield ConfigDeleted(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Config](ConfigInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ConfigDeleted(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "CONFIGS_DELETED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
           ts       <- (o \ "timestamp").validate[LocalDateTime]
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
-        } yield ConfigsDeleted(count, patterns, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ConfigsDeleted(count, patterns, _id, ts, authInfo)
       //FEATURES
       case o: JsObject if (o \ "type").as[String] == "FEATURE_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Feature](FeatureInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield FeatureCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Feature](FeatureInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield FeatureCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "FEATURE_UPDATED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
@@ -96,29 +113,33 @@ object Events {
           payload  <- (o \ "payload").validate[Feature](FeatureInstances.format)
           key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Feature](FeatureInstances.format)
-        } yield FeatureUpdated(key, oldValue, payload, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield FeatureUpdated(key, oldValue, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "FEATURE_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Feature](FeatureInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield FeatureDeleted(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Feature](FeatureInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield FeatureDeleted(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "FEATURES_DELETED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
           ts       <- (o \ "timestamp").validate[LocalDateTime]
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
-        } yield FeaturesDeleted(count, patterns, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield FeaturesDeleted(count, patterns, _id, ts, authInfo)
       //SCRIPTS
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPT_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[GlobalScript](GlobalScriptInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield GlobalScriptCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[GlobalScript](GlobalScriptInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield GlobalScriptCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPT_UPDATED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
@@ -126,29 +147,33 @@ object Events {
           payload  <- (o \ "payload").validate[GlobalScript](GlobalScriptInstances.format)
           key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[GlobalScript](GlobalScriptInstances.format)
-        } yield GlobalScriptUpdated(key, oldValue, payload, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield GlobalScriptUpdated(key, oldValue, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPT_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[GlobalScript](GlobalScriptInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield GlobalScriptDeleted(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[GlobalScript](GlobalScriptInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield GlobalScriptDeleted(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "GLOBALSCRIPTS_DELETED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
           ts       <- (o \ "timestamp").validate[LocalDateTime]
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
-        } yield GlobalScriptsDeleted(count, patterns, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield GlobalScriptsDeleted(count, patterns, _id, ts, authInfo)
       //USER
       case o: JsObject if (o \ "type").as[String] == "USER_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[User](UserInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield UserCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[User](UserInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield UserCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "USER_UPDATED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
@@ -156,29 +181,33 @@ object Events {
           payload  <- (o \ "payload").validate[User](UserInstances.format)
           key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[User](UserInstances.format)
-        } yield UserUpdated(key, oldValue, payload, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield UserUpdated(key, oldValue, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "USER_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[User](UserInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield UserDeleted(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[User](UserInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield UserDeleted(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "USERS_DELETED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
           ts       <- (o \ "timestamp").validate[LocalDateTime]
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
-        } yield UsersDeleted(count, patterns)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield UsersDeleted(count, patterns, _id, ts, authInfo)
       //WEBHOOK
       case o: JsObject if (o \ "type").as[String] == "WEBHOOK_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Webhook](WebhookInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield WebhookCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Webhook](WebhookInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield WebhookCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "WEBHOOK_UPDATED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
@@ -186,29 +215,33 @@ object Events {
           payload  <- (o \ "payload").validate[Webhook](WebhookInstances.format)
           key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Webhook](WebhookInstances.format)
-        } yield WebhookUpdated(key, oldValue, payload, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield WebhookUpdated(key, oldValue, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "WEBHOOK_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Webhook](WebhookInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield WebhookDeleted(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Webhook](WebhookInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield WebhookDeleted(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "WEBHOOKS_DELETED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
           ts       <- (o \ "timestamp").validate[LocalDateTime]
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
-        } yield WebhooksDeleted(count, patterns, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield WebhooksDeleted(count, patterns, _id, ts, authInfo)
       //APIKEY
       case o: JsObject if (o \ "type").as[String] == "APIKEY_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Apikey](ApikeyInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield ApikeyCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Apikey](ApikeyInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ApikeyCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "APIKEY_UPDATED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
@@ -216,29 +249,33 @@ object Events {
           payload  <- (o \ "payload").validate[Apikey](ApikeyInstances.format)
           key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Apikey](ApikeyInstances.format)
-        } yield ApikeyUpdated(key, oldValue, payload, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ApikeyUpdated(key, oldValue, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "APIKEY_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Apikey](ApikeyInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield ApikeyDeleted(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Apikey](ApikeyInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ApikeyDeleted(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "APIKEYS_DELETED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
           ts       <- (o \ "timestamp").validate[LocalDateTime]
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
-        } yield ApikeysDeleted(count, patterns, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ApikeysDeleted(count, patterns, _id, ts, authInfo)
       //EXPERIMENT
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield ExperimentCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ExperimentCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_UPDATED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
@@ -246,35 +283,40 @@ object Events {
           payload  <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
           key      <- (o \ "key").validate[Key]
           oldValue <- (o \ "oldValue").validate[Experiment](ExperimentInstances.format)
-        } yield ExperimentUpdated(key, oldValue, payload, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ExperimentUpdated(key, oldValue, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
-          key     <- (o \ "key").validate[Key]
-        } yield ExperimentDeleted(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
+          key      <- (o \ "key").validate[Key]
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ExperimentDeleted(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENTS_DELETED" =>
         for {
           _id      <- (o \ "_id").validate[Long]
           ts       <- (o \ "timestamp").validate[LocalDateTime]
           count    <- (o \ "payload" \ "count").validate[Long]
           patterns <- (o \ "payload" \ "patterns").validate[Seq[String]]
-        } yield ExperimentsDeleted(count, patterns, _id, ts)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ExperimentsDeleted(count, patterns, _id, ts, authInfo)
       //VARIANT BINDING EVENT
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_VARIANT_EVENT_CREATED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[ExperimentVariantEvent](ExperimentVariantEventInstances.format)
-          key     <- (o \ "key").validate[ExperimentVariantEventKey](ExperimentVariantEventKeyInstances.format)
-        } yield ExperimentVariantEventCreated(key, payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[ExperimentVariantEvent](ExperimentVariantEventInstances.format)
+          key      <- (o \ "key").validate[ExperimentVariantEventKey](ExperimentVariantEventKeyInstances.format)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ExperimentVariantEventCreated(key, payload, _id, ts, authInfo)
       case o: JsObject if (o \ "type").as[String] == "EXPERIMENT_VARIANT_EVENT_DELETED" =>
         for {
-          _id     <- (o \ "_id").validate[Long]
-          ts      <- (o \ "timestamp").validate[LocalDateTime]
-          payload <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
-        } yield ExperimentVariantEventsDeleted(payload, _id, ts)
+          _id      <- (o \ "_id").validate[Long]
+          ts       <- (o \ "timestamp").validate[LocalDateTime]
+          payload  <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
+          authInfo <- (o \ "authInfo").validate[Option[AuthInfo]](Reads.optionWithNull(AuthInfo.format))
+        } yield ExperimentVariantEventsDeleted(payload, _id, ts, authInfo)
       case _ =>
         JsError("events.unknow.type")
     }
@@ -296,7 +338,8 @@ object Events {
   case class ConfigCreated(key: ConfigKey,
                            config: Config,
                            _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now())
+                           timestamp: LocalDateTime = LocalDateTime.now(),
+                           authInfo: Option[AuthInfo])
       extends ConfigEvent {
     val `type`: String   = "CONFIG_CREATED"
     val payload: JsValue = ConfigInstances.format.writes(config)
@@ -305,7 +348,8 @@ object Events {
                            oldValue: Config,
                            config: Config,
                            _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now())
+                           timestamp: LocalDateTime = LocalDateTime.now(),
+                           authInfo: Option[AuthInfo])
       extends ConfigEvent {
     val `type`: String   = "CONFIG_UPDATED"
     val payload: JsValue = ConfigInstances.format.writes(config)
@@ -315,7 +359,8 @@ object Events {
   case class ConfigDeleted(key: ConfigKey,
                            config: Config,
                            _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now())
+                           timestamp: LocalDateTime = LocalDateTime.now(),
+                           authInfo: Option[AuthInfo])
       extends ConfigEvent {
     val `type`: String   = "CONFIG_DELETED"
     val payload: JsValue = ConfigInstances.format.writes(config)
@@ -323,7 +368,8 @@ object Events {
   case class ConfigsDeleted(_id: Long = gen.nextId(),
                             patterns: Seq[String],
                             count: Long,
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends ConfigEvent {
     val `type`: String   = "CONFIGS_DELETED"
     val key: ConfigKey   = Key.Empty
@@ -345,7 +391,8 @@ object Events {
   case class FeatureCreated(key: FeatureKey,
                             feature: Feature,
                             _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends FeatureEvent {
     val `type`: String   = "FEATURE_CREATED"
     val payload: JsValue = FeatureInstances.format.writes(feature)
@@ -354,7 +401,8 @@ object Events {
                             oldValue: Feature,
                             feature: Feature,
                             _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends FeatureEvent {
     val `type`: String   = "FEATURE_UPDATED"
     val payload: JsValue = FeatureInstances.format.writes(feature)
@@ -365,7 +413,8 @@ object Events {
   case class FeatureDeleted(key: FeatureKey,
                             feature: Feature,
                             _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends FeatureEvent {
     val `type`: String   = "FEATURE_DELETED"
     val payload: JsValue = FeatureInstances.format.writes(feature)
@@ -373,7 +422,8 @@ object Events {
   case class FeaturesDeleted(count: Long,
                              patterns: Seq[String],
                              _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now())
+                             timestamp: LocalDateTime = LocalDateTime.now(),
+                             authInfo: Option[AuthInfo])
       extends FeatureEvent {
     val key: FeatureKey  = Key.Empty
     val `type`: String   = "FEATURES_DELETED"
@@ -395,7 +445,8 @@ object Events {
   case class GlobalScriptCreated(key: GlobalScriptKey,
                                  globalScript: GlobalScript,
                                  _id: Long = gen.nextId(),
-                                 timestamp: LocalDateTime = LocalDateTime.now())
+                                 timestamp: LocalDateTime = LocalDateTime.now(),
+                                 authInfo: Option[AuthInfo])
       extends GlobalScriptEvent {
     val `type`: String   = "GLOBALSCRIPT_CREATED"
     val payload: JsValue = GlobalScriptInstances.format.writes(globalScript)
@@ -404,7 +455,8 @@ object Events {
                                  oldValue: GlobalScript,
                                  globalScript: GlobalScript,
                                  _id: Long = gen.nextId(),
-                                 timestamp: LocalDateTime = LocalDateTime.now())
+                                 timestamp: LocalDateTime = LocalDateTime.now(),
+                                 authInfo: Option[AuthInfo])
       extends GlobalScriptEvent {
     val `type`: String   = "GLOBALSCRIPT_UPDATED"
     val payload: JsValue = GlobalScriptInstances.format.writes(globalScript)
@@ -414,7 +466,8 @@ object Events {
   case class GlobalScriptDeleted(key: GlobalScriptKey,
                                  globalScript: GlobalScript,
                                  _id: Long = gen.nextId(),
-                                 timestamp: LocalDateTime = LocalDateTime.now())
+                                 timestamp: LocalDateTime = LocalDateTime.now(),
+                                 authInfo: Option[AuthInfo])
       extends GlobalScriptEvent {
     val `type`: String   = "GLOBALSCRIPT_DELETED"
     val payload: JsValue = GlobalScriptInstances.format.writes(globalScript)
@@ -422,7 +475,8 @@ object Events {
   case class GlobalScriptsDeleted(count: Long,
                                   patterns: Seq[String],
                                   _id: Long = gen.nextId(),
-                                  timestamp: LocalDateTime = LocalDateTime.now())
+                                  timestamp: LocalDateTime = LocalDateTime.now(),
+                                  authInfo: Option[AuthInfo])
       extends GlobalScriptEvent {
     val key              = Key.Empty
     val `type`: String   = "GLOBALSCRIPTS_DELETED"
@@ -438,7 +492,8 @@ object Events {
   case class UserCreated(key: UserKey,
                          user: User,
                          _id: Long = gen.nextId(),
-                         timestamp: LocalDateTime = LocalDateTime.now())
+                         timestamp: LocalDateTime = LocalDateTime.now(),
+                         authInfo: Option[AuthInfo])
       extends UserEvent {
     val `type`: String   = "USER_CREATED"
     val payload: JsValue = UserInstances.format.writes(user)
@@ -448,7 +503,8 @@ object Events {
                          oldValue: User,
                          user: User,
                          _id: Long = gen.nextId(),
-                         timestamp: LocalDateTime = LocalDateTime.now())
+                         timestamp: LocalDateTime = LocalDateTime.now(),
+                         authInfo: Option[AuthInfo])
       extends UserEvent {
     val `type`: String   = "USER_UPDATED"
     val payload: JsValue = UserInstances.format.writes(user)
@@ -459,7 +515,8 @@ object Events {
   case class UserDeleted(key: UserKey,
                          user: User,
                          _id: Long = gen.nextId(),
-                         timestamp: LocalDateTime = LocalDateTime.now())
+                         timestamp: LocalDateTime = LocalDateTime.now(),
+                         authInfo: Option[AuthInfo])
       extends UserEvent {
     val `type`: String   = "USER_DELETED"
     val payload: JsValue = UserInstances.format.writes(user)
@@ -468,7 +525,8 @@ object Events {
   case class UsersDeleted(count: Long,
                           patterns: Seq[String],
                           _id: Long = gen.nextId(),
-                          timestamp: LocalDateTime = LocalDateTime.now())
+                          timestamp: LocalDateTime = LocalDateTime.now(),
+                          authInfo: Option[AuthInfo])
       extends UserEvent {
     val `type`: String   = "USERS_DELETED"
     val key: UserKey     = Key.Empty
@@ -490,7 +548,8 @@ object Events {
   case class WebhookCreated(key: WebhookKey,
                             webhook: Webhook,
                             _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends WebhookEvent {
     val `type`: String   = "WEBHOOK_CREATED"
     val payload: JsValue = WebhookInstances.format.writes(webhook)
@@ -499,7 +558,8 @@ object Events {
                             oldValue: Webhook,
                             webhook: Webhook,
                             _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends WebhookEvent {
     val `type`: String   = "WEBHOOK_UPDATED"
     val payload: JsValue = WebhookInstances.format.writes(webhook)
@@ -509,7 +569,8 @@ object Events {
   case class WebhookDeleted(key: WebhookKey,
                             webhook: Webhook,
                             _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends WebhookEvent {
     val `type`: String   = "WEBHOOK_DELETED"
     val payload: JsValue = WebhookInstances.format.writes(webhook)
@@ -517,7 +578,8 @@ object Events {
   case class WebhooksDeleted(count: Long,
                              patterns: Seq[String],
                              _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now())
+                             timestamp: LocalDateTime = LocalDateTime.now(),
+                             authInfo: Option[AuthInfo])
       extends WebhookEvent {
     val key              = Key.Empty
     val `type`: String   = "WEBHOOKS_DELETED"
@@ -538,7 +600,8 @@ object Events {
   case class ApikeyCreated(key: ApikeyKey,
                            apikey: Apikey,
                            _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now())
+                           timestamp: LocalDateTime = LocalDateTime.now(),
+                           authInfo: Option[AuthInfo])
       extends ApikeyEvent {
     val `type`: String   = "APIKEY_CREATED"
     val payload: JsValue = Json.toJson(apikey)
@@ -548,7 +611,8 @@ object Events {
                            oldValue: Apikey,
                            apikey: Apikey,
                            _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now())
+                           timestamp: LocalDateTime = LocalDateTime.now(),
+                           authInfo: Option[AuthInfo])
       extends ApikeyEvent {
     val `type`: String   = "APIKEY_UPDATED"
     val payload: JsValue = Json.toJson(apikey)
@@ -559,7 +623,8 @@ object Events {
   case class ApikeyDeleted(key: ApikeyKey,
                            apikey: Apikey,
                            _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now())
+                           timestamp: LocalDateTime = LocalDateTime.now(),
+                           authInfo: Option[AuthInfo])
       extends ApikeyEvent {
     val `type`: String   = "APIKEY_DELETED"
     val payload: JsValue = Json.toJson(apikey)
@@ -568,7 +633,8 @@ object Events {
   case class ApikeysDeleted(count: Long,
                             patterns: Seq[String],
                             _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now())
+                            timestamp: LocalDateTime = LocalDateTime.now(),
+                            authInfo: Option[AuthInfo])
       extends ApikeyEvent {
     val `type`: String   = "APIKEYS_DELETED"
     val key: ApikeyKey   = Key.Empty
@@ -583,7 +649,8 @@ object Events {
   case class ExperimentCreated(key: ExperimentKey,
                                experiment: Experiment,
                                _id: Long = gen.nextId(),
-                               timestamp: LocalDateTime = LocalDateTime.now())
+                               timestamp: LocalDateTime = LocalDateTime.now(),
+                               authInfo: Option[AuthInfo])
       extends ExperimentEvent {
     val `type`: String   = "EXPERIMENT_CREATED"
     val payload: JsValue = ExperimentInstances.format.writes(experiment)
@@ -593,7 +660,8 @@ object Events {
                                oldValue: Experiment,
                                experiment: Experiment,
                                _id: Long = gen.nextId(),
-                               timestamp: LocalDateTime = LocalDateTime.now())
+                               timestamp: LocalDateTime = LocalDateTime.now(),
+                               authInfo: Option[AuthInfo])
       extends ExperimentEvent {
     val `type`: String   = "EXPERIMENT_UPDATED"
     val payload: JsValue = ExperimentInstances.format.writes(experiment)
@@ -604,7 +672,8 @@ object Events {
   case class ExperimentDeleted(key: ExperimentKey,
                                experiment: Experiment,
                                _id: Long = gen.nextId(),
-                               timestamp: LocalDateTime = LocalDateTime.now())
+                               timestamp: LocalDateTime = LocalDateTime.now(),
+                               authInfo: Option[AuthInfo])
       extends ExperimentEvent {
     val `type`: String   = "EXPERIMENT_DELETED"
     val payload: JsValue = ExperimentInstances.format.writes(experiment)
@@ -613,7 +682,8 @@ object Events {
   case class ExperimentsDeleted(count: Long,
                                 patterns: Seq[String],
                                 _id: Long = gen.nextId(),
-                                timestamp: LocalDateTime = LocalDateTime.now())
+                                timestamp: LocalDateTime = LocalDateTime.now(),
+                                authInfo: Option[AuthInfo])
       extends ExperimentEvent {
     val `type`: String     = "EXPERIMENTS_DELETED"
     val payload: JsValue   = Json.obj("count" -> count, "patterns" -> patterns)
@@ -627,7 +697,8 @@ object Events {
   case class ExperimentVariantEventCreated(id: ExperimentVariantEventKey,
                                            data: ExperimentVariantEvent,
                                            _id: Long = gen.nextId(),
-                                           timestamp: LocalDateTime = LocalDateTime.now())
+                                           timestamp: LocalDateTime = LocalDateTime.now(),
+                                           authInfo: Option[AuthInfo])
       extends ExperimentVariantEventEvent {
     override def `type`: String     = "EXPERIMENT_VARIANT_EVENT_CREATED"
     override def key: ExperimentKey = id.key
@@ -636,7 +707,8 @@ object Events {
 
   case class ExperimentVariantEventsDeleted(experiment: Experiment,
                                             _id: Long = gen.nextId(),
-                                            timestamp: LocalDateTime = LocalDateTime.now())
+                                            timestamp: LocalDateTime = LocalDateTime.now(),
+                                            authInfo: Option[AuthInfo])
       extends ExperimentVariantEventEvent {
     override def `type`: String     = "EXPERIMENT_VARIANT_EVENT_DELETED"
     override def key: ExperimentKey = experiment.id
@@ -650,7 +722,15 @@ object EventLogger {
   val logger = Logger("events")
 }
 
-trait EventStore[F[_]] extends Closeable {
+trait EventStoreModule {
+  def eventStore: EventStore
+}
+
+trait EventStoreContext extends EventStoreModule with LoggerModule with AuthInfoModule[EventStoreContext]
+
+trait EventStore {
+
+  import zio._
 
   private[events] def eventMatch(patterns: Seq[String], domains: Seq[Domain])(e: IzanamiEvent): Boolean =
     (domains.isEmpty || domains.contains(e.domain)) && (patterns.isEmpty || e.key
@@ -665,12 +745,44 @@ trait EventStore[F[_]] extends Closeable {
       Flow[IzanamiEvent]
     }
 
-  def publish(event: IzanamiEvent): F[Done]
+  def publish(event: IzanamiEvent): ZIO[EventStoreContext, IzanamiErrors, Done]
 
   def events(domains: Seq[Domain] = Seq.empty[Domain],
              patterns: Seq[String] = Seq.empty[String],
              lastEventId: Option[Long] = None): Source[IzanamiEvent, NotUsed]
 
-  def check(): F[Unit]
+  def check(): RIO[EventStoreContext, Unit]
+
+  def close(): RIO[EventStoreContext, Unit] = Task.succeed(())
+
+  def start: RIO[EventStoreContext, Unit] = Task.succeed(())
+
+}
+
+object EventStore {
+
+  def apply(izanamiConfig: IzanamiConfig,
+            drivers: Drivers,
+            configuration: play.api.Configuration,
+            environment: Environment,
+            applicationLifecycle: ApplicationLifecycle)(implicit actorSystem: ActorSystem): EventStore =
+    izanamiConfig.events match {
+      case InMemoryEvents(_)    => new BasicEventStore
+      case KafkaEvents(c)       => new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
+      case RedisEvents(c)       => new RedisEventStore(drivers.redisClient.get, c, actorSystem)
+      case DistributedEvents(c) => new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
+      case other                => throw new IllegalArgumentException(s"Unknown event store $other")
+    }
+
+  def publish(event: IzanamiEvent): ZIO[EventStoreContext, IzanamiErrors, Done] =
+    ZIO.accessM(_.eventStore.publish(event))
+
+  def events(domains: Seq[Domain] = Seq.empty[Domain],
+             patterns: Seq[String] = Seq.empty[String],
+             lastEventId: Option[Long] = None): RIO[EventStoreContext, Source[IzanamiEvent, NotUsed]] =
+    ZIO.access(_.eventStore.events(domains, patterns, lastEventId))
+
+  def check(): RIO[EventStoreContext, Unit] =
+    ZIO.accessM(_.eventStore.check())
 
 }

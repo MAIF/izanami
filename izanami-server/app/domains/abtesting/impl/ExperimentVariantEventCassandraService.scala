@@ -6,38 +6,36 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Source}
-import akka.{Done, NotUsed}
-import cats.effect.Effect
+import akka.NotUsed
 import com.datastax.driver.core.{Row, Session, SimpleStatement}
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.abtesting._
-import domains.events.EventStore
+import domains.events.{EventStore, EventStoreModule}
 import env.{CassandraConfig, DbDomainConfig}
 import libs.logs.IzanamiLogger
 import play.api.libs.json._
-import store.Result.Result
+import store.Result.{IzanamiErrors}
 import store.cassandra.Cassandra
-import store.Result
+import zio.{RIO, Task, ZIO}
+import libs.logs.Logger
+import domains.AuthInfo
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    CASSANDRA     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventCassandraService {
-  def apply[F[_]: Effect](
+  def apply(
       session: Session,
       config: DbDomainConfig,
-      cassandraConfig: CassandraConfig,
-      eventStore: EventStore[F]
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandraService[F] =
-    new ExperimentVariantEventCassandraService(session, config, cassandraConfig, eventStore)
+      cassandraConfig: CassandraConfig
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventCassandraService =
+    new ExperimentVariantEventCassandraService(session, config, cassandraConfig)
 }
 
-class ExperimentVariantEventCassandraService[F[_]: Effect](session: Session,
-                                                           config: DbDomainConfig,
-                                                           cassandraConfig: CassandraConfig,
-                                                           eventStore: EventStore[F])(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventService[F] {
+class ExperimentVariantEventCassandraService(session: Session, config: DbDomainConfig, cassandraConfig: CassandraConfig)(
+    implicit actorSystem: ActorSystem
+) extends ExperimentVariantEventService {
 
   private val namespaceFormatted = config.conf.namespace.replaceAll(":", "_")
   private val keyspace           = cassandraConfig.keyspace
@@ -48,34 +46,35 @@ class ExperimentVariantEventCassandraService[F[_]: Effect](session: Session,
 
   implicit private val mat  = ActorMaterializer()
   implicit private val sess = session
-  implicit private val es   = eventStore
-
   import actorSystem.dispatcher
 
-  IzanamiLogger.info(s"Creating table ${keyspace}.$namespaceFormatted if not exists")
-
   //Events table
-  session
-    .execute(
-      s"""
-         | CREATE TABLE IF NOT EXISTS ${keyspace}.$namespaceFormatted (
-         |   experimentId text,
-         |   variantId text,
-         |   clientId text,
-         |   namespace text,
-         |   id text,
-         |   value text,
-         |   PRIMARY KEY ((experimentId, variantId), clientId, namespace, id)
-         | )
-         | """.stripMargin
+  override def start: RIO[ExperimentVariantEventServiceModule, Unit] =
+    Logger.info(s"Creating table ${keyspace}.$namespaceFormatted if not exists") *>
+    Task(
+      session.execute(
+        s"""
+        | CREATE TABLE IF NOT EXISTS ${keyspace}.$namespaceFormatted (
+        |   experimentId text,
+        |   variantId text,
+        |   clientId text,
+        |   namespace text,
+        |   id text,
+        |   value text,
+        |   PRIMARY KEY ((experimentId, variantId), clientId, namespace, id)
+        | )
+        | """.stripMargin
+      )
     )
 
-  private def saveToCassandra(id: ExperimentVariantEventKey,
-                              data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
+  private def saveToCassandra(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
     val query =
       s"INSERT INTO ${keyspace}.$namespaceFormatted (experimentId, variantId, clientId, namespace, id, value) values (?, ?, ?, ?, ?, ?) IF NOT EXISTS "
 
-    executeWithSession(
+    executeWithSessionT(
       query,
       id.experimentId.key,
       id.variantId,
@@ -83,29 +82,43 @@ class ExperimentVariantEventCassandraService[F[_]: Effect](session: Session,
       id.namespace,
       id.id,
       Json.stringify(ExperimentVariantEventInstances.format.writes(data))
-    ).map(_ => Result.ok(data))
+    ).map(_ => data)
+      .refineToOrDie[IzanamiErrors]
   }
 
-  override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
+  override def create(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
     for {
-      result <- saveToCassandra(id, data) // add event
-      _      <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-    } yield {
-      IzanamiLogger.debug(s"Result $result")
-      result
-    }
+      result   <- saveToCassandra(id, data) // add event
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ExperimentVariantEventCreated(id, result, authInfo = authInfo))
+      _        <- Logger.debug(s"Result $result")
+    } yield result
 
-  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
-    experiment.variants.toList
-      .traverse { variant =>
-        executeWithSession(s" DELETE FROM ${keyspace}.$namespaceFormatted  WHERE experimentId = ? AND variantId = ?",
-                           experiment.id.key,
-                           variant.id)
+  override def deleteEventsForExperiment(
+      experiment: Experiment
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+    for {
+      runtime <- ZIO.runtime[ExperimentVariantEventServiceModule]
+      res <- {
+        implicit val r = runtime
+        import zio.interop.catz._
+        experiment.variants.toList
+          .traverse { variant =>
+            executeWithSessionT(
+              s" DELETE FROM ${keyspace}.$namespaceFormatted  WHERE experimentId = ? AND variantId = ?",
+              experiment.id.key,
+              variant.id
+            )
+          }
+          .unit
+          .refineToOrDie[IzanamiErrors]
       }
-      .map(_ => Result.ok(Done))
-      .flatMap { r =>
-        r.traverse(_ => eventStore.publish(ExperimentVariantEventsDeleted(experiment)))
-      }
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
+    } yield res
 
   def getVariantResult(experiment: Experiment, variant: Variant): Source[VariantResult, NotUsed] = {
     val variantId: String = variant.id
@@ -133,19 +146,27 @@ class ExperimentVariantEventCassandraService[F[_]: Effect](session: Session,
     ).take(1)
       .via(readValue)
 
-  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
-    Source(experiment.variants.toList)
-      .flatMapMerge(4, v => getVariantResult(experiment, v))
+  override def findVariantResult(
+      experiment: Experiment
+  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+    Task(
+      Source(experiment.variants.toList).flatMapMerge(4, v => getVariantResult(experiment, v))
+    )
 
-  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] = {
+  override def listAll(
+      patterns: Seq[String]
+  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] = {
     val query = s"SELECT value FROM ${keyspace}.$namespaceFormatted "
-    IzanamiLogger.debug(s"Running query $query")
-    CassandraSource(new SimpleStatement(query).setFetchSize(200))
-      .via(readValue)
-      .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+    Logger.debug(s"Running query $query") *>
+    Task(
+      CassandraSource(new SimpleStatement(query).setFetchSize(200))
+        .via(readValue)
+        .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+    )
   }
 
-  override def check(): F[Unit] = executeWithSession("SELECT now() FROM system.local").map(_ => ())
+  override def check(): RIO[ExperimentVariantEventServiceModule, Unit] =
+    executeWithSessionT("SELECT now() FROM system.local").map(_ => ())
 
   private val readValue: Flow[Row, ExperimentVariantEvent, NotUsed] =
     Flow[Row]

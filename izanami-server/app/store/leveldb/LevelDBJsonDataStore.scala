@@ -1,58 +1,56 @@
 package store.leveldb
 
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
-import akka.{Done, NotUsed}
-import cats.effect.{Async, Effect}
+import akka.NotUsed
 import domains.Key
 import env.{DbDomainConfig, LevelDbConfig}
 import libs.streams.Flows
 import org.iq80.leveldb._
 import org.iq80.leveldb.impl.Iq80DBFactory._
-import libs.logs.IzanamiLogger
+import libs.logs.{IzanamiLogger, Logger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{ErrorMessage, Result}
+import store.Result.{AppErrors, IzanamiErrors}
 import store._
+import zio.blocking.Blocking.Live
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
-import scala.util.control.NonFatal
+import store.Result.DataShouldExists
+import store.Result.DataShouldNotExists
 
-class DbStores[F[_]] {
-  val stores = TrieMap.empty[String, LevelDBJsonDataStore[F]]
+object DbStores {
+  val stores = TrieMap.empty[String, LevelDBJsonDataStore]
 }
 
 object LevelDBJsonDataStore {
 
-  def apply[F[_]: Effect](
+  def apply(
       levelDbConfig: LevelDbConfig,
       config: DbDomainConfig,
       applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem, stores: DbStores[F]): LevelDBJsonDataStore[F] = {
+  )(implicit actorSystem: ActorSystem): LevelDBJsonDataStore = {
     val namespace      = config.conf.namespace
     val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-    stores.stores.getOrElseUpdate(dbPath, {
-      IzanamiLogger.info(s"Load store LevelDB for namespace $namespace and path $dbPath")
-      new LevelDBJsonDataStore[F](dbPath, applicationLifecycle)
+    DbStores.stores.getOrElseUpdate(dbPath, {
+      new LevelDBJsonDataStore(dbPath, applicationLifecycle)
     })
   }
 }
-
-private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applicationLifecycle: ApplicationLifecycle)(
+private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle: ApplicationLifecycle)(
     implicit system: ActorSystem
-) extends JsonDataStore[F] {
+) extends JsonDataStore {
 
+  import zio._
+  import zio.interop.catz._
   import cats.implicits._
-  import libs.effects._
-  import libs.streams.syntax._
 
   private val client: DB = try {
     factory.open(new File(dbPath), new Options().createIfMissing(true))
@@ -67,6 +65,9 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
     Future(client.close())
   }
 
+  override def start: RIO[DataStoreContext, Unit] =
+    Logger.info(s"Load store LevelDB for path $dbPath")
+
   implicit val mat: Materializer = ActorMaterializer()
 
   private implicit val ec: ExecutionContext =
@@ -74,25 +75,10 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
 
   private def buildKey(key: Key) = Key.Empty / key
 
-  private def toAsync[T](a: => T): F[T] =
-    Async[F].async { cb =>
-      ec.execute { () =>
-        try {
-          // Signal completion
-          cb(Right(a))
-        } catch {
-          case NonFatal(e) =>
-            cb(Left(e))
-        }
-      }
-    }
+  private def toAsync[T](a: => T): Task[T] =
+    ZIO.provide(Live)(blocking.blocking(ZIO(a)))
 
-  private def getByKeyId(id: Key): F[Option[JsValue]] = {
-    val effectiveKey = buildKey(id)
-    getByStringId(effectiveKey.key)
-  }
-
-  private def getByStringId(key: String): F[Option[JsValue]] = toAsync {
+  private def getByStringId(key: String): Task[Option[JsValue]] = toAsync {
     val bytesValue          = client.get(bytes(key))
     val stringValue: String = asString(bytesValue)
     if (stringValue != null) {
@@ -101,23 +87,23 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
     } else Option.empty
   }
 
-  private def mget(keys: String*): F[Seq[Option[(String, ByteString)]]] =
+  private def mget(keys: String*): Task[Seq[Option[(String, ByteString)]]] =
     keys.toList.traverse(k => get(k).map(_.map(v => (k, v)))).map(_.toSeq)
 
-  private def get(key: String): F[Option[ByteString]] = toAsync {
+  private def get(key: String): Task[Option[ByteString]] = toAsync {
     Try(client.get(bytes(key))).toOption
       .flatMap(s => Option(asString(s)))
       .map(ByteString.apply)
   }
 
-  private def getByIds(keys: String*): F[Seq[(String, JsValue)]] =
+  private def getByIds(keys: String*): Task[Seq[(String, JsValue)]] =
     mget(keys: _*).map(_.flatten).map {
       _.map {
         case (k, v) => (k, Json.parse(v.utf8String))
       }
     }
 
-  private def getByKeys(keys: Key*): F[Seq[(String, JsValue)]] =
+  private def getByKeys(keys: Key*): Task[Seq[(String, JsValue)]] =
     getByIds(keys.map(_.key): _*)
 
   private def patternsToKey(patterns: Seq[String]): Seq[Key] =
@@ -151,89 +137,113 @@ private[leveldb] class LevelDBJsonDataStore[F[_]: Effect](dbPath: String, applic
       }
   }
 
-  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
-    getByKeyId(id)
+  override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
+    getById(id)
+      .refineToOrDie[IzanamiErrors]
       .flatMap {
         case Some(_) =>
-          Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
+          IO.fail(DataShouldNotExists(id))
         case None =>
           toAsync {
             client.put(bytes(id.key), bytes(Json.stringify(data)))
-            Result.ok(data)
-          }
+            data
+          }.refineToOrDie[IzanamiErrors]
       }
 
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
-    toAsync {
-      Try(client.get(bytes(oldId.key))).toOption.flatMap(s => Option(asString(s))) match {
+  override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
+    toAsync { Try(client.get(bytes(oldId.key))).toOption.flatMap(s => Option(asString(s))) }
+      .refineToOrDie[IzanamiErrors]
+      .flatMap {
         case Some(_) =>
           client.delete(bytes(oldId.key))
           client.put(bytes(id.key), bytes(Json.stringify(data)))
-          Result.ok(data)
+          IO.succeed(data)
         case None =>
-          Result.errors[JsValue](ErrorMessage("error.data.missing", id.key))
+          IO.fail(DataShouldExists(id))
       }
-    }
 
-  override def delete(id: Key): F[Result[JsValue]] =
-    getByKeyId(id)
+  override def delete(id: Key): IO[IzanamiErrors, JsValue] =
+    getById(id)
+      .refineToOrDie[IzanamiErrors]
       .flatMap {
         case Some(value) =>
           toAsync {
             client.delete(bytes(id.key))
-            Result.ok(value)
-          }
+            value
+          }.refineToOrDie[IzanamiErrors]
         case None =>
-          Result.error[JsValue]("error.data.missing").pure[F]
+          IO.fail(DataShouldExists(id))
       }
 
-  override def getById(id: Key): F[Option[JsValue]] =
-    getByKeyId(id)
-
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
-    val position = (page - 1) * nbElementPerPage
-    keys(query)
-      .via(Flows.count {
-        Flow[Key]
-          .drop(position)
-          .take(nbElementPerPage)
-          .grouped(nbElementPerPage)
-          .mapAsyncF(4)(getByKeys)
-          .map(_.map(_._2))
-          .fold(Seq.empty[JsValue])(_ ++ _)
-      })
-      .runWith(Sink.head)
-      .toF
-      .map {
-        case (results, count) =>
-          DefaultPagingResult(results, page, nbElementPerPage, count)
-      }
+  override def getById(id: Key): Task[Option[JsValue]] = {
+    val effectiveKey = buildKey(id)
+    getByStringId(effectiveKey.key)
   }
 
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
-    keys(query)
-      .grouped(50)
-      .mapAsyncF(4)(getByKeys)
-      .mapConcat(_.toList)
-      .map {
-        case (k, v) => (Key(k), v)
-      }
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): Task[PagingResult[JsValue]] = {
+    val position = (page - 1) * nbElementPerPage
+    for {
+      runtime <- ZIO.runtime[Any]
+      res <- Task.fromFuture { implicit ec =>
+              keys(query)
+                .via(Flows.count {
+                  Flow[Key]
+                    .drop(position)
+                    .take(nbElementPerPage)
+                    .grouped(nbElementPerPage)
+                    .mapAsync(4)(keys => runtime.unsafeRunToFuture(getByKeys(keys: _*)))
+                    .map(_.map(_._2))
+                    .fold(Seq.empty[JsValue])(_ ++ _)
+                })
+                .runWith(Sink.head)
+                .map {
+                  case (results, count) =>
+                    DefaultPagingResult(results, page, nbElementPerPage, count)
+                }
+            }
+    } yield res
 
-  override def deleteAll(query: Query): F[Result[Done]] =
-    keys(query)
-      .mapAsyncF(4)(delete)
-      .runWith(Sink.ignore)
-      .toF
-      .map { _ =>
-        Result.ok(Done)
-      }
+  }
 
-  override def count(query: Query): F[Long] =
-    findByQuery(query)
-      .runFold(0L) { (acc, _) =>
-        acc + 1
-      }
-      .toF
+  override def findByQuery(query: Query): Task[Source[(Key, JsValue), NotUsed]] =
+    for {
+      runtime <- ZIO.runtime[Any]
+      res <- Task(
+              keys(query)
+                .grouped(50)
+                .mapAsync(4)(keys => runtime.unsafeRunToFuture(getByKeys(keys: _*)))
+                .mapConcat(_.toList)
+                .map {
+                  case (k, v) => (Key(k), v)
+                }
+            )
+    } yield res
+
+  override def deleteAll(query: Query): IO[IzanamiErrors, Unit] =
+    for {
+      runtime <- ZIO.runtime[Any]
+      res <- Task
+              .fromFuture { implicit ec =>
+                keys(query)
+                  .mapAsync(4)(id => runtime.unsafeRunToFuture(delete(id).either))
+                  .runWith(Sink.ignore)
+                  .map { _ =>
+                    ()
+                  }
+              }
+              .refineToOrDie[IzanamiErrors]
+    } yield res
+
+  override def count(query: Query): Task[Long] =
+    for {
+      source <- findByQuery(query)
+      res <- Task.fromFuture(
+              implicit ec =>
+                source.runFold(0L) { (acc, _) =>
+                  acc + 1
+              }
+            )
+    } yield res
 
   def stop() =
     client.close()

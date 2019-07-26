@@ -709,9 +709,8 @@ case class ExperimentClient(experimentsClient: ExperimentsClient, experiment: Ex
   def enabled: Boolean       = experiment.enabled
   def variants: Seq[Variant] = experiment.variants
 
-  def matchPattern(patterns: Seq[String]): Boolean = {
+  def matchPattern(patterns: Seq[String]): Boolean =
     patterns.exists(p => PatternsUtil.matchPattern(p)(id))
-  }
 
   /**
    * Get the variant if exists, associated to the user id for an experiment.

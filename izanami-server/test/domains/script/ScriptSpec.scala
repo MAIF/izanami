@@ -15,14 +15,318 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.{BuiltInComponents, BuiltInComponentsFromContext, NoHttpFiltersComponents}
 import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
+import zio.blocking.Blocking
+import zio.internal.Executor
+import zio.{DefaultRuntime, RIO, Task, ZIO}
 
 import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
+import libs.logs.Logger
+import libs.logs.ProdLogger
+import org.scalatest.BeforeAndAfterAll
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import akka.testkit.TestKit
+import domains.events.EventStore
+import test.TestEventStore
+import domains.AuthInfo
+import store.memory.InMemoryJsonDataStore
+import scala.collection.mutable
+import domains.events.Events
+import domains.events.Events._
+import domains.Key
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.Sink
+import domains.apikey.Apikey
+import domains.AuthorizedPattern
+import test.IzanamiSpec
+import domains.ImportResult
+import store.Result.AppErrors
+import store.Result.DataShouldExists
+import store.Result.IdMustBeTheSame
+import play.api.Environment
+import scala.concurrent.ExecutionContext
+import play.libs.ws.WSClient
 
 /**
  * Created by adelegue on 18/07/2017.
  */
-class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with ScalaFutures with IntegrationPatience {
+class ScriptSpec
+    extends PlaySpec
+    with IzanamiSpec
+    with OneServerPerSuiteWithComponents
+    with ScalaFutures
+    with IntegrationPatience
+    with BeforeAndAfterAll {
+
+  implicit val system           = ActorSystem("test")
+  implicit val mat              = ActorMaterializer()
+  override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
+
+  implicit val runtime = new DefaultRuntime {}
+
+  "Script" must {
+
+    "a javascript script executed must return true" in {
+
+      import domains.script.ScriptInstances._
+      import domains.script.syntax._
+
+      val theScript: Script = JavascriptScript(script)
+      val result: ScriptExecution = runScript(
+        theScript
+          .run(Json.obj("name" -> "Ragnar"))
+      )
+
+      result must be(ScriptExecutionSuccess(true))
+    }
+
+    "a javascript script executed must return false" in {
+
+      import domains.script.ScriptInstances._
+      import domains.script.syntax._
+
+      val theScript: Script = JavascriptScript(script)
+      val result: ScriptExecution = runScript(
+        theScript
+          .run(Json.obj("name" -> "Floki"))
+      )
+
+      result must be(ScriptExecutionSuccess(false))
+    }
+
+    "a kotlin script executed must return true" in {
+
+      import domains.script.ScriptInstances._
+      import domains.script.syntax._
+
+      val theScript: Script = KotlinScript(kotlinScript)
+      val result: ScriptExecution = runScript(
+        theScript
+          .run(Json.obj("name" -> "Ragnar"))
+      )
+
+      result must be(ScriptExecutionSuccess(true))
+    }
+
+    "a kotlin script executed must return false" in {
+
+      import domains.script.ScriptInstances._
+      import domains.script.syntax._
+
+      val theScript: Script = KotlinScript(kotlinScript)
+      val result: ScriptExecution = runScript(
+        theScript
+          .run(Json.obj("name" -> "Floki"))
+      )
+
+      result must be(ScriptExecutionSuccess(false))
+    }
+
+  }
+
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
+
+  "ConfigService" must {
+
+    "create" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val created = run(ctx)(GlobalScriptService.create(id, globalScript))
+      created must be(globalScript)
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(true)
+      ctx.events must have size 1
+      inside(ctx.events.head) {
+        case GlobalScriptCreated(i, k, _, _, auth) =>
+          i must be(id)
+          k must be(globalScript)
+          auth must be(authInfo)
+      }
+    }
+
+    "create id not equal" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(Key("other"), "name", "description", JavascriptScript(script))
+
+      val created = run(ctx)(GlobalScriptService.create(id, globalScript).either)
+      created must be(Left(IdMustBeTheSame(globalScript.id, id)))
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
+      ctx.events must have size 0
+    }
+
+    "update if data not exists" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val updated = run(ctx)(GlobalScriptService.update(id, id, globalScript).either)
+      updated must be(Left(DataShouldExists(id)))
+    }
+
+    "update" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val test = for {
+        _       <- GlobalScriptService.create(id, globalScript)
+        updated <- GlobalScriptService.update(id, id, globalScript)
+      } yield updated
+
+      val updated = run(ctx)(test)
+      updated must be(globalScript)
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(true)
+      ctx.events must have size 2
+      inside(ctx.events.last) {
+        case GlobalScriptUpdated(i, oldValue, newValue, _, _, auth) =>
+          i must be(id)
+          oldValue must be(globalScript)
+          newValue must be(globalScript)
+          auth must be(authInfo)
+      }
+    }
+
+    "update changing id" in {
+      val id           = Key("test")
+      val newId        = Key("test2")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val test = for {
+        _       <- GlobalScriptService.create(id, globalScript)
+        updated <- GlobalScriptService.update(id, newId, globalScript)
+      } yield updated
+
+      val updated = run(ctx)(test)
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
+      ctx.globalScriptDataStore.inMemoryStore.contains(newId) must be(true)
+      ctx.events must have size 2
+      inside(ctx.events.last) {
+        case GlobalScriptUpdated(i, oldValue, newValue, _, _, auth) =>
+          i must be(newId)
+          oldValue must be(globalScript)
+          newValue must be(globalScript)
+          auth must be(authInfo)
+      }
+    }
+
+    "delete" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val test = for {
+        _       <- GlobalScriptService.create(id, globalScript)
+        deleted <- GlobalScriptService.delete(id)
+      } yield deleted
+
+      val deleted = run(ctx)(test)
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
+      ctx.events must have size 2
+      inside(ctx.events.last) {
+        case GlobalScriptDeleted(i, oldValue, _, _, auth) =>
+          i must be(id)
+          oldValue must be(globalScript)
+          auth must be(authInfo)
+      }
+    }
+
+    "delete empty data" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val deleted = run(ctx)(GlobalScriptService.delete(id).either)
+      deleted must be(Left(DataShouldExists(id)))
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
+      ctx.events must have size 0
+    }
+
+    "import data" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val res = run(ctx)(GlobalScriptService.importData.flatMap { flow =>
+        Task.fromFuture { implicit ec =>
+          Source(List((id.key, GlobalScriptInstances.format.writes(globalScript))))
+            .via(flow)
+            .runWith(Sink.seq)
+        }
+      })
+      res must contain only (ImportResult(success = 1))
+    }
+
+    "import data invalid format" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val res = run(ctx)(GlobalScriptService.importData.flatMap { flow =>
+        Task.fromFuture { implicit ec =>
+          Source(
+            List(
+              (id.key, Json.obj())
+            )
+          ).via(flow)
+            .runWith(Sink.seq)
+        }
+      })
+      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+    }
+
+    "import data data exist" in {
+      val id           = Key("test")
+      val ctx          = TestGlobalScriptContext()
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+
+      val test = for {
+        _ <- GlobalScriptService.create(id, globalScript)
+        res <- GlobalScriptService.importData.flatMap { flow =>
+                Task.fromFuture { implicit ec =>
+                  Source(
+                    List(
+                      (id.key, GlobalScriptInstances.format.writes(globalScript))
+                    )
+                  ).via(flow)
+                    .runWith(Sink.seq)
+                }
+              }
+      } yield res
+
+      val res = run(ctx)(test)
+      res must contain only (ImportResult(errors = AppErrors.error("error.data.exists", id.key)))
+    }
+
+  }
+
+  val blockingInstance: Blocking.Service[Any] = new Blocking.Service[Any] {
+    def blockingExecutor: ZIO[Any, Nothing, Executor] =
+      ZIO.succeed(
+        Executor
+          .fromExecutionContext(20)(system.dispatchers.lookup("izanami.blocking-dispatcher"))
+      )
+  }
+
+  case class TestGlobalScriptContext(
+      events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
+      user: Option[AuthInfo] = None,
+      globalScriptDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("globalScript-test"),
+      logger: Logger = new ProdLogger,
+      authInfo: Option[AuthInfo] = authInfo,
+      scriptCache: ScriptCache = fakeCache,
+      blocking: Blocking.Service[Any] = blockingInstance
+  ) extends GlobalScriptContext {
+    override def eventStore: EventStore                                    = new TestEventStore(events)
+    override def withAuthInfo(user: Option[AuthInfo]): GlobalScriptContext = this.copy(user = user)
+    override def environment: Environment                                  = testComponents.environment
+    override def ec: ExecutionContext                                      = testComponents.actorSystem.dispatcher
+    override def javaWsClient: WSClient                                    = testComponents.wsJavaClient
+    override def wSClient: play.api.libs.ws.WSClient                       = testComponents.wsClient
+  }
 
   case class TestComponent(context: Context)
       extends BuiltInComponentsFromContext(context)
@@ -36,7 +340,7 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
     def wsJavaClient: play.libs.ws.WSClient =
       new AhcWSClient(wsClient.underlying[AsyncHttpClient], materializer)
 
-    def globalScripStore: GlobalScriptService[IO] = null
+    //def globalScripStore: GlobalScriptService[IO] = null
 
     lazy val router: Router = Router.from({
       case GET(p"/surname") =>
@@ -125,76 +429,17 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
        |}
          """.stripMargin
 
-  "Script" must {
+  private def runScript[T](t: RIO[RunnableScriptContext, T]): T =
+    runtime.unsafeRun(ZIO.provide(runnableScriptContext)(t))
 
-    "a javascript script executed must return true" in {
-
-      import domains.script.ScriptInstances._
-      import domains.script.syntax._
-
-      implicit val cache: ScriptCache[IO] = fakeCache[IO]
-      implicit val ec: ScriptExecutionContext =
-        ScriptExecutionContext(testComponents.actorSystem)
-
-      val theScript: Script = JavascriptScript(script)
-      val result: ScriptExecution = theScript
-        .run[IO](Json.obj("name" -> "Ragnar"), getEnv)
-        .unsafeRunSync()
-
-      result must be(ScriptExecutionSuccess(true))
-    }
-
-    "a javascript script executed must return false" in {
-
-      import domains.script.ScriptInstances._
-      import domains.script.syntax._
-
-      implicit val cache: ScriptCache[IO] = fakeCache[IO]
-      implicit val ec: ScriptExecutionContext =
-        ScriptExecutionContext(testComponents.actorSystem)
-
-      val theScript: Script = JavascriptScript(script)
-      val result: ScriptExecution = theScript
-        .run[IO](Json.obj("name" -> "Floki"), getEnv)
-        .unsafeRunSync()
-
-      result must be(ScriptExecutionSuccess(false))
-    }
-
-    "a kotlin script executed must return true" in {
-
-      import domains.script.ScriptInstances._
-      import domains.script.syntax._
-
-      implicit val cache: ScriptCache[IO] = fakeCache[IO]
-      implicit val ec: ScriptExecutionContext =
-        ScriptExecutionContext(testComponents.actorSystem)
-
-      val theScript: Script = KotlinScript(kotlinScript)
-      val result: ScriptExecution = theScript
-        .run[IO](Json.obj("name" -> "Ragnar"), getEnv)
-        .unsafeRunSync()
-
-      result must be(ScriptExecutionSuccess(true))
-    }
-
-    "a kotlin script executed must return false" in {
-
-      import domains.script.ScriptInstances._
-      import domains.script.syntax._
-
-      implicit val cache: ScriptCache[IO] = fakeCache[IO]
-      implicit val ec: ScriptExecutionContext =
-        ScriptExecutionContext(testComponents.actorSystem)
-
-      val theScript: Script = KotlinScript(kotlinScript)
-      val result: ScriptExecution = theScript
-        .run[IO](Json.obj("name" -> "Floki"), getEnv)
-        .unsafeRunSync()
-
-      result must be(ScriptExecutionSuccess(false))
-    }
-
+  private def runnableScriptContext: RunnableScriptContext = new RunnableScriptContext {
+    override val blocking: Blocking.Service[Any]     = blockingInstance
+    override def scriptCache: ScriptCache            = fakeCache
+    override def logger: Logger                      = new ProdLogger
+    override def environment: Environment            = testComponents.environment
+    override def ec: ExecutionContext                = testComponents.actorSystem.dispatcher
+    override def javaWsClient: WSClient              = testComponents.wsJavaClient
+    override def wSClient: play.api.libs.ws.WSClient = testComponents.wsClient
   }
 
   private def getEnv =
@@ -207,9 +452,9 @@ class ScriptSpec extends PlaySpec with OneServerPerSuiteWithComponents with Scal
       testComponents.assetsFinder,
       new MetricRegistry()
     )
-  def fakeCache[F[_]: Applicative]: ScriptCache[F] = new ScriptCache[F] {
-    override def get[T: ClassTag](id: String): F[Option[T]]      = Applicative[F].pure(None)
-    override def set[T: ClassTag](id: String, value: T): F[Unit] = Applicative[F].pure(())
-  }
 
+  def fakeCache: ScriptCache = new ScriptCache {
+    override def get[T: ClassTag](id: String): Task[Option[T]]      = Task.succeed(None)
+    override def set[T: ClassTag](id: String, value: T): Task[Unit] = Task.succeed(())
+  }
 }

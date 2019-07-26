@@ -8,10 +8,11 @@ import domains.script._
 import env.Env
 import shapeless.syntax
 import store.Result
-import store.Result.Result
+import store.Result.{AppErrors, IzanamiErrors, Result}
 import FeatureType._
 import domains.feature.Feature.FeatureKey
 import domains.script.Script.ScriptCache
+import zio.{IO, Task, ZIO}
 
 import scala.util.hashing.MurmurHash3
 
@@ -36,9 +37,10 @@ object DefaultFeatureInstances {
 
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
 
-  def isActive[F[_]: Applicative]: IsActive[F, DefaultFeature] = new IsActive[F, DefaultFeature] {
-    override def isActive(feature: DefaultFeature, context: JsObject, env: Env): F[Result[Boolean]] =
-      Applicative[F].pure(Result.ok(true))
+  def isActive: IsActive[DefaultFeature] = new IsActive[DefaultFeature] {
+    override def isActive(feature: DefaultFeature,
+                          context: JsObject): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] =
+      ZIO.succeed(feature.enabled)
   }
 }
 
@@ -63,25 +65,28 @@ object GlobalScriptFeatureInstances {
 
   implicit val format: Format[GlobalScriptFeature] = Format(reads, writes)
 
-  def isActive[F[_]: Async: ScriptCache](
-      implicit gs: GlobalScriptService[F]
-  ): IsActive[F, GlobalScriptFeature] =
-    new IsActive[F, GlobalScriptFeature] {
+  def isActive: IsActive[GlobalScriptFeature] =
+    new IsActive[GlobalScriptFeature] {
+
       import domains.script.syntax._
       import domains.script.ScriptInstances._
-      import cats.implicits._
-      override def isActive(feature: GlobalScriptFeature, context: JsObject, env: Env): F[Result[Boolean]] =
-        gs.getById(Key(feature.ref)).flatMap {
-          case Some(gs: GlobalScript) =>
-            gs.source.run(context, env).map {
-              case ScriptExecutionSuccess(result, _) => Result.ok(result)
-              case _                                 => Result.ok(false)
-            }
-          case None =>
-            Async[F].pure(Result.error("script.not.found"))
-        }
-    }
 
+      override def isActive(
+          feature: GlobalScriptFeature,
+          context: JsObject
+      ): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+        for {
+          mayBeScript <- GlobalScriptService.getById(Key(feature.ref)).refineToOrDie[IzanamiErrors]
+          script      <- ZIO.fromOption(mayBeScript).mapError(_ => AppErrors.error("script.not.found"))
+          exec <- script.source
+                   .run(context)
+                   .map {
+                     case ScriptExecutionSuccess(result, _) => result
+                     case _                                 => false
+                   }
+                   .refineToOrDie[IzanamiErrors]
+        } yield exec
+    }
 }
 
 object ScriptFeatureInstances {
@@ -105,15 +110,18 @@ object ScriptFeatureInstances {
 
   implicit val format: Format[ScriptFeature] = Format(reads, writes)
 
-  def isActive[F[_]: Async: ScriptCache]: IsActive[F, ScriptFeature] = new IsActive[F, ScriptFeature] {
+  def isActive: IsActive[ScriptFeature] = new IsActive[ScriptFeature] {
     import cats.implicits._
     import domains.script.syntax._
     import domains.script.ScriptInstances._
-    override def isActive(feature: ScriptFeature, context: JsObject, env: Env): F[Result[Boolean]] =
-      feature.script.run(context, env).map {
-        case ScriptExecutionSuccess(result, _) => Result.ok(result)
-        case _                                 => Result.ok(false)
-      }
+    override def isActive(feature: ScriptFeature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+      feature.script
+        .run(context)
+        .map {
+          case ScriptExecutionSuccess(result, _) => result
+          case _                                 => false
+        }
+        .refineToOrDie[IzanamiErrors]
   }
 }
 
@@ -146,14 +154,15 @@ object DateRangeFeatureInstances {
 
   implicit val format: Format[DateRangeFeature] = Format(reads, writes)
 
-  def isActive[F[_]: Applicative]: IsActive[F, DateRangeFeature] = new IsActive[F, DateRangeFeature] {
+  def isActive: IsActive[DateRangeFeature] = new IsActive[DateRangeFeature] {
     import cats.implicits._
-    override def isActive(feature: DateRangeFeature, context: JsObject, env: Env): F[Result[Boolean]] = {
+    override def isActive(feature: DateRangeFeature,
+                          context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] = {
       val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
       val active = (now.isAfter(feature.from) || now.isEqual(feature.from)) && (now.isBefore(feature.to) || now.isEqual(
         feature.to
       ))
-      Result.ok(active).pure[F]
+      ZIO.succeed(active)
     }
   }
 
@@ -188,11 +197,14 @@ object ReleaseDateFeatureInstances {
 
   implicit val format: Format[ReleaseDateFeature] = Format(reads, writes)
 
-  def isActive[F[_]: Applicative]: IsActive[F, ReleaseDateFeature] = new IsActive[F, ReleaseDateFeature] {
+  def isActive: IsActive[ReleaseDateFeature] = new IsActive[ReleaseDateFeature] {
     import cats.implicits._
-    override def isActive(feature: ReleaseDateFeature, context: JsObject, env: Env): F[Result[Boolean]] = {
+    override def isActive(
+        feature: ReleaseDateFeature,
+        context: JsObject
+    ): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] = {
       val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-      Result.ok(now.isAfter(feature.date)).pure[F]
+      ZIO.succeed(now.isAfter(feature.date))
     }
   }
 }
@@ -217,21 +229,22 @@ object PercentageFeatureInstances {
 
   implicit val format: Format[PercentageFeature] = Format(reads, writes)
 
-  def isActive[F[_]: Applicative]: IsActive[F, PercentageFeature] = new IsActive[F, PercentageFeature] {
+  def isActive: IsActive[PercentageFeature] = new IsActive[PercentageFeature] {
     import cats.implicits._
-    override def isActive(feature: PercentageFeature, context: JsObject, env: Env): F[Result[Boolean]] =
+    override def isActive(feature: PercentageFeature,
+                          context: JsObject): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] =
       ((context \ "id").asOpt[String], feature.enabled) match {
         case (Some(theId), true) =>
           val hash: Int = Math.abs(MurmurHash3.stringHash(theId))
           if (hash % 100 < feature.percentage) {
-            Result.ok(true).pure[F]
+            ZIO.succeed(true)
           } else {
-            Result.ok(false).pure[F]
+            ZIO.succeed(false)
           }
         case (None, true) =>
-          Result.error[Boolean]("context.id.missing").pure[F]
+          ZIO.fail(AppErrors.error("context.id.missing"))
         case _ =>
-          Result.ok(false).pure[F]
+          ZIO.succeed(false)
       }
   }
 }
@@ -246,16 +259,30 @@ object FeatureInstances {
     override def isAllowed(value: Feature)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.id)(auth)
   }
 
-  implicit def isActive[F[_]: Effect: ScriptCache](implicit gs: GlobalScriptService[F]): IsActive[F, Feature] =
-    new IsActive[F, Feature] {
-      override def isActive(feature: Feature, context: JsObject, env: Env): F[Result[Boolean]] =
+  def isActive(feature: Feature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+    ZIO.accessM { cxt =>
+      import zio.interop.catz._
+
+      (feature match {
+        case f: DefaultFeature      => DefaultFeatureInstances.isActive.isActive(f, context)
+        case f: GlobalScriptFeature => GlobalScriptFeatureInstances.isActive.isActive(f, context)
+        case f: ScriptFeature       => ScriptFeatureInstances.isActive.isActive(f, context)
+        case f: DateRangeFeature    => DateRangeFeatureInstances.isActive.isActive(f, context)
+        case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive.isActive(f, context)
+        case f: PercentageFeature   => PercentageFeatureInstances.isActive.isActive(f, context)
+      })
+    }
+
+  implicit val isActive: IsActive[Feature] =
+    new IsActive[Feature] {
+      override def isActive(feature: Feature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
         feature match {
-          case f: DefaultFeature      => DefaultFeatureInstances.isActive[F].isActive(f, context, env)
-          case f: GlobalScriptFeature => GlobalScriptFeatureInstances.isActive[F].isActive(f, context, env)
-          case f: ScriptFeature       => ScriptFeatureInstances.isActive[F].isActive(f, context, env)
-          case f: DateRangeFeature    => DateRangeFeatureInstances.isActive[F].isActive(f, context, env)
-          case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive[F].isActive(f, context, env)
-          case f: PercentageFeature   => PercentageFeatureInstances.isActive[F].isActive(f, context, env)
+          case f: DefaultFeature      => DefaultFeatureInstances.isActive.isActive(f, context)
+          case f: GlobalScriptFeature => GlobalScriptFeatureInstances.isActive.isActive(f, context)
+          case f: ScriptFeature       => ScriptFeatureInstances.isActive.isActive(f, context)
+          case f: DateRangeFeature    => DateRangeFeatureInstances.isActive.isActive(f, context)
+          case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive.isActive(f, context)
+          case f: PercentageFeature   => PercentageFeatureInstances.isActive.isActive(f, context)
         }
     }
 

@@ -4,39 +4,35 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.apikey.{Apikey, ApikeyInstances, ApikeyService}
+import domains.apikey.{ApiKeyContext, Apikey, ApikeyInstances, ApikeyService}
 import domains.{Import, IsAllowed, Key}
-import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
+import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.AppErrors
+import store.Result.{AppErrors, IzanamiErrors}
+import zio.{Runtime, ZIO}
 
-class ApikeyController[F[_]: Effect](apikeyStore: ApikeyService[F],
-                                     system: ActorSystem,
-                                     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                     val cc: ControllerComponents)
-    extends AbstractController(cc)
-    with EitherTSyntax[F] {
+class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    runtime: Runtime[ApiKeyContext]
+) extends AbstractController(cc) {
 
-  import cats.implicits._
-  import libs.functional.syntax._
   import libs.http._
   import system.dispatcher
 
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
-    AuthAction.asyncF[F] { ctx =>
+    AuthAction.asyncTask[ApiKeyContext] { ctx =>
       import ApikeyInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
-      apikeyStore
+      ApikeyService
         .findByQuery(query, page, nbElementPerPage)
         .map { r =>
           Ok(
@@ -53,123 +49,117 @@ class ApikeyController[F[_]: Effect](apikeyStore: ApikeyService[F],
         }
     }
 
-  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncZio[ApiKeyContext](parse.json) { ctx =>
     import ApikeyInstances._
 
     for {
-      apikey <- ctx.request.body.validate[Apikey] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _ <- IsAllowed[Apikey].isAllowed(apikey)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- apikeyStore.create(Key(apikey.clientId), apikey) |> mapLeft(err => BadRequest(err.toJson))
+      apikey <- jsResultToHttpResponse(ctx.request.body.validate[Apikey])
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- ApikeyService.create(Key(apikey.clientId), apikey).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(apikey))
 
   }
 
-  def get(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  def get(id: String): Action[AnyContent] = AuthAction.asyncZio[ApiKeyContext] { ctx =>
     import ApikeyInstances._
-
     val key = Key(id)
     for {
-      apikey <- apikeyStore.getById(key) |> liftFOption[Result, Apikey](NotFound)
-      _ <- IsAllowed[Apikey].isAllowed(apikey)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
+      mayBe  <- ApikeyService.getById(key).mapError(e => InternalServerError)
+      apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+    } yield Ok(Json.toJson(apikey))
+  }
+
+  def update(id: String): Action[JsValue] = AuthAction.asyncZio[ApiKeyContext](parse.json) { ctx =>
+    import ApikeyInstances._
+
+    for {
+      apikey <- jsResultToHttpResponse(ctx.request.body.validate[Apikey])
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- ApikeyService.update(Key(id), Key(apikey.clientId), apikey).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(apikey))
 
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import ApikeyInstances._
-
-    for {
-      apikey <- ctx.request.body.validate[Apikey] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _ <- IsAllowed[Apikey].isAllowed(apikey)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- apikeyStore
-                .update(Key(id), Key(apikey.clientId), apikey) |> mapLeft(err => BadRequest(err.toJson))
-    } yield Ok(Json.toJson(apikey))
-
-  }
-
-  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncZio[ApiKeyContext](parse.json) { ctx =>
     import ApikeyInstances._
 
     val key = Key(id)
+    // format: off
     for {
-      current <- apikeyStore.getById(key) |> liftFOption[Result, Apikey](NotFound)
-      _ <- IsAllowed[Apikey].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      event <- apikeyStore
-                .update(key, Key(current.clientId), updated) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe   <- ApikeyService.getById(key).mapError(e => InternalServerError)
+      current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _       <- IsAllowed[Apikey].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
+      _ <- ApikeyService.update(key, Key(current.clientId), updated).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
-
+  // format: on
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[ApiKeyContext] { ctx =>
     import ApikeyInstances._
 
     val key = Key(id)
     for {
-      apikey <- apikeyStore.getById(key) |> liftFOption[Result, Apikey](NotFound)
-      _ <- IsAllowed[Apikey].isAllowed(apikey)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      deleted <- apikeyStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe  <- ApikeyService.getById(key).mapError(e => InternalServerError)
+      apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- ApikeyService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(apikey))
 
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.asyncEitherT { ctx =>
+    AuthAction.asyncZio[ApiKeyContext] { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
-
-      for {
-        deletes <- apikeyStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
-      } yield Ok
-
+      ApikeyService
+        .deleteAll(allPatterns)
+        .mapError { IzanamiErrors.toHttpResult }
+        .map(_ => Ok)
     }
 
-  def count(): Action[AnyContent] = AuthAction.asyncF[F] { ctx =>
+  def count(): Action[AnyContent] = AuthAction.asyncTask[ApiKeyContext] { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    apikeyStore.count(query).map { count =>
+    ApikeyService.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
-  def download(): Action[AnyContent] = AuthAction { ctx =>
+  def download(): Action[AnyContent] = AuthAction.asyncTask[ApiKeyContext] { ctx =>
     import ApikeyInstances._
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    val source = apikeyStore
+    ApikeyService
       .findByQuery(query)
-      .map { case (_, data) => Json.toJson(data) }
-      .map(Json.stringify _)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-    Result(
-      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "apikeys.dnjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
+      .map { s =>
+        val source = s
+          .map { case (_, data) => Json.toJson(data) }
+          .map(Json.stringify _)
+          .intersperse("", "\n", "\n")
+          .map(ByteString.apply)
+        Result(
+          header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "apikeys.dnjson")),
+          body = HttpEntity.Streamed(source, None, Some("application/json"))
+        )
+      }
   }
 
-  def upload() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(apikeyStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
-      }
-      .recover {
-        case e: Throwable =>
-          IzanamiLogger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
+  def upload() = AuthAction.asyncTask[ApiKeyContext](Import.ndJson) { ctx =>
+    ApikeyService.importData.flatMap { flow =>
+      ZIO.fromFuture(
+        implicit ec =>
+          ctx.body
+            .via(flow)
+            .map {
+              case r if r.isError => BadRequest(Json.toJson(r))
+              case r              => Ok(Json.toJson(r))
+            }
+            .recover {
+              case e: Throwable =>
+                IzanamiLogger.error("Error importing file", e)
+                InternalServerError
+            }
+            .runWith(Sink.head)
+      )
+    }
   }
-
 }

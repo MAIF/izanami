@@ -1,123 +1,115 @@
 package domains.apikey
 
-import akka.{Done, NotUsed}
+import akka.http.scaladsl.util.FastFuture
+import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import cats.data.EitherT
-import cats.effect.Effect
 import domains.AuthorizedPattern.AuthorizedPattern
 import domains.abtesting.Experiment.ExperimentKey
-import domains.apikey.Apikey.ApikeyKey
-import domains.events.EventStore
+import domains.events.{EventStore, EventStoreContext}
 import domains._
-import libs.functional.EitherTSyntax
-import libs.logs.IzanamiLogger
+import libs.logs.LoggerModule
+import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
-import store.Result.Result
-
 import store._
-
-import scala.concurrent.ExecutionContext
+import zio.{IO, RIO, Task, ZIO}
+import akka.stream.Materializer
 
 case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: AuthorizedPattern)
-    extends AuthInfo
+    extends AuthInfo {
+  override def mayBeEmail: Option[String] = None
+  override def id: String                 = clientId
+}
 
 object Apikey {
   type ApikeyKey = Key
 }
 
-trait ApikeyService[F[_]] {
-  def create(id: ApikeyKey, data: Apikey): F[Result[Apikey]]
-  def update(oldId: ApikeyKey, id: Key, data: Apikey): F[Result[Apikey]]
-  def delete(id: ApikeyKey): F[Result[Apikey]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]]
-  def getById(id: ApikeyKey): F[Option[Apikey]]
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Apikey]]
-  def findByQuery(query: Query): Source[(Key, Apikey), NotUsed]
-  def count(query: Query): F[Long]
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+trait ApikeyDataStoreModule {
+  def apikeyDataStore: JsonDataStore
 }
 
-class ApikeyStoreImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
-    extends ApikeyService[F]
-    with EitherTSyntax[F] {
+trait ApiKeyContext
+    extends LoggerModule
+    with DataStoreContext
+    with ApikeyDataStoreModule
+    with EventStoreContext
+    with AuthInfoModule[ApiKeyContext]
 
-  import cats.syntax._
+object ApiKeyDataStore extends JsonDataStoreHelper[ApiKeyContext] {
+  override def accessStore = _.apikeyDataStore
+}
+
+object ApikeyService {
+
   import cats.implicits._
-  import libs.functional.syntax._
   import libs.streams.syntax._
   import Apikey._
   import ApikeyInstances._
   import domains.events.Events._
   import store.Result._
 
-  override def create(id: ExperimentKey, data: Apikey): F[Result[Apikey]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Apikey] = for {
-      created     <- jsonStore.create(id, Json.toJson(data))   |> liftFEither
-      apikey      <- created.validate[Apikey]                           |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(ApikeyCreated(id, apikey))      |> liftF[AppErrors, Done]
+  def create(id: ApikeyKey, data: Apikey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
+    for {
+      _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id)))
+      created  <- ApiKeyDataStore.create(id, Json.toJson(data))
+      apikey   <- jsResultToError(created.validate[Apikey])
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ApikeyCreated(id, apikey, authInfo = authInfo))
     } yield apikey
-    // format: on
-    r.value
-  }
 
-  override def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): F[Result[Apikey]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Apikey] = for {
-      oldValue    <- getById(oldId)                                               |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, Json.toJson(data))      |> liftFEither
-      experiment  <- updated.validate[Apikey]                                     |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(ApikeyUpdated(id, oldValue, experiment))  |> liftF[AppErrors, Done]
+  def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
+    for {
+      mayBeOld <- getById(oldId).refineToOrDie[IzanamiErrors]
+      oldValue <- ZIO.fromOption(mayBeOld).mapError(_ => DataShouldExists(oldId))
+      updated  <- ApiKeyDataStore.update(oldId, id, Json.toJson(data))
+      apikey   <- jsResultToError(updated.validate[Apikey])
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ApikeyUpdated(id, oldValue, apikey, authInfo = authInfo))
+    } yield apikey
+
+  def delete(id: ApikeyKey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
+    for {
+      deleted    <- ApiKeyDataStore.delete(id)
+      experiment <- jsResultToError(deleted.validate[Apikey])
+      authInfo   <- AuthInfo.authInfo
+      _          <- EventStore.publish(ApikeyDeleted(id, experiment, authInfo = authInfo))
     } yield experiment
-    // format: on
-    r.value
-  }
 
-  override def delete(id: ApikeyKey): F[Result[Apikey]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Apikey] = for {
-      deleted <- jsonStore.delete(id)                               |> liftFEither
-      experiment <- deleted.validate[Apikey]                        |> liftJsResult{ handleJsError }
-      _       <- eventStore.publish(ApikeyDeleted(id, experiment))  |> liftF[AppErrors, Done]
-    } yield experiment
-    // format: on
-    r.value
-  }
+  def deleteAll(patterns: Seq[String]): ZIO[ApiKeyContext, IzanamiErrors, Unit] =
+    ApiKeyDataStore.deleteAll(patterns)
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    jsonStore.deleteAll(patterns)
+  def getById(id: ApikeyKey): RIO[ApiKeyContext, Option[Apikey]] =
+    ApiKeyDataStore.getById(id).map(_.flatMap(_.validate[Apikey].asOpt))
 
-  override def getById(id: ApikeyKey): F[Option[Apikey]] =
-    jsonStore.getById(id).map(_.flatMap(_.validate[Apikey].asOpt))
-
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Apikey]] =
-    jsonStore
+  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ApiKeyContext, PagingResult[Apikey]] =
+    ApiKeyDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def findByQuery(query: Query): Source[(Key, Apikey), NotUsed] =
-    jsonStore.findByQuery(query).readsKV[Apikey]
+  def findByQuery(query: Query): RIO[ApiKeyContext, Source[(Key, Apikey), NotUsed]] =
+    ApiKeyDataStore.findByQuery(query).map(_.readsKV[Apikey])
 
-  override def count(query: Query): F[Long] =
-    jsonStore.count(query)
+  def count(query: Query): RIO[ApiKeyContext, Long] =
+    ApiKeyDataStore.count(query)
 
-  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    IzanamiLogger.error(s"Error parsing json from database $err")
-    AppErrors.error("error.json.parsing")
-  }
-
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+  def importData: RIO[ApiKeyContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
     import cats.implicits._
-    import AppErrors._
-    import libs.streams.syntax._
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, ApikeyInstances.format.reads(json)) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          create(Key(obj.clientId), obj).map { ImportResult.fromResult _ }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+
+    // format: off
+    ZIO.runtime[ApiKeyContext].map { runtime => 
+        Flow[(String, JsValue)]
+        .map { case (s, json) => (s, ApikeyInstances.format.reads(json)) }
+        .mapAsync(4) {
+          case (_, JsSuccess(obj, _)) =>
+            runtime.unsafeRunToFuture(
+              create(Key(obj.clientId), obj).either.map { either =>
+                ImportResult.fromResult(either)
+              }
+            )
+          case (s, JsError(_)) => FastFuture.successful(ImportResult.error("json.parse.error", s))
+        }
+        .fold(ImportResult()) { _ |+| _ }
+    }
+    // format: on
   }
 }

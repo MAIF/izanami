@@ -2,28 +2,25 @@ package domains.abtesting
 
 import java.time.LocalDateTime
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import cats.data.NonEmptyList
-import cats.effect.Effect
 import domains.abtesting.Experiment.ExperimentKey
-import domains.events.EventStore
-import domains.{ImportResult, Key}
-import libs.functional.EitherTSyntax
-import libs.logs.IzanamiLogger
+import domains.events.{EventStore, EventStoreContext}
+import domains.{AkkaModule, ImportResult, Key}
+import libs.logs.LoggerModule
 import play.api.libs.json._
 import store.Result.{AppErrors, Result, ValidatedResult}
 import store.{Result, _}
-import cats._
-import cats.data._
 import cats.implicits._
 import cats.data.Validated._
+import libs.ziohelper.JsResults.jsResultToError
+import zio.{RIO, ZIO}
+import domains.AuthInfoModule
 
-import scala.concurrent.ExecutionContext
 import scala.util.hashing.MurmurHash3
+import domains.AuthInfo
 
 case class Traffic(traffic: Double) extends AnyVal
 
@@ -147,154 +144,131 @@ object VariantResult {
 
 case class ExperimentResult(experiment: Experiment, results: Seq[VariantResult] = Seq.empty[VariantResult])
 
-trait ExperimentService[F[_]] {
-  def create(id: ExperimentKey, data: Experiment): F[Result[Experiment]]
-  def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment)(
-      implicit
-      eVariantEventStore: ExperimentVariantEventService[F]
-  ): F[Result[Experiment]]
-  def rawUpdate(oldId: ExperimentKey, oldValue: Experiment, id: ExperimentKey, data: Experiment): F[Result[Experiment]]
-  def delete(id: ExperimentKey): F[Result[Experiment]]
-  def deleteAll(patterns: Query): F[Result[Done]]
-  def getById(id: ExperimentKey): F[Option[Experiment]]
-  def findByQuery(patterns: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Experiment]]
-  def findByQuery(patterns: Query): Source[(ExperimentKey, Experiment), NotUsed]
-  def count(patterns: Query): F[Long]
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
-  def toGraph(clientId: String)(implicit ec: ExecutionContext): Flow[Experiment, JsObject, NotUsed]
-  def variantFor(experimentKey: ExperimentKey, clientId: String)(
-      implicit ec: ExecutionContext,
-      eVariantEventStore: ExperimentVariantEventService[F]
-  ): F[Result[Variant]]
-
-  def experimentResult(experimentKey: ExperimentKey)(
-      implicit eVariantEventStore: ExperimentVariantEventService[F]
-  ): F[ExperimentResult]
+trait ExperimentDataStoreModule {
+  def experimentDataStore: JsonDataStore
 }
 
-class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])(
-    implicit system: ActorSystem
-) extends ExperimentService[F]
-    with EitherTSyntax[F] {
+trait ExperimentContext
+    extends AkkaModule
+    with LoggerModule
+    with DataStoreContext
+    with ExperimentDataStoreModule
+    with ExperimentVariantEventModule
+    with EventStoreContext
+    with AuthInfoModule[ExperimentContext]
 
-  import system.dispatcher
-  import libs.functional.syntax._
+object ExperimentDataStore extends JsonDataStoreHelper[ExperimentContext] {
+  override def accessStore = _.experimentDataStore
+}
+
+object ExperimentService {
+
   import Experiment._
   import ExperimentInstances._
   import domains.events.Events.{ExperimentCreated, ExperimentDeleted, ExperimentUpdated}
   import store.Result._
 
-  implicit val materializer: Materializer = ActorMaterializer()
-
-  override def create(id: ExperimentKey, data: Experiment): F[Result[Experiment]] = {
+  def create(id: ExperimentKey, data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
     import ExperimentInstances._
     // format: off
-    val r: EitherT[F, AppErrors, Experiment] = for {
-      _           <- Experiment.validate(data)                              |> liftEither
-      created     <- jsonStore.create(id, Json.toJson(data))                |> liftFEither
-      experiment  <- created.validate[Experiment]                           |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(ExperimentCreated(id, experiment))  |> liftF[AppErrors, Done]
+    for {
+      _           <- ZIO.fromEither(Experiment.validate(data))
+      created     <- ExperimentDataStore.create(id, Json.toJson(data))
+      experiment  <- jsResultToError(created.validate[Experiment])
+      authInfo    <- AuthInfo.authInfo
+      _           <- EventStore.publish(ExperimentCreated(id, experiment, authInfo = authInfo))
     } yield experiment
     // format: on
-    r.value
   }
 
-  override def update(oldId: ExperimentKey, id: ExperimentKey, data: Experiment)(
-      implicit
-      eVariantEventStore: ExperimentVariantEventService[F]
-  ): F[Result[Experiment]] = {
+  def update(oldId: ExperimentKey,
+             id: ExperimentKey,
+             data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
     // format: off
-    val r: EitherT[F, AppErrors, Experiment] = for {
-      _           <- Experiment.validate(data)    |> liftEither
-      _           <-  if (oldId != id) {
-                        EitherT.leftT[F, Unit](AppErrors.error("error.id.not.same", oldId.key, id.key))
-                      } else {
-                        EitherT.rightT[F, AppErrors](())
-                      }
-      oldValue    <- getById(oldId)               |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      _           <- if (Experiment.isTrafficChanged(oldValue, data)) {
-                        val deletes: F[Result[Done]] =
-                              eVariantEventStore.deleteEventsForExperiment(oldValue)
-                        deletes |> liftFEither
-                     } else {
-                        EitherT.rightT(Done)
+    for {
+      _           <- ZIO.fromEither(Experiment.validate(data))
+      _           <- ZIO.when(oldId =!= id)(ZIO.fail(IdMustBeTheSame(oldId, id)))      
+      mayBe       <- getById(oldId).refineToOrDie[IzanamiErrors]
+      oldValue    <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+      _           <- ZIO.when(Experiment.isTrafficChanged(oldValue, data)) {
+                       ExperimentVariantEventService.deleteEventsForExperiment(oldValue)
                      }
-      experiment  <- rawUpdate(oldId, oldValue, id, data)   |> liftFEither[AppErrors, Experiment]
+      experiment  <- rawUpdate(oldId, oldValue, id, data)
     } yield experiment
     // format: on
-    r.value
-  }
 
-  override def rawUpdate(oldId: ExperimentKey,
-                         oldValue: Experiment,
-                         id: ExperimentKey,
-                         data: Experiment): F[Result[Experiment]] = {
+  def rawUpdate(oldId: ExperimentKey,
+                oldValue: Experiment,
+                id: ExperimentKey,
+                data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
     import ExperimentInstances._
     // format: off
-    val r: EitherT[F, AppErrors, Experiment] = for {
-      updated     <- jsonStore.update(oldId, id, Json.toJson(data))                   |> liftFEither
-      experiment  <- updated.validate[Experiment]                                     |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(ExperimentUpdated(id, oldValue, experiment))  |> liftF[AppErrors, Done]
+    for {
+      updated     <- ExperimentDataStore.update(oldId, id, Json.toJson(data))
+      experiment  <- jsResultToError(updated.validate[Experiment])
+      authInfo    <- AuthInfo.authInfo
+      _           <- EventStore.publish(ExperimentUpdated(id, oldValue, experiment, authInfo = authInfo))
     } yield experiment
     // format: on
-    r.value
   }
 
-  override def delete(id: ExperimentKey): F[Result[Experiment]] = {
+  def delete(id: ExperimentKey): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
     // format: off
-    val r: EitherT[F, AppErrors, Experiment] = for {
-      deleted     <- jsonStore.delete(id)                                   |> liftFEither
-      experiment  <- deleted.validate[Experiment]                           |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(ExperimentDeleted(id, experiment))  |> liftF[AppErrors, Done]
+    for {
+      deleted     <- ExperimentDataStore.delete(id)
+      experiment  <- jsResultToError(deleted.validate[Experiment])
+      authInfo    <- AuthInfo.authInfo
+      _           <- EventStore.publish(ExperimentDeleted(id, experiment, authInfo = authInfo))
     } yield experiment
     // format: on
-    r.value
-  }
 
-  override def deleteAll(q: Query): F[Result[Done]] =
-    jsonStore.deleteAll(q)
+  def deleteAll(q: Query): ZIO[ExperimentContext, IzanamiErrors, Unit] =
+    ExperimentDataStore.deleteAll(q)
 
-  override def getById(id: ExperimentKey): F[Option[Experiment]] =
-    jsonStore.getById(id).map(_.flatMap(_.validate[Experiment].asOpt))
+  def getById(id: ExperimentKey): RIO[ExperimentContext, Option[Experiment]] =
+    ExperimentDataStore.getById(id).map(_.flatMap(_.validate[Experiment].asOpt))
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Experiment]] =
-    jsonStore
+  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ExperimentContext, PagingResult[Experiment]] =
+    ExperimentDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def findByQuery(query: Query): Source[(Key, Experiment), NotUsed] =
-    jsonStore
+  def findByQuery(query: Query): RIO[ExperimentContext, Source[(Key, Experiment), NotUsed]] =
+    ExperimentDataStore
       .findByQuery(query)
       .map {
-        case (k, v) => (k, v.validate[Experiment].get)
+        _.map {
+          case (k, v) => (k, v.validate[Experiment].get)
+        }
       }
 
-  override def count(query: Query): F[Long] =
-    jsonStore.count(query)
+  def count(query: Query): RIO[ExperimentContext, Long] =
+    ExperimentDataStore.count(query)
 
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+  def importData: RIO[ExperimentContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
     import cats.implicits._
-    import cats.effect.implicits._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, ExperimentInstances.format.reads(json)) }
-      .mapAsync(4) {
-        case (_, JsSuccess(obj, _)) =>
-          create(obj.id, obj)
-            .map { ImportResult.fromResult }
-            .toIO
-            .unsafeToFuture()
-        case (s, JsError(_)) =>
-          FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+    for {
+      runtime <- ZIO.runtime[ExperimentContext]
+      res <- ZIO.access[ExperimentContext] { ctx =>
+              Flow[(String, JsValue)]
+                .map { case (s, json) => (s, ExperimentInstances.format.reads(json)) }
+                .mapAsync(4) {
+                  case (_, JsSuccess(obj, _)) =>
+                    runtime.unsafeRunToFuture(
+                      create(obj.id, obj).either.map { either =>
+                        ImportResult.fromResult(either)
+                      }
+                    )
+                  case (s, JsError(_)) => FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+                }
+                .fold(ImportResult()) {
+                  _ |+| _
+                }
+            }
+    } yield res
   }
 
-  def toGraph(clientId: String)(
-      implicit ec: ExecutionContext
-  ): Flow[Experiment, JsObject, NotUsed] = {
-
-    implicit val es: ExperimentServiceImpl[F] = this
+  def toGraph(clientId: String): Flow[Experiment, JsObject, NotUsed] =
     Flow[Experiment]
       .filter(_.enabled)
       .map { experiment =>
@@ -306,66 +280,68 @@ class ExperimentServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStor
       .fold(Json.obj()) { (acc, js) =>
         acc.deepMerge(js.as[JsObject])
       }
-  }
 
-  override def variantFor(experimentKey: ExperimentKey, clientId: String)(
-      implicit ec: ExecutionContext,
-      eVariantEventStore: ExperimentVariantEventService[F]
-  ): F[Result[Variant]] = {
+  def variantFor(
+      experimentKey: ExperimentKey,
+      clientId: String
+  ): ZIO[ExperimentContext, IzanamiErrors, Variant] = {
     import cats.implicits._
-    implicit val es: ExperimentServiceImpl[F] = this
-    val now                                   = LocalDateTime.now()
+    val now = LocalDateTime.now()
     // format: off
-    val r: EitherT[F, AppErrors, Variant] = for {
+    for {
 
-      experiment <- getById(experimentKey) |> liftFOption(AppErrors.error("error.experiment.missing"))
+      mayBeExp    <- getById(experimentKey).refineToOrDie[IzanamiErrors]
+      experiment  <- ZIO.fromOption(mayBeExp).mapError(_ => AppErrors.error("error.experiment.missing"))
 
       variant <- experiment.campaign match {
 
-          case Some(ClosedCampaign(_, _, won)) =>
-            experiment.variants.find(_.id === won) |> liftOption(AppErrors.error("error.variant.missing"))
+        case Some(ClosedCampaign(_, _, won)) =>
+          ZIO.fromOption(experiment.variants.find(_.id === won)).mapError(_ => AppErrors.error("error.variant.missing"))
 
-          case Some(CurrentCampaign(from, to)) if to.isBefore(now) || to.isEqual(now) =>
-            for {
-              expResult   <- experimentResult(experimentKey)  |> liftF
-              won         =  expResult.results.maxBy(_.transformation).variant.getOrElse(experiment.variants.head)
-              id          =  experiment.id
-              toUpdate    =  experiment.copy(campaign = ClosedCampaign(from, to, won.id).some)
-              _           <- rawUpdate(id, experiment, id, toUpdate) |> liftFEither
-            } yield won
+        case Some(CurrentCampaign(from, to)) if to.isBefore(now) || to.isEqual(now) =>
+          for {
+            expResult   <- experimentResult(experimentKey)
+            won         =  expResult.results.maxBy(_.transformation).variant.getOrElse(experiment.variants.head)
+            id          =  experiment.id
+            toUpdate    =  experiment.copy(campaign = ClosedCampaign(from, to, won.id).some)
+            _           <- rawUpdate(id, experiment, id, toUpdate)
+          } yield won
 
-          case _ =>
-            EitherT.rightT[F, AppErrors](findVariant(experiment, clientId))
+        case _ =>
+          ZIO.succeed(findVariant(experiment, clientId))
       }
 
     } yield variant
     // format: on
-    r.value
   }
 
-  override def experimentResult(
+  def experimentResult(
       experimentKey: ExperimentKey
-  )(implicit eVariantEventStore: ExperimentVariantEventService[F]): F[ExperimentResult] = {
-    import cats.effect.implicits._
-    import libs.effects._
-    Source
-      .fromFuture(getById(experimentKey).toIO.unsafeToFuture())
-      .mapConcat {
-        _.toList
-      }
-      .flatMapConcat { experiment =>
-        eVariantEventStore
-          .findVariantResult(experiment)
-          .fold(Seq.empty[VariantResult])(_ :+ _)
-          .map(variantsResult => ExperimentResult(experiment, variantsResult))
-          .orElse(Source.single(ExperimentResult(experiment, Seq.empty)))
-      }
-      .runWith(Sink.head)
-      .toF
-  }
+  ): ZIO[ExperimentContext, IzanamiErrors, ExperimentResult] =
+    for {
+      runtime <- ZIO.runtime[ExperimentContext]
+      res <- ZIO
+              .accessM[ExperimentContext] { ctx =>
+                import ctx._
+                getById(experimentKey).flatMap { mayBeExp =>
+                  ZIO
+                    .fromFuture { implicit ec =>
+                      Source(mayBeExp.toList)
+                        .flatMapConcat { experiment =>
+                          Source
+                            .fromFutureSource(runtime.unsafeRunToFuture {
+                              ExperimentVariantEventService.findVariantResult(experiment)
+                            })
+                            .fold(Seq.empty[VariantResult])(_ :+ _)
+                            .map(variantsResult => ExperimentResult(experiment, variantsResult))
+                            .orElse(Source.single(ExperimentResult(experiment, Seq.empty)))
+                        }
+                        .runWith(Sink.head)
+                    }
 
-  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    IzanamiLogger.error(s"Error parsing json from database $err")
-    AppErrors.error("error.json.parsing")
-  }
+                }
+              }
+              .refineToOrDie[IzanamiErrors]
+    } yield res
+
 }

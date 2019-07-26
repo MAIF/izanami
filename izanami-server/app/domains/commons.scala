@@ -1,22 +1,202 @@
 package domains
 
 import akka.NotUsed
+import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
-import cats.kernel.{Monoid, Semigroup}
-import env.DbDomainConfig
-import libs.logs.IzanamiLogger
+import cats.kernel.Monoid
+import domains.abtesting.{ExperimentContext, ExperimentVariantEventService}
+import domains.apikey.{ApiKeyContext, Apikey}
+import domains.config.ConfigContext
+import domains.events.EventStore
+import domains.feature.FeatureContext
+import domains.script.GlobalScriptContext
+import domains.script.Script.ScriptCache
+import domains.user.{User, UserContext}
+import domains.webhook.WebhookContext
+import env.{DbDomainConfig, IzanamiConfig}
+import libs.database.Drivers
+import libs.logs.{IzanamiLogger, Logger, LoggerModule, ProdLogger}
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Reads.pattern
 import play.api.libs.json._
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParser
-import store.{EmptyPattern, Pattern, StringPattern}
-import store.Result.{AppErrors, ErrorMessage, Result}
+import store.{EmptyPattern, JsonDataStore, Pattern, StringPattern}
+import store.Result._
+import store.leveldb.DbStores
+import store.memorywithdb.InMemoryWithDbStore
+import zio.{Task, ZIO}
+import zio.blocking.Blocking
+import zio.internal.Executor
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 import scala.util.matching.Regex
+import zio.RIO
+import org.jetbrains.kotlin.js.parser.sourcemaps.JsonObject
+import cats.kernel.Eq
+import play.api.Environment
+
+trait AkkaModule {
+  implicit def system: ActorSystem
+  implicit def mat: Materializer
+}
+
+trait AuthInfoModule[+R] {
+  def authInfo: Option[AuthInfo]
+  def withAuthInfo(user: Option[AuthInfo]): R
+}
+
+trait PlayModule {
+  def environment: Environment
+  def wSClient: play.api.libs.ws.WSClient
+  def javaWsClient: play.libs.ws.WSClient
+  def ec: ExecutionContext
+}
+
+trait GlobalContext
+    extends AkkaModule
+    with LoggerModule
+    with ConfigContext
+    with FeatureContext
+    with GlobalScriptContext
+    with ApiKeyContext
+    with UserContext
+    with WebhookContext
+    with ExperimentContext
+    with AuthInfoModule[GlobalContext]
+
+case class ProdGlobalContext(
+    system: ActorSystem,
+    mat: Materializer,
+    environment: Environment,
+    wSClient: play.api.libs.ws.WSClient,
+    javaWsClient: play.libs.ws.WSClient,
+    ec: ExecutionContext,
+    logger: Logger,
+    eventStore: EventStore,
+    globalScriptDataStore: JsonDataStore,
+    configDataStore: JsonDataStore,
+    featureDataStore: JsonDataStore,
+    userDataStore: JsonDataStore,
+    apikeyDataStore: JsonDataStore,
+    webhookDataStore: JsonDataStore,
+    experimentDataStore: JsonDataStore,
+    experimentVariantEventService: ExperimentVariantEventService,
+    getScriptCache: () => ScriptCache,
+    blocking: Blocking.Service[Any],
+    override val authInfo: Option[AuthInfo]
+) extends GlobalContext {
+  override def scriptCache = getScriptCache()
+  override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
+    this.copy(authInfo = authInfo)
+}
+
+object GlobalContext {
+
+  def apply(izanamiConfig: IzanamiConfig,
+            zioEventStore: EventStore,
+            actorSystem: ActorSystem,
+            materializer: Materializer,
+            env: Environment,
+            client: play.api.libs.ws.WSClient,
+            javaClient: play.libs.ws.WSClient,
+            execCtx: ExecutionContext,
+            drivers: Drivers,
+            playScriptCache: => ScriptCache,
+            applicationLifecycle: ApplicationLifecycle): GlobalContext = new GlobalContext {
+
+    override implicit val system: ActorSystem = actorSystem
+    override implicit val mat: Materializer   = materializer
+
+    override val environment: Environment            = env
+    override val wSClient: play.api.libs.ws.WSClient = client
+    override val javaWsClient: play.libs.ws.WSClient = javaClient
+    override val ec: ExecutionContext                = execCtx
+
+    override val logger: Logger         = new ProdLogger()
+    override val eventStore: EventStore = zioEventStore
+
+    override val globalScriptDataStore: JsonDataStore = {
+      val conf              = izanamiConfig.globalScript.db
+      lazy val eventAdapter = InMemoryWithDbStore.globalScriptEventAdapter
+      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+    }
+
+    override val configDataStore: JsonDataStore = {
+      val conf              = izanamiConfig.config.db
+      lazy val eventAdapter = InMemoryWithDbStore.configEventAdapter
+      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+    }
+
+    override val featureDataStore: JsonDataStore = {
+      val conf              = izanamiConfig.features.db
+      lazy val eventAdapter = InMemoryWithDbStore.featureEventAdapter
+      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+    }
+
+    override val userDataStore: JsonDataStore = {
+      val conf              = izanamiConfig.user.db
+      lazy val eventAdapter = InMemoryWithDbStore.userEventAdapter
+      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+    }
+
+    override val apikeyDataStore: JsonDataStore = {
+      val conf              = izanamiConfig.apikey.db
+      lazy val eventAdapter = InMemoryWithDbStore.apikeyEventAdapter
+      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+    }
+
+    override val webhookDataStore: JsonDataStore = {
+      lazy val conf         = izanamiConfig.webhook.db
+      lazy val eventAdapter = InMemoryWithDbStore.webhookEventAdapter
+      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+    }
+
+    override val experimentDataStore: JsonDataStore = {
+      val conf              = izanamiConfig.experiment.db
+      lazy val eventAdapter = InMemoryWithDbStore.experimentEventAdapter
+      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+    }
+
+    override val experimentVariantEventService: ExperimentVariantEventService =
+      ExperimentVariantEventService(izanamiConfig, drivers, applicationLifecycle)
+
+    override def scriptCache: ScriptCache = playScriptCache
+
+    override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
+      def blockingExecutor: ZIO[Any, Nothing, Executor] =
+        ZIO.succeed(Executor.fromExecutionContext(20)(actorSystem.dispatchers.lookup("izanami.blocking-dispatcher")))
+    }
+
+    override def authInfo: Option[AuthInfo] = None
+
+    override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
+      ProdGlobalContext(
+        system,
+        mat,
+        environment,
+        wSClient,
+        javaWsClient,
+        ec,
+        logger,
+        eventStore,
+        globalScriptDataStore,
+        configDataStore,
+        featureDataStore,
+        userDataStore,
+        apikeyDataStore,
+        webhookDataStore,
+        experimentDataStore,
+        experimentVariantEventService,
+        () => scriptCache,
+        blocking,
+        authInfo
+      )
+  }
+}
 
 sealed trait AuthorizedPatternTag
 
@@ -44,20 +224,30 @@ object Import {
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
     }
 
-  def importFile(
+  def importFile[Ctx <: LoggerModule](
       db: DbDomainConfig,
-      process: Flow[(String, JsValue), ImportResult, NotUsed]
-  )(implicit ec: ExecutionContext, materializer: Materializer) =
-    db.`import`.foreach { p =>
-      IzanamiLogger.info(s"Importing file $p for namespace ${db.conf.namespace}")
-      FileIO.fromPath(p).via(toJson).via(process).runWith(Sink.head).onComplete {
-        case Success(res) if res.isError =>
-          IzanamiLogger.info(s"Import end with error for file $p and namespace ${db.conf.namespace}: \n ${res.errors}")
-        case Success(_) =>
-          IzanamiLogger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
-        case Failure(e) =>
-          IzanamiLogger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
-      }
+      process: RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]]
+  )(implicit ec: ExecutionContext, materializer: Materializer): RIO[Ctx, Unit] =
+    process.flatMap { proc =>
+      import zio.interop.catz._
+      import cats.implicits._
+      db.`import`.traverse { p =>
+        Logger.info(s"Importing file $p for namespace ${db.conf.namespace}") *>
+        Task.fromFuture { implicit ec =>
+          val res = FileIO.fromPath(p).via(toJson).via(proc).runWith(Sink.head)
+          res.onComplete {
+            case Success(res) if res.isError =>
+              IzanamiLogger.info(
+                s"Import end with error for file $p and namespace ${db.conf.namespace}: \n ${res.errors}"
+              )
+            case Success(_) =>
+              IzanamiLogger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
+            case Failure(e) =>
+              IzanamiLogger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
+          }
+          res
+        }
+      }.unit
     }
 }
 
@@ -78,17 +268,65 @@ object ImportResult {
     }
   }
 
-  def error(e: ErrorMessage) = ImportResult(errors = AppErrors(errors = Seq(e)))
+  def error(key: String, arg: String*) = ImportResult(errors = AppErrors(errors = Seq(ErrorMessage(key, arg: _*))))
+  def error(e: ErrorMessage)           = ImportResult(errors = AppErrors(errors = Seq(e)))
 
-  def fromResult[T](r: Result[T]): ImportResult = r match {
-    case Right(_)  => ImportResult(success = 1)
-    case Left(err) => ImportResult(errors = err)
+//  def fromResult[T](r: Result[T]): ImportResult = r match {
+//    case Right(_)  => ImportResult(success = 1)
+//    case Left(err) => ImportResult(errors = err)
+//  }
+
+  def fromResult[T](r: Either[IzanamiErrors, T]): ImportResult = r match {
+    case Right(_)             => ImportResult(success = 1)
+    case Left(err: AppErrors) => ImportResult(errors = err)
+    case Left(IdMustBeTheSame(fromObject, inParam)) =>
+      ImportResult(errors = AppErrors.error("error.id.not.the.same", inParam.key, inParam.key))
+    case Left(DataShouldExists(id))    => ImportResult(errors = AppErrors.error("error.data.missing", id.key))
+    case Left(DataShouldNotExists(id)) => ImportResult(errors = AppErrors.error("error.data.exists", id.key))
   }
 
 }
 
 trait AuthInfo {
   def authorizedPattern: String
+  def id: String
+  def name: String
+  def mayBeEmail: Option[String]
+}
+
+object AuthInfo {
+  def authInfo: zio.URIO[AuthInfoModule[_], Option[AuthInfo]] = ZIO.access[AuthInfoModule[_]](_.authInfo)
+
+  import play.api.libs.json._
+  import play.api.libs.functional.syntax._
+
+  implicit val format = Format(
+    {
+      (
+        (__ \ "id").read[String] and
+        (__ \ "authorizedPattern").read[String] and
+        (__ \ "name").read[String] and
+        (__ \ "mayBeEmail").readNullable[String]
+      )(
+        (anId: String, aPattern: String, aName: String, anEmail: Option[String]) =>
+          new AuthInfo {
+            def authorizedPattern: String  = aPattern
+            def id: String                 = anId
+            def name: String               = aName
+            def mayBeEmail: Option[String] = anEmail
+        }
+      )
+    }, {
+      (
+        (__ \ "id").write[String] and
+        (__ \ "authorizedPattern").write[String] and
+        (__ \ "name").write[String] and
+        (__ \ "mayBeEmail").writeNullable[String]
+      )(unlift[AuthInfo, (String, String, String, Option[String])] { info =>
+        Some((info.id, info.authorizedPattern, info.name, info.mayBeEmail))
+      })
+    }
+  )
 }
 
 trait Jsoneable {
@@ -218,6 +456,13 @@ object Node {
 
 trait IsAllowed[T] {
   def isAllowed(value: T)(auth: Option[AuthInfo]): Boolean
+
+  def isAllowed[R](value: T, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
+    isAllowed(value)(auth) match {
+      case true  => zio.IO.succeed(())
+      case false => zio.IO.fail(ifNotAllowed)
+    }
+
 }
 
 object IsAllowed {
@@ -251,6 +496,12 @@ object Key {
     }
   }
 
+  def isAllowed[R](key: Key, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
+    isAllowed(key)(auth) match {
+      case true  => zio.IO.succeed(())
+      case false => zio.ZIO.fail(ifNotAllowed)
+    }
+
   def isAllowed(patternToCheck: String)(auth: Option[AuthInfo]): Boolean = {
     val pattern = buildRegex(auth.map(_.authorizedPattern).getOrElse(""))
     patternToCheck match {
@@ -266,5 +517,9 @@ object Key {
   }
 
   implicit val format: Format[Key] = Format(reads, writes)
+
+  implicit val eqKey: Eq[Key] = new Eq[Key] {
+    override def eqv(x: Key, y: Key): Boolean = x.key.equals(y.key)
+  }
 
 }

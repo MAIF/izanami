@@ -3,7 +3,7 @@ matrix:
   include:
     - os: linux
       language: scala
-      scala: 2.12.7
+      scala: 2.12.8
       jdk: oraclejdk8
       services:
       - docker
@@ -27,7 +27,9 @@ matrix:
       - docker-compose -f docker-compose.test.yml up -d
       script:
       - sh ./scripts/build-javascript.sh
+      # - while sleep 9m; do echo "=====[ $SECONDS seconds still running ]====="; done & 
       - sh ./scripts/sbt-build.sh
+      # - kill %1
       - sh ./scripts/publish-npm.sh
       - sh ./scripts/build-rust.sh
       after_failure:
@@ -45,6 +47,7 @@ matrix:
 env:
   global:
   - PACKAGE_VERSION=0.0.1
+  - SBT_OPTS=-Xmx2G -Xss20M -XX:MaxMetaspaceSize=512M
 before_cache:
 - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
 - find $HOME/.sbt  -name "*.lock"               -print -delete

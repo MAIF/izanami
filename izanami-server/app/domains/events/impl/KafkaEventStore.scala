@@ -5,25 +5,28 @@ import akka.actor.ActorSystem
 import akka.kafka.{ConsumerSettings, ManualSubscription, Subscriptions}
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
-import cats.effect.Async
 import domains.Domain.Domain
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.{KafkaConfig, KafkaEventsConfig}
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.{ConsumerConfig, Consumer => KConsumer}
-import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
+import org.apache.kafka.clients.producer.{Callback, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.{PartitionInfo, TopicPartition}
-import org.apache.kafka.common.serialization.{ByteArraySerializer, StringDeserializer, StringSerializer}
-import play.api.{Environment, Logger}
+import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
+import play.api.Environment
 import play.api.libs.json.Json
 
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
-import libs.logs.IzanamiLogger
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
+import store.Result.IzanamiErrors
+import zio.{IO, Task}
 
 import scala.collection.mutable
+import libs.logs.Logger
+import zio.RIO
+import domains.events.EventStoreContext
 
 object KafkaSettings {
 
@@ -88,16 +91,17 @@ object KafkaSettings {
   }
 }
 
-class KafkaEventStore[F[_]: Async](_env: Environment,
-                                   system: ActorSystem,
-                                   clusterConfig: KafkaConfig,
-                                   eventsConfig: KafkaEventsConfig)
-    extends EventStore[F] {
+class KafkaEventStore(_env: Environment,
+                      system: ActorSystem,
+                      clusterConfig: KafkaConfig,
+                      eventsConfig: KafkaEventsConfig)
+    extends EventStore {
 
   import scala.collection.JavaConverters._
   import system.dispatcher
 
-  IzanamiLogger.info(s"Initializing kafka event store $clusterConfig")
+  override def start: RIO[EventStoreContext, Unit] =
+    Logger.info(s"Initializing kafka event store $clusterConfig")
 
   private lazy val producerSettings =
     KafkaSettings.producerSettings(_env, system, clusterConfig)
@@ -114,22 +118,19 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
   private val partitions: mutable.Buffer[PartitionInfo] = tmpConsumer.partitionsFor(eventsConfig.topic).asScala
   tmpConsumer.close()
 
-  override def publish(event: IzanamiEvent): F[Done] = {
+  override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] = {
     import cats.implicits._
     system.eventStream.publish(event)
-    Async[F]
-      .async[Done] { cb =>
+    IO.effectAsync[Throwable, Done] { cb =>
         try {
           val message = Json.stringify(event.toJson)
           producer.send(new ProducerRecord[String, String](eventsConfig.topic, event.key.key, message), callback(cb))
         } catch {
           case NonFatal(e) =>
-            cb(Left(e))
+            cb(IO.fail(e))
         }
       }
-      .map { _ =>
-        Done
-      }
+      .refineToOrDie[IzanamiErrors]
   }
 
   override def events(domains: Seq[Domain],
@@ -182,29 +183,29 @@ class KafkaEventStore[F[_]: Async](_env: Environment,
       .mapMaterializedValue(_ => NotUsed)
   }
 
-  override def close(): Unit =
-    producer.close()
+  override def close(): Task[Unit] =
+    Task(producer.close())
 
-  private def callback(cb: Either[Throwable, Done] => Unit) = new Callback {
+  private def callback(cb: IO[Throwable, Done] => Unit) = new Callback {
     override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit =
       if (exception != null) {
-        cb(Left(exception))
+        cb(IO.fail(exception))
       } else {
-        cb(Right(Done))
+        cb(IO.succeed(Done))
       }
   }
 
-  override def check(): F[Unit] =
-    Async[F].async { cb =>
+  override def check(): Task[Unit] =
+    IO.effectAsync { cb =>
       system.dispatchers.lookup("izanami.blocking-dispatcher").execute { () =>
         try {
           val consumer = KafkaSettings.consumerSettings(_env, system, clusterConfig).createKafkaConsumer()
           consumer.partitionsFor(eventsConfig.topic)
           consumer.close()
-          cb(Right(()))
+          cb(IO.succeed(()))
         } catch {
           case NonFatal(e) =>
-            cb(Left(e))
+            cb(IO.fail(e))
         }
       }
     }

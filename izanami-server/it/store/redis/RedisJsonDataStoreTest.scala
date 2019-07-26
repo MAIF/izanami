@@ -2,11 +2,10 @@ package store.redis
 
 import java.time.Duration
 
-import cats.effect.IO
 import env.Master
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-import store.{AbstractJsonDataStoreTest, JsonDataStore}
+import store.AbstractJsonDataStoreTest
 import test.FakeApplicationLifecycle
 import scala.collection.JavaConverters._
 
@@ -18,8 +17,8 @@ class RedisJsonDataStoreTest extends AbstractJsonDataStoreTest("Redis") with Bef
     new FakeApplicationLifecycle()
   ).get
 
-  override def dataStore(name: String): JsonDataStore[IO] =
-    RedisJsonDataStore[IO](redisWrapper, name)
+  override def dataStore(name: String): RedisJsonDataStore =
+    RedisJsonDataStore(redisWrapper, name)
 
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {

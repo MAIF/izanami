@@ -2,51 +2,46 @@ package domains.abtesting.impl
 
 import java.time.temporal.ChronoUnit
 import java.time.{LocalDateTime, ZoneId}
+import java.util.concurrent.CompletionStage
 
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.OptionT
-import cats.effect.Effect
 import domains.abtesting._
 import domains.events.EventStore
 import env.DbDomainConfig
 import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
 import io.lettuce.core.api.async.RedisAsyncCommands
-import libs.functional.EitherTSyntax
-import libs.logs.IzanamiLogger
 import play.api.libs.json.Json
-import store.Result.Result
+import store.Result.IzanamiErrors
 import store.redis.RedisWrapper
-import store.Result
+import zio.{RIO, Task, ZIO}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.Future
+import domains.AuthInfo
 
 object ExperimentVariantEventRedisService {
-  def apply[F[_]: Effect](configdb: DbDomainConfig, maybeRedis: Option[RedisWrapper], eventStore: EventStore[F])(
+  def apply(configdb: DbDomainConfig, maybeRedis: Option[RedisWrapper])(
       implicit actorSystem: ActorSystem
-  ): ExperimentVariantEventRedisService[F] =
-    new ExperimentVariantEventRedisService[F](configdb.conf.namespace, maybeRedis, eventStore)
+  ): ExperimentVariantEventRedisService =
+    new ExperimentVariantEventRedisService(configdb.conf.namespace, maybeRedis)
 }
 
-class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
-                                                       maybeRedis: Option[RedisWrapper],
-                                                       eventStore: EventStore[F])(
+class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[RedisWrapper])(
     implicit actorSystem: ActorSystem
-) extends ExperimentVariantEventService[F]
-    with EitherTSyntax[F] {
+) extends ExperimentVariantEventService {
 
   import actorSystem.dispatcher
   import domains.events.Events._
   import libs.effects._
   import libs.streams.syntax._
   import cats.implicits._
-  import cats.effect.implicits._
   import ExperimentVariantEventInstances._
 
-  implicit private val es: EventStore[F]  = eventStore
   implicit val materializer: Materializer = ActorMaterializer()
 
   val experimentseventsNamespace: String = namespace
@@ -58,8 +53,21 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
   private def now(): Long =
     LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant.toEpochMilli
 
-  private def get(id: String): F[Option[String]] =
-    command().get(id).toF.map { s =>
+  private def zioFromCs[T](cs: => CompletionStage[T]): Task[T] =
+    Task.effectAsync { cb =>
+      cs.whenComplete((ok, e) => {
+        if (e != null) {
+          cb(Task.fail(e))
+        } else {
+          cb(Task.succeed(ok))
+        }
+      })
+    }
+
+  private def get(id: String): Task[Option[String]] =
+    zioFromCs {
+      command().get(id)
+    }.map { s =>
       Option(s)
     }
 
@@ -69,7 +77,7 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
         case Some(c) =>
           command()
             .scan(c, ScanArgs.Builder.matches(s"$pattern").limit(500))
-            .toF
+            .toFuture
             .map { curs =>
               if (curs.isFinished) {
                 Some((None, curs.getKeys.asScala))
@@ -77,31 +85,33 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
                 Some(Some(curs), curs.getKeys.asScala)
               }
             }
-            .toIO
-            .unsafeToFuture()
         case None =>
           FastFuture.successful(None)
       }
       .mapConcat(_.toList)
 
-  override def create(id: ExperimentVariantEventKey,
-                      data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
+  override def create(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
     val eventsKey: String =
       s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}" // le sorted set des events
     for {
-      result <- command()
-                 .zadd(
-                   eventsKey,
-                   ScoredValue.just(
-                     now(),
-                     Json.stringify(ExperimentVariantEventInstances.format.writes(data))
+      result <- zioFromCs {
+                 command()
+                   .zadd(
+                     eventsKey,
+                     ScoredValue.just(
+                       now(),
+                       Json.stringify(ExperimentVariantEventInstances.format.writes(data))
+                     )
                    )
-                 )
-                 .toF
+               }.refineToOrDie[IzanamiErrors]
                  .map { _ =>
-                   Result.ok(data)
+                   data
                  } // add event
-      _ <- result.traverse(f => eventStore.publish(ExperimentVariantEventCreated(id, f)))
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield result
   }
 
@@ -111,7 +121,7 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
         val nextPage: Long = lastPage + 50
         command()
           .zrange(eventVariantKey, lastPage, nextPage - 1)
-          .toF
+          .toFuture
           .map(_.asScala.toList)
           .map {
             case Nil => Option.empty
@@ -125,15 +135,13 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
                    })
               )
           }
-          .toIO
-          .unsafeToFuture()
       }
       .mapConcat(l => l)
 
-  private def firstFirstEvent(eventVariantKey: String): F[Option[ExperimentVariantEvent]] =
+  private def firstFirstEvent(eventVariantKey: String): Future[Option[ExperimentVariantEvent]] =
     command()
       .zrange(eventVariantKey, 0, 1)
-      .toF
+      .toFuture
       .map(_.asScala.headOption)
       .map {
         _.map { evt =>
@@ -141,7 +149,7 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
         }
       }
 
-  private def interval(eventVariantKey: String): F[ChronoUnit] =
+  private def interval(eventVariantKey: String): Future[ChronoUnit] =
     (for {
       evt <- OptionT(firstFirstEvent(eventVariantKey))
       min = evt.date
@@ -150,41 +158,58 @@ class ExperimentVariantEventRedisService[F[_]: Effect](namespace: String,
       ExperimentVariantEvent.calcInterval(min, max)
     }).value.map(_.getOrElse(ChronoUnit.HOURS))
 
-  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
-    findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-      .flatMapMerge(
-        4,
-        key =>
-          Source
-            .fromFuture(interval(key).toIO.unsafeToFuture())
-            .flatMapConcat(
-              interval =>
-                findEvents(key)
-                  .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
-          )
-      )
-
-  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] = {
-    val deletes: F[Result[Done]] =
+  override def findVariantResult(
+      experiment: Experiment
+  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+    Task {
       findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-        .grouped(100)
-        .mapAsyncF(10) { keys =>
-          command().del(keys: _*).toF
+        .flatMapMerge(
+          4,
+          key =>
+            Source
+              .fromFuture(interval(key))
+              .flatMapConcat(
+                interval =>
+                  findEvents(key)
+                    .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
+            )
+        )
+    }
+
+  override def deleteEventsForExperiment(
+      experiment: Experiment
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] = {
+    val deletes =
+      ZIO
+        .fromFuture { implicit ec =>
+          findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
+            .grouped(100)
+            .mapAsync(10) { keys =>
+              command().del(keys: _*).toFuture
+            }
+            .runWith(Sink.ignore)
         }
-        .runWith(Sink.ignore)
-        .toF
-        .map(_ => Result.ok(Done))
+        .unit
+        .refineToOrDie[IzanamiErrors]
 
     for {
-      r <- deletes
-      _ <- r.traverse(_ => eventStore.publish(ExperimentVariantEventsDeleted(experiment)))
+      r        <- deletes
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     } yield r
   }
 
-  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
-    findKeys(s"$experimentseventsNamespace:*")
-      .flatMapMerge(4, key => findEvents(key))
-      .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+  override def listAll(
+      patterns: Seq[String]
+  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+    Task {
+      findKeys(s"$experimentseventsNamespace:*")
+        .flatMapMerge(4, key => findEvents(key))
+        .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+    }
 
-  override def check(): F[Unit] = command().get("test").toF.map(_ => ())
+  override def check(): Task[Unit] =
+    zioFromCs {
+      command().get("test")
+    }.unit
 }

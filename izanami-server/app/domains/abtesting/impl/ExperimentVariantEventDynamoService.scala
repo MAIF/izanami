@@ -9,12 +9,11 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.alpakka.dynamodb._
 import akka.stream.alpakka.dynamodb.AwsOp._
 import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
-import akka.{Done, NotUsed}
-import cats.effect.Effect
+import akka.{NotUsed}
 import domains.abtesting._
-import domains.events.EventStore
+import domains.events.{EventStore, EventStoreModule}
 import env.DynamoConfig
-import store.Result.Result
+import store.Result.{IzanamiErrors, Result}
 
 import scala.concurrent.ExecutionContext
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, _}
@@ -24,22 +23,22 @@ import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import libs.dynamo.DynamoMapper
 import libs.logs.IzanamiLogger
-import store.Result
+import zio.{RIO, Task, ZIO}
 
 import scala.collection.JavaConverters._
+import libs.logs.Logger
+import domains.AuthInfo
 
 object ExperimentVariantEventDynamoService {
-  def apply[F[_]: Effect](config: DynamoConfig, client: DynamoClient, eventStore: EventStore[F])(
+  def apply(config: DynamoConfig, client: DynamoClient)(
       implicit system: ActorSystem
-  ): ExperimentVariantEventDynamoService[F] =
-    new ExperimentVariantEventDynamoService(client, config.eventsTableName, eventStore)
+  ): ExperimentVariantEventDynamoService =
+    new ExperimentVariantEventDynamoService(client, config.eventsTableName)
 }
 
-class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
-                                                        rawTableName: String,
-                                                        eventStore: EventStore[F])(
+class ExperimentVariantEventDynamoService(client: DynamoClient, rawTableName: String)(
     implicit actorSystem: ActorSystem
-) extends ExperimentVariantEventService[F] {
+) extends ExperimentVariantEventService {
   import cats.implicits._
   import libs.effects._
   import ExperimentVariantEventInstances._
@@ -52,8 +51,7 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): F[Result[ExperimentVariantEvent]] = {
-    IzanamiLogger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
     val key: String =
       s"${id.experimentId.key}:${id.variantId}"
 
@@ -77,22 +75,25 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
       )
 
     for {
-      res <- convertToF[F](
-              DynamoDb
-                .source(request)
-                .withAttributes(DynamoAttributes.client(client))
-                .runWith(Sink.head)
-                .map(_ => Result.ok(data))
-            )
-      _ <- eventStore.publish(ExperimentVariantEventCreated(id, data))
+      _ <- Logger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
+      res <- ZIO
+              .fromFuture { implicit ec =>
+                DynamoDb
+                  .source(request)
+                  .withAttributes(DynamoAttributes.client(client))
+                  .runWith(Sink.head)
+              }
+              .map(_ => data)
+              .refineToOrDie[IzanamiErrors]
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield res
 
   }
 
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): F[Result[Done]] = {
-    IzanamiLogger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] = {
 
     val delete = Flow[ExperimentVariantEventKey]
       .map(variantId => {
@@ -108,17 +109,21 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
       .map(DeleteItem)
       .via(DynamoDb.flow[DeleteItem].withAttributes(DynamoAttributes.client(client)))
 
-    val deletes = convertToF[F](
-      findExperimentVariantEvents(experiment)
-        .map(_._2)
-        .via(delete)
-        .runWith(Sink.ignore)
-        .map(_ => Result.ok(Done))
-    )
+    val deletes = ZIO
+      .fromFuture { implicit ec =>
+        findExperimentVariantEvents(experiment)
+          .map(_._2)
+          .via(delete)
+          .runWith(Sink.ignore)
+      }
+      .refineToOrDie[IzanamiErrors]
+      .unit
 
     for {
-      r <- deletes
-      _ <- eventStore.publish(ExperimentVariantEventsDeleted(experiment))
+      _        <- Logger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
+      r        <- deletes
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     } yield r
   }
 
@@ -157,44 +162,44 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
 
   override def findVariantResult(
       experiment: Experiment
-  ): Source[VariantResult, NotUsed] = {
-    IzanamiLogger.debug(s"Dynamo find variant result on $tableName with experiment $experiment")
-
-    findExperimentVariantEvents(experiment)
-      .flatMapMerge(
-        4, {
-          case (_, _, evts) =>
-            val first = evts.headOption
-            val interval = first
-              .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
-              .getOrElse(ChronoUnit.HOURS)
-            Source(evts)
-              .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
-        }
-      )
-  }
+  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+    Logger.debug(s"Dynamo find variant result on $tableName with experiment $experiment") *>
+    Task(
+      findExperimentVariantEvents(experiment)
+        .flatMapMerge(
+          4, {
+            case (_, _, evts) =>
+              val first = evts.headOption
+              val interval = first
+                .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
+                .getOrElse(ChronoUnit.HOURS)
+              Source(evts)
+                .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
+          }
+        )
+    )
 
   override def listAll(
       patterns: Seq[String]
-  ): Source[ExperimentVariantEvent, NotUsed] = {
-    IzanamiLogger.debug(s"Dynamo listAll on $tableName with patterns $patterns")
+  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] = {
 
     val request = new ScanRequest()
       .withTableName(tableName)
 
-    DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .mapConcat(_.getItems.asScala.toList)
-      .map(item => Key(item.get("variantId").getS) -> item.get("events").getL.asScala.map(DynamoMapper.toJsValue))
-      .filter(_._1.matchAllPatterns(patterns: _*))
-      .mapConcat(_._2.toList)
-      .map(_.validate[ExperimentVariantEvent].get)
+    Logger.debug(s"Dynamo listAll on $tableName with patterns $patterns") *>
+    Task(
+      DynamoDb
+        .source(request)
+        .withAttributes(DynamoAttributes.client(client))
+        .mapConcat(_.getItems.asScala.toList)
+        .map(item => Key(item.get("variantId").getS) -> item.get("events").getL.asScala.map(DynamoMapper.toJsValue))
+        .filter(_._1.matchAllPatterns(patterns: _*))
+        .mapConcat(_._2.toList)
+        .map(_.validate[ExperimentVariantEvent].get)
+    )
   }
 
-  override def check(): F[Unit] = {
-    IzanamiLogger.debug(s"Dynamo check on $tableName")
-
+  override def check(): RIO[ExperimentVariantEventServiceModule, Unit] = {
     val request = new QueryRequest()
       .withTableName(tableName)
       .withKeyConditions(
@@ -205,12 +210,13 @@ class ExperimentVariantEventDynamoService[F[_]: Effect](client: DynamoClient,
         ).asJava
       )
       .withLimit(1)
-    convertToF[F](
+
+    Logger.debug(s"Dynamo check on $tableName") *>
+    ZIO.fromFuture { implicit ec =>
       DynamoDb
         .source(request)
         .withAttributes(DynamoAttributes.client(client))
         .runWith(Sink.head)
-        .map(_ => ())
-    )
+    }.unit
   }
 }

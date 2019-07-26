@@ -13,33 +13,6 @@ import play.api.libs.json.{JsValue, Reads}
 import scala.concurrent.Future
 
 object syntax {
-  import cats.effect.implicits._
-
-  implicit class FlowOps[-In, +Out, +Mat](flow: Flow[In, Out, Mat]) {
-
-    def mapAsyncF[F[_]: Effect, T](parallelism: Int)(f: Out => F[T]): Flow[In, T, Mat] = flow.mapAsync(parallelism) {
-      elt =>
-        f(elt).toIO.unsafeToFuture()
-    }
-
-    def mapAsyncUnorderedF[F[_]: Effect, T](parallelism: Int)(f: Out => F[T]): Flow[In, T, Mat] =
-      flow.mapAsyncUnordered(parallelism) { elt =>
-        f(elt).toIO.unsafeToFuture()
-      }
-  }
-
-  implicit class SourceOps[+In, +Mat](flow: Source[In, Mat]) {
-
-    def mapAsyncF[F[_]: Effect, T](parallelism: Int)(f: In => F[T]): Source[T, Mat] = flow.mapAsync(parallelism) {
-      elt =>
-        f(elt).toIO.unsafeToFuture()
-    }
-
-    def mapAsyncUnorderedF[F[_]: Effect, T](parallelism: Int)(f: In => F[T]): Source[T, Mat] =
-      flow.mapAsyncUnordered(parallelism) { elt =>
-        f(elt).toIO.unsafeToFuture()
-      }
-  }
 
   implicit class SourceKV(source: Source[(Key, JsValue), NotUsed]) {
     def readsKV[V](implicit reads: Reads[V]): Source[(Key, V), NotUsed] =

@@ -1,22 +1,22 @@
 package domains.script
 
-import akka.{Done, NotUsed}
+import akka.http.scaladsl.util.FastFuture
+import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import cats.data.EitherT
-import cats.effect.{Async, Effect}
-import domains.events.EventStore
-import domains.events.Events.{GlobalScriptCreated, IzanamiEvent}
-import domains.script.GlobalScript.GlobalScriptKey
-import domains.{ImportResult, Key}
+import domains.PlayModule
+import domains.events.{EventStore, EventStoreContext}
+import domains.script.Script.ScriptCache
+import domains.{AuthInfo, AuthInfoModule, ImportResult, Key}
 import env.Env
-import libs.functional.EitherTSyntax
-import libs.logs.IzanamiLogger
+import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.Result
+import store.Result.{AppErrors, ErrorMessage, IzanamiErrors}
 import store._
+import zio.blocking.Blocking
+import zio.{RIO, Task, ZIO}
 
-import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
+import store.Result.{DataShouldExists, IdMustBeTheSame}
 
 sealed trait Script
 final case class JavascriptScript(script: String) extends Script
@@ -40,24 +40,32 @@ object ScriptExecutionFailure {
 
 object Script {
 
-  type ScriptCache[F[_]] = CacheService[F, String]
+  type ScriptCache = CacheService[String]
 
   object ScriptCache {
-    def apply[F[_]](implicit s: ScriptCache[F]): ScriptCache[F] = s
+    def apply[F[_]](implicit s: ScriptCache): ScriptCache = s
   }
 
 }
 
+trait ScriptCacheModule {
+  def scriptCache: ScriptCache
+}
+
 case class ScriptLogs(logs: Seq[String] = Seq.empty)
 
-trait RunnableScript[F[_], S] {
-  def run(script: S, context: JsObject, env: Env): F[ScriptExecution]
+trait RunnableScriptContext extends ScriptCacheModule with Blocking with LoggerModule with PlayModule
+
+trait RunnableScript[S] {
+  def run(script: S, context: JsObject): RIO[RunnableScriptContext, ScriptExecution]
 }
 
 object syntax {
   implicit class RunnableScriptOps[S](script: S) {
-    def run[F[_]](context: JsObject, env: Env)(implicit runnableScript: RunnableScript[F, S]): F[ScriptExecution] =
-      runnableScript.run(script, context, env)
+    def run(context: JsObject)(
+        implicit runnableScript: RunnableScript[S]
+    ): RIO[RunnableScriptContext, ScriptExecution] =
+      runnableScript.run(script, context)
   }
 }
 
@@ -67,116 +75,116 @@ object GlobalScript {
   type GlobalScriptKey = Key
 }
 
-trait GlobalScriptService[F[_]] {
-  def create(id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]]
-  def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]]
-  def delete(id: GlobalScriptKey): F[Result[GlobalScript]]
-  def deleteAll(query: Query): F[Result[Done]]
-  def getById(id: GlobalScriptKey): F[Option[GlobalScript]]
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[GlobalScript]]
-  def findByQuery(query: Query): Source[(GlobalScriptKey, GlobalScript), NotUsed]
-  def count(query: Query): F[Long]
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+trait GlobalScriptDataStoreModule {
+  def globalScriptDataStore: JsonDataStore
 }
 
-trait CacheService[F[_], K] {
+trait GlobalScriptContext
+    extends LoggerModule
+    with DataStoreContext
+    with GlobalScriptDataStoreModule
+    with EventStoreContext
+    with RunnableScriptContext
+    with AuthInfoModule[GlobalScriptContext]
 
-  def get[T: ClassTag](id: K): F[Option[T]]
-
-  def set[T: ClassTag](id: K, value: T): F[Unit]
-
+object GlobalScriptDataStore extends JsonDataStoreHelper[GlobalScriptContext] {
+  override def accessStore = _.globalScriptDataStore
 }
 
 object GlobalScriptService {
 
-  val eventAdapter = Flow[IzanamiEvent].collect {
-    case GlobalScriptCreated(key, script, _, _) =>
-  }
-
-}
-
-class GlobalScriptServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
-    extends GlobalScriptService[F]
-    with EitherTSyntax[F] {
-
-  import ScriptInstances._
-  import libs.streams.syntax._
+  import cats.implicits._
+  import zio._
   import GlobalScript._
   import GlobalScriptInstances._
-  import cats.implicits._
-  import store.Result._
-  import libs.functional.syntax._
+  import libs.ziohelper.JsResults._
   import domains.events.Events._
 
-  override def create(id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]] = {
+  def create(id: GlobalScriptKey, data: GlobalScript): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
+    for {
+      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id)))
+      created  <- GlobalScriptDataStore.create(id, GlobalScriptInstances.format.writes(data))
+      apikey   <- jsResultToError(created.validate[GlobalScript])
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(GlobalScriptCreated(id, apikey, authInfo = authInfo))
+    } yield apikey
+
+  def update(oldId: GlobalScriptKey,
+             id: GlobalScriptKey,
+             data: GlobalScript): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
     // format: off
-    val r: EitherT[F, AppErrors, GlobalScript] = for {
-      created     <- jsonStore.create(id, GlobalScriptInstances.format.writes(data))   |> liftFEither
-      apikey      <- created.validate[GlobalScript]                           |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(GlobalScriptCreated(id, apikey))      |> liftF[AppErrors, Done]
+    for {
+      mayBeScript <- getById(oldId).refineToOrDie[IzanamiErrors]
+      oldValue    <- ZIO.fromOption(mayBeScript).mapError(_ => DataShouldExists(oldId))
+      updated     <- GlobalScriptDataStore.update(oldId, id, GlobalScriptInstances.format.writes(data))
+      apikey      <- jsResultToError(updated.validate[GlobalScript])
+      authInfo    <- AuthInfo.authInfo
+      _           <- EventStore.publish(GlobalScriptUpdated(id, oldValue, apikey, authInfo = authInfo))
     } yield apikey
     // format: on
-    r.value
-  }
 
-  override def update(oldId: GlobalScriptKey, id: GlobalScriptKey, data: GlobalScript): F[Result[GlobalScript]] = {
+  def delete(id: GlobalScriptKey): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
     // format: off
-    val r: EitherT[F, AppErrors, GlobalScript] = for {
-      oldValue    <- getById(oldId)                                                     |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, GlobalScriptInstances.format.writes(data))      |> liftFEither
-      apikey      <- updated.validate[GlobalScript]                                     |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(GlobalScriptUpdated(id, oldValue, apikey))      |> liftF[AppErrors, Done]
+    for {
+      deleted   <- GlobalScriptDataStore.delete(id)
+      apikey    <- jsResultToError(deleted.validate[GlobalScript])
+      authInfo  <- AuthInfo.authInfo
+      _         <- EventStore.publish(GlobalScriptDeleted(id, apikey, authInfo = authInfo))
     } yield apikey
     // format: on
-    r.value
-  }
 
-  override def delete(id: GlobalScriptKey): F[Result[GlobalScript]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, GlobalScript] = for {
-      deleted <- jsonStore.delete(id)                                   |> liftFEither
-      apikey  <- deleted.validate[GlobalScript]                         |> liftJsResult{ handleJsError }
-      _       <- eventStore.publish(GlobalScriptDeleted(id, apikey))    |> liftF[AppErrors, Done]
-    } yield apikey
-    // format: on
-    r.value
-  }
+  def deleteAll(query: Query): ZIO[GlobalScriptContext, IzanamiErrors, Unit] =
+    GlobalScriptDataStore.deleteAll(query)
 
-  override def deleteAll(query: Query): F[Result[Done]] =
-    jsonStore.deleteAll(query)
+  def getById(id: GlobalScriptKey): RIO[GlobalScriptContext, Option[GlobalScript]] =
+    for {
+      mayBeScript  <- GlobalScriptDataStore.getById(id)
+      parsedScript = mayBeScript.flatMap(_.validate[GlobalScript].asOpt)
+    } yield parsedScript
 
-  override def getById(id: GlobalScriptKey): F[Option[GlobalScript]] =
-    jsonStore.getById(id).map(_.flatMap(_.validate[GlobalScript].asOpt))
-
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[GlobalScript]] =
-    jsonStore
+  def findByQuery(query: Query,
+                  page: Int = 1,
+                  nbElementPerPage: Int = 15): RIO[GlobalScriptContext, PagingResult[GlobalScript]] =
+    GlobalScriptDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def findByQuery(query: Query): Source[(Key, GlobalScript), NotUsed] =
-    jsonStore.findByQuery(query).readsKV[GlobalScript]
-
-  override def count(query: Query): F[Long] =
-    jsonStore.count(query)
-
-  override def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import libs.streams.syntax._
-    import store.Result.AppErrors._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, GlobalScriptInstances.format.reads(json)) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          create(obj.id, obj) map { ImportResult.fromResult _ }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
+  def findByQuery(query: Query): RIO[GlobalScriptContext, Source[(GlobalScriptKey, GlobalScript), NotUsed]] =
+    GlobalScriptDataStore.findByQuery(query).map { s =>
+      s.map {
+        case (k, v) => (k, v.validate[GlobalScript].get)
       }
-      .fold(ImportResult()) { _ |+| _ }
-  }
+    }
 
-  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    IzanamiLogger.error(s"Error parsing json from database $err")
-    AppErrors.error("error.json.parsing")
+  def count(query: Query): RIO[GlobalScriptContext, Long] =
+    GlobalScriptDataStore.count(query)
+
+  def importData: RIO[GlobalScriptContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ZIO.runtime[GlobalScriptContext].map { runtime =>
+      import cats.implicits._
+      Flow[(String, JsValue)]
+        .map { case (s, json) => (s, json.validate[GlobalScript]) }
+        .mapAsync(4) {
+          case (_, JsSuccess(script, _)) =>
+            runtime.unsafeRunToFuture(
+              create(script.id, script).either.map { ImportResult.fromResult }
+            )
+          case (s, JsError(_)) => FastFuture.successful(ImportResult.error("json.parse.error", s))
+        }
+        .fold(ImportResult()) {
+          _ |+| _
+        }
+    }
+
+  val eventAdapter = Flow[IzanamiEvent].collect {
+    case GlobalScriptCreated(key, script, _, _, _) =>
   }
+}
+
+trait CacheService[K] {
+
+  def get[T: ClassTag](id: K): Task[Option[T]]
+
+  def set[T: ClassTag](id: K, value: T): Task[Unit]
+
 }
