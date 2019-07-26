@@ -3,7 +3,6 @@ package env
 import akka.actor.ActorSystem
 import com.codahale.metrics.MetricRegistry
 import controllers.AssetsFinder
-import domains.script.ScriptExecutionContext
 import libs.logs.IzanamiLogger
 import play.api.libs.ws.WSClient
 import play.api.{Environment, Logger, Mode}
@@ -45,7 +44,4 @@ case class Env(
   } else {
     izanamiConfig.baseURL
   }
-
-  implicit val scriptExecutionContext: ScriptExecutionContext =
-    ScriptExecutionContext(actorSystem)
 }

@@ -1,4 +1,8 @@
 .idea
+bin
+.project
+.settings
+.classpath
 target
 ./data2
 data/
@@ -16,3 +20,4 @@ leveldb/datas
 e2e
 .metals
 .bloop
+settings.json

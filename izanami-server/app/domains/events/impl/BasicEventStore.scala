@@ -1,21 +1,20 @@
 package domains.events.impl
 
 import akka.actor.{Actor, ActorSystem, Props}
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Source, SourceQueueWithComplete}
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.{Done, NotUsed}
-import cats.Applicative
 import domains.Domain.Domain
 import domains.events.EventLogger._
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import libs.streams.CacheableQueue
+import store.Result.IzanamiErrors
+import zio.{IO, Task}
 
-import scala.concurrent.Future
 import scala.util.Try
 
-class BasicEventStore[F[_]: Applicative](implicit system: ActorSystem) extends EventStore[F] {
+class BasicEventStore(implicit system: ActorSystem) extends EventStore {
 
   private implicit val mat: Materializer = ActorMaterializer()
 
@@ -24,10 +23,10 @@ class BasicEventStore[F[_]: Applicative](implicit system: ActorSystem) extends E
   private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
   system.actorOf(EventStreamActor.props(queue))
 
-  override def publish(event: IzanamiEvent): F[Done] = {
+  override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] = {
     //Already published
     system.eventStream.publish(event)
-    Applicative[F].pure(Done)
+    IO.succeed(Done)
   }
 
   override def events(domains: Seq[Domain],
@@ -43,9 +42,7 @@ class BasicEventStore[F[_]: Applicative](implicit system: ActorSystem) extends E
           .filter(eventMatch(patterns, domains))
     }
 
-  override def close() = {}
-
-  override def check(): F[Unit] = Applicative[F].pure(())
+  override def check(): Task[Unit] = IO.succeed(())
 }
 
 private[events] object EventStreamActor {

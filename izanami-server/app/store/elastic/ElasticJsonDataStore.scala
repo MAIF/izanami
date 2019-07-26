@@ -1,15 +1,9 @@
 package store.elastic
 
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.temporal.{ChronoUnit, TemporalUnit}
-import java.util.Date
-import java.util.concurrent.TimeUnit
-
 import akka.{Done, NotUsed}
 import akka.http.scaladsl.util.FastFuture
 import domains.Key
-import elastic.api.{Bulk, BulkOpDetail, BulkOpType, Elastic, EsException, GetResponse, IndexResponse}
+import elastic.api.{Bulk, BulkOpDetail, BulkOpType, Elastic, EsException, GetResponse}
 import env.{DbDomainConfig, ElasticConfig}
 import play.api.libs.json._
 import store._
@@ -18,20 +12,19 @@ import _root_.elastic.codec.PlayJson._
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
-import cats.data.EitherT
-import cats.effect.Effect
-import libs.functional.EitherTSyntax
 import libs.logs.IzanamiLogger
-import store.Result.{AppErrors, ErrorMessage, Result}
+import store.Result.{AppErrors, IzanamiErrors}
 import store.elastic.ElasticJsonDataStore.EsDocument
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.{DurationDouble, FiniteDuration}
+import scala.concurrent.ExecutionContext
+import libs.logs.Logger
+import store.Result.DataShouldExists
+import store.Result.DataShouldNotExists
 
 object ElasticJsonDataStore {
-  def apply[F[_]: Effect](elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
+  def apply(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
       implicit actorSystem: ActorSystem
-  ): ElasticJsonDataStore[F] =
+  ): ElasticJsonDataStore =
     new ElasticJsonDataStore(elastic, elasticConfig, dbDomainConfig)
 
   case class EsDocument(key: Key, value: JsValue)
@@ -46,20 +39,13 @@ object ElasticJsonDataStore {
 
     implicit val format = Format(reads, writes)
   }
-
 }
 
-class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
-                                         elasticConfig: ElasticConfig,
-                                         dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem)
-    extends JsonDataStore[F]
-    with EitherTSyntax[F] {
+class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
+    implicit actorSystem: ActorSystem
+) extends JsonDataStore {
 
-  import cats.implicits._
-  import libs.effects._
-  import libs.streams.syntax._
-  import libs.functional.syntax._
-  import actorSystem.dispatcher
+  import zio._
   import store.elastic.ElasticJsonDataStore.EsDocument._
 
   private implicit val mat: Materializer = ActorMaterializer()
@@ -69,124 +55,105 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
 
   private val mapping =
     s"""
-      |{
-      |   "settings" : { "number_of_shards" : 1 },
-      |   "mappings" : {
-      |     "$esType" : {
-      |       "properties" : {
-      |         "key" : { "type" : "keyword" },
-      |         "value" : { "type" : "object" },
-      |         "deathDate": { "type": "date", "format" : "date_hour_minute_second_millis||date_hour_minute_second" },
-      |         "lastUpdate": { "type": "date", "format" : "date_hour_minute_second_millis||date_hour_minute_second" }
-      |       }
-      |     }
-      | }
-      |}
+       |{
+       |   "settings" : { "number_of_shards" : 1 },
+       |   "mappings" : {
+       |     "$esType" : {
+       |       "properties" : {
+       |         "key" : { "type" : "keyword" },
+       |         "value" : { "type" : "object" },
+       |         "deathDate": { "type": "date", "format" : "date_hour_minute_second_millis||date_hour_minute_second" },
+       |         "lastUpdate": { "type": "date", "format" : "date_hour_minute_second_millis||date_hour_minute_second" }
+       |       }
+       |     }
+       | }
+       |}
     """.stripMargin
 
-  IzanamiLogger.info(s"Initializing index $esIndex with type $esType")
-
-  Await.result(elastic.verifyIndex(esIndex).flatMap {
-    case true =>
-      FastFuture.successful(Done)
-    case _ =>
-      elastic.createIndex(esIndex, Json.parse(mapping))
-  }, 3.seconds)
+  override def start: RIO[DataStoreContext, Unit] =
+    Logger.info(s"Initializing index $esIndex with type $esType") *>
+    Task.fromFuture { implicit ec =>
+      elastic.verifyIndex(esIndex).flatMap {
+        case true =>
+          FastFuture.successful(Done)
+        case _ =>
+          elastic.createIndex(esIndex, Json.parse(mapping))
+      }
+    }.unit
 
   private val index = elastic.index(esIndex / esType)
 
-  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
+  override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     genCreate(id, data)
 
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+  override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     genUpdate(oldId, id, data)
 
-  private def genCreate(id: Key, data: JsValue): F[Result[JsValue]] =
-    index
-      .index[EsDocument](EsDocument(id, data),
-                         id = Some(id.key),
-                         create = true,
-                         refresh = elasticConfig.automaticRefresh)
-      .map { _ =>
-        Result.ok(data)
-      }
-      .recover {
-        case EsException(json, 409, _) =>
-          Result.errors(ErrorMessage("error.data.exists", id.key))
-      }
-      .toF
-
-  private def genUpdate(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
-    if (oldId == id) {
-      val res = for {
-        _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
-              AppErrors.error(s"error.data.missing", id.key)
-            }
-        _ <- index
-              .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
-              .toF
-              .map { _ =>
-                Result.ok(data)
-              } |> liftFEither[AppErrors, JsValue]
-      } yield data
-      res.value
-    } else {
-      val res: EitherT[F, AppErrors, JsValue] = for {
-        _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
-              AppErrors.error(s"error.data.missing", id.key)
-            }
-        _ <- delete(oldId) |> liftFEither[AppErrors, JsValue]
-        _ <- create(id, data) |> liftFEither[AppErrors, JsValue]
-      } yield data
-      res.value
-    }
-//
-//
-//    getById(oldId).flatMap {
-//    case Some(_) =>
-//      val r: F[Result[JsValue]] = if (oldId == id) {
-//        index
-//          .index[EsDocument](EsDocument(id, data), id = Some(id.key), refresh = elasticConfig.automaticRefresh)
-//          .toF
-//          .map { _ =>
-//            Result.ok(data)
-//          }
-//      } else {
-//        delete(oldId) *> genCreate(id, data)
-//      }
-//      r
-//    case None =>
-//      Result.errors(ErrorMessage("error.data.missing", id.key)).pure[F]
-//  }
-
-  override def delete(id: Key): F[Result[JsValue]] =
-    getById(id)
-      .flatMap {
-        case Some(value) =>
-          index.delete(id.key, refresh = elasticConfig.automaticRefresh).toF.map { _ =>
-            Result.ok(value)
+  private def genCreate(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
+    IO.fromFuture { implicit ec =>
+        index
+          .index[EsDocument](EsDocument(id, data),
+                             id = Some(id.key),
+                             create = true,
+                             refresh = elasticConfig.automaticRefresh)
+          .map { _ =>
+            data
           }
-        case None =>
-          Result.error[JsValue](s"error.data.missing").pure[F]
+      }
+      .catchAll {
+        case EsException(_, 409, _) => IO.fail(DataShouldNotExists(id))
       }
 
-  override def getById(id: Key): F[Option[JsValue]] = {
+  private def genUpdate(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
+    if (oldId == id) {
+      // format: off
+      for {
+        mayBe <- getById(id).refineToOrDie[IzanamiErrors]
+        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+        _     <- IO.fromFuture { implicit ec => index.index[EsDocument](EsDocument(id, data),
+                                                                        id = Some(id.key),
+                                                                        refresh = elasticConfig.automaticRefresh)
+                  }
+                  .map { _ => data }
+                  .refineToOrDie[IzanamiErrors]
+      } yield data
+      // format: on
+    } else {
+      for {
+        mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
+        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+        _     <- delete(oldId)
+        _     <- create(id, data)
+      } yield data
+    }
+
+  override def delete(id: Key): IO[IzanamiErrors, JsValue] =
+    for {
+      mayBe <- getById(id).refineToOrDie[IzanamiErrors]
+      value <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(id))
+      _ <- IO
+            .fromFuture(implicit ec => index.delete(id.key, refresh = elasticConfig.automaticRefresh))
+            .refineToOrDie[IzanamiErrors]
+    } yield value
+
+  override def getById(id: Key): Task[Option[JsValue]] = {
     import cats.implicits._
-    index
-      .get(id.key)
-      .map {
-        case r @ GetResponse(_, _, _, _, true, _) =>
-          r.as[EsDocument]
-            .some
-            .map(_.value)
-        case _ =>
-          none[JsValue]
-      }
-      .recover {
-        case EsException(_, statusCode, _) if statusCode == 404 =>
-          none[JsValue]
-      }
-      .toF
+    IO.fromFuture { implicit ec =>
+      index
+        .get(id.key)
+        .map {
+          case r @ GetResponse(_, _, _, _, true, _) =>
+            r.as[EsDocument]
+              .some
+              .map(_.value)
+          case _ =>
+            none[JsValue]
+        }
+        .recover {
+          case EsException(_, statusCode, _) if statusCode == 404 =>
+            none[JsValue]
+        }
+    }
   }
 
   private def buildSearchQuery(query: Query): JsObject = {
@@ -216,24 +183,29 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
     )
   }
 
-  override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+  override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] = {
     val query = buildSearchQuery(q) ++ Json.obj(
       "from" -> (page - 1) * nbElementPerPage,
       "size" -> nbElementPerPage
     )
-    IzanamiLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
-    index.search(query).toF.map { s =>
-      val count   = s.hits.total
-      val results = s.hitsAs[EsDocument].map(_.value).toList
-      DefaultPagingResult(results, page, nbElementPerPage, count)
+    Logger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}") *>
+    Task
+      .fromFuture { implicit ec =>
+        index.search(query)
+      }
+      .map { s =>
+        val count   = s.hits.total
+        val results = s.hitsAs[EsDocument].map(_.value).toList
+        DefaultPagingResult(results, page, nbElementPerPage, count)
+      }
+  }
+
+  override def findByQuery(query: Query): Task[Source[(Key, JsValue), NotUsed]] =
+    Task.fromFuture { implicit ec =>
+      FastFuture.successful(findByQuerySource(query).map { case (k, v) => (Key(k), v) })
     }
-  }
 
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = findByQuerySource(query).map {
-    case (k, v) => (Key(k), v)
-  }
-
-  private def findByQuerySource(q: Query): Source[(String, JsValue), NotUsed] = {
+  private def findByQuerySource(q: Query)(implicit ec: ExecutionContext): Source[(String, JsValue), NotUsed] = {
     val query = buildSearchQuery(q)
     IzanamiLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
     index
@@ -243,29 +215,35 @@ class ElasticJsonDataStore[F[_]: Effect](elastic: Elastic[JsValue],
       }
   }
 
-  override def deleteAll(query: Query): F[Result[Done]] =
-    findByQuerySource(query)
-      .map {
-        case (id, _) =>
-          Bulk[EsDocument](BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))), None)
+  override def deleteAll(query: Query): IO[IzanamiErrors, Unit] =
+    IO.fromFuture { implicit ec =>
+        findByQuerySource(query)
+          .map {
+            case (id, _) =>
+              Bulk[EsDocument](BulkOpType(delete = Some(BulkOpDetail(None, None, Some(id)))), None)
+          }
+          .via(index.bulkFlow[EsDocument](50))
+          .runWith(Sink.ignore)
       }
-      .via(index.bulkFlow(50))
-      .runWith(Sink.ignore)
-      .toF
       .flatMap { _ =>
         if (elasticConfig.automaticRefresh) {
-          elastic.refresh(esIndex).toF.map(_ => Result.ok(Done))
+          IO.fromFuture { implicit ec =>
+            elastic.refresh(esIndex)
+          }.unit
         } else {
-          Effect[F].pure(Result.ok(Done))
+          IO.succeed(())
         }
       }
+      .refineToOrDie[IzanamiErrors]
 
-  override def count(q: Query): F[Long] = {
+  override def count(q: Query): Task[Long] = {
     val query = buildSearchQuery(q) ++ Json.obj(
       "size" -> 0
     )
-    index.search(query).toF.map { s =>
-      s.hits.total
+    Task.fromFuture { implicit ec =>
+      index.search(query).map { s =>
+        s.hits.total
+      }
     }
   }
 

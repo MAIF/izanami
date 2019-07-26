@@ -2,22 +2,22 @@ package domains.feature
 
 import java.time.LocalDateTime
 
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
-import akka.{Done, NotUsed}
-import cats.effect.Effect
-import domains.events.EventStore
+import akka.NotUsed
+import domains.events.{EventStore, EventStoreContext}
 import domains.feature.Feature.FeatureKey
-import domains.script.Script.ScriptCache
-import domains.script.{GlobalScriptService, Script}
+import domains.feature.FeatureInstances.isActive
+import domains.script.{GlobalScriptContext, RunnableScriptContext, Script, ScriptCacheModule}
 import domains.{ImportResult, Key}
 import env.Env
-import libs.functional.EitherTSyntax
-import libs.logs.IzanamiLogger
+import libs.logs.LoggerModule
 import play.api.libs.json._
 import store.Result._
 import store._
-
-import scala.concurrent.ExecutionContext
+import zio.{RIO, ZIO}
+import domains.AuthInfoModule
+import domains.AuthInfo
 
 sealed trait Strategy
 
@@ -29,68 +29,56 @@ sealed trait Feature {
 
   def toJson(active: Boolean): JsValue =
     FeatureInstances.format.writes(this).as[JsObject] ++ Json.obj("active" -> active)
-
 }
 
 object Feature {
   type FeatureKey = Key
 
-  def withActive[F[_]: Effect](context: JsObject, env: Env)(
-      implicit ec: ExecutionContext,
-      isActive: IsActive[F, Feature]
-  ): Flow[Feature, (Boolean, Feature), NotUsed] = {
-    import cats.implicits._
-    Flow[Feature]
-      .mapAsyncUnordered(2) { feature =>
-        import cats.effect.implicits._
-        isActive
-          .isActive(feature, context, env)
-          .map(
-            _.map(act => (act && feature.enabled, feature))
-              .getOrElse((false, feature))
-          )
-          .toIO
-          .unsafeToFuture()
-          .recover {
-            case _ => (false, feature)
-          }
-      }
-  }
+  def withActive(context: JsObject): RIO[IsActiveContext, Flow[Feature, (Boolean, Feature), NotUsed]] =
+    for {
+      runtime <- ZIO.runtime[IsActiveContext]
+      res <- RIO.access[IsActiveContext] { ctx =>
+              Flow[Feature]
+                .mapAsyncUnordered(2) { feature =>
+                  val testIfisActive: RIO[IsActiveContext, (Boolean, Feature)] =
+                    isActive(feature, context).either
+                      .map {
+                        _.map(act => (act && feature.enabled, feature))
+                          .getOrElse((false, feature))
+                      }
+                  runtime.unsafeRunToFuture(testIfisActive)
+                }
+            }
+    } yield res
 
-  def toGraph[F[_]: Effect](context: JsObject, env: Env)(
-      implicit ec: ExecutionContext,
-      isActive: IsActive[F, Feature]
-  ): Flow[Feature, JsObject, NotUsed] =
-    Flow[Feature]
-      .via(withActive(context, env))
-      .map {
-        case (active, f) => FeatureInstances.graphWrites(active).writes(f)
-      }
-      .fold(Json.obj()) { (acc, js) =>
-        acc.deepMerge(js.as[JsObject])
-      }
+  def toGraph(context: JsObject): RIO[IsActiveContext, Flow[Feature, JsObject, NotUsed]] =
+    withActive(context).map { flow =>
+      Flow[Feature]
+        .via(flow)
+        .map {
+          case (active, f) => FeatureInstances.graphWrites(active).writes(f)
+        }
+        .fold(Json.obj()) { (acc, js) =>
+          acc.deepMerge(js.as[JsObject])
+        }
+    }
 
-  def flat[F[_]: Effect](
-      context: JsObject,
-      env: Env
-  )(implicit ec: ExecutionContext, isActive: IsActive[F, Feature]): Flow[Feature, JsValue, NotUsed] =
-    Flow[Feature]
-      .via(withActive(context, env))
-      .map {
-        case (active, f) => f.toJson(active)
-      }
-      .fold(Seq.empty[JsValue]) { _ :+ _ }
-      .map(JsArray(_))
-
+  def flat(context: JsObject): RIO[IsActiveContext, Flow[Feature, JsValue, NotUsed]] =
+    withActive(context).map { flow =>
+      Flow[Feature]
+        .via(flow)
+        .map {
+          case (active, f) => f.toJson(active)
+        }
+        .fold(Seq.empty[JsValue]) { _ :+ _ }
+        .map(JsArray(_))
+    }
 }
 
-trait IsActive[F[_], A <: Feature] {
-  def isActive(feature: A, context: JsObject, env: Env): F[Result[Boolean]]
-}
+trait IsActiveContext extends ScriptCacheModule with GlobalScriptContext with RunnableScriptContext
 
-object IsActive {
-  type FeatureActive[F[_]] = IsActive[F, Feature]
-  def apply[F[_]](implicit A: IsActive[F, Feature]): IsActive[F, Feature] = A
+trait IsActive[A <: Feature] {
+  def isActive(feature: A, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean]
 }
 
 case class DefaultFeature(id: FeatureKey, enabled: Boolean, parameters: JsValue = JsNull)             extends Feature
@@ -109,182 +97,182 @@ object FeatureType {
   val PERCENTAGE    = "PERCENTAGE"
 }
 
-trait FeatureService[F[_]] {
-  def create(id: Key, data: Feature): F[Result[Feature]]
-  def update(oldId: Key, id: Key, data: Feature): F[Result[Feature]]
-  def delete(id: Key): F[Result[Feature]]
-  def deleteAll(query: Query): F[Result[Done]]
-  def getById(id: Key): F[Option[Feature]]
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Feature]]
-  def findByQuery(query: Query): Source[(FeatureKey, Feature), NotUsed]
-  def count(query: Query): F[Long]
-  def findByQueryActive(env: Env,
-                        context: JsObject,
-                        query: Query,
-                        page: Int,
-                        nbElementPerPage: Int): F[PagingResult[(Feature, Boolean)]]
-  def findByQueryActive(env: Env, context: JsObject, query: Query): Source[(FeatureKey, Feature, Boolean), NotUsed]
-
-  def getByIdActive(env: Env, context: JsObject, id: FeatureKey): F[Option[(Feature, Boolean)]]
-
-  def getFeatureTree(query: Query, flat: Boolean, context: JsObject, env: Env)(
-      implicit ec: ExecutionContext
-  ): Source[JsValue, NotUsed]
-
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+trait FeatureDataStoreModule {
+  def featureDataStore: JsonDataStore
 }
 
-class FeatureServiceImpl[F[_]: Effect: ScriptCache](jsonStore: JsonDataStore[F],
-                                                    eventStore: EventStore[F],
-                                                    globalScriptStore: GlobalScriptService[F])
-    extends FeatureService[F]
-    with EitherTSyntax[F] {
+trait FeatureContext
+    extends FeatureDataStoreModule
+    with LoggerModule
+    with DataStoreContext
+    with EventStoreContext
+    with GlobalScriptContext
+    with ScriptCacheModule
+    with IsActiveContext
+    with AuthInfoModule[FeatureContext]
 
-  import FeatureInstances._
-  import cats.data._
-  import cats.syntax._
+object FeatureDataStore extends JsonDataStoreHelper[FeatureContext] {
+  override def accessStore = _.featureDataStore
+}
+
+object FeatureService {
   import cats.implicits._
+  import zio._
+  import zio.interop.catz._
+  import cats.implicits._
+  import libs.ziohelper.JsResults._
+  import FeatureInstances._
   import domains.events.Events._
-  import libs.functional.syntax._
-  import store.Result._
 
-  implicit val gs = globalScriptStore
-
-  override def create(id: FeatureKey, data: Feature): F[Result[Feature]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Feature] = for {
-      created <- jsonStore.create(id, format.writes(data))        |> liftFEither
-      feature <- created.validate[Feature]                        |> liftJsResult{ handleJsError }
-      _       <- eventStore.publish(FeatureCreated(id, feature))  |> liftF[AppErrors, Done]
+  def create(id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
+    for {
+      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id)))
+      created  <- FeatureDataStore.create(id, format.writes(data))
+      feature  <- jsResultToError(created.validate[Feature])
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(FeatureCreated(id, feature, authInfo = authInfo))
     } yield feature
-    // format: on
-    r.value
-  }
 
-  override def update(oldId: FeatureKey, id: FeatureKey, data: Feature): F[Result[Feature]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Feature] = for {
-      oldValue <- getById(oldId)                                    |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated  <- jsonStore.update(oldId, id, format.writes(data))  |> liftFEither
-      feature  <- updated.validate[Feature]                         |> liftJsResult{ handleJsError }
-      _        <- eventStore.publish(FeatureUpdated(id, oldValue, feature)) |> liftF[AppErrors, Done]
+  def update(oldId: FeatureKey, id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
+    for {
+      mayBeFeature <- getById(oldId).refineToOrDie[IzanamiErrors]
+      oldValue     <- ZIO.fromOption(mayBeFeature).mapError(_ => DataShouldExists(oldId))
+      updated      <- FeatureDataStore.update(oldId, id, format.writes(data))
+      feature      <- jsResultToError(updated.validate[Feature])
+      authInfo     <- AuthInfo.authInfo
+      _            <- EventStore.publish(FeatureUpdated(id, oldValue, feature, authInfo = authInfo))
     } yield feature
-    // format: on
-    r.value
-  }
 
-  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    IzanamiLogger.error(s"Error parsing json from database $err")
-    AppErrors.error("error.json.parsing")
-  }
-
-  override def delete(id: FeatureKey): F[Result[Feature]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Feature] = for {
-      deleted <- jsonStore.delete(id)                            |> liftFEither
-      feature <- deleted.validate[Feature]                       |> liftJsResult{ handleJsError }
-      _       <- eventStore.publish(FeatureDeleted(id, feature)) |> liftF[AppErrors, Done]
+  def delete(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Feature] =
+    for {
+      deleted  <- FeatureDataStore.delete(id)
+      feature  <- jsResultToError(deleted.validate[Feature])
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(FeatureDeleted(id, feature, authInfo = authInfo))
     } yield feature
-    // format: on
-    r.value
-  }
 
-  override def deleteAll(query: Query): F[Result[Done]] =
-    jsonStore.deleteAll(query)
+  def deleteAll(query: Query): ZIO[FeatureContext, IzanamiErrors, Unit] =
+    FeatureDataStore.deleteAll(query)
 
-  override def getById(id: FeatureKey): F[Option[Feature]] =
-    jsonStore
-      .getById(id)
-      .map(_.flatMap(_.validate[Feature].asOpt))
+  def getById(id: FeatureKey): RIO[FeatureContext, Option[Feature]] =
+    for {
+      mayBeConfig  <- FeatureDataStore.getById(id)
+      parsedConfig = mayBeConfig.flatMap(_.validate[Feature].asOpt)
+    } yield parsedConfig
 
-  override def getByIdActive(env: Env, context: JsObject, id: FeatureKey): F[Option[(Feature, Boolean)]] =
-    getById(id).flatMap { f =>
-      f.traverse { f =>
-        isActive.isActive(f, context, env).map { active =>
-          (f, active.getOrElse(false))
-        }
-      }
-    }
+  def getByIdActive(context: JsObject, id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Option[(Feature, Boolean)]] =
+    for {
+      mayBeFeature <- getById(id).refineToOrDie[IzanamiErrors]
+      result <- mayBeFeature
+                 .traverse { f =>
+                   isActive(f, context)
+                     .map { active =>
+                       (f, active)
+                     }
+                     .catchSome {
+                       case _: AppErrors => IO.succeed((f, false))
+                     }
+                 }
+    } yield result
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Feature]] =
-    jsonStore
+  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[FeatureContext, PagingResult[Feature]] =
+    FeatureDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def findByQueryActive(
-      env: Env,
+  def findByQueryActive(
       context: JsObject,
       query: Query,
       page: Int,
       nbElementPerPage: Int
-  ): F[PagingResult[(Feature, Boolean)]] =
-    findByQuery(query, page, nbElementPerPage)
-      .flatMap { p =>
-        p.results.toList
-          .traverse { f =>
-            isActive
-              .isActive(f, context, env)
-              .map { active =>
-                (f, active.getOrElse(false))
-              }
-          }
-          .map { r =>
-            DefaultPagingResult(r, p.page, p.pageSize, p.count)
-          }
-      }
+  ): ZIO[FeatureContext, IzanamiErrors, PagingResult[(Feature, Boolean)]] =
+    for {
+      pages <- findByQuery(query, page, nbElementPerPage).refineToOrDie[IzanamiErrors]
+      pagesWithActive <- pages.results.toList
+                          .traverse { f =>
+                            isActive(f, context)
+                              .map { active =>
+                                (f, active)
+                              }
+                              .catchSome {
+                                case _: AppErrors => IO.succeed((f, false))
+                              }
+                          }
+    } yield DefaultPagingResult(pagesWithActive, pages.page, pages.pageSize, pages.count)
 
-  override def findByQuery(query: Query): Source[(FeatureKey, Feature), NotUsed] =
-    jsonStore.findByQuery(query).map {
-      case (k, v) => (k, v.validate[Feature].get)
-    }
-
-  override def findByQueryActive(env: Env,
-                                 context: JsObject,
-                                 query: Query): Source[(FeatureKey, Feature, Boolean), NotUsed] =
-    jsonStore
-      .findByQuery(query)
-      .map {
+  def findByQuery(query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature), NotUsed]] =
+    FeatureDataStore.findByQuery(query).map { s =>
+      s.map {
         case (k, v) => (k, v.validate[Feature].get)
       }
-      .mapAsyncUnordered(4) {
-        case (k, f) =>
-          import cats.effect.implicits._
-          isActive
-            .isActive(f, context, env)
-            .map { active =>
-              (k, f, active.getOrElse(false))
+    }
+
+  def findByQueryActive(context: JsObject,
+                        query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
+    for {
+      runtime <- ZIO.runtime[FeatureContext]
+      res <- ZIO.accessM[FeatureContext] { ctx =>
+              val value: RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] = FeatureDataStore
+                .findByQuery(query)
+                .map { source =>
+                  source
+                    .map {
+                      case (k, v) => (k, v.validate[Feature].get)
+                    }
+                    .mapAsyncUnordered(4) {
+                      case (k, f) =>
+                        val testIfisActive: RIO[IsActiveContext, (FeatureKey, Feature, Boolean)] =
+                          isActive(f, context)
+                            .map { active =>
+                              (k, f, active)
+                            }
+                            .either
+                            .map {
+                              _.getOrElse((k, f, false))
+                            }
+                        runtime.unsafeRunToFuture(testIfisActive)
+                    }
+                }
+              value
             }
-            .toIO
-            .unsafeToFuture()
-      }
+    } yield res
 
-  override def count(query: Query): F[Long] =
-    jsonStore.count(query)
+  def count(query: Query): RIO[FeatureContext, Long] =
+    FeatureDataStore.count(query)
 
-  override def getFeatureTree(query: Query, flat: Boolean, context: JsObject, env: Env)(
-      implicit ec: ExecutionContext
-  ): Source[JsValue, NotUsed] =
-    findByQuery(query).map(_._2).via(tree(flat)(context, env))
+  def getFeatureTree(query: Query, flat: Boolean, context: JsObject): RIO[FeatureContext, Source[JsValue, NotUsed]] =
+    for {
+      s    <- findByQuery(query)
+      flow <- tree(flat)(context)
+    } yield s.map(_._2).via(flow)
 
-  override def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import libs.streams.syntax._
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[Feature]) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          create(obj.id, obj).map(ImportResult.fromResult _)
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
+  def importData: RIO[FeatureContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ZIO.runtime[FeatureContext].map { runtime =>
+      import cats.implicits._
+      Flow[(String, JsValue)]
+        .map { case (s, json) => (s, json.validate[Feature]) }
+        .mapAsync(4) {
+          case (_, JsSuccess(obj, _)) =>
+            runtime.unsafeRunToFuture(
+              create(obj.id, obj).either
+                .map { ImportResult.fromResult }
+            )
+          case (s, JsError(_)) => FastFuture.successful(ImportResult.error("json.parse.error", s))
+        }
+        .fold(ImportResult()) {
+          _ |+| _
+        }
+    }
 
   private def tree(
       flatRepr: Boolean
-  )(context: JsObject, env: Env)(implicit ec: ExecutionContext,
-                                 isActive: IsActive[F, Feature]): Flow[Feature, JsValue, NotUsed] =
-    if (flatRepr) Feature.flat(context, env)
-    else Feature.toGraph(context, env)
+  )(context: JsObject): RIO[FeatureContext, Flow[Feature, JsValue, NotUsed]] =
+    for {
+      runtime <- ZIO.runtime[FeatureContext]
+      res <- ZIO.accessM[FeatureContext] { _ =>
+              if (flatRepr) Feature.flat(context)
+              else Feature.toGraph(context)
+            }
+    } yield res
 
 }

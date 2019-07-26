@@ -1,28 +1,27 @@
 package store.mongo
 
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
-import cats.data.EitherT
-import cats.effect.Effect
 import domains.Key
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
 import libs.logs.IzanamiLogger
-import play.api.libs.json.{JsBoolean, JsObject, JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.akkastream._
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference, WriteConcern}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.Result.{AppErrors, ErrorMessage, Result}
+import store.Result.{AppErrors, IzanamiErrors}
 import store._
-import libs.functional.EitherTSyntax
 
-import scala.concurrent.duration.DurationLong
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
+import libs.logs.Logger
+import store.Result.DataShouldExists
+import store.Result.DataShouldNotExists
 
 case class MongoDoc(id: Key, data: JsValue)
 
@@ -31,24 +30,17 @@ object MongoDoc {
 }
 
 object MongoJsonDataStore {
-  def apply[F[_]: Effect](mongoApi: ReactiveMongoApi,
-                          config: DbDomainConfig)(implicit actorSystem: ActorSystem): MongoJsonDataStore[F] =
-    new MongoJsonDataStore[F](config.conf.namespace, mongoApi)
+  def apply(mongoApi: ReactiveMongoApi, config: DbDomainConfig)(implicit actorSystem: ActorSystem): MongoJsonDataStore =
+    new MongoJsonDataStore(config.conf.namespace, mongoApi)
 }
 
-class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMongoApi)(implicit actorSystem: ActorSystem)
-    extends JsonDataStore[F]
-    with EitherTSyntax[F] {
+class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit actorSystem: ActorSystem)
+    extends JsonDataStore {
 
-  import cats.implicits._
-  import libs.effects._
-  import libs.streams.syntax._
-  import libs.functional.syntax._
+  import zio._
   import actorSystem.dispatcher
 
   private val collectionName = namespace.replaceAll(":", "_")
-
-  IzanamiLogger.debug(s"Initializing mongo collection $collectionName")
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
   private implicit val mat: Materializer      = ActorMaterializer()
@@ -58,140 +50,165 @@ class MongoJsonDataStore[F[_]: Effect](namespace: String, mongoApi: ReactiveMong
   private def initIndexes(): Future[Unit] =
     MongoUtils.initIndexes(collectionName, indexesDefinition)
 
-  Await.result(initIndexes(), 20.second)
+  override def start: RIO[DataStoreContext, Unit] =
+    Logger.debug(s"Initializing mongo collection $collectionName") *>
+    Task.fromFuture { implicit ec =>
+      initIndexes()
+    }
 
   private def storeCollection = mongoApi.database.map(_.collection[JSONCollection](collectionName))
-
-  override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
-    IzanamiLogger.debug(s"Creating $id => $data")
-    storeCollection.toF.flatMap { implicit coll =>
-      getByIdRaw(id).flatMap {
-        case Some(_) =>
-          Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
-        case None =>
-          coll
-            .insert(false, WriteConcern.Acknowledged)
-            .one(MongoDoc(id, data))
-            .map { _ =>
-              Result.ok(data)
-            }
-            .toF
-      }
-    }
+  private def storeCollectionT: Task[JSONCollection] = Task.fromFuture { implicit ec =>
+    mongoApi.database.map(_.collection[JSONCollection](collectionName))
   }
+  private def storeCollectionIO: IO[IzanamiErrors, JSONCollection] = storeCollectionT.refineToOrDie[IzanamiErrors]
 
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
-    storeCollection.toF.flatMap { implicit collection =>
+  override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
+    for {
+      _     <- Logger.debug(s"Creating $id => $data")
+      coll  <- storeCollectionIO
+      mayBe <- getByIdRaw(id)(coll).refineToOrDie[IzanamiErrors]
+      _     <- IO.fromOption(mayBe).flip.mapError(_ => DataShouldNotExists(id))
+      res <- IO
+              .fromFuture { implicit ec =>
+                coll
+                  .insert(ordered = false, WriteConcern.Acknowledged)
+                  .one(MongoDoc(id, data))
+                  .map { _ =>
+                    data
+                  }
+              }
+              .refineToOrDie[IzanamiErrors]
+    } yield res
+
+  override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
+    storeCollectionIO.flatMap { implicit coll =>
       if (oldId == id) {
-        val res = for {
-          _ <- getByIdRaw(oldId) |> liftFOption[AppErrors, JsValue] {
-                AppErrors.error(s"error.data.missing", id.key)
-              }
-          _ <- updateRaw(id, data) |> liftFEither[AppErrors, JsValue]
+        for {
+          mayBe <- getByIdRaw(oldId).refineToOrDie[IzanamiErrors]
+          _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+          _     <- updateRaw(id, data)
         } yield data
-        res.value
       } else {
-        val res: EitherT[F, AppErrors, JsValue] = for {
-          _ <- getByIdRaw(oldId) |> liftFOption[AppErrors, JsValue] {
-                AppErrors.error(s"error.data.missing", id.key)
-              }
-          _ <- deleteRaw(oldId) |> liftFEither[AppErrors, Unit]
-          _ <- createRaw(id, data) |> liftFEither[AppErrors, JsValue]
+        for {
+          mayBe <- getByIdRaw(oldId).refineToOrDie[IzanamiErrors]
+          _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+          _     <- deleteRaw(oldId)
+          _     <- createRaw(id, data)
         } yield data
-        res.value
       }
     }
 
-  override def delete(id: Key): F[Result[JsValue]] =
-    storeCollection.toF.flatMap { implicit collection: JSONCollection =>
-      getByIdRaw(id).flatMap {
-        case Some(data) => deleteRaw(id).map(_.map(_ => data))
-        case None       => Result.error[JsValue](s"error.data.missing").pure[F]
+  override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
+    storeCollectionIO.flatMap { implicit collection: JSONCollection =>
+      getByIdRaw(id).refineToOrDie[IzanamiErrors].flatMap {
+        case Some(data) => deleteRaw(id).map(_ => data)
+        case None       => IO.fail(DataShouldExists(id))
       }
     }
 
-  private def deleteRaw(id: Key)(implicit collection: JSONCollection): F[Result[Unit]] =
-    collection.delete.one(Json.obj("id" -> id.key)).toF.map(_ => Result.ok(()))
+  private def deleteRaw(id: Key)(implicit collection: JSONCollection): ZIO[DataStoreContext, IzanamiErrors, Unit] =
+    IO.fromFuture { implicit ec =>
+        collection.delete.one(Json.obj("id" -> id.key))
+      }
+      .refineToOrDie[IzanamiErrors]
+      .map(_ => ())
 
-  private def updateRaw(id: Key, data: JsValue)(implicit collection: JSONCollection): F[Result[JsValue]] =
-    collection.update.one(Json.obj("id" -> id.key), MongoDoc(id, data), upsert = true).toF.map(_ => Result.ok(data))
+  private def updateRaw(id: Key, data: JsValue)(
+      implicit collection: JSONCollection
+  ): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
+    IO.fromFuture { implicit ec =>
+        collection.update.one(Json.obj("id" -> id.key), MongoDoc(id, data), upsert = true)
+      }
+      .refineToOrDie[IzanamiErrors]
+      .map(_ => data)
 
-  private def createRaw(id: Key, data: JsValue)(implicit collection: JSONCollection): F[Result[JsValue]] =
-    collection.insert.one(MongoDoc(id, data)).toF.map(_ => Result.ok(data))
+  private def createRaw(id: Key, data: JsValue)(
+      implicit collection: JSONCollection
+  ): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
+    IO.fromFuture { implicit ec =>
+        collection.insert.one(MongoDoc(id, data))
+      }
+      .refineToOrDie[IzanamiErrors]
+      .map(_ => data)
 
-  private def getByIdRaw(id: Key)(implicit collection: JSONCollection): F[Option[JsValue]] = {
-    IzanamiLogger.debug(s"Mongo query $collectionName findById ${id.key}")
-    collection
-      .find(Json.obj("id" -> id.key), projection = Option.empty[JsObject])
-      .one[MongoDoc]
+  private def getByIdRaw(id: Key)(implicit collection: JSONCollection): RIO[DataStoreContext, Option[JsValue]] =
+    Logger.debug(s"Mongo query $collectionName findById ${id.key}") *>
+    IO.fromFuture { implicit ec =>
+        collection
+          .find(Json.obj("id" -> id.key), projection = Option.empty[JsObject])
+          .one[MongoDoc]
+      }
       .map(_.map(_.data))
-      .toF
-  }
 
-  override def getById(id: Key): F[Option[JsValue]] =
-    storeCollection.toF
-      .flatMap(getByIdRaw(id)(_))
+  override def getById(id: Key): RIO[DataStoreContext, Option[JsValue]] =
+    storeCollectionT.flatMap(getByIdRaw(id)(_))
 
-  override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+  override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] = {
     val from    = (page - 1) * nbElementPerPage
     val options = QueryOpts(skipN = from, batchSizeN = nbElementPerPage, flagsN = 0)
     val query   = buildMongoQuery(q)
-    IzanamiLogger.debug(
+    Logger.debug(
       s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage (from $from, batchSizeN $nbElementPerPage)"
-    )
-    storeCollection.toF.flatMap { implicit collection =>
-      val findResult: F[Seq[MongoDoc]] = collection
-        .find(query, projection = Option.empty[JsObject])
-        .options(options)
-        .cursor[MongoDoc](ReadPreference.primary)
-        .collect[Seq](maxDocs = nbElementPerPage, Cursor.FailOnError[Seq[MongoDoc]]())
-        .toF
+    ) *>
+    storeCollectionT.flatMap { implicit collection =>
+      val findResult: Task[Seq[MongoDoc]] = IO.fromFuture { implicit ec =>
+        collection
+          .find(query, projection = Option.empty[JsObject])
+          .options(options)
+          .cursor[MongoDoc](ReadPreference.primary)
+          .collect[Seq](maxDocs = nbElementPerPage, Cursor.FailOnError[Seq[MongoDoc]]())
+      }
 
-      val countResult: F[Long] = countRaw(q)
+      val countResult = countRaw(q)
 
-      (countResult, findResult).mapN { (count, res) =>
-        DefaultPagingResult(res.map(_.data), page, nbElementPerPage, count.toInt)
+      (countResult <*> findResult).map {
+        case (count, res) =>
+          DefaultPagingResult(res.map(_.data), page, nbElementPerPage, count.toInt)
       }
     }
   }
 
-  override def findByQuery(q: Query): Source[(Key, JsValue), NotUsed] =
-    Source.fromFuture(storeCollection).flatMapConcat {
-      val query = buildMongoQuery(q)
-      IzanamiLogger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream")
+  override def findByQuery(q: Query): RIO[DataStoreContext, Source[(Key, JsValue), NotUsed]] = {
+    val query = buildMongoQuery(q)
+    Logger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream") *>
+    Task(Source.fromFuture(storeCollection).flatMapConcat {
       _.find(query, projection = Option.empty[JsObject])
         .cursor[MongoDoc](ReadPreference.primary)
         .documentSource()
         .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
-    }
-
-  private def countRaw(query: Query)(implicit collection: JSONCollection): F[Long] = {
-    val q = buildMongoQuery(query)
-    IzanamiLogger.debug(s"Mongo query $collectionName count ${Json.stringify(q)}")
-    collection
-      .count(
-        selector = Some(q),
-        limit = None,
-        skip = 0,
-        hint = None,
-        readConcern = ReadConcern.Local
-      )
-      .toF[F]
+    })
   }
 
-  override def deleteAll(query: Query): F[Result[Done]] =
-    storeCollection
-      .flatMap { col =>
-        val deleteBuilder = col.delete(false, WriteConcern.Acknowledged)
-        deleteBuilder.element(buildMongoQuery(query)).flatMap { toDelete =>
-          deleteBuilder.many(List(toDelete))
-        }
-      }
-      .toF
-      .map(_ => Result.ok(Done))
+  private def countRaw(query: Query)(implicit collection: JSONCollection): RIO[DataStoreContext, Long] = {
+    val q = buildMongoQuery(query)
+    Logger.debug(s"Mongo query $collectionName count ${Json.stringify(q)}") *>
+    IO.fromFuture { implicit ec =>
+      collection
+        .count(
+          selector = Some(q),
+          limit = None,
+          skip = 0,
+          hint = None,
+          readConcern = ReadConcern.Local
+        )
+    }
+  }
 
-  override def count(query: Query): F[Long] =
-    storeCollection.toF.flatMap(countRaw(query)(_)).map(_.longValue())
+  override def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit] =
+    storeCollectionIO
+      .flatMap { col =>
+        IO.fromFuture { implicit ec =>
+            val deleteBuilder: col.DeleteBuilder = col.delete(false, WriteConcern.Acknowledged)
+            deleteBuilder.element(buildMongoQuery(query)).flatMap { toDelete =>
+              deleteBuilder.many(List(toDelete))
+            }
+          }
+          .refineToOrDie[IzanamiErrors]
+          .map(_ => ())
+      }
+
+  override def count(query: Query): RIO[DataStoreContext, Long] =
+    storeCollectionT.flatMap(countRaw(query)(_)).map(_.longValue())
 
   private def buildMongoQuery(query: Query): JsObject = {
 

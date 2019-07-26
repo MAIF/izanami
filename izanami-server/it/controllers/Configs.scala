@@ -1,11 +1,10 @@
-package multi
+package controllers 
 
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.testkit.SocketUtil._
 import com.typesafe.config.ConfigFactory
-import controllers.{UserControllerSpec, _}
 import elastic.client.ElasticClient
 import libs.IdGenerator
 import org.iq80.leveldb.util.FileUtils
@@ -35,14 +34,23 @@ object Configs {
       |izanami.db.default="Elastic"
       |izanami.patchEnabled = false
       |izanami.mode= "test"
+      |izanami.namespace="izanami-${Random.nextInt(1000)}"
       |izanami.config.db.type=$${izanami.db.default}
+      |izanami.config.db.conf.namespace="izanami-${Random.nextInt(1000)}:configuration"
       |izanami.features.db.type=$${izanami.db.default}
+      |izanami.features.db.conf.namespace="izanami-${Random.nextInt(1000)}:feature"
       |izanami.globalScript.db.type=$${izanami.db.default}
+      |izanami.globalScript.db.conf.namespace="izanami-${Random.nextInt(1000)}:script"
       |izanami.experiment.db.type=$${izanami.db.default}
+      |izanami.experiment.db.conf.namespace="izanami-${Random.nextInt(1000)}:experiment"
       |izanami.experimentEvent.db.type=$${izanami.db.default}
+      |izanami.experimentEvent.db.conf.namespace="izanami-${Random.nextInt(1000)}:events"
       |izanami.webhook.db.type=$${izanami.db.default}
+      |izanami.webhook.db.conf.namespace="izanami-${Random.nextInt(1000)}:hooks"
       |izanami.user.db.type=$${izanami.db.default}
+      |izanami.user.db.conf.namespace="izanami-${Random.nextInt(1000)}:user"
       |izanami.apikey.db.type=$${izanami.db.default}
+      |izanami.apikey.db.conf.namespace="izanami-${Random.nextInt(1000)}:apikey"
       |izanami.patch.db.type=$${izanami.db.default}
       |
       |izanami {
@@ -97,53 +105,62 @@ object Configs {
 
   def cassandraConfiguration(keyspace: String): Configuration = Configuration(
     ConfigFactory.parseString(s"""
-         |izanami.db.default="Cassandra"
-         |izanami.patchEnabled = false
-         |izanami.mode= "test"
-         |izanami.config.db.type=$${izanami.db.default}
-         |izanami.features.db.type=$${izanami.db.default}
-         |izanami.globalScript.db.type=$${izanami.db.default}
-         |izanami.experiment.db.type=$${izanami.db.default}
-         |izanami.experimentEvent.db.type=$${izanami.db.default}
-         |izanami.webhook.db.type=$${izanami.db.default}
-         |izanami.user.db.type=$${izanami.db.default}
-         |izanami.apikey.db.type=$${izanami.db.default}
-         |izanami.patch.db.type=$${izanami.db.default}
-         |
-         |izanami {
-         |  db {
-         |    cassandra {
-         |      addresses = ["127.0.0.1:$cassandraPort"]
-         |      replicationFactor = 1
-         |      keyspace: "$keyspace"
-         |    }
-         |  }
-         |}
+          |izanami.db.default="Cassandra"
+          |izanami.patchEnabled = false
+          |izanami.mode= "test"
+          |izanami.config.db.type=$${izanami.db.default}
+          |izanami.features.db.type=$${izanami.db.default}
+          |izanami.globalScript.db.type=$${izanami.db.default}
+          |izanami.experiment.db.type=$${izanami.db.default}
+          |izanami.experimentEvent.db.type=$${izanami.db.default}
+          |izanami.webhook.db.type=$${izanami.db.default}
+          |izanami.user.db.type=$${izanami.db.default}
+          |izanami.apikey.db.type=$${izanami.db.default}
+          |izanami.patch.db.type=$${izanami.db.default}
+          |
+          |izanami {
+          |  db {
+          |    cassandra {
+          |      addresses = ["127.0.0.1:$cassandraPort"]
+          |      replicationFactor = 1
+          |      keyspace: "$keyspace"
+          |    }
+          |  }
+          |}
       """.stripMargin).resolve()
   )
 
   def levelDBConfiguration(folder: String): Configuration = Configuration(
     ConfigFactory.parseString(s"""
-         |izanami.db.default="LevelDB"
-         |izanami.patchEnabled = false
-         |izanami.mode= "test"
-         |izanami.config.db.type=$${izanami.db.default}
-         |izanami.features.db.type=$${izanami.db.default}
-         |izanami.globalScript.db.type=$${izanami.db.default}
-         |izanami.experiment.db.type=$${izanami.db.default}
-         |izanami.experimentEvent.db.type=$${izanami.db.default}
-         |izanami.webhook.db.type=$${izanami.db.default}
-         |izanami.user.db.type=$${izanami.db.default}
-         |izanami.apikey.db.type=$${izanami.db.default}
-         |izanami.patch.db.type=$${izanami.db.default}
-         |
-         |izanami {
-         |  db {
-         |    leveldb {
-         |      parentPath = "./target/leveldb/$folder"
-         |    }
-         |  }
-         |}
+          |izanami.db.default="LevelDB"
+          |izanami.patchEnabled = false
+          |izanami.mode= "test"
+          |izanami.namespace="izanami-${Random.nextInt(1000)}"
+          |izanami.config.db.type=$${izanami.db.default}
+          |izanami.config.db.conf.namespace="izanami-${Random.nextInt(1000)}:configuration"
+          |izanami.features.db.type=$${izanami.db.default}
+          |izanami.features.db.conf.namespace="izanami-${Random.nextInt(1000)}:feature"
+          |izanami.globalScript.db.type=$${izanami.db.default}
+          |izanami.globalScript.db.conf.namespace="izanami-${Random.nextInt(1000)}:script"
+          |izanami.experiment.db.type=$${izanami.db.default}
+          |izanami.experiment.db.conf.namespace="izanami-${Random.nextInt(1000)}:experiment"
+          |izanami.experimentEvent.db.type=$${izanami.db.default}
+          |izanami.experimentEvent.db.conf.namespace="izanami-${Random.nextInt(1000)}:events"
+          |izanami.webhook.db.type=$${izanami.db.default}
+          |izanami.webhook.db.conf.namespace="izanami-${Random.nextInt(1000)}:hooks"
+          |izanami.user.db.type=$${izanami.db.default}
+          |izanami.user.db.conf.namespace="izanami-${Random.nextInt(1000)}:user"
+          |izanami.apikey.db.type=$${izanami.db.default}
+          |izanami.apikey.db.conf.namespace="izanami-${Random.nextInt(1000)}:apikey"
+          |izanami.patch.db.type=$${izanami.db.default}
+          |
+          |izanami {
+          |  db {
+          |    leveldb {
+          |      parentPath = "./target/leveldb-controllertest/$folder"
+          |    }
+          |  }
+          |}
       """.stripMargin).resolve()
   )
 
@@ -235,6 +252,7 @@ object Configs {
                      |izanami.db.dynamo.region="eu-west-1"
                      |izanami.db.dynamo.host=localhost
                      |izanami.db.dynamo.port=8001
+                     |izanami.db.dynamo.tls=false
                      |izanami.db.dynamo.parallelism=32
                      |izanami.config.db.type=$${izanami.db.default}
                      |izanami.features.db.type=$${izanami.db.default}
@@ -294,70 +312,28 @@ object Configs {
       .resolve()
   )
 
-}
+  def cleanLevelDb = Try {
+    FileUtils.deleteRecursively(new File("./target/leveldb/"))
+  }
 
-object Tests {
-  def getSuite(name: String, conf: () => Configuration, strict: Boolean = true): Seq[Suite] =
-    Seq(
-      new ConfigControllerSpec(name, conf()),
-      new ExperimentControllerSpec(name, conf(), strict),
-      new FeatureControllerSpec(name, conf()),
-      new FeatureControllerStrictAccessSpec(name, conf()),
-      new FeatureControllerWildcardAccessSpec(name, conf()),
-      new GlobalScriptControllerSpec(name, conf()),
-      new WebhookControllerSpec(name, conf()),
-      new UserControllerSpec(name, conf()),
-      new ApikeyControllerSpec(name, conf())
+  def initEs = if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
+    import elastic.codec.PlayJson._
+    val client: ElasticClient[JsValue] = ElasticClient[JsValue](port = Configs.elasticHttpPort)
+    println("Cleaning ES indices")
+    Await.result(client.deleteIndex("*"), 5.seconds)
+    Await.result(
+      client.put(
+        Path.Empty / "_cluster" / "settings",
+        Some("""
+        |{
+        |    "persistent" : {
+        |        "cluster.routing.allocation.disk.threshold_enabled" : false
+        |    }
+        |}
+      """.stripMargin)
+      ),
+      5.seconds
     )
-
-  def getSuites(): Seq[Suite] = getSuite("InMemory", () => Configs.inMemoryConfiguration, false)
-//    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
-//      getSuite("InMemory", () => Configs.inMemoryConfiguration, false) ++
-//      getSuite("InMemoryWithDb", () => Configs.inMemoryWithDbConfiguration, false) ++
-//      getSuite("Redis", () => Configs.redisConfiguration, false) ++
-//      getSuite("Elastic", () => Configs.elasticConfiguration, false) ++
-//      getSuite("Cassandra", () => Configs.cassandraConfiguration(s"config${idGenerator.nextId()}"), false) ++
-//      getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false) ++
-//      getSuite("Mongo", () => Configs.mongoConfig("config"), false) ++
-//      //getSuite("Dynamo", () => Configs.dynamoDbConfig(Random.nextInt(1000)), false) ++
-//      getSuite("Postgresql", () => Configs.pgConfig(Random.nextInt(1000)), false)
-//    } else {
-//
-//      getSuite("InMemory", () => Configs.inMemoryConfiguration, false)
-//      //getSuite("LevelDb", () => Configs.levelDBConfiguration(Configs.folderConfig), false)
-//    }
-}
-
-class IzanamiIntegrationTests extends Suites(Tests.getSuites(): _*) with BeforeAndAfterAll {
-  override protected def beforeAll(): Unit =
-    if (Try(Option(System.getenv("CI"))).toOption.flatten.exists(!_.isEmpty)) {
-      import elastic.codec.PlayJson._
-      val client: ElasticClient[JsValue] = ElasticClient[JsValue](port = Configs.elasticHttpPort)
-      println("Cleaning ES indices")
-
-      Await.result(client.deleteIndex("izanami_*"), 5.seconds)
-      Await.result(
-        client.put(
-          Path.Empty / "_cluster" / "settings",
-          Some("""
-          |{
-          |    "persistent" : {
-          |        "cluster.routing.allocation.disk.threshold_enabled" : false
-          |    }
-          |}
-        """.stripMargin)
-        ),
-        5.seconds
-      )
-
-      System.setProperty("aws.accessKeyId", "someKeyId")
-      System.setProperty("aws.secretKey", "someSecretKey")
-
-      Thread.sleep(10000)
-    }
-
-  override protected def afterAll(): Unit =
-    Try {
-      FileUtils.deleteRecursively(new File("./target/leveldb"))
-    }
+    Thread.sleep(1000)
+  }
 }

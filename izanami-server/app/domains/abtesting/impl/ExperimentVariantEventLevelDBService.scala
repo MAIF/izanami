@@ -5,15 +5,13 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.regex.Pattern
 
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.{ActorAttributes, ActorMaterializer}
+import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import cats.Applicative
-import cats.effect.{Async, Effect}
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
-import domains.abtesting._
+import domains.abtesting.{ExperimentVariantEventServiceModule, _}
 import domains.events.EventStore
 import env.{DbDomainConfig, LevelDbConfig}
 import org.iq80.leveldb.{DB, Options}
@@ -21,36 +19,43 @@ import org.iq80.leveldb.impl.Iq80DBFactory.{asString, bytes, factory}
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
-import store.Result.Result
-import store.Result
-import store.leveldb.LevelDBRedisCommand
+import store.Result.IzanamiErrors
+import zio.blocking.Blocking
+import zio.{RIO, Task, ZIO}
 
-import scala.collection.immutable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.Try
-import scala.util.control.NonFatal
+import scala.collection.concurrent.TrieMap
+import domains.AuthInfo
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    LEVEL DB     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-object ExperimentVariantEventLevelDBService {
-  def apply[F[_]: Effect](
-      levelDbConfig: LevelDbConfig,
-      configdb: DbDomainConfig,
-      eventStore: EventStore[F],
-      applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService[F] =
-    new ExperimentVariantEventLevelDBService[F](levelDbConfig, configdb, eventStore, applicationLifecycle)
+object ExperimentVariantEventDbStores {
+  val stores = TrieMap.empty[String, ExperimentVariantEventLevelDBService]
 }
 
-class ExperimentVariantEventLevelDBService[F[_]: Effect](
-    levelDbConfig: LevelDbConfig,
-    configdb: DbDomainConfig,
-    eventStore: EventStore[F],
+object ExperimentVariantEventLevelDBService {
+  def apply(
+      levelDbConfig: LevelDbConfig,
+      configdb: DbDomainConfig,
+      applicationLifecycle: ApplicationLifecycle
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
+    val namespace      = configdb.conf.namespace
+    val parentPath     = levelDbConfig.parentPath
+    val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
+    ExperimentVariantEventDbStores.stores.getOrElseUpdate(dbPath, {
+      new ExperimentVariantEventLevelDBService(dbPath, applicationLifecycle)
+    })
+  }
+}
+
+class ExperimentVariantEventLevelDBService(
+    dbPath: String,
     applicationLifecycle: ApplicationLifecycle
 )(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventService[F] {
+    extends ExperimentVariantEventService {
 
   import cats.implicits._
   import cats.effect.implicits._
@@ -60,110 +65,108 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
   import ExperimentVariantEventInstances._
 
   implicit private val materializer = ActorMaterializer()
-  implicit private val es           = eventStore
 
-  val namespace  = configdb.conf.namespace
-  val parentPath = levelDbConfig.parentPath
-  val dbPath: String = parentPath + "/" + namespace
-    .replaceAll(":", "_") + "_try_to_use_this_one"
-
-  val db: DB =
+  private val db: DB =
     factory.open(new File(dbPath), new Options().createIfMissing(true))
+
   applicationLifecycle.addStopHook { () =>
-    IzanamiLogger.info(s"Closing leveldb for path $parentPath")
+    IzanamiLogger.info(s"Closing leveldb for path $dbPath")
     Future(db.close())
   }
 
-  private val client: LevelDBRedisCommand[F] = {
-    new LevelDBRedisCommand(db, actorSystem)
-  }
+  private val experimentseventsNamespace: String = "experimentsevents"
 
-  val experimentseventsNamespace: String = "experimentsevents"
-
-  override def create(id: ExperimentVariantEventKey,
-                      data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] = {
-    val eventsKey: String =
-      s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}"
+  override def create(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
+    val eventsKey: String = s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}"
+    val strEvent          = Json.stringify(ExperimentVariantEventInstances.format.writes(data))
     for {
-      result <- client
-                 .sadd(eventsKey, Json.stringify(ExperimentVariantEventInstances.format.writes(data)))
-                 .map(l => Result.ok(data))
-      _ <- result.traverse(e => eventStore.publish(ExperimentVariantEventCreated(id, e)))
-    } yield result
+      result   <- sadd(eventsKey, strEvent).refineToOrDie[IzanamiErrors]
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
+    } yield data
   }
 
-  private def findEvents(eventVariantKey: String): Source[ExperimentVariantEvent, NotUsed] =
-    Source
-      .fromFuture(
-        client
-          .smembers(eventVariantKey)
-          .toIO
-          .unsafeToFuture()
-          .map { res =>
-            res
-              .map(_.utf8String)
-              .map(Json.parse)
-              .map(
-                value =>
+  private def findEvents(
+      eventVariantKey: String
+  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
+      Source
+        .fromFuture(
+          runtime
+            .unsafeRunToFuture(smembers(eventVariantKey))
+            .map { res =>
+              res
+                .map(_.utf8String)
+                .map(Json.parse)
+                .map { value =>
                   ExperimentVariantEventInstances.format
                     .reads(value)
                     .get
-              )
-              .sortWith((e1, e2) => e1.date.isBefore(e2.date))
-              .toList
-          }
-      )
-      .mapConcat(identity)
+                }
+                .sortWith((e1, e2) => e1.date.isBefore(e2.date))
+                .toList
+            }
+        )
+        .mapConcat(identity)
+    }
 
-  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
-    Source
-      .fromFuture(client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*").toIO.unsafeToFuture())
-      .mapConcat(k => k.toList)
-      .flatMapMerge(
-        4, { k =>
-          Source
-            .fromFuture(
-              client
-                .smembers(k)
-                .toIO
-                .unsafeToFuture()
-            )
-            .map { res =>
-              val r = res
-                .map(_.utf8String)
-                .map(Json.parse)
-                .map(
-                  value =>
+  override def findVariantResult(
+      experiment: Experiment
+  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
+      Source(keys(s"$experimentseventsNamespace:${experiment.id.key}:*").toList)
+        .addAttributes(ActorAttributes.dispatcher("izanami.blocking-dispatcher"))
+        .flatMapMerge(
+          4, { k =>
+            Source
+              .fromFuture(
+                runtime.unsafeRunToFuture(smembers(k))
+              )
+              .map { res =>
+                val r = res
+                  .map(_.utf8String)
+                  .map(Json.parse)
+                  .map { value =>
                     ExperimentVariantEventInstances.format
                       .reads(value)
                       .get
-                )
-                .sortWith((e1, e2) => e1.date.isBefore(e2.date))
-                .toList
-              (r.headOption, r)
-            }
-            .flatMapMerge(
-              4, {
-                case (first, evts) =>
-                  val interval = first
-                    .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
-                    .getOrElse(ChronoUnit.HOURS)
-                  Source(evts)
-                    .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
+                  }
+                  .sortWith((e1, e2) => e1.date.isBefore(e2.date))
+                  .toList
+                (r.headOption, r)
               }
-            )
-        }
-      )
+              .flatMapMerge(
+                4, {
+                  case (first, evts) =>
+                    val interval = first
+                      .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
+                      .getOrElse(ChronoUnit.HOURS)
+                    Source(evts)
+                      .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
+                }
+              )
+          }
+        )
+    }
 
-  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
+  override def deleteEventsForExperiment(
+      experiment: Experiment
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+    // format: off
     for {
-      eventsKey <- client.keys(s"$experimentseventsNamespace:${experiment.id.key}:*")
-      _         <- eventsKey.toList.traverse(key => client.del(key)) // remove events list
-      _         <- eventStore.publish(ExperimentVariantEventsDeleted(experiment))
-    } yield Result.ok(Done)
-
-  private def getValueAt(key: String): Option[String] =
-    Try(db.get(bytes(key))).toOption.flatMap(s => Option(asString(s)))
+      runtime   <- ZIO.runtime[ExperimentVariantEventServiceModule]
+      eventsKey <- keysT(s"$experimentseventsNamespace:${experiment.id.key}:*").refineToOrDie[IzanamiErrors]
+      _         <- {  implicit val r = runtime
+                      import zio.interop.catz._
+                      eventsKey.toList.traverse(key => del(key)).refineToOrDie[IzanamiErrors] // remove events list
+                   }
+      authInfo  <- AuthInfo.authInfo
+      _         <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
+    } yield ()
+    // format: on
 
   private def getAllKeys(): Seq[String] = {
     var keys     = Seq.empty[String]
@@ -177,13 +180,67 @@ class ExperimentVariantEventLevelDBService[F[_]: Effect](
     keys
   }
 
-  override def listAll(patterns: Seq[String]) =
-    Source
-      .fromFuture(client.keys(s"$experimentseventsNamespace:*").toIO.unsafeToFuture())
-      .mapConcat(_.toList)
-      .flatMapMerge(4, key => findEvents(key))
-      .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+  override def listAll(
+      patterns: Seq[String]
+  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
+      Source(keys(s"$experimentseventsNamespace:*").toList)
+        .addAttributes(ActorAttributes.dispatcher("izanami.blocking-dispatcher"))
+        .flatMapMerge(4, key => Source.fromFutureSource(runtime.unsafeRunToFuture(findEvents(key))))
+        .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+    }
 
-  override def check(): F[Unit] = Applicative[F].pure(())
+  override def check(): Task[Unit] = Task.succeed(())
 
+  private def getValueAt(key: String): Option[String] =
+    Try(db.get(bytes(key))).toOption.flatMap(s => Option(asString(s)))
+
+  private def getSetAt(key: String): Set[ByteString] =
+    getValueAt(key)
+      .map { set =>
+        set.split(";;;").toSet.map((s: String) => ByteString(s))
+      }
+      .getOrElse(Set.empty[ByteString])
+
+  private def sadd(key: String, members: String*): RIO[Blocking, Long] =
+    saddBS(key, members.map(ByteString.apply): _*)
+
+  private def setSetAt(key: String, set: Set[ByteString]): Unit =
+    db.put(bytes(key), bytes(set.map(_.utf8String).mkString(";;;")))
+
+  private def saddBS(key: String, members: ByteString*): RIO[Blocking, Long] =
+    zio.blocking.blocking(Task {
+      val seq    = getSetAt(key)
+      val newSeq = seq ++ members
+      setSetAt(key, newSeq)
+      members.size
+    })
+
+  private def del(keys: String*): RIO[Blocking, Long] =
+    zio.blocking.blocking(Task {
+      keys
+        .map { k =>
+          db.delete(bytes(k))
+          1L
+        }
+        .foldLeft(0L)((a, b) => a + b)
+    })
+
+  private def smembers(key: String): RIO[Blocking, Seq[ByteString]] =
+    zio.blocking.blocking(Task {
+      val seq = getSetAt(key)
+      seq.toSeq
+    })
+
+  def keysT(pattern: String): RIO[Blocking, Seq[String]] =
+    zio.blocking.blocking {
+      Task(keys(pattern))
+    }
+
+  def keys(pattern: String): Seq[String] =
+    getAllKeys().filter { k =>
+      val regex = pattern.replaceAll("\\*", ".*")
+      val pat   = Pattern.compile(regex)
+      pat.matcher(k).find
+    }
 }

@@ -1,9 +1,8 @@
 package test
 
 import akka.http.scaladsl.util.FastFuture
-import cats.effect.IO
 import controllers.actions.{AuthContext, SecuredAuthContext}
-import domains.{AuthorizedPattern, Domain}
+import domains.{AuthorizedPattern}
 import domains.user.User
 import modules.IzanamiComponentsInstances
 import org.scalactic.Prettifier
@@ -18,21 +17,30 @@ import play.api.libs.json.JsValue
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{ActionBuilder, _}
 import store.leveldb.DbStores
-import StoresTest._
 import akka.{Done, NotUsed}
 import akka.stream.scaladsl.Source
-import cats.Applicative
+import domains.Domain.Domain
+import domains.events.Events.IzanamiEvent
 import domains.events.{EventStore, Events}
+import store.Result.IzanamiErrors
+import zio.{IO, Task}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
+import zio.internal.PlatformLive
+import zio.ZIO
+import play.api.libs.ws.ahc.AhcWSComponents
+import _root_.controllers.AssetsComponents
+import play.libs.ws.ahc.AhcWSClient
+import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
+import play.api.libs.json.Json
 
-trait IzanamiSpec extends WordSpec with MustMatchers with OptionValues
-
-object StoresTest {
-  implicit val lDbStores: DbStores[IO] = new DbStores[IO]
+trait IzanamiSpec extends WordSpec with MustMatchers with OptionValues with Inside {
+  def run[Ctx, E, A](ctx: Ctx)(toRun: ZIO[Ctx, E, A]): A = zio.Runtime(ctx, PlatformLive.Default).unsafeRun(toRun)
 }
+
+object IzanamiSpecObj extends IzanamiSpec
 
 class TestAuthAction(user: => User, val parser: BodyParser[AnyContent])(implicit val executionContext: ExecutionContext)
     extends ActionBuilder[AuthContext, AnyContent]
@@ -161,6 +169,26 @@ trait IzanamiMatchers {
 
 }
 
+case class FakeComponent(context: Context)
+    extends BuiltInComponentsFromContext(context)
+    with NoHttpFiltersComponents
+    with AhcWSComponents
+    with AssetsComponents {
+  import play.api.mvc.Results
+  import play.api.routing.Router
+  import play.api.routing.sird._
+
+  def wsJavaClient: play.libs.ws.WSClient =
+    new AhcWSClient(wsClient.underlying[AsyncHttpClient], materializer)
+
+  lazy val router: Router = Router.from({
+    case GET(p"/") =>
+      defaultActionBuilder {
+        Results.Ok(Json.obj())
+      }
+  })
+}
+
 object FakeApplicationLifecycle {
   def apply(): ApplicationLifecycle = new FakeApplicationLifecycle()
 }
@@ -176,20 +204,19 @@ class FakeApplicationLifecycle() extends ApplicationLifecycle {
     FastFuture.successful(())
 }
 
-class TestEventStore[F[_]: Applicative](val events: ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty)
-    extends EventStore[F] {
-  import cats.implicits._
+class TestEventStore(val events: ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty) extends EventStore {
+  import zio._
 
-  override def publish(event: Events.IzanamiEvent): F[Done] = {
+  def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] = {
     events += event
-    Applicative[F].pure(Done)
+    IO.succeed(Done)
   }
 
-  override def events(domains: Seq[Domain.Domain],
-                      patterns: Seq[String],
-                      lastEventId: Option[Long]): Source[Events.IzanamiEvent, NotUsed] =
+  def events(domains: Seq[Domain] = Seq.empty[Domain],
+             patterns: Seq[String] = Seq.empty[String],
+             lastEventId: Option[Long] = None): Source[IzanamiEvent, NotUsed] =
     Source(events.toList)
 
-  override def check(): F[Unit] = ().pure[F]
-  override def close(): Unit    = ()
+  def check(): Task[Unit] = Task.succeed(())
+
 }

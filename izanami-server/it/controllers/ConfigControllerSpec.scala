@@ -7,8 +7,10 @@ import play.api.libs.json.Json
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 import play.api.libs.ws.JsonBodyWritables._
 import play.api.libs.ws.WSResponse
+import scala.util.Random
+import org.scalatest.BeforeAndAfterAll
 
-class ConfigControllerSpec(name: String, configurationSpec: Configuration)
+abstract class ConfigControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
@@ -33,7 +35,7 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       )
 
       /* Create */
-      val config = Json.obj("id" -> key, "value" -> "value")
+      val config = Json.obj("id" -> key, "value" -> Json.obj("value" -> "value"))
       ws.url(s"$rootPath/api/configs").post(config).futureValue must beAStatus(201)
 
       /* Verify */
@@ -45,7 +47,7 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       )
 
       /* Update */
-      val configUpdated = Json.obj("id" -> key, "value" -> "value updated")
+      val configUpdated = Json.obj("id" -> key, "value" -> Json.obj("value" -> "value updated"))
       ws.url(s"$rootPath/api/configs/$key")
         .put(configUpdated)
         .futureValue must beAStatus(200)
@@ -89,14 +91,14 @@ class ConfigControllerSpec(name: String, configurationSpec: Configuration)
       val key2 = "my:path:2"
 
       /* Create */
-      val config = Json.obj("id" -> key, "value" -> "value")
+      val config = Json.obj("id" -> key, "value" -> Json.obj("value" -> Json.obj("value" -> "value")))
       ws.url(s"$rootPath/api/configs").post(config).futureValue must beAStatus(201)
 
       /* Verify */
       ws.url(s"$rootPath/api/configs/$key").get().futureValue must beAResponse(200, config)
 
       /* Update */
-      val configUpdated = Json.obj("id" -> key2, "value" -> "value updated")
+      val configUpdated = Json.obj("id" -> key2, "value" -> Json.obj("value" -> Json.obj("value" -> "value updated")))
       ws.url(s"$rootPath/api/configs/$key")
         .put(configUpdated)
         .futureValue must beAStatus(200)

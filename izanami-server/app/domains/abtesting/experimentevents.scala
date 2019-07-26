@@ -3,18 +3,50 @@ package domains.abtesting
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
+import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import cats.effect.Effect
 import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
+import domains.abtesting.impl.{
+  ExperimentVariantEventCassandraService,
+  ExperimentVariantEventDynamoService,
+  ExperimentVariantEventElasticService,
+  ExperimentVariantEventInMemoryService,
+  ExperimentVariantEventLevelDBService,
+  ExperimentVariantEventMongoService,
+  ExperimentVariantEventPostgresqlService,
+  ExperimentVariantEventRedisService
+}
+import domains.events.EventStoreContext
+import env.{
+  Cassandra,
+  DbType,
+  Dynamo,
+  Elastic,
+  ExperimentEventConfig,
+  InMemory,
+  InMemoryWithDb,
+  IzanamiConfig,
+  LevelDB,
+  Mongo,
+  Postgresql,
+  Redis
+}
 import libs.IdGenerator
+import libs.database.Drivers
 import libs.logs.IzanamiLogger
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
-import store.Result.{ErrorMessage, Result}
+import store.Result.{ErrorMessage, IzanamiErrors, Result}
+import zio.blocking.Blocking
+import zio.{DefaultRuntime, IO, RIO, Task, ZIO}
 
 import scala.collection.immutable.HashSet
 import scala.concurrent.ExecutionContext
+import store.DataStoreContext
 
 /* ************************************************************************* */
 /*                      ExperimentVariantEvent                               */
@@ -156,33 +188,115 @@ object ExperimentVariantEvent {
 
 }
 
-trait ExperimentVariantEventService[F[_]] {
+trait ExperimentVariantEventModule extends ExperimentVariantEventServiceModule {
+  def experimentVariantEventService: ExperimentVariantEventService
+}
 
-  def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]]
+object ExperimentVariantEventService {
 
-  def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]]
+  def create(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): zio.ZIO[ExperimentVariantEventModule, IzanamiErrors, ExperimentVariantEvent] =
+    ZIO.accessM(_.experimentVariantEventService.create(id, data))
 
-  def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed]
+  def deleteEventsForExperiment(experiment: Experiment): zio.ZIO[ExperimentVariantEventModule, IzanamiErrors, Unit] =
+    ZIO.accessM(_.experimentVariantEventService.deleteEventsForExperiment(experiment))
 
-  def listAll(patterns: Seq[String] = Seq("*")): Source[ExperimentVariantEvent, NotUsed]
+  def findVariantResult(
+      experiment: Experiment
+  ): zio.RIO[ExperimentVariantEventModule, Source[VariantResult, NotUsed]] =
+    ZIO.accessM(_.experimentVariantEventService.findVariantResult(experiment))
 
-  def check(): F[Unit]
+  def listAll(
+      patterns: Seq[String] = Seq("*")
+  ): zio.RIO[ExperimentVariantEventModule, Source[ExperimentVariantEvent, NotUsed]] =
+    ZIO.accessM(_.experimentVariantEventService.listAll(patterns))
 
-  def importData(implicit ec: ExecutionContext, effect: Effect[F]): Flow[(String, JsValue), ImportResult, NotUsed] = {
+  def check(): zio.RIO[ExperimentVariantEventModule, Unit] =
+    ZIO.accessM(_.experimentVariantEventService.check())
 
+  def start: zio.RIO[ExperimentVariantEventModule, Unit] =
+    ZIO.accessM(_.experimentVariantEventService.start)
+
+  def importData(
+      implicit ec: ExecutionContext
+  ): zio.RIO[ExperimentVariantEventModule, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ZIO.accessM(_.experimentVariantEventService.importData)
+
+  def apply(izanamiConfig: IzanamiConfig, drivers: Drivers, applicationLifecycle: ApplicationLifecycle)(
+      implicit s: ActorSystem
+  ): ExperimentVariantEventService = {
+    val conf = izanamiConfig.experimentEvent.db
+    // format: off
+
+      def getExperimentVariantEventStore(dbType: DbType): ExperimentVariantEventService = dbType match {
+        case InMemory  => ExperimentVariantEventInMemoryService(conf)
+        case Redis     => ExperimentVariantEventRedisService(conf, drivers.redisClient)
+        case LevelDB   => ExperimentVariantEventLevelDBService(izanamiConfig.db.leveldb.get, conf, applicationLifecycle)
+        case Cassandra => ExperimentVariantEventCassandraService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get)
+        case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
+        case Mongo    =>  ExperimentVariantEventMongoService(conf, drivers.mongoApi.get)
+        case Dynamo   =>  ExperimentVariantEventDynamoService(izanamiConfig.db.dynamo.get, drivers.dynamoClient.get)
+        case Postgresql   =>  ExperimentVariantEventPostgresqlService(izanamiConfig.db.postgresql.get, drivers.postgresqlClient.get, conf)
+        case _ => throw new IllegalArgumentException("Unsupported store type ")
+      }
+      val store = conf.`type` match {
+        case InMemoryWithDb => getExperimentVariantEventStore(izanamiConfig.db.inMemoryWithDb.get.db)
+        case other => getExperimentVariantEventStore(other)
+      }
+      store
+    }
+}
+
+trait ExperimentVariantEventServiceModule extends DataStoreContext with EventStoreContext with Blocking
+
+trait ExperimentVariantEventService {
+  import zio._
+
+  def create(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent]
+
+  def deleteEventsForExperiment(experiment: Experiment): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit]
+
+  def findVariantResult(
+      experiment: Experiment
+  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]]
+
+  def listAll(
+      patterns: Seq[String] = Seq("*")
+  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]]
+
+  def check(): RIO[ExperimentVariantEventServiceModule, Unit]
+
+  def start: RIO[ExperimentVariantEventServiceModule, Unit] = Task.succeed(())
+
+  def importData(
+      implicit ec: ExecutionContext
+  ): RIO[ExperimentVariantEventServiceModule, Flow[(String, JsValue), ImportResult, NotUsed]] = {
     import cats.implicits._
     import libs.streams.syntax._
     import ExperimentVariantEventInstances._
 
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, json.validate[ExperimentVariantEvent]) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          create(obj.id, obj).map { ImportResult.fromResult }
-        case (s, JsError(_)) =>
-          effect.pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
+    for {
+      runtime <- ZIO.runtime[ExperimentVariantEventServiceModule]
+      res <- Task(
+              Flow[(String, JsValue)]
+                .map { case (s, json) => (s, json.validate[ExperimentVariantEvent]) }
+                .mapAsync(4) {
+                  case (_, JsSuccess(obj, _)) =>
+                    runtime.unsafeRunToFuture(create(obj.id, obj).either.map { either =>
+                      ImportResult.fromResult(either)
+                    })
+                  case (s, JsError(_)) =>
+                    FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+                }
+                .fold(ImportResult()) { _ |+| _ }
+            )
+    } yield res
+
   }
 
 }

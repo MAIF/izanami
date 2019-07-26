@@ -7,7 +7,6 @@ import akka.stream.scaladsl.{Sink, Source}
 import cats.data.NonEmptyList
 import domains.Key
 import domains.abtesting._
-import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
@@ -18,8 +17,9 @@ import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 import scala.util.Random
+import org.scalatest.BeforeAndAfterAll
 
-class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = true)
+abstract class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = false, parallelism: Int = 20)
     extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
@@ -213,7 +213,7 @@ class ExperimentControllerSpec(name: String, configurationSpec: Configuration, s
 
       val variants = Await.result(
         Source(1 to 100)
-          .mapAsync(10) { i =>
+          .mapAsync(parallelism) { i =>
             Future {
               val variant = (ws
                 .url(s"$rootPath/api/experiments/$key/variant")

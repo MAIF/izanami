@@ -6,7 +6,9 @@ import akka.actor.ActorSystem
 import cats.effect.{Async, IO}
 import cats.implicits._
 import com.fasterxml.jackson.databind.node.ObjectNode
+import domains.PlayModule
 import domains.script.Script.ScriptCache
+import domains.script.ScriptInstances.jsObjectToMap
 import domains.{AuthInfo, IsAllowed, Key}
 import env.Env
 import javax.script._
@@ -16,6 +18,7 @@ import play.api.Mode.Prod
 import play.api.cache.AsyncCacheApi
 import play.api.libs.json._
 import play.api.libs.ws.{WSRequest, WSResponse}
+import zio.{blocking, RIO, Task, ZIO}
 
 import scala.annotation.varargs
 import scala.collection.mutable
@@ -23,6 +26,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 import scala.util.hashing.MurmurHash3
 import scala.util.{Failure, Success, Try}
+import libs.logs.Logger
+import libs.logs.LoggerModule
+import zio.blocking.Blocking
 
 case class ScalaConsole(logs: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty) {
 
@@ -110,26 +116,26 @@ object ScriptInstances {
       )
   }
 
-  implicit def runnableScript[F[_]: Async: ScriptCache]: RunnableScript[F, Script] = new RunnableScript[F, Script] {
-    override def run(script: Script, context: JsObject, env: Env): F[ScriptExecution] = {
-      import env.scriptExecutionContext
+  implicit def runnableScript[ScriptCache]: RunnableScript[Script] = new RunnableScript[Script] {
+    override def run(script: Script, context: JsObject): zio.RIO[RunnableScriptContext, ScriptExecution] = {
+
+      import zio.interop.catz._
       script match {
         case s: ScalaScript =>
-          IzanamiLogger.debug(s"Executing scala script $s")
-          executeScalaScript[F](s, context, env)
+          Logger.debug(s"Executing scala script $s") *>
+          executeScalaScript(s, context)
         case s: JavascriptScript =>
-          IzanamiLogger.debug(s"Executing javascript script $s")
-          executeJavascriptScript[F](s, context, env)
+          Logger.debug(s"Executing javascript script $s") *>
+          executeJavascriptScript(s, context)
         case s: KotlinScript =>
-          IzanamiLogger.debug(s"Executing kotlin script $s")
-          executeKotlinScript[F](s, context, env)
+          Logger.debug(s"Executing kotlin script $s") *>
+          executeKotlinScript(s, context)
       }
     }
   }
 
-  private def executeKotlinScript[F[_]: Async: ScriptCache](script: KotlinScript, context: JsObject, env: Env)(
-      implicit ec: ScriptExecutionContext
-  ): F[ScriptExecution] = {
+  private def executeKotlinScript(script: KotlinScript,
+                                  context: JsObject): RIO[RunnableScriptContext, ScriptExecution] = {
 
     val finalScript: String =
       s"""
@@ -165,78 +171,68 @@ object ScriptInstances {
 
     val id = MurmurHash3.stringHash(finalScript).toString
 
-    val buildScript: F[KotlinFeatureScript] =
-      Async[F].async { cb =>
-        ec.execute { () =>
-          Try {
-            val scriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
-            IzanamiLogger.debug(s"Compiling script ... ")
-            val script: KotlinFeatureScript = scriptEngine.eval(finalScript).asInstanceOf[KotlinFeatureScript]
-            IzanamiLogger.debug("Compilation is done !")
-            cb(Right(script))
-          } recover {
-            case e =>
-              IzanamiLogger.error(s"Error building kotlin script \n $finalScript", e)
-              cb(Left(e))
-          }
-        }
-      }
+    val buildScript: RIO[LoggerModule, KotlinFeatureScript] =
+      for {
+        scriptEngine <- Task(new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine)
+        _            <- Logger.debug(s"Compiling script ... ")
+        script       <- Task(scriptEngine.eval(finalScript).asInstanceOf[KotlinFeatureScript])
+      } yield script
 
-    def run(featureScript: KotlinFeatureScript): F[ScriptExecution] = {
+    def run(featureScript: KotlinFeatureScript): RIO[LoggerModule with PlayModule, ScriptExecution] = {
       val console = ScalaConsole()
-      Async[F]
-        .async { cb: (Either[Throwable, Boolean] => Unit) =>
-          ec.execute { () =>
-            Try {
-              val client = new KHttpClient(env, cb)(ec)
-              val ctx    = context.as[ObjectNode]
-              featureScript.run(
-                (p1: AnyRef) => console.println(p1),
-                ctx,
-                () => cb(Right(true)),
-                () => cb(Right(false)),
-                env.javaWsClient
-              )
-            } recover {
-              case e => cb(Left(e))
+      ZIO
+        .accessM[PlayModule] { env =>
+          Task
+            .effectAsync[Boolean] { cb =>
+              implicit val ec = env.ec
+              Try {
+                val client = new KHttpClient(env.wSClient, cb)
+                val ctx    = context.as[ObjectNode]
+                featureScript.run(
+                  (p1: AnyRef) => console.println(p1),
+                  ctx,
+                  () => cb(ZIO.succeed(true)),
+                  () => cb(ZIO.succeed(false)),
+                  env.javaWsClient
+                )
+              } recover {
+                case e => cb(ZIO.fail(e))
+              }
             }
-          }
         }
         .map { b =>
           ScriptExecutionSuccess(b, console.scriptLogs.logs).asInstanceOf[ScriptExecution]
         }
-        .recover {
+        .catchSome {
           case e: Exception =>
-            IzanamiLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
-            ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
+            Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e) *>
+            ZIO.succeed(ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e))
         }
     }
-
-    val scriptCache = ScriptCache[F]
-
-    (
-      for {
-        mayBeScript <- scriptCache.get[KotlinFeatureScript](id)
-        _           = IzanamiLogger.debug(s"Cache for script ? : $mayBeScript")
-        script      <- mayBeScript.fold(buildScript)(_.pure[F])
-        _           = IzanamiLogger.debug(s"Updating cache for id $id and script $script")
-        _           <- scriptCache.set(id, script)
-        _           = IzanamiLogger.debug(s"Running kotlin script")
-        r           <- run(script)
-      } yield r
-    ).recover {
-      case e: Exception =>
-        IzanamiLogger.error(s"Error executing script", e)
-        ScriptExecutionFailure.fromThrowable(Seq.empty, e)
+    blocking.blocking {
+      (
+        for {
+          mayBeScript <- ZIO.accessM[ScriptCacheModule](_.scriptCache.get[KotlinFeatureScript](id))
+          _           <- Logger.debug(s"Cache for script ? : $mayBeScript")
+          script      <- mayBeScript.fold(blocking.blocking(buildScript))(ZIO.succeed)
+          _           <- Logger.debug(s"Updating cache for id $id and script $script")
+          _           <- ZIO.accessM[ScriptCacheModule](_.scriptCache.set(id, script))
+          _           <- Logger.debug(s"Running kotlin script")
+          r           <- blocking.blocking(run(script))
+        } yield r
+      ).catchSome {
+        case e: Exception =>
+          Logger.error(s"Error executing script", e) *>
+          ZIO.succeed(ScriptExecutionFailure.fromThrowable(Seq.empty, e))
+      }
     }
   }
 
-  private def executeScalaScript[F[_]: Async: ScriptCache](script: ScalaScript, context: JsObject, env: Env)(
-      implicit ec: ScriptExecutionContext
-  ): F[ScriptExecution] = {
+  private def executeScalaScript(script: ScalaScript,
+                                 context: JsObject): RIO[RunnableScriptContext, ScriptExecution] = {
 
     import scala.collection.JavaConverters._
-
+    import zio._
     val finalScript: String =
       s"""
          |import domains.script.FeatureScript
@@ -261,115 +257,108 @@ object ScriptInstances {
 
     val id = MurmurHash3.stringHash(finalScript).toString
 
-    val buildScript: F[FeatureScript] =
-      Async[F].async { cb =>
-        ec.execute { () =>
-          Try {
-            val engineManager: ScriptEngineManager = new ScriptEngineManager(env.environment.classLoader)
-            IzanamiLogger.debug(
-              s"Looking for scala engine in ${engineManager.getEngineFactories.asScala.map(_.getEngineName).mkString(",")}"
-            )
-
-            env.environment.mode match {
-              case Prod =>
-                val scriptEngine = engineManager.getEngineByName("scala")
-                val engine       = scriptEngine.asInstanceOf[ScriptEngine with Invocable]
-                IzanamiLogger.debug("Compiling script ...")
-                val script: FeatureScript = engine.eval(finalScript).asInstanceOf[FeatureScript]
-                IzanamiLogger.debug("Compilation is done !")
-                cb(Right(script))
-              case _ =>
-                cb(Left(new IllegalArgumentException("Scala scripts not supported in dev mode")))
-            }
-
-          } recover {
-            case e =>
-              IzanamiLogger.error(s"Error building scala script \n $finalScript", e)
-              cb(Left(e))
-          }
+    val buildScript: RIO[LoggerModule with PlayModule, FeatureScript] =
+      ZIO.accessM[LoggerModule with PlayModule] { env =>
+        env.environment.mode match {
+          case Prod =>
+            for {
+              engineManager <- Task(new ScriptEngineManager(env.environment.classLoader))
+              _ <- Logger.debug(
+                    s"Looking for scala engine in ${engineManager.getEngineFactories.asScala.map(_.getEngineName).mkString(",")}"
+                  )
+              scriptEngine <- Task(engineManager.getEngineByName("scala"))
+              engine       = scriptEngine.asInstanceOf[ScriptEngine with Invocable]
+              _            <- Logger.debug("Compilation is done !")
+              script       <- Task(engine.eval(finalScript).asInstanceOf[FeatureScript])
+              _            <- Logger.debug("Compiling script ...")
+            } yield script
+          case _ => ZIO.fail(new IllegalArgumentException("Scala scripts not supported in dev mode"))
         }
       }
 
-    def run(featureScript: FeatureScript): F[ScriptExecution] = {
-      val console = ScalaConsole()
-      Async[F]
-        .async { cb: (Either[Throwable, Boolean] => Unit) =>
-          ec.execute { () =>
+    def run(featureScript: FeatureScript): RIO[LoggerModule with PlayModule, ScriptExecution] = {
+      val scalaConsole = ScalaConsole()
+      ZIO.accessM { env =>
+        Task
+          .effectAsync[Boolean] { cb =>
+            implicit val ec = env.ec
             Try {
-              featureScript.run(console.println, context, () => cb(Right(true)), () => cb(Right(false)), env.wSClient)(
-                ec
-              )
+              featureScript.run(scalaConsole.println,
+                                context,
+                                () => cb(ZIO.succeed(true)),
+                                () => cb(ZIO.succeed(false)),
+                                env.wSClient)
             } recover {
-              case e => cb(Left(e))
+              case e => cb(ZIO.fail(e))
             }
           }
-        }
-        .map { b =>
-          ScriptExecutionSuccess(b, console.scriptLogs.logs).asInstanceOf[ScriptExecution]
-        }
-        .recover {
-          case e: Exception =>
-            IzanamiLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
-            ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
-        }
+          .map { b =>
+            ScriptExecutionSuccess(b, scalaConsole.scriptLogs.logs).asInstanceOf[ScriptExecution]
+          }
+          .catchSome {
+            case e: Exception =>
+              Logger.error(s"Error executing script, console = ${scalaConsole.scriptLogs.logs}", e) *>
+              ZIO.succeed(ScriptExecutionFailure.fromThrowable(scalaConsole.scriptLogs.logs, e))
+          }
+      }
     }
 
-    val scriptCache = ScriptCache[F]
-
-    (
-      for {
-        mayBeScript <- scriptCache.get[FeatureScript](id)
-        _           = IzanamiLogger.debug(s"Cache for script ? : $mayBeScript")
-        script      <- mayBeScript.fold(buildScript)(_.pure[F])
-        _           = IzanamiLogger.debug(s"Updating cache for id $id and script $script")
-        _           <- scriptCache.set(id, script)
-        _           = IzanamiLogger.debug(s"Running scala script")
-        r           <- run(script)
-      } yield r
-    ).recover {
-      case e: Exception =>
-        IzanamiLogger.error(s"Error executing script", e)
-        ScriptExecutionFailure.fromThrowable(Seq.empty, e)
+    blocking.blocking {
+      (
+        for {
+          mayBeScript <- ZIO.accessM[ScriptCacheModule](_.scriptCache.get[FeatureScript](id))
+          _           <- Logger.debug(s"Cache for script ? : $mayBeScript")
+          script      <- mayBeScript.fold(blocking.blocking(buildScript))(ZIO.succeed)
+          _           <- Logger.debug(s"Updating cache for id $id and script $script")
+          _           <- ZIO.accessM[ScriptCacheModule](_.scriptCache.set(id, script))
+          _           <- Logger.debug(s"Running scala script")
+          r           <- blocking.blocking(run(script))
+        } yield r
+      ).catchSome {
+        case e: Exception =>
+          Logger.error(s"Error executing script", e) *>
+          ZIO.succeed(ScriptExecutionFailure.fromThrowable(Seq.empty, e))
+      }
     }
   }
 
-  private def executeJavascriptScript[F[_]: Async](script: JavascriptScript, context: JsObject, env: Env)(
-      implicit ec: ScriptExecutionContext
-  ): F[ScriptExecution] = {
+  private def executeJavascriptScript(script: JavascriptScript,
+                                      context: JsObject): zio.RIO[RunnableScriptContext, ScriptExecution] = {
+    import zio._
 
-    IzanamiLogger.debug(s"Creating console")
-    val console = JsConsole()
+    val exec: RIO[LoggerModule with Blocking with PlayModule, ScriptExecution] =
+      for {
+        _             <- Logger.debug(s"Creating console")
+        console       = JsConsole()
+        engineManager <- Task(new ScriptEngineManager)
+        engine        <- Task(engineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable])
+        _             = engine.getContext.setAttribute("console", console, ScriptContext.ENGINE_SCOPE)
+        env           <- RIO.environment[LoggerModule with Blocking with PlayModule]
+        script <- Task
+                   .effectAsync[Boolean] { cb =>
+                     implicit val ec = env.ec
+                     Try {
+                       engine.eval(script.script)
+                       val enabled                                   = () => cb(ZIO.succeed(true))
+                       val disabled                                  = () => cb(ZIO.succeed(false))
+                       val contextMap: java.util.Map[String, AnyRef] = jsObjectToMap(context)
 
-    Async[F]
-      .async { cb: (Either[Throwable, Boolean] => Unit) =>
-        ec.execute { () =>
-          Try {
-            val engineManager: ScriptEngineManager = new ScriptEngineManager
-            val engine = engineManager
-              .getEngineByName("nashorn")
-              .asInstanceOf[ScriptEngine with Invocable]
+                       engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env.wSClient, cb))
+                     } recover {
+                       case e => cb(ZIO.fail(e))
+                     }
+                   }
+                   .map { enabled =>
+                     ScriptExecutionSuccess(enabled, console.scriptLogs.logs).asInstanceOf[ScriptExecution]
+                   }
+                   .catchSome {
+                     case e: Exception =>
+                       Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e) *>
+                       ZIO.succeed(ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e))
+                   }
+      } yield script
 
-            engine.getContext.setAttribute("console", console, ScriptContext.ENGINE_SCOPE)
-
-            engine.eval(script.script)
-            val enabled                                   = () => cb(Right(true))
-            val disabled                                  = () => cb(Right(false))
-            val contextMap: java.util.Map[String, AnyRef] = jsObjectToMap(context)
-
-            engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env, cb))
-          } recover {
-            case e => cb(Left(e))
-          }
-        }
-      }
-      .map { b =>
-        ScriptExecutionSuccess(b, console.scriptLogs.logs).asInstanceOf[ScriptExecution]
-      }
-      .recover {
-        case e: Exception =>
-          IzanamiLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e)
-          ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e)
-      }
+    blocking.blocking { exec }
   }
 
   private def jsObjectToMap(jsObject: JsObject): java.util.Map[String, AnyRef] = {
@@ -392,33 +381,22 @@ object ScriptInstances {
 
 }
 
-class PlayScriptCache[F[_]: Async](api: AsyncCacheApi) extends ScriptCache[F] {
+class PlayScriptCache(api: AsyncCacheApi) extends ScriptCache {
 
-  import cats.implicits._
+  override def get[T: ClassTag](id: String): Task[Option[T]] =
+    Task.fromFuture(implicit ec => api.get[T](id))
 
-  override def get[T: ClassTag](id: String): F[Option[T]] =
-    IO.fromFuture(IO(api.get[T](id))).to[F]
-
-  override def set[T: ClassTag](id: String, value: T): F[Unit] = {
-    val update = IO.fromFuture(IO(api.set(id, value))).to[F]
+  override def set[T: ClassTag](id: String, value: T): Task[Unit] = {
+    val update = Task.fromFuture(implicit ec => api.set(id, value))
     for {
       mayBeResult <- get(id)
-      _           <- mayBeResult.fold(update)(_ => Async[F].pure(Done))
+      _           <- mayBeResult.fold(update)(_ => Task.succeed(Done))
     } yield ()
   }
 }
 
-case class ScriptExecutionContext(actorSystem: ActorSystem) extends ExecutionContext {
-  private val executionContext: ExecutionContext =
-    actorSystem.dispatchers.lookup("izanami.script-dispatcher")
-  override def execute(runnable: Runnable): Unit =
-    executionContext.execute(runnable)
-  override def reportFailure(cause: Throwable): Unit =
-    executionContext.reportFailure(cause)
-}
-
-class HttpClient[F[_]](env: Env, promise: Either[Throwable, Boolean] => Unit)(
-    implicit ec: ScriptExecutionContext
+class HttpClient(wSClient: play.api.libs.ws.WSClient, promise: (ZIO[Any, Throwable, Boolean] => Unit))(
+    implicit ec: ExecutionContext
 ) {
   def call(optionsMap: java.util.Map[String, AnyRef], callback: BiConsumer[String, String]): Unit = {
     import scala.collection.JavaConverters._
@@ -434,7 +412,7 @@ class HttpClient[F[_]](env: Env, promise: Either[Throwable, Boolean] => Unit)(
       options.get("body").asInstanceOf[Option[String]].getOrElse("")
 
     val req: WSRequest =
-      env.wSClient.url(url).withHttpHeaders(headers.toSeq: _*)
+      wSClient.url(url).withHttpHeaders(headers.toSeq: _*)
     val call: Future[WSResponse] = method.toLowerCase() match {
       case "get"    => req.get()
       case "post"   => req.post(body)
@@ -451,22 +429,22 @@ class HttpClient[F[_]](env: Env, promise: Either[Throwable, Boolean] => Unit)(
         Try {
           callback.accept(null, response.body)
         }.recover {
-          case e => promise(Left(e))
+          case e => promise(ZIO.fail(e))
         }
       case Failure(e) =>
         IzanamiLogger.debug(s"Script call $url, method=[$method], headers: $headers, body=[$body], call failed", e)
         Try {
           callback.accept(e.getMessage, null)
         }.recover {
-          case e => promise(Left(e))
+          case e => promise(ZIO.fail(e))
         }
     }
   }
 }
 
-class KHttpClient(env: Env, promise: Either[Throwable, Boolean] => Unit)(
-    implicit ec: ScriptExecutionContext
-) extends HttpClient[Future](env, promise)(ec)
+class KHttpClient(wSClient: play.api.libs.ws.WSClient, promise: (ZIO[Any, Throwable, Boolean] => Unit))(
+    implicit ec: ExecutionContext
+) extends HttpClient(wSClient, promise)(ec)
 
 object GlobalScriptInstances {
 

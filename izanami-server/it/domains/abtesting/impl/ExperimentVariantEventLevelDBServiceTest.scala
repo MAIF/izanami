@@ -2,9 +2,7 @@ package domains.abtesting.impl
 
 import java.io.File
 
-import cats.effect.IO
 import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
-import domains.events.impl.BasicEventStore
 import env.{DbDomainConfig, DbDomainConfigDetails, LevelDbConfig}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import test.FakeApplicationLifecycle
@@ -17,10 +15,9 @@ class ExperimentVariantEventLevelDBServiceTest  extends AbstractExperimentServic
 
   private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle()
 
-  override def dataStore(name: String): ExperimentVariantEventService[IO] = ExperimentVariantEventLevelDBService[IO](
+  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventLevelDBService(
     LevelDbConfig(s"./target/leveldb-test/data-${Random.nextInt(1000)}"),
     DbDomainConfig(env.LevelDB, DbDomainConfigDetails(name, None), None),
-    new BasicEventStore[IO],
     lifecycle
   )
 

@@ -2,14 +2,12 @@ package libs.database
 
 import akka.actor.ActorSystem
 import akka.stream.alpakka.dynamodb.DynamoClient
-import cats.effect.{Async, ConcurrentEffect, ContextShift}
 import com.datastax.driver.core.{Cluster, Session}
-import doobie.util.transactor.Transactor
 import elastic.api.Elastic
 import env.IzanamiConfig
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
-import play.api.{Configuration, Logger}
+import play.api.Configuration
 import play.api.libs.json.JsValue
 import play.modules.reactivemongo.{DefaultReactiveMongoApi, ReactiveMongoApi}
 import reactivemongo.api.MongoConnection
@@ -18,22 +16,20 @@ import store.elastic.ElasticClient
 import store.postgresql.PostgresqlClient
 import store.redis.{RedisClientBuilder, RedisWrapper}
 
-trait Drivers[F[_]] {
+trait Drivers {
   def redisClient: Option[RedisWrapper]
   def cassandraClient: Option[(Cluster, Session)]
   def elasticClient: Option[Elastic[JsValue]]
   def mongoApi: Option[ReactiveMongoApi]
   def dynamoClient: Option[DynamoClient]
-  def postgresqlClient: Option[PostgresqlClient[F]]
+  def postgresqlClient: Option[PostgresqlClient]
 }
 
 object Drivers {
-  def apply[F[_]: ContextShift: ConcurrentEffect](izanamiConfig: IzanamiConfig,
-                                                  configuration: Configuration,
-                                                  applicationLifecycle: ApplicationLifecycle)(
+  def apply(izanamiConfig: IzanamiConfig, configuration: Configuration, applicationLifecycle: ApplicationLifecycle)(
       implicit system: ActorSystem
-  ): Drivers[F] =
-    new Drivers[F] {
+  ): Drivers =
+    new Drivers {
 
       import system.dispatcher
 
@@ -65,11 +61,11 @@ object Drivers {
           applicationLifecycle
         )
       }
-      override def redisClient: Option[RedisWrapper]             = getRedisClient
-      override def cassandraClient: Option[(Cluster, Session)]   = getCassandraClient
-      override def elasticClient: Option[Elastic[JsValue]]       = getElasticClient
-      override def mongoApi: Option[ReactiveMongoApi]            = getMongoApi
-      override def dynamoClient: Option[DynamoClient]            = getDynamoClient
-      override def postgresqlClient: Option[PostgresqlClient[F]] = pgDriver
+      override def redisClient: Option[RedisWrapper]           = getRedisClient
+      override def cassandraClient: Option[(Cluster, Session)] = getCassandraClient
+      override def elasticClient: Option[Elastic[JsValue]]     = getElasticClient
+      override def mongoApi: Option[ReactiveMongoApi]          = getMongoApi
+      override def dynamoClient: Option[DynamoClient]          = getDynamoClient
+      override def postgresqlClient: Option[PostgresqlClient]  = pgDriver
     }
 }

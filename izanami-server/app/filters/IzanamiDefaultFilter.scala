@@ -11,7 +11,7 @@ import com.auth0.jwt.interfaces._
 import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.Timer
 import com.google.common.base.Charsets
-import domains.apikey.ApikeyService
+import domains.apikey.{ApiKeyContext, Apikey, ApikeyService}
 import domains.user.User
 import domains.{AuthInfo, AuthorizedPattern, Key}
 import env._
@@ -20,6 +20,9 @@ import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.typedmap._
 import play.api.mvc._
+import store.Result
+import store.Result.AppErrors
+import zio.{DefaultRuntime, Runtime, ZIO}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util._
@@ -27,9 +30,9 @@ import scala.util._
 class IzanamiDefaultFilter[F[_]: Effect](env: Env,
                                          izanamiConfig: IzanamiConfig,
                                          config: DefaultFilter,
-                                         apikeyConfig: ApikeyConfig,
-                                         apikeyStore: ApikeyService[F])(
+                                         apikeyConfig: ApikeyConfig)(
     implicit ec: ExecutionContext,
+    runtime: Runtime[ApiKeyContext],
     val mat: Materializer
 ) extends Filter {
 
@@ -81,10 +84,11 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
       requestHeader.headers.get(config.apiKeys.headerClientSecret)
 
     def passByApiKey(clientId: String, clientSecret: String): Future[Result] =
-      apikeyStore
-        .getById(Key(clientId))
-        .toIO
-        .unsafeToFuture()
+      runtime
+        .unsafeRunToFuture(
+          ApikeyService
+            .getById(Key(clientId))
+        )
         .map { mayBeKey =>
           mayBeKey
             .orElse(apikeyConfig.keys)

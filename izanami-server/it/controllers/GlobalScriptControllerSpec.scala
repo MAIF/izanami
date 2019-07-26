@@ -6,8 +6,11 @@ import play.api.Configuration
 import play.api.libs.json.Json
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 import play.api.libs.ws.JsonBodyWritables._
+import scala.util.Random
+import org.scalatest.BeforeAndAfterAll
 
-class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
+
+abstract class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents

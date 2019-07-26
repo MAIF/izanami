@@ -6,8 +6,7 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.{Done, NotUsed}
-import cats.effect.{Async, Effect, IO}
+import akka.NotUsed
 import com.datastax.driver.core._
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import domains.Key
@@ -15,118 +14,89 @@ import env.{CassandraConfig, DbDomainConfig}
 import libs.streams.Flows
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{ErrorMessage, Result}
+import store.Result.{AppErrors, ErrorMessage, IzanamiErrors}
 import store._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import libs.logs.Logger
+import store.Result.DataShouldExists
+import store.Result.DataShouldNotExists
 
 object CassandraJsonDataStore {
-  def apply[F[_]: Effect](session: Session, cassandraConfig: CassandraConfig, config: DbDomainConfig)(
+  def apply(session: Session, cassandraConfig: CassandraConfig, config: DbDomainConfig)(
       implicit actorSystem: ActorSystem
-  ): CassandraJsonDataStore[F] =
+  ): CassandraJsonDataStore =
     new CassandraJsonDataStore(config.conf.namespace, cassandraConfig.keyspace, session)
-
 }
 
-class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, session: Session)(
+class CassandraJsonDataStore(namespace: String, keyspace: String, session: Session)(
     implicit actorSystem: ActorSystem
-) extends JsonDataStore[F] {
+) extends JsonDataStore {
 
   IzanamiLogger.info(s"Load store Cassandra for namespace $namespace")
 
   private val namespaceFormatted = namespace.replaceAll(":", "_")
 
+  import zio._
   import Cassandra._
-  import cats.implicits._
-  import libs.streams.syntax._
-  import libs.effects._
 
   implicit private val mat: Materializer = ActorMaterializer()(actorSystem)
   implicit private val _session: Session = session
 
-  import actorSystem.dispatcher
-
-  IzanamiLogger.info(s"Creating table $keyspace.$namespaceFormatted if not exists")
-  session.execute(s"""
-      | CREATE TABLE IF NOT EXISTS $keyspace.$namespaceFormatted (
-      |   namespace text,
-      |   id text,
-      |   key text,
-      |   value text,
-      |   PRIMARY KEY ((namespace), id)
-      | )
-      | """.stripMargin)
-
-  session
-    .execute(
-      s"""
-    | CREATE CUSTOM INDEX  IF NOT EXISTS ${keyspace}_${namespaceFormatted}_sasi ON $keyspace.$namespaceFormatted(key)  USING 'org.apache.cassandra.index.sasi.SASIIndex' WITH OPTIONS = {
-    |   'analyzer_class' : 'org.apache.cassandra.index.sasi.analyzer.NonTokenizingAnalyzer',
-    |   'case_sensitive' : 'false',
-    |   'mode' : 'CONTAINS'
-    | }
+  override def start: RIO[DataStoreContext, Unit] =
+    Logger.info(s"Creating table $keyspace.$namespaceFormatted if not exists") *>
+    Task(
+      session.execute(s"""
+                         | CREATE TABLE IF NOT EXISTS $keyspace.$namespaceFormatted (
+                         |   namespace text,
+                         |   id text,
+                         |   key text,
+                         |   value text,
+                         |   PRIMARY KEY ((namespace), id)
+                         | )
+                         | """.stripMargin)
+    ) *> Task(
+      session
+        .execute(
+          s"""
+             | CREATE CUSTOM INDEX  IF NOT EXISTS ${keyspace}_${namespaceFormatted}_sasi ON $keyspace.$namespaceFormatted(key)  USING 'org.apache.cassandra.index.sasi.SASIIndex' WITH OPTIONS = {
+             |   'analyzer_class' : 'org.apache.cassandra.index.sasi.analyzer.NonTokenizingAnalyzer',
+             |   'case_sensitive' : 'false',
+             |   'mode' : 'CONTAINS'
+             | }
     """.stripMargin
+        )
     )
 
-  private val regex = """[\*]?(([\w@\.0-9\-]+)(:?))+[\*]?""".r
-
-//  private def patternStatement(field: String, query: Query): Result[String] = {
-//    val hasError: Boolean = query.ands.toList
-//      .flatMap { _.patterns.toList.collect{ case StringPattern(str) => str } }
-//      .map {
-//        case "*"       => false
-//        case regex(_*) => false
-//        case _         => true
-//      }
-//      .foldLeft(false)(_ || _)
-//
-//    if (hasError) {
-//      Result.error("pattern.invalid")
-//    } else {
-//      val cassandraQuery = query.ands.map {
-//          _.patterns
-//            .collect {
-//              case StringPattern(str) if str != "*" =>
-//                s" ( $field LIKE '${str.replaceAll("\\*", "%")}' ) "
-//            }
-//            .mkString("(", " OR ", ")")
-//            //.mkString(" OR ")
-//        }
-//        .toList
-//        .mkString(" AND ")
-//
-//      Result.ok(cassandraQuery)
-//    }
-//  }
-
-  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
+  override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     getByIdRaw(id)
+      .refineToOrDie[IzanamiErrors]
       .flatMap {
-        case Some(d) =>
-          Result.errors[JsValue](ErrorMessage("error.data.exists", id.key)).pure[F]
+        case Some(_) =>
+          ZIO.fail(DataShouldNotExists(id))
         case None =>
           createRaw(id, data)
       }
 
-  private def createRaw(id: Key, data: JsValue): F[Result[JsValue]] = {
+  private def createRaw(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] = {
     val query =
       s"INSERT INTO $keyspace.$namespaceFormatted (namespace, id, key, value) values (?, ?, ?, ?) IF NOT EXISTS "
 
     val args = Seq(namespaceFormatted, id.key, id.key, Json.stringify(data))
-    executeWithSession(
-      query,
-      args: _*
-    ).map { _ =>
-      Result.ok(data)
-    }
+    executeWithSessionT(query, args: _*)
+      .map { _ =>
+        data
+      }
+      .refineToOrDie[IzanamiErrors]
   }
 
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
+  override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     if (oldId.key == id.key) {
       getByIdRaw(id)
+        .refineToOrDie[IzanamiErrors]
         .flatMap {
           case Some(_) => updateRaw(id: Key, data)
-          case None    => Result.errors[JsValue](ErrorMessage("error.data.missing", id.key)).pure[F]
+          case None    => ZIO.fail(DataShouldExists(id))
         }
     } else {
       deleteRaw(oldId)
@@ -135,41 +105,43 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
         }
     }
 
-  private def updateRaw(id: Key, data: JsValue): F[Result[JsValue]] = {
+  private def updateRaw(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] = {
     val query =
       s"UPDATE $keyspace.$namespaceFormatted SET value = ? WHERE namespace = ? AND id = ? IF EXISTS "
     val args = Seq(Json.stringify(data), namespaceFormatted, id.key)
-    executeWithSession(query, args: _*).map(rs => Result.ok(data))
+    executeWithSessionT(query, args: _*)
+      .map(_ => data)
+      .refineToOrDie[IzanamiErrors]
   }
 
-  override def delete(id: Key): F[Result[JsValue]] =
+  override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     getByIdRaw(id)
+      .refineToOrDie[IzanamiErrors]
       .flatMap {
-        case Some(d) =>
-          deleteRaw(id).map(_ => Result.ok(d))
-        case None =>
-          Result.error[JsValue]("error.data.missing").pure[F]
+        case Some(d) => deleteRaw(id).map(_ => d)
+        case None    => IO.fail(DataShouldExists(id))
       }
 
-  private def deleteRaw(id: Key): F[Unit] = {
+  private def deleteRaw(id: Key): ZIO[DataStoreContext, IzanamiErrors, Unit] = {
     val query =
       s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
     val args = Seq(namespaceFormatted, id.key)
-    executeWithSession(
+    executeWithSessionT(
       query,
       args: _*
     ).map(_ => ())
+      .refineToOrDie[IzanamiErrors]
   }
 
-  override def getById(id: Key): F[Option[JsValue]] =
+  override def getById(id: Key): RIO[DataStoreContext, Option[JsValue]] =
     getByIdRaw(id)
 
-  private def getByIdRaw(id: Key): F[Option[JsValue]] = {
+  private def getByIdRaw(id: Key): RIO[DataStoreContext, Option[JsValue]] = {
     val query =
       s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
     val args = Seq(namespaceFormatted, id.key)
-    IzanamiLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}")
-    executeWithSession(
+    Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}") *>
+    executeWithSessionT(
       query = query,
       args = args: _*
     ).map { rs =>
@@ -182,25 +154,28 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
     }
   }
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
-    getByIdLikeRaw(query)
-      .via(Flows.count {
-        Flow[(Key, JsValue)]
-          .map(_._2)
-          .drop(nbElementPerPage * (page - 1))
-          .take(nbElementPerPage)
-          .fold(Seq.empty[JsValue])(_ :+ _)
-      })
-      .map {
-        case (res, count) =>
-          DefaultPagingResult(res, page, nbElementPerPage, count)
-            .asInstanceOf[PagingResult[JsValue]]
-      }
-      .runWith(Sink.head)
-      .toF
+  override def findByQuery(query: Query,
+                           page: Int,
+                           nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] =
+    IO.fromFuture { _ =>
+      getByIdLikeRaw(query)
+        .via(Flows.count {
+          Flow[(Key, JsValue)]
+            .map(_._2)
+            .drop(nbElementPerPage * (page - 1))
+            .take(nbElementPerPage)
+            .fold(Seq.empty[JsValue])(_ :+ _)
+        })
+        .map {
+          case (res, count) =>
+            DefaultPagingResult(res, page, nbElementPerPage, count)
+              .asInstanceOf[PagingResult[JsValue]]
+        }
+        .runWith(Sink.head)
+    }
 
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
-    getByIdLikeRaw(query)
+  override def findByQuery(query: Query): Task[Source[(Key, JsValue), NotUsed]] =
+    Task(getByIdLikeRaw(query))
 
   private def getByIdLikeRaw(q: Query): Source[(Key, JsValue), NotUsed] =
     if (q.hasEmpty) {
@@ -217,82 +192,73 @@ class CassandraJsonDataStore[F[_]: Effect](namespace: String, keyspace: String, 
         .filter { case (k, _) => Query.keyMatchQuery(k, q) }
     }
 
-  override def deleteAll(q: Query): F[Result[Done]] =
+  override def deleteAll(q: Query): ZIO[DataStoreContext, IzanamiErrors, Unit] =
     if (q.hasEmpty) {
-      Effect[F].pure(Result.ok(Done))
+      IO.succeed(())
     } else {
-      val query =
-        s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
-      IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
-      val stmt: Statement =
-        new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
-      CassandraSource(stmt)
-        .map { rs =>
-          (rs.getString("namespace"), rs.getString("id"))
-        }
-        .filter { case (_, k) => Query.keyMatchQuery(Key(k), q) }
-        .mapAsyncF(4) {
-          case (n, id) =>
-            val query =
-              s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
-            val args = Seq(n, id)
-            executeWithSession(query, n, id)
-        }
-        .runFold(0)((acc, _) => acc + 1)
-        .toF
-        .map(_ => Result.ok(Done))
+      for {
+        runtime <- ZIO.runtime[DataStoreContext]
+        res <- IO
+                .fromFuture { implicit ec =>
+                  val query =
+                    s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
+                  IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
+                  val stmt: Statement =
+                    new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
+                  CassandraSource(stmt)
+                    .map { rs =>
+                      (rs.getString("namespace"), rs.getString("id"))
+                    }
+                    .filter { case (_, k) => Query.keyMatchQuery(Key(k), q) }
+                    .mapAsync(4) {
+                      case (n, id) =>
+                        val query =
+                          s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
+                        val args = Seq(n, id)
+                        runtime.unsafeRunToFuture(executeWithSessionT(query, n, id))
+                    }
+                    .runFold(0)((acc, _) => acc + 1)
+                    .map(_ => ())
+                }
+                .refineToOrDie[IzanamiErrors]
+      } yield res
     }
 
-  override def count(query: Query): F[Long] = countRaw(query).flatMap {
-    case Right(r) => r.pure[F]
-    case Left(r) =>
-      Effect[F].raiseError(new IllegalArgumentException("pattern.invalid"))
-  }
+  override def count(query: Query): Task[Long] = countRaw(query)
 
-  private def countRaw(query: Query): F[Result[Long]] =
+  private def countRaw(query: Query): Task[Long] =
     if (query.hasEmpty) {
-      Result.ok(0L).pure[F]
+      Task.succeed(0L)
     } else {
-      getByIdLikeRaw(query)
-        .runFold(0L) { (acc, _) =>
-          acc + 1
-        }
-        .map { rs =>
-          Result.ok(rs)
-        }
-        .toF
+      Task.fromFuture { implicit ec =>
+        getByIdLikeRaw(query)
+          .runFold(0L) { (acc, _) =>
+            acc + 1
+          }
+      }
     }
 }
 
 object Cassandra {
 
-  def session[F[_]: Async]()(implicit cluster: Cluster, ec: ExecutionContext): F[Session] =
-    IO.fromFuture(IO(cluster.connectAsync().toFuture)).to[F]
+  import cats.effect.IO
 
-  def executeWithSession[F[_]: Async](query: String, args: Any*)(implicit session: Session,
-                                                                 ec: ExecutionContext): F[ResultSet] =
+  def sessionT()(implicit cluster: Cluster): zio.Task[Session] =
+    zio.Task.fromFuture(implicit ec => cluster.connectAsync().toFuture)
+
+  def executeWithSessionT(query: String, args: Any*)(implicit session: Session): zio.RIO[DataStoreContext, ResultSet] =
     if (args.isEmpty) {
-      IzanamiLogger.debug(s"Running query $query ")
-      IO.fromFuture(
-          IO(
-            session.executeAsync(query).toFuture
-          )
-        )
-        .to[F]
+      Logger.debug(s"Running query $query ") *>
+      zio.Task.fromFuture(implicit ec => session.executeAsync(query).toFuture)
     } else {
-      IzanamiLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ")
-      IO.fromFuture(
-          IO(
-            session
-              .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
-              .toFuture
-          )
-        )
-        .to[F]
+      Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ") *>
+      zio.Task.fromFuture(
+        implicit ec =>
+          session
+            .executeAsync(new SimpleStatement(query, args.map(_.asInstanceOf[Object]): _*))
+            .toFuture
+      )
     }
-
-  def executeWithSession[F[_]: Async](query: Statement)(implicit session: Session, ec: ExecutionContext): F[ResultSet] =
-    IO.fromFuture(IO(session.executeAsync(query).toFuture)).to[F]
 
   implicit class AsyncConvertions[T](f: ListenableFuture[T]) {
 
@@ -308,19 +274,7 @@ object Cassandra {
       )
       promise.future
     }
-//
-//    def toF[F[_]: Async](implicit ec: ExecutionContext): F[T] = {
-//      Async[F].async { cb =>
-//        Futures.addCallback(
-//          f,
-//          new FutureCallback[T] {
-//            override def onFailure(t: Throwable): Unit = cb(Left(t))
-//            override def onSuccess(result: T): Unit    = cb(Right(result))
-//          },
-//          ExecutorConversions.toExecutor(ec)
-//        )
-//      }
-//    }
+
   }
 
   object ExecutorConversions {

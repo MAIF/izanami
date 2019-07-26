@@ -1,13 +1,11 @@
 package store.postgresql
 
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect._
 import domains.Key
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{ErrorMessage, Result}
+import store.Result.{ErrorMessage, IzanamiErrors, Result}
 import store.{Query, _}
-import cats._
 import cats.data._
 import cats.free.Free
 import cats.implicits._
@@ -16,9 +14,12 @@ import doobie.free.connection
 import doobie.implicits._
 import doobie.Fragments._
 import fs2.Stream
-import env.{DbDomainConfig, PostgresqlConfig}
+import env.DbDomainConfig
 import org.postgresql.util.PGobject
 import libs.logs.IzanamiLogger
+import libs.logs.Logger
+import store.Result.DataShouldExists
+import store.Result.DataShouldNotExists
 
 case class PgData(id: Key, data: JsValue)
 
@@ -48,19 +49,19 @@ object PgData {
 
 object PostgresqlJsonDataStore {
 
-  def apply[F[_]: ContextShift: ConcurrentEffect](client: PostgresqlClient[F],
-                                                  domainConfig: DbDomainConfig): PostgresqlJsonDataStore[F] =
-    new PostgresqlJsonDataStore[F](client, domainConfig.conf.namespace)
+  def apply(client: PostgresqlClient, domainConfig: DbDomainConfig): PostgresqlJsonDataStore =
+    new PostgresqlJsonDataStore(client, domainConfig.conf.namespace)
 }
 
-class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: PostgresqlClient[F], namespace: String)
-    extends JsonDataStore[F] {
+class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) extends JsonDataStore {
 
   private val xa                = client.transactor
   private val tableName: String = namespace.replaceAll(":", "_")
   private val fragTableName     = Fragment.const(tableName)
 
   import PgData._
+  import zio._
+  import zio.interop.catz._
 
   private val dbScript = sql"""
        create table if not exists """ ++ fragTableName ++ sql""" (
@@ -69,23 +70,23 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: Post
        )
     """
 
-  {
+  override def start: RIO[DataStoreContext, Unit] = {
     import cats.effect.implicits._
-    IzanamiLogger.debug(s"Applying script $dbScript")
-    dbScript.update.run.transact(xa).toIO.unsafeRunSync()
+    Logger.debug(s"Applying script $dbScript") *>
+    dbScript.update.run.transact(xa).unit
   }
 
   override def create(
       id: Key,
       data: JsValue
-  ): F[Result[JsValue]] = {
+  ): IO[IzanamiErrors, JsValue] = {
 
     val result = for {
       exists <- getByKeyQuery(id)
       r <- exists match {
             case Some(_) =>
               Result
-                .errors[JsValue](ErrorMessage("error.data.exists", id.key))
+                .error[JsValue](DataShouldNotExists(id))
                 .pure[ConnectionIO]
             case None =>
               insertQuery(id, data).run
@@ -93,21 +94,24 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: Post
           }
     } yield r
 
-    result.transact(xa)
+    val value: IO[IzanamiErrors, Result[JsValue]] = result
+      .transact(xa)
+      .refineToOrDie[IzanamiErrors]
+    value.absolve
   }
 
   override def update(
       oldId: Key,
       id: Key,
       data: JsValue
-  ): F[Result[JsValue]] = {
+  ): IO[IzanamiErrors, JsValue] = {
 
     val result = for {
       exists <- getByKeyQuery(oldId)
       r <- exists match {
             case None =>
               Result
-                .errors[JsValue](ErrorMessage("error.data.missing", id.key))
+                .error[JsValue](DataShouldExists(oldId))
                 .pure[ConnectionIO]
             case Some(_) =>
               if (oldId == id) {
@@ -122,16 +126,19 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: Post
           }
     } yield r
 
-    result.transact(xa)
+    val value: IO[IzanamiErrors, Result[JsValue]] = result
+      .transact(xa)
+      .refineToOrDie[IzanamiErrors]
+    value.absolve
   }
 
-  override def delete(id: Key): F[Result[JsValue]] = {
+  override def delete(id: Key): IO[IzanamiErrors, JsValue] = {
     val result = for {
       exists <- getByKeyQuery(id)
       r <- exists match {
             case None =>
               Result
-                .errors[JsValue](ErrorMessage("error.data.missing", id.key))
+                .error[JsValue](DataShouldExists(id))
                 .pure[ConnectionIO]
             case Some(data) =>
               deleteByIdQuery(id).run
@@ -139,13 +146,18 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: Post
           }
     } yield r
 
-    result.transact(xa)
+    val value: IO[IzanamiErrors, Result[JsValue]] = result
+      .transact(xa)
+      .refineToOrDie[IzanamiErrors]
+    value.absolve
   }
 
-  override def getById(id: Key): F[Option[JsValue]] =
-    getByKeyQuery(id).map(_.map(_.data)).transact(xa)
+  override def getById(id: Key): Task[Option[JsValue]] =
+    getByKeyQuery(id)
+      .map(_.map(_.data))
+      .transact(xa)
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): Task[PagingResult[JsValue]] = {
 
     import Fragments._
 
@@ -161,21 +173,29 @@ class PostgresqlJsonDataStore[F[_]: ContextShift: ConcurrentEffect](client: Post
     queries.transact(xa)
   }
 
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = {
-    import streamz.converter._
+  override def findByQuery(query: Query): Task[Source[(Key, JsValue), NotUsed]] =
+    for {
+      runtime <- ZIO.runtime[Any]
+      res <- Task {
+              implicit val r = runtime
+              import zio.interop.catz._
+              import streamz.converter._
+              val findQuery = sql"select id, payload from " ++ fragTableName ++ whereAnd(queryClause(query))
 
-    val findQuery = sql"select id, payload from " ++ fragTableName ++ whereAnd(queryClause(query))
+              val s: Stream[Task, (Key, JsValue)] = findQuery.query[(Key, JsValue)].stream.transact(xa)
+              Source.fromGraph(s.toSource)
+            }
+    } yield res
 
-    val s: Stream[F, (Key, JsValue)] = findQuery.query[(Key, JsValue)].stream.transact(xa)
-    Source.fromGraph(s.toSource)
-  }
-
-  override def deleteAll(query: Query): F[Result[Done]] = {
+  override def deleteAll(query: Query): IO[IzanamiErrors, Unit] = {
     val q = sql"delete from " ++ fragTableName ++ whereAnd(queryClause(query))
-    q.update.run.transact(xa).map(_ => Result.ok(Done))
+    val value: IO[IzanamiErrors, Int] = q.update.run
+      .transact(xa)
+      .refineToOrDie[IzanamiErrors]
+    value.map(r => ())
   }
 
-  override def count(query: Query): F[Long] =
+  override def count(query: Query): Task[Long] =
     (sql"select count(*) from " ++ fragTableName ++ whereAnd(queryClause(query)))
       .query[Long]
       .unique

@@ -1,22 +1,21 @@
 package domains.config
 
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
-import cats.Monad
-import cats.data.EitherT
-import cats.effect.Effect
 import domains.config.Config.ConfigKey
-import domains.events.EventStore
-import domains.{AuthInfo, ImportResult, IsAllowed, Key}
-import libs.functional.EitherTSyntax
-import libs.logs.IzanamiLogger
+import domains.events.{EventStore, EventStoreContext}
+import domains.events.Events.{ConfigCreated, ConfigDeleted, ConfigUpdated}
+import domains.{ImportResult, Key}
+import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.{ErrorMessage, Result}
-
+import store.Result.{AppErrors, ErrorMessage, IzanamiErrors}
 import store._
-
-import scala.concurrent.ExecutionContext
+import libs.logs.Logger
+import store.Result.DataShouldExists
+import domains.AuthInfoModule
+import domains.AuthInfo
+import store.Result.IdMustBeTheSame
 
 case class Config(id: ConfigKey, value: JsValue)
 
@@ -24,98 +23,95 @@ object Config {
   type ConfigKey = Key
 }
 
-trait ConfigService[F[_]] {
-  def create(id: ConfigKey, data: Config): F[Result[Config]]
-  def update(oldId: ConfigKey, id: ConfigKey, data: Config): F[Result[Config]]
-  def delete(id: ConfigKey): F[Result[Config]]
-  def deleteAll(query: Query): F[Result[Done]]
-  def getById(id: ConfigKey): F[Option[Config]]
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Config]]
-  def findByQuery(query: Query): Source[(ConfigKey, Config), NotUsed]
-  def count(query: Query): F[Long]
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+trait ConfigDataStoreModule {
+  def configDataStore: JsonDataStore
 }
 
-class ConfigServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F], eventStore: EventStore[F])
-    extends ConfigService[F]
-    with EitherTSyntax[F] {
+trait ConfigContext
+    extends LoggerModule
+    with DataStoreContext
+    with ConfigDataStoreModule
+    with EventStoreContext
+    with AuthInfoModule[ConfigContext]
+
+object ConfigDataStore extends JsonDataStoreHelper[ConfigContext] {
+  override def accessStore = _.configDataStore
+}
+
+object ConfigService {
 
   import cats.implicits._
-  import libs.streams.syntax._
+  import zio._
+  import libs.ziohelper.JsResults._
   import ConfigInstances._
-  import store.Result._
-  import libs.functional.syntax._
-  import domains.events.Events._
+  import libs.streams.syntax._
 
-  override def create(id: ConfigKey, data: Config): F[Result[Config]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Config] = for {
-      created     <- jsonStore.create(id, ConfigInstances.format.writes(data))   |> liftFEither
-      apikey      <- created.validate[Config]                           |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(ConfigCreated(id, apikey))      |> liftF[AppErrors, Done]
+  def create(id: ConfigKey, data: Config): ZIO[ConfigContext, IzanamiErrors, Config] =
+    for {
+      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id)))
+      created  <- ConfigDataStore.create(id, ConfigInstances.format.writes(data))
+      apikey   <- fromJsResult(created.validate[Config]) { handleJsError }
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(ConfigCreated(id, apikey, authInfo = authInfo))
     } yield apikey
-    // format: on
-    r.value
-  }
 
-  override def update(oldId: ConfigKey, id: ConfigKey, data: Config): F[Result[Config]] = {
+  def update(oldId: ConfigKey, id: ConfigKey, data: Config): ZIO[ConfigContext, IzanamiErrors, Config] =
     // format: off
-    val r: EitherT[F, AppErrors, Config] = for {
-      oldValue    <- getById(oldId)                                               |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, ConfigInstances.format.writes(data))      |> liftFEither
-      experiment  <- updated.validate[Config]                                     |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(ConfigUpdated(id, oldValue, experiment))  |> liftF[AppErrors, Done]
+    for {
+      mayBeConfig <- getById(oldId).refineToOrDie[IzanamiErrors]
+      oldValue    <- ZIO.fromOption(mayBeConfig).mapError(_ => DataShouldExists(oldId))
+      updated     <- ConfigDataStore.update(oldId, id, ConfigInstances.format.writes(data))
+      experiment  <- fromJsResult(updated.validate[Config]) { handleJsError }
+      authInfo    <- AuthInfo.authInfo
+      _           <- EventStore.publish(ConfigUpdated(id, oldValue, experiment, authInfo = authInfo))
     } yield experiment
     // format: on
-    r.value
-  }
 
-  override def delete(id: ConfigKey): F[Result[Config]] = {
+  def delete(id: ConfigKey): ZIO[ConfigContext, IzanamiErrors, Config] =
     // format: off
-    val r: EitherT[F, AppErrors, Config] = for {
-      deleted <- jsonStore.delete(id)                               |> liftFEither
-      experiment <- ConfigInstances.format.reads(deleted)      |> liftJsResult{ handleJsError }
-      _       <- eventStore.publish(ConfigDeleted(id, experiment))  |> liftF[AppErrors, Done]
+    for {
+      deleted     <- ConfigDataStore.delete(id)
+      experiment  <- fromJsResult(ConfigInstances.format.reads(deleted)){ handleJsError }
+      authInfo    <- AuthInfo.authInfo
+      _           <- EventStore.publish(ConfigDeleted(id, experiment, authInfo = authInfo))
     } yield experiment
     // format: on
-    r.value
-  }
 
-  override def deleteAll(query: Query): F[Result[Done]] =
-    jsonStore.deleteAll(query)
+  def deleteAll(query: Query): ZIO[ConfigContext, IzanamiErrors, Unit] =
+    ConfigDataStore.deleteAll(query)
 
-  override def getById(id: ConfigKey): F[Option[Config]] =
-    jsonStore.getById(id).map(_.flatMap(_.validate[Config].asOpt))
+  def getById(id: ConfigKey): RIO[ConfigContext, Option[Config]] =
+    for {
+      mayBeConfig  <- ConfigDataStore.getById(id)
+      parsedConfig = mayBeConfig.flatMap(_.validate[Config].asOpt)
+    } yield parsedConfig
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Config]] =
-    jsonStore
+  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ConfigContext, PagingResult[Config]] =
+    ConfigDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def findByQuery(query: Query): Source[(Key, Config), NotUsed] =
-    jsonStore.findByQuery(query).readsKV[Config]
+  def findByQuery(query: Query): RIO[ConfigContext, Source[(Key, Config), NotUsed]] =
+    ConfigDataStore.findByQuery(query).map(_.readsKV[Config])
 
-  override def count(query: Query): F[Long] =
-    jsonStore.count(query)
+  def count(query: Query): RIO[ConfigContext, Long] =
+    ConfigDataStore.count(query)
 
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
+  def importData: RIO[ConfigContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
     import cats.implicits._
-    import libs.streams.syntax._
-    import store.Result.AppErrors._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, ConfigInstances.format.reads(json)) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          create(obj.id, obj).map { ImportResult.fromResult _ }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
-
-  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    IzanamiLogger.error(s"Error parsing json from database $err")
-    AppErrors.error("error.json.parsing")
+    ZIO.runtime[ConfigContext].map { runtime =>
+      Flow[(String, JsValue)]
+        .map { case (s, json) => (s, ConfigInstances.format.reads(json)) }
+        .mapAsync(4) {
+          case (_, JsSuccess(config, _)) =>
+            runtime.unsafeRunToFuture(
+              create(config.id, config).either
+                .map { ImportResult.fromResult }
+            )
+          case (s, JsError(_)) =>
+            FastFuture.successful[ImportResult](ImportResult.error("json.parse.error", s))
+        }
+        .fold(ImportResult()) { _ |+| _ }
+    }
   }
 }
