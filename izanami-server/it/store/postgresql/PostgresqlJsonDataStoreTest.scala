@@ -1,14 +1,13 @@
 package store.postgresql
 
-import cats.effect.{ContextShift, IO}
 import env.{DbDomainConfig, DbDomainConfigDetails, PostgresqlConfig}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.AbstractJsonDataStoreTest
 import test.FakeApplicationLifecycle
 
 class PostgresqlJsonDataStoreTest extends AbstractJsonDataStoreTest("Postgresql")  with BeforeAndAfter with BeforeAndAfterAll {
-
-  implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
+  import zio._
+  import zio.interop.catz._
 
   private val pgConfig = PostgresqlConfig(
     "org.postgresql.Driver",
@@ -16,12 +15,12 @@ class PostgresqlJsonDataStoreTest extends AbstractJsonDataStoreTest("Postgresql"
     "izanami", "izanami", 32, None
   )
 
-  private def client: Option[PostgresqlClient[IO]] = PostgresqlClient.postgresqlClient[IO](
+  private def client: Option[PostgresqlClient] = PostgresqlClient.postgresqlClient(
     system, new FakeApplicationLifecycle(), Some(pgConfig)
   )
 
-  override def dataStore(name: String): PostgresqlJsonDataStore[IO] =
-    PostgresqlJsonDataStore[IO](client.get, DbDomainConfig(env.Postgresql, DbDomainConfigDetails(name, None), None))
+  override def dataStore(name: String): PostgresqlJsonDataStore =
+    PostgresqlJsonDataStore(client.get, DbDomainConfig(env.Postgresql, DbDomainConfigDetails(name, None), None))
 
 
 }

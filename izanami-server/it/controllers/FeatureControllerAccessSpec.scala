@@ -8,8 +8,11 @@ import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
+import scala.util.Random
+import org.scalatest.BeforeAndAfterAll
 
-class FeatureControllerWildcardAccessSpec(name: String, configurationSpec: Configuration)
+
+abstract class FeatureControllerWildcardAccessSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents

@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import ch.qos.logback.classic.{Level, LoggerContext}
 import controllers.actions.SecuredAuthContext
 import domains.user.User
-import env.Env
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}

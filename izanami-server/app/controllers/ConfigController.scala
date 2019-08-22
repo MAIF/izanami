@@ -1,51 +1,41 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.apikey.Apikey
-import domains.config.Config.ConfigKey
-import domains.config.{Config, ConfigInstances, ConfigService}
 import domains._
-import env.Env
-import libs.functional.EitherTSyntax
-import libs.patch.Patch
+import domains.config.Config.ConfigKey
+import domains.config.{Config, ConfigContext, ConfigInstances, ConfigService}
 import libs.logs.IzanamiLogger
+import libs.patch.Patch
+import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
+import store.Result.{AppErrors, IzanamiErrors}
 import store.Query
-import store.Result.{AppErrors, ErrorMessage}
+import zio.Runtime
 
-import scala.concurrent.Future
+class ConfigController(system: ActorSystem,
+                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                       val cc: ControllerComponents)(implicit runtime: Runtime[ConfigContext])
+    extends AbstractController(cc) {
 
-class ConfigController[F[_]: Effect](configStore: ConfigService[F],
-                                     system: ActorSystem,
-                                     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                     val cc: ControllerComponents)
-    extends AbstractController(cc)
-    with EitherTSyntax[F] {
-
-  import cats.implicits._
-  import libs.functional.syntax._
-  import libs.effects._
-  import system.dispatcher
   import libs.http._
+  import zio._
+  import system.dispatcher
 
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
-    AuthAction.asyncF(parse.empty) { ctx =>
+    AuthAction.asyncTask[ConfigContext](parse.empty) { ctx =>
       import ConfigInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
-
       render match {
         case "flat" =>
-          configStore
+          ConfigService
             .findByQuery(query, page, nbElementPerPage)
             .map { r =>
               Ok(
@@ -63,144 +53,151 @@ class ConfigController[F[_]: Effect](configStore: ConfigService[F],
 
         case "tree" =>
           import Node._
-          import ConfigInstances._
-          configStore
+          import zio._
+          ConfigService
             .findByQuery(query)
-            .fold(List.empty[(ConfigKey, Config)])(_ :+ _)
-            .map { v =>
-              Node.valuesToNodes[Config](v)(ConfigInstances.format)
-            }
-            .map { v =>
-              Json.toJson(v)
-            }
-            .map(json => Ok(json))
-            .runWith(Sink.head)
-            .toF[F]
+            .flatMap(
+              s =>
+                RIO.fromFuture(
+                  implicit ec =>
+                    s.fold(List.empty[(ConfigKey, Config)])(_ :+ _)
+                      .map { v =>
+                        Node.valuesToNodes[Config](v)(ConfigInstances.format)
+                      }
+                      .map { v =>
+                        Json.toJson(v)
+                      }
+                      .map(json => Ok(json))
+                      .runWith(Sink.head)
+              )
+            )
       }
     }
 
   def tree(patterns: String): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncTask[ConfigContext](parse.empty) { ctx =>
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(patterns.split(",").toList)
-      configStore
+      ConfigService
         .findByQuery(query)
-        .map {
-          case (_, config) =>
-            config.id.jsPath.write[JsValue].writes(config.value)
-        }
-        .fold(Json.obj()) { (acc, js) =>
-          acc.deepMerge(js.as[JsObject])
-        }
-        .map(json => Ok(json))
-        .runWith(Sink.head)
+        .flatMap(
+          s =>
+            RIO.fromFuture(
+              implicit ec =>
+                s.map {
+                    case (_, config) =>
+                      config.id.jsPath.write[JsValue].writes(config.value)
+                  }
+                  .fold(Json.obj()) { (acc, js) =>
+                    acc.deepMerge(js.as[JsObject])
+                  }
+                  .map(json => Ok(json))
+                  .runWith(Sink.head)
+          )
+        )
     }
 
-  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncZio[ConfigContext](parse.json) { ctx =>
     import ConfigInstances._
 
     for {
-      config <- ctx.request.body.validate[Config] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _ <- IsAllowed[Config].isAllowed(config)(ctx.auth) |> liftBooleanTrue(
-            Unauthorized(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- configStore.create(config.id, config) |> mapLeft(err => BadRequest(err.toJson))
+      config <- jsResultToHttpResponse(ctx.request.body.validate[Config])
+      _      <- IsAllowed[Config].isAllowed(config, ctx.auth) { Unauthorized(AppErrors.error("error.forbidden").toJson) }
+      _      <- ConfigService.create(config.id, config).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(config))
 
   }
 
-  def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
+  def get(id: String): Action[Unit] = AuthAction.asyncZio[ConfigContext](parse.empty) { ctx =>
     import ConfigInstances._
     val key = Key(id)
     for {
-      _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      config <- configStore.getById(key) |> liftFOption[Result, Config](NotFound)
+      _           <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      mayBeConfig <- ConfigService.getById(key).mapError(e => InternalServerError)
+      config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
     } yield Ok(Json.toJson(config))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncZio[ConfigContext](parse.json) { ctx =>
     import ConfigInstances._
     for {
-      config <- ctx.request.body.validate[Config] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _ <- IsAllowed[Config].isAllowed(config)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- configStore.update(Key(id), config.id, config) |> mapLeft(err => BadRequest(err.toJson))
+      config <- jsResultToHttpResponse(ctx.request.body.validate[Config])
+      _      <- IsAllowed[Config].isAllowed(config, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- ConfigService.update(Key(id), config.id, config).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(config))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncZio[ConfigContext](parse.json) { ctx =>
     import ConfigInstances._
     val key = Key(id)
     for {
-      current <- configStore.getById(key) |> liftFOption[Result, Config](NotFound)
-      _ <- IsAllowed[Config].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      event <- configStore
-                .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
+      mayBeConfig <- ConfigService.getById(key).mapError(e => InternalServerError)
+      current     <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
+      _           <- IsAllowed[Config].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated     <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
+      event       <- ConfigService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[ConfigContext] { ctx =>
     import ConfigInstances._
     val key = Key(id)
     for {
-      config <- configStore.getById(key) |> liftFOption[Result, Config](NotFound)
-      _ <- IsAllowed[Config].isAllowed(config)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      deleted <- configStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
+      mayBeConfig <- ConfigService.getById(key).mapError(e => InternalServerError)
+      config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
+      _           <- IsAllowed[Config].isAllowed(config, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      deleted     <- ConfigService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(config))
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.asyncEitherT { ctx =>
+    AuthAction.asyncZio[ConfigContext] { ctx =>
       val query: Query = Query.oneOf(ctx.authorizedPatterns)
       for {
-        deletes <- configStore.deleteAll(query) |> mapLeft(err => BadRequest(err.toJson))
+        deletes <- ConfigService.deleteAll(query).mapError { IzanamiErrors.toHttpResult }
       } yield Ok
     }
 
-  def count(): Action[AnyContent] = AuthAction.asyncF { ctx =>
+  def count(): Action[AnyContent] = AuthAction.asyncTask[ConfigContext] { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    configStore.count(query).map { count =>
+    ConfigService.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
-  def download(): Action[AnyContent] = AuthAction { ctx =>
+  def download(): Action[AnyContent] = AuthAction.asyncTask[ConfigContext] { ctx =>
     import ConfigInstances._
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    val source = configStore
-      .findByQuery(query)
-      .map { case (_, data) => Json.toJson(data) }
-      .map(Json.stringify _)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-    Result(
-      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "configs.dnjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
+    ConfigService.findByQuery(query).map { values =>
+      val source = values
+        .map { case (_, data) => Json.toJson(data) }
+        .map(Json.stringify _)
+        .intersperse("", "\n", "\n")
+        .map(ByteString.apply)
+
+      Result(
+        header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "configs.dnjson")),
+        body = HttpEntity.Streamed(source, None, Some("application/json"))
+      )
+    }
   }
 
-  def upload() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(configStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
+  def upload() = AuthAction.asyncTask[ConfigContext](Import.ndJson) { ctx =>
+    ConfigService.importData.flatMap { flow =>
+      Task.fromFuture { implicit ec =>
+        ctx.body
+          .via(flow)
+          .map {
+            case r if r.isError => BadRequest(Json.toJson(r))
+            case r              => Ok(Json.toJson(r))
+          }
+          .recover {
+            case e: Throwable =>
+              IzanamiLogger.error("Error importing file", e)
+              InternalServerError
+          }
+          .runWith(Sink.head)
       }
-      .recover {
-        case e: Throwable =>
-          IzanamiLogger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
+    }
   }
 
 }

@@ -1,6 +1,7 @@
 package libs
 
 import java.util.concurrent.atomic.AtomicLong
+import cats.implicits._
 
 import scala.util.Random
 
@@ -42,10 +43,10 @@ object IdGenerator {
       c <- 0 to 36
     } yield
       c match {
-        case i if i == 9 || i == 14 || i == 19 || i == 24 => "-"
-        case i if i == 15                                 => "4"
-        case i if c == 20                                 => INIT_STRING((Random.nextDouble() * 4.0).toInt | 8)
-        case i                                            => INIT_STRING((Random.nextDouble() * 15.0).toInt | 0)
+        case i if i === 9 || i === 14 || i === 19 || i === 24 => "-"
+        case i if i === 15                                    => "4"
+        case i if c === 20                                    => INIT_STRING((Random.nextDouble() * 4.0).toInt | 8)
+        case i                                                => INIT_STRING((Random.nextDouble() * 15.0).toInt | 0)
       }).mkString("")
 
   def token(characters: Array[String], size: Int): String =

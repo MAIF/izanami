@@ -1,47 +1,32 @@
 package store
 
-import akka.actor.ActorSystem
-import cats.Applicative
-import domains.Key
-import domains.abtesting.{ExperimentService, ExperimentVariantEventService}
-import domains.apikey.ApikeyService
-import domains.config.ConfigService
+import domains.{AkkaModule, GlobalContext, Key}
+import domains.abtesting.{ExperimentContext, ExperimentService, ExperimentVariantEventService}
+import domains.apikey.{ApiKeyContext, ApikeyService}
+import domains.config.{ConfigContext, ConfigService}
 import domains.events.EventStore
-import domains.feature.FeatureService
-import domains.script.GlobalScriptService
-import domains.user.UserService
-import domains.webhook.WebhookService
+import domains.feature.{FeatureContext, FeatureService}
+import domains.script.{GlobalScriptContext, GlobalScriptService}
+import domains.user.{UserContext, UserService}
+import domains.webhook.{WebhookContext, WebhookService}
+import store.Result.IzanamiErrors
+import zio.ZIO
+import zio.RIO
 
-class Healthcheck[F[_]: Applicative](
-    eventStore: EventStore[F],
-    globalScriptStore: GlobalScriptService[F],
-    configStore: ConfigService[F],
-    featureStore: FeatureService[F],
-    experimentStore: ExperimentService[F],
-    experimentVariantEventStore: ExperimentVariantEventService[F],
-    webhookStore: WebhookService[F],
-    userStore: UserService[F],
-    apikeyStore: ApikeyService[F]
-)(implicit system: ActorSystem) {
+object Healthcheck {
 
-  import cats.implicits._
-
-  def check(): F[Unit] = {
+  def check(): RIO[GlobalContext, Unit] = {
     val key = Key("test")
 
-    (
-      eventStore.check(),
-      globalScriptStore.getById(key),
-      configStore.getById(key),
-      featureStore.getById(key),
-      experimentStore.getById(key),
-      experimentVariantEventStore.check(),
-      webhookStore.getById(key),
-      userStore.getById(key),
-      apikeyStore.getById(key)
-    ).mapN { (_, _, _, _, _, _, _, _, _) =>
-      ()
-    }
+    EventStore.check() *>
+    GlobalScriptService.getById(key) *>
+    ConfigService.getById(key) *>
+    FeatureService.getById(key) *>
+    ExperimentService.getById(key) *>
+    ExperimentVariantEventService.check() *>
+    WebhookService.getById(key) *>
+    UserService.getById(key) *>
+    ApikeyService.getById(key) *> ZIO.succeed(())
   }
 
 }

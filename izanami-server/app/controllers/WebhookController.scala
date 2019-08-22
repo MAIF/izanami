@@ -4,41 +4,35 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import cats.effect.{Effect, IO}
 import controllers.actions.SecuredAuthContext
-import domains.webhook.{Webhook, WebhookInstances, WebhookService}
+import domains.webhook.{Webhook, WebhookContext, WebhookInstances, WebhookService}
 import domains.{Import, IsAllowed, Key}
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.AppErrors
-import libs.functional.EitherTSyntax
+import store.Result.{AppErrors, IzanamiErrors}
+import libs.ziohelper.JsResults.jsResultToHttpResponse
 import store.Query
+import zio.{IO, Runtime, ZIO}
 
-class WebhookController[F[_]: Effect](webhookStore: WebhookService[F],
-                                      system: ActorSystem,
-                                      AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                      cc: ControllerComponents)
-    extends AbstractController(cc)
-    with EitherTSyntax[F] {
+class WebhookController(system: ActorSystem,
+                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                        cc: ControllerComponents)(implicit R: Runtime[WebhookContext])
+    extends AbstractController(cc) {
 
-  import AppErrors._
-  import cats.implicits._
-  import cats.effect.implicits._
   import libs.http._
-  import libs.functional.syntax._
   import system.dispatcher
 
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
-    AuthAction.asyncF(parse.empty) { ctx =>
+    AuthAction.asyncTask[WebhookContext](parse.empty) { ctx =>
       import WebhookInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
-      webhookStore
+      WebhookService
         .findByQuery(query, page, nbElementPerPage)
         .map { r =>
           Ok(
@@ -55,118 +49,120 @@ class WebhookController[F[_]: Effect](webhookStore: WebhookService[F],
         }
     }
 
-  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncZio[WebhookContext](parse.json) { ctx =>
     import WebhookInstances._
 
+    val body = ctx.request.body
     for {
-      webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      _ <- IsAllowed[Webhook].isAllowed(webhook)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- webhookStore
-                .create(webhook.clientId, webhook) |> mapLeft(err => BadRequest(err.toJson))
+      webhook <- jsResultToHttpResponse(body.validate[Webhook])
+      _       <- isWebhookAllowed(webhook, ctx)
+      event   <- WebhookService.create(webhook.clientId, webhook).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(webhook))
 
   }
 
-  def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
+  def get(id: String): Action[Unit] = AuthAction.asyncZio[WebhookContext](parse.empty) { ctx =>
     import WebhookInstances._
     val key = Key(id)
     for {
-      _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      webhook <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
+      _       <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      mayBe   <- WebhookService.getById(key).mapError(e => InternalServerError)
+      webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
     } yield Ok(Json.toJson(webhook))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncZio[WebhookContext](parse.json) { ctx =>
     import WebhookInstances._
+    val body = ctx.request.body
     for {
-      webhook <- ctx.request.body.validate[Webhook] |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      _ <- IsAllowed[Webhook].isAllowed(webhook)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- webhookStore.update(Key(id), webhook.clientId, webhook) |> mapLeft(
-                err => BadRequest(err.toJson)
-              )
+      webhook <- jsResultToHttpResponse(body.validate[Webhook])
+      _       <- isWebhookAllowed(webhook, ctx)
+      _       <- WebhookService.update(Key(id), webhook.clientId, webhook).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(webhook))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncZio[WebhookContext](parse.json) { ctx =>
     import WebhookInstances._
     val key = Key(id)
     for {
-      current <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
-      _ <- IsAllowed[Webhook].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      event <- webhookStore
-                .update(key, current.clientId, updated) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe   <- WebhookService.getById(key).mapError(e => InternalServerError)
+      webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _       <- isWebhookAllowed(webhook, ctx)
+      body    = ctx.request.body
+      updated <- jsResultToHttpResponse(Patch.patch(body, webhook))
+      _       <- WebhookService.update(key, webhook.clientId, updated).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[WebhookContext] { ctx =>
     import WebhookInstances._
     val key = Key(id)
     for {
-      webhook <- webhookStore.getById(key) |> liftFOption[Result, Webhook](NotFound)
-      _ <- IsAllowed[Webhook].isAllowed(webhook)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      deleted <- webhookStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe   <- WebhookService.getById(key).mapError(e => InternalServerError)
+      webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _       <- isWebhookAllowed(webhook, ctx)
+      _       <- WebhookService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(webhook))
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.asyncEitherT { ctx =>
+    AuthAction.asyncZio[WebhookContext] { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
-      for {
-        deletes <- webhookStore.deleteAll(allPatterns) |> mapLeft(err => BadRequest(err.toJson))
-      } yield Ok
+      WebhookService
+        .deleteAll(allPatterns)
+        .mapError { IzanamiErrors.toHttpResult }
+        .map { _ =>
+          Ok
+        }
     }
 
-  def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
+  def count(): Action[Unit] = AuthAction.asyncTask[WebhookContext](parse.empty) { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    webhookStore.count(query).map { count =>
+    WebhookService.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
-  def download(): Action[AnyContent] = AuthAction { ctx =>
+  def download(): Action[AnyContent] = AuthAction.asyncTask[WebhookContext] { ctx =>
     import WebhookInstances._
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    val source = webhookStore
+    WebhookService
       .findByQuery(query)
-      .map { case (_, data) => Json.toJson(data) }
-      .map(Json.stringify)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-    Result(
-      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "webhooks.ndjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
+      .map { s =>
+        val source = s
+          .map { case (_, data) => Json.toJson(data) }
+          .map(Json.stringify)
+          .intersperse("", "\n", "\n")
+          .map(ByteString.apply)
+        Result(
+          header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "webhooks.ndjson")),
+          body = HttpEntity.Streamed(source, None, Some("application/json"))
+        )
+      }
+
   }
 
-  def upload() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(webhookStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
+  def upload() = AuthAction.asyncTask[WebhookContext](Import.ndJson) { ctx =>
+    WebhookService.importData.flatMap { flow =>
+      ZIO.fromFuture { implicit ec =>
+        ctx.body
+          .via(flow)
+          .map {
+            case r if r.isError => BadRequest(Json.toJson(r))
+            case r              => Ok(Json.toJson(r))
+          }
+          .recover {
+            case e: Throwable =>
+              IzanamiLogger.error("Error importing file", e)
+              InternalServerError
+          }
+          .runWith(Sink.head)
       }
-      .recover {
-        case e: Throwable =>
-          IzanamiLogger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
+    }
   }
+
+  private def isWebhookAllowed(webhook: Webhook,
+                               ctx: SecuredAuthContext[_])(implicit A: IsAllowed[Webhook]): zio.IO[Result, Unit] =
+    IsAllowed[Webhook].isAllowed(webhook, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+
 }

@@ -1,7 +1,5 @@
 package store.dynamo
 
-import akka.stream.alpakka.dynamodb.DynamoSettings
-import cats.effect.IO
 import com.typesafe.config.{Config, ConfigFactory}
 import akka.stream.alpakka.dynamodb.{DynamoAttributes, DynamoSettings, DynamoClient => AlpakkaClient}
 import akka.stream.alpakka.dynamodb.AwsOp._
@@ -12,7 +10,7 @@ import com.amazonaws.services.dynamodbv2.model.{DeleteTableRequest, ListTablesRe
 import env.DynamoConfig
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-import store.{AbstractJsonDataStoreTest, JsonDataStore}
+import store.AbstractJsonDataStoreTest
 
 import scala.util.Try
 
@@ -46,8 +44,8 @@ class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb")  wit
     client
   }
 
-  override def dataStore(name: String): JsonDataStore[IO] =
-    DynamoJsonDataStore[IO](getClient(name), name, "test")
+  override def dataStore(name: String): DynamoJsonDataStore =
+    DynamoJsonDataStore(getClient(name), name, "test")
 
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
