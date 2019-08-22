@@ -1,0 +1,14 @@
+package specs.memorywithdb.controllers
+
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import controllers._
+import scala.util.Random
+
+class InMemoryWithDbApikeyControllerSpec extends ApikeyControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
+class InMemoryWithDbConfigControllerSpec extends ConfigControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
+class InMemoryWithDbExperimentControllerSpec extends ExperimentControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
+class InMemoryWithDbFeatureControllerWildcardAccessSpec extends FeatureControllerWildcardAccessSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
+class InMemoryWithDbFeatureControllerSpec extends FeatureControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
+class InMemoryWithDbGlobalScriptControllerSpec extends GlobalScriptControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
+class InMemoryWithDbUserControllerSpec extends UserControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)
+class InMemoryWithDbWebhookControllerSpec extends WebhookControllerSpec("InMemoryWithDb", Configs.inMemoryWithDbConfiguration)

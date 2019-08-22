@@ -1,30 +1,29 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
 
-export const OnSwitch = (props) => (
+export const OnSwitch = props => (
   <div className="content-switch-button-on" onClick={props.onChange}>
     <div className="switch-button-on"></div>
   </div>
 );
 
-export const OffSwitch = (props) => (
+export const OffSwitch = props => (
   <div className="content-switch-button-off" onClick={props.onChange}>
     <div className="switch-button-off"></div>
   </div>
 );
 
 export class BooleanInput extends Component {
-
-  toggleOff = (e) => {
+  toggleOff = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.props.onChange(false);
   };
 
-  toggleOn = (e) => {
+  toggleOn = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.props.onChange(true);
   };
 
-  toggle = (value) => {
+  toggle = value => {
     this.props.onChange(value);
   };
 
@@ -36,8 +35,8 @@ export class BooleanInput extends Component {
         <div className="form-group">
           <label className="col-sm-2 control-label">{this.props.label}</label>
           <div className="col-sm-10">
-            {value && <OnSwitch onChange={this.toggleOff}/>}
-            {!value && <OffSwitch onChange={this.toggleOn}/>}
+            {value && <OnSwitch onChange={this.toggleOff} />}
+            {!value && <OffSwitch onChange={this.toggleOn} />}
           </div>
         </div>
       </div>
@@ -68,18 +67,17 @@ export class BooleanInput extends Component {
 }
 
 export class SimpleBooleanInput extends Component {
-
   state = {
     enabled: !!this.props.value
   };
 
-  toggleOff = (e) => {
+  toggleOff = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.setState({ enabled: false });
     this.props.onChange(false);
   };
 
-  toggleOn = (e) => {
+  toggleOn = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.setState({ enabled: true });
     this.props.onChange(true);

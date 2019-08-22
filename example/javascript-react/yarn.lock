@@ -883,6 +883,11 @@
     lodash "^4.17.10"
     to-fast-properties "^2.0.0"
 
+"@ungap/global-this@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@ungap/global-this/-/global-this-0.3.1.tgz#e37e005301c64484a61eed90305210bf078a4bc5"
+  integrity sha512-6gxLxSsXmt3XcC2p0mRjeHOtZemfs/IswAyWJZU0b8UvCQAegRpjSrQK0Y+u3OQQ3V0ZYQkHVCV9V3dxnlJ5Zw==
+
 "@webassemblyjs/ast@1.7.11":
   version "1.7.11"
   resolved "https://registry.yarnpkg.com/@webassemblyjs/ast/-/ast-1.7.11.tgz#b988582cafbb2b095e8b556526f30c90d057cace"
@@ -3620,14 +3625,19 @@ lodash.tail@^4.1.1:
   version "4.1.1"
   resolved "https://registry.yarnpkg.com/lodash.tail/-/lodash.tail-4.1.1.tgz#d2333a36d9e7717c8ad2f7cacafec7c32b444664"
 
-lodash@4.17.11, lodash@^4.17.10, lodash@^4.17.11, lodash@^4.17.5:
-  version "4.17.11"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.11.tgz#b39ea6229ef607ecd89e2c8df12536891cac9b8d"
-  integrity sha512-cQKh8igo5QUhZ7lg38DYWAxMvjSAKG0A8wGSVimP07SIUEK2UO+arSRKbRZWtelMtN5V0Hkwh5ryOto/SshYIg==
+lodash@4.17.13:
+  version "4.17.13"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.13.tgz#0bdc3a6adc873d2f4e0c4bac285df91b64fc7b93"
+  integrity sha512-vm3/XWXfWtRua0FkUyEHBZy8kCPjErNBT9fJx8Zvs+U6zjqPbTUOpkaoum3O5uiA8sm+yNMHXfYkTUHFoMxFNA==
 
 lodash@^4.0.0, lodash@^4.3.0, lodash@~4.17.4:
   version "4.17.4"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.4.tgz#78203a4d1c328ae1d86dca6460e369b57f4055ae"
+
+lodash@^4.17.10, lodash@^4.17.11, lodash@^4.17.5:
+  version "4.17.11"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.11.tgz#b39ea6229ef607ecd89e2c8df12536891cac9b8d"
+  integrity sha512-cQKh8igo5QUhZ7lg38DYWAxMvjSAKG0A8wGSVimP07SIUEK2UO+arSRKbRZWtelMtN5V0Hkwh5ryOto/SshYIg==
 
 loglevel@^1.4.1:
   version "1.6.0"
@@ -4754,11 +4764,12 @@ react-input-autosize@^2.1.2:
   dependencies:
     prop-types "^15.5.8"
 
-react-izanami@1.4.0:
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/react-izanami/-/react-izanami-1.4.0.tgz#351e25d78be4120772960762e229bd9406ece94f"
-  integrity sha512-0gWhDPyNgNoTLMSpSLuiT/cmYQy/Rz+CJbxcli7846QI5xvHarzH77EGFi3qW7uX7IO+vlzAfF7b7lvr8aRJDA==
+react-izanami@1.4.4:
+  version "1.4.4"
+  resolved "https://registry.yarnpkg.com/react-izanami/-/react-izanami-1.4.4.tgz#c5d9b3257be28b97c0135ca8b91a29089996339a"
+  integrity sha512-V3H0Y6FDaRIpAmf3NsWQLANaWBewwHfhIah5rWCw5FrDCD63NHr7+oQSW13HpYIvbgmvu3qc/RzGuv2GntBiLQ==
   dependencies:
+    "@ungap/global-this" "^0.3.1"
     deep-equal "^1.0.1"
     deepmerge "^1.4.4"
     es-symbol "1.1.2"

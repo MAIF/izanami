@@ -23,7 +23,7 @@
 "font-awesome": "4.7.0", // MIT License
 "highcharts": "5.0.12",
 "jquery": "3.2.1", // MIT License
-"lodash": "4.17.4", // MIT License
+"lodash": "4.17.13", // MIT License
 "moment": "2.18.1", // MIT License
 "prop-types": "15.6.0", // MIT License
 "react": "16.0.0", // MIT License
