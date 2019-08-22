@@ -28,7 +28,7 @@ class ABTestingSimulation extends Simulation {
   private val host = "http://localhost:9000"
 
   val httpConf = http
-    .baseURL(host)
+    .baseUrl(host)
     .acceptHeader("application/json")
     .headers(headers)
     .acceptEncodingHeader("gzip, deflate")

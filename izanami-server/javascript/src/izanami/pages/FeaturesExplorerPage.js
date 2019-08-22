@@ -1,23 +1,25 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
-import AceEditor from 'react-ace';
-import 'brace/mode/javascript';
-import 'brace/theme/monokai';
+import AceEditor from "react-ace";
+import "brace/mode/javascript";
+import "brace/theme/monokai";
 
 export class FeaturesExplorerPage extends Component {
-
   state = {
-    query: '',
-    context: '{}',
+    query: "",
+    context: "{}",
     graph: {
-      "message": "Run the query to get results ..."
+      message: "Run the query to get results ..."
     },
-    searching: false,
+    searching: false
   };
 
   updateGraph = () => {
     this.setState({ searching: true });
-    return IzanamiServices.fetchFeatureGraph(this.state.query, JSON.parse(this.state.context)).then(graph => {
+    return IzanamiServices.fetchFeatureGraph(
+      this.state.query,
+      JSON.parse(this.state.context)
+    ).then(graph => {
       this.setState({ graph, searching: false });
     });
   };
@@ -37,36 +39,52 @@ export class FeaturesExplorerPage extends Component {
     let codeContext = this.state.context;
     return (
       <div className="col-md-12">
-        <div className="form-inline" style={{ marginBottom: 20, marginLeft: -15  }}>
+        <div
+          className="form-inline"
+          style={{ marginBottom: 20, marginLeft: -15 }}
+        >
           <div className="form-group">
-            <input type="text" className="form-control col-xs-12" placeholder="feature query (ie. project:env:*, mcf:preprod:frontend:*)" value={this.state.query} onChange={e => this.setState({ query: e.target.value })} />
+            <input
+              type="text"
+              className="form-control col-xs-12"
+              placeholder="feature query (ie. project:env:*, mcf:preprod:frontend:*)"
+              value={this.state.query}
+              onChange={e => this.setState({ query: e.target.value })}
+            />
           </div>
-          <button type="button" className="btn btn-success btn-search" onClick={this.updateGraph}>
-            <i className="glyphicon glyphicon-search" />
-            {' '}
-            {!this.state.searching && 'Search'}
-            {this.state.searching && 'Searching ...'}
+          <button
+            type="button"
+            className="btn btn-success btn-search"
+            onClick={this.updateGraph}
+          >
+            <i className="glyphicon glyphicon-search" />{" "}
+            {!this.state.searching && "Search"}
+            {this.state.searching && "Searching ..."}
           </button>
         </div>
         <div className="row">
           <h5>User context</h5>
-          <AceEditor mode="javascript"
-                     theme="monokai"
-                     onChange={c => this.setState({ context: c })}
-                     value={codeContext}
-                     name="contextParam"
-                     editorProps={{$blockScrolling: true}}
-                     height="100px"
-                     width="100%" />
+          <AceEditor
+            mode="javascript"
+            theme="monokai"
+            onChange={c => this.setState({ context: c })}
+            value={codeContext}
+            name="contextParam"
+            editorProps={{ $blockScrolling: true }}
+            height="100px"
+            width="100%"
+          />
         </div>
         <div className="row" style={{ marginTop: 20 }}>
-          <AceEditor mode="javascript"
-                     theme="monokai"
-                     value={code}
-                     name="scriptParam"
-                     editorProps={{$blockScrolling: true}}
-                     height="400px"
-                     width="100%" />
+          <AceEditor
+            mode="javascript"
+            theme="monokai"
+            value={code}
+            name="scriptParam"
+            editorProps={{ $blockScrolling: true }}
+            height="400px"
+            width="100%"
+          />
         </div>
       </div>
     );
