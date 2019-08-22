@@ -1,5 +1,5 @@
-import React, {Component} from 'react';
-import PropTypes from 'prop-types'; // ES6
+import React, { Component } from "react";
+import PropTypes from "prop-types"; // ES6
 
 import {
   ArrayInput,
@@ -11,13 +11,13 @@ import {
   LabelInput,
   CodeInput,
   KeyInput,
-  FieldError, JsonInput,
+  FieldError,
+  JsonInput
 } from ".";
 
-import isFunction from 'lodash/isFunction';
+import isFunction from "lodash/isFunction";
 
 export class Form extends Component {
-
   static propTypes = {
     value: PropTypes.object,
     onChange: PropTypes.func,
@@ -27,19 +27,22 @@ export class Form extends Component {
   };
 
   changeValue = (name, value) => {
-    if (name.indexOf('.') > -1) {
-      const [key1, key2] = name.split('.');
-      const newValue = {...this.props.value, [key1]: {...this.props.value[key1], [key2]: value}};
+    if (name.indexOf(".") > -1) {
+      const [key1, key2] = name.split(".");
+      const newValue = {
+        ...this.props.value,
+        [key1]: { ...this.props.value[key1], [key2]: value }
+      };
       this.props.onChange(newValue);
     } else {
-      const newValue = {...this.props.value, [name]: value};
+      const newValue = { ...this.props.value, [name]: value };
       this.props.onChange(newValue);
     }
   };
 
   getValue = (name, defaultValue) => {
-    if (name.indexOf('.') > -1) {
-      const [key1, key2] = name.split('.');
+    if (name.indexOf(".") > -1) {
+      const [key1, key2] = name.split(".");
       if (this.props.value[key1]) {
         return this.props.value[key1][key2] || defaultValue;
       } else {
@@ -50,126 +53,204 @@ export class Form extends Component {
     }
   };
 
-  getSchema = (name) => {
-    let current = {...this.props.schema[name]};
+  getSchema = name => {
+    let current = { ...this.props.schema[name] };
     if (!current.error) {
       current.error = {
         key: `obj.${name}`
-      }
+      };
     }
     return current;
   };
 
-
   generateStep(name, idx) {
     if (isFunction(name)) {
-      return React.createElement(name, {})
+      return React.createElement(name, {});
     } else if (React.isValidElement(name)) {
       return name;
-    } else if (name === '---') {
-      return <hr key={idx}/>
+    } else if (name === "---") {
+      return <hr key={idx} />;
     } else {
-      const {type, disabled, props = {}, error} = this.getSchema(name);
+      const { type, disabled, props = {}, error } = this.getSchema(name);
 
       let fieldOnError = false;
       let errorReport = [];
       if (error) {
-        errorReport = (this.props.errorReportKeys || []).filter(({message}) => message.startsWith(error.key))
+        errorReport = (this.props.errorReportKeys || []).filter(({ message }) =>
+          message.startsWith(error.key)
+        );
       }
 
       if (type) {
-        if (type === 'array') {
+        if (type === "array") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <ArrayInput disabled={disabled} value={this.getValue(name, [])} {...props}
-                          onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <ArrayInput
+                disabled={disabled}
+                value={this.getValue(name, [])}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
-        } else if (type === 'object') {
+          );
+        } else if (type === "object") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <ObjectInput disabled={disabled}
-                           value={this.getValue(name, {})} {...props}
-                           onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <ObjectInput
+                disabled={disabled}
+                value={this.getValue(name, {})}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
-        } else if (type === 'bool') {
+          );
+        } else if (type === "bool") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <BooleanInput disabled={disabled}
-                            value={this.getValue(name, false)} {...props}
-                            onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <BooleanInput
+                disabled={disabled}
+                value={this.getValue(name, false)}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
-        } else if (type === 'select') {
+          );
+        } else if (type === "select") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <SelectInput disabled={disabled}
-                           value={this.getValue(name, '')} {...props}
-                           onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <SelectInput
+                disabled={disabled}
+                value={this.getValue(name, "")}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
-        } else if (type === 'string') {
+          );
+        } else if (type === "string") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <TextInput disabled={disabled} value={this.getValue(name, '')} {...props}
-                         onChange={v => this.changeValue(name, v)}/>
-            </FieldError>)
-        } else if (type === 'code') {
-          return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <CodeInput disabled={disabled}
-                         value={this.getValue(name, {type:'javascript', script: ''})} {...props}
-                         onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <TextInput
+                disabled={disabled}
+                value={this.getValue(name, "")}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
-        } else if (type === 'json') {
+          );
+        } else if (type === "code") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <JsonInput disabled={disabled}
-                         value={this.getValue(name, '')} {...props}
-                         onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <CodeInput
+                disabled={disabled}
+                value={this.getValue(name, { type: "javascript", script: "" })}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
-        } else if (type === 'label') {
+          );
+        } else if (type === "json") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <LabelInput value={this.getValue(name, '')} {...props} />
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <JsonInput
+                disabled={disabled}
+                value={this.getValue(name, "")}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
-        } else if (type === 'number') {
+          );
+        } else if (type === "label") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <NumberInput disabled={disabled}
-                           value={this.getValue(name, 0)} {...props}
-                           onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <LabelInput value={this.getValue(name, "")} {...props} />
             </FieldError>
-          )
-        } else if (type === 'key') {
+          );
+        } else if (type === "number") {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              <KeyInput disabled={disabled} value={this.getValue(name, '')} {...props}
-                         onChange={v => this.changeValue(name, v)}/>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <NumberInput
+                disabled={disabled}
+                value={this.getValue(name, 0)}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
             </FieldError>
-          )
+          );
+        } else if (type === "key") {
+          return (
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              <KeyInput
+                disabled={disabled}
+                value={this.getValue(name, "")}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+              />
+            </FieldError>
+          );
         } else if (isFunction(type)) {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
-              {
-                React.createElement(type, {
-                  ...props,
-                  disabled,
-                  key: name,
-                  value: this.getValue(name, {}),
-                  onChange: v => this.changeValue(name, v),
-                  source: this.props.value
-                })
-              }
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
+              {React.createElement(type, {
+                ...props,
+                disabled,
+                key: name,
+                value: this.getValue(name, {}),
+                onChange: v => this.changeValue(name, v),
+                source: this.props.value
+              })}
             </FieldError>
           );
         } else if (React.isValidElement(type)) {
           return (
-            <FieldError key={name} error={fieldOnError} errorMessage={errorReport}>
+            <FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+            >
               {type}
             </FieldError>
           );
@@ -186,9 +267,7 @@ export class Form extends Component {
   render() {
     return (
       <form className="form-horizontal" style={this.props.style}>
-        {
-          this.props.flow.map((step, idx) => this.generateStep(step, idx))
-        }
+        {this.props.flow.map((step, idx) => this.generateStep(step, idx))}
         {this.props.children}
       </form>
     );

@@ -1,6 +1,3 @@
-
-
-
 export const javascriptDefaultScript = `/**
  * context:  a JSON object containing app specific value 
  *           to evaluate the state of the feature
@@ -38,8 +35,6 @@ export const scalaDefaultScript = `/**
     }
     
 }`;
-
-
 
 export const kotlinDefaultScript = `/**
  * context:  a jackson JSON object containing app specific value

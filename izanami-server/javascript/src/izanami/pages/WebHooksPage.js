@@ -1,63 +1,115 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
-import { Table, SimpleBooleanInput } from '../inputs';
-import faker from 'faker';
-
-
+import { Table, SimpleBooleanInput } from "../inputs";
+import faker from "faker";
 
 export class WebHooksPage extends Component {
-
   formSchema = {
-    clientId:            { type: 'string', props: { label: 'WebHook Client Id', placeholder: 'abcdefg' }, error : { key : 'obj.clientId'}},
-    callbackUrl:         { type: 'string', props: { label: 'WebHook URL', placeholder: 'The URL call for each notification' }, error : { key : 'obj.callbackUrl'}},
-    patterns:            { type: 'string', props: { label: 'WebHook pattern', placeholder: 'Pattern to filter notifications events' }, error : { key : 'obj.patterns'}},
-    headers:             { type: 'object', props: { label: 'WebHook Headers', placeholderKey: 'Header name', placeholderValue: 'Header value' }, error : { key : 'obj.headers'}},
+    clientId: {
+      type: "string",
+      props: { label: "WebHook Client Id", placeholder: "abcdefg" },
+      error: { key: "obj.clientId" }
+    },
+    callbackUrl: {
+      type: "string",
+      props: {
+        label: "WebHook URL",
+        placeholder: "The URL call for each notification"
+      },
+      error: { key: "obj.callbackUrl" }
+    },
+    patterns: {
+      type: "string",
+      props: {
+        label: "WebHook pattern",
+        placeholder: "Pattern to filter notifications events"
+      },
+      error: { key: "obj.patterns" }
+    },
+    headers: {
+      type: "object",
+      props: {
+        label: "WebHook Headers",
+        placeholderKey: "Header name",
+        placeholderValue: "Header value"
+      },
+      error: { key: "obj.headers" }
+    }
   };
 
-  editSchema = { ...this.formSchema, clientId: { ...this.formSchema.clientId, props: { ...this.formSchema.clientId.props, disabled: true } } };
+  editSchema = {
+    ...this.formSchema,
+    clientId: {
+      ...this.formSchema.clientId,
+      props: { ...this.formSchema.clientId.props, disabled: true }
+    }
+  };
 
   columns = [
-    { title: 'ID', content: item => item.clientId },
-    { title: 'Pattern', notFilterable: true, style: { textAlign: 'center'}, content: item => {
-      return (item.patterns || []).join(",");
-    } },
-    { title: 'URL', notFilterable: true, style: { textAlign: 'center'}, content: item => item.callbackUrl },
-    { title: 'Banned', notFilterable: true, style: { textAlign: 'center', width: 70 }, content: item => <SimpleBooleanInput value={!item.isBanned} onChange={v => {
-        IzanamiServices.fetchWebhook(item.clientId).then(webhook => {
-          IzanamiServices.updateWebHook(item.clientId, { ...webhook, isBanned: !v });
-        })
-      }} />},
+    { title: "ID", content: item => item.clientId },
+    {
+      title: "Pattern",
+      notFilterable: true,
+      style: { textAlign: "center" },
+      content: item => {
+        return (item.patterns || []).join(",");
+      }
+    },
+    {
+      title: "URL",
+      notFilterable: true,
+      style: { textAlign: "center" },
+      content: item => item.callbackUrl
+    },
+    {
+      title: "Banned",
+      notFilterable: true,
+      style: { textAlign: "center", width: 70 },
+      content: item => (
+        <SimpleBooleanInput
+          value={!item.isBanned}
+          onChange={v => {
+            IzanamiServices.fetchWebhook(item.clientId).then(webhook => {
+              IzanamiServices.updateWebHook(item.clientId, {
+                ...webhook,
+                isBanned: !v
+              });
+            });
+          }}
+        />
+      )
+    }
   ];
 
-  formFlow = [
-    'clientId',
-    'patterns',
-    '---',
-    'callbackUrl',
-    'headers',
-  ];
+  formFlow = ["clientId", "patterns", "---", "callbackUrl", "headers"];
 
-  fetchItems = (args) => {
-    const {search = [], page, pageSize} = args;
-    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
-    return IzanamiServices.fetchWebHooks({page, pageSize, search: pattern }); 
+  fetchItems = args => {
+    const { search = [], page, pageSize } = args;
+    const pattern =
+      search.length > 0
+        ? search.map(({ id, value }) => `*${value}*`).join(",")
+        : "*";
+    return IzanamiServices.fetchWebHooks({ page, pageSize, search: pattern });
   };
 
-  fetchItem = (id) => {
+  fetchItem = id => {
     return IzanamiServices.fetchWebhook(id);
   };
 
-  createItem = (webhook) => {
+  createItem = webhook => {
     const patterns = (webhook.patterns || "").split(",");
-    return IzanamiServices.createWebHook({...webhook, patterns});
+    return IzanamiServices.createWebHook({ ...webhook, patterns });
   };
 
   updateItem = (webhook, webhookOriginal) => {
     const patterns = (webhook.patterns || "").split(",");
-    return IzanamiServices.updateWebHook(webhookOriginal.clientId, {...webhook, patterns});
+    return IzanamiServices.updateWebHook(webhookOriginal.clientId, {
+      ...webhook,
+      patterns
+    });
   };
 
-  deleteItem = (webhook) => {
+  deleteItem = webhook => {
     return IzanamiServices.deleteWebHook(webhook.clientId, webhook);
   };
 
@@ -72,7 +124,7 @@ export class WebHooksPage extends Component {
           <Table
             defaultValue={() => ({
               clientId: faker.random.alphaNumeric(32),
-              callbackUrl: '',
+              callbackUrl: "",
               notificationPattern: "*",
               headers: {},
               isBanned: false
@@ -88,20 +140,23 @@ export class WebHooksPage extends Component {
             formFlow={this.formFlow}
             columns={this.columns}
             fetchItems={this.fetchItems}
-            fetchItem={this.fetchItem}      
+            fetchItem={this.fetchItem}
             updateItem={this.updateItem}
             deleteItem={this.deleteItem}
             createItem={this.createItem}
-            downloadLinks={[{title: "Download", link: "/api/webhooks.ndjson"}]}
-            uploadLinks={[{title: "Upload", link: "/api/webhooks.ndjson"}]}
+            downloadLinks={[
+              { title: "Download", link: "/api/webhooks.ndjson" }
+            ]}
+            uploadLinks={[{ title: "Upload", link: "/api/webhooks.ndjson" }]}
             showActions={true}
             showLink={false}
             eventNames={{
-              created: 'WEBHOOK_CREATED',
-              updated: 'WEBHOOK_UPDATED',
-              deleted: 'WEBHOOK_DELETED'
+              created: "WEBHOOK_CREATED",
+              updated: "WEBHOOK_UPDATED",
+              deleted: "WEBHOOK_DELETED"
             }}
-            extractKey={item => item ? item.clientId : null}/>
+            extractKey={item => (item ? item.clientId : null)}
+          />
         </div>
       </div>
     );

@@ -1,11 +1,10 @@
-import React, { Component } from 'react';
-import AceEditor from 'react-ace';
-import 'brace/mode/javascript';
-import 'brace/theme/monokai';
+import React, { Component } from "react";
+import AceEditor from "react-ace";
+import "brace/mode/javascript";
+import "brace/theme/monokai";
 
 export class JsonInput extends Component {
-
-  onChange = (e) => {
+  onChange = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.props.onChange(e);
   };
@@ -22,16 +21,23 @@ export class JsonInput extends Component {
     }
     return (
       <div className="form-group">
-        <label htmlFor={`input-${this.props.label}`} className="col-sm-2 control-label">{this.props.label}</label>
+        <label
+          htmlFor={`input-${this.props.label}`}
+          className="col-sm-2 control-label"
+        >
+          {this.props.label}
+        </label>
         <div className="col-sm-10">
-          <AceEditor mode="javascript"
-                     theme="monokai"
-                     onChange={this.onChange}
-                     value={code}
-                     name="scriptParam"
-                     editorProps={{$blockScrolling: true}}
-                     height="300px"
-                     width="100%" />
+          <AceEditor
+            mode="javascript"
+            theme="monokai"
+            onChange={this.onChange}
+            value={code}
+            name="scriptParam"
+            editorProps={{ $blockScrolling: true }}
+            height="300px"
+            width="100%"
+          />
         </div>
       </div>
     );

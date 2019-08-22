@@ -15,9 +15,10 @@ const translateObject = {
         pattern: "Invalid pattern for field name"
       }
     },
-    authorizedPattern:{
+    authorizedPattern: {
       error: {
-        pattern: "Invalid pattern for field authorizedPattern, it should be something like foo*,bar:*"
+        pattern:
+          "Invalid pattern for field authorizedPattern, it should be something like foo*,bar:*"
       }
     },
     parameters: {
@@ -35,16 +36,16 @@ const translateObject = {
       },
       to: {
         error: {
-            path: {
-              missing: "Date from is missing"
-            }
+          path: {
+            missing: "Date from is missing"
+          }
         }
       },
       from: {
         error: {
-            path: {
-              missing: "Date to is missing"
-            }
+          path: {
+            missing: "Date to is missing"
+          }
         }
       }
     }
@@ -58,28 +59,33 @@ const translateObject = {
   },
   auth: {
     invalid: {
-      login : "Invalid login or password"
+      login: "Invalid login or password"
     }
   },
   file: {
     import: {
-      success: '{0} lines correctly imported'
+      success: "{0} lines correctly imported"
     }
   }
 };
 
-export function translate({message, args = []}) {
-  console.debug("Hey Jude, can you translate this key for me please? ", message);
-  const patternMessage = findProp(translateObject, message) || '';
-  return args.reduce( (acc, arg, i) => acc.replace(`{${i}}`, arg), patternMessage);
+export function translate({ message, args = [] }) {
+  console.debug(
+    "Hey Jude, can you translate this key for me please? ",
+    message
+  );
+  const patternMessage = findProp(translateObject, message) || "";
+  return args.reduce(
+    (acc, arg, i) => acc.replace(`{${i}}`, arg),
+    patternMessage
+  );
 }
 
 function findProp(obj, prop, defval) {
-  if (typeof defval === 'undefined') defval = null;
-  prop = prop.split('.');
+  if (typeof defval === "undefined") defval = null;
+  prop = prop.split(".");
   for (var i = 0; i < prop.length; i++) {
-    if (typeof obj[prop[i]] === 'undefined')
-      return defval;
+    if (typeof obj[prop[i]] === "undefined") return defval;
     obj = obj[prop[i]];
   }
   return obj;

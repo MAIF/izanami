@@ -1,16 +1,16 @@
-import React, {Component} from 'react';
-import PropTypes from 'prop-types';
-import {Form, Alerts} from '.';
-import isEqual from 'lodash/isEqual';
-import {createTooltip} from './tooltips';
-import {SweetModal} from './SweetModal';
-import * as Events from '../services/events';
-import {Tree} from './Tree';
-import * as TreeHelper from '../helpers/TreeData';
-import Cookies from 'js-cookie';
-import * as Persistence from '../helpers/persistence'
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { Form, Alerts } from ".";
+import isEqual from "lodash/isEqual";
+import { createTooltip } from "./tooltips";
+import { SweetModal } from "./SweetModal";
+import * as Events from "../services/events";
+import { Tree } from "./Tree";
+import * as TreeHelper from "../helpers/TreeData";
+import Cookies from "js-cookie";
+import * as Persistence from "../helpers/persistence";
 
-import ReactTable from 'react-table';
+import ReactTable from "react-table";
 
 function LoadingComponent(props) {
   return (
@@ -18,10 +18,13 @@ function LoadingComponent(props) {
       className="loadingPage"
       style={{
         display:
-          props.loading && props.loadingText && props.loadingText.trim().length > 0
-            ? 'flex'
-            : 'none',
-      }}>
+          props.loading &&
+          props.loadingText &&
+          props.loadingText.trim().length > 0
+            ? "flex"
+            : "none"
+      }}
+    >
       {props.loadingText}
     </div>
   );
@@ -59,26 +62,26 @@ export class Table extends Component {
     treeModeEnabled: PropTypes.bool,
     renderTreeLeaf: PropTypes.func,
     itemLink: PropTypes.func,
-    searchColumnName: PropTypes.string,
+    searchColumnName: PropTypes.string
   };
 
   static defaultProps = {
-    searchColumnName: 'key',
+    searchColumnName: "key",
     rowNavigation: false,
     pageSize: 20,
     firstSort: null,
     convertItem: e => e,
-    compareItem: (a, b) => isEqual(a, b),
+    compareItem: (a, b) => isEqual(a, b)
   };
 
   state = {
-    table: (Persistence.get('table-render') || 'table') === 'table',
+    table: (Persistence.get("table-render") || "table") === "table",
     items: [],
     currentItem: null,
     currentItemOriginal: null,
     showAddForm: false,
     showEditForm: false,
-    searched: '',
+    searched: "",
     defaultFiltered: [],
     possiblePages: 50,
     order: this.props.firstSort,
@@ -97,19 +100,19 @@ export class Table extends Component {
   componentDidMount() {
     this.update().then(() => {
       if (this.props.search) {
-        this.search({target: {value: this.props.search}});
+        this.search({ target: { value: this.props.search } });
       }
     });
     this.readRoute();
 
     if (this.props.eventNames) {
-      Events.addCallback(this.handleEvent)
+      Events.addCallback(this.handleEvent);
     }
   }
 
   handleEvent = e => {
     if (this.isTable()) {
-      this.handleEventInTable(e)
+      this.handleEventInTable(e);
     } else {
       this.handleEventInTree(e);
     }
@@ -122,7 +125,10 @@ export class Table extends Component {
         if (this.state.items.find(i => this.props.compareItem(i, e.payload))) {
           items = this.state.items;
         } else {
-          items = [e.payload, ...this.state.items].splice(0, this.props.pageSize);
+          items = [e.payload, ...this.state.items].splice(
+            0,
+            this.props.pageSize
+          );
         }
         break;
       case this.props.eventNames.updated:
@@ -135,13 +141,15 @@ export class Table extends Component {
         });
         break;
       case this.props.eventNames.deleted:
-        items = this.state.items.filter(i => !this.props.compareItem(i, e.oldValue));
+        items = this.state.items.filter(
+          i => !this.props.compareItem(i, e.oldValue)
+        );
         break;
       default:
         items = this.state.items;
     }
 
-    this.setState({items, justUpdated: true});
+    this.setState({ items, justUpdated: true });
   };
 
   handleEventInTree = e => {
@@ -150,10 +158,18 @@ export class Table extends Component {
     const segments = key.split(":");
     switch (e.type) {
       case this.props.eventNames.created:
-        tree = TreeHelper.addOrUpdateInTree(segments, e.payload, this.state.tree);
+        tree = TreeHelper.addOrUpdateInTree(
+          segments,
+          e.payload,
+          this.state.tree
+        );
         break;
       case this.props.eventNames.updated:
-        tree = TreeHelper.addOrUpdateInTree(segments, e.payload, this.state.tree);
+        tree = TreeHelper.addOrUpdateInTree(
+          segments,
+          e.payload,
+          this.state.tree
+        );
         break;
       case this.props.eventNames.deleted:
         tree = TreeHelper.deleteInTree(segments, this.state.tree);
@@ -161,44 +177,48 @@ export class Table extends Component {
       default:
         tree = this.state.tree;
     }
-    this.setState({tree, justUpdated: true});
+    this.setState({ tree, justUpdated: true });
   };
 
   componentWillUnmount() {
     this.unmountShortcuts();
     if (this.props.eventNames) {
-      Events.removeCallback(this.handleEvent)
+      Events.removeCallback(this.handleEvent);
     }
   }
 
   readRoute = () => {
     if (this.props.parentProps.params.taction) {
       const action = this.props.parentProps.params.taction;
-      if (action === 'add') {
+      if (action === "add") {
         this.showAddForm(null, this.props.parentProps.params.titem);
-      } else if (action === 'edit') {
+      } else if (action === "edit") {
         const item = this.props.parentProps.params.titem;
         this.props.fetchItem(item).then(data => {
           this.showEditForm(null, data);
         });
       }
     }
-    if (this.props.parentProps.location.query && this.props.parentProps.location.query.search) {
+    if (
+      this.props.parentProps.location.query &&
+      this.props.parentProps.location.query.search
+    ) {
       const searched = this.props.parentProps.location.query.search;
-      const defaultFiltered = this.props.columns.filter(c => !c.notFilterable).map(c => ({id: c.title, value: searched}));
-        this.setState(
-          { defaultFiltered, searchQuery: searched },
-          () => this.update({filtered:defaultFiltered})
-        );
+      const defaultFiltered = this.props.columns
+        .filter(c => !c.notFilterable)
+        .map(c => ({ id: c.title, value: searched }));
+      this.setState({ defaultFiltered, searchQuery: searched }, () =>
+        this.update({ filtered: defaultFiltered })
+      );
     }
   };
 
   mountShortcuts = () => {
-    document.body.addEventListener('keydown', this.saveShortcut);
+    document.body.addEventListener("keydown", this.saveShortcut);
   };
 
   unmountShortcuts = () => {
-    document.body.removeEventListener('keydown', this.saveShortcut);
+    document.body.removeEventListener("keydown", this.saveShortcut);
   };
 
   saveShortcut = e => {
@@ -214,8 +234,8 @@ export class Table extends Component {
   };
 
   onFetchData = (initialArgs = {}) => {
-    const {filtered, pageSize, page} = initialArgs;
-    const args = {filtered, pageSize, page};
+    const { filtered, pageSize, page } = initialArgs;
+    const args = { filtered, pageSize, page };
     if (!isEqual(this.lastSearchArgs, args)) {
       this.lastSearchArgs = args;
       this.update(initialArgs);
@@ -231,39 +251,47 @@ export class Table extends Component {
   };
 
   update = (initialArgs = {}) => {
-    this.setState({loading: true});
+    this.setState({ loading: true });
     const args = {
       search: initialArgs.filtered,
       pageSize: initialArgs.pageSize || this.props.pageSize,
       page: initialArgs.page ? initialArgs.page + 1 : 1
     };
-    const s = (((initialArgs.filtered || []).find(o => o.id === this.props.searchColumnName) || {}).value ||
-      ((initialArgs.filtered || [])[0] || {}).value);
+    const s =
+      (
+        (initialArgs.filtered || []).find(
+          o => o.id === this.props.searchColumnName
+        ) || {}
+      ).value || ((initialArgs.filtered || [])[0] || {}).value;
     if (s) {
       const url = new URL(window.location);
-      url.searchParams.set('search', s);
-      window.history.pushState({}, '', url);
+      url.searchParams.set("search", s);
+      window.history.pushState({}, "", url);
     } else {
       const url = new URL(window.location);
-      url.searchParams.delete('search');
-      window.history.pushState({}, '', url);
+      url.searchParams.delete("search");
+      window.history.pushState({}, "", url);
     }
     if (this.isTable()) {
       return this.props.fetchItems(args).then(
-        ({nbPages, results}) => {
-          this.setState({ items: results || [], nbPages: nbPages === 0 ? 1 : nbPages, loading: false});
+        ({ nbPages, results }) => {
+          this.setState({
+            items: results || [],
+            nbPages: nbPages === 0 ? 1 : nbPages,
+            loading: false
+          });
         },
-        () => this.setState({loading: false})
+        () => this.setState({ loading: false })
       );
-
     } else {
-      return this.props.fetchItemsTree ? this.props.fetchItemsTree({search:initialArgs.filtered})
-        .then(
-          tree => {
-            this.setState({ tree, loading: false});
-          },
-          () => this.setState({loading: false})
-        ) : this.setState({loading: false})
+      return this.props.fetchItemsTree
+        ? this.props.fetchItemsTree({ search: initialArgs.filtered }).then(
+            tree => {
+              this.setState({ tree, loading: false });
+            },
+            () => this.setState({ loading: false })
+          )
+        : this.setState({ loading: false });
     }
   };
 
@@ -280,25 +308,58 @@ export class Table extends Component {
     if (e && e.preventDefault) e.preventDefault();
     this.unmountShortcuts();
     this.props.parentProps.setTitle(this.props.defaultTitle);
-    this.setState({currentItem: null, showAddForm: false, error: false, errorList: []});
-    this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
+    this.setState({
+      currentItem: null,
+      showAddForm: false,
+      error: false,
+      errorList: []
+    });
+    this.props.backToUrl
+      ? window.history.pushState(
+          {},
+          "",
+          `${window.__contextPath}/${this.props.backToUrl}`
+        )
+      : window.history.back();
   };
 
   showAddForm = (e, initialId) => {
     if (e && e.preventDefault) e.preventDefault();
     this.mountShortcuts();
     this.props.parentProps.setTitle(`Create a new ${this.props.itemName}`);
-    const id = initialId ? `/${initialId}` : '';
-    window.history.pushState({}, '', `${window.__contextPath}/${this.props.selfUrl}/add${id}`);
-    this.setState({currentItem: this.props.defaultValue(initialId), currentItemOriginal: this.props.defaultValue(), showAddForm: true, error: false, errorList: []});
+    const id = initialId ? `/${initialId}` : "";
+    window.history.pushState(
+      {},
+      "",
+      `${window.__contextPath}/${this.props.selfUrl}/add${id}`
+    );
+    this.setState({
+      currentItem: this.props.defaultValue(initialId),
+      currentItemOriginal: this.props.defaultValue(),
+      showAddForm: true,
+      error: false,
+      errorList: []
+    });
   };
 
   closeEditForm = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.unmountShortcuts();
     this.props.parentProps.setTitle(this.props.defaultTitle);
-    this.setState({currentItem: null, currentItemOriginal: null, showEditForm: false, error: false, errorList: []});
-    this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
+    this.setState({
+      currentItem: null,
+      currentItemOriginal: null,
+      showEditForm: false,
+      error: false,
+      errorList: []
+    });
+    this.props.backToUrl
+      ? window.history.pushState(
+          {},
+          "",
+          `${window.__contextPath}/${this.props.backToUrl}`
+        )
+      : window.history.back();
   };
 
   showEditForm = (e, item) => {
@@ -306,32 +367,44 @@ export class Table extends Component {
     this.mountShortcuts();
     window.history.pushState(
       {},
-      '',
-      `${window.__contextPath}/${this.props.selfUrl}/edit/${this.props.extractKey(item)}`
+      "",
+      `${window.__contextPath}/${
+        this.props.selfUrl
+      }/edit/${this.props.extractKey(item)}`
     );
     this.props.parentProps.setTitle(`Update a ${this.props.itemName}`);
     const currentItem = this.props.convertItem(item);
-    this.setState({currentItem, currentItemOriginal: currentItem, showEditForm: true, error: false, errorList: []});
+    this.setState({
+      currentItem,
+      currentItemOriginal: currentItem,
+      showEditForm: true,
+      error: false,
+      errorList: []
+    });
   };
 
   deleteItem = (e, item, i) => {
     if (e && e.preventDefault) e.preventDefault();
     //if (confirm('Are you sure you want to delete that item ?')) {
-      this.props
-        .deleteItem(item)
-        .then(__ => {
-          const items = this.state.items.filter(i => !isEqual(i, item));
-          this.setState({
-            items,
-            showEditForm: false,
-            showAddForm: false,
-            confirmDelete: false,
-            confirmDeleteTable: false,
-            toDelete: null
-          });
-          this.props.parentProps.setTitle(this.props.defaultTitle);
-          this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
-        });
+    this.props.deleteItem(item).then(__ => {
+      const items = this.state.items.filter(i => !isEqual(i, item));
+      this.setState({
+        items,
+        showEditForm: false,
+        showAddForm: false,
+        confirmDelete: false,
+        confirmDeleteTable: false,
+        toDelete: null
+      });
+      this.props.parentProps.setTitle(this.props.defaultTitle);
+      this.props.backToUrl
+        ? window.history.pushState(
+            {},
+            "",
+            `${window.__contextPath}/${this.props.backToUrl}`
+          )
+        : window.history.back();
+    });
     //}
   };
 
@@ -339,38 +412,54 @@ export class Table extends Component {
     if (e && e.preventDefault) e.preventDefault();
     this.props.parentProps.setTitle(this.props.defaultTitle);
 
-    this.setState({error: false, errorList: []});
+    this.setState({ error: false, errorList: [] });
 
     this.props
       .createItem(this.state.currentItem)
       .then(res => {
-        if (res.status === 201 ) {
-          this.setState({currentItem: null, currentItemOriginal: null, showAddForm: false});
+        if (res.status === 201) {
+          this.setState({
+            currentItem: null,
+            currentItemOriginal: null,
+            showAddForm: false
+          });
           return res.json().then(elt => ({
-              data: elt,
-              error: false
+            data: elt,
+            error: false
           }));
         } else {
           return res.json().then(errorList => {
             return {
               error: true,
               errorList
-            }
+            };
           });
         }
       })
       .then(res => {
         if (res.error) {
-          this.setState({error: true, errorList: this.buildErrorList(res.errorList)});
+          this.setState({
+            error: true,
+            errorList: this.buildErrorList(res.errorList)
+          });
         } else {
           let items;
           if (this.state.items.find(i => this.props.compareItem(i, res.data))) {
             items = [...this.state.items];
           } else {
-            items = [res.data, ...this.state.items].splice(0, this.props.pageSize);
+            items = [res.data, ...this.state.items].splice(
+              0,
+              this.props.pageSize
+            );
           }
-          this.setState({error: false, items, justUpdated: true});
-          this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
+          this.setState({ error: false, items, justUpdated: true });
+          this.props.backToUrl
+            ? window.history.pushState(
+                {},
+                "",
+                `${window.__contextPath}/${this.props.backToUrl}`
+              )
+            : window.history.back();
         }
       });
   };
@@ -379,14 +468,14 @@ export class Table extends Component {
     if (e && e.preventDefault) e.preventDefault();
     this.props.parentProps.setTitle(this.props.defaultTitle);
 
-    this.setState({error: false, errorList: []});
+    this.setState({ error: false, errorList: [] });
 
     const currentItem = this.state.currentItem;
     const currentItemOriginal = this.state.currentItemOriginal;
     this.props
       .updateItem(currentItem, currentItemOriginal)
       .then(res => {
-        if (res.status === 200 ) {
+        if (res.status === 200) {
           return res.json().then(elt => ({
             data: elt,
             error: false
@@ -396,13 +485,16 @@ export class Table extends Component {
             return {
               error: true,
               errorList: j
-            }
+            };
           });
         }
       })
       .then(res => {
         if (res.error) {
-          this.setState({error: true, errorList: this.buildErrorList(res.errorList)});
+          this.setState({
+            error: true,
+            errorList: this.buildErrorList(res.errorList)
+          });
         } else {
           const items = this.state.items.map(i => {
             if (isEqual(i, currentItemOriginal)) {
@@ -411,23 +503,26 @@ export class Table extends Component {
               return i;
             }
           });
-          this.setState({items, showEditForm: false, justUpdated: true});
-          this.props.backToUrl ? window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}`) : window.history.back();
+          this.setState({ items, showEditForm: false, justUpdated: true });
+          this.props.backToUrl
+            ? window.history.pushState(
+                {},
+                "",
+                `${window.__contextPath}/${this.props.backToUrl}`
+              )
+            : window.history.back();
         }
       });
   };
 
-
   toggleRender = () => {
     const table = !this.state.table;
     if (table) {
-      Persistence.set('table-render', 'table');
+      Persistence.set("table-render", "table");
     } else {
-      Persistence.set('table-render', 'tree');
+      Persistence.set("table-render", "tree");
     }
-    this.setState({table}, () =>
-      this.update()
-    );
+    this.setState({ table }, () => this.update());
   };
 
   renderLeaf = value => {
@@ -437,21 +532,27 @@ export class Table extends Component {
   uploadFile = link => e => {
     const upload = e => {
       fetch(link, {
-        method: 'POST',
-        credentials: 'include',
+        method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/nd-json"
         },
         body: e.currentTarget.result
-      })
-      .then(res => {
-        if (res.status === 200 ) {
-          return res.json().then(({success}) => {
-            this.setState({successMessages: [{message:'file.import.success', args: [success]}]});
+      }).then(res => {
+        if (res.status === 200) {
+          return res.json().then(({ success }) => {
+            this.setState({
+              successMessages: [
+                { message: "file.import.success", args: [success] }
+              ]
+            });
           });
         } else {
-          return res.json().then(({errors}) => {
-            this.setState({error: true, errorList: this.buildErrorList(errors)});
+          return res.json().then(({ errors }) => {
+            this.setState({
+              error: true,
+              errorList: this.buildErrorList(errors)
+            });
           });
         }
       });
@@ -462,78 +563,88 @@ export class Table extends Component {
     reader.readAsText(e.target.files[0]);
   };
 
-  buildErrorList = ({errors = {}, fieldErrors = {}}) => {
-    const errorsOnFields = Object.keys(fieldErrors)
-      .flatMap(k => {
-        const messages = fieldErrors[k] || [];
-        return messages.map(({message = "", args = []}) =>
-          ({message: `${k}.${message}`, args})
-        )
-      });
+  buildErrorList = ({ errors = {}, fieldErrors = {} }) => {
+    const errorsOnFields = Object.keys(fieldErrors).flatMap(k => {
+      const messages = fieldErrors[k] || [];
+      return messages.map(({ message = "", args = [] }) => ({
+        message: `${k}.${message}`,
+        args
+      }));
+    });
     return [...errors, ...errorsOnFields];
   };
 
   search = text => {
-    this.props.backToUrl && window.history.pushState({}, '', `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`);
-    const defaultFiltered = this.props.columns.filter(c => !c.notFilterable).map(c => ({id: c.title, value: text}));
-    this.setState(
-      { defaultFiltered, table:true }
-    );
+    this.props.backToUrl &&
+      window.history.pushState(
+        {},
+        "",
+        `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`
+      );
+    const defaultFiltered = this.props.columns
+      .filter(c => !c.notFilterable)
+      .map(c => ({ id: c.title, value: text }));
+    this.setState({ defaultFiltered, table: true });
   };
 
   render() {
     const columns = this.props.columns.map(c => ({
-        Header: c.title,
-        id: c.title,
-        headerStyle: c.style,
-        width: c.style && c.style.width ? c.style.width : undefined,
-        style: { height: 30, ...c.style },
-        sortable: !c.notSortable,
-        filterable: !c.notFilterable,
-        accessor: d => (c.content ? c.content(d) : d),
-        Filter: d => (
-          <input
-            type="text"
-            className="form-control input-sm"
-            value={d.filter ? d.filter.value : ''}
-            onChange={e => d.onChange(e.target.value)}
-            placeholder="Search ..."
-          />
-        ),
-        Cell: r => {
-          const value = r.value;
-          const original = r.original;
-          return c.cell ? (
-            c.cell(value, original, this)
-          ) : (
-            <div
-              onClick={e => {
-                if (this.props.rowNavigation) {
-                  this.gotoItem(e, original);
-                }
-              }}
-              style={{ cursor: 'pointer', width: '100%' }}>
-              {value}
-            </div>
-          );
-        }
+      Header: c.title,
+      id: c.title,
+      headerStyle: c.style,
+      width: c.style && c.style.width ? c.style.width : undefined,
+      style: { height: 30, ...c.style },
+      sortable: !c.notSortable,
+      filterable: !c.notFilterable,
+      accessor: d => (c.content ? c.content(d) : d),
+      Filter: d => (
+        <input
+          type="text"
+          className="form-control input-sm"
+          value={d.filter ? d.filter.value : ""}
+          onChange={e => d.onChange(e.target.value)}
+          placeholder="Search ..."
+        />
+      ),
+      Cell: r => {
+        const value = r.value;
+        const original = r.original;
+        return c.cell ? (
+          c.cell(value, original, this)
+        ) : (
+          <div
+            onClick={e => {
+              if (this.props.rowNavigation) {
+                this.gotoItem(e, original);
+              }
+            }}
+            style={{ cursor: "pointer", width: "100%" }}
+          >
+            {value}
+          </div>
+        );
       }
-    ));
+    }));
     if (this.props.showActions) {
       columns.push({
-        Header: 'Actions',
-        id: 'actions',
+        Header: "Actions",
+        id: "actions",
         width: 140,
-        style: { textAlign: 'center' },
+        style: { textAlign: "center" },
         filterable: false,
         accessor: (item, ___, index) => (
-          <div style={{ width: 140, textAlign: 'right' }}>
+          <div style={{ width: 140, textAlign: "right" }}>
             <div className="displayGroupBtn">
               <button
                 type="button"
                 className="btn btn-sm btn-success"
-                {...createTooltip(`Edit this ${this.props.itemName}`, 'top', true)}
-                onClick={e => this.showEditForm(e, item)}>
+                {...createTooltip(
+                  `Edit this ${this.props.itemName}`,
+                  "top",
+                  true
+                )}
+                onClick={e => this.showEditForm(e, item)}
+              >
                 <i className="glyphicon glyphicon-pencil" />
               </button>
               {this.props.showLink && (
@@ -542,236 +653,304 @@ export class Table extends Component {
                   className="btn btn-sm btn-primary"
                   {...createTooltip(
                     `Open this ${this.props.itemName} in a new window`,
-                    'top',
+                    "top",
                     true
                   )}
-                  onClick={e => this.gotoItem(e, item)}>
+                  onClick={e => this.gotoItem(e, item)}
+                >
                   <i className="glyphicon glyphicon-link" />
                 </button>
               )}
               <button
                 type="button"
                 className="btn btn-sm btn-danger"
-                {...createTooltip(`Delete this ${this.props.itemName}`, 'top', true)}
-                onClick={e => this.setState({confirmDeleteTable: true, toDelete: item})}>
+                {...createTooltip(
+                  `Delete this ${this.props.itemName}`,
+                  "top",
+                  true
+                )}
+                onClick={e =>
+                  this.setState({ confirmDeleteTable: true, toDelete: item })
+                }
+              >
                 <i className="glyphicon glyphicon-trash" />
               </button>
-
             </div>
           </div>
-        ),
+        )
       });
     }
     return (
       <div>
-          {!this.state.showEditForm &&
-          !this.state.showAddForm && (
-            <div>
-              <div className="row" style={{ marginBottom: 10 }}>
-                <div className="col-md-12">
-                  {this.state.error && <Alerts display={this.state.error} messages={this.state.errorList}/>}
-                  {this.state.successMessages &&
-                    this.state.successMessages.length > 0 &&
-                     <Alerts type="success" display={true} messages={this.state.successMessages} onClose={() => this.setState({successMessages:[]})}/>
-                  }
-                </div>
+        {!this.state.showEditForm && !this.state.showAddForm && (
+          <div>
+            <div className="row" style={{ marginBottom: 10 }}>
+              <div className="col-md-12">
+                {this.state.error && (
+                  <Alerts
+                    display={this.state.error}
+                    messages={this.state.errorList}
+                  />
+                )}
+                {this.state.successMessages &&
+                  this.state.successMessages.length > 0 && (
+                    <Alerts
+                      type="success"
+                      display={true}
+                      messages={this.state.successMessages}
+                      onClose={() => this.setState({ successMessages: [] })}
+                    />
+                  )}
               </div>
-              <div className="row" style={{ marginBottom: 10 }}>
-                <div className="col-md-12">
-                  {this.props.treeModeEnabled && this.isTable() &&
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      style={{marginLeft: 10}}
-                      onClick={this.toggleRender}
-                      {...createTooltip('Switch the view')}>
-                      <span className="glyphicon glyphicon-signal" style={{transform: 'rotate(90deg)'}}/>
-                    </button>
-                  }
-                  {this.isTree() &&
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={this.toggleRender}
-                      style={{marginLeft: 10}}
-                      {...createTooltip('Switch the view')}>
-                      <span className="glyphicon glyphicon-th-list"/>
-                    </button>
-                  }
+            </div>
+            <div className="row" style={{ marginBottom: 10 }}>
+              <div className="col-md-12">
+                {this.props.treeModeEnabled && this.isTable() && (
                   <button
                     type="button"
                     className="btn btn-primary"
-                    {...createTooltip('Reload the current table')}
-                    onClick={this.update}>
-                    <span className="glyphicon glyphicon-refresh" />
+                    style={{ marginLeft: 10 }}
+                    onClick={this.toggleRender}
+                    {...createTooltip("Switch the view")}
+                  >
+                    <span
+                      className="glyphicon glyphicon-signal"
+                      style={{ transform: "rotate(90deg)" }}
+                    />
                   </button>
+                )}
+                {this.isTree() && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={this.toggleRender}
+                    style={{ marginLeft: 10 }}
+                    {...createTooltip("Switch the view")}
+                  >
+                    <span className="glyphicon glyphicon-th-list" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  {...createTooltip("Reload the current table")}
+                  onClick={this.update}
+                >
+                  <span className="glyphicon glyphicon-refresh" />
+                </button>
 
-                  {this.props.showActions && (
+                {this.props.showActions && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ marginLeft: 10 }}
+                    onClick={this.showAddForm}
+                    {...createTooltip(`Create a new ${this.props.itemName}`)}
+                  >
+                    <span className="glyphicon glyphicon-plus-sign" /> Add item
+                  </button>
+                )}
+                {this.props.showActions && this.props.user.admin && (
+                  <div
+                    className="dropdown"
+                    style={{
+                      display: "inline-block",
+                      marginLeft: 10,
+                      height: 34
+                    }}
+                  >
                     <button
+                      className="dropdown-toggle btn-dropdown"
+                      data-toggle="dropdown"
                       type="button"
-                      className="btn btn-primary"
-                      style={{ marginLeft: 10 }}
-                      onClick={this.showAddForm}
-                      {...createTooltip(`Create a new ${this.props.itemName}`)}>
-                      <span className="glyphicon glyphicon-plus-sign" /> Add item
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                      style={{ verticalAlign: "middle" }}
+                    >
+                      <i className="fas fa-cog" aria-hidden="true" />
                     </button>
-                  )}
-                  {this.props.showActions && this.props.user.admin &&
-                    <div className="dropdown" style={{display: 'inline-block', marginLeft: 10,height:34}}>
-                        <button
-                          className="dropdown-toggle btn-dropdown"
-                          data-toggle="dropdown"
-                          type="button"
-                          aria-haspopup="true"
-                          aria-expanded="false"
-                          style={{verticalAlign: 'middle'}}
-                        >
-                          <i className="fas fa-cog" aria-hidden="true"/>
-                        </button>
-                        <ul className="dropdown-menu">
-                          {
-                            this.props.downloadLinks && this.props.downloadLinks.map(({title, link}, i) =>
-                              <li key={`download-${i}`}>
-                                <a
-                                  href={link}
-                                  {...createTooltip(`${title}`)}>
-                                  <span className="glyphicon glyphicon-download" /> {title}
-                                </a>
-                              </li>
-                            )}
-                            {this.props.uploadLinks && this.props.uploadLinks.map(({title, link}, i) =>
-                              <li key={`upload-${i}`}>
-                                <a
-                                  style={{cursor: 'pointer'}}
-                                  onClick={e => {
-                                    document.getElementById(`upload${i}`).click()
-                                  }}
-                                >
-                                    <span className="glyphicon glyphicon-upload" /> {title}
-                                    <input
-                                      id={`upload${i}`}
-                                      type="file"
-                                      style={{ display:'none' }}
-                                      onChange={this.uploadFile(link)}
-                                      {...createTooltip(`${title}`)} />
-                                </a>
-                              </li>
-                            )}
-                          <li>
+                    <ul className="dropdown-menu">
+                      {this.props.downloadLinks &&
+                        this.props.downloadLinks.map(({ title, link }, i) => (
+                          <li key={`download-${i}`}>
+                            <a href={link} {...createTooltip(`${title}`)}>
+                              <span className="glyphicon glyphicon-download" />{" "}
+                              {title}
+                            </a>
                           </li>
-                        </ul>
-                    </div>
-                  }
-                </div>
+                        ))}
+                      {this.props.uploadLinks &&
+                        this.props.uploadLinks.map(({ title, link }, i) => (
+                          <li key={`upload-${i}`}>
+                            <a
+                              style={{ cursor: "pointer" }}
+                              onClick={e => {
+                                document.getElementById(`upload${i}`).click();
+                              }}
+                            >
+                              <span className="glyphicon glyphicon-upload" />{" "}
+                              {title}
+                              <input
+                                id={`upload${i}`}
+                                type="file"
+                                style={{ display: "none" }}
+                                onChange={this.uploadFile(link)}
+                                {...createTooltip(`${title}`)}
+                              />
+                            </a>
+                          </li>
+                        ))}
+                      <li></li>
+                    </ul>
+                  </div>
+                )}
               </div>
-
-                {this.isTable() &&
-                    <div className="rrow">
-                        <ReactTable
-                            className="fulltable -striped -highlight"
-                            data={this.state.items}
-                            loading={this.state.loading}
-                            sortable={true}
-                            filterable={true}
-                            filterAll={true}
-                            defaultSorted={[{ id: this.props.columns[0].title, desc: false }]}
-                            manual
-                            pages={this.state.nbPages}
-                            defaultPageSize={this.props.pageSize}
-                            columns={columns}
-                            LoadingComponent={LoadingComponent}
-                            onFetchData={this.onFetchData}
-                            defaultFiltered={this.state.defaultFiltered}
-                        />
-                    </div>
-                }
-                {!this.isTable() &&
-                    <div>
-                      <Tree
-                        datas={this.state.tree || []}
-                        renderValue={this.renderLeaf}
-                        itemLink={this.props.itemLink}
-                        initialSearch={this.props.parentProps.location.query.search}
-                        search={this.search}
-                        onSearchChange={text => this.update({filtered: [{id: 'key', value:text}]})}
-                        editAction={ (e, item) => this.showEditForm(e, item) }
-                        removeAction={ (e, item) => this.setState({confirmDeleteTable: true, toDelete: item}) }
-                      />
-                    </div>
-                }
             </div>
+
+            {this.isTable() && (
+              <div className="rrow">
+                <ReactTable
+                  className="fulltable -striped -highlight"
+                  data={this.state.items}
+                  loading={this.state.loading}
+                  sortable={true}
+                  filterable={true}
+                  filterAll={true}
+                  defaultSorted={[
+                    { id: this.props.columns[0].title, desc: false }
+                  ]}
+                  manual
+                  pages={this.state.nbPages}
+                  defaultPageSize={this.props.pageSize}
+                  columns={columns}
+                  LoadingComponent={LoadingComponent}
+                  onFetchData={this.onFetchData}
+                  defaultFiltered={this.state.defaultFiltered}
+                />
+              </div>
+            )}
+            {!this.isTable() && (
+              <div>
+                <Tree
+                  datas={this.state.tree || []}
+                  renderValue={this.renderLeaf}
+                  itemLink={this.props.itemLink}
+                  initialSearch={this.props.parentProps.location.query.search}
+                  search={this.search}
+                  onSearchChange={text =>
+                    this.update({ filtered: [{ id: "key", value: text }] })
+                  }
+                  editAction={(e, item) => this.showEditForm(e, item)}
+                  removeAction={(e, item) =>
+                    this.setState({ confirmDeleteTable: true, toDelete: item })
+                  }
+                />
+              </div>
+            )}
+          </div>
         )}
 
-        {this.state.showAddForm &&
-        <div className="" role="dialog">
-          <Form
-            value={this.state.currentItem}
-            onChange={currentItem => this.setState({currentItem})}
-            flow={this.props.formFlow}
-            schema={this.props.formSchema}
-            errorReportKeys={this.state.errorList}
-          />
-          <hr/>
-          {this.state.error &&
-            <div className="col-sm-offset-2 panel-group">
-              <Alerts display={this.state.error} messages={this.state.errorList}/>
+        {this.state.showAddForm && (
+          <div className="" role="dialog">
+            <Form
+              value={this.state.currentItem}
+              onChange={currentItem => this.setState({ currentItem })}
+              flow={this.props.formFlow}
+              schema={this.props.formSchema}
+              errorReportKeys={this.state.errorList}
+            />
+            <hr />
+            {this.state.error && (
+              <div className="col-sm-offset-2 panel-group">
+                <Alerts
+                  display={this.state.error}
+                  messages={this.state.errorList}
+                />
+              </div>
+            )}
+            <div className="form-buttons pull-right">
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={this.closeAddForm}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-success"
+                onClick={this.createItem}
+              >
+                <i className="glyphicon glyphicon-hdd" /> Create{" "}
+                {this.props.itemName}
+              </button>
             </div>
-          }
-          <div className="form-buttons pull-right">
-            <button type="button" className="btn btn-danger" onClick={this.closeAddForm}>
-              Cancel
-            </button>
-            <button type="button" className="btn btn-success" onClick={this.createItem}>
-              <i className="glyphicon glyphicon-hdd"/> Create {this.props.itemName}
-            </button>
           </div>
-        </div>}
-        {this.state.showEditForm &&
-        <div className="" role="dialog">
-          <Form
-            value={this.state.currentItem}
-            onChange={currentItem => this.setState({currentItem})}
-            flow={this.props.formFlow}
-            schema={this.props.formSchema}
-            errorReportKeys={this.state.errorList}
-          />
-          <hr/>
-          {this.state.error &&
-            <div className="col-sm-offset-2 panel-group">
-              <Alerts display={this.state.error} messages={this.state.errorList}/>
+        )}
+        {this.state.showEditForm && (
+          <div className="" role="dialog">
+            <Form
+              value={this.state.currentItem}
+              onChange={currentItem => this.setState({ currentItem })}
+              flow={this.props.formFlow}
+              schema={this.props.formSchema}
+              errorReportKeys={this.state.errorList}
+            />
+            <hr />
+            {this.state.error && (
+              <div className="col-sm-offset-2 panel-group">
+                <Alerts
+                  display={this.state.error}
+                  messages={this.state.errorList}
+                />
+              </div>
+            )}
+            <div className="form-buttons pull-right updateConfig">
+              <button
+                type="button"
+                className="btn btn-danger"
+                title="Delete current item"
+                onClick={e => this.setState({ confirmDelete: true })}
+              >
+                <i className="glyphicon glyphicon-trash" /> Delete
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={this.closeEditForm}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-success"
+                onClick={this.updateItem}
+              >
+                <i className="glyphicon glyphicon-hdd" /> Update{" "}
+                {this.props.itemName}
+              </button>
+              <SweetModal
+                type="confirm"
+                confirm={e => this.deleteItem(e, this.state.currentItem)}
+                id={"confirmDelete"}
+                open={this.state.confirmDelete}
+                onDismiss={__ => this.setState({ confirmDelete: false })}
+                labelValid="Delete"
+              >
+                <div>Are you sure you want to delete that item ?</div>
+              </SweetModal>
             </div>
-          }
-          <div className="form-buttons pull-right updateConfig">
-            <button
-              type="button"
-              className="btn btn-danger"
-              title="Delete current item"
-              onClick={e => this.setState({confirmDelete: true})}>
-              <i className="glyphicon glyphicon-trash"/> Delete
-            </button>
-            <button type="button" className="btn btn-danger" onClick={this.closeEditForm}>
-              Cancel
-            </button>
-            <button type="button" className="btn btn-success" onClick={this.updateItem}>
-              <i className="glyphicon glyphicon-hdd"/> Update {this.props.itemName}
-            </button>
-            <SweetModal type="confirm"
-                        confirm={e => this.deleteItem(e, this.state.currentItem)}
-                        id={"confirmDelete"}
-                        open={this.state.confirmDelete}
-                        onDismiss={__ => this.setState({confirmDelete: false})}
-                        labelValid="Delete"
-            >
-              <div>Are you sure you want to delete that item ?</div>
-            </SweetModal>
           </div>
-        </div>}
-        <SweetModal type="confirm"
-                    confirm={e => this.deleteItem(e, this.state.toDelete)}
-                    id={"confirmDeleteTable"}
-                    open={this.state.confirmDeleteTable}
-                    onDismiss={__ => this.setState({confirmDeleteTable: false, toDelete: null})}
-                    labelValid="Delete"
+        )}
+        <SweetModal
+          type="confirm"
+          confirm={e => this.deleteItem(e, this.state.toDelete)}
+          id={"confirmDeleteTable"}
+          open={this.state.confirmDeleteTable}
+          onDismiss={__ =>
+            this.setState({ confirmDeleteTable: false, toDelete: null })
+          }
+          labelValid="Delete"
         >
           <div>Are you sure you want to delete that item ?</div>
         </SweetModal>
