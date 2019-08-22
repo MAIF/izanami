@@ -6,8 +6,14 @@ import controllers.AssetsFinder
 import libs.logs.IzanamiLogger
 import play.api.libs.ws.WSClient
 import play.api.{Environment, Logger, Mode}
+import cats._
+import cats.implicits._
 
 import scala.util.Random
+
+object ModeEq {
+  implicit val eqMode: Eq[Mode] = Eq.fromUniversalEquals
+}
 
 case class Env(
     izanamiConfig: IzanamiConfig,
@@ -19,13 +25,15 @@ case class Env(
     metricRegistry: MetricRegistry
 ) {
 
+  import ModeEq._
+
   val env: String = izanamiConfig.mode.getOrElse(environment.mode match {
     case Mode.Dev  => "dev"
     case Mode.Prod => "prod"
     case Mode.Test => "test"
   })
 
-  def isPlayDevMode = environment.mode == Mode.Dev
+  def isPlayDevMode = environment.mode === Mode.Dev
 
   IzanamiLogger.info(s"Starting izanami with $env mode")
 //  val sharedKey: String = izanamiConfig.claim.sharedKey

@@ -44,6 +44,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
                                            dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem)
     extends ExperimentVariantEventService {
 
+  import cats.implicits._
   import elastic.implicits._
   import libs.effects._
   import elastic.codec.PlayJson._
@@ -498,7 +499,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
         .index(esIndex / esType)
         .get("test")
         .recover {
-          case EsException(_, statusCode, _) if statusCode == 404 =>
+          case EsException(_, statusCode, _) if statusCode === 404 =>
             ()
         }
     }.unit

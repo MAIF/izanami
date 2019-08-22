@@ -2,7 +2,9 @@ package libs
 import zio._
 import play.api.mvc._
 import domains.AuthInfoModule
+import cats.implicits._
 import controllers.actions.{AuthContext, SecuredAuthContext}
+
 object http {
 
   implicit class ActionBuilderOps[+R[_], B](ab: ActionBuilder[R, B]) {
@@ -121,7 +123,7 @@ object http {
       rh.headers
         .get("X-Forwarded-Protocol")
         .orElse(rh.headers.get("X-Forwarded-Proto"))
-        .map(_ == "https")
+        .map(_ === "https")
         .orElse(Some(rh.secure))
         .map {
           case true  => "https"

@@ -46,7 +46,7 @@ class AuthController(_env: Env,
         case Some(user: User) =>
           ZIO.succeed {
             user match {
-              case User(_, _, _, Some(password), _, _) if password == Sha.hexSha512(auth.password) =>
+              case User(_, _, _, Some(password), _, _) if password === Sha.hexSha512(auth.password) =>
                 val token: String = buildToken(user)
 
                 Ok(Json.toJson(user).as[JsObject] - "password")
@@ -60,7 +60,7 @@ class AuthController(_env: Env,
             .count(Query.oneOf("*"))
             .map {
               case count
-                  if count == 0 && auth.userId == _env.izanamiConfig.user.initialize.userId && auth.password == _env.izanamiConfig.user.initialize.password => {
+                  if count === 0 && auth.userId === _env.izanamiConfig.user.initialize.userId && auth.password === _env.izanamiConfig.user.initialize.password => {
                 val userId = _env.izanamiConfig.user.initialize.userId
                 val user: User = User(id = userId,
                                       name = userId,
