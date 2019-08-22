@@ -7,15 +7,16 @@ import cats.Semigroup
 import cats.data.{NonEmptyList, Validated}
 import cats.effect.{ConcurrentEffect, ContextShift, Effect}
 import cats.kernel.Monoid
-import domains.events.EventStore
+import domains.events.{EventStore, EventStoreContext}
 import domains.Key
 import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
-import libs.logs.IzanamiLogger
+import libs.logs.{IzanamiLogger, LoggerModule}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
-import store.Result.Result
+import play.api.mvc.Results
+import store.Result.IzanamiErrors
 import store.cassandra.CassandraJsonDataStore
 import store.elastic.ElasticJsonDataStore
 import store.leveldb.{DbStores, LevelDBJsonDataStore}
@@ -34,8 +35,22 @@ object Result {
     implicit val format = Json.format[ErrorMessage]
   }
 
-  case class AppErrors(errors: Seq[ErrorMessage] = Seq.empty,
-                       fieldErrors: Map[String, List[ErrorMessage]] = Map.empty) {
+  object IzanamiErrors {
+    def toHttpResult(error: IzanamiErrors) = error match {
+      case err: AppErrors => Results.BadRequest(err.toJson)
+      case IdMustBeTheSame(fromObject, inParam) =>
+        Results.BadRequest(AppErrors.error("error.id.not.the.same", inParam.key, inParam.key).toJson)
+      case DataShouldExists(id)    => Results.BadRequest(AppErrors.error("error.data.missing", id.key).toJson)
+      case DataShouldNotExists(id) => Results.BadRequest(AppErrors.error("error.data.exists", id.key).toJson)
+    }
+  }
+
+  sealed trait IzanamiErrors
+  case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiErrors
+  case class DataShouldExists(id: Key)                      extends IzanamiErrors
+  case class DataShouldNotExists(id: Key)                   extends IzanamiErrors
+  case class AppErrors(errors: Seq[ErrorMessage] = Seq.empty, fieldErrors: Map[String, List[ErrorMessage]] = Map.empty)
+      extends IzanamiErrors {
     def ++(s: AppErrors): AppErrors =
       this.copy(errors = errors ++ s.errors, fieldErrors = fieldErrors ++ s.fieldErrors)
     def addFieldError(field: String, errors: List[ErrorMessage]): AppErrors =
@@ -90,9 +105,9 @@ object Result {
   }
 
   type ValidatedResult[+E] = Validated[AppErrors, E]
-  type Result[+E]          = Either[AppErrors, E]
-  def ok[E](event: E): Result[E]            = Right(event)
-  def error[E](error: AppErrors): Result[E] = Left(error)
+  type Result[+E]          = Either[IzanamiErrors, E]
+  def ok[E](event: E): Result[E]                = Right(event)
+  def error[E](error: IzanamiErrors): Result[E] = Left(error)
   def error[E](messages: String*): Result[E] =
     Left(AppErrors(messages.map(m => ErrorMessage(m))))
   def errors[E](errs: ErrorMessage*): Result[E] = Left(AppErrors(errs))
@@ -175,53 +190,91 @@ object Query {
     )
 }
 
-trait DataStore[F[_], Key, Data] {
-  def create(id: Key, data: Data): F[Result[Data]]
-  def update(oldId: Key, id: Key, data: Data): F[Result[Data]]
-  def delete(id: Key): F[Result[Data]]
-  def deleteAll(query: Query): F[Result[Done]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]] = deleteAll(Query.oneOf(patterns))
-  def getById(id: Key): F[Option[Data]]
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Data]]
-  def findByQuery(query: Query): Source[(Key, Data), NotUsed]
-  def count(query: Query): F[Long]
+trait DataStoreContext extends LoggerModule with EventStoreContext
+
+trait DataStore[Key, Data] {
+  import zio._
+  def create(id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
+  def update(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
+  def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, Data]
+  def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit]
+  def deleteAll(patterns: Seq[String]): ZIO[DataStoreContext, IzanamiErrors, Unit] = deleteAll(Query.oneOf(patterns))
+  def getById(id: Key): RIO[DataStoreContext, Option[Data]]
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[DataStoreContext, PagingResult[Data]]
+  def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, Data), NotUsed]]
+  def count(query: Query): RIO[DataStoreContext, Long]
+  def start: RIO[DataStoreContext, Unit] = Task.succeed(())
 }
 
-trait JsonDataStore[F[_]] extends DataStore[F, Key, JsValue]
+trait JsonDataStore extends DataStore[Key, JsValue]
+
+trait JsonDataStoreHelper[R <: DataStoreContext] {
+  import zio._
+
+  def accessStore: R => JsonDataStore
+
+  def create(id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
+    ZIO.accessM[R](accessStore(_).create(id, data))
+
+  def update(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
+    ZIO.accessM[R](accessStore(_).update(oldId, id, data))
+
+  def delete(id: Key): ZIO[R, IzanamiErrors, JsValue] =
+    ZIO.accessM[R](accessStore(_).delete(id))
+
+  def deleteAll(query: Query): ZIO[R, IzanamiErrors, Unit] =
+    ZIO.accessM(accessStore(_).deleteAll(query))
+
+  def deleteAll(patterns: Seq[String]): ZIO[R, IzanamiErrors, Unit] =
+    deleteAll(Query.oneOf(patterns))
+
+  def getById(id: Key): RIO[R, Option[JsValue]] =
+    ZIO.accessM[R](accessStore(_).getById(id))
+
+  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[R, PagingResult[JsValue]] =
+    ZIO.accessM[R](accessStore(_).findByQuery(query, page, nbElementPerPage))
+
+  def findByQuery(query: Query): RIO[R, Source[(Key, JsValue), NotUsed]] =
+    ZIO.accessM[R](accessStore(_).findByQuery(query))
+
+  def count(query: Query): RIO[R, Long] =
+    ZIO.accessM[R](accessStore(_).count(query))
+
+  def start: RIO[R, Unit] = ZIO.accessM[R](accessStore(_).start)
+
+}
 
 object JsonDataStore {
-  def apply[F[_]: ContextShift: ConcurrentEffect](
-      drivers: Drivers[F],
+  def apply(
+      drivers: Drivers,
       izanamiConfig: IzanamiConfig,
       conf: DbDomainConfig,
-      eventStore: EventStore[F],
       eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
       applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem, stores: DbStores[F]): JsonDataStore[F] =
+  )(implicit actorSystem: ActorSystem): JsonDataStore =
     conf.`type` match {
       case InMemoryWithDb =>
-        val dbType: DbType                  = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
-        val jsonDataStore: JsonDataStore[F] = storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
+        val dbType: DbType               = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
+        val jsonDataStore: JsonDataStore = storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
         IzanamiLogger.info(
           s"Loading InMemoryWithDbStore for namespace ${conf.conf.namespace} with underlying store ${dbType.getClass.getSimpleName}"
         )
-        InMemoryWithDbStore[F](izanamiConfig.db.inMemoryWithDb.get,
-                               conf,
-                               jsonDataStore,
-                               eventStore,
-                               eventAdapter,
-                               applicationLifecycle)
+        InMemoryWithDbStore(izanamiConfig.db.inMemoryWithDb.get,
+                            conf,
+                            jsonDataStore,
+                            eventAdapter,
+                            applicationLifecycle)
       case other =>
         storeByType(drivers, izanamiConfig, conf, other, applicationLifecycle)
     }
 
-  private def storeByType[F[_]: ContextShift: ConcurrentEffect](
-      drivers: Drivers[F],
+  private def storeByType(
+      drivers: Drivers,
       izanamiConfig: IzanamiConfig,
       conf: DbDomainConfig,
       dbType: DbType,
       applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem, stores: DbStores[F]): JsonDataStore[F] = {
+  )(implicit actorSystem: ActorSystem): JsonDataStore = {
     IzanamiLogger.info(s"Initializing store for $dbType")
     dbType match {
       case InMemory => InMemoryJsonDataStore(conf)

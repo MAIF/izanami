@@ -1,59 +1,42 @@
 package controllers
 
-import akka.Done
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import cats.data.NonEmptyList
-import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.abtesting.Experiment.ExperimentKey
 import domains.{Import, IsAllowed, Key, Node}
 import domains.abtesting._
-import domains.config.Config.ConfigKey
-import domains.config.{Config, ConfigInstances}
-import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
+import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.AppErrors
+import store.Result.{AppErrors, IzanamiErrors}
+import zio.{Runtime, Task, ZIO}
 
-import scala.util.{Failure, Success}
+class ExperimentController(ctx: ExperimentContext,
+                           system: ActorSystem,
+                           AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                           cc: ControllerComponents)(implicit runtime: Runtime[ExperimentContext])
+    extends AbstractController(cc) {
 
-class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
-                                         eVariantEventStore: ExperimentVariantEventService[F],
-                                         system: ActorSystem,
-                                         AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                         cc: ControllerComponents)
-    extends AbstractController(cc)
-    with EitherTSyntax[F] {
-
-  import cats.implicits._
-  import cats.effect.implicits._
-  import libs.effects._
-  import libs.functional.syntax._
   import system.dispatcher
-  import AppErrors._
   import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
-  implicit val eStore   = experimentStore
-  implicit val eVeStore = eVariantEventStore
-
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
-    AuthAction.asyncF(parse.empty) { ctx =>
+    AuthAction.asyncTask[ExperimentContext](parse.empty) { ctx =>
       import ExperimentInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
 
       render match {
         case "flat" =>
-          experimentStore
+          ExperimentService
             .findByQuery(query, page, nbElementPerPage)
             .map { r =>
               Ok(
@@ -70,150 +53,147 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
             }
         case "tree" =>
           import Node._
-          experimentStore
+          ExperimentService
             .findByQuery(query)
-            .fold(List.empty[(ExperimentKey, Experiment)])(_ :+ _)
-            .map { v =>
-              Node.valuesToNodes[Experiment](v)(ExperimentInstances.format)
+            .flatMap { s =>
+              ZIO.fromFuture { implicit ec =>
+                s.fold(List.empty[(ExperimentKey, Experiment)])(_ :+ _)
+                  .map { v =>
+                    Node.valuesToNodes[Experiment](v)(ExperimentInstances.format)
+                  }
+                  .map { v =>
+                    Json.toJson(v)
+                  }
+                  .map(json => Ok(json))
+                  .runWith(Sink.head)
+              }
             }
-            .map { v =>
-              Json.toJson(v)
-            }
-            .map(json => Ok(json))
-            .runWith(Sink.head)
-            .toF[F]
         case _ =>
-          BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))).pure[F]
+          Task.succeed(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
       }
 
     }
 
   def tree(patterns: String, clientId: String): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncTask[ExperimentContext](parse.empty) { ctx =>
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(patterns.split(",").toList)
-      experimentStore
-        .findByQuery(query)
-        .map(_._2)
-        .via(experimentStore.toGraph(clientId))
-        .map { graph =>
-          Ok(graph)
-        }
-        .orElse(Source.single(Ok(Json.obj())))
-        .runWith(Sink.head)
+      for {
+        s <- ExperimentService.findByQuery(query)
+        r <- ZIO.fromFuture(
+              implicit ec =>
+                s.map(_._2)
+                  .via(ExperimentService.toGraph(clientId))
+                  .map { graph =>
+                    Ok(graph)
+                  }
+                  .orElse(Source.single(Ok(Json.obj())))
+                  .runWith(Sink.head)
+            )
+      } yield r
     }
 
-  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncZio[ExperimentContext](parse.json) { ctx =>
     import ExperimentInstances._
+    val body = ctx.request.body
     for {
-      experiment <- ctx.request.body.validate[Experiment] |> liftJsResult(
-                     err => BadRequest(AppErrors.fromJsError(err).toJson)
-                   )
-      _ <- IsAllowed[Experiment].isAllowed(experiment)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- experimentStore.create(experiment.id, experiment) |> mapLeft(err => BadRequest(err.toJson))
+      experiment <- jsResultToHttpResponse(body.validate[Experiment])
+      _          <- isExperimentAllowed(experiment, ctx)
+      _          <- ExperimentService.create(experiment.id, experiment).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(experiment))
   }
 
   def get(id: String, clientId: Option[String]): Action[Unit] =
-    AuthAction.asyncEitherT(parse.empty) { ctx =>
+    AuthAction.asyncZio[ExperimentContext](parse.empty) { ctx =>
       import ExperimentInstances._
       val key = Key(id)
       for {
-        _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue(
-              Forbidden(AppErrors.error("error.forbidden").toJson)
-            )
-        experiment <- experimentStore
-                       .getById(key) |> liftFOption[Result, Experiment](NotFound)
+        _          <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+        mayBe      <- ExperimentService.getById(key).mapError(e => InternalServerError)
+        experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))
     }
 
-  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncZio[ExperimentContext](parse.json) { ctx =>
     import ExperimentInstances._
+    val body = ctx.request.body
     for {
-      experiment <- ctx.request.body.validate[Experiment] |> liftJsResult(
-                     err => BadRequest(AppErrors.fromJsError(err).toJson)
-                   )
-      _ <- IsAllowed[Experiment].isAllowed(experiment)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- experimentStore
-                .update(Key(id), experiment.id, experiment) |> mapLeft(err => BadRequest(err.toJson))
+      experiment <- jsResultToHttpResponse(body.validate[Experiment])
+      _          <- isExperimentAllowed(experiment, ctx)
+      _          <- ExperimentService.update(Key(id), experiment.id, experiment).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(experiment))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncZio[ExperimentContext](parse.json) { ctx =>
     import ExperimentInstances._
     val key = Key(id)
     for {
-      current <- experimentStore.getById(key) |> liftFOption[Result, Experiment](NotFound)
-      _ <- IsAllowed[Experiment].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      event <- experimentStore
-                .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe   <- ExperimentService.getById(key).mapError(e => InternalServerError)
+      current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _       <- isExperimentAllowed(current, ctx)
+      body    = ctx.request.body
+      updated <- jsResultToHttpResponse(Patch.patch(body, current))
+      _       <- ExperimentService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[ExperimentContext] { ctx =>
     import ExperimentInstances._
     val key = Key(id)
     for {
-      experiment <- experimentStore
-                     .getById(key) |> liftFOption[Result, Experiment](NotFound)
-      _ <- IsAllowed[Experiment].isAllowed(experiment)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      deleted <- experimentStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
-      _       <- eVariantEventStore.deleteEventsForExperiment(experiment) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe      <- ExperimentService.getById(key).mapError(e => InternalServerError)
+      experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _          <- isExperimentAllowed(experiment, ctx)
+      deleted    <- ExperimentService.delete(key).mapError { IzanamiErrors.toHttpResult }
+      _          <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(experiment))
   }
 
-  def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
-
-    val experimentsRelationsDeletes: F[Done] = Effect[F].async { cb =>
-      experimentStore
-        .findByQuery(query)
-        .map(_._2)
-        .flatMapMerge(
-          4, { experiment =>
-            Source.fromFuture(eVariantEventStore.deleteEventsForExperiment(experiment).toIO.unsafeToFuture())
-          }
-        )
-        .runWith(Sink.ignore)
-        .onComplete {
-          case Success(value) => cb(Right(value))
-          case Failure(e)     => cb(Left(e))
-        }
-    }
+  def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncZio[ExperimentContext] { req =>
+    val query: Query = Query.oneOf(req.authorizedPatterns).and(pattern.split(",").toList)
 
     for {
-      _       <- experimentsRelationsDeletes |> liftF
-      deletes <- experimentStore.deleteAll(query) |> mapLeft(err => BadRequest(err.toJson))
+      runtime <- ZIO.runtime[ExperimentContext]
+      _ <- ExperimentService
+            .findByQuery(query)
+            .map { s =>
+              ZIO.fromFuture { implicit ec =>
+                s.map(_._2)
+                  .flatMapMerge(
+                    4, { experiment =>
+                      val value = ExperimentVariantEventService.deleteEventsForExperiment(experiment).either
+                      Source.fromFuture(
+                        runtime.unsafeRunToFuture(value)
+                      )
+                    }
+                  )
+                  .runWith(Sink.ignore)
+              }
+            }
+            .mapError { e =>
+              InternalServerError("")
+            }
+
+      _ <- ExperimentService.deleteAll(query).mapError { IzanamiErrors.toHttpResult }
     } yield Ok
   }
 
   /* Campaign */
 
   def getVariantForClient(experimentId: String, clientId: String): Action[Unit] =
-    AuthAction.asyncEitherT(parse.empty) { ctx =>
+    AuthAction.asyncZio[ExperimentContext](parse.empty) { ctx =>
       import ExperimentInstances._
       for {
-        variant <- experimentStore.variantFor(Key(experimentId), clientId) |> mapLeft(err => BadRequest(err.toJson))
+        variant <- ExperimentService.variantFor(Key(experimentId), clientId).mapError { IzanamiErrors.toHttpResult }
       } yield Ok(Json.toJson(variant))
     }
 
   def variantDisplayed(experimentId: String, clientId: String): Action[AnyContent] =
-    AuthAction.asyncEitherT { ctx =>
+    AuthAction.asyncZio[ExperimentContext] { ctx =>
       import ExperimentVariantEventInstances._
 
       val experimentKey = Key(experimentId)
       for {
-        variant <- experimentStore.variantFor(experimentKey, clientId) |> mapLeft(err => BadRequest(err.toJson))
+        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { IzanamiErrors.toHttpResult }
         key = ExperimentVariantEventKey(experimentKey,
                                         variant.id,
                                         clientId,
@@ -225,17 +205,19 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
                                                       variant,
                                                       transformation = 0,
                                                       variantId = variant.id)
-        eventCreated <- eVariantEventStore.create(key, variantDisplayed) |> mapLeft(err => BadRequest(err.toJson))
+        eventCreated <- ExperimentVariantEventService.create(key, variantDisplayed).mapError {
+                         IzanamiErrors.toHttpResult
+                       }
       } yield Ok(Json.toJson(eventCreated))
     }
 
   def variantWon(experimentId: String, clientId: String): Action[AnyContent] =
-    AuthAction.asyncEitherT { ctx =>
+    AuthAction.asyncZio[ExperimentContext] { ctx =>
       import ExperimentVariantEventInstances._
       val experimentKey = Key(experimentId)
 
       for {
-        variant <- experimentStore.variantFor(experimentKey, clientId) |> mapLeft(err => BadRequest(err.toJson))
+        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { IzanamiErrors.toHttpResult }
         key = ExperimentVariantEventKey(experimentKey,
                                         variant.id,
                                         clientId,
@@ -247,91 +229,115 @@ class ExperimentController[F[_]: Effect](experimentStore: ExperimentService[F],
                                           variant,
                                           transformation = 0,
                                           variantId = variant.id)
-        eventCreated <- eVariantEventStore.create(key, variantWon) |> mapLeft(err => BadRequest(err.toJson))
+        eventCreated <- ExperimentVariantEventService.create(key, variantWon).mapError { IzanamiErrors.toHttpResult }
       } yield Ok(Json.toJson(Json.toJson(eventCreated)))
     }
 
   def results(experimentId: String): Action[Unit] =
-    AuthAction.asyncF(parse.empty) { ctx =>
+    AuthAction.asyncZio[ExperimentContext](parse.empty) { ctx =>
       import ExperimentInstances._
       val experimentKey = Key(experimentId)
-      experimentStore
+      ExperimentService
         .experimentResult(experimentKey)
+        .mapError { IzanamiErrors.toHttpResult }
         .map { r =>
           Ok(Json.toJson(r))
         }
     }
 
-  def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
+  def count(): Action[Unit] = AuthAction.asyncTask[ExperimentContext](parse.empty) { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
-    experimentStore.count(Query.oneOf(patterns)).map { count =>
+    ExperimentService.count(Query.oneOf(patterns)).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
-  def downloadExperiments(): Action[AnyContent] = AuthAction { ctx =>
+  def downloadExperiments(): Action[AnyContent] = AuthAction.asyncTask[ExperimentContext] { ctx =>
     import ExperimentInstances._
-    val source = experimentStore
+    ExperimentService
       .findByQuery(Query.oneOf(ctx.authorizedPatterns))
-      .map(_._2)
-      .map(data => Json.toJson(data))
-      .map(Json.stringify _)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-      .recover {
-        case e =>
-          IzanamiLogger.error("Error during experiments download", e)
-          ByteString("")
+      .map { s =>
+        val source = s
+          .map(_._2)
+          .map(data => Json.toJson(data))
+          .map(Json.stringify _)
+          .intersperse("", "\n", "\n")
+          .map(ByteString.apply)
+          .recover {
+            case e =>
+              IzanamiLogger.error("Error during experiments download", e)
+              ByteString("")
+          }
+        Result(
+          header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments.dnjson")),
+          body = HttpEntity.Streamed(source, None, Some("application/json"))
+        )
       }
-    Result(
-      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments.dnjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
+
   }
 
-  def uploadExperiments() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(experimentStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
-      }
-      .recover {
-        case e: Throwable =>
-          IzanamiLogger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
+  def uploadExperiments() = AuthAction.asyncTask[ExperimentContext](Import.ndJson) { ctx =>
+    for {
+      flow <- ExperimentService.importData
+      res <- ZIO.fromFuture(
+              _ =>
+                ctx.body
+                  .via(flow)
+                  .map {
+                    case r if r.isError => BadRequest(Json.toJson(r))
+                    case r              => Ok(Json.toJson(r))
+                  }
+                  .recover {
+                    case e: Throwable =>
+                      IzanamiLogger.error("Error importing file", e)
+                      InternalServerError
+                  }
+                  .runWith(Sink.head)
+            )
+    } yield res
   }
 
-  def downloadEvents(): Action[AnyContent] = AuthAction { ctx =>
+  def downloadEvents(): Action[AnyContent] = AuthAction.asyncTask[ExperimentContext] { ctx =>
     import ExperimentVariantEventInstances._
-    val source = eVariantEventStore
+    ExperimentVariantEventService
       .listAll(ctx.authorizedPatterns)
-      .map(data => Json.toJson(data))
-      .map(Json.stringify _)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-    Result(
-      header =
-        ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments_events.dnjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
+      .map { s =>
+        val source = s
+          .map(data => Json.toJson(data))
+          .map(Json.stringify _)
+          .intersperse("", "\n", "\n")
+          .map(ByteString.apply)
+        Result(
+          header =
+            ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "experiments_events.dnjson")),
+          body = HttpEntity.Streamed(source, None, Some("application/json"))
+        )
+      }
   }
 
-  def uploadEvents() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(eVariantEventStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
-      }
-      .recover {
-        case e: Throwable =>
-          IzanamiLogger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
+  def uploadEvents() = AuthAction.asyncTask[ExperimentContext](Import.ndJson) { ctx =>
+    for {
+      flow <- ExperimentService.importData
+      res <- ZIO.fromFuture(
+              _ =>
+                ctx.body
+                  .via(flow)
+                  .map {
+                    case r if r.isError => BadRequest(Json.toJson(r))
+                    case r              => Ok(Json.toJson(r))
+                  }
+                  .recover {
+                    case e: Throwable =>
+                      IzanamiLogger.error("Error importing file", e)
+                      InternalServerError
+                  }
+                  .runWith(Sink.head)
+            )
+    } yield res
   }
+
+  private def isExperimentAllowed(experiment: Experiment,
+                                  ctx: SecuredAuthContext[_])(implicit A: IsAllowed[Experiment]): zio.IO[Result, Unit] =
+    IsAllowed[Experiment].isAllowed(experiment, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
 
 }

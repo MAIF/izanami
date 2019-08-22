@@ -6,7 +6,6 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import akka.testkit.SocketUtil
 import com.typesafe.config.ConfigFactory
-import multi.Configs
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
@@ -17,8 +16,10 @@ import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.DurationDouble
 import scala.concurrent.{Await, Future}
+import scala.util.Random
+import org.scalatest.BeforeAndAfterAll
 
-class WebhookControllerSpec(name: String, configurationSpec: Configuration)
+abstract class WebhookControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents

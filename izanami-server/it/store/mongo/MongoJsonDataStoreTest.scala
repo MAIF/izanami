@@ -1,8 +1,5 @@
 package store.mongo
 
-import java.time.Duration
-
-import cats.effect.IO
 import env.{DbDomainConfig, DbDomainConfigDetails, Mongo}
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -13,7 +10,7 @@ import store.AbstractJsonDataStoreTest
 import test.FakeApplicationLifecycle
 
 import scala.concurrent.duration.DurationLong
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.util.Random
 
 
@@ -26,7 +23,7 @@ class MongoJsonDataStoreTest extends AbstractJsonDataStoreTest("Mongo")  with Be
     new FakeApplicationLifecycle()
   )
 
-  override def dataStore(name: String): MongoJsonDataStore[IO] = MongoJsonDataStore[IO](
+  override def dataStore(name: String): MongoJsonDataStore = MongoJsonDataStore(
     mongoApi,
     DbDomainConfig(Mongo, DbDomainConfigDetails(name, None), None)
   )

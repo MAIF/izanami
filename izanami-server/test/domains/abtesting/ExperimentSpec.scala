@@ -4,27 +4,37 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.{ChronoField, ChronoUnit, TemporalField}
 
 import akka.actor.ActorSystem
+import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
 import cats.effect.IO
 import domains.Key
 import domains.abtesting.impl.ExperimentVariantEventInMemoryService
-import domains.events.Events
+import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated
+import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
-import store.Result.{AppErrors, Result}
+import store.Result.{AppErrors, IzanamiErrors, Result}
+import store.{JsonDataStore, Result}
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
+import zio.blocking.Blocking
+import zio.internal.{Executor, PlatformLive}
+import zio.{DefaultRuntime, RIO, Task, ZIO}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Random
+import domains.user.User
+import domains.AuthInfo
+import store.Result.IdMustBeTheSame
 
 class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
   import ExperimentInstances._
 
   implicit val actorSystem: ActorSystem = ActorSystem()
   import actorSystem.dispatcher
+  implicit val runtime = new DefaultRuntime {}
 
   "Experiment" must {
 
@@ -366,7 +376,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     "create a experiment" in {
       val store   = TrieMap.empty[Key, JsValue]
       val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
-      val service = fakeExperimentService(store, events)
+      val context = fakeExperimentContext(store, events)
 
       val experiment = Experiment(
         id = Key("test"),
@@ -386,7 +396,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
                   currentPopulation = Some(6))
         )
       )
-      val value: Result[Experiment] = service.create(experiment.id, experiment).unsafeRunSync()
+      val value: Either[IzanamiErrors, Experiment] =
+        runSync(context, ExperimentService.create(experiment.id, experiment).either)
       value mustBe Right(experiment)
 
       store.get(experiment.id) mustBe Some(Json.toJson(experiment))
@@ -398,7 +409,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     "reject an invalid experiment during creation" in {
       val store   = TrieMap.empty[Key, JsValue]
       val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
-      val service = fakeExperimentService(store, events)
+      val context = fakeExperimentContext(store, events)
 
       val experiment = Experiment(
         id = Key("test"),
@@ -418,7 +429,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
                   currentPopulation = Some(6))
         )
       )
-      val value: Result[Experiment] = service.create(experiment.id, experiment).unsafeRunSync()
+      val value: Either[IzanamiErrors, Experiment] =
+        runSync(context, ExperimentService.create(experiment.id, experiment).either)
       value mustBe Left(AppErrors.error("error.traffic.not.cent.percent"))
 
       store.get(experiment.id) mustBe None
@@ -426,10 +438,9 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     }
 
     "reject an update if ids are not the same" in {
-      val store                                           = TrieMap.empty[Key, JsValue]
-      val events                                          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
-      val service                                         = fakeExperimentService(store, events)
-      implicit val eeS: ExperimentVariantEventService[IO] = expEventsService()
+      val store   = TrieMap.empty[Key, JsValue]
+      val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context = fakeExperimentContext(store, events)
 
       val experiment = Experiment(
         id = Key("test"),
@@ -449,9 +460,10 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
                   currentPopulation = Some(6))
         )
       )
-      val oldId                     = Key("oldtest")
-      val value: Result[Experiment] = service.update(oldId, experiment.id, experiment).unsafeRunSync()
-      value mustBe Left(AppErrors.error("error.id.not.same", oldId.key, experiment.id.key))
+      val oldId = Key("oldtest")
+      val value: Either[IzanamiErrors, Experiment] =
+        runSync(context, ExperimentService.update(oldId, experiment.id, experiment).either)
+      value mustBe Left(IdMustBeTheSame(oldId, experiment.id))
 
       store.get(experiment.id) mustBe None
       events must have size 0
@@ -527,10 +539,9 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
 
     "Variant by client if campaign is on" in {
 
-      val store                                           = TrieMap.empty[Key, JsValue]
-      val events                                          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
-      val service                                         = fakeExperimentService(store, events)
-      implicit val eeS: ExperimentVariantEventService[IO] = expEventsService()
+      val store   = TrieMap.empty[Key, JsValue]
+      val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context = fakeExperimentContext(store, events)
 
       val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
@@ -559,7 +570,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       store.put(id, Json.toJson(experiment))
 
       val variants = (1 to 100).map { i =>
-        service.variantFor(id, s"client$i").unsafeRunSync().right.get
+        variantFor(context, id, s"client$i")
       }
       val aCount: Int = variants.count(_.id === "A")
       val bCount: Int = variants.count(_.id === "B")
@@ -569,10 +580,9 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
 
     "Variant by client if campaign just closed" in {
 
-      val store                                           = TrieMap.empty[Key, JsValue]
-      val events                                          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
-      val service                                         = fakeExperimentService(store, events)
-      implicit val eeS: ExperimentVariantEventService[IO] = expEventsService()
+      val store   = TrieMap.empty[Key, JsValue]
+      val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context = fakeExperimentContext(store, events)
 
       val from = LocalDateTime.now().minus(2, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val to   = LocalDateTime.now().minus(1, ChronoUnit.MINUTES).`with`(ChronoField.MILLI_OF_SECOND, 0)
@@ -600,12 +610,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       )
       store.put(id, Json.toJson(experiment))
       val evtId1 = ExperimentVariantEventKey(id, "A", "client1", "test", "1")
-      eeS.create(evtId1, ExperimentVariantDisplayed(evtId1, id, "client1", variantA, LocalDateTime.now(), 0, "A"))
+      runSync(
+        context,
+        ExperimentVariantEventService
+          .create(evtId1, ExperimentVariantDisplayed(evtId1, id, "client1", variantA, LocalDateTime.now(), 0, "A"))
+          .either
+      )
       val evtId2 = ExperimentVariantEventKey(id, "A", "client1", "test", "2")
-      eeS.create(evtId1, ExperimentVariantWon(evtId2, id, "client1", variantA, LocalDateTime.now(), 0, "A"))
+      runSync(context,
+              ExperimentVariantEventService
+                .create(evtId1, ExperimentVariantWon(evtId2, id, "client1", variantA, LocalDateTime.now(), 0, "A"))
+                .either)
 
       val variants = (1 to 100).map { i =>
-        service.variantFor(id, s"client$i").unsafeRunSync().right.get
+        variantFor(context, id, s"client$i")
       }
       val aCount = variants.count(_.id === "A")
       val bCount = variants.count(_.id === "B")
@@ -618,10 +636,9 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
 
     "Variant A if campaign is closed" in {
 
-      val store                                           = TrieMap.empty[Key, JsValue]
-      val events                                          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
-      val service                                         = fakeExperimentService(store, events)
-      implicit val eeS: ExperimentVariantEventService[IO] = expEventsService()
+      val store   = TrieMap.empty[Key, JsValue]
+      val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context = fakeExperimentContext(store, events)
 
       val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
@@ -650,7 +667,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       store.put(id, Json.toJson(experiment))
 
       val variants = (1 to 100).map { i =>
-        service.variantFor(id, s"client$i").unsafeRunSync().right.get
+        variantFor(context, id, s"client$i")
       }
       val aCount = variants.count(_.id === "A")
       val bCount = variants.count(_.id === "B")
@@ -659,21 +676,39 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     }
   }
 
-  def fakeExperimentService(
+  private def variantFor(context: ExperimentContext, id: Key, clientId: String): Variant = {
+    val r: Either[Result.IzanamiErrors, Variant] = runSync(context, ExperimentService.variantFor(id, clientId).either)
+    r.toOption.get
+  }
+
+  private def runSync[T](context: ExperimentContext, taskR: RIO[ExperimentContext, T]): T =
+    runtime.unsafeRun(ZIO.provide(context)(taskR))
+
+  def fakeExperimentContext(
       store: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue],
-      events: mutable.ArrayBuffer[Events.IzanamiEvent]
-  ): ExperimentService[IO] =
-    new ExperimentServiceImpl[IO](
-      new InMemoryJsonDataStore("experiment", store),
-      new TestEventStore[IO](events)
-    )
+      events: mutable.ArrayBuffer[Events.IzanamiEvent],
+      expVariantEventService: ExperimentVariantEventService = expEventsService()
+  ): ExperimentContext =
+    new ExperimentContext {
+      override def experimentVariantEventService: ExperimentVariantEventService = expVariantEventService
+      override def logger: Logger                                               = new ProdLogger
+      override def experimentDataStore: JsonDataStore                           = new InMemoryJsonDataStore("experiment", store)
+      override implicit def system: ActorSystem                                 = actorSystem
+      override implicit def mat: Materializer                                   = ActorMaterializer()(actorSystem)
+      override def eventStore: EventStore                                       = new TestEventStore(events)
+      override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
+        def blockingExecutor: ZIO[Any, Nothing, Executor] =
+          ZIO.succeed(PlatformLive.Global.executor)
+      }
+      override def withAuthInfo(authInfo: Option[AuthInfo]): ExperimentContext = this
+      override def authInfo: Option[AuthInfo]                                  = None
+    }
 
   def expEventsService(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty
-  ): ExperimentVariantEventService[IO] =
-    new ExperimentVariantEventInMemoryService[IO](
-      s"test_${Random.nextInt(1000)}",
-      new TestEventStore[IO](events)
+  ): ExperimentVariantEventService =
+    new ExperimentVariantEventInMemoryService(
+      s"test_${Random.nextInt(1000)}"
     )
 
 }

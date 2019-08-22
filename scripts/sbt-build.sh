@@ -14,7 +14,7 @@ then
     else
         echo 'Other branch, just test ...'
         sbt  -J-Xmx2G -J-Xss20M -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION "test"
-        sbt  -J-Xmx2G -J-Xss20M -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION "project izanami-server" "it:test"
+        sbt  -J-Xmx2G -J-Xss20M -J-XX:ReservedCodeCacheSize=128m ++$TRAVIS_SCALA_VERSION "it:test"
     fi
 else
     echo "Tag ${TRAVIS_TAG}, Publishing client"

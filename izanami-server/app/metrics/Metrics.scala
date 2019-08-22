@@ -23,13 +23,11 @@ import org.slf4j.LoggerFactory
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsObject, Json}
+import zio.Task
 
 import scala.util.Failure
 
-class Metrics[F[_]](_env: Env,
-                    drivers: Drivers[F],
-                    izanamiConfig: IzanamiConfig,
-                    applicationLifecycle: ApplicationLifecycle)(
+class Metrics(_env: Env, drivers: Drivers, izanamiConfig: IzanamiConfig, applicationLifecycle: ApplicationLifecycle)(
     implicit system: ActorSystem
 ) {
 

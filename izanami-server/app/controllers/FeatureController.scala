@@ -1,39 +1,30 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
-import cats.data.EitherT
-import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
-import domains.feature.{Feature, FeatureInstances, FeatureService}
+import domains.feature.{Feature, FeatureContext, FeatureInstances, FeatureService}
 import domains._
-import domains.config.{Config, ConfigInstances}
-import domains.config.Config.ConfigKey
 import domains.feature.Feature.FeatureKey
+import domains.webhook.Webhook
 import env.Env
-import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
+import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
 import store.Query
-import store.Result.AppErrors
+import store.Result.{AppErrors, IzanamiErrors}
+import zio.{IO, Runtime, ZIO}
 
-class FeatureController[F[_]: Effect](env: Env,
-                                      featureStore: FeatureService[F],
-                                      system: ActorSystem,
-                                      AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                      cc: ControllerComponents)
-    extends AbstractController(cc)
-    with EitherTSyntax[F] {
+class FeatureController(system: ActorSystem,
+                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+                        cc: ControllerComponents)(implicit runtime: Runtime[FeatureContext])
+    extends AbstractController(cc) {
 
-  import cats.implicits._
-  import libs.functional.syntax._
-  import libs.effects._
   import system.dispatcher
   import AppErrors._
   import libs.http._
@@ -42,15 +33,15 @@ class FeatureController[F[_]: Effect](env: Env,
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
-    AuthAction.asyncF(parse.empty) { ctx =>
+    AuthAction.asyncZio[FeatureContext](parse.empty) { ctx =>
       import FeatureInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(Query.oneOf(pattern.split(",").toList))
 
       render match {
         case "flat" =>
           if (active) {
-            featureStore
-              .findByQueryActive(env, Json.obj(), query, page, nbElementPerPage)
+            FeatureService
+              .findByQueryActive(Json.obj(), query, page, nbElementPerPage)
               .map { pagingResult =>
                 val results: Seq[JsValue] = pagingResult.results.map {
                   case (feature, isActive) =>
@@ -70,8 +61,9 @@ class FeatureController[F[_]: Effect](env: Env,
                   )
                 )
               }
+              .mapError { IzanamiErrors.toHttpResult }
           } else {
-            featureStore
+            FeatureService
               .findByQuery(query, page, nbElementPerPage)
               .map { pagingResult =>
                 Ok(
@@ -86,48 +78,61 @@ class FeatureController[F[_]: Effect](env: Env,
                   )
                 )
               }
+              .mapError(e => InternalServerError)
           }
         case "tree" =>
           if (active) {
-            featureStore
-              .findByQueryActive(env, Json.obj(), query)
-              .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
-              .map {
-                _.map { case (k, f, a) => (k, f.toJson(a)) }
+            FeatureService
+              .findByQueryActive(Json.obj(), query)
+              .flatMap { source =>
+                ZIO.fromFuture(
+                  implicit ec =>
+                    source
+                      .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
+                      .map {
+                        _.map { case (k, f, a) => (k, f.toJson(a)) }
+                      }
+                      .map { Node.valuesToNodes }
+                      .map { v =>
+                        Json.toJson(v)
+                      }
+                      .map(json => Ok(json))
+                      .runWith(Sink.head)
+                )
               }
-              .map { Node.valuesToNodes }
-              .map { v =>
-                Json.toJson(v)
-              }
-              .map(json => Ok(json))
-              .runWith(Sink.head)
-              .toF[F]
+              .mapError(e => InternalServerError)
           } else {
-            featureStore
+            FeatureService
               .findByQuery(query)
-              .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
-              .map { Node.valuesToNodes[Feature] }
-              .map { v =>
-                Json.toJson(v)
+              .flatMap { source =>
+                ZIO.fromFuture(
+                  implicit ec =>
+                    source
+                      .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
+                      .map { Node.valuesToNodes[Feature] }
+                      .map { v =>
+                        Json.toJson(v)
+                      }
+                      .map(json => Ok(json))
+                      .runWith(Sink.head)
+                )
               }
-              .map(json => Ok(json))
-              .runWith(Sink.head)
-              .toF[F]
+              .mapError(e => InternalServerError)
           }
         case _ =>
-          BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))).pure[F]
+          ZIO.succeed(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
       }
 
     }
 
   def listWithContext(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[JsValue] =
-    AuthAction.asyncF(parse.json) { ctx =>
+    AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(Query.oneOf(pattern.split(",").toList))
 
       ctx.body match {
         case context: JsObject =>
-          featureStore
-            .findByQueryActive(env, context, query, page, nbElementPerPage)
+          FeatureService
+            .findByQueryActive(context, query, page, nbElementPerPage)
             .map { pagingResult =>
               val results: Seq[JsValue] = pagingResult.results.map {
                 case (feature, isActive) =>
@@ -147,18 +152,19 @@ class FeatureController[F[_]: Effect](env: Env,
                 )
               )
             }
+            .mapError { IzanamiErrors.toHttpResult }
         case _ =>
-          Effect[F].pure(BadRequest(Json.toJson(AppErrors.error("error.json.invalid"))))
+          ZIO.succeed(BadRequest(Json.toJson(AppErrors.error("error.json.invalid"))))
       }
     }
 
   def tree(patterns: String, flat: Boolean): Action[JsValue] =
-    AuthAction.async(parse.json) { ctx =>
+    AuthAction.asyncTask[FeatureContext](parse.json) { ctx =>
       featuresTree(patterns, flat, ctx.authorizedPatterns, ctx.body)
     }
 
   def treeGet(patterns: String, flat: Boolean): Action[Unit] =
-    AuthAction.async(parse.empty) { ctx =>
+    AuthAction.asyncTask[FeatureContext](parse.empty) { ctx =>
       featuresTree(patterns, flat, ctx.authorizedPatterns, Json.obj())
     }
 
@@ -166,144 +172,133 @@ class FeatureController[F[_]: Effect](env: Env,
     val query: Query = Query.oneOf(authorizedPatterns).and(patterns.split(",").toList)
     body match {
       case context: JsObject =>
-        featureStore
-          .getFeatureTree(query, flat, context, env)
-          .map(graph => Ok(graph))
-          .runWith(Sink.head)
+        FeatureService
+          .getFeatureTree(query, flat, context)
+          .flatMap { source =>
+            ZIO.fromFuture(implicit ec => source.map(graph => Ok(graph)).runWith(Sink.head))
+          }
       case _ =>
-        FastFuture.successful(BadRequest(Json.toJson(AppErrors.error("error.json.invalid"))))
+        ZIO.succeed(BadRequest(Json.toJson(AppErrors.error("error.json.invalid"))))
     }
   }
 
-  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
     import FeatureInstances._
     for {
-      feature <- ctx.request.body.validate[Feature] |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      _ <- IsAllowed[Feature].isAllowed(feature)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      _ <- featureStore.create(feature.id, feature) |> mapLeft(err => BadRequest(err.toJson))
+      feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
+      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _       <- FeatureService.create(feature.id, feature).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(feature))
   }
 
-  def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
+  def get(id: String): Action[Unit] = AuthAction.asyncZio[FeatureContext](parse.empty) { ctx =>
     import FeatureInstances._
     val key = Key(id)
     for {
-      _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      feature <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
+      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      mayBeFeature <- FeatureService.getById(key).mapError(e => InternalServerError)
+      feature      <- ZIO.fromOption(mayBeFeature).mapError(_ => NotFound)
     } yield Ok(Json.toJson(feature))
   }
 
-  def check(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
+  def check(id: String): Action[Unit] = AuthAction.asyncZio[FeatureContext](parse.empty) { ctx =>
     checkFeatureWithcontext(id, ctx.auth, Json.obj())
   }
 
   def checkWithContext(id: String): Action[JsValue] =
-    AuthAction.asyncEitherT(parse.json) { ctx =>
+    AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
       checkFeatureWithcontext(id, ctx.auth, ctx.body)
     }
 
-  private def checkFeatureWithcontext(id: String,
-                                      user: Option[AuthInfo],
-                                      contextJson: JsValue): EitherT[F, Result, Result] = {
+  private def checkFeatureWithcontext(id: String, user: Option[AuthInfo], contextJson: JsValue) = {
     import FeatureInstances._
     val key = Key(id)
     for {
-      context <- contextJson.validate[JsObject] |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
-      _       <- Key.isAllowed(key)(user) |> liftBooleanTrue[Result](Forbidden(AppErrors.error("error.forbidden").toJson))
-      pair    <- featureStore.getByIdActive(env, context, key) |> liftFOption(NotFound(Json.obj()))
+      context   <- jsResultToHttpResponse(contextJson.validate[JsObject])
+      _         <- Key.isAllowed(key, user)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      mayBePair <- FeatureService.getByIdActive(context, key).mapError { IzanamiErrors.toHttpResult }
+      pair      <- ZIO.fromOption(mayBePair).mapError(_ => NotFound)
     } yield Ok(Json.obj("active" -> (pair._2 && pair._1.enabled)))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def update(id: String): Action[JsValue] = AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
     import FeatureInstances._
     for {
-      feature <- ctx.request.body.validate[Feature] |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      _ <- IsAllowed[Feature].isAllowed(feature)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- featureStore.update(Key(id), feature.id, feature) |> mapLeft(err => BadRequest(err.toJson))
+      feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
+      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _       <- FeatureService.update(Key(id), feature.id, feature).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(feature))
   }
 
-  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def patch(id: String): Action[JsValue] = AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
     import FeatureInstances._
     val key = Key(id)
     for {
-      current <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
-      _ <- IsAllowed[Feature].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      event <- featureStore
-                .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe   <- FeatureService.getById(key).mapError(e => InternalServerError)
+      current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _       <- IsAllowed[Feature].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
+      _       <- FeatureService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
   }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[FeatureContext] { ctx =>
     val key = Key(id)
     for {
-      feature <- featureStore.getById(key) |> liftFOption[Result, Feature](NotFound)
-      _ <- IsAllowed[Feature].isAllowed(feature)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      deleted <- featureStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
+      mayBe   <- FeatureService.getById(key).mapError(e => InternalServerError)
+      feature <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      deleted <- FeatureService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(FeatureInstances.format.writes(feature))
   }
 
-  def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncZio[FeatureContext] { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
     for {
-      deletes <- featureStore.deleteAll(query) |> mapLeft(
-                  err => BadRequest(err.toJson)
-                )
+      deletes <- FeatureService.deleteAll(query).mapError { IzanamiErrors.toHttpResult }
     } yield Ok
   }
 
-  def count(): Action[Unit] = AuthAction.asyncF(parse.empty) { ctx =>
+  def count(): Action[Unit] = AuthAction.asyncTask[FeatureContext](parse.empty) { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    featureStore.count(query).map { count =>
+    FeatureService.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
-  def download(): Action[AnyContent] = AuthAction { ctx =>
+  def download(): Action[AnyContent] = AuthAction.asyncTask[FeatureContext] { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    val source = featureStore
-      .findByQuery(query)
-      .map { case (_, data) => FeatureInstances.format.writes(data) }
-      .map(Json.stringify _)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-    Result(
-      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "features.dnjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
+    FeatureService.findByQuery(query).map { s =>
+      val source = s
+        .map { case (_, data) => FeatureInstances.format.writes(data) }
+        .map(Json.stringify _)
+        .intersperse("", "\n", "\n")
+        .map(ByteString.apply)
+      Result(
+        header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "features.dnjson")),
+        body = HttpEntity.Streamed(source, None, Some("application/json"))
+      )
+    }
   }
 
-  def upload() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(featureStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
-      }
-      .recover {
-        case e: Throwable =>
-          IzanamiLogger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
-
+  def upload() = AuthAction.asyncTask[FeatureContext](Import.ndJson) { ctx =>
+    FeatureService.importData.flatMap { flow =>
+      ZIO.fromFuture(
+        implicit ec =>
+          ctx.body
+            .via(flow)
+            .map {
+              case r if r.isError => BadRequest(Json.toJson(r))
+              case r              => Ok(Json.toJson(r))
+            }
+            .recover {
+              case e: Throwable =>
+                IzanamiLogger.error("Error importing file", e)
+                InternalServerError
+            }
+            .runWith(Sink.head)
+      )
+    }
   }
 
 }

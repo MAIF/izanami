@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
-import cats.effect.Effect
 import domains.Domain.Domain
 import domains.events.Events.IzanamiEvent
 import domains.events.{EventLogger, EventStore}
@@ -15,17 +14,16 @@ import io.lettuce.core.pubsub.{RedisPubSubListener, StatefulRedisPubSubConnectio
 import libs.streams.CacheableQueue
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsError, JsResult, JsSuccess, Json}
+import store.Result.IzanamiErrors
 import store.redis.RedisWrapper
+import zio.{IO, Task}
 
 import scala.util.Failure
 
-class RedisEventStore[F[_]: Effect](client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem)
-    extends EventStore[F] {
+class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore {
 
   import EventLogger._
   import system.dispatcher
-  import cats.implicits._
-  import libs.effects._
 
   implicit private val s   = system
   implicit private val mat = ActorMaterializer()
@@ -71,19 +69,23 @@ class RedisEventStore[F[_]: Effect](client: RedisWrapper, config: RedisEventsCon
 
   connectionPubSub.async().subscribe(config.topic)
 
-  override def publish(event: IzanamiEvent): F[Done] = {
+  override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] = {
     logger.debug(s"Publishing event $event to Redis topic izanamiEvents")
     s.eventStream.publish(event)
-    connection
-      .async()
-      .publish(config.topic, Json.stringify(event.toJson))
-      .whenComplete { (_, e) =>
-        if (e != null) {
-          logger.error(s"Error publishing event to Redis", e)
-        }
+    IO.effectAsync[Throwable, Done] { cb =>
+        connection
+          .async()
+          .publish(config.topic, Json.stringify(event.toJson))
+          .whenComplete { (_, e) =>
+            if (e != null) {
+              logger.error(s"Error publishing event to Redis", e)
+              cb(IO.fail(e))
+            } else {
+              cb(IO.succeed(Done))
+            }
+          }
       }
-      .toF
-      .map(_ => Done)
+      .refineToOrDie[IzanamiErrors]
   }
 
   override def events(domains: Seq[Domain],
@@ -99,7 +101,16 @@ class RedisEventStore[F[_]: Effect](client: RedisWrapper, config: RedisEventsCon
           .filter(eventMatch(patterns, domains))
     }
 
-  override def close() = {}
-
-  override def check(): F[Unit] = connection.async().get("test").toF.map(_ => ())
+  override def check(): Task[Unit] = IO.effectAsync { cb =>
+    connection
+      .async()
+      .get("test")
+      .whenComplete((_, e) => {
+        if (e != null) {
+          cb(IO.fail(e))
+        } else {
+          cb(IO.succeed(()))
+        }
+      })
+  }
 }

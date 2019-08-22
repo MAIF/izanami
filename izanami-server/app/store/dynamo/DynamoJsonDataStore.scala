@@ -6,46 +6,42 @@ import akka.stream.alpakka.dynamodb.{DynamoClient => AlpakkaClient, _}
 import akka.stream.alpakka.dynamodb.AwsOp._
 import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.{Done, NotUsed}
-import cats.data.EitherT
-import cats.effect.Effect
+import akka.NotUsed
+import cats.implicits._
 import com.amazonaws.services.dynamodbv2.model.{ConditionalCheckFailedException, _}
 import domains.Key
 import env.{DbDomainConfig, DynamoConfig}
 import libs.streams.Flows
-import libs.logs.IzanamiLogger
+import libs.logs.{IzanamiLogger, Logger}
 import play.api.libs.json.JsValue
-import store.Result.{AppErrors, ErrorMessage, Result}
+import store.Result.{AppErrors, IzanamiErrors}
 import libs.dynamo.DynamoMapper
-import libs.functional.EitherTSyntax
-import store.{DefaultPagingResult, JsonDataStore, PagingResult, Query, Result}
+import store.{DataStoreContext, DefaultPagingResult, JsonDataStore, PagingResult, Query}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import store.Result.DataShouldExists
+import store.Result.DataShouldNotExists
 
 object DynamoJsonDataStore {
-  def apply[F[_]: Effect](client: AlpakkaClient, dynamoConfig: DynamoConfig, config: DbDomainConfig)(
+  def apply(client: AlpakkaClient, dynamoConfig: DynamoConfig, config: DbDomainConfig)(
       implicit system: ActorSystem
-  ): DynamoJsonDataStore[F] = {
+  ): DynamoJsonDataStore = {
     val namespace = config.conf.namespace
-    IzanamiLogger.info(s"Load store Dynamo for namespace $namespace")
     DynamoJsonDataStore(client, dynamoConfig.tableName, namespace)
   }
 
-  def apply[F[_]: Effect](client: AlpakkaClient, tableName: String, storeName: String)(
+  def apply(client: AlpakkaClient, tableName: String, storeName: String)(
       implicit system: ActorSystem
-  ): DynamoJsonDataStore[F] =
+  ): DynamoJsonDataStore =
     new DynamoJsonDataStore(client, tableName, storeName)
 }
 
-class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: String, rawStoreName: String)(
+class DynamoJsonDataStore(client: AlpakkaClient, rawTableName: String, rawStoreName: String)(
     implicit actorSystem: ActorSystem
-) extends JsonDataStore[F]
-    with EitherTSyntax[F] {
+) extends JsonDataStore {
 
-  import cats.implicits._
-  import libs.effects._
-  import libs.functional.syntax._
+  import zio._
 
   private val tableName = rawTableName.replaceAll(":", "_")
   private val storeName = rawStoreName.replaceAll(":", "_")
@@ -53,35 +49,23 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
   private implicit val ec: ExecutionContext   = actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] = {
-    IzanamiLogger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
-    if (oldId == id) {
-      val res = for {
-        _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
-              AppErrors.error(s"error.data.missing", id.key)
-            }
-        _ <- put(id, data, createOnly = false) |> liftFEither[AppErrors, JsValue]
-      } yield data
-      res.value
-    } else {
-      val res: EitherT[F, AppErrors, JsValue] = for {
-        _ <- getById(oldId) |> liftFOption[AppErrors, JsValue] {
-              AppErrors.error(s"error.data.missing", id.key)
-            }
-        _ <- delete(oldId) |> liftFEither[AppErrors, JsValue]
-        _ <- put(id, data, createOnly = true) |> liftFEither[AppErrors, JsValue]
-      } yield data
-      res.value
-    }
-  }
+  override def start: RIO[DataStoreContext, Unit] =
+    Logger.info(s"Load store Dynamo for namespace $rawStoreName")
 
-  override def create(id: Key, data: JsValue): F[Result[JsValue]] = {
-    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName create with id : $id and data : $data")
+  override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
+    for {
+      _     <- Logger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
+      mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
+      _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+      _     <- ZIO.when(oldId =!= id)(delete(oldId))
+      _     <- put(id, data, createOnly = oldId =!= id)
+    } yield data
 
+  override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
+    Logger.debug(s"Dynamo query on $tableName and store $storeName create with id : $id and data : $data") *>
     put(id, data, createOnly = true)
-  }
 
-  private def put(id: Key, data: JsValue, createOnly: Boolean): F[Result[JsValue]] = {
+  private def put(id: Key, data: JsValue, createOnly: Boolean): ZIO[DataStoreContext, IzanamiErrors, JsValue] = {
     val request = new PutItemRequest()
       .withTableName(tableName)
       .withConditionExpression(if (createOnly) "attribute_not_exists(id)" else null)
@@ -92,24 +76,19 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
           "store" -> new AttributeValue().withS(storeName)
         ).asJava
       )
-
-    DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
-      .map(_ => Result.ok(data))
-      .toF
-      .recover {
-        case _: ConditionalCheckFailedException => Result.errors[JsValue](ErrorMessage("error.data.exists", id.key))
+    IO.fromFuture { implicit ec =>
+        DynamoDb
+          .source(request)
+          .withAttributes(DynamoAttributes.client(client))
+          .runWith(Sink.head)
+      }
+      .map(_ => data)
+      .catchAll {
+        case _: ConditionalCheckFailedException => ZIO.fail(DataShouldNotExists(id))
       }
   }
 
-  override def delete(id: Key): F[Result[JsValue]] =
-    deleteF(id).toF
-
-  def deleteF(id: Key): Future[Result[JsValue]] = {
-    IzanamiLogger.debug(s"Dynamo delete on $tableName and store $storeName delete with id : $id")
-
+  override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] = {
     val request = new DeleteItemRequest()
       .withTableName(tableName)
       .withConditionExpression("attribute_exists(id)")
@@ -120,19 +99,21 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
           "store" -> new AttributeValue().withS(storeName)
         ).asJava
       )
-
-    DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
-      .map(_.getAttributes.get("value"))
-      .map(DynamoMapper.toJsValue)
-      .map(Result.ok)
-      .recover { case _: ConditionalCheckFailedException => Result.error[JsValue](s"error.data.missing") }
+    Logger.debug(s"Dynamo delete on $tableName and store $storeName delete with id : $id") *>
+    IO.fromFuture { implicit ec =>
+        DynamoDb
+          .source(request)
+          .withAttributes(DynamoAttributes.client(client))
+          .runWith(Sink.head)
+          .map(_.getAttributes.get("value"))
+          .map(DynamoMapper.toJsValue)
+      }
+      .catchAll {
+        case _: ConditionalCheckFailedException => ZIO.fail(DataShouldExists(id))
+      }
   }
 
-  override def getById(id: Key): F[Option[JsValue]] = {
-    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName getById with id : $id")
+  override def getById(id: Key): RIO[DataStoreContext, Option[JsValue]] = {
 
     val request = new GetItemRequest()
       .withTableName(tableName)
@@ -142,42 +123,44 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
           "store" -> new AttributeValue().withS(storeName)
         ).asJava
       )
-
-    DynamoDb
-      .source(request)
-      .withAttributes(DynamoAttributes.client(client))
-      .runWith(Sink.head)
-      .toF
-      .map(r => Option(r.getItem).map(_.get("value").getM).map(DynamoMapper.toJsValue))
+    Logger.debug(s"Dynamo query on $tableName and store $storeName getById with id : $id") *>
+    Task.fromFuture { implicit ec =>
+      DynamoDb
+        .source(request)
+        .withAttributes(DynamoAttributes.client(client))
+        .runWith(Sink.head)
+        .map(r => Option(r.getItem).map(_.get("value").getM).map(DynamoMapper.toJsValue))
+    }
   }
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] = {
-    IzanamiLogger.debug(
-      s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query, page $page, $nbElementPerPage elements by page"
-    )
-
+  override def findByQuery(query: Query,
+                           page: Int,
+                           nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] = {
     val position = (page - 1) * nbElementPerPage
-    findKeys(query)
-      .via(Flows.count {
-        Flow[(Key, JsValue)]
-          .drop(position)
-          .take(nbElementPerPage)
-          .grouped(nbElementPerPage)
-          .map(_.map(_._2))
-          .fold(Seq.empty[JsValue])(_ ++ _)
-      })
-      .runWith(Sink.head)
-      .toF
-      .map {
-        case (results, count) =>
-          DefaultPagingResult(results, page, nbElementPerPage, count)
-      }
+    Logger.debug(
+      s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query, page $page, $nbElementPerPage elements by page"
+    ) *>
+    Task.fromFuture { implicit ec =>
+      findKeys(query)
+        .via(Flows.count {
+          Flow[(Key, JsValue)]
+            .drop(position)
+            .take(nbElementPerPage)
+            .grouped(nbElementPerPage)
+            .map(_.map(_._2))
+            .fold(Seq.empty[JsValue])(_ ++ _)
+        })
+        .runWith(Sink.head)
+        .map {
+          case (results, count) =>
+            DefaultPagingResult(results, page, nbElementPerPage, count)
+        }
+    }
   }
 
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] = {
-    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query")
-    findKeys(query)
-  }
+  override def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, JsValue), NotUsed]] =
+    Logger.debug(s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query") *>
+    Task(findKeys(query))
 
   private def findKeys(query: Query): Source[(Key, JsValue), NotUsed] = query match {
     case q if q.hasEmpty =>
@@ -201,25 +184,32 @@ class DynamoJsonDataStore[F[_]: Effect](client: AlpakkaClient, rawTableName: Str
         .filter { case (k, _) => Query.keyMatchQuery(k, query) }
   }
 
-  override def deleteAll(query: Query): F[Result[Done]] = {
-    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $query")
+  override def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit] =
+    for {
+      _       <- Logger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $query")
+      runtime <- ZIO.runtime[DataStoreContext]
+      source  <- findByQuery(query).refineToOrDie[IzanamiErrors]
+      res <- IO
+              .fromFuture { implicit ec =>
+                source
+                  .mapAsync(10) {
+                    case (id, _) =>
+                      runtime.unsafeRunToFuture(delete(id).either)
+                  }
+                  .runWith(Sink.ignore)
+                  .map(_ => ())
+              }
+              .refineToOrDie[IzanamiErrors]
+    } yield res
 
-    findByQuery(query)
-      .mapAsync(10) { case (id, _) => deleteF(id) }
-      .runWith(Sink.ignore)
-      .toF
-      .map(_ => Result.ok(Done.done()))
-  }
+  override def count(query: Query): RIO[DataStoreContext, Long] =
+    Logger.debug(s"Dynamo query on $tableName and store $storeName count with patterns : $query") *>
+    Task.fromFuture(_ => countF(query))
 
-  override def count(query: Query): F[Long] =
-    countF(query).toF
-
-  private def countF(query: Query): Future[Long] = {
-    IzanamiLogger.debug(s"Dynamo query on $tableName and store $storeName count with patterns : $query")
+  private def countF(query: Query): Future[Long] =
     findKeys(query)
       .runFold(0L) { (acc, _) =>
         acc + 1
       }
-  }
 
 }

@@ -4,42 +4,39 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import cats.effect.Effect
 import controllers.actions.SecuredAuthContext
 import domains.script.Script.ScriptCache
 import domains.script._
 import domains.{Import, IsAllowed, Key}
 import env.Env
-import libs.functional.EitherTSyntax
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
+import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.AppErrors
+import store.Result.{AppErrors, IzanamiErrors}
+import zio.{IO, Runtime, ZIO}
 
-class GlobalScriptController[F[_]: Effect](env: Env,
-                                           globalScriptStore: GlobalScriptService[F],
-                                           system: ActorSystem,
-                                           AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                                           cc: ControllerComponents)(implicit s: ScriptCache[F])
-    extends AbstractController(cc)
-    with EitherTSyntax[F] {
+class GlobalScriptController(
+    env: Env,
+    system: ActorSystem,
+    AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+    cc: ControllerComponents
+)(implicit s: ScriptCache, R: Runtime[GlobalScriptContext])
+    extends AbstractController(cc) {
 
-  import AppErrors._
-  import cats.implicits._
-  import libs.functional.syntax._
   import system.dispatcher
   import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, name_only: Option[Boolean], page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
-    AuthAction.asyncF(parse.empty) { ctx =>
+    AuthAction.asyncTask[GlobalScriptContext](parse.empty) { ctx =>
       import GlobalScriptInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
-      globalScriptStore
+      GlobalScriptService
         .findByQuery(query, page, nbElementPerPage)
         .map { r =>
           name_only match {
@@ -75,111 +72,111 @@ class GlobalScriptController[F[_]: Effect](env: Env,
         }
     }
 
-  def create(): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def create(): Action[JsValue] = AuthAction.asyncZio[GlobalScriptContext](parse.json) { ctx =>
     import GlobalScriptInstances._
+    val body = ctx.request.body
     for {
-      globalScript <- ctx.request.body.validate[GlobalScript] |> liftJsResult(
-                       err => BadRequest(AppErrors.fromJsError(err).toJson)
-                     )
-      _ <- IsAllowed[GlobalScript].isAllowed(globalScript)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- globalScriptStore
-                .create(globalScript.id, globalScript) |> mapLeft(err => BadRequest(err.toJson))
-    } yield Created(Json.toJson(globalScript))
+      script <- jsResultToHttpResponse(body.validate[GlobalScript])
+      _      <- isScriptAllowed(ctx, script)
+      _      <- GlobalScriptService.create(script.id, script).mapError { IzanamiErrors.toHttpResult }
+    } yield Created(Json.toJson(script))
   }
 
-  def get(id: String): Action[Unit] = AuthAction.asyncEitherT(parse.empty) { ctx =>
+  def get(id: String): Action[Unit] = AuthAction.asyncZio[GlobalScriptContext](parse.empty) { ctx =>
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      _ <- Key.isAllowed(key)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      globalScript <- globalScriptStore
-                       .getById(key) |> liftFOption[Result, GlobalScript](NotFound)
+      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      mayBeScript  <- GlobalScriptService.getById(key).mapError(e => InternalServerError)
+      globalScript <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
     } yield Ok(Json.toJson(globalScript))
   }
 
-  def update(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import GlobalScriptInstances._
-    for {
-      globalScript <- ctx.request.body.validate[GlobalScript] |> liftJsResult(
-                       err => BadRequest(AppErrors.fromJsError(err).toJson)
-                     )
-      _ <- IsAllowed[GlobalScript].isAllowed(globalScript)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      event <- globalScriptStore.update(Key(id), globalScript.id, globalScript) |> mapLeft(
-                err => BadRequest(err.toJson)
-              )
-    } yield Ok(Json.toJson(globalScript))
-  }
+  def update(id: String): Action[JsValue] =
+    AuthAction.asyncZio[GlobalScriptContext](parse.json) { ctx =>
+      import GlobalScriptInstances._
+      val body = ctx.request.body
+      for {
+        script <- jsResultToHttpResponse(body.validate[GlobalScript])
+        _      <- isScriptAllowed(ctx, script)
+        _      <- GlobalScriptService.update(Key(id), script.id, script).mapError { IzanamiErrors.toHttpResult }
+      } yield Ok(Json.toJson(script))
+    }
 
-  def patch(id: String): Action[JsValue] = AuthAction.asyncEitherT(parse.json) { ctx =>
-    import GlobalScriptInstances._
-    val key = Key(id)
-    for {
-      current <- globalScriptStore.getById(key) |> liftFOption[Result, GlobalScript](NotFound)
-      _ <- IsAllowed[GlobalScript].isAllowed(current)(ctx.auth) |> liftBooleanTrue(
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      updated <- Patch.patch(ctx.request.body, current) |> liftJsResult(
-                  err => BadRequest(AppErrors.fromJsError(err).toJson)
-                )
-      event <- globalScriptStore
-                .update(key, current.id, updated) |> mapLeft(err => BadRequest(err.toJson))
-    } yield Ok(Json.toJson(updated))
-  }
+  def patch(id: String): Action[JsValue] =
+    AuthAction.asyncZio[GlobalScriptContext](parse.json) { ctx =>
+      import GlobalScriptInstances._
+      val key = Key(id)
+      for {
+        mayBeScript <- GlobalScriptService.getById(key).mapError(e => InternalServerError)
+        current     <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
+        _           <- isScriptAllowed(ctx, current)
+        body        = ctx.request.body
+        updated     <- jsResultToHttpResponse(Patch.patch(body, current))
+        _           <- GlobalScriptService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
+      } yield Ok(Json.toJson(updated))
+    }
 
-  def delete(id: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
+  private def isScriptAllowed(ctx: SecuredAuthContext[_],
+                              current: GlobalScript)(implicit A: IsAllowed[GlobalScript]): IO[Result, Unit] =
+    IsAllowed[GlobalScript].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+
+  def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[GlobalScriptContext] { ctx =>
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      globalScript <- globalScriptStore
-                       .getById(key) |> liftFOption[Result, GlobalScript](NotFound)
-      _ <- IsAllowed[GlobalScript].isAllowed(globalScript)(ctx.auth) |> liftBooleanTrue[Result](
-            Forbidden(AppErrors.error("error.forbidden").toJson)
-          )
-      deleted <- globalScriptStore.delete(key) |> mapLeft(err => BadRequest(err.toJson))
-    } yield Ok(Json.toJson(globalScript))
+      mayBeScript <- GlobalScriptService.getById(key).mapError(e => InternalServerError)
+      script      <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
+      _           <- isScriptAllowed(ctx, script)
+      deleted     <- GlobalScriptService.delete(key).mapError { IzanamiErrors.toHttpResult }
+    } yield Ok(Json.toJson(script))
   }
 
-  def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncEitherT { ctx =>
-    val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
-    for {
-      deletes <- globalScriptStore.deleteAll(query) |> mapLeft(err => BadRequest(err.toJson))
-    } yield Ok
-  }
+  def deleteAll(pattern: String): Action[AnyContent] =
+    AuthAction.asyncZio[GlobalScriptContext] { ctx =>
+      val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
+      GlobalScriptService
+        .deleteAll(query)
+        .mapError { IzanamiErrors.toHttpResult }
+        .map(_ => Ok)
+    }
 
-  def download(): Action[AnyContent] = AuthAction { ctx =>
+  def download(): Action[AnyContent] = AuthAction.asyncTask[GlobalScriptContext] { ctx =>
     import GlobalScriptInstances._
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    val source = globalScriptStore
+    GlobalScriptService
       .findByQuery(query)
-      .map { case (_, data) => Json.toJson(data) }
-      .map(Json.stringify)
-      .intersperse("", "\n", "\n")
-      .map(ByteString.apply)
-    Result(
-      header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "scripts.dnjson")),
-      body = HttpEntity.Streamed(source, None, Some("application/json"))
-    )
+      .map { source =>
+        val s = source
+          .map { case (_, data) => Json.toJson(data) }
+          .map(Json.stringify)
+          .intersperse("", "\n", "\n")
+          .map(ByteString.apply)
+        Result(
+          header = ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "scripts.dnjson")),
+          body = HttpEntity.Streamed(s, None, Some("application/json"))
+        )
+      }
+
   }
 
-  def upload() = AuthAction.async(Import.ndJson) { ctx =>
-    ctx.body
-      .via(globalScriptStore.importData)
-      .map {
-        case r if r.isError => BadRequest(Json.toJson(r))
-        case r              => Ok(Json.toJson(r))
+  def upload() = AuthAction.asyncTask[GlobalScriptContext](Import.ndJson) { ctx =>
+    GlobalScriptService.importData.flatMap { flow =>
+      ZIO.fromFuture { implicit ec =>
+        ctx.body
+          .via(flow)
+          .map {
+            case r if r.isError => BadRequest(Json.toJson(r))
+            case r              => Ok(Json.toJson(r))
+          }
+          .recover {
+            case e: Throwable =>
+              IzanamiLogger.error("Error importing file", e)
+              InternalServerError
+          }
+          .runWith(Sink.head)
       }
-      .recover {
-        case e: Throwable =>
-          IzanamiLogger.error("Error importing file", e)
-          InternalServerError
-      }
-      .runWith(Sink.head)
+    }
   }
 
   case class DebugScript(context: JsObject, script: Script)
@@ -191,15 +188,16 @@ class GlobalScriptController[F[_]: Effect](env: Env,
     }
   }
 
-  def debug() = AuthAction.asyncEitherT(parse.json) { ctx =>
+  def debug() = AuthAction.asyncZio[GlobalScriptContext](parse.json) { ctx =>
     import DebugScript._
     import domains.script.ScriptInstances._
     import domains.script.syntax._
     // format: off
+    val body = ctx.request.body
     for {
-      debugScript                  <- ctx.request.body.validate[DebugScript]  |> liftJsResult(err => BadRequest(AppErrors.fromJsError(err).toJson))
+      debugScript                  <- jsResultToHttpResponse(DebugScript.format.reads(body))
       DebugScript(context, script) = debugScript
-      execution                    <- script.run(context, env)                |> liftF[Result, ScriptExecution]
+      execution                    <- script.run(context).mapError(e => InternalServerError(""))
     } yield Ok(Json.toJson(execution))
     // format: on
   }

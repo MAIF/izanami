@@ -5,12 +5,10 @@ import java.nio.charset.StandardCharsets
 import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.{Publish, Subscribe}
-import akka.http.scaladsl.util.FastFuture
 import akka.serialization.SerializerWithStringManifest
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
-import cats.Applicative
 import com.typesafe.config.{Config => TsConfig}
 import domains.Domain.Domain
 import domains.events.EventLogger._
@@ -21,14 +19,15 @@ import libs.streams.CacheableQueue
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
+import store.Result.IzanamiErrors
+import zio.{IO, Task}
 
-import scala.concurrent.Future
 import scala.util.Try
 
-class DistributedPubSubEventStore[F[_]: Applicative](globalConfig: TsConfig,
-                                                     config: DistributedEventsConfig,
-                                                     lifecycle: ApplicationLifecycle)
-    extends EventStore[F] {
+class DistributedPubSubEventStore(globalConfig: TsConfig,
+                                  config: DistributedEventsConfig,
+                                  lifecycle: ApplicationLifecycle)
+    extends EventStore {
 
   logger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}")
 
@@ -45,10 +44,10 @@ class DistributedPubSubEventStore[F[_]: Applicative](globalConfig: TsConfig,
   private val actor =
     s.actorOf(DistributedEventsPublisherActor.props(queue, config))
 
-  override def publish(event: IzanamiEvent): F[Done] = {
+  override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] = {
     actor ! DistributedEventsPublisherActor.Publish(event)
     s.eventStream.publish(event)
-    Applicative[F].pure(Done)
+    IO.succeed(Done)
   }
 
   override def events(domains: Seq[Domain],
@@ -64,14 +63,16 @@ class DistributedPubSubEventStore[F[_]: Applicative](globalConfig: TsConfig,
           .filter(eventMatch(patterns, domains))
     }
 
-  override def close() = actor ! PoisonPill
+  override def close(): Task[Unit] = Task {
+    actor ! PoisonPill
+  }
 
   lifecycle.addStopHook { () =>
     IzanamiLogger.info(s"Stopping actor system $actorSystemName")
     s.terminate()
   }
 
-  override def check(): F[Unit] = Applicative[F].pure(())
+  override def check(): Task[Unit] = Task.succeed(())
 }
 
 class CustomSerializer extends SerializerWithStringManifest {

@@ -5,6 +5,7 @@ import akka.stream.OverflowStrategy.backpressure
 import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Source, SourceQueueWithComplete, Zip}
 import akka.stream.{FlowShape, Materializer, QueueOfferResult}
 import cats.effect.Effect
+import cats.implicits._
 import domains.Key
 import libs.streams.CacheableQueue.{Element, QueueElement}
 import libs.logs.IzanamiLogger
@@ -13,33 +14,6 @@ import play.api.libs.json.{JsValue, Reads}
 import scala.concurrent.Future
 
 object syntax {
-  import cats.effect.implicits._
-
-  implicit class FlowOps[-In, +Out, +Mat](flow: Flow[In, Out, Mat]) {
-
-    def mapAsyncF[F[_]: Effect, T](parallelism: Int)(f: Out => F[T]): Flow[In, T, Mat] = flow.mapAsync(parallelism) {
-      elt =>
-        f(elt).toIO.unsafeToFuture()
-    }
-
-    def mapAsyncUnorderedF[F[_]: Effect, T](parallelism: Int)(f: Out => F[T]): Flow[In, T, Mat] =
-      flow.mapAsyncUnordered(parallelism) { elt =>
-        f(elt).toIO.unsafeToFuture()
-      }
-  }
-
-  implicit class SourceOps[+In, +Mat](flow: Source[In, Mat]) {
-
-    def mapAsyncF[F[_]: Effect, T](parallelism: Int)(f: In => F[T]): Source[T, Mat] = flow.mapAsync(parallelism) {
-      elt =>
-        f(elt).toIO.unsafeToFuture()
-    }
-
-    def mapAsyncUnorderedF[F[_]: Effect, T](parallelism: Int)(f: In => F[T]): Source[T, Mat] =
-      flow.mapAsyncUnordered(parallelism) { elt =>
-        f(elt).toIO.unsafeToFuture()
-      }
-  }
 
   implicit class SourceKV(source: Source[(Key, JsValue), NotUsed]) {
     def readsKV[V](implicit reads: Reads[V]): Source[(Key, V), NotUsed] =
@@ -107,7 +81,7 @@ object CacheableQueue {
     def capacity: Int
 
     def push(elt: T): QueueState[T] = {
-      val l = if (elements.size == capacity) {
+      val l = if (elements.size === capacity) {
         elements.dropRight(1) :+ elt
       } else {
         elements :+ elt

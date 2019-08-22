@@ -3,116 +3,61 @@ package store.memory
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
-import cats.Applicative
-import cats.effect.Async
 import domains.Key
 import env.DbDomainConfig
-import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, _}
-import store.Result.{ErrorMessage, Result}
+import store.Result.{ErrorMessage, IzanamiErrors, Result}
 import store._
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
-import scala.util.control.NonFatal
+import libs.logs.Logger
+import libs.logs.IzanamiLogger
+import store.Result.DataShouldExists
+import cats._
+import cats.syntax._
+import cats.data._
+import cats.implicits._
+import store.Result.DataShouldNotExists
 
 object InMemoryJsonDataStore {
 
-  def apply[F[_]: Async](dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem): JsonDataStore[F] = {
-    val namespace   = dbDomainConfig.conf.namespace
-    implicit val ec = InMemoryExecutionContext(actorSystem)
-    IzanamiLogger.info(s"Load store InMemory for namespace $namespace")
-    //new InMemoryJsonDataStoreAsync(namespace)(sys, ec)
+  def apply(dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem): InMemoryJsonDataStore = {
+    val namespace = dbDomainConfig.conf.namespace
     new InMemoryJsonDataStore(namespace)
   }
 }
-
-case class InMemoryExecutionContext(actorSystem: ActorSystem) extends ExecutionContext {
-  private val _ec = actorSystem.dispatchers.lookup("izanami.inmemory-dispatcher")
-
-  override def execute(runnable: Runnable): Unit = _ec.execute(runnable)
-
-  override def reportFailure(cause: Throwable): Unit = _ec.reportFailure(cause)
-}
-
-class InMemoryJsonDataStoreAsync[F[_]: Async](
-    name: String,
-    inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]
-)(implicit system: ActorSystem, ec: InMemoryExecutionContext)
+class InMemoryJsonDataStore(name: String, inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue])
     extends BaseInMemoryJsonDataStore(name, inMemoryStore)
-    with JsonDataStore[F] {
-  import cats.effect._
+    with JsonDataStore {
 
-  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
-    toAsync { createSync(id, data) }
+  import zio._
 
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
-    toAsync { updateSync(oldId, id, data) }
+  override def start: RIO[DataStoreContext, Unit] = Logger.info(s"Load store InMemory for namespace $name")
 
-  override def delete(id: Key): F[Result[JsValue]] =
-    toAsync { deleteSync(id) }
+  override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
+    IO.fromEither(createSync(id, data))
 
-  override def deleteAll(query: Query): F[Result[Done]] =
-    toAsync { deleteAllSync(query) }
+  override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
+    IO.fromEither(updateSync(oldId, id, data))
 
-  override def getById(id: Key): F[Option[JsValue]] =
-    toAsync(getByIdSync(id))
+  override def delete(id: Key): IO[IzanamiErrors, JsValue] =
+    IO.fromEither(deleteSync(id))
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
-    toAsync {
-      findByQuerySync(query, page, nbElementPerPage)
-    }
+  override def deleteAll(query: Query): IO[IzanamiErrors, Unit] =
+    IO.fromEither(deleteAllSync(query))
 
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
-    Source(findByQuerySync(query))
+  override def getById(id: Key): Task[Option[JsValue]] =
+    IO(getByIdSync(id))
 
-  override def count(query: Query): F[Long] =
-    toAsync(countSync(query))
+  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): Task[PagingResult[JsValue]] =
+    Task(findByQuerySync(query, page, nbElementPerPage))
 
-  private def toAsync[T](a: => T): F[T] =
-    Async[F].async { cb =>
-      ec.execute { () =>
-        try {
-          // Signal completion
-          cb(Right(a))
-        } catch {
-          case NonFatal(e) =>
-            cb(Left(e))
-        }
-      }
-    }
-}
+  override def findByQuery(query: Query): Task[Source[(Key, JsValue), NotUsed]] =
+    Task(Source(findByQuerySync(query)))
 
-class InMemoryJsonDataStore[F[_]: Applicative](name: String,
-                                               inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue])
-    extends BaseInMemoryJsonDataStore(name, inMemoryStore)
-    with JsonDataStore[F] {
-
-  import cats.implicits._
-
-  override def create(id: Key, data: JsValue): F[Result[JsValue]] =
-    createSync(id, data).pure[F]
-
-  override def update(oldId: Key, id: Key, data: JsValue): F[Result[JsValue]] =
-    updateSync(oldId, id, data).pure[F]
-
-  override def delete(id: Key): F[Result[JsValue]] =
-    deleteSync(id).pure[F]
-
-  override def deleteAll(query: Query): F[Result[Done]] =
-    deleteAllSync(query).pure[F]
-
-  override def getById(id: Key): F[Option[JsValue]] =
-    getByIdSync(id).pure[F]
-
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[JsValue]] =
-    findByQuerySync(query, page, nbElementPerPage).pure[F]
-
-  override def findByQuery(query: Query): Source[(Key, JsValue), NotUsed] =
-    Source(findByQuerySync(query))
-
-  override def count(query: Query): F[Long] =
-    countSync(query).pure[F]
+  override def count(query: Query): Task[Long] =
+    Task(countSync(query))
 }
 
 class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]) {
@@ -120,7 +65,7 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
   protected def createSync(id: Key, data: JsValue): Result[JsValue] =
     inMemoryStore.get(id) match {
       case Some(_) =>
-        Result.errors[JsValue](ErrorMessage("error.data.exists", id.key))
+        Result.error[JsValue](DataShouldNotExists(id))
       case None =>
         inMemoryStore.put(id, data)
         Result.ok(data)
@@ -133,7 +78,7 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
       Result.ok(data)
     } else {
       IzanamiLogger.error(s"Error data missing for $oldId")
-      Result.errors[JsValue](ErrorMessage("error.data.missing", id.key))
+      Result.error(DataShouldExists(id))
     }
 
   protected def deleteSync(id: Key): Result[JsValue] =
@@ -142,10 +87,10 @@ class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, Js
         val value: Result[JsValue] = Result.ok(data)
         value
       case None =>
-        Result.error("error.data.missing")
+        Result.error(DataShouldExists(id))
     }
 
-  protected def deleteAllSync(query: Query): Result[Done] = {
+  protected def deleteAllSync(query: Query): Result[Unit] = {
     val keys = find(query).map(_._1)
     keys.foreach { inMemoryStore.remove }
     Result.ok(Done)

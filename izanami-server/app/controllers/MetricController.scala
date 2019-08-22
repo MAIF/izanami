@@ -3,9 +3,7 @@ import controllers.actions.AuthContext
 import metrics.Metrics
 import play.api.mvc._
 
-class MetricController[F[_]](metrics: Metrics[F],
-                             AuthAction: ActionBuilder[AuthContext, AnyContent],
-                             cc: ControllerComponents)
+class MetricController(metrics: Metrics, AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)
     extends AbstractController(cc) {
 
   def metricsEndpoint() = AuthAction { req =>

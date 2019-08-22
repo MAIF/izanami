@@ -8,29 +8,32 @@ import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.scaladsl.Source
 import domains.abtesting._
 import env.DbDomainConfig
-import store.Result.Result
+import store.Result.{IzanamiErrors, Result}
 import store.Result
 import ExperimentDataStoreActor._
 import cats.effect.Effect
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
-import domains.events.EventStore
-import domains.events.Events.ExperimentVariantEventCreated
+import domains.events.{EventStore, EventStoreModule}
+import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
+import zio.{RIO, Task, UIO, ZIO}
+
+import scala.concurrent.Future
+import domains.AuthInfo
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    IN MEMORY     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventInMemoryService {
-  def apply[F[_]: Effect](
-      configdb: DbDomainConfig,
-      eventStore: EventStore[F]
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventInMemoryService[F] =
-    new ExperimentVariantEventInMemoryService(configdb.conf.namespace, eventStore)
+  def apply(
+      configdb: DbDomainConfig
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventInMemoryService =
+    new ExperimentVariantEventInMemoryService(configdb.conf.namespace)
 }
 
-class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eventStore: EventStore[F])(
+class ExperimentVariantEventInMemoryService(namespace: String)(
     implicit actorSystem: ActorSystem
-) extends ExperimentVariantEventService[F] {
+) extends ExperimentVariantEventService {
 
   import actorSystem.dispatcher
   import akka.pattern._
@@ -47,55 +50,71 @@ class ExperimentVariantEventInMemoryService[F[_]: Effect](namespace: String, eve
   private val store = actorSystem.actorOf(Props[ExperimentDataStoreActor](new ExperimentDataStoreActor()),
                                           namespace + "_in_memory_exp_event")
 
-  override def create(id: ExperimentVariantEventKey, data: ExperimentVariantEvent): F[Result[ExperimentVariantEvent]] =
-    (store ? AddEvent(id.experimentId.key, id.variantId, data))
-      .mapTo[ExperimentVariantEvent]
-      .toF
-      .map[Result[ExperimentVariantEvent]](res => Result.ok(res)) <* eventStore.publish(
-      ExperimentVariantEventCreated(id, data)
+  override def create(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
+    ZIO
+      .fromFuture { implicit ec =>
+        (store ? AddEvent(id.experimentId.key, id.variantId, data)).mapTo[ExperimentVariantEvent]
+      }
+      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo >>= (
+        authInfo =>
+          EventStore.publish(
+            ExperimentVariantEventCreated(id, data, authInfo = authInfo)
+          )
+    ))
+
+  override def deleteEventsForExperiment(
+      experiment: Experiment
+  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+    ZIO
+      .fromFuture { implicit ec =>
+        (store ? DeleteEvents(experiment.id.key)).mapTo[Done]
+      }
+      .unit
+      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo >>= (
+        authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
+    ))
+
+  override def findVariantResult(
+      experiment: Experiment
+  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceModule].map { implicit runtime =>
+      Source
+        .fromFuture(
+          experiment.variants.toList
+            .traverse { variant =>
+              findEvents(experiment, variant)
+                .map(l => (l.headOption, l))
+            }
+        )
+        .mapConcat(identity)
+        .flatMapMerge(
+          4, {
+            case (first, evts) =>
+              val interval = first
+                .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
+                .getOrElse(ChronoUnit.HOURS)
+              Source(evts)
+                .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
+          }
+        )
+    }
+
+  private def findEvents(experiment: Experiment, variant: Variant): Future[List[ExperimentVariantEvent]] =
+    (store ? FindEvents(experiment.id.key, variant.id)).mapTo[List[ExperimentVariantEvent]]
+
+  override def listAll(
+      patterns: Seq[String]
+  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+    Task(
+      Source
+        .fromFuture((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])
+        .mapConcat(_.toList)
     )
 
-  override def deleteEventsForExperiment(experiment: Experiment): F[Result[Done]] =
-    (store ? DeleteEvents(experiment.id.key))
-      .mapTo[Done]
-      .toF
-      .map[Result[Done]](res => Result.ok(res))
-
-  override def findVariantResult(experiment: Experiment): Source[VariantResult, NotUsed] =
-    Source
-      .fromFuture(
-        experiment.variants.toList
-          .traverse { variant =>
-            findEvents(experiment, variant)
-              .map(l => (l.headOption, l))
-          }
-          .toIO
-          .unsafeToFuture()
-      )
-      .mapConcat(identity)
-      .flatMapMerge(
-        4, {
-          case (first, evts) =>
-            val interval = first
-              .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
-              .getOrElse(ChronoUnit.HOURS)
-            Source(evts)
-              .via(eventAggregation(experiment.id.key, experiment.variants.size, interval))
-        }
-      )
-
-  private def firstEvent(experiment: Experiment, variant: Variant): F[Option[ExperimentVariantEvent]] =
-    (store ? FindEvents(experiment.id.key, variant.id)).mapTo[Option[ExperimentVariantEvent]].toF
-
-  private def findEvents(experiment: Experiment, variant: Variant): F[List[ExperimentVariantEvent]] =
-    (store ? FindEvents(experiment.id.key, variant.id)).mapTo[List[ExperimentVariantEvent]].toF
-
-  override def listAll(patterns: Seq[String]): Source[ExperimentVariantEvent, NotUsed] =
-    Source
-      .fromFuture((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])
-      .mapConcat(_.toList)
-
-  override def check(): F[Unit] = ().pure[F]
+  override def check(): Task[Unit] = Task.succeed(())
 }
 
 private[abtesting] class ExperimentDataStoreActor extends Actor {

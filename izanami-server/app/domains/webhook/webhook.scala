@@ -2,26 +2,21 @@ package domains.webhook
 
 import java.time.LocalDateTime
 
-import akka.actor.ActorSystem
-import akka.{Done, NotUsed}
+import akka.actor.{ActorRef, ActorSystem}
+import akka.http.scaladsl.util.FastFuture
+import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import cats.data.EitherT
-import cats.effect.Effect
 import domains.Domain.Domain
-import domains.events.EventStore
+import domains.events.{EventStore, EventStoreContext}
 import domains.webhook.Webhook.WebhookKey
 import domains._
 import domains.webhook.notifications.WebHooksActor
-import env.{DbDomainConfig, WebhookConfig}
-import libs.functional.EitherTSyntax
-import libs.logs.IzanamiLogger
+import env.WebhookConfig
+import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
-import store.Result.Result
-
 import store._
-
-import scala.concurrent.ExecutionContext
+import zio._
 
 case class Webhook(clientId: WebhookKey,
                    callbackUrl: String,
@@ -36,106 +31,102 @@ object Webhook {
   type WebhookKey = Key
 }
 
-trait WebhookService[F[_]] {
-  def create(id: WebhookKey, data: Webhook): F[Result[Webhook]]
-  def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): F[Result[Webhook]]
-  def delete(id: WebhookKey): F[Result[Webhook]]
-  def deleteAll(patterns: Seq[String]): F[Result[Done]]
-  def getById(id: WebhookKey): F[Option[Webhook]]
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): F[PagingResult[Webhook]]
-  def findByQuery(query: Query): Source[(WebhookKey, Webhook), NotUsed]
-  def count(query: Query): F[Long]
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed]
+trait WebhookDataStoreModule {
+  def webhookDataStore: JsonDataStore
 }
 
-class WebhookServiceImpl[F[_]: Effect](jsonStore: JsonDataStore[F],
-                                       config: DbDomainConfig,
-                                       webHookConfig: WebhookConfig,
-                                       eventStore: EventStore[F],
-                                       wsClient: WSClient)(implicit actorSystem: ActorSystem)
-    extends WebhookService[F]
-    with EitherTSyntax[F] {
+trait WebhookContext
+    extends DataStoreContext
+    with WebhookDataStoreModule
+    with EventStoreContext
+    with AuthInfoModule[WebhookContext]
+
+object WebhookDataStore extends JsonDataStoreHelper[WebhookContext] {
+  override def accessStore = _.webhookDataStore
+}
+
+object WebhookService {
 
   import WebhookInstances._
-
   import cats.implicits._
-  import libs.functional.syntax._
   import libs.streams.syntax._
   import domains.events.Events._
   import store.Result._
 
-  actorSystem.actorOf(WebHooksActor.props[F](wsClient, eventStore, this, webHookConfig), "webhooks")
+  def startHooks(wsClient: WSClient, config: WebhookConfig)(
+      implicit actorSystem: ActorSystem
+  ): zio.RIO[WebhookContext, ActorRef] =
+    for {
+      r   <- ZIO.runtime[WebhookContext]
+      ref = actorSystem.actorOf(WebHooksActor.props(wsClient, config, r), "webhooks")
+    } yield ref
 
-  override def create(id: WebhookKey, data: Webhook): F[Result[Webhook]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Webhook] = for {
-      created     <- jsonStore.create(id, WebhookInstances.format.writes(data))   |> liftFEither
-      user        <- created.validate[Webhook]                           |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(WebhookCreated(id, user))        |> liftF[AppErrors, Done]
-    } yield user
-    // format: on
-    r.value
-  }
+  def create(id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
+    for {
+      _        <- IO.when(data.clientId =!= id)(IO.fail(IdMustBeTheSame(data.clientId, id)))
+      created  <- WebhookDataStore.create(id, WebhookInstances.format.writes(data))
+      webhook  <- jsResultToError(created.validate[Webhook])
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(WebhookCreated(id, webhook, authInfo = authInfo))
+    } yield webhook
 
-  override def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): F[Result[Webhook]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Webhook] = for {
-      oldValue    <- getById(oldId)                                                |> liftFOption(AppErrors.error("error.data.missing", oldId.key))
-      updated     <- jsonStore.update(oldId, id, WebhookInstances.format.writes(data))      |> liftFEither
-      user        <- updated.validate[Webhook]                                     |> liftJsResult{ handleJsError }
-      _           <- eventStore.publish(WebhookUpdated(id, oldValue, user))        |> liftF[AppErrors, Done]
-    } yield user
-    // format: on
-    r.value
-  }
+  def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
+    for {
+      mayBeHook <- getById(oldId).refineToOrDie[IzanamiErrors]
+      oldValue  <- ZIO.fromOption(mayBeHook).mapError(_ => DataShouldExists(oldId))
+      updated   <- WebhookDataStore.update(oldId, id, WebhookInstances.format.writes(data))
+      hook      <- jsResultToError(updated.validate[Webhook])
+      authInfo  <- AuthInfo.authInfo
+      _         <- EventStore.publish(WebhookUpdated(id, oldValue, hook, authInfo = authInfo))
+    } yield hook
 
-  override def delete(id: WebhookKey): F[Result[Webhook]] = {
-    // format: off
-    val r: EitherT[F, AppErrors, Webhook] = for {
-      deleted <- jsonStore.delete(id)                       |> liftFEither
-      user    <- deleted.validate[Webhook]                     |> liftJsResult{ handleJsError }
-      _       <- eventStore.publish(WebhookDeleted(id, user))  |> liftF[AppErrors, Done]
-    } yield user
-    // format: on
-    r.value
-  }
+  def delete(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Webhook] =
+    for {
+      deleted  <- WebhookDataStore.delete(id)
+      hook     <- jsResultToError(deleted.validate[Webhook])
+      authInfo <- AuthInfo.authInfo
+      _        <- EventStore.publish(WebhookDeleted(id, hook, authInfo = authInfo))
+    } yield hook
 
-  override def deleteAll(patterns: Seq[String]): F[Result[Done]] =
-    jsonStore.deleteAll(patterns)
+  def deleteAll(patterns: Seq[String]): ZIO[WebhookContext, IzanamiErrors, Unit] =
+    WebhookDataStore.deleteAll(patterns)
 
-  override def getById(id: WebhookKey): F[Option[Webhook]] =
-    jsonStore.getById(id).map(_.flatMap(_.validate[Webhook].asOpt))
+  def getById(id: WebhookKey): RIO[WebhookContext, Option[Webhook]] =
+    for {
+      mayBeHook  <- WebhookDataStore.getById(id)
+      parsedHook = mayBeHook.flatMap(_.validate[Webhook].asOpt)
+    } yield parsedHook
 
-  override def findByQuery(query: Query, page: Int, nbElementPerPage: Int): F[PagingResult[Webhook]] =
-    jsonStore
+  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[WebhookContext, PagingResult[Webhook]] =
+    WebhookDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
-  override def findByQuery(query: Query): Source[(Key, Webhook), NotUsed] =
-    jsonStore.findByQuery(query).readsKV[Webhook]
+  def findByQuery(query: Query): RIO[WebhookContext, Source[(Key, Webhook), NotUsed]] =
+    WebhookDataStore.findByQuery(query).map(_.readsKV[Webhook])
 
-  override def count(query: Query): F[Long] =
-    jsonStore.count(query)
+  def count(query: Query): RIO[WebhookContext, Long] =
+    WebhookDataStore.count(query)
 
-  def importData(implicit ec: ExecutionContext): Flow[(String, JsValue), ImportResult, NotUsed] = {
-    import cats.implicits._
-    import store.Result.AppErrors._
-    import libs.streams.syntax._
-
-    Flow[(String, JsValue)]
-      .map { case (s, json) => (s, WebhookInstances.format.reads(json)) }
-      .mapAsyncF(4) {
-        case (_, JsSuccess(obj, _)) =>
-          create(obj.clientId, obj).map { ImportResult.fromResult }
-        case (s, JsError(_)) =>
-          Effect[F].pure(ImportResult.error(ErrorMessage("json.parse.error", s)))
-      }
-      .fold(ImportResult()) { _ |+| _ }
-  }
-
-  private def handleJsError(err: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-    IzanamiLogger.error(s"Error parsing json from database $err")
-    AppErrors.error("error.json.parsing")
+  def importData: RIO[WebhookContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
+    import domains.webhook.WebhookInstances._
+    ZIO.runtime[WebhookContext].map { runtime =>
+      import cats.implicits._
+      Flow[(String, JsValue)]
+        .map { case (s, json) => (s, json.validate[Webhook]) }
+        .mapAsync(4) {
+          case (_, JsSuccess(webhook, _)) =>
+            runtime.unsafeRunToFuture(
+              create(webhook.clientId, webhook).either.map { either =>
+                ImportResult.fromResult(either)
+              }
+            )
+          case (s, JsError(_)) => FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
+        }
+        .fold(ImportResult()) {
+          _ |+| _
+        }
+    }
   }
 
 }

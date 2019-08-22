@@ -1,12 +1,11 @@
 package store.memory
 
-import cats.effect.IO
 import env.{DbDomainConfig, DbDomainConfigDetails, InMemory}
-import store.{AbstractJsonDataStoreTest, JsonDataStore}
+import store.AbstractJsonDataStoreTest
 
 class InMemoryJsonDataStoreTest extends AbstractJsonDataStoreTest("InMemory") {
 
-  override def dataStore(name: String): JsonDataStore[IO] = InMemoryJsonDataStore[IO](
+  override def dataStore(name: String): InMemoryJsonDataStore = InMemoryJsonDataStore(
     DbDomainConfig(InMemory, DbDomainConfigDetails(name, None), None)
   )
 }
