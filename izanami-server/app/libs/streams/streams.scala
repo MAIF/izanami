@@ -5,6 +5,7 @@ import akka.stream.OverflowStrategy.backpressure
 import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Source, SourceQueueWithComplete, Zip}
 import akka.stream.{FlowShape, Materializer, QueueOfferResult}
 import cats.effect.Effect
+import cats.implicits._
 import domains.Key
 import libs.streams.CacheableQueue.{Element, QueueElement}
 import libs.logs.IzanamiLogger
@@ -80,7 +81,7 @@ object CacheableQueue {
     def capacity: Int
 
     def push(elt: T): QueueState[T] = {
-      val l = if (elements.size == capacity) {
+      val l = if (elements.size === capacity) {
         elements.dropRight(1) :+ elt
       } else {
         elements :+ elt

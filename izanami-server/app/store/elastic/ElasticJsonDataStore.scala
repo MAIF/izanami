@@ -1,23 +1,23 @@
 package store.elastic
 
+import elastic.codec.PlayJson._
+import elastic.implicits._
 import akka.{Done, NotUsed}
+import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
+import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.scaladsl.{Sink, Source}
+import cats.implicits._
 import domains.Key
 import elastic.api.{Bulk, BulkOpDetail, BulkOpType, Elastic, EsException, GetResponse}
 import env.{DbDomainConfig, ElasticConfig}
-import play.api.libs.json._
-import store._
-import _root_.elastic.implicits._
-import _root_.elastic.codec.PlayJson._
-import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
-import akka.stream.scaladsl.{Sink, Source}
 import libs.logs.IzanamiLogger
-import store.Result.{AppErrors, IzanamiErrors}
-import store.elastic.ElasticJsonDataStore.EsDocument
-
-import scala.concurrent.ExecutionContext
 import libs.logs.Logger
+import play.api.libs.json._
+import scala.concurrent.ExecutionContext
+import store._
+import store.elastic.ElasticJsonDataStore.EsDocument
+import store.Result.{AppErrors, IzanamiErrors}
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists
 
@@ -105,7 +105,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
       }
 
   private def genUpdate(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
-    if (oldId == id) {
+    if (oldId === id) {
       // format: off
       for {
         mayBe <- getById(id).refineToOrDie[IzanamiErrors]

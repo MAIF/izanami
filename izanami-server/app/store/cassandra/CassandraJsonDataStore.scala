@@ -7,6 +7,7 @@ import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
+import cats.implicits._
 import com.datastax.driver.core._
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import domains.Key
@@ -91,7 +92,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
-    if (oldId.key == id.key) {
+    if (oldId.key === id.key) {
       getByIdRaw(id)
         .refineToOrDie[IzanamiErrors]
         .flatMap {

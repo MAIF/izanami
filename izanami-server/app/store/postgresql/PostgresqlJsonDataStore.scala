@@ -114,7 +114,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
                 .error[JsValue](DataShouldExists(oldId))
                 .pure[ConnectionIO]
             case Some(_) =>
-              if (oldId == id) {
+              if (oldId === id) {
                 updateQuery(id, data).run
                   .map(_ => Result.ok(data))
               } else {

@@ -89,7 +89,7 @@ object Experiment {
 
   private def validateTraffic(experiment: Experiment): ValidatedResult[Experiment] = {
     val allTraffic = experiment.variants.map(_.traffic.traffic).reduceLeft(_ + _)
-    Either.cond(allTraffic == 1, experiment, AppErrors.error("error.traffic.not.cent.percent")).toValidated
+    Either.cond(allTraffic === 1, experiment, AppErrors.error("error.traffic.not.cent.percent")).toValidated
   }
 
   private def validateCampaign(experiment: Experiment): ValidatedResult[Experiment] =

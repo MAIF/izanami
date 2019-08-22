@@ -7,6 +7,7 @@ import akka.stream.alpakka.dynamodb.AwsOp._
 import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
+import cats.implicits._
 import com.amazonaws.services.dynamodbv2.model.{ConditionalCheckFailedException, _}
 import domains.Key
 import env.{DbDomainConfig, DynamoConfig}
@@ -52,22 +53,13 @@ class DynamoJsonDataStore(client: AlpakkaClient, rawTableName: String, rawStoreN
     Logger.info(s"Load store Dynamo for namespace $rawStoreName")
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
-    if (oldId == id) {
-      for {
-        _     <- Logger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
-        mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
-        _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
-        _     <- put(id, data, createOnly = false)
-      } yield data
-    } else {
-      for {
-        _     <- Logger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
-        mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
-        _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
-        _     <- delete(oldId)
-        _     <- put(id, data, createOnly = true)
-      } yield data
-    }
+    for {
+      _     <- Logger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
+      mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
+      _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+      _     <- ZIO.when(oldId =!= id)(delete(oldId))
+      _     <- put(id, data, createOnly = oldId =!= id)
+    } yield data
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     Logger.debug(s"Dynamo query on $tableName and store $storeName create with id : $id and data : $data") *>

@@ -6,6 +6,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
 import cats.kernel.Monoid
+import cats.implicits._
 import domains.abtesting.{ExperimentContext, ExperimentVariantEventService}
 import domains.apikey.{ApiKeyContext, Apikey}
 import domains.config.ConfigContext
@@ -344,13 +345,13 @@ object Domain {
   case object Webhook    extends Domain
 
   val reads: Reads[Domain] = Reads[Domain] {
-    case JsString(s) if s == "Experiment" => JsSuccess(Experiment)
-    case JsString(s) if s == "ApiKey"     => JsSuccess(ApiKey)
-    case JsString(s) if s == "Config"     => JsSuccess(Config)
-    case JsString(s) if s == "Feature"    => JsSuccess(Feature)
-    case JsString(s) if s == "User"       => JsSuccess(User)
-    case JsString(s) if s == "Webhook"    => JsSuccess(Webhook)
-    case _                                => JsError("domain.invalid")
+    case JsString(s) if s === "Experiment" => JsSuccess(Experiment)
+    case JsString(s) if s === "ApiKey"     => JsSuccess(ApiKey)
+    case JsString(s) if s === "Config"     => JsSuccess(Config)
+    case JsString(s) if s === "Feature"    => JsSuccess(Feature)
+    case JsString(s) if s === "User"       => JsSuccess(User)
+    case JsString(s) if s === "Webhook"    => JsSuccess(Webhook)
+    case _                                 => JsError("domain.invalid")
   }
 
   val writes: Writes[Domain] = Writes[Domain] {

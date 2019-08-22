@@ -4,6 +4,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
+import cats.implicits._
 import domains.Key
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
@@ -82,20 +83,12 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     storeCollectionIO.flatMap { implicit coll =>
-      if (oldId == id) {
-        for {
-          mayBe <- getByIdRaw(oldId).refineToOrDie[IzanamiErrors]
-          _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
-          _     <- updateRaw(id, data)
-        } yield data
-      } else {
-        for {
-          mayBe <- getByIdRaw(oldId).refineToOrDie[IzanamiErrors]
-          _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
-          _     <- deleteRaw(oldId)
-          _     <- createRaw(id, data)
-        } yield data
-      }
+      for {
+        mayBe <- getByIdRaw(oldId).refineToOrDie[IzanamiErrors]
+        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+        _     <- ZIO.when(oldId =!= id)(deleteRaw(oldId))
+        _     <- if (oldId === id) updateRaw(id, data) else createRaw(id, data)
+      } yield data
     }
 
   override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] =

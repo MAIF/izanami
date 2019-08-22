@@ -5,6 +5,7 @@ import java.util.Base64
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.Materializer
 import cats.effect.Effect
+import cats.implicits._
 import com.auth0.jwt._
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces._
@@ -92,10 +93,10 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
         .map { mayBeKey =>
           mayBeKey
             .orElse(apikeyConfig.keys)
-            .filter(_.clientId == clientId)
+            .filter(_.clientId === clientId)
         }
         .flatMap {
-          case Some(apikey) if apikey.clientSecret == clientSecret =>
+          case Some(apikey) if apikey.clientSecret === clientSecret =>
             nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, Some(apikey)))
               .map { result =>
                 val requestTime = System.currentTimeMillis - startTime

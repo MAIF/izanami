@@ -7,6 +7,7 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
+import cats.implicits._
 import domains.Key
 import env.DbDomainConfig
 import libs.streams.Flows
@@ -123,27 +124,18 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
             .refineToOrDie[IzanamiErrors]
       }
 
+  private def rawUpdate(id: Key, data: JsValue) =
+    zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).refineToOrDie[IzanamiErrors]
+
+  private def rawDelete(id: Key) = zioFromCs(command().del(buildKey(id).key)).refineToOrDie[IzanamiErrors]
+
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
-    // format:off
-    if (oldId == id) {
-      for {
-        mayBe <- getByKeyId(oldId: Key).refineToOrDie[IzanamiErrors]
-        _ <- IO.fromOption(mayBe).mapError { _ =>
-              DataShouldExists(oldId)
-            }
-        _ <- zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).refineToOrDie[IzanamiErrors]
-      } yield data
-    } else {
-      for {
-        mayBe <- getByKeyId(oldId: Key).refineToOrDie[IzanamiErrors]
-        _ <- IO.fromOption(mayBe).mapError { _ =>
-              DataShouldExists(oldId)
-            }
-        _ <- zioFromCs(command().del(buildKey(oldId).key)).refineToOrDie[IzanamiErrors]
-        _ <- create(id, data)
-      } yield data
-    }
-  // format:on
+    for {
+      mayBe <- getByKeyId(oldId: Key).refineToOrDie[IzanamiErrors]
+      _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+      _     <- IO.when(oldId =!= id)(zioFromCs(command().del(buildKey(oldId).key)).refineToOrDie[IzanamiErrors])
+      _     <- if (oldId === id) rawUpdate(id, data) else create(id, data)
+    } yield data
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
     getByKeyId(id)
