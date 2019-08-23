@@ -1,53 +1,184 @@
 sudo: false
-matrix:
-  include:
-    - os: linux
-      language: scala
-      scala: 2.12.8
-      jdk: oraclejdk8
-      services:
-      - docker
-      before_install:
-      - sudo apt-get install wget curl
-      - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh |
-        bash
-      - export NVM_DIR="/home/travis/.nvm"
-      - sh $NVM_DIR/nvm.sh
-      - nvm install 10.13.0
-      - nvm use 10.13.0
-      - curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.12.3
-      - export PATH=$HOME/.yarn/bin:$PATH
-      - wget --quiet https://sh.rustup.rs -O rustupinstall.sh
-      - sh ./rustupinstall.sh -y
-      - export PATH=$PATH:$HOME/.cargo/bin
-      - rustup update
-      - rustup default stable
-      - docker-compose -f docker-compose.test.yml rm
-      - docker-compose -f docker-compose.test.yml down
-      - docker-compose -f docker-compose.test.yml up -d
-      script:
+language: scala
+scala: 2.12.8
+services:
+  - docker
+
+before_install:
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get install wget curl ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh |
+    bash  ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export NVM_DIR="/home/travis/.nvm" ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sh $NVM_DIR/nvm.sh ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then nvm install 10.13.0 ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then nvm use 10.13.0 ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.12.3 ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export PATH=$HOME/.yarn/bin:$PATH ; fi
+  - wget --quiet https://sh.rustup.rs -O rustupinstall.sh
+  - sh ./rustupinstall.sh -y
+  - export PATH=$PATH:$HOME/.cargo/bin
+  - rustup update
+  - rustup default stable  
+
+script: echo "No default script"
+
+jobs: 
+  include: 
+    - stage: server_test     
+      name: "Run unit test"
+      os: linux
+      jdk: openjdk8
+      script: sbt -jvm-opts .jvmopts-travis test 
+
+    - stage: server_it_cassandra 
+      name: "Run integration that depends on cassandra"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "cassandra" "specs.cassandra.*"
+
+    - stage: server_it_dynamo
+      name: "Run integration that depends on dynamo"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "dynamodb" "specs.dynamo.*"
+
+    - stage: server_it_elastic 
+      name: "Run integration that depends on elasticsearch"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "elasticsearch" "specs.elastic.*"
+
+    - stage: server_it_leveldb 
+      name: "Run integration that depends on levedb"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "" "specs.leveldb.*"
+
+    - stage: server_it_memory 
+      name: "Run integration that depends on memory"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "" "specs.memory.*"
+
+    - stage: server_it_memorydb 
+      name: "Run integration that depends on memory with db"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "" "specs.memorywithdb.*"
+
+    - stage: server_it_mongo 
+      name: "Run integration that depends on mongo"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "mongo" "specs.mongo.*"
+
+    - stage: server_it_postgresql 
+      name: "Run integration that depends on postgresql"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "postgres_test" "specs.postgresql.*"
+
+    - stage: server_it_redis 
+      name: "Run integration that depends on redis"
+      os: linux
+      jdk: openjdk8
+      script: ./scripts/runIt.sh "redis" "specs.redis.*"     
+
+
+    - stage: server_package
+      name: "Build server package"
+      os: linux
+      jdk: openjdk8
+      script: 
       - sh ./scripts/build-javascript.sh
-      # - while sleep 9m; do echo "=====[ $SECONDS seconds still running ]====="; done & 
-      - sh ./scripts/sbt-build.sh
-      # - kill %1
-      - sh ./scripts/publish-npm.sh
-      - sh ./scripts/build-rust.sh
-      after_failure:
-      - docker-compose logs cassandra
-    - os: osx
-      osx_image: xcode8.3
-      before_install:
-      - wget --quiet https://sh.rustup.rs -O rustupinstall.sh
-      - sh ./rustupinstall.sh -y
-      - export PATH=$PATH:$HOME/.cargo/bin
-      - rustup update
-      - rustup default stable
-      script:
-      - sh ./scripts/build-rust.sh
+      - sbt -jvm-opts .jvmopts-travis ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;jvm/publishLocal"
+
+    - stage: server_package_publish 
+      name: "Build server package and publish it to bintray"
+      os: linux
+      jdk: openjdk8
+      script: sh ./scripts/build-javascript.sh
+      script: sh ./scripts/sbt-publish.sh
+
+    - stage: jsclient_package_publish
+      name: "Build js client and publish it to npm if needed"
+      os: linux
+      script: sh ./scripts/publish-npm.sh
+
+    - stage: cliclient_compile_publish 
+      name: "Compile and publish cli client on osx if needed"
+      script: sh ./scripts/build-rust.sh      
+      os: osx
+
+    - stage: cliclient_compile_publish 
+      name: "Compile and publish cli client on osx if needed"
+      script: sh ./scripts/build-rust.sh
+      os: linux
+
+stages:
+  # runs on master commits and PRs
+  - name: server_test
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_cassandra
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_dynamo
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_elastic
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_leveldb
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_memory
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_memorydb 
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_mongo
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_postgresql
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_it_redis
+    if: NOT tag =~ ^v 
+
+  # runs on master commits and PRs
+  - name: server_package
+    if: NOT tag =~ ^v AND ( NOT branch = master )
+
+  # runs on main repo master commits or version-tagged commits
+  - name: server_package_publish
+    if: repo = maif/izanami AND ( ( branch = master AND type = push ) OR tag =~ ^v )
+
+  # runs on main repo master commits or version-tagged commits
+  - name: jsclient_package_publish
+
+    # runs on main repo master commits or version-tagged commits
+  - name: cliclient_compile_publish
+    if: repo = maif/izanami AND ( ( branch = master AND type = push ) OR tag =~ ^v )
+
+after_failure:
+  - docker-compose logs cassandra
+
 env:
   global:
   - PACKAGE_VERSION=0.0.1
   - SBT_OPTS=-Xmx2G -Xss20M -XX:MaxMetaspaceSize=512M
+
 before_cache:
 - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
 - find $HOME/.sbt  -name "*.lock"               -print -delete

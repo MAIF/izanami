@@ -1,45 +1,70 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
-import { Table } from '../inputs';
-import faker from 'faker';
+import { Table } from "../inputs";
+import faker from "faker";
 
 export class ApikeyPage extends Component {
-
-
   formSchema = {
-    name: { type: 'string', props: { label: 'Api key name', placeholder: 'The Api key name' }},
-    clientId: { type: 'string', props: { label: 'Client Id', placeholder: 'The Client Id' }},
-    clientSecret: { type: 'string', props: { label: 'Client Secret', placeholder: 'The Client Secret' }},
-    authorizedPattern: { type: 'string', props: { label: 'Authorized pattern', placeholder: 'The Authorized pattern' }},
+    name: {
+      type: "string",
+      props: { label: "Api key name", placeholder: "The Api key name" }
+    },
+    clientId: {
+      type: "string",
+      props: { label: "Client Id", placeholder: "The Client Id" }
+    },
+    clientSecret: {
+      type: "string",
+      props: { label: "Client Secret", placeholder: "The Client Secret" }
+    },
+    authorizedPattern: {
+      type: "string",
+      props: {
+        label: "Authorized pattern",
+        placeholder: "The Authorized pattern"
+      }
+    }
   };
 
-  editSchema = { ...this.formSchema, id: { ...this.formSchema.clientId, props: { ...this.formSchema.clientId.props, disabled: true } } };
+  editSchema = {
+    ...this.formSchema,
+    id: {
+      ...this.formSchema.clientId,
+      props: { ...this.formSchema.clientId.props, disabled: true }
+    }
+  };
 
   columns = [
-    { title: 'Name', notFilterable: true, content: item => item.name },
-    { title: 'Client id', notFilterable: true, content: item => item.clientId },
-    { title: 'Client secret', notFilterable: true, content: item => item.clientSecret},
-    { title: 'Authorized pattern', notFilterable: true, content: item => item.authorizedPattern},
+    { title: "Name", notFilterable: true, content: item => item.name },
+    { title: "Client id", notFilterable: true, content: item => item.clientId },
+    {
+      title: "Client secret",
+      notFilterable: true,
+      content: item => item.clientSecret
+    },
+    {
+      title: "Authorized pattern",
+      notFilterable: true,
+      content: item => item.authorizedPattern
+    }
   ];
 
-  formFlow = [
-    'name',
-    'clientId',
-    'clientSecret',
-    'authorizedPattern'
-  ];
+  formFlow = ["name", "clientId", "clientSecret", "authorizedPattern"];
 
-  fetchItems = (args) => {
-    const {search = [], page, pageSize} = args;
-    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*"
-    return IzanamiServices.fetchApikeys({page, pageSize, search: pattern });  
+  fetchItems = args => {
+    const { search = [], page, pageSize } = args;
+    const pattern =
+      search.length > 0
+        ? search.map(({ id, value }) => `*${value}*`).join(",")
+        : "*";
+    return IzanamiServices.fetchApikeys({ page, pageSize, search: pattern });
   };
-  
-  fetchItem = (id) => {
+
+  fetchItem = id => {
     return IzanamiServices.fetchApiKey(id);
   };
 
-  createItem = (apikey) => {
+  createItem = apikey => {
     return IzanamiServices.createApikey(apikey);
   };
 
@@ -47,7 +72,7 @@ export class ApikeyPage extends Component {
     return IzanamiServices.updateApikey(apiKeyOriginal.clientId, apikey);
   };
 
-  deleteItem = (apikey) => {
+  deleteItem = apikey => {
     return IzanamiServices.deleteApikey(apikey.clientId, apikey);
   };
 
@@ -61,10 +86,10 @@ export class ApikeyPage extends Component {
         <div className="row">
           <Table
             defaultValue={() => ({
-              name : "Apikey 1",
+              name: "Apikey 1",
               clientId: faker.random.alphaNumeric(16),
               clientSecret: faker.random.alphaNumeric(64),
-              authorizedPattern : "*"
+              authorizedPattern: "*"
             })}
             parentProps={this.props}
             user={this.props.user}
@@ -84,12 +109,12 @@ export class ApikeyPage extends Component {
             showActions={true}
             showLink={false}
             extractKey={item => item.clientId}
-            downloadLinks={[{title: "Download", link: "/api/apikeys.ndjson"}]}
-            uploadLinks={[{title: "Upload", link: "/api/apikeys.ndjson"}]}
+            downloadLinks={[{ title: "Download", link: "/api/apikeys.ndjson" }]}
+            uploadLinks={[{ title: "Upload", link: "/api/apikeys.ndjson" }]}
             eventNames={{
-              created: 'APIKEY_CREATED',
-              updated: 'APIKEY_UPDATED',
-              deleted: 'APIKEY_DELETED'
+              created: "APIKEY_CREATED",
+              updated: "APIKEY_UPDATED",
+              deleted: "APIKEY_DELETED"
             }}
           />
         </div>

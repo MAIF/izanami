@@ -51,6 +51,7 @@ import scala.concurrent.ExecutionContext
 import play.api.libs.ws.ahc.AhcWSComponents
 import test.FakeApplicationLifecycle
 import play.api.Configuration
+import play.api.libs.json.JsArray
 
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -524,8 +525,8 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield res
 
       val tree = run(ctx)(test)
-      tree must be(
-        Json.arr(
+      tree.asInstanceOf[JsArray].value must contain theSameElementsAs (
+        Seq(
           Json.obj("id" -> "test", "enabled"       -> true, "activationStrategy"  -> "NO_STRATEGY", "active" -> true),
           Json.obj("id" -> "test:other", "enabled" -> false, "activationStrategy" -> "NO_STRATEGY", "active" -> false)
         )

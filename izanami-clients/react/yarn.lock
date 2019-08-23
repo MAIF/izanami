@@ -883,6 +883,11 @@
     lodash "^4.17.10"
     to-fast-properties "^2.0.0"
 
+"@ungap/global-this@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@ungap/global-this/-/global-this-0.3.1.tgz#e37e005301c64484a61eed90305210bf078a4bc5"
+  integrity sha512-6gxLxSsXmt3XcC2p0mRjeHOtZemfs/IswAyWJZU0b8UvCQAegRpjSrQK0Y+u3OQQ3V0ZYQkHVCV9V3dxnlJ5Zw==
+
 "@webassemblyjs/ast@1.7.11":
   version "1.7.11"
   resolved "https://registry.yarnpkg.com/@webassemblyjs/ast/-/ast-1.7.11.tgz#b988582cafbb2b095e8b556526f30c90d057cace"

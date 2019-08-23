@@ -143,6 +143,8 @@ assemblyMergeStrategy in assembly := {
     MergeStrategy.first
   case PathList("org", "apache", "commons", "logging", xs @ _*) =>
     MergeStrategy.discard
+  case PathList("zio", xs @ _*) if xs.lastOption.contains("BuildInfo$.class") =>
+    MergeStrategy.first
   case PathList(ps @ _*) if ps.last == "io.netty.versions.properties" =>
     MergeStrategy.first
   case PathList(ps @ _*) if ps.contains("reference-overrides.conf") =>
