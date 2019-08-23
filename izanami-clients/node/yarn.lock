@@ -6,9 +6,10 @@ assertion-error@^1.0.1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/assertion-error/-/assertion-error-1.0.2.tgz#13ca515d86206da0bac66e834dd397d87581094c"
 
-chai@^4.0.2:
+chai@4.0.2:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/chai/-/chai-4.0.2.tgz#2f7327c4de6f385dd7787999e2ab02697a32b83b"
+  integrity sha1-L3MnxN5vOF3XeHmZ4qsCaXoyuDs=
   dependencies:
     assertion-error "^1.0.1"
     check-error "^1.0.1"
@@ -27,9 +28,10 @@ deep-eql@^2.0.1:
   dependencies:
     type-detect "^3.0.0"
 
-deepmerge@^1.4.3:
+deepmerge@1.4.3:
   version "1.4.3"
   resolved "https://registry.yarnpkg.com/deepmerge/-/deepmerge-1.4.3.tgz#f8c9ecb11c176b3dbfc8167b58cc5674c5e658bb"
+  integrity sha512-UrRUpZKUXhj8OJU3OOcmfRuZB8h2dFy63xPUpCVTw/CvCukhykRYmb3XoXzkaGQaPOLmWSPDlqlx/oNHyw11Rw==
 
 encoding@^0.1.11:
   version "0.1.12"
@@ -56,9 +58,10 @@ isomorphic-fetch@2.2.1:
     node-fetch "^1.0.1"
     whatwg-fetch ">=0.10.0"
 
-lodash@^4.17.4:
-  version "4.17.4"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.4.tgz#78203a4d1c328ae1d86dca6460e369b57f4055ae"
+lodash@4.17.13:
+  version "4.17.13"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.13.tgz#0bdc3a6adc873d2f4e0c4bac285df91b64fc7b93"
+  integrity sha512-vm3/XWXfWtRua0FkUyEHBZy8kCPjErNBT9fJx8Zvs+U6zjqPbTUOpkaoum3O5uiA8sm+yNMHXfYkTUHFoMxFNA==
 
 node-fetch@^1.0.1:
   version "1.7.1"

@@ -1,5 +1,5 @@
-import React, { Component } from 'react';
-import { Events } from './events';
+import React, { Component } from "react";
+import { Events } from "./events";
 
 export class DynamicTitle extends Component {
   static events = new Events();
@@ -24,9 +24,7 @@ export class DynamicTitle extends Component {
     if (!this.state.content) return null;
     return (
       <div className="fixedH3">
-        <h3 className="page-header">
-          {this.state.content}
-        </h3>
+        <h3 className="page-header">{this.state.content}</h3>
       </div>
     );
   }

@@ -1,87 +1,107 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
-import { Key, Table } from '../inputs';
-import truncate from 'lodash/truncate';
-import AceEditor from 'react-ace';
+import { Key, Table } from "../inputs";
+import truncate from "lodash/truncate";
+import AceEditor from "react-ace";
 
-const ConfigValue = ({id, value}) =>  {
+const ConfigValue = ({ id, value }) => {
   return (
-      <AceEditor mode="javascript"
-                 name={`preview${id}`}
-                 theme="monokai"
-                 readOnly={true}
-                 minLines={1}
-                 maxLines={1}
-                 value={truncate(JSON.stringify(value), {length: 60})}
-                 editorProps={{$blockScrolling: true}}
-                 height="15px"
-                 annotations={[]}
-                 markers={[]}
-                 setOptions={{
-                  showGutter: false
-                }}
-                 width="100%" />
+    <AceEditor
+      mode="javascript"
+      name={`preview${id}`}
+      theme="monokai"
+      readOnly={true}
+      minLines={1}
+      maxLines={1}
+      value={truncate(JSON.stringify(value), { length: 60 })}
+      editorProps={{ $blockScrolling: true }}
+      height="15px"
+      annotations={[]}
+      markers={[]}
+      setOptions={{
+        showGutter: false
+      }}
+      width="100%"
+    />
   );
 };
 
-
 export class ConfigurationsPage extends Component {
-
   formSchema = {
     id: {
-      type: 'key',
+      type: "key",
       props: {
-        label: 'Configuration Id',
-        placeholder: 'The Configuration id',
+        label: "Configuration Id",
+        placeholder: "The Configuration id",
         search(pattern) {
-          return IzanamiServices.fetchConfigs({page: 1, pageSize: 20, search: pattern })
-            .then(({results}) =>
-              results.map(({id}) => id)
-            )
+          return IzanamiServices.fetchConfigs({
+            page: 1,
+            pageSize: 20,
+            search: pattern
+          }).then(({ results }) => results.map(({ id }) => id));
         }
       },
-      error : { key : 'obj.id'}
+      error: { key: "obj.id" }
     },
-    value: { type: 'json', props: { parse: true, label: 'Value', placeholder: `true` }, error : { key : 'obj.value'}},
+    value: {
+      type: "json",
+      props: { parse: true, label: "Value", placeholder: `true` },
+      error: { key: "obj.value" }
+    }
   };
 
-  editSchema = { ...this.formSchema, id: { ...this.formSchema.id, props: { ...this.formSchema.id.props, disabled: true } } };
+  editSchema = {
+    ...this.formSchema,
+    id: {
+      ...this.formSchema.id,
+      props: { ...this.formSchema.id.props, disabled: true }
+    }
+  };
 
   columns = [
-    { title: 'Name', content: item => <Key value={item.id} /> },
-    { title: 'Preview', content: item => <ConfigValue value={item.value} id={item.id}/> }
+    { title: "Name", content: item => <Key value={item.id} /> },
+    {
+      title: "Preview",
+      content: item => <ConfigValue value={item.value} id={item.id} />
+    }
   ];
 
-  formFlow = [
-    'id',
-    'value'
-  ];
+  formFlow = ["id", "value"];
 
-  fetchItems = (args) => {
-    const {search = [], page, pageSize} = args;
-    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
-    return IzanamiServices.fetchConfigs({page, pageSize, search: pattern });
+  fetchItems = args => {
+    const { search = [], page, pageSize } = args;
+    const pattern =
+      search.length > 0
+        ? search.map(({ id, value }) => `*${value}*`).join(",")
+        : "*";
+    return IzanamiServices.fetchConfigs({ page, pageSize, search: pattern });
   };
 
-  fetchItemsTree = (args) => {
-    const {search = []} = args;
-    const pattern = search.length>0 ? search.map(({id, value}) => `*${value}*`).join(",")  : "*";
-    return IzanamiServices.fetchConfigsTree({search: pattern });
+  fetchItemsTree = args => {
+    const { search = [] } = args;
+    const pattern =
+      search.length > 0
+        ? search.map(({ id, value }) => `*${value}*`).join(",")
+        : "*";
+    return IzanamiServices.fetchConfigsTree({ search: pattern });
   };
 
-  fetchItem = (id) => {
+  fetchItem = id => {
     return IzanamiServices.fetchConfig(id);
   };
 
-  createItem = ({id, value}) => {
-    return IzanamiServices.createConfig({id, value: JSON.parse(value)});
+  createItem = ({ id, value }) => {
+    return IzanamiServices.createConfig({ id, value: JSON.parse(value) });
   };
 
-  updateItem = ({id, value}, configOriginal) => {
-    return IzanamiServices.updateConfig(configOriginal.id, {id, value: JSON.parse(value)});
+  updateItem = ({ id, value }, configOriginal) => {
+    return IzanamiServices.updateConfig(configOriginal.id, {
+      id,
+      value: JSON.parse(value)
+    });
   };
 
-  deleteItem = (config) => {
+  deleteItem = config => {
     return IzanamiServices.deleteConfig(config.id);
   };
 
@@ -91,16 +111,19 @@ export class ConfigurationsPage extends Component {
 
   renderTreeLeaf = item => {
     return [
-      <div key={`content-config-value-${item.id}`}  className="content-value-items" style={{width: 500}}>
-        <ConfigValue value={item.value} id={item.id}/>
+      <div
+        key={`content-config-value-${item.id}`}
+        className="content-value-items"
+        style={{ width: 500 }}
+      >
+        <ConfigValue value={item.value} id={item.id} />
       </div>
-    ]
+    ];
   };
 
   itemLink = item => {
     return item && `/configurations/edit/${item.id}`;
   };
-
 
   render() {
     return (
@@ -130,17 +153,20 @@ export class ConfigurationsPage extends Component {
             updateItem={this.updateItem}
             deleteItem={this.deleteItem}
             createItem={this.createItem}
-            downloadLinks={[{title: "Download", link: "/api/configs.ndjson"}]}
-            uploadLinks={[{title: "Upload", link: "/api/configs.ndjson"}]}
+            downloadLinks={[{ title: "Download", link: "/api/configs.ndjson" }]}
+            uploadLinks={[{ title: "Upload", link: "/api/configs.ndjson" }]}
             showActions={true}
             showLink={false}
             eventNames={{
-              created: 'CONFIG_CREATED',
-              updated: 'CONFIG_UPDATED',
-              deleted: 'CONFIG_DELETED'
+              created: "CONFIG_CREATED",
+              updated: "CONFIG_UPDATED",
+              deleted: "CONFIG_DELETED"
             }}
             extractKey={item => item.id}
-            convertItem={({id, value}) => ({id, value: JSON.stringify(value)})}
+            convertItem={({ id, value }) => ({
+              id,
+              value: JSON.stringify(value)
+            })}
           />
         </div>
       </div>

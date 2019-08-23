@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import * as BackOfficeServices from '../services';
-import { Table } from '../inputs';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import * as BackOfficeServices from "../services";
+import { Table } from "../inputs";
 
 class LogLevel extends Component {
   state = {
-    logger: this.props.logger,
+    logger: this.props.logger
   };
 
   changeLogLevel = e => {
@@ -34,12 +34,16 @@ class LogLevel extends Component {
 
 export class LoggersPage extends Component {
   columns = [
-    { title: 'Name', search: (s, item) => item.name.indexOf(s) > -1, content: item => item.name },
     {
-      title: 'Level',
-      style: { textAlign: 'center', width: 100 },
-      content: (item, table) => <LogLevel logger={item} table={table} />,
+      title: "Name",
+      search: (s, item) => item.name.indexOf(s) > -1,
+      content: item => item.name
     },
+    {
+      title: "Level",
+      style: { textAlign: "center", width: 100 },
+      content: (item, table) => <LogLevel logger={item} table={table} />
+    }
   ];
 
   componentDidMount() {
