@@ -602,7 +602,7 @@ trait ConfigServer {
           'page.as[Int] ? 1
         )
       ) { (p, pageSize, page) =>
-        calls.append(s"api/features")
+        calls.append(s"api/configs")
         val drop = (page - 1) * pageSize
 
         val jsons =

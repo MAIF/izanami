@@ -140,6 +140,7 @@ class SmartCacheConfigClientSpec
         val fallback = Configs(
           "test2" -> Json.obj("value" -> 2)
         )
+        Thread.sleep(100)
         val strategy = IzanamiClient(
           ClientConfig(ctx.host)
         ).configClient(
