@@ -153,7 +153,7 @@ class SmartCacheConfigClientSpec
 
         //Waiting for the client to start polling
         val configs: Configs = pattern
-          .after(2500.milliseconds, system.scheduler) {
+          .after(1300.milliseconds, system.scheduler) {
             strategy.configs("*")
           }
           .futureValue
