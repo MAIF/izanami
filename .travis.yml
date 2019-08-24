@@ -162,14 +162,14 @@ stages:
 
   # runs on main repo master commits or version-tagged commits
   - name: server_package_publish
-    if: repo = maif/izanami AND ( ( branch = master AND type = push ) OR tag =~ ^v )
+    if: repo = maif/izanami AND (  branch = master  OR tag =~ ^v )
 
   # runs on main repo master commits or version-tagged commits
   - name: jsclient_package_publish
 
     # runs on main repo master commits or version-tagged commits
   - name: cliclient_compile_publish
-    if: repo = maif/izanami AND ( ( branch = master AND type = push ) OR tag =~ ^v )
+    if: repo = maif/izanami AND (  branch = master  OR tag =~ ^v )
 
 after_failure:
   - docker-compose logs cassandra
