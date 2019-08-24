@@ -57,6 +57,7 @@ object Events {
                "key"       -> Key.writes.writes(key),
                "domain"    -> Json.toJson(domain),
                "payload"   -> payload,
+               "authInfo"  -> Json.toJson(authInfo), 
                "timestamp" -> timestamp)
   }
 
