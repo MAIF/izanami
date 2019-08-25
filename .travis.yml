@@ -162,7 +162,7 @@ stages:
 
   # runs on main repo master commits or version-tagged commits
   - name: server_package_publish
-    # if: repo = maif/izanami AND (  branch = master  OR tag =~ ^v )
+    if: (  branch = master  OR tag =~ ^v )
 
   # runs on main repo master commits or version-tagged commits
   - name: jsclient_package_publish
