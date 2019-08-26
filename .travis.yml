@@ -82,7 +82,7 @@ jobs:
       - sh ./scripts/build-javascript.sh
       - sbt -jvm-opts .jvmopts-travis ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;jvm/publishLocal"
 
-    - stage: server_package_publish 
+    - stage: publish 
       name: "Build server package and publish it to bintray"
       os: linux
       jdk: openjdk8
@@ -91,21 +91,21 @@ jobs:
       script: sh ./scripts/build-javascript.sh
       script: sh ./scripts/sbt-publish.sh
 
-    - stage: jsclient_package_publish
+    - stage: publish
       name: "Build js client and publish it to npm if needed"
       os: linux
       env: 
         - JS_BUILD=true
       script: sh ./scripts/publish-npm.sh
 
-    - stage: cliclient_compile_publish 
+    - stage: publish 
       name: "Compile and publish cli client on osx if needed"
       env: 
         - JS_BUILD=true
       script: sh ./scripts/build-rust.sh      
       os: osx
 
-    - stage: cliclient_compile_publish 
+    - stage: publish 
       name: "Compile and publish cli client on linux if needed"
       env: 
         - RUST_BUILD=true PATH=$PATH:$HOME/.cargo/bin
@@ -126,15 +126,8 @@ stages:
     if: NOT tag =~ ^v AND ( NOT branch = master )
 
   # runs on main repo master commits or version-tagged commits
-  - name: server_package_publish
+  - name: publish
     if: (  branch = master  OR tag =~ ^v )
-
-  # runs on main repo master commits or version-tagged commits
-  - name: jsclient_package_publish
-
-    # runs on main repo master commits or version-tagged commits
-  - name: cliclient_compile_publish
-    # if: repo = maif/izanami AND (  branch = master  OR tag =~ ^v )
 
 after_failure:
   - docker-compose logs cassandra
