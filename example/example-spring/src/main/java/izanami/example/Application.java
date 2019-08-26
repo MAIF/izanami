@@ -10,6 +10,8 @@ import izanami.Experiments;
 import izanami.Strategies;
 import izanami.example.otoroshi.OtoroshiFilter;
 import izanami.javadsl.*;
+import scala.concurrent.duration.FiniteDuration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.Filter;
 
@@ -91,7 +95,7 @@ public class Application {
         @Autowired
         FeatureClient featureClient(IzanamiClient izanamiClient, Environment environment) {
             return izanamiClient.featureClient(
-                    Strategies.smartCacheWithSseStrategy("mytvshows:*"),
+                    Strategies.smartCacheWithPollingStrategy(FiniteDuration.create(1, TimeUnit.HOURS), "mytvshows:*"),
                     Features.parseJson(environment.getProperty("izanami.fallback.features"))
             );
         }
