@@ -9,6 +9,7 @@ import play.api.libs.json._
 import shapeless.syntax
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import java.time.LocalTime
 
 ///////////////////////////////////////////////////////////////////////
 //////////////////////  Izanami configuration   ///////////////////////
@@ -266,24 +267,27 @@ object Experiment {
 object Feature {
 
   import play.api.libs.functional.syntax._
+  import FeatureType._
 
   private[izanami] val commonWrite =
   (__ \ "id").write[String] and
   (__ \ "enabled").write[Boolean]
 
   val reads: Reads[Feature] = Reads[Feature] {
-    case o if (o \ "activationStrategy").asOpt[String].contains("NO_STRATEGY") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(NO_STRATEGY.name) =>
       DefaultFeature.format.reads(o)
-    case o if (o \ "activationStrategy").asOpt[String].contains("RELEASE_DATE") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(RELEASE_DATE.name) =>
       ReleaseDateFeature.format.reads(o)
-    case o if (o \ "activationStrategy").asOpt[String].contains("DATE_RANGE") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(DATE_RANGE.name) =>
       DateRangeFeature.format.reads(o)
-    case o if (o \ "activationStrategy").asOpt[String].contains("SCRIPT") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(SCRIPT.name) =>
       ScriptFeature.format.reads(o)
-    case o if (o \ "activationStrategy").asOpt[String].contains("GLOBAL_SCRIPT") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(GLOBAL_SCRIPT.name) =>
       GlobalScriptFeature.format.reads(o)
-    case o if (o \ "activationStrategy").asOpt[String].contains("PERCENTAGE") =>
+    case o if (o \ "activationStrategy").asOpt[String].contains(PERCENTAGE.name) =>
       PercentageFeature.format.reads(o)
+    case o if (o \ "activationStrategy").asOpt[String].contains(HOUR_RANGE.name) =>
+      HourRangeFeature.format.reads(o)
     case other =>
       JsError("invalid json")
   }
@@ -295,6 +299,7 @@ object Feature {
     case s: ScriptFeature       => Json.toJson(s)(ScriptFeature.format)
     case s: GlobalScriptFeature => Json.toJson(s)(GlobalScriptFeature.format)
     case s: PercentageFeature   => Json.toJson(s)(PercentageFeature.format)
+    case s: HourRangeFeature    => Json.toJson(s)(HourRangeFeature.format)
   }
 
   implicit val format: Format[Feature] = Format(reads, writes)
@@ -314,6 +319,7 @@ object FeatureType {
   object SCRIPT        extends FeatureType("SCRIPT")
   object GLOBAL_SCRIPT extends FeatureType("GLOBAL_SCRIPT")
   object PERCENTAGE    extends FeatureType("PERCENTAGE")
+  object HOUR_RANGE    extends FeatureType("HOUR_RANGE")
 }
 
 sealed trait Feature {
@@ -505,6 +511,44 @@ object PercentageFeature {
   }
 
   implicit val format: Format[PercentageFeature] = Format(reads, writes)
+}
+
+case class HourRangeFeature(id: String, enabled: Boolean, active: Option[Boolean], startAt: LocalTime, endAt: LocalTime)
+    extends Feature {
+  override def isActive(config: ClientConfig): Boolean = {
+    val now = LocalTime.now()
+    now.isAfter(startAt) && now.isBefore(endAt)
+  }
+}
+
+object HourRangeFeature {
+  import play.api.libs.json._
+  import play.api.libs.json.Reads._
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json.Writes.temporalWrites
+
+  private val pattern = "HH:mm"
+
+  private val dateWrite: Writes[LocalTime] = temporalWrites[LocalTime, String](pattern)
+
+  val reads: Reads[HourRangeFeature] = (
+    (__ \ "id").read[String] and
+    (__ \ "enabled").read[Boolean] and
+    (__ \ "active").readNullable[Boolean] and
+    (__ \ "parameters" \ "startAt").read[LocalTime](localTimeReads(pattern)) and
+    (__ \ "parameters" \ "endAt").read[LocalTime](localTimeReads(pattern))
+  )(HourRangeFeature.apply _)
+
+  val writes: Writes[HourRangeFeature] = (
+    Feature.commonWrite and
+    (__ \ "active").writeNullable[Boolean] and
+    (__ \ "parameters" \ "startAt").write[LocalTime](dateWrite) and
+    (__ \ "parameters" \ "endAt").write[LocalTime](dateWrite)
+  )(unlift(HourRangeFeature.unapply)).transform { o: JsObject =>
+    o ++ Json.obj("activationStrategy" -> FeatureType.HOUR_RANGE.name)
+  }
+
+  implicit val format: Format[HourRangeFeature] = Format(reads, writes)
 }
 
 sealed trait FeatureEvent extends Event {

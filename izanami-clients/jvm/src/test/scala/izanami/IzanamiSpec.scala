@@ -35,20 +35,27 @@ trait IzanamiSpec
     with IntegrationPatience
     with BeforeAndAfterAll
 
-trait MockServer {
+trait MockServer extends Suite with BeforeAndAfterAll {
   import com.github.tomakehurst.wiremock.WireMockServer
   import com.github.tomakehurst.wiremock.client.WireMock
-  import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
+  import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 
-  val _wireMockServer: WireMockServer = initServer()
-  val mock                            = new WireMock("localhost", _wireMockServer.port())
-  val host                            = s"http://localhost:${_wireMockServer.port()}"
+  val (_wireMockServer: WireMockServer, p) = initServer()
+  val mock                                 = new WireMock("127.0.0.1", p)
+  val host                                 = s"http://localhost:${_wireMockServer.port()}"
 
-  private def initServer(): WireMockServer = {
-    val server = new WireMockServer(wireMockConfig().dynamicPort())
+  private def initServer(): (WireMockServer, Int) = {
+    //val p      = port.getOrElse(SocketUtil.temporaryServerAddress("localhost").getPort)
+    val server = new WireMockServer(options().dynamicPort())
     server.start()
-    server
+    (server, server.port())
   }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    _wireMockServer.stop()
+  }
+
 }
 
 trait ConfigMockServer extends MockServer {

@@ -50,6 +50,20 @@ The feature structure depends on the type of the strategy. A feature can have th
 }
 ```
  
+### HOUR_RANGE format
+
+```json
+{
+  "id": "feature:with:hour:range",
+  "enabled": true,
+  "parameters": {
+    "startDate": "10:15",
+    "endDate": "18:30"
+  },
+  "activationStrategy": "HOUR_RANGE"
+}
+```
+ 
 ### SCRIPT format 
 
 The field `type`can be 
@@ -269,6 +283,7 @@ We can divide the feature in two kind :
     * `NO_STRATEGY` features 
     * `RELEASE_DATE` features
     * `DATE_RANGE` features
+    * `HOUR_RANGE` features
 * feature needing context:   
     * `SCRIPT` features 
     * `GLOBAL_SCRIPT` features

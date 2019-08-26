@@ -15,6 +15,7 @@ import domains.script.Script.ScriptCache
 import zio.{IO, Task, ZIO}
 
 import scala.util.hashing.MurmurHash3
+import java.time.LocalTime
 
 object DefaultFeatureInstances {
 
@@ -249,6 +250,46 @@ object PercentageFeatureInstances {
   }
 }
 
+object HourRangeFeatureInstances {
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json.Reads._
+  import play.api.libs.json.Writes.temporalWrites
+  import play.api.libs.json._
+
+  private[feature] val pattern = "HH:mm"
+
+  val reads: Reads[HourRangeFeature] = (
+    (__ \ "id").read[Key] and
+    (__ \ "enabled").read[Boolean] and
+    (__ \ "parameters" \ "startAt")
+      .read[LocalTime](localTimeReads(pattern)) and
+    (__ \ "parameters" \ "endAt")
+      .read[LocalTime](localTimeReads(pattern))
+  )(HourRangeFeature.apply _)
+
+  private val dateWrite: Writes[LocalTime] = temporalWrites[LocalTime, String](pattern)
+
+  val writes: Writes[HourRangeFeature] = (
+    FeatureInstances.commonWrite and
+    (__ \ "parameters" \ "startAt").write[LocalTime](dateWrite) and
+    (__ \ "parameters" \ "endAt").write[LocalTime](dateWrite)
+  )(unlift(HourRangeFeature.unapply)).transform { o: JsObject =>
+    o ++ Json.obj("activationStrategy" -> HOUR_RANGE)
+  }
+
+  implicit val format: Format[HourRangeFeature] = Format(reads, writes)
+
+  def isActive: IsActive[HourRangeFeature] = new IsActive[HourRangeFeature] {
+    override def isActive(
+        feature: HourRangeFeature,
+        context: JsObject
+    ): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] = {
+      val now = LocalTime.now()
+      ZIO.succeed(now.isAfter(feature.startAt) && now.isBefore(feature.endAt))
+    }
+  }
+}
+
 object FeatureInstances {
   import FeatureType._
   import cats.implicits._
@@ -270,20 +311,14 @@ object FeatureInstances {
         case f: DateRangeFeature    => DateRangeFeatureInstances.isActive.isActive(f, context)
         case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive.isActive(f, context)
         case f: PercentageFeature   => PercentageFeatureInstances.isActive.isActive(f, context)
+        case f: HourRangeFeature    => HourRangeFeatureInstances.isActive.isActive(f, context)
       })
     }
 
   implicit val isActive: IsActive[Feature] =
     new IsActive[Feature] {
       override def isActive(feature: Feature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
-        feature match {
-          case f: DefaultFeature      => DefaultFeatureInstances.isActive.isActive(f, context)
-          case f: GlobalScriptFeature => GlobalScriptFeatureInstances.isActive.isActive(f, context)
-          case f: ScriptFeature       => ScriptFeatureInstances.isActive.isActive(f, context)
-          case f: DateRangeFeature    => DateRangeFeatureInstances.isActive.isActive(f, context)
-          case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive.isActive(f, context)
-          case f: PercentageFeature   => PercentageFeatureInstances.isActive.isActive(f, context)
-        }
+        FeatureInstances.isActive(feature, context)
     }
 
   def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] { feature =>
@@ -311,6 +346,9 @@ object FeatureInstances {
       GlobalScriptFeatureInstances.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(PERCENTAGE) =>
       PercentageFeatureInstances.format.reads(o)
+      GlobalScriptFeatureInstances.format.reads(o)
+    case o if (o \ "activationStrategy").asOpt[String].contains(HOUR_RANGE) =>
+      HourRangeFeatureInstances.format.reads(o)
     case _ =>
       JsError("invalid json")
   }
@@ -322,6 +360,7 @@ object FeatureInstances {
     case s: ScriptFeature       => Json.toJson(s)(ScriptFeatureInstances.format)
     case s: GlobalScriptFeature => Json.toJson(s)(GlobalScriptFeatureInstances.format)
     case s: PercentageFeature   => Json.toJson(s)(PercentageFeatureInstances.format)
+    case s: HourRangeFeature    => Json.toJson(s)(HourRangeFeatureInstances.format)
   }
 
   implicit val format: Format[Feature] = Format(reads, writes)

@@ -18,7 +18,6 @@ class FetchExperimentsClientStrategySpec extends IzanamiSpec with BeforeAndAfter
   import system.dispatcher
 
   override def afterAll {
-    _wireMockServer.stop()
     TestKit.shutdownActorSystem(system)
   }
 
