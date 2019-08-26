@@ -108,7 +108,7 @@ jobs:
     - stage: cliclient_compile_publish 
       name: "Compile and publish cli client on linux if needed"
       env: 
-        - RUST_BUILD=true 
+        - RUST_BUILD=true PATH=$PATH:$HOME/.cargo/bin
       script: sh ./scripts/build-rust.sh
       os: linux
 
