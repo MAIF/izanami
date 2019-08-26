@@ -24,14 +24,16 @@ class FetchWithCacheConfigClientSpec extends IzanamiSpec with BeforeAndAfterAll 
   "FetchWithCacheFeatureStrategy" should {
     "List configs" in {
       runServer { ctx =>
+        //#config-fetch-cache
         val strategy = IzanamiClient(
           ClientConfig(ctx.host)
         ).configClient(
-          strategy = FetchWithCacheStrategy(2, 1.second),
+          strategy = FetchWithCacheStrategy(maxElement = 2, duration = 1.second),
           fallback = Configs(
             "test2" -> Json.obj("value" -> 2)
           )
         )
+        //#config-fetch-cache
 
         val initialConfigs = Seq(
           Config("test", Json.obj("value" -> 1))

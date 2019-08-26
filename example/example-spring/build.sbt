@@ -1,6 +1,8 @@
 organization := "fr.maif"
 name := "example-spring"
 
+scalaVersion := "2.12.8"
+
 mainClass := Some("izanami.example.Application")
 
 resolvers ++= Seq(
