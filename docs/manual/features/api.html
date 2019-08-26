@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.1*
+1.4.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -120,7 +120,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.1*
+1.4.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -208,6 +208,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../features/api.html#no-strategy-format" class="header">NO_STRATEGY format</a></li>
     <li><a href="../features/api.html#release-date-format" class="header">RELEASE_DATE format</a></li>
     <li><a href="../features/api.html#date-range-format" class="header">DATE_RANGE format</a></li>
+    <li><a href="../features/api.html#hour-range-format" class="header">HOUR_RANGE format</a></li>
     <li><a href="../features/api.html#script-format" class="header">SCRIPT format</a></li>
     <li><a href="../features/api.html#global-script-format" class="header">GLOBAL_SCRIPT format</a></li>
     <li><a href="../features/api.html#percentage-format" class="header">PERCENTAGE format</a></li>
@@ -272,6 +273,17 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     &quot;to&quot;: &quot;2017-12-14 00:45:23&quot;
   },
   &quot;activationStrategy&quot;: &quot;DATE_RANGE&quot;
+}
+</code></pre>
+<h3><a href="#hour-range-format" name="hour-range-format" class="anchor"><span class="anchor-link"></span></a>HOUR_RANGE format</h3>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;id&quot;: &quot;feature:with:hour:range&quot;,
+  &quot;enabled&quot;: true,
+  &quot;parameters&quot;: {
+    &quot;startDate&quot;: &quot;10:15&quot;,
+    &quot;endDate&quot;: &quot;18:30&quot;
+  },
+  &quot;activationStrategy&quot;: &quot;HOUR_RANGE&quot;
 }
 </code></pre>
 <h3><a href="#script-format" name="script-format" class="anchor"><span class="anchor-link"></span></a>SCRIPT format</h3>
@@ -436,6 +448,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <li><code>NO_STRATEGY</code> features</li>
       <li><code>RELEASE_DATE</code> features</li>
       <li><code>DATE_RANGE</code> features</li>
+      <li><code>HOUR_RANGE</code> features</li>
     </ul>
   </li>
   <li>feature needing context:
