@@ -16,11 +16,13 @@ import {
   IzaDatePicker,
   IzaDateRangePicker
 } from "../components/IzanamiDatePicker";
+import {TimePicker} from "../components/TimePicker"
 import * as ScriptsTemplate from "../helpers/ScriptTemplates";
 import { JsLogo, KotlinLogo, ScalaLogo } from "../components/Logos";
 
 const DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
 const DATE_FORMAT2 = "YYYY-MM-DD HH:mm:ss";
+const TIME_FORMAT = "HH:mm"
 
 class FeatureParameters extends Component {
   componentWillReceiveProps(nextProps) {
@@ -43,6 +45,8 @@ class FeatureParameters extends Component {
         });
       } else if (nextStrategy === "RELEASE_DATE") {
         this.props.onChange({ releaseDate: moment().format(DATE_FORMAT) });
+      } else if (nextStrategy === "HOUR_RANGE") {
+        this.props.onChange({ startAt: moment().format(TIME_FORMAT), endAt: moment().add(1, "hour").format(TIME_FORMAT)});
       } else if (nextStrategy === "PERCENTAGE") {
         this.props.onChange({ percentage: 50 });
       } else if (nextStrategy === "NO_STRATEGY") {
@@ -98,6 +102,31 @@ class FeatureParameters extends Component {
             })
           }
         />
+      );
+    }
+    if (this.props.source.activationStrategy === "HOUR_RANGE") {      
+      label = "Hour range";            
+      content = (
+        <div className="row">
+          <div className="col-md-6">
+            <TimePicker
+              label='Start at'
+              hourOfDay={this.props.value.startAt}
+              onChange={(timeOfDay) =>           
+                  this.props.onChange({...this.props.value, startAt: timeOfDay})
+              }
+            />
+          </div>
+          <div className="col-md-6">
+            <TimePicker
+              label='End at'
+              hourOfDay={this.props.value.endAt}
+              onChange={(timeOfDay) =>           
+                this.props.onChange({...this.props.value, endAt: timeOfDay})
+              }
+            />          
+          </div>
+        </div>
       );
     }
     if (this.props.source.activationStrategy === "SCRIPT") {
@@ -188,6 +217,7 @@ export class FeaturesPage extends Component {
           "PERCENTAGE",
           "RELEASE_DATE",
           "DATE_RANGE",
+          "HOUR_RANGE",
           "SCRIPT",
           "GLOBAL_SCRIPT"
         ]
@@ -303,6 +333,17 @@ export class FeaturesPage extends Component {
             </time>
           </span>
         );
+      case "HOUR_RANGE":
+        return (
+          <span
+            style={{ textAlign: "center" }}
+            data-toggle="tooltip"
+            data-placement="top"
+            title={`Enabled between ${params.startAt} and ${params.endAt}`}
+          >
+            {params.startAt} -> {params.endAt}
+          </span>
+        )
       case "GLOBAL_SCRIPT":
         return (
           <span>

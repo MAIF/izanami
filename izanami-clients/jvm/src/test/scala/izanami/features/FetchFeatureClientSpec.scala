@@ -14,6 +14,7 @@ import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import izanami.Strategy.FetchStrategy
 
 class FetchFeatureClientSpec
     extends IzanamiSpec
@@ -29,11 +30,14 @@ class FetchFeatureClientSpec
 
   "FetchFeatureStrategy" should {
     "Create feature" in {
-      val featureClient = IzanamiClient(
+      val izanamiClient = IzanamiClient(
         ClientConfig(host)
-      ).featureClient(
-        Strategies.fetchStrategy()
       )
+      //#error-strategy
+      val featureClient = izanamiClient.featureClient(
+        FetchStrategy(Crash)
+      )
+      //#error-strategy
       val featureId = "bla:bla"
       createEnabledFeatureWithNoStrategy(featureId)
 
@@ -52,7 +56,7 @@ class FetchFeatureClientSpec
 
       //#feature-client
       val featureClient = client.featureClient(
-        strategy = Strategies.fetchStrategy(),
+        strategy = FetchStrategy(),
         fallback = Features(
           DefaultFeature("test2", true)
         )
@@ -95,11 +99,13 @@ class FetchFeatureClientSpec
 
     "List features multiple pages" in {
 
+      //#fetch-strategy
       val strategy = IzanamiClient(
         ClientConfig(host, pageSize = 2)
       ).featureClient(
         Strategies.fetchStrategy()
       )
+      //#fetch-strategy
 
       val firstGroup =
         Seq(DefaultFeature("test1", true), DefaultFeature("test2", true))

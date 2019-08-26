@@ -3,6 +3,7 @@ import izanami._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json._
+import java.time.LocalTime
 
 class FeatureSpec
     extends IzanamiSpec
@@ -47,6 +48,44 @@ class FeatureSpec
       jsResult must be(
         JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")), __ \ "parameters" \ "script")
       )
+    }
+
+    "Feature hour range serialization" in {
+
+      import izanami.Feature
+      import izanami.Feature._
+
+      val json = Json.parse("""
+                              |{
+                              |   "id": "id",
+                              |   "enabled": true,
+                              |   "activationStrategy": "HOUR_RANGE",
+                              |   "parameters": { "startAt": "05:25", "endAt": "16:30" }
+                              |}
+                            """.stripMargin)
+
+      val jsResult = json.validate[Feature]
+      jsResult must be(
+        JsSuccess(HourRangeFeature("id", true, None, LocalTime.of(5, 25), LocalTime.of(16, 30)))
+      )
+    }
+
+    "Feature hour range deserialization" in {
+
+      import izanami.Feature
+      import izanami.Feature._
+
+      val json = Json.parse("""
+                              |{
+                              |   "id": "id",
+                              |   "enabled": true,
+                              |   "activationStrategy": "HOUR_RANGE",
+                              |   "parameters": { "startAt": "05:25", "endAt": "16:30" }
+                              |}
+                            """.stripMargin)
+
+      val written = Json.toJson(HourRangeFeature("id", true, None, LocalTime.of(5, 25), LocalTime.of(16, 30)))
+      written must be(json)
     }
   }
 

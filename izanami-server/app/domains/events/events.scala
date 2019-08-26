@@ -52,13 +52,15 @@ object Events {
     def timestamp: LocalDateTime
     def payload: JsValue
     def toJson: JsValue =
-      Json.obj("_id"       -> _id,
-               "type"      -> `type`,
-               "key"       -> Key.writes.writes(key),
-               "domain"    -> Json.toJson(domain),
-               "payload"   -> payload,
-               "authInfo"  -> Json.toJson(authInfo), 
-               "timestamp" -> timestamp)
+      Json.obj(
+        "_id"       -> _id,
+        "type"      -> `type`,
+        "key"       -> Key.writes.writes(key),
+        "domain"    -> Json.toJson(domain),
+        "payload"   -> payload,
+        "authInfo"  -> Json.toJson(authInfo),
+        "timestamp" -> timestamp
+      )
   }
 
   object IzanamiEvent {

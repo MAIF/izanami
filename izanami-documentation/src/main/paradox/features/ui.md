@@ -59,6 +59,12 @@ this kind of strategy allow you to enable a feature on a date value in addition 
 this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean.  
 
 <img src="../img/features/date_range.png" width="100%" />
+  
+### HOUR_RANGE 
+
+this kind of strategy allow you to enable a feature on a range of hour for a day in addition to the active boolean.  
+
+<img src="../img/features/hour_range.png" width="100%" />
 
 ### PERCENTAGE
 
