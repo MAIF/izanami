@@ -30,55 +30,55 @@ jobs:
       jdk: openjdk8
       script: sbt -jvm-opts .jvmopts-travis test 
 
-    - stage: server_it_cassandra 
+    - stage: server_it
       name: "Run integration that depends on cassandra"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "cassandra" "specs.cassandra.*"
 
-    - stage: server_it_dynamo
+    - stage: server_it
       name: "Run integration that depends on dynamo"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "dynamodb" "specs.dynamo.*"
 
-    - stage: server_it_elastic 
+    - stage: server_it
       name: "Run integration that depends on elasticsearch"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "elasticsearch" "specs.elastic.*"
 
-    - stage: server_it_leveldb 
+    - stage: server_it
       name: "Run integration that depends on levedb"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "" "specs.leveldb.*"
 
-    - stage: server_it_memory 
+    - stage: server_it
       name: "Run integration that depends on memory"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "" "specs.memory.*"
 
-    - stage: server_it_memorydb 
+    - stage: server_it
       name: "Run integration that depends on memory with db"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "" "specs.memorywithdb.*"
 
-    - stage: server_it_mongo 
+    - stage: server_it
       name: "Run integration that depends on mongo"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "mongo" "specs.mongo.*"
 
-    - stage: server_it_postgresql 
+    - stage: server_it
       name: "Run integration that depends on postgresql"
       os: linux
       jdk: openjdk8
       script: ./scripts/runIt.sh "postgres_test" "specs.postgresql.*"
 
-    - stage: server_it_redis 
+    - stage: server_it
       name: "Run integration that depends on redis"
       os: linux
       jdk: openjdk8
@@ -121,39 +121,7 @@ stages:
     if: NOT tag =~ ^v 
 
   # runs on master commits and PRs
-  - name: server_it_cassandra
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_dynamo
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_elastic
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_leveldb
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_memory
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_memorydb 
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_mongo
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_postgresql
-    if: NOT tag =~ ^v 
-
-  # runs on master commits and PRs
-  - name: server_it_redis
+  - name: server_it
     if: NOT tag =~ ^v 
 
   # runs on master commits and PRs
