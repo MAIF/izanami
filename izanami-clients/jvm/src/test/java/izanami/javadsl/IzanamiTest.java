@@ -83,6 +83,36 @@ public class IzanamiTest {
                         .withZoneId(ZoneId.of("Europe/Paris"))
         );
 
+        //#config-fetch
+        ConfigClient configFetchStrategy = izanamiClient.configClient(
+                Strategies.fetchStrategy(),
+                Configs.configs(
+                        Config.config("my:config", Json.obj(
+                                Syntax.$("value", "Fallback value")
+                        ))
+                )
+        );
+        //#config-fetch
+
+        //#config-error-strategy
+        ConfigClient configErrorStrategy = izanamiClient.configClient(
+                Strategies.fetchStrategy(ErrorStrategies.crash())        
+        );
+        //#config-error-strategy
+
+        //#config-fetch-cache
+        Integer maxElementInCache = 100;
+        FiniteDuration ttl = FiniteDuration.create(20, TimeUnit.MINUTES);
+        ConfigClient fetchWithCacheStrategy = izanamiClient.configClient(
+                Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
+                Configs.configs(
+                        Config.config("my:config", Json.obj(
+                                Syntax.$("value", "Fallback value")
+                        ))
+                )
+        );
+        //#config-fetch-cache
+
         //#smart-cache
         ConfigClient configClient = izanamiClient.configClient(
                 Strategies.smartCacheWithPollingStrategy(
@@ -201,6 +231,23 @@ public class IzanamiTest {
                 )
         );
         //#configure-feature-client
+
+        //#error-strategy
+        FeatureClient featureClientWithErrorHandling = izanamiClient.featureClient(
+                Strategies.fetchStrategy(ErrorStrategies.crash())
+        );
+        //#error-strategy
+
+        //#feature-fetch-cache
+        Integer maxElementInCache = 100;
+        FiniteDuration ttl = FiniteDuration.create(20, TimeUnit.MINUTES);
+        FeatureClient featureClientWithCache = izanamiClient.featureClient(
+                Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
+                Features.features(
+                        Features.feature("my:feature", false)
+                )
+        );
+        //#feature-fetch-cache
 
         //#features-check
         Future<Boolean> futureCheck = featureClient.checkFeature("my:feature");

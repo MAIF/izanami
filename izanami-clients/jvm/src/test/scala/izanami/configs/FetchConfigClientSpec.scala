@@ -13,6 +13,7 @@ import play.api.libs.json.{JsValue, Json}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import izanami.Strategy.FetchStrategy
 
 class FetchConfigClientSpec
     extends IzanamiSpec
@@ -34,7 +35,7 @@ class FetchConfigClientSpec
       )
       //#config-client
       val configClient = client.configClient(
-        strategy = Strategies.fetchStrategy(),
+        strategy = FetchStrategy(),
         fallback = Configs(
           "test2" -> Json.obj("value" -> 2)
         )
@@ -60,12 +61,14 @@ class FetchConfigClientSpec
     "List configs with multiple pages" in {
 
       val izanamiClient = IzanamiClient(ClientConfig(host, pageSize = 2))
-        .configClient(
-          strategy = Strategies.fetchStrategy(),
-          fallback = Configs(
-            "test2" -> Json.obj("value" -> 2)
-          )
+      //#config-error-strategy
+      val configClient = izanamiClient.configClient(
+        strategy = FetchStrategy(Crash),
+        fallback = Configs(
+          "test2" -> Json.obj("value" -> 2)
         )
+      )
+      //#config-error-strategy
 
       val firstGroup = Seq(
         Config("test1", Json.obj("value" -> 1)),
@@ -88,7 +91,7 @@ class FetchConfigClientSpec
       registerPage(group = thirdGroup, page = 3, pageSize = 2, count = 5)
 
       //#all-configs
-      val configs: Future[Configs] = izanamiClient.configs("*")
+      val configs: Future[Configs] = configClient.configs("*")
       configs.onComplete {
         case Success(c) => println(c)
         case Failure(e) => e.printStackTrace()

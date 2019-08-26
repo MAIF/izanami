@@ -118,6 +118,27 @@ When you set up a client you have to choose a strategy :
 | Smart cache with sse          | Keep data in memory and refresh the cache with the events from the izanami server. |
 
 
+#### The fetch strategy 
+
+The fetch strategy will call izanami for each request. 
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #config-fetch }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #config-client }
+
+#### The fetch with cache strategy 
+
+The fetch with cache will do dumb cache by http call. You have to provide a the max elements in cache and a TTL.  
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #config-fetch-cache }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchWithCacheConfigClientSpec.scala) { #config-fetch-cache }
+
+
 #### The smart cache strategy 
 
 
@@ -138,6 +159,20 @@ The client will cache all the configs matching this patterns.
 @@@ warning
 There is no TTL using this strategy so you have to choose the right patterns to be sure that all datas fit in memory. 
 @@@
+
+#### Handling errors 
+
+An error handling strategy could be provided. You can choose between :
+
+ * `RecoverWithFallback`: If the call crash, the fallback is used 
+ * `Crash`: The call will finish on error if an error occured while evaluating the feature, config or experiment.  
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #config-error-strategy }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #config-error-strategy }
+
 
 ### Client usage 
 
@@ -182,17 +217,38 @@ When you set up a client you have to choose a strategy :
 | Smart cache with polling      | Keep data in memory and poll izanami to refresh the cache asynchronously. The features that need a context are not cached because it can needs a huge amount of memory |
 | Smart cache with sse          | Keep data in memory and refresh the cache with the events from the izanami server. The features that need a context are not cached because it can needs a huge amount of memory |
 
+#### The fetch strategy 
+
+The fetch strategy will call izanami for each request 
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #configure-feature-client }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala) { #fetch-strategy }
+
+
+#### The fetch with cache strategy 
+
+The fetch with cache will do dumb cache by http call. You have to provide a the max elements in cache and a TTL.  
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #feature-fetch-cache }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/features/FetchWithCacheFeatureClientSpec.scala) { #fetch-cache }
+
+
 #### The smart cache strategy 
 
 
-When you choose the smart cache, you have to provide patterns : 
+When you choose the smart cache, you have to provide patterns to select the keys that will be in cache: 
 
 Java
 :   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #feature-smart-cache }
 
 Scala
 :   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/features/SmartCacheFeatureClientSpec.scala) { #smart-cache }
-
 
 The client will cache all the configs matching this patterns. 
 
@@ -206,6 +262,19 @@ The feature that need a context to be evaluated are not cached. The cache is use
 @@@ warning
 There is no TTL using this strategy so you have to choose the right patterns to be sure that all datas fit in memory. 
 @@@
+
+#### Handling errors 
+
+An error handling strategy could be provided. You can choose between :
+
+ * `RecoverWithFallback`: If the call crash, the fallback is used 
+ * `Crash`: The call will finish on error if an error occured while evaluating the feature, config or experiment.  
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #error-strategy }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala) { #error-strategy }
 
 ### Client usage
 

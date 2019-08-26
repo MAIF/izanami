@@ -24,14 +24,16 @@ class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll
   "FetchWithCacheFeatureStrategy" should {
     "List features" in {
       runServer { ctx =>
+        //#fetch-cache
         val strategy = IzanamiClient(
           ClientConfig(ctx.host)
         ).featureClient(
-          strategy = FetchWithCacheStrategy(2, 1.second),
+          strategy = FetchWithCacheStrategy(maxElement = 2, duration = 1.second),
           fallback = Features(
             DefaultFeature("test2", true)
           )
         )
+        //#fetch-cache
 
         val initialFeatures = Seq(
           DefaultFeature("test1", true)
