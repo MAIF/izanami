@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.1*
+1.4.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -120,7 +120,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.1*
+1.4.5*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -361,7 +361,7 @@ bin/izanami
     -Dizanami.db.dynamo.secretKey=xxxxx
 </code></pre>
 <p>Or </p>
-<pre class="prettyprint"><code class="language-bash">export IZANAMI_DATABASE=dynamo
+<pre class="prettyprint"><code class="language-bash">export IZANAMI_DATABASE=Dynamo
 export DYNAMO_REGION=eu-west-1
 export DYNAMO_ACCESS_KEY=xxxxxxx
 export DYNAMO_SECRET_KEY=xxxxxxx
@@ -379,10 +379,11 @@ bin/izanami
   <li>dynamodb:BatchWriteItem</li>
   <li>dynamodb:DescribeTable</li>
 </ul>
+<p>The table name required are <code>izanami</code> and <code>izanami_experimentevents</code>.</p>
 <p>Additionally if the DynamoDB tables don&rsquo;t already exist, Izanami will create them for you which will require the <code>dynamodb:CreateTable</code> permission.</p>
 <p>You can create them with the following commands</p>
 <pre class="prettyprint"><code class="language-bash">aws dynamodb create-table --table-name izanami --attribute-definitions AttributeName=store,AttributeType=S AttributeName=id,AttributeType=S  --key-schema AttributeName=store,KeyType=HASH AttributeName=id,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
-aws dynamodb create-table --table-name izanami_experimentevent --attribute-definitions AttributeName=experimentId,AttributeType=S AttributeName=variantId,AttributeType=S  --key-schema AttributeName=experimentId,KeyType=HASH AttributeName=variantId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+aws dynamodb create-table --table-name izanami_experimentevents --attribute-definitions AttributeName=experimentId,AttributeType=S AttributeName=variantId,AttributeType=S  --key-schema AttributeName=experimentId,KeyType=HASH AttributeName=variantId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
 </code></pre>
 <p>Other settings are available, consult the <a href="settings.html">settings</a> page. </p>
 <h3><a href="#postgresql" name="postgresql" class="anchor"><span class="anchor-link"></span></a>Postgresql</h3>
