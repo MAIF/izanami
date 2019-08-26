@@ -6,8 +6,8 @@ services:
 
 before_install:
   - if [ "$TRAVIS_OS_NAME" = "linux" ] ; then sudo apt-get install wget curl ; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && ["$JS_BUILD" = "true"]; then ./scripts/install-nvm.sh ; fi  
-  - if ["$RUST_BUILD" = "true"]; then ./scripts/install-rust.sh ; fi  
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$JS_BUILD" = "true" ]; then ./scripts/install-nvm.sh ; fi  
+  - if [ "$RUST_BUILD" = "true" ]; then ./scripts/install-rust.sh ; fi  
 
 script: echo "No default script"
 
@@ -101,7 +101,7 @@ jobs:
     - stage: publish 
       name: "Compile and publish cli client on osx if needed"
       env: 
-        - JS_BUILD=true
+        - RUST_BUILD=true PATH=$PATH:$HOME/.cargo/bin
       script: sh ./scripts/build-rust.sh      
       os: osx
 
