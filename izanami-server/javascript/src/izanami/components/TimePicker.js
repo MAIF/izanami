@@ -4,15 +4,9 @@ import TimeKeeper from 'react-timekeeper';
 
 export class TimePicker extends Component {
 
-    state = {
-        hours: undefined,
-        minutes: undefined
-    }
-
     onChange = e => {
       if (e && e.preventDefault) e.preventDefault();
-      const time = moment(this.props.hourOfDay, TIME_FORMAT)        
-      this.props.onChange(e.formattedSimple);        
+      this.props.onChange(e.formatted24);        
     };
   
     render() {
