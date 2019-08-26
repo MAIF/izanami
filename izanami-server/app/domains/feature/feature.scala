@@ -16,8 +16,8 @@ import play.api.libs.json._
 import store.Result._
 import store._
 import zio.{RIO, ZIO}
-import domains.AuthInfoModule
-import domains.AuthInfo
+import domains.{AuthInfo, AuthInfoModule}
+import java.time.LocalTime
 
 sealed trait Strategy
 
@@ -86,6 +86,7 @@ case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String)   
 case class ScriptFeature(id: FeatureKey, enabled: Boolean, script: Script)                            extends Feature
 case class DateRangeFeature(id: FeatureKey, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature
 case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, date: LocalDateTime)                  extends Feature
+case class HourRangeFeature(id: FeatureKey, enabled: Boolean, startAt: LocalTime, endAt: LocalTime)   extends Feature
 case class PercentageFeature(id: FeatureKey, enabled: Boolean, percentage: Int)                       extends Feature
 
 object FeatureType {
@@ -95,6 +96,7 @@ object FeatureType {
   val SCRIPT        = "SCRIPT"
   val GLOBAL_SCRIPT = "GLOBAL_SCRIPT"
   val PERCENTAGE    = "PERCENTAGE"
+  val HOUR_RANGE    = "HOUR_RANGE"
 }
 
 trait FeatureDataStoreModule {

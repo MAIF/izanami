@@ -111,7 +111,7 @@ jobs:
       os: osx
 
     - stage: cliclient_compile_publish 
-      name: "Compile and publish cli client on osx if needed"
+      name: "Compile and publish cli client on linux if needed"
       script: sh ./scripts/build-rust.sh
       os: linux
 

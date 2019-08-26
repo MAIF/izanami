@@ -52,6 +52,10 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import test.FakeApplicationLifecycle
 import play.api.Configuration
 import play.api.libs.json.JsArray
+import java.time.LocalTime
+import java.time.temporal.Temporal
+import java.time.temporal.TemporalAmount
+import java.time.Duration
 
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -152,6 +156,28 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       result.get must be(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 0)))
 
     }
+
+    "Deserialize HourRangeFeature" in {
+      import FeatureInstances._
+      val json =
+        Json.parse("""
+                |{
+                |   "id": "id",
+                |   "enabled": true,
+                |   "activationStrategy": "HOUR_RANGE",
+                |   "parameters": { 
+                |     "startAt": "02:15",
+                |     "endAt": "17:30" 
+                |   }
+                |}""".stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(HourRangeFeature(Key("id"), true, LocalTime.of(2, 15), LocalTime.of(17, 30)))
+
+    }
+
   }
 
   "Feature Serialisation" should {
@@ -169,7 +195,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       Json.toJson(DefaultFeature(Key("id"), true)) must be(json)
     }
 
-    "Deserialize GlobalScriptFeature" in {
+    "Serialize GlobalScriptFeature" in {
       import FeatureInstances._
       val json = Json.parse("""
           |{
@@ -183,7 +209,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       Json.toJson(GlobalScriptFeature(Key("id"), true, "ref")) must be(json)
     }
 
-    "Deserialize ScriptFeature" in {
+    "Serialize ScriptFeature" in {
       import FeatureInstances._
       val json = Json.parse("""
           |{
@@ -196,7 +222,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       Json.toJson(ScriptFeature(Key("id"), true, JavascriptScript("script"))) must be(json)
     }
 
-    "Deserialize ReleaseDateFeature" in {
+    "Serialize ReleaseDateFeature" in {
       import FeatureInstances._
       val json =
         Json.parse("""
@@ -208,6 +234,23 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |}
         """.stripMargin)
       Json.toJson(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 12))) must be(json)
+    }
+
+    "Serialize HourRangeFeature" in {
+      import FeatureInstances._
+      val json =
+        Json.parse("""
+          |{
+          |   "id": "id",
+          |   "enabled": true,
+          |   "activationStrategy": "HOUR_RANGE",
+          |   "parameters": { 
+          |     "startAt": "02:30",
+          |     "endAt": "17:15" 
+          |   }
+          |}
+        """.stripMargin)
+      Json.toJson(HourRangeFeature(Key("id"), true, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(json)
     }
   }
 
@@ -296,6 +339,28 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       }
 
       count2 must (be > 55 and be < 65)
+
+    }
+  }
+
+  "Hour range feature" must {
+    "active" in {
+
+      val startAt = LocalTime.now().minus(Duration.ofHours(1))
+      val endAt   = LocalTime.now().plus(Duration.ofMinutes(30))
+      val feature = HourRangeFeature(Key("key"), true, startAt, endAt)
+
+      runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
+
+    }
+
+    "inactive" in {
+
+      val startAt = LocalTime.now().plus(Duration.ofMinutes(1))
+      val endAt   = LocalTime.now().plus(Duration.ofMinutes(30))
+      val feature = HourRangeFeature(Key("key"), true, startAt, endAt)
+
+      runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)
 
     }
   }
