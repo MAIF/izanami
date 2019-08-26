@@ -113,7 +113,7 @@ class FeatureParameters extends Component {
               label='Start at'
               hourOfDay={this.props.value.startAt}
               onChange={(timeOfDay) =>           
-                  this.props.onChange({startAt: timeOfDay})
+                  this.props.onChange({...this.props.value, startAt: timeOfDay})
               }
             />
           </div>
@@ -122,7 +122,7 @@ class FeatureParameters extends Component {
               label='End at'
               hourOfDay={this.props.value.endAt}
               onChange={(timeOfDay) =>           
-                  this.props.onChange({endAt: timeOfDay})
+                this.props.onChange({...this.props.value, endAt: timeOfDay})
               }
             />          
           </div>
@@ -333,6 +333,17 @@ export class FeaturesPage extends Component {
             </time>
           </span>
         );
+      case "HOUR_RANGE":
+        return (
+          <span
+            style={{ textAlign: "center" }}
+            data-toggle="tooltip"
+            data-placement="top"
+            title={`Enabled between ${params.startAt} and ${params.endAt}`}
+          >
+            {params.startAt} -> {params.endAt}
+          </span>
+        )
       case "GLOBAL_SCRIPT":
         return (
           <span>
