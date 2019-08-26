@@ -33,7 +33,7 @@ lazy val jvm = (project in file("."))
       "org.scalatest"              %% "scalatest"               % "3.0.1" % Test,
       "com.typesafe.akka"          %% "akka-testkit"            % akkaVersion % Test,
       "org.mockito"                % "mockito-core"             % "2.12.0" % Test,
-      "com.github.tomakehurst"     % "wiremock"                 % "2.12.0" % Test,
+      "com.github.tomakehurst"     % "wiremock-jre8"            % "2.24.1" % Test,
       "org.assertj"                % "assertj-core"             % "3.8.0" % Test
     ),
     resolvers ++= Seq(
@@ -45,6 +45,15 @@ lazy val jvm = (project in file("."))
     scalafmtVersion in ThisBuild := "1.2.0"
   )
   .settings(publishSettings: _*)
+
+scalacOptions ++= Seq(
+  "-Ypartial-unification",
+  "-feature",
+  "-language:higherKinds",
+  "-language:implicitConversions",
+  "-language:existentials",
+  "-Xfatal-warnings"
+)
 
 lazy val githubRepo = "maif/izanami"
 
