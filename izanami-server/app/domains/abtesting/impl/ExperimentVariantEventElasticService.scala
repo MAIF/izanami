@@ -292,7 +292,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           .runWith(Sink.ignore)
       }
       .unit
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo >>= (
+      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 

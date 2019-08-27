@@ -1,12 +1,14 @@
 package domains
 
-import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
-import cats.kernel.Monoid
 import cats.implicits._
+import cats.kernel.Eq
+import cats.kernel.Monoid
+import com.codahale.metrics.MetricRegistry
 import domains.abtesting.{ExperimentContext, ExperimentVariantEventService}
 import domains.apikey.{ApiKeyContext, Apikey}
 import domains.config.ConfigContext
@@ -19,26 +21,26 @@ import domains.webhook.WebhookContext
 import env.{DbDomainConfig, IzanamiConfig}
 import libs.database.Drivers
 import libs.logs.{IzanamiLogger, Logger, LoggerModule, ProdLogger}
+import metrics.MetricsModule
+import org.jetbrains.kotlin.js.parser.sourcemaps.JsonObject
+import play.api.Environment
 import play.api.inject.ApplicationLifecycle
-import play.api.libs.json.Reads.pattern
 import play.api.libs.json._
+import play.api.libs.json.Reads.pattern
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParser
-import store.{EmptyPattern, JsonDataStore, Pattern, StringPattern}
-import store.Result._
-import store.leveldb.DbStores
-import store.memorywithdb.InMemoryWithDbStore
-import zio.{Task, ZIO}
-import zio.blocking.Blocking
-import zio.internal.Executor
-
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 import scala.util.matching.Regex
-import zio.RIO
-import org.jetbrains.kotlin.js.parser.sourcemaps.JsonObject
-import cats.kernel.Eq
-import play.api.Environment
+import store.{EmptyPattern, JsonDataStore, Pattern, StringPattern}
+import store.leveldb.DbStores
+import store.memorywithdb.InMemoryWithDbStore
+import store.Result._
+import zio.{RIO, Task, ZIO}
+import zio.blocking.Blocking
+import zio.clock.Clock
+import zio.internal.Executor
+import metrics.MetricsContext
 
 trait AkkaModule {
   implicit def system: ActorSystem
@@ -55,11 +57,23 @@ trait PlayModule {
   def wSClient: play.api.libs.ws.WSClient
   def javaWsClient: play.libs.ws.WSClient
   def ec: ExecutionContext
+  def applicationLifecycle: ApplicationLifecycle
+}
+
+trait IzanamiConfigModule {
+  def izanamiConfig: IzanamiConfig
+}
+
+trait DriversModule {
+  def drivers: Drivers
 }
 
 trait GlobalContext
     extends AkkaModule
     with LoggerModule
+    with DriversModule
+    with IzanamiConfigModule
+    with MetricsContext
     with ConfigContext
     with FeatureContext
     with GlobalScriptContext
@@ -68,15 +82,20 @@ trait GlobalContext
     with WebhookContext
     with ExperimentContext
     with AuthInfoModule[GlobalContext]
+    with Clock.Live
 
 case class ProdGlobalContext(
     system: ActorSystem,
     mat: Materializer,
+    izanamiConfig: IzanamiConfig,
     environment: Environment,
     wSClient: play.api.libs.ws.WSClient,
     javaWsClient: play.libs.ws.WSClient,
     ec: ExecutionContext,
+    applicationLifecycle: ApplicationLifecycle,
     logger: Logger,
+    metricRegistry: MetricRegistry,
+    drivers: Drivers,
     eventStore: EventStore,
     globalScriptDataStore: JsonDataStore,
     configDataStore: JsonDataStore,
@@ -88,6 +107,7 @@ case class ProdGlobalContext(
     experimentVariantEventService: ExperimentVariantEventService,
     getScriptCache: () => ScriptCache,
     blocking: Blocking.Service[Any],
+    override val clock: Clock.Service[Any],
     override val authInfo: Option[AuthInfo]
 ) extends GlobalContext {
   override def scriptCache = getScriptCache()
@@ -97,7 +117,7 @@ case class ProdGlobalContext(
 
 object GlobalContext {
 
-  def apply(izanamiConfig: IzanamiConfig,
+  def apply(izanamiConfiguration: IzanamiConfig,
             zioEventStore: EventStore,
             actorSystem: ActorSystem,
             materializer: Materializer,
@@ -105,20 +125,23 @@ object GlobalContext {
             client: play.api.libs.ws.WSClient,
             javaClient: play.libs.ws.WSClient,
             execCtx: ExecutionContext,
-            drivers: Drivers,
+            registry: MetricRegistry,
+            d: Drivers,
             playScriptCache: => ScriptCache,
-            applicationLifecycle: ApplicationLifecycle): GlobalContext = new GlobalContext {
+            lifecycle: ApplicationLifecycle): GlobalContext = new GlobalContext {
 
-    override implicit val system: ActorSystem = actorSystem
-    override implicit val mat: Materializer   = materializer
-
-    override val environment: Environment            = env
-    override val wSClient: play.api.libs.ws.WSClient = client
-    override val javaWsClient: play.libs.ws.WSClient = javaClient
-    override val ec: ExecutionContext                = execCtx
-
-    override val logger: Logger         = new ProdLogger()
-    override val eventStore: EventStore = zioEventStore
+    override implicit val system: ActorSystem               = actorSystem
+    override implicit val mat: Materializer                 = materializer
+    override val izanamiConfig: IzanamiConfig               = izanamiConfiguration
+    override val environment: Environment                   = env
+    override val wSClient: play.api.libs.ws.WSClient        = client
+    override val javaWsClient: play.libs.ws.WSClient        = javaClient
+    override val ec: ExecutionContext                       = execCtx
+    override def applicationLifecycle: ApplicationLifecycle = lifecycle
+    override val logger: Logger                             = new ProdLogger()
+    override val eventStore: EventStore                     = zioEventStore
+    override val metricRegistry: MetricRegistry             = registry
+    override val drivers: Drivers                           = d
 
     override val globalScriptDataStore: JsonDataStore = {
       val conf              = izanamiConfig.globalScript.db
@@ -178,11 +201,15 @@ object GlobalContext {
       ProdGlobalContext(
         system,
         mat,
+        izanamiConfig,
         environment,
         wSClient,
         javaWsClient,
         ec,
+        applicationLifecycle,
         logger,
+        metricRegistry,
+        drivers,
         eventStore,
         globalScriptDataStore,
         configDataStore,
@@ -194,6 +221,7 @@ object GlobalContext {
         experimentVariantEventService,
         () => scriptCache,
         blocking,
+        clock,
         authInfo
       )
   }

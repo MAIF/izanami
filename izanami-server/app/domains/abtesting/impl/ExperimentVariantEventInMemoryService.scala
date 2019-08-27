@@ -58,7 +58,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
       .fromFuture { implicit ec =>
         (store ? AddEvent(id.experimentId.key, id.variantId, data)).mapTo[ExperimentVariantEvent]
       }
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo >>= (
+      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
         authInfo =>
           EventStore.publish(
             ExperimentVariantEventCreated(id, data, authInfo = authInfo)
@@ -73,7 +73,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
         (store ? DeleteEvents(experiment.id.key)).mapTo[Done]
       }
       .unit
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo >>= (
+      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 

@@ -1,19 +1,25 @@
 package controllers
 import controllers.actions.AuthContext
-import metrics.Metrics
+import metrics.{MetricsContext, MetricsService}
 import play.api.mvc._
+import zio._
 
-class MetricController(metrics: Metrics, AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)
-    extends AbstractController(cc) {
+class MetricController(AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)(
+    implicit R: Runtime[MetricsContext]
+) extends AbstractController(cc) {
 
-  def metricsEndpoint() = AuthAction { req =>
-    req match {
-      case Accepts.Json =>
-        Ok(metrics.jsonExport).withHeaders("Content-Type" -> "application/json")
-      case Prometheus =>
-        Ok(metrics.prometheusExport)
-      case _ =>
-        Ok(metrics.defaultHttpFormat)
+  import libs.http._
+
+  def metricsEndpoint() = AuthAction.asyncTask[MetricsContext] { req =>
+    MetricsService.metrics.map { metrics =>
+      req match {
+        case Accepts.Json =>
+          Ok(metrics.jsonExport).withHeaders("Content-Type" -> "application/json")
+        case Prometheus =>
+          Ok(metrics.prometheusExport)
+        case _ =>
+          Ok(metrics.defaultHttpFormat)
+      }
     }
   }
 
