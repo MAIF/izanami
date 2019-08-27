@@ -47,6 +47,7 @@ import store.Result.IdMustBeTheSame
 import play.api.Environment
 import scala.concurrent.ExecutionContext
 import play.libs.ws.WSClient
+import play.api.inject.ApplicationLifecycle
 
 /**
  * Created by adelegue on 18/07/2017.
@@ -326,6 +327,7 @@ class ScriptSpec
     override def ec: ExecutionContext                                      = testComponents.actorSystem.dispatcher
     override def javaWsClient: WSClient                                    = testComponents.wsJavaClient
     override def wSClient: play.api.libs.ws.WSClient                       = testComponents.wsClient
+    override def applicationLifecycle: ApplicationLifecycle                = testComponents.applicationLifecycle
   }
 
   case class TestComponent(context: Context)
@@ -396,6 +398,8 @@ class ScriptSpec
     PatchConfig(dbConfig),
     MetricsConfig(
       false,
+      false,
+      refresh = 1.second,
       MetricsConsoleConfig(false, 1.second),
       MetricsLogConfig(false, 1.second),
       MetricsHttpConfig("json"),
@@ -433,13 +437,14 @@ class ScriptSpec
     runtime.unsafeRun(ZIO.provide(runnableScriptContext)(t))
 
   private def runnableScriptContext: RunnableScriptContext = new RunnableScriptContext {
-    override val blocking: Blocking.Service[Any]     = blockingInstance
-    override def scriptCache: ScriptCache            = fakeCache
-    override def logger: Logger                      = new ProdLogger
-    override def environment: Environment            = testComponents.environment
-    override def ec: ExecutionContext                = testComponents.actorSystem.dispatcher
-    override def javaWsClient: WSClient              = testComponents.wsJavaClient
-    override def wSClient: play.api.libs.ws.WSClient = testComponents.wsClient
+    override val blocking: Blocking.Service[Any]            = blockingInstance
+    override def scriptCache: ScriptCache                   = fakeCache
+    override def logger: Logger                             = new ProdLogger
+    override def environment: Environment                   = testComponents.environment
+    override def ec: ExecutionContext                       = testComponents.actorSystem.dispatcher
+    override def javaWsClient: WSClient                     = testComponents.wsJavaClient
+    override def wSClient: play.api.libs.ws.WSClient        = testComponents.wsClient
+    override def applicationLifecycle: ApplicationLifecycle = testComponents.applicationLifecycle
   }
 
   private def getEnv =

@@ -20,6 +20,7 @@ import domains.script.Script.ScriptCache
 import domains.script.{GlobalScriptDataStore, GlobalScriptService, PlayScriptCache}
 import domains.user.{UserDataStore, UserService}
 import domains.webhook.{WebhookDataStore, WebhookService}
+import metrics.MetricsService
 import libs.database.Drivers
 import env._
 import filters.{IzanamiDefaultFilter, OtoroshiFilter}
@@ -84,7 +85,6 @@ package object modules {
 
     lazy val drivers: Drivers               = Drivers(izanamiConfig, configuration, applicationLifecycle)
     lazy val metricRegistry: MetricRegistry = wire[MetricRegistry]
-    lazy val metrics: Metrics               = wire[Metrics]
 
     implicit lazy val playScriptCache: ScriptCache = new PlayScriptCache(defaultCacheApi)
 
@@ -92,17 +92,20 @@ package object modules {
     lazy val zioEventStore: EventStore =
       EventStore(izanamiConfig, drivers, configuration, environment, applicationLifecycle)
 
-    val globalContext: GlobalContext = GlobalContext(izanamiConfig,
-                                                     zioEventStore,
-                                                     actorSystem,
-                                                     materializer,
-                                                     environment,
-                                                     wsClient,
-                                                     jwClient,
-                                                     system.dispatcher,
-                                                     drivers,
-                                                     playScriptCache,
-                                                     applicationLifecycle)
+    val globalContext: GlobalContext = GlobalContext(
+      izanamiConfig,
+      zioEventStore,
+      actorSystem,
+      materializer,
+      environment,
+      wsClient,
+      jwClient,
+      system.dispatcher,
+      metricRegistry,
+      drivers,
+      playScriptCache,
+      applicationLifecycle
+    )
 
     implicit val runtime: Runtime[GlobalContext] = Runtime(globalContext, PlatformLive.Default)
     val patchs                                   = Patchs(izanamiConfig, drivers, applicationLifecycle)
@@ -113,6 +116,7 @@ package object modules {
       *> UserDataStore.start *> ApiKeyDataStore.start
       *> WebhookDataStore.start *> ExperimentDataStore.start
       *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook)
+      *> MetricsService.start
       // Import files
       *> Import.importFile(izanamiConfig.globalScript.db, GlobalScriptService.importData)
       *> Import.importFile(izanamiConfig.config.db, ConfigService.importData)

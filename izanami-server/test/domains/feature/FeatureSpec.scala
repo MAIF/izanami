@@ -56,6 +56,7 @@ import java.time.LocalTime
 import java.time.temporal.Temporal
 import java.time.temporal.TemporalAmount
 import java.time.Duration
+import play.api.inject.ApplicationLifecycle
 
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -720,6 +721,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     override def ec: ExecutionContext                                 = actorSystem.dispatcher
     override val javaWsClient: play.libs.ws.WSClient                  = jWsClient
     override val wSClient: play.api.libs.ws.WSClient                  = wsClient
+    override val applicationLifecycle: ApplicationLifecycle           = fakeAhcComponent.applicationLifecycle
   }
 
   private def runIsActive[T](t: ZIO[IsActiveContext, IzanamiErrors, T]): T =
@@ -742,6 +744,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     override val ec: ExecutionContext                                      = actorSystem.dispatcher
     override val javaWsClient: play.libs.ws.WSClient                       = jWsClient
     override val wSClient: play.api.libs.ws.WSClient                       = wsClient
+    override val applicationLifecycle: ApplicationLifecycle                = fakeAhcComponent.applicationLifecycle
   }
 
   def fakeCache: ScriptCache = new ScriptCache {

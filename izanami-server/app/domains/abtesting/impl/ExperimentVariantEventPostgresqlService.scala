@@ -85,7 +85,7 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient,
       .refineToOrDie[IzanamiErrors]
       .map { _ =>
         data
-      } <* (AuthInfo.authInfo >>= (
+      } <* (AuthInfo.authInfo flatMap (
         authInfo =>
           EventStore.publish(
             ExperimentVariantEventCreated(id, data, authInfo = authInfo)
@@ -98,7 +98,7 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient,
     (sql"delete from " ++ fragTableName ++ fr" where experiment_id = ${experiment.id}").update.run
       .transact(xa)
       .refineToOrDie[IzanamiErrors]
-      .unit <* (AuthInfo.authInfo >>= (
+      .unit <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 

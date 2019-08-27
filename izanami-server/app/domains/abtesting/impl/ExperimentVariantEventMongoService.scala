@@ -131,7 +131,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
           )
       }
       .unit
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo >>= (
+      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 
