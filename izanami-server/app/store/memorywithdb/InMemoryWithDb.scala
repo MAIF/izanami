@@ -112,7 +112,7 @@ class InMemoryWithDbStore(
   override def start: RIO[DataStoreContext, Unit] =
     for {
       runtime <- ZIO.runtime[DataStoreContext]
-      _       <- init().fork
+      fiber   <- init().fork
     } yield {
       val cancellable: Option[Cancellable] = dbConfig.pollingInterval.map { interval =>
         system.scheduler.schedule(
@@ -126,6 +126,7 @@ class InMemoryWithDbStore(
         )
       }
       applicationLifecycle.addStopHook(() => {
+        runtime.unsafeRun(fiber.interrupt)
         FastFuture.successful(cancellable.foreach(_.cancel()))
       })
       ()

@@ -9,10 +9,10 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Cancellable}
 import akka.http.scaladsl.util.FastFuture
-import com.codahale.metrics.json.MetricsModule
 import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, ThreadStatesGaugeSet}
 import com.codahale.metrics.{ConsoleReporter, MetricRegistry, Slf4jReporter}
 import com.fasterxml.jackson.databind.ObjectMapper
+import domains.IzanamiConfigModule
 import domains.events.impl.KafkaSettings
 import env.{Env, IzanamiConfig, MetricsConfig}
 import io.prometheus.client.dropwizard.DropwizardExports
@@ -26,21 +26,65 @@ import play.api.libs.json.{JsObject, Json}
 import zio.Task
 
 import scala.util.Failure
+import scala.Option
+import zio.RIO
+import domains._
+import zio.ZIO
+import libs.logs.Logger
+import libs.logs.LoggerModule
+import zio.duration.Duration
+import zio.clock.Clock
+import org.apache.kafka.clients.producer.Callback
+import org.apache.kafka.clients.producer.RecordMetadata
+import zio.Cause.Fail
+import zio.Cause.Die
+import zio.Fiber
+import org.apache.kafka.common.metrics.MetricConfig
+import domains.config.ConfigContext
+import domains.feature.FeatureContext
+import domains.script.GlobalScriptContext
+import domains.apikey.ApiKeyContext
+import domains.user.UserContext
+import domains.webhook.WebhookContext
+import domains.abtesting.ExperimentContext
+import domains.config.ConfigService
+import store.Query
+import com.codahale.metrics.Gauge
+import domains.feature.FeatureService
+import domains.script.GlobalScript
+import domains.user.User
+import domains.user.UserService
+import domains.script.GlobalScriptService
+import domains.webhook.WebhookService
+import domains.abtesting.ExperimentService
+import zio.Schedule
 
-class Metrics(_env: Env, drivers: Drivers, izanamiConfig: IzanamiConfig, applicationLifecycle: ApplicationLifecycle)(
-    implicit system: ActorSystem
-) {
+trait MetricsModule extends IzanamiConfigModule {
+  def metricRegistry: MetricRegistry
+  val prometheus: DropwizardExports = new DropwizardExports(metricRegistry)
+}
 
-  import system.dispatcher
-  private val metricRegistry: MetricRegistry = _env.metricRegistry
-  private val metricsConfig: MetricsConfig   = izanamiConfig.metrics
+trait MetricsContext
+    extends AkkaModule
+    with PlayModule
+    with DriversModule
+    with IzanamiConfigModule
+    with MetricsModule
+    with AuthInfoModule[MetricsContext]
+    with LoggerModule
+    with Clock
+    with ConfigContext
+    with FeatureContext
+    with GlobalScriptContext
+    with ApiKeyContext
+    with UserContext
+    with WebhookContext
+    with ExperimentContext
 
-  metricRegistry.register("jvm.memory", new MemoryUsageGaugeSet())
-  metricRegistry.register("jvm.thread", new ThreadStatesGaugeSet())
-
-  private val objectMapper = new ObjectMapper()
-  objectMapper.registerModule(new MetricsModule(TimeUnit.SECONDS, TimeUnit.MILLISECONDS, true))
-  private val prometheus = new DropwizardExports(metricRegistry)
+case class Metrics(metricRegistry: MetricRegistry,
+                   prometheus: DropwizardExports,
+                   objectMapper: ObjectMapper,
+                   metricsConfig: MetricsConfig) {
 
   def prometheusExport: String = {
     val writer = new StringWriter()
@@ -58,88 +102,182 @@ class Metrics(_env: Env, drivers: Drivers, izanamiConfig: IzanamiConfig, applica
     case "prometheus" => prometheusExport
     case _            => jsonExport
   }
+}
 
-  private val log: Option[Slf4jReporter] =
+object MetricsService {
+
+  private val objectMapper: ObjectMapper = {
+    val objectMapper = new ObjectMapper()
+    objectMapper.registerModule(
+      new com.codahale.metrics.json.MetricsModule(TimeUnit.SECONDS, TimeUnit.MILLISECONDS, true)
+    )
+    objectMapper
+  }
+
+  private def startMetricsLogger(metricsConfig: MetricsConfig,
+                                 context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
     if (metricsConfig.log.enabled) {
-      IzanamiLogger.info("Enabling slf4j metrics reporter")
-      val reporter: Slf4jReporter = Slf4jReporter
-        .forRegistry(metricRegistry)
-        .outputTo(LoggerFactory.getLogger("izanami.metrics"))
-        .convertRatesTo(TimeUnit.SECONDS)
-        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        .build
-      reporter.start(metricsConfig.log.interval._1, metricsConfig.log.interval._2)
-      Some(reporter)
+      Logger.info("Enabling slf4j metrics reporter") *> Task {
+        val reporter: Slf4jReporter = Slf4jReporter
+          .forRegistry(context.metricRegistry)
+          .outputTo(LoggerFactory.getLogger("izanami.metrics"))
+          .convertRatesTo(TimeUnit.SECONDS)
+          .convertDurationsTo(TimeUnit.MILLISECONDS)
+          .build
+        reporter.start(metricsConfig.log.interval._1, metricsConfig.log.interval._2)
+        Some(reporter)
+      } *> this.metrics.delay(Duration.fromScala(metricsConfig.refresh)).forever.fork
     } else {
-      None
+      Task.unit.fork
     }
 
-  private val console: Option[ConsoleReporter] =
+  private def startMetricsConsole(metricsConfig: MetricsConfig,
+                                  context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
     if (metricsConfig.console.enabled) {
-      IzanamiLogger.info("Enabling console metrics reporter")
-      val reporter: ConsoleReporter = ConsoleReporter
-        .forRegistry(metricRegistry)
-        .convertRatesTo(TimeUnit.SECONDS)
-        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        .build
-      reporter.start(metricsConfig.console.interval._1, metricsConfig.console.interval._2)
-      Some(reporter)
+      Logger.info("Enabling console metrics reporter") *> Task {
+        val reporter: ConsoleReporter = ConsoleReporter
+          .forRegistry(context.metricRegistry)
+          .convertRatesTo(TimeUnit.SECONDS)
+          .convertDurationsTo(TimeUnit.MILLISECONDS)
+          .build
+        reporter.start(metricsConfig.console.interval._1, metricsConfig.console.interval._2)
+        Some(reporter)
+      } *> this.metrics.delay(Duration.fromScala(metricsConfig.refresh)).forever.fork
     } else {
-      None
+      Task.unit.fork
+    }
+  private def startMetricsKafka(metricsConfig: MetricsConfig,
+                                context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
+    if (metricsConfig.kafka.enabled) {
+      import cats.implicits._
+      import zio.interop.catz._
+      val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
+        kafkaConfig      <- ZIO.fromOption(context.izanamiConfig.db.kafka)
+        producerSettings = KafkaSettings.producerSettings(context.environment, context.system, kafkaConfig)
+        producer         = producerSettings.createKafkaProducer
+        _                <- Logger.info("Enabling kafka metrics reporter")
+        fiber <- (this.metrics flatMap { (metrics: Metrics) =>
+                  val message = metrics.defaultFormat(metricsConfig.kafka.format)
+                  Task
+                    .effectAsync[Unit] { cb =>
+                      producer.send(
+                        new ProducerRecord[String, String](metricsConfig.kafka.topic, message),
+                        new Callback {
+                          override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit =
+                            if (exception != null) {
+                              cb(ZIO.fail(exception))
+                            } else {
+                              cb(ZIO.unit)
+                            }
+                        }
+                      )
+                    }
+                    .onError {
+                      case Fail(exception) =>
+                        Logger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
+                                     exception)
+                      case Die(exception) =>
+                        Logger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
+                                     exception)
+                      case _ => ZIO.unit
+                    }
+                    .unit
+                }).delay(Duration.fromScala(metricsConfig.kafka.pushInterval)).forever.fork
+      } yield fiber
+      res.foldM(_ => Task.unit.fork, Task.succeed _)
+    } else {
+      Task.unit.fork
     }
 
-  val kafkaScheduler: Option[Cancellable] = if (metricsConfig.kafka.enabled) {
-    izanamiConfig.db.kafka.map { kafkaConfig =>
-      val producerSettings = KafkaSettings.producerSettings(_env.environment, system, kafkaConfig)
-      val producer         = producerSettings.createKafkaProducer
-      system.scheduler.schedule(
-        metricsConfig.kafka.pushInterval,
-        metricsConfig.kafka.pushInterval,
-        new Runnable {
-          override def run(): Unit = {
-            val message: String = defaultFormat(metricsConfig.kafka.format)
-            producer.send(new ProducerRecord[String, String](metricsConfig.kafka.topic, message))
-          }
-        }
-      )
-    }
-  } else {
-    None
-  }
-  val esScheduler: Option[Cancellable] = if (metricsConfig.elastic.enabled) {
-    drivers.elasticClient.map { client =>
-      import elastic.implicits._
-      import elastic.codec.PlayJson._
-      system.scheduler.schedule(
-        metricsConfig.elastic.pushInterval,
-        metricsConfig.elastic.pushInterval,
-        new Runnable {
-          override def run(): Unit = {
-            val message: String = jsonExport
-            val indexName       = new SimpleDateFormat(metricsConfig.elastic.index).format(new Date())
-            val jsonMessage = Json.parse(message).as[JsObject] ++ Json.obj(
-              "@timestamp" -> DateTimeFormatter.ISO_DATE_TIME.format(LocalDateTime.now())
-            )
-            client.index(indexName / "type").index(jsonMessage).onComplete {
-              case Failure(exception) =>
-                IzanamiLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
-              case _ =>
-            }
-          }
-        }
-      )
-    }
-  } else {
-    None
-  }
+  private def startMetricsElastic(metricsConfig: MetricsConfig,
+                                  context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
+    if (metricsConfig.elastic.enabled) {
+      import cats.implicits._
+      import zio.interop.catz._
+      import DateTimeFormatter._
 
-  applicationLifecycle.addStopHook { () =>
-    log.foreach(_.stop())
-    console.foreach(_.stop())
-    esScheduler.foreach(_.cancel())
-    kafkaScheduler.foreach(_.cancel())
-    FastFuture.successful(())
-  }
+      val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
+        _      <- Logger.info("Enabling kafka metrics reporter")
+        client <- ZIO.fromOption(context.drivers.elasticClient)
+        fiber <- (this.metrics flatMap { (metrics: Metrics) =>
+                  val message: String = metrics.jsonExport
+                  val indexName       = new SimpleDateFormat(metricsConfig.elastic.index).format(new Date())
+                  val jsonMessage = Json.parse(message).as[JsObject] ++ Json.obj(
+                    "@timestamp" -> ISO_DATE_TIME.format(LocalDateTime.now())
+                  )
+                  Task
+                    .fromFuture { implicit ec =>
+                      import elastic.implicits._
+                      import elastic.codec.PlayJson._
+                      client.index(indexName / "type").index(jsonMessage)
+                    }
+                    .onError {
+                      case Fail(exception) =>
+                        Logger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
+                      case Die(exception) =>
+                        Logger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
+                      case _ => ZIO.unit
+                    }
+                    .unit
+                }).delay(Duration.fromScala(metricsConfig.elastic.pushInterval)).forever.fork
+      } yield fiber
+      res.foldM(_ => Task.unit.fork, Task.succeed _)
+    } else {
+      Task.unit.fork
+    }
+
+  def start: RIO[MetricsContext, Unit] =
+    for {
+      runtime        <- ZIO.runtime[MetricsContext]
+      context        <- ZIO.environment[MetricsContext]
+      _              = context.metricRegistry.register("jvm.memory", new MemoryUsageGaugeSet())
+      _              = context.metricRegistry.register("jvm.thread", new ThreadStatesGaugeSet())
+      metricsConfig  = context.izanamiConfig.metrics
+      log            <- startMetricsLogger(metricsConfig, context)
+      console        <- startMetricsConsole(metricsConfig, context)
+      kafkaScheduler <- startMetricsKafka(metricsConfig, context)
+      esScheduler    <- startMetricsElastic(metricsConfig, context)
+    } yield {
+      context.applicationLifecycle.addStopHook { () =>
+        runtime.unsafeRunToFuture(
+          log.interrupt <&>
+          console.interrupt <&>
+          kafkaScheduler.interrupt <&>
+          esScheduler.interrupt
+        )
+      }
+    }
+
+  def metrics: RIO[MetricsContext, Metrics] =
+    for {
+      context        <- ZIO.environment[MetricsContext]
+      metricsConfig  = context.izanamiConfig.metrics
+      count          = metricsConfig.includeCount
+      metricRegistry = context.metricRegistry
+      _ <- (countAndStore(count, ConfigService.count(Query.oneOf("*")), "config", metricRegistry) <&>
+          countAndStore(count, FeatureService.count(Query.oneOf("*")), "feature", metricRegistry) <&>
+          countAndStore(count, ExperimentService.count(Query.oneOf("*")), "experiment", metricRegistry) <&>
+          countAndStore(count, GlobalScriptService.count(Query.oneOf("*")), "globalScript", metricRegistry) <&>
+          countAndStore(count, UserService.count(Query.oneOf("*")), "user", metricRegistry) <&>
+          countAndStore(count, WebhookService.count(Query.oneOf("*")), "webhook", metricRegistry))
+    } yield Metrics(context.metricRegistry, context.prometheus, objectMapper, context.izanamiConfig.metrics)
+
+  private def countAndStore[Ctx](enabled: Boolean,
+                                 count: => RIO[Ctx, Long],
+                                 name: String,
+                                 metricRegistry: MetricRegistry): RIO[Ctx, Unit] =
+    if (enabled) {
+      count.map { c =>
+        val gaugeName = s"domains.${name}.count"
+        metricRegistry.remove(gaugeName)
+        metricRegistry.register(gaugeName, new Gauge[Long]() {
+          override def getValue(): Long = c
+        })
+        ()
+      }
+    } else {
+      ZIO.unit
+    }
 
 }
 
