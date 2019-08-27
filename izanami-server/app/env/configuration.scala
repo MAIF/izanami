@@ -102,6 +102,8 @@ case class IzanamiConfig(
 
 case class MetricsConfig(
     verbose: Boolean,
+    includeCount: Boolean,
+    refresh: FiniteDuration,
     console: MetricsConsoleConfig,
     log: MetricsLogConfig,
     http: MetricsHttpConfig,
