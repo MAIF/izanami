@@ -103,6 +103,15 @@ trait ConfigMockServer extends MockServer {
       )
     )
   }
+
+  def registerNoConfig(): Unit =
+    mock.register(
+      get(urlPathMatching(s"/api/config/.*"))
+        .willReturn(
+          aResponse()
+            .withStatus(404)
+        )
+    )
 }
 trait ExperimentMockServer extends MockServer {
   import com.github.tomakehurst.wiremock.client.WireMock._
