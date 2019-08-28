@@ -25,14 +25,15 @@ object SmartCacheConfigClient {
             config: SmartCacheStrategy)(implicit izanamiDispatcher: IzanamiDispatcher,
                                         actorSystem: ActorSystem,
                                         materializer: Materializer): SmartCacheConfigClient =
-    new SmartCacheConfigClient(clientConfig, underlyingStrategy, fallback, config)
+    new SmartCacheConfigClient(clientConfig, underlyingStrategy, fallback, config, underlyingStrategy.cudConfigClient)
 }
 
 class SmartCacheConfigClient(
     clientConfig: ClientConfig,
     underlyingStrategy: ConfigClient,
     fallback: Configs,
-    config: SmartCacheStrategy
+    config: SmartCacheStrategy,
+    override val cudConfigClient: CUDConfigClient
 )(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 

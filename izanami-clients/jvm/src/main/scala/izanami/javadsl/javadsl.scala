@@ -357,15 +357,28 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createFeature(id: String,
-                    enabled: Boolean = true,
-                    activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
-                    parameters: Option[JsObject] = Option.none()): Future[Feature] =
+  def createJsonFeature(id: String,
+                        enabled: Boolean = true,
+                        activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
+                        parameters: Option[JsObject] = Option.none()): Future[Feature] =
     underlying
-      .createFeature(id,
-                     enabled,
-                     activationStrategy,
-                     parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
+      .createJsonFeature(id,
+                         enabled,
+                         activationStrategy,
+                         parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
+      .toJava
+
+  /**
+   * Create a feature
+   * @param id Feature Id
+   * @param enabled If this feature is enabled by default or not
+   * @param activationStrategy activationStrategy for this feature (@see {@link izanami.FeatureType})
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def createFeature(id: String, feature: Feature, parameters: Option[JsObject] = Option.none()): Future[Feature] =
+    underlying
+      .createFeature(id, feature, parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
       .toJava
 
   /**
@@ -622,6 +635,20 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
 
   private val materializer =
     ActorMaterializer(ActorMaterializerSettings(actorSystem).withDispatcher(clientConfig.dispatcher))(actorSystem)
+
+  /**
+   * Create a feature
+   * @param id Feature Id
+   * @param enabled If this feature is enabled by default or not
+   * @param activationStrategy activationStrategy for this feature (@see {@link izanami.FeatureType})
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def createConfig(id: String, config: Config): Future[Config] =
+    underlying
+      .createConfig(id, config.underlying)
+      .map { Config.apply }
+      .toJava
 
   /**
    * Get configs for a pattern like my:keys:*

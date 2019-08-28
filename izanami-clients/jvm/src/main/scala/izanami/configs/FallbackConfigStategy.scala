@@ -11,6 +11,7 @@ import org.reactivestreams.{Publisher, Subscriber}
 import play.api.libs.json.JsValue
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 object FallbackConfigStategy {
   def apply(fallback: Configs)(implicit izanamiDispatcher: IzanamiDispatcher,
@@ -18,11 +19,18 @@ object FallbackConfigStategy {
     new FallbackConfigStategy(fallback)
 }
 
-class FallbackConfigStategy(fallback: Configs)(implicit val izanamiDispatcher: IzanamiDispatcher,
-                                               val materializer: Materializer)
-    extends ConfigClient {
+class FallbackConfigStategy(fallback: Configs)(
+    implicit val izanamiDispatcher: IzanamiDispatcher,
+    val materializer: Materializer
+) extends ConfigClient {
 
   import izanamiDispatcher.ec
+
+  override val cudConfigClient: CUDConfigClient = new CUDConfigClient {
+    override val ec: ExecutionContext                                          = izanamiDispatcher.ec
+    override def createRawConfig(id: String, config: JsValue): Future[JsValue] = FastFuture.successful(config)
+    override def createConfig(id: String, config: Config): Future[Config]      = FastFuture.successful(config)
+  }
 
   override def configs(pattern: String): Future[Configs] =
     Future {

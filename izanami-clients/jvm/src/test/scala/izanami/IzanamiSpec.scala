@@ -288,6 +288,22 @@ trait FeatureMockServer extends MockServer {
     )
   }
 
+  def createFeature(featureId: String, feature: Feature): Unit = {
+    val url         = s"/api/features"
+    val jsonFeature = Json.stringify(Json.toJson(feature))
+    mock.register(
+      post(urlPathEqualTo(url))
+        .withRequestBody(
+          equalToJson(jsonFeature)
+        )
+        .willReturn(
+          aResponse()
+            .withStatus(201)
+            .withBody(jsonFeature)
+        )
+    )
+  }
+
   def registerPage(group: Seq[Feature],
                    page: Int = 1,
                    pageSize: Int = 200,
@@ -334,6 +350,15 @@ trait FeatureMockServer extends MockServer {
                 )
               )
             )
+        )
+    )
+
+  def registerNoFeature(): Unit =
+    mock.register(
+      post(urlPathMatching(s"/api/features/.*/check"))
+        .willReturn(
+          aResponse()
+            .withStatus(404)
         )
     )
 
@@ -719,7 +744,7 @@ trait FeatureServer {
             'page.as[Int] ? 1
           )
         ) { (p, a, pageSize, page) =>
-          calls.append(s"api/features")
+          calls.append(s"POST /api/features")
           val drop = (page - 1) * pageSize
 
           val jsons = state
@@ -740,7 +765,7 @@ trait FeatureServer {
     } ~ path("api" / "features" / Segment / "check") { id =>
       post {
         entity(as[Option[JsValue]]) { mayBeBody =>
-          calls.append(s"api/features/$id")
+          calls.append(s"POST /api/features/$id")
           state
             .find(_.id == id)
             .map { f =>
@@ -761,7 +786,7 @@ trait FeatureServer {
           'page.as[Int] ? 1
         )
       ) { (p, a, pageSize, page) =>
-        calls.append(s"api/features")
+        calls.append(s"GET /api/features")
         val drop = (page - 1) * pageSize
 
         val jsons =

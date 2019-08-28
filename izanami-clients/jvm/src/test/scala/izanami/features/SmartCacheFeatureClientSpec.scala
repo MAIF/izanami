@@ -199,7 +199,8 @@ class SmartCacheFeatureClientSpec
           ClientConfig(ctx.host)
         ).featureClient(
           strategy = CacheWithSseStrategy(
-            patterns = Seq("*")
+            patterns = Seq("*"),
+            pollingInterval = None
           ),
           fallback = Features(fallback: _*)
         )

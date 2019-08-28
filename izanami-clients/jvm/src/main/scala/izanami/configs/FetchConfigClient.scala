@@ -16,18 +16,21 @@ import play.api.libs.json.{JsValue, Json}
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
+import scala.util.Failure
 
 object FetchConfigClient {
   def apply(client: HttpClient,
             clientConfig: ClientConfig,
             fallback: Configs,
             errorStrategy: ErrorStrategy,
-            events: Source[IzanamiEvent, NotUsed])(
+            autocreate: Boolean,
+            events: Source[IzanamiEvent, NotUsed],
+            cuDConfigClient: CUDConfigClient)(
       implicit izanamiDispatcher: IzanamiDispatcher,
       actorSystem: ActorSystem,
       materializer: Materializer
   ): FetchConfigClient =
-    new FetchConfigClient(client, clientConfig, fallback, errorStrategy, events)
+    new FetchConfigClient(client, clientConfig, fallback, errorStrategy, autocreate, events, cuDConfigClient)
 }
 
 private[configs] class FetchConfigClient(
@@ -35,7 +38,9 @@ private[configs] class FetchConfigClient(
     clientConfig: ClientConfig,
     fallback: Configs,
     errorStrategy: ErrorStrategy,
-    events: Source[IzanamiEvent, NotUsed]
+    autocreate: Boolean,
+    events: Source[IzanamiEvent, NotUsed],
+    override val cudConfigClient: CUDConfigClient
 )(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
@@ -88,7 +93,19 @@ private[configs] class FetchConfigClient(
     client
       .fetchPages("/api/configs", query)
       .map { json =>
-        Configs.fromJson(json, fallback.configs)
+        val configs = Configs.fromJson(json, fallback.configs)
+        if (autocreate) {
+          val toCreate: Seq[Config] = fallback.filterWith(pattern).configs.filterNot(configs.configs.contains)
+          Future
+            .traverse(toCreate) { c =>
+              cudConfigClient.createConfig(c.id, c)
+            }
+            .onComplete {
+              case Failure(e) => logger.error("Error autocreating configs: ", e)
+              case _          =>
+            }
+        }
+        configs
       }
   }.recoverWith(handleFailure(fallback))
 
@@ -109,6 +126,13 @@ private[configs] class FetchConfigClient(
               }
             )
         case (code, _) if code == StatusCodes.NotFound =>
+          if (autocreate) {
+            cudConfigClient
+              .createRawConfig(key, fallback.get(convertedKey))
+              .recover {
+                case e => fallback.get(convertedKey)
+              }
+          }
           FastFuture.successful(fallback.get(convertedKey))
         case (code, body) =>
           val message = s"Error getting config, code=$code, response=$body"
