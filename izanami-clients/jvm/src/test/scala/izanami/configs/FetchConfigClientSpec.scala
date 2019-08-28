@@ -26,8 +26,44 @@ class FetchConfigClientSpec
   implicit val materializer = ActorMaterializer()
 
   import system.dispatcher
+  import com.github.tomakehurst.wiremock.client.WireMock._
 
   "FetchConfigStrategy" should {
+
+    "Create config" in {
+
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = FetchStrategy(),
+        fallback = Configs(
+          "test2" -> Json.obj("value" -> 2)
+        )
+      )
+
+      val jsonBody = Json.stringify(Json.toJson(Config("test", Json.obj("value" -> 1))))
+      mock.register(
+        post(urlPathEqualTo("/api/configs"))
+          .withHeader("Content-Type", containing("application/json"))
+          .withRequestBody(equalToJson(jsonBody))
+          .willReturn(
+            aResponse()
+              .withStatus(201)
+              .withBody(jsonBody)
+          )
+      )
+
+      val config  = Config("test", Json.obj("value" -> 1))
+      val created = client.createConfig(config.id, config).futureValue
+      created must be(config)
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/configs"))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+      mock.resetRequests()
+    }
+
     "List configs" in {
 
       val client = IzanamiClient(
@@ -55,7 +91,7 @@ class FetchConfigClientSpec
       configs.get("test") must be(Json.obj("value"  -> 1))
       configs.get("test2") must be(Json.obj("value" -> 2))
       configs.get("other") must be(Json.obj())
-
+      mock.resetRequests()
     }
 
     "List configs with multiple pages" in {
@@ -99,7 +135,7 @@ class FetchConfigClientSpec
       //#all-configs
 
       configs.futureValue.configs must be(initialConfigs)
-
+      mock.resetRequests()
     }
 
     "Get one config" in {
@@ -125,7 +161,7 @@ class FetchConfigClientSpec
       futureConfig.futureValue must be(Json.obj("value"                  -> 1))
       izanamiClient.config("test2").futureValue must be(Json.obj("value" -> 2))
       izanamiClient.config("other").futureValue must be(Json.obj())
-
+      mock.resetRequests()
     }
 
     "Stream event" in {

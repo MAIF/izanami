@@ -20,10 +20,31 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
   import izanamiDispatcher.ec
   private val logger = Logging(actorSystem, this.getClass.getSimpleName)
 
-  def createFeature(id: String,
-                    enabled: Boolean = true,
-                    activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
-                    parameters: Option[JsObject] = None): Future[Feature] = {
+  def createFeature(id: String, feature: Feature, parameters: Option[JsObject] = None): Future[Feature] = {
+    import Feature._
+
+    val payload = Json.toJsObject(feature) ++ parameters
+      .map(value => Json.obj("parameters" -> value))
+      .getOrElse(Json.obj())
+
+    client
+      .post("/api/features", payload)
+      .flatMap {
+        case (status, json) if status == StatusCodes.Created =>
+          FastFuture.successful(Json.parse(json).as[Feature](Feature.reads))
+        case (status, body) => {
+          val message = s"Error creating feature $id : status=$status, response=$body"
+          logger.error(message)
+          FastFuture.failed(IzanamiException(message))
+        }
+
+      }
+  }
+
+  def createJsonFeature(id: String,
+                        enabled: Boolean = true,
+                        activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
+                        parameters: Option[JsObject] = None): Future[Feature] = {
     val payload = Json.obj("id" -> id, "enabled" -> enabled, "activationStrategy" -> activationStrategy.name) ++ parameters
       .map(value => Json.obj("parameters" -> value))
       .getOrElse(Json.obj())

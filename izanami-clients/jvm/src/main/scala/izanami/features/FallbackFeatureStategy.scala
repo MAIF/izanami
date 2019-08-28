@@ -28,6 +28,17 @@ class FallbackFeatureStategy(fallback: Features)(implicit val izanamiDispatcher:
 
   override def createFeature(
       id: String,
+      feature: Feature,
+      parameters: Option[JsObject]
+  ): Future[Feature] = {
+    fallback.copy(
+      featuresSeq = fallback.featuresSeq ++ Seq(feature)
+    )
+    FastFuture.successful(feature)
+  }
+
+  override def createJsonFeature(
+      id: String,
       enabled: Boolean,
       activationStrategy: FeatureType,
       parameters: Option[JsObject]

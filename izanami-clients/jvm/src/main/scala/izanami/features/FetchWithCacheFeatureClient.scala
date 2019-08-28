@@ -26,7 +26,7 @@ object FetchWithCacheFeatureClient {
     actorSystem: ActorSystem,
     materializer: Materializer,
     cudFeatureClient: CUDFeatureClient): FetchWithCacheFeatureClient =
-    new FetchWithCacheFeatureClient(clientConfig, underlyingStrategy, cacheConfig)
+    new FetchWithCacheFeatureClient(clientConfig, underlyingStrategy, cacheConfig, underlyingStrategy.cudFeatureClient)
 }
 
 private[features] case class CacheKey(key: String, context: JsObject)
@@ -34,11 +34,9 @@ private[features] case class CacheKey(key: String, context: JsObject)
 private[features] class FetchWithCacheFeatureClient(
     clientConfig: ClientConfig,
     underlyingStrategy: FeatureClient,
-    cacheConfig: FetchWithCacheStrategy
-)(implicit val izanamiDispatcher: IzanamiDispatcher,
-  actorSystem: ActorSystem,
-  val materializer: Materializer,
-  val cudFeatureClient: CUDFeatureClient)
+    cacheConfig: FetchWithCacheStrategy,
+    val cudFeatureClient: CUDFeatureClient
+)(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends FeatureClient {
 
   import izanamiDispatcher.ec

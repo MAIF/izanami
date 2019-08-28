@@ -22,6 +22,7 @@ object FetchFeatureClient {
             clientConfig: ClientConfig,
             fallback: Features,
             errorStrategy: ErrorStrategy,
+            autocreate: Boolean,
             events: Source[IzanamiEvent, NotUsed])(
       implicit
       izanamiDispatcher: IzanamiDispatcher,
@@ -29,7 +30,7 @@ object FetchFeatureClient {
       materializer: Materializer,
       cudFeatureClient: CUDFeatureClient
   ): FetchFeatureClient =
-    new FetchFeatureClient(client, clientConfig, fallback, errorStrategy, events)
+    new FetchFeatureClient(client, clientConfig, fallback, errorStrategy, autocreate, events)
 }
 
 private[features] class FetchFeatureClient(
@@ -37,6 +38,7 @@ private[features] class FetchFeatureClient(
     clientConfig: ClientConfig,
     fallback: Features,
     errorStrategy: ErrorStrategy,
+    autocreate: Boolean,
     events: Source[IzanamiEvent, NotUsed]
 )(implicit val izanamiDispatcher: IzanamiDispatcher,
   actorSystem: ActorSystem,
@@ -93,7 +95,16 @@ private[features] class FetchFeatureClient(
     val query = Seq("pattern" -> convertedPattern, "active" -> "true")
     client
       .fetchPages("/api/features", query)
-      .map(json => Features(clientConfig, parseFeatures(json), fallback.featuresSeq))
+      .map { json =>
+        val features = parseFeatures(json)
+        if (autocreate) {
+          val toCreate = fallback.filterWith(pattern).featuresSeq.filterNot(features.contains)
+          Future.traverse(toCreate) { f =>
+            cudFeatureClient.createFeature(f.id, f)
+          }
+        }
+        Features(clientConfig, features, fallback.featuresSeq)
+      }
       .recoverWith(handleFailure(fallback))
       .map(_.filterWith(pattern))
   }
@@ -104,9 +115,16 @@ private[features] class FetchFeatureClient(
     val query = Seq("pattern" -> convertedPattern)
     client
       .fetchPagesWithContext("/api/features/_checks", context, query)
-      .map(json => {
-        Features(clientConfig, parseFeatures(json), fallback.featuresSeq)
-      })
+      .map { json =>
+        val features = parseFeatures(json)
+        if (autocreate) {
+          val toCreate = fallback.filterWith(pattern).fallback.filterNot(features.contains)
+          Future.traverse(toCreate) { f =>
+            cudFeatureClient.createFeature(f.id, f)
+          }
+        }
+        Features(clientConfig, features, fallback.featuresSeq)
+      }
       .recoverWith(handleFailure(fallback))
       .map(_.filterWith(pattern))
   }
@@ -123,6 +141,12 @@ private[features] class FetchFeatureClient(
           val feature = Json.parse(json)
           FastFuture.successful((feature \ "active").asOpt[Boolean].getOrElse(false))
         case (status, _) if status == StatusCodes.NotFound =>
+          if (autocreate) {
+            fallback.featuresSeq.find(_.id == convertedKey).foreach { f =>
+              println(s"Feature to create : ${f}")
+              cudFeatureClient.createFeature(f.id, f)
+            }
+          }
           FastFuture.successful(fallback.isActive(convertedKey))
         case (status, body) =>
           val message = s"Error checking feature $key, with context $context : status=$status, response=$body"
