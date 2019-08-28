@@ -549,14 +549,14 @@ object Config {
       }
   )(Config.apply _)
 
-  private val write: Writes[Config] = Writes[Config] { c =>
+  private val write: OWrites[Config] = OWrites[Config] { c =>
     Json.obj(
       "id"    -> c.id,
-      "value" -> Json.stringify(c.value)
+      "value" -> c.value
     )
   }
 
-  implicit val format = Format(read, write)
+  implicit val format = OFormat(read, write)
 }
 case class Config(id: String, value: JsValue) {
   def asJson =

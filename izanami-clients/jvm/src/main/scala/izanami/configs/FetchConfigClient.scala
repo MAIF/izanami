@@ -127,11 +127,10 @@ private[configs] class FetchConfigClient(
             )
         case (code, _) if code == StatusCodes.NotFound =>
           if (autocreate) {
-            cudConfigClient
-              .createRawConfig(key, fallback.get(convertedKey))
-              .recover {
-                case e => fallback.get(convertedKey)
-              }
+            fallback.configs.find(_.id == key).foreach { c =>
+              cudConfigClient
+                .createConfig(key, c)
+            }
           }
           FastFuture.successful(fallback.get(convertedKey))
         case (code, body) =>
