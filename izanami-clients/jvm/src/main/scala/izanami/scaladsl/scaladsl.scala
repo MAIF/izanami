@@ -127,7 +127,7 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
       case s: Strategy.CacheWithSseStrategy =>
         SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fallback(config), Crash, eventSource), fb, s)
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fb, Crash, eventSource), fb, s)
+        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fb, Crash, source), fb, s)
     }
   }
 
