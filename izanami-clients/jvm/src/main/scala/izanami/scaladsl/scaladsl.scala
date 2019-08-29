@@ -67,27 +67,38 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
    */
   def configClient(
       strategy: Strategy,
-      fallback: Configs = Configs(Seq.empty)
+      fallback: Configs = Configs(Seq.empty),
+      autocreate: Boolean = false
   ) = {
     val source = config.backend match {
       case SseBackend => eventSource
       case _ =>
         Source.failed(new IllegalStateException("Notifications are disabled for this strategy"))
     }
+
+    val cudClient: CUDConfigClient = CUDConfigClient(client)
     strategy match {
       case DevStrategy =>
         FallbackConfigStategy(fallback)
       case Strategy.FetchStrategy(errorStrategy) =>
-        FetchConfigClient(client, config, fallback, errorStrategy, source)
+        FetchConfigClient(client, config, fallback, errorStrategy, autocreate, source, CUDConfigClient(client))
       case s: Strategy.FetchWithCacheStrategy =>
-        FetchWithCacheConfigClient(config,
-                                   fallback,
-                                   FetchConfigClient(client, config, fallback, s.errorStrategy, source),
-                                   s)
+        FetchWithCacheConfigClient(
+          config,
+          fallback,
+          FetchConfigClient(client, config, fallback, s.errorStrategy, autocreate, source, cudClient),
+          s
+        )
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheConfigClient(config, FetchConfigClient(client, config, fallback, Crash, eventSource), fallback, s)
+        SmartCacheConfigClient(config,
+                               FetchConfigClient(client, config, fallback, Crash, autocreate, eventSource, cudClient),
+                               fallback,
+                               s)
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheConfigClient(config, FetchConfigClient(client, config, fallback, Crash, source), fallback, s)
+        SmartCacheConfigClient(config,
+                               FetchConfigClient(client, config, fallback, Crash, autocreate, source, cudClient),
+                               fallback,
+                               s)
     }
   }
 
@@ -109,7 +120,8 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
    */
   def featureClient(
       strategy: Strategy,
-      fallback: ClientConfig => Features = clientConfig => Features(clientConfig, Seq.empty, Seq.empty)
+      fallback: ClientConfig => Features = clientConfig => Features(clientConfig, Seq.empty, Seq.empty),
+      autocreate: Boolean = false
   ) = {
     val source = config.backend match {
       case SseBackend => eventSource
@@ -121,13 +133,18 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
       case DevStrategy =>
         FallbackFeatureStategy(fb)
       case Strategy.FetchStrategy(errorStrategy) =>
-        FetchFeatureClient(client, config, fb, errorStrategy, source)
+        FetchFeatureClient(client, config, fb, errorStrategy, autocreate, source)
       case s: Strategy.FetchWithCacheStrategy =>
-        FetchWithCacheFeatureClient(config, FetchFeatureClient(client, config, fb, s.errorStrategy, source), s)
+        FetchWithCacheFeatureClient(config,
+                                    FetchFeatureClient(client, config, fb, s.errorStrategy, autocreate, source),
+                                    s)
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fallback(config), Crash, eventSource), fb, s)
+        SmartCacheFeatureClient(config,
+                                FetchFeatureClient(client, config, fallback(config), Crash, autocreate, eventSource),
+                                fb,
+                                s)
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fb, Crash, source), fb, s)
+        SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fb, Crash, autocreate, source), fb, s)
     }
   }
 
@@ -137,7 +154,7 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
    * @param fallback
    * @return
    */
-  def experimentClient(strategy: Strategy, fallback: Experiments = Experiments()) =
+  def experimentClient(strategy: Strategy, fallback: Experiments = Experiments(), autocreate: Boolean = false) =
     strategy match {
       case DevStrategy =>
         FallbackExperimentStrategy(fallback)
@@ -296,7 +313,7 @@ trait FeatureClient {
 
   def materializer: Materializer
   def izanamiDispatcher: IzanamiDispatcher
-  protected def cudFeatureClient: CUDFeatureClient
+  def cudFeatureClient: CUDFeatureClient
 
   /**
    * Create a feature
@@ -306,11 +323,45 @@ trait FeatureClient {
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createFeature(id: String,
-                    enabled: Boolean = true,
-                    activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
-                    parameters: Option[JsObject] = None): Future[Feature] =
-    cudFeatureClient.createFeature(id, enabled, activationStrategy, parameters)
+  def createJsonFeature(id: String,
+                        enabled: Boolean = true,
+                        activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
+                        parameters: Option[JsObject] = None): Future[Feature] =
+    cudFeatureClient.createJsonFeature(id, enabled, activationStrategy, parameters)
+
+  /**
+   * Create a feature
+   * @param feature the feature to create
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def createFeature(feature: Feature, parameters: Option[JsObject] = None): Future[Feature] =
+    cudFeatureClient.createFeature(feature, parameters)
+
+  /**
+   * Update a feature
+   * @param id the previous id of the feature
+   * @param feature the feature to update
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def updateFeature(id: String, feature: Feature, parameters: Option[JsObject] = None): Future[Feature] =
+    cudFeatureClient.updateFeature(id, feature, parameters)
+
+  /**
+   * Enabled or disable a feature
+   * @param id the id of the feature
+   * @param enabled the status to set
+   * @return
+   */
+  def switchFeature(id: String, enabled: Boolean): Future[Feature] = cudFeatureClient.switchFeature(id, enabled)
+
+  /**
+   * Delete a feature
+   * @param id the id of the feature to delete
+   * @return
+   */
+  def deleteFeature(id: String): Future[Unit] = cudFeatureClient.deleteFeature(id)
 
   /**
    * Get features by pattern like my:keys:*
@@ -452,10 +503,10 @@ object Features {
     clientConfig => new Features(clientConfig, features, fallback = Seq.empty)
 
   def parseJson(json: String): ClientConfig => Features = {
-    implicit val f = DefaultFeature.format
+    implicit val f = Feature.format
     val featuresSeq = Json
       .parse(json)
-      .validate[Seq[DefaultFeature]]
+      .validate[Seq[Feature]]
       .fold(
         err => throw IzanamiException(s"Error parsing json $json: \n${Json.prettyPrint(JsError.toJson(err))}"),
         identity
@@ -522,15 +573,14 @@ object Config {
       }
   )(Config.apply _)
 
-  private val write: Writes[Config] = Writes[Config] { c =>
+  private val write: OWrites[Config] = OWrites[Config] { c =>
     Json.obj(
       "id"    -> c.id,
-      "value" -> Json.stringify(c.value)
+      "value" -> c.value
     )
   }
 
-  implicit val format = Format(read, write)
-
+  implicit val format = OFormat(read, write)
 }
 case class Config(id: String, value: JsValue) {
   def asJson =
@@ -602,6 +652,35 @@ trait ConfigClient {
 
   def materializer: Materializer
   def izanamiDispatcher: IzanamiDispatcher
+  def cudConfigClient: CUDConfigClient
+
+  /**
+   * Create a config
+   */
+  def createConfig(config: Config): Future[Config] = cudConfigClient.createConfig(config)
+
+  /**
+   * Create a config with an id and a Json value
+   */
+  def createConfig(id: String, config: JsValue): Future[JsValue] = cudConfigClient.createConfig(id, config)
+
+  /**
+   * Update a config with an id and a Json value
+   * There is an oldId and a new id if the id has changed. In the other cases it should be the same value.
+   */
+  def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] =
+    cudConfigClient.updateConfig(oldId, id, config)
+
+  /**
+   * Update a config with an id and a config. If the id has changed, the id in param should be the old value.
+   */
+  def updateConfig(id: String, config: Config): Future[Config] =
+    cudConfigClient.updateConfig(id, config)
+
+  /**
+   * Delete a config by id.
+   */
+  def deleteConfig(id: String): Future[Unit] = cudConfigClient.deleteConfig(id)
 
   /**
    * Get configs by pattern like my:keys:*

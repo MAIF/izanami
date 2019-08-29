@@ -26,14 +26,19 @@ object FetchWithCacheConfigClient {
   )(implicit izanamiDispatcher: IzanamiDispatcher,
     actorSystem: ActorSystem,
     materializer: Materializer): FetchWithCacheConfigClient =
-    new FetchWithCacheConfigClient(clientConfig, fallback, underlyingStrategy, cacheConfig)
+    new FetchWithCacheConfigClient(clientConfig,
+                                   fallback,
+                                   underlyingStrategy,
+                                   cacheConfig,
+                                   underlyingStrategy.cudConfigClient)
 }
 
 private[configs] class FetchWithCacheConfigClient(
     clientConfig: ClientConfig,
     fallback: Configs,
     underlyingStrategy: ConfigClient,
-    cacheConfig: FetchWithCacheStrategy
+    cacheConfig: FetchWithCacheStrategy,
+    override val cudConfigClient: CUDConfigClient
 )(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
