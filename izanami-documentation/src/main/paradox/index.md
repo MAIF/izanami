@@ -17,6 +17,7 @@
  * [Experiments](experiments/index.md)
  * [Keys](keys.md)
  * [Events](events.md)
+ * [Metrics](metrics.md)
  * [Clients](clients/index.md)
  * [Tutorials](tutorials/index.md)
  * [Performances](performances.md)

@@ -26,9 +26,203 @@ class FetchConfigClientSpec
   implicit val materializer = ActorMaterializer()
 
   import system.dispatcher
+  import com.github.tomakehurst.wiremock.client.WireMock._
 
   "FetchConfigStrategy" should {
+
+    "create config" in {
+      mock.resetRequests()
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = FetchStrategy(),
+        fallback = Configs(
+          "test2" -> Json.obj("value" -> 2)
+        )
+      )
+
+      val config   = Config("test", Json.obj("value" -> 1))
+      val jsonBody = Json.stringify(Json.toJson(config))
+      registerCreateConfig(config)
+      
+      //#create-config
+      val jsoncreated = client.createConfig(Config("test", Json.obj("value" -> 1)))
+      //#create-config
+      jsoncreated.futureValue must be(config)
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/configs"))
+          .withRequestBody(equalToJson(jsonBody))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+
+    }
+
+    "create config json" in {
+      mock.resetRequests()
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = FetchStrategy(),
+        fallback = Configs(
+          "test2" -> Json.obj("value" -> 2)
+        )
+      )
+      val config   = Config("test", Json.obj("value" -> 1))
+      val jsonBody = Json.stringify(Json.toJson(config))
+      registerCreateConfig(config)
+      
+      //#create-config
+      val configCreated = client.createConfig("test", Json.obj("value" -> 1))
+      //#create-config
+      configCreated.futureValue must be(Json.toJson(config))
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/configs"))
+          .withRequestBody(equalToJson(jsonBody))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+
+    }
+
+    "update config" in {
+      mock.resetRequests()
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = FetchStrategy(),
+        fallback = Configs(
+          "test2" -> Json.obj("value" -> 2)
+        )
+      )
+
+      val config   = Config("newtest", Json.obj("value" -> 1))
+      val jsonBody = Json.stringify(Json.toJson(config))
+
+      registerUpdateConfig("test", config)
+      
+      //#update-config
+      val configUpdated = client.updateConfig("test", Config("newtest", Json.obj("value" -> 1)))
+      //#update-config
+      configUpdated.futureValue must be(config)
+
+      mock.verifyThat(
+        putRequestedFor(urlEqualTo("/api/configs/test"))
+          .withRequestBody(equalToJson(jsonBody))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+
+    }
+
+    "update config json" in {
+      mock.resetRequests()
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = FetchStrategy(),
+        fallback = Configs(
+          "test2" -> Json.obj("value" -> 2)
+        )
+      )
+      val config   = Config("newtest", Json.obj("value" -> 1))
+      val jsonBody = Json.stringify(Json.toJson(config))    
+      registerUpdateConfig("test", config)
+
+      //#update-config-json
+      val configUpdated = client.updateConfig("test", "newtest", Json.obj("value" -> 1))
+      //#update-config-json
+      configUpdated.futureValue must be(Json.toJson(config))
+      mock.verifyThat(
+        putRequestedFor(urlEqualTo("/api/configs/test"))
+          .withRequestBody(equalToJson(jsonBody))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+
+    }
+
+    "delete config" in {
+      mock.resetRequests()
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = FetchStrategy(),
+        fallback = Configs(
+          "test2" -> Json.obj("value" -> 2)
+        )
+      )
+      mock.register(
+        delete(urlPathEqualTo("/api/configs/test"))
+          .willReturn(
+            aResponse()
+              .withStatus(204)
+          )
+      )
+      //#update-config
+      val configDeleted = client.deleteConfig("test")
+      //#update-config
+      configDeleted.futureValue must be(())
+
+      mock.verifyThat(
+        deleteRequestedFor(urlEqualTo("/api/configs/test"))
+      )
+
+    }
+
+    "autocreate getting config" in {
+      mock.resetRequests()
+
+      val client = IzanamiClient(
+        ClientConfig(host)
+      )
+      //#config-autocreate
+      val izanamiClient = client.configClient(
+        strategy = Strategies.fetchStrategy(),
+        fallback = Configs(
+          "test" -> Json.obj("value" -> 2)
+        ),
+        autocreate = true
+      )
+      //#config-autocreate
+
+      registerNoConfig()
+      registerCreateConfig(Config("test", Json.obj("value" -> 2)))
+
+      val futureConfig = izanamiClient.config("test").futureValue
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/configs"))
+          .withRequestBody(equalToJson(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+
+    }
+
+    "autocreate listing config" in {    
+      mock.resetRequests()
+
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = FetchStrategy(),
+        fallback = Configs(
+          "test" -> Json.obj("value" -> 2)
+        ),
+        autocreate = true
+      )
+      registerPage(Seq.empty)
+      registerCreateConfig(Config("test", Json.obj("value" -> 2)))
+
+      val configs: Configs = client.configs("*").futureValue
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/configs"))
+          .withRequestBody(equalToJson(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+
+    }
+
     "List configs" in {
+      mock.resetRequests()
 
       val client = IzanamiClient(
         ClientConfig(host)
@@ -59,6 +253,7 @@ class FetchConfigClientSpec
     }
 
     "List configs with multiple pages" in {
+      mock.resetRequests()
 
       val izanamiClient = IzanamiClient(ClientConfig(host, pageSize = 2))
       //#config-error-strategy
@@ -103,7 +298,8 @@ class FetchConfigClientSpec
     }
 
     "Get one config" in {
-
+      mock.resetRequests()
+      
       val izanamiClient = IzanamiClient(
         ClientConfig(host)
       ).configClient(
@@ -125,7 +321,7 @@ class FetchConfigClientSpec
       futureConfig.futureValue must be(Json.obj("value"                  -> 1))
       izanamiClient.config("test2").futureValue must be(Json.obj("value" -> 2))
       izanamiClient.config("other").futureValue must be(Json.obj())
-
+      mock.resetRequests()
     }
 
     "Stream event" in {

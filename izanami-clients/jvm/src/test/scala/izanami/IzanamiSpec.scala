@@ -53,7 +53,7 @@ trait MockServer extends Suite with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     super.afterAll()
-    _wireMockServer.stop()
+    _wireMockServer.shutdown()
   }
 
 }
@@ -103,6 +103,43 @@ trait ConfigMockServer extends MockServer {
       )
     )
   }
+
+  def registerCreateConfig(config: Config) {
+    val jsonBody = Json.stringify(Json.toJson(config))
+    mock.register(
+          post(urlPathEqualTo("/api/configs"))
+            .withHeader("Content-Type", containing("application/json"))
+            .withRequestBody(equalToJson(jsonBody))
+            .willReturn(
+              aResponse()
+                .withStatus(201)
+                .withBody(jsonBody)
+            )
+        )
+  }
+
+  def registerUpdateConfig(id: String, config: Config) {
+    val jsonBody = Json.stringify(Json.toJson(config))
+    mock.register(
+          put(urlPathEqualTo(s"/api/configs/$id"))
+            .withHeader("Content-Type", containing("application/json"))
+            .withRequestBody(equalToJson(jsonBody))
+            .willReturn(
+              aResponse()
+                .withStatus(200)
+                .withBody(jsonBody)
+            )
+        )
+  }
+
+  def registerNoConfig(): Unit =
+    mock.register(
+      get(urlPathMatching(s"/api/config/.*"))
+        .willReturn(
+          aResponse()
+            .withStatus(404)
+        )
+    )
 }
 trait ExperimentMockServer extends MockServer {
   import com.github.tomakehurst.wiremock.client.WireMock._
@@ -288,6 +325,74 @@ trait FeatureMockServer extends MockServer {
     )
   }
 
+  def createFeature(feature: Feature): Unit = {
+    val url         = s"/api/features"
+    val jsonFeature = Json.stringify(Json.toJson(feature))
+    mock.register(
+      post(urlPathEqualTo(url))
+        .withRequestBody(
+          equalToJson(jsonFeature)
+        )
+        .willReturn(
+          aResponse()
+            .withStatus(201)
+            .withBody(jsonFeature)
+        )
+    )
+  }
+
+  def updateFeature(id: String, feature: Feature): Unit = {
+    val url         = s"/api/features/$id"
+    val jsonFeature = Json.stringify(Json.toJson(feature))
+    mock.register(
+      put(urlPathEqualTo(url))
+        .withRequestBody(
+          equalToJson(jsonFeature)
+        )
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(jsonFeature)
+        )
+    )
+  }
+
+  def deleteFeature(id: String): Unit = {
+    val url = s"/api/features/$id"
+    mock.register(
+      delete(urlPathEqualTo(url))
+        .willReturn(
+          aResponse()
+            .withStatus(204)
+        )
+    )
+  }
+
+  def patchFeature(id: String, enabled: Boolean, feature: Feature): Unit = {
+    val url = s"/api/features/$id"
+    mock.register(
+      patch(urlPathEqualTo(url))
+        .withRequestBody(
+          equalToJson(
+            Json.stringify(
+              Json.arr(
+                Json.obj(
+                  "op"    -> "replace",
+                  "path"  -> "enabled",
+                  "value" -> enabled
+                )
+              )
+            )
+          )
+        )
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(Json.stringify(Json.toJson(feature)))
+        )
+    )
+  }
+
   def registerPage(group: Seq[Feature],
                    page: Int = 1,
                    pageSize: Int = 200,
@@ -334,6 +439,15 @@ trait FeatureMockServer extends MockServer {
                 )
               )
             )
+        )
+    )
+
+  def registerNoFeature(): Unit =
+    mock.register(
+      post(urlPathMatching(s"/api/features/.*/check"))
+        .willReturn(
+          aResponse()
+            .withStatus(404)
         )
     )
 
@@ -719,7 +833,7 @@ trait FeatureServer {
             'page.as[Int] ? 1
           )
         ) { (p, a, pageSize, page) =>
-          calls.append(s"api/features")
+          calls.append(s"POST /api/features")
           val drop = (page - 1) * pageSize
 
           val jsons = state
@@ -740,7 +854,7 @@ trait FeatureServer {
     } ~ path("api" / "features" / Segment / "check") { id =>
       post {
         entity(as[Option[JsValue]]) { mayBeBody =>
-          calls.append(s"api/features/$id")
+          calls.append(s"POST /api/features/$id")
           state
             .find(_.id == id)
             .map { f =>
@@ -761,7 +875,7 @@ trait FeatureServer {
           'page.as[Int] ? 1
         )
       ) { (p, a, pageSize, page) =>
-        calls.append(s"api/features")
+        calls.append(s"GET /api/features")
         val drop = (page - 1) * pageSize
 
         val jsons =

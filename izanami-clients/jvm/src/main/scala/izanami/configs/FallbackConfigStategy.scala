@@ -11,6 +11,8 @@ import org.reactivestreams.{Publisher, Subscriber}
 import play.api.libs.json.JsValue
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+import java.util.concurrent.atomic.AtomicReference
 
 object FallbackConfigStategy {
   def apply(fallback: Configs)(implicit izanamiDispatcher: IzanamiDispatcher,
@@ -18,11 +20,57 @@ object FallbackConfigStategy {
     new FallbackConfigStategy(fallback)
 }
 
-class FallbackConfigStategy(fallback: Configs)(implicit val izanamiDispatcher: IzanamiDispatcher,
-                                               val materializer: Materializer)
-    extends ConfigClient {
+class FallbackConfigStategy(f: Configs)(
+    implicit val izanamiDispatcher: IzanamiDispatcher,
+    val materializer: Materializer
+) extends ConfigClient {
 
   import izanamiDispatcher.ec
+
+  val fallbackRef = new AtomicReference[Configs](f)
+
+  def fallback: Configs = fallbackRef.get()
+
+  override val cudConfigClient: CUDConfigClient = new CUDConfigClient {
+
+    override val ec: ExecutionContext = izanamiDispatcher.ec
+
+    override def createConfig(id: String, config: JsValue): Future[JsValue] = {
+      fallbackRef.set(
+        fallback.copy(
+          configs = fallback.configs :+ Config(id, config)
+        )
+      )
+      FastFuture.successful(config)
+    }
+
+    override def createConfig(config: Config): Future[Config] = {
+      fallbackRef.set(
+        fallback.copy(
+          configs = fallback.configs :+ config
+        )
+      )
+      FastFuture.successful(config)
+    }
+
+    override def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] = {
+      fallbackRef.set(
+        fallback.copy(
+          configs = fallback.configs.filterNot { _.id == oldId } :+ Config(id, config)
+        )
+      )
+      FastFuture.successful(config)
+    }
+
+    override def deleteConfig(id: String): Future[Unit] = {
+      fallbackRef.set(
+        fallback.copy(
+          configs = fallback.configs.filterNot { _.id == id }
+        )
+      )
+      FastFuture.successful(())
+    }
+  }
 
   override def configs(pattern: String): Future[Configs] =
     Future {

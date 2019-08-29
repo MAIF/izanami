@@ -50,6 +50,15 @@ class FeatureSpec
       )
     }
 
+    "Default feature deserialization" in {
+      import izanami.Feature
+      import izanami.Feature._
+
+      val json = Json.parse("""{"id": "test", "enabled": true}""")
+
+      json.validate[Feature] must be(JsSuccess(DefaultFeature("test", true)))
+    }
+
     "Feature hour range serialization" in {
 
       import izanami.Feature
