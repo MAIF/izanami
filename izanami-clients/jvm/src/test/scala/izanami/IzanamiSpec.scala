@@ -126,7 +126,7 @@ trait ConfigMockServer extends MockServer {
             .withRequestBody(equalToJson(jsonBody))
             .willReturn(
               aResponse()
-                .withStatus(201)
+                .withStatus(200)
                 .withBody(jsonBody)
             )
         )
