@@ -126,7 +126,7 @@ class FetchConfigClientSpec
       val config   = Config("newtest", Json.obj("value" -> 1))
       val jsonBody = Json.stringify(Json.toJson(config))    
       registerUpdateConfig("test", config)
-      
+
       //#update-config-json
       val configUpdated = client.updateConfig("test", "newtest", Json.obj("value" -> 1))
       //#update-config-json
@@ -207,6 +207,7 @@ class FetchConfigClientSpec
         autocreate = true
       )
       registerPage(Seq.empty)
+      registerCreateConfig(Config("test", Json.obj("value" -> 2)))
 
       val configs: Configs = client.configs("*").futureValue
 
