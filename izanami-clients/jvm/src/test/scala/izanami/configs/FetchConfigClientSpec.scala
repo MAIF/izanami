@@ -53,9 +53,10 @@ class FetchConfigClientSpec
               .withBody(jsonBody)
           )
       )
-
-      client.createConfig(config).futureValue must be(config)
-
+      //#create-config
+      val jsoncreated = client.createConfig(Config("test", Json.obj("value" -> 1)))
+      //#create-config
+      jsoncreated.futureValue must be(config)
       mock.verifyThat(
         postRequestedFor(urlEqualTo("/api/configs"))
           .withRequestBody(equalToJson(jsonBody))
@@ -86,8 +87,10 @@ class FetchConfigClientSpec
               .withBody(jsonBody)
           )
       )
-
-      client.createConfig("test", config.value).futureValue must be(Json.toJson(config))
+      //#create-config
+      val configCreated = client.createConfig("test", Json.obj("value" -> 1))
+      //#create-config
+      configCreated.futureValue must be(Json.toJson(config))
 
       mock.verifyThat(
         postRequestedFor(urlEqualTo("/api/configs"))
@@ -120,8 +123,10 @@ class FetchConfigClientSpec
               .withBody(jsonBody)
           )
       )
-
-      client.updateConfig("test", config).futureValue must be(config)
+      //#update-config
+      val configUpdated = client.updateConfig("test", Config("newtest", Json.obj("value" -> 1)))
+      //#update-config
+      configUpdated.futureValue must be(config)
 
       mock.verifyThat(
         putRequestedFor(urlEqualTo("/api/configs/test"))
@@ -153,9 +158,10 @@ class FetchConfigClientSpec
               .withBody(jsonBody)
           )
       )
-
-      client.updateConfig("test", "newtest", config.value).futureValue must be(Json.toJson(config))
-
+      //#update-config-json
+      val configUpdated = client.updateConfig("test", "newtest", Json.obj("value" -> 1))
+      //#update-config-json
+      configUpdated.futureValue must be(Json.toJson(config))
       mock.verifyThat(
         putRequestedFor(urlEqualTo("/api/configs/test"))
           .withRequestBody(equalToJson(jsonBody))
@@ -181,8 +187,10 @@ class FetchConfigClientSpec
               .withStatus(204)
           )
       )
-
-      client.deleteConfig("test").futureValue must be(())
+      //#update-config
+      val configDeleted = client.deleteConfig("test")
+      //#update-config
+      configDeleted.futureValue must be(())
 
       mock.verifyThat(
         deleteRequestedFor(urlEqualTo("/api/configs/test"))
@@ -192,15 +200,18 @@ class FetchConfigClientSpec
 
     "autocreate getting config" in {
       mock.resetRequests()
-      val izanamiClient = IzanamiClient(
+      val client = IzanamiClient(
         ClientConfig(host)
-      ).configClient(
+      )
+      //#config-autocreate
+      val izanamiClient = client.configClient(
         strategy = Strategies.fetchStrategy(),
         fallback = Configs(
           "test" -> Json.obj("value" -> 2)
         ),
         autocreate = true
       )
+      //#config-autocreate
 
       registerNoConfig()
 
