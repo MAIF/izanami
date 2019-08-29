@@ -159,7 +159,9 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   def fetchPagesWithContext(uri: String, context: JsValue, params: Seq[(String, String)] = Seq.empty) =
     fetchAllPages(uri, params, Some(context))
 
-  def fetchWithContext(path: String, context: JsValue, params: Seq[(String, String)] = Seq.empty) = {
+  def fetchWithContext(path: String,
+                       context: JsValue,
+                       params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
     logger.debug(s"POST ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
@@ -171,12 +173,41 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
     ).flatMap { parseResponse }
   }
 
-  def post(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty) =
+  def post(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
     singleRequest(
       HttpRequest(
         method = HttpMethods.POST,
         uri = buildUri(path, params),
         entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
+        headers = headers
+      )
+    ).flatMap { parseResponse }
+
+  def put(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+    singleRequest(
+      HttpRequest(
+        method = HttpMethods.PUT,
+        uri = buildUri(path, params),
+        entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
+        headers = headers
+      )
+    ).flatMap { parseResponse }
+
+  def patch(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+    singleRequest(
+      HttpRequest(
+        method = HttpMethods.PATCH,
+        uri = buildUri(path, params),
+        entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
+        headers = headers
+      )
+    ).flatMap { parseResponse }
+
+  def delete(path: String, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+    singleRequest(
+      HttpRequest(
+        method = HttpMethods.DELETE,
+        uri = buildUri(path, params),
         headers = headers
       )
     ).flatMap { parseResponse }

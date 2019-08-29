@@ -331,13 +331,37 @@ trait FeatureClient {
 
   /**
    * Create a feature
-   * @param id Feature Id
    * @param feature the feature to create
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createFeature(id: String, feature: Feature, parameters: Option[JsObject] = None): Future[Feature] =
-    cudFeatureClient.createFeature(id, feature, parameters)
+  def createFeature(feature: Feature, parameters: Option[JsObject] = None): Future[Feature] =
+    cudFeatureClient.createFeature(feature, parameters)
+
+  /**
+   * Update a feature
+   * @param id the previous id of the feature
+   * @param feature the feature to update
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def updateFeature(id: String, feature: Feature, parameters: Option[JsObject] = None): Future[Feature] =
+    cudFeatureClient.updateFeature(id, feature, parameters)
+
+  /**
+   * Enabled or disable a feature
+   * @param id the id of the feature
+   * @param enabled the status to set
+   * @return
+   */
+  def switchFeature(id: String, enabled: Boolean): Future[Feature] = cudFeatureClient.switchFeature(id, enabled)
+
+  /**
+   * Delete a feature
+   * @param id the id of the feature to delete
+   * @return
+   */
+  def deleteFeature(id: String): Future[Unit] = cudFeatureClient.deleteFeature(id)
 
   /**
    * Get features by pattern like my:keys:*
@@ -633,7 +657,30 @@ trait ConfigClient {
   /**
    * Create a config
    */
-  def createConfig(id: String, config: Config): Future[Config] = cudConfigClient.createConfig(id, config)
+  def createConfig(config: Config): Future[Config] = cudConfigClient.createConfig(config)
+
+  /**
+   * Create a config with an id and a Json value
+   */
+  def createConfig(id: String, config: JsValue): Future[JsValue] = cudConfigClient.createConfig(id, config)
+
+  /**
+   * Update a config with an id and a Json value
+   * There is an oldId and a new id if the id has changed. In the other cases it should be the same value.
+   */
+  def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] =
+    cudConfigClient.updateConfig(oldId, id, config)
+
+  /**
+   * Update a config with an id and a config. If the id has changed, the id in param should be the old value.
+   */
+  def updateConfig(id: String, config: Config): Future[Config] =
+    cudConfigClient.updateConfig(id, config)
+
+  /**
+   * Delete a config by id.
+   */
+  def deleteConfig(id: String): Future[Unit] = cudConfigClient.deleteConfig(id)
 
   /**
    * Get configs by pattern like my:keys:*

@@ -31,7 +31,7 @@ class FetchFeatureClientSpec
   import system.dispatcher
 
   "FetchFeatureStrategy" should {
-    "Create json feature" in {
+    "create json feature" in {
       val izanamiClient = IzanamiClient(
         ClientConfig(host)
       )
@@ -51,7 +51,7 @@ class FetchFeatureClientSpec
       mock.resetRequests()
     }
 
-    "Create feature" in {
+    "create feature" in {
       val izanamiClient = IzanamiClient(
         ClientConfig(host)
       )
@@ -61,9 +61,9 @@ class FetchFeatureClientSpec
       val featureToCreate =
         DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
 
-      createFeature(featureToCreate.id, featureToCreate)
+      createFeature(featureToCreate)
 
-      val featureCreated = featureClient.createFeature(featureToCreate.id, featureToCreate)
+      val featureCreated = featureClient.createFeature(featureToCreate)
       val feature        = featureCreated.futureValue
 
       feature must be(featureToCreate)
@@ -72,6 +72,82 @@ class FetchFeatureClientSpec
         postRequestedFor(urlEqualTo("/api/features"))
           .withRequestBody(equalToJson(Json.stringify(Json.toJson(featureToCreate))))
           .withHeader("Content-Type", containing("application/json"))
+      )
+      mock.resetRequests()
+    }
+
+    "update feature" in {
+      val izanamiClient = IzanamiClient(
+        ClientConfig(host)
+      )
+      val featureClient = izanamiClient.featureClient(
+        FetchStrategy(Crash)
+      )
+      val featureToCreate =
+        DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+
+      updateFeature("test", featureToCreate)
+
+      val featureCreated = featureClient.updateFeature("test", featureToCreate)
+      val feature        = featureCreated.futureValue
+
+      feature must be(featureToCreate)
+
+      mock.verifyThat(
+        putRequestedFor(urlEqualTo("/api/features/test"))
+          .withRequestBody(equalToJson(Json.stringify(Json.toJson(featureToCreate))))
+          .withHeader("Content-Type", containing("application/json"))
+      )
+      mock.resetRequests()
+    }
+
+    "switch feature" in {
+      val izanamiClient = IzanamiClient(
+        ClientConfig(host)
+      )
+      val featureClient = izanamiClient.featureClient(
+        FetchStrategy(Crash)
+      )
+      val featureToSwitch =
+        DateRangeFeature("test", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+
+      patchFeature("test", false, featureToSwitch)
+
+      featureClient.switchFeature("test", false).futureValue must be(featureToSwitch)
+
+      mock.verifyThat(
+        patchRequestedFor(urlEqualTo("/api/features/test"))
+          .withRequestBody(
+            equalToJson(
+              Json.stringify(
+                Json.arr(
+                  Json.obj(
+                    "op"    -> "replace",
+                    "path"  -> "enabled",
+                    "value" -> false
+                  )
+                )
+              )
+            )
+          )
+          .withHeader("Content-Type", containing("application/json"))
+      )
+      mock.resetRequests()
+    }
+
+    "delete feature" in {
+      val izanamiClient = IzanamiClient(
+        ClientConfig(host)
+      )
+      val featureClient = izanamiClient.featureClient(
+        FetchStrategy(Crash)
+      )
+      deleteFeature("test")
+
+      featureClient.deleteFeature("test").futureValue must be(())
+
+      mock.verifyThat(
+        deleteRequestedFor(urlEqualTo("/api/features/test"))
       )
       mock.resetRequests()
     }

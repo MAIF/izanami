@@ -53,7 +53,7 @@ trait MockServer extends Suite with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     super.afterAll()
-    _wireMockServer.stop()
+    _wireMockServer.shutdown()
   }
 
 }
@@ -297,7 +297,7 @@ trait FeatureMockServer extends MockServer {
     )
   }
 
-  def createFeature(featureId: String, feature: Feature): Unit = {
+  def createFeature(feature: Feature): Unit = {
     val url         = s"/api/features"
     val jsonFeature = Json.stringify(Json.toJson(feature))
     mock.register(
@@ -309,6 +309,58 @@ trait FeatureMockServer extends MockServer {
           aResponse()
             .withStatus(201)
             .withBody(jsonFeature)
+        )
+    )
+  }
+
+  def updateFeature(id: String, feature: Feature): Unit = {
+    val url         = s"/api/features/$id"
+    val jsonFeature = Json.stringify(Json.toJson(feature))
+    mock.register(
+      put(urlPathEqualTo(url))
+        .withRequestBody(
+          equalToJson(jsonFeature)
+        )
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(jsonFeature)
+        )
+    )
+  }
+
+  def deleteFeature(id: String): Unit = {
+    val url = s"/api/features/$id"
+    mock.register(
+      delete(urlPathEqualTo(url))
+        .willReturn(
+          aResponse()
+            .withStatus(204)
+        )
+    )
+  }
+
+  def patchFeature(id: String, enabled: Boolean, feature: Feature): Unit = {
+    val url = s"/api/features/$id"
+    mock.register(
+      patch(urlPathEqualTo(url))
+        .withRequestBody(
+          equalToJson(
+            Json.stringify(
+              Json.arr(
+                Json.obj(
+                  "op"    -> "replace",
+                  "path"  -> "enabled",
+                  "value" -> enabled
+                )
+              )
+            )
+          )
+        )
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(Json.stringify(Json.toJson(feature)))
         )
     )
   }

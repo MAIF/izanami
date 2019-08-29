@@ -22,20 +22,36 @@ trait CUDConfigClient {
 
   implicit def ec: ExecutionContext
 
-  def createConfig(id: String, config: Config): Future[Config] =
-    createRawConfig(id, Json.toJson(config))
+  def createConfig(config: Config): Future[Config] =
+    createConfig(config.id, config.value)
       .flatMap { json =>
         json
           .validate[Config]
           .fold(
             { err =>
-              val message = s"Error reading config $id, response=$err"
+              val message = s"Error reading config ${config.id}, response=$err"
               FastFuture.failed(IzanamiException(message))
             }, { FastFuture.successful }
           )
       }
 
-  def createRawConfig(id: String, config: JsValue): Future[JsValue]
+  def createConfig(id: String, config: JsValue): Future[JsValue]
+
+  def updateConfig(id: String, config: Config): Future[Config] =
+    updateConfig(id, config.id, config.value).flatMap { json =>
+      json
+        .validate[Config]
+        .fold(
+          { err =>
+            val message = s"Error reading config ${config.id}, response=$err"
+            FastFuture.failed(IzanamiException(message))
+          }, { FastFuture.successful }
+        )
+    }
+
+  def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue]
+
+  def deleteConfig(id: String): Future[Unit]
 }
 
 class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: IzanamiDispatcher,
@@ -47,14 +63,40 @@ class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: Iz
 
   override implicit val ec: ExecutionContext = izanamiDispatcher.ec
 
-  def createRawConfig(id: String, config: JsValue): Future[JsValue] =
+  override def createConfig(id: String, config: JsValue): Future[JsValue] =
     client
-      .post("/api/configs", config)
+      .post("/api/configs", Json.obj("id" -> id, "value" -> config))
       .flatMap {
         case (status, json) if status == StatusCodes.Created =>
           FastFuture.successful(Json.parse(json))
         case (status, body) => {
           val message = s"Error creating config $id : status=$status, response=$body"
+          logger.error(message)
+          FastFuture.failed(IzanamiException(message))
+        }
+      }(izanamiDispatcher.ec)
+
+  override def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] =
+    client
+      .put(s"/api/configs/$oldId", Json.obj("id" -> id, "value" -> config))
+      .flatMap {
+        case (status, json) if status == StatusCodes.OK =>
+          FastFuture.successful(Json.parse(json))
+        case (status, body) => {
+          val message = s"Error updating config $id : status=$status, response=$body"
+          logger.error(message)
+          FastFuture.failed(IzanamiException(message))
+        }
+      }(izanamiDispatcher.ec)
+
+  override def deleteConfig(id: String): Future[Unit] =
+    client
+      .delete(s"/api/configs/$id")
+      .flatMap {
+        case (status, json) if status == StatusCodes.OK || status == StatusCodes.NoContent =>
+          FastFuture.successful(())
+        case (status, body) => {
+          val message = s"Error deleting config $id : status=$status, response=$body"
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
