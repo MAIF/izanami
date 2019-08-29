@@ -124,11 +124,11 @@ stages:
 
   # runs on master commits and PRs
   - name: server_package
-    if: NOT tag =~ ^v AND ( NOT branch = master )
+    if: (NOT tag =~ ^v AND ( NOT branch = master )) OR ( type = pull_request )
 
   # runs on main repo master commits or version-tagged commits
   - name: publish
-    if: (  branch = master  OR tag =~ ^v )
+    if: (  branch = master  OR tag =~ ^v ) AND (NOT type = pull_request)
 
 after_failure:
   - docker-compose logs cassandra
