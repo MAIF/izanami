@@ -88,8 +88,9 @@ jobs:
       jdk: openjdk8
       env: 
         - JS_BUILD=true
-      script: sh ./scripts/build-javascript.sh
-      script: sh ./scripts/sbt-publish.sh
+      script: 
+      - sh ./scripts/build-javascript.sh
+      - sh ./scripts/sbt-publish.sh
 
     - stage: publish
       name: "Build js client and publish it to npm if needed"
