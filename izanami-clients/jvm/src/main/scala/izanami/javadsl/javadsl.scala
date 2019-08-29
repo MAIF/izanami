@@ -20,6 +20,7 @@ import org.reactivestreams.Publisher
 import scala.annotation.varargs
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
+import org.reactivecouchbase.json.mapping.JsValidator
 
 object IzanamiClient {
 
@@ -376,9 +377,41 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createFeature(id: String, feature: Feature, parameters: Option[JsObject] = Option.none()): Future[Feature] =
+  def createFeature(feature: Feature, parameters: Option[JsObject] = Option.none()): Future[Feature] =
     underlying
-      .createFeature(id, feature, parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
+      .createFeature(feature, parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
+      .toJava
+
+  /**
+   * Update a feature
+   * @param id the previous id of the feature
+   * @param feature the feature to update
+   * @param parameters optional parameters (depends on activationStrategy)
+   * @return
+   */
+  def updateFeature(id: String, feature: Feature, parameters: Option[JsObject] = Option.none()): Future[Feature] =
+    underlying.updateFeature(id, feature, parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject])).toJava
+
+  /**
+   * Enabled or disable a feature
+   * @param id the id of the feature
+   * @param enabled the status to set
+   * @return
+   */
+  def switchFeature(id: String, enabled: Boolean): Future[Feature] =
+    underlying.switchFeature(id, enabled).toJava
+
+  /**
+   * Delete a feature
+   * @param id the id of the feature to delete
+   * @return
+   */
+  def deleteFeature(id: String): Future[Done] =
+    underlying
+      .deleteFeature(id)
+      .map { _ =>
+        Done.done()
+      }
       .toJava
 
   /**
@@ -637,17 +670,60 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
     ActorMaterializer(ActorMaterializerSettings(actorSystem).withDispatcher(clientConfig.dispatcher))(actorSystem)
 
   /**
-   * Create a feature
-   * @param id Feature Id
-   * @param enabled If this feature is enabled by default or not
-   * @param activationStrategy activationStrategy for this feature (@see {@link izanami.FeatureType})
-   * @param parameters optional parameters (depends on activationStrategy)
-   * @return
+   * Create a config
+   * @param config the config to create
    */
-  def createConfig(id: String, config: Config): Future[Config] =
+  def createConfig(config: Config): Future[Config] =
     underlying
-      .createConfig(id, config.underlying)
+      .createConfig(config.underlying)
       .map { Config.apply }
+      .toJava
+
+  /**
+   * Create a config
+   * @param id the id of the config to create
+   * @param config a json value of the config
+   */
+  def createConfig(id: String, config: JsValue): Future[JsValue] =
+    underlying
+      .createConfig(id, config.toScala())
+      .map { _.toJava }
+      .toJava
+
+  /**
+   * Update a config with an id and a config. If the id has changed, the id in param should be the old value.
+   * @param id the new id of the config
+   * @param config a config with its id
+   */
+  def updateConfig(id: String, config: Config): Future[Config] =
+    underlying
+      .updateConfig(id, config.underlying)
+      .map { Config.apply }
+      .toJava
+
+  /**
+   * Update a config with an id and a Json value
+   * There is an oldId and a new id if the id has changed. In the other cases it should be the same value.
+   * @param oldId the previous id of the config
+   * @param id the new id of the config
+   * @param config a json value of the config
+   */
+  def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] =
+    underlying
+      .updateConfig(oldId, id, config.toScala())
+      .map { _.toJava }
+      .toJava
+
+  /**
+   * Delete a config by id.
+   * @param id the id of the config to delete
+   */
+  def deleteConfig(id: String): Future[Done] =
+    underlying
+      .deleteConfig(id)
+      .map { _ =>
+        Done.done()
+      }
       .toJava
 
   /**

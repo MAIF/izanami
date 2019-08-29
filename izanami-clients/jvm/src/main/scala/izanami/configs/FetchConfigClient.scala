@@ -98,7 +98,7 @@ private[configs] class FetchConfigClient(
           val toCreate: Seq[Config] = fallback.filterWith(pattern).configs.filterNot(configs.configs.contains)
           Future
             .traverse(toCreate) { c =>
-              cudConfigClient.createConfig(c.id, c)
+              cudConfigClient.createConfig(c)
             }
             .onComplete {
               case Failure(e) => logger.error("Error autocreating configs: ", e)
@@ -129,7 +129,7 @@ private[configs] class FetchConfigClient(
           if (autocreate) {
             fallback.configs.find(_.id == key).foreach { c =>
               cudConfigClient
-                .createConfig(key, c)
+                .createConfig(c)
             }
           }
           FastFuture.successful(fallback.get(convertedKey))

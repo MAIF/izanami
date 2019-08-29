@@ -100,7 +100,7 @@ private[features] class FetchFeatureClient(
         if (autocreate) {
           val toCreate = fallback.filterWith(pattern).featuresSeq.filterNot(features.contains)
           Future.traverse(toCreate) { f =>
-            cudFeatureClient.createFeature(f.id, f)
+            cudFeatureClient.createFeature(f)
           }
         }
         Features(clientConfig, features, fallback.featuresSeq)
@@ -120,7 +120,7 @@ private[features] class FetchFeatureClient(
         if (autocreate) {
           val toCreate = fallback.filterWith(pattern).fallback.filterNot(features.contains)
           Future.traverse(toCreate) { f =>
-            cudFeatureClient.createFeature(f.id, f)
+            cudFeatureClient.createFeature(f)
           }
         }
         Features(clientConfig, features, fallback.featuresSeq)
@@ -144,7 +144,7 @@ private[features] class FetchFeatureClient(
           if (autocreate) {
             fallback.featuresSeq.find(_.id == convertedKey).foreach { f =>
               println(s"Feature to create : ${f}")
-              cudFeatureClient.createFeature(f.id, f)
+              cudFeatureClient.createFeature(f)
             }
           }
           FastFuture.successful(fallback.isActive(convertedKey))
