@@ -288,7 +288,7 @@ object Feature {
       PercentageFeature.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(HOUR_RANGE.name) =>
       HourRangeFeature.format.reads(o)
-    case o: JsObject if (o \ "enabled").asOpt[Boolean].isDefined && (o \ "id").asOpt[Boolean].isDefined =>
+    case o if (o \ "enabled").asOpt[Boolean].isDefined && (o \ "id").asOpt[String].isDefined =>
       import play.api.libs.functional.syntax._
       import play.api.libs.json._
       ((
