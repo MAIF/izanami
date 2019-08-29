@@ -16,6 +16,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import izanami.Strategy.FetchStrategy
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 class FetchFeatureClientSpec
     extends IzanamiSpec
@@ -40,13 +41,24 @@ class FetchFeatureClientSpec
         FetchStrategy(Crash)
       )
       //#error-strategy
-      val featureId = "bla:bla"
-      createEnabledFeatureWithNoStrategy(featureId)
+      val featureId = "feature:test"
 
-      val featureCreated = featureClient.createJsonFeature(featureId)
-      val feature        = featureCreated.futureValue
+      val featureToCreate =
+        HourRangeFeature(featureId, true, None, LocalTime.of(5, 25), LocalTime.of(16, 30))
 
-      feature.id must be("bla:bla")
+      createFeature(featureToCreate)
+
+      //#create-feature-json
+      val featureCreated = featureClient.createJsonFeature(
+        "feature:test",
+        true,
+        FeatureType.HOUR_RANGE,
+        Some(Json.obj("startAt" -> "05:25", "endAt" -> "16:30"))
+      )
+      //#create-feature-json
+      val feature = featureCreated.futureValue
+
+      feature.id must be("feature:test")
       feature.enabled must be(true)
       mock.resetRequests()
     }
@@ -62,9 +74,12 @@ class FetchFeatureClientSpec
         DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
 
       createFeature(featureToCreate)
-
-      val featureCreated = featureClient.createFeature(featureToCreate)
-      val feature        = featureCreated.futureValue
+      //#create-feature
+      val featureCreated = featureClient.createFeature(
+        DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+      )
+      //#create-feature
+      val feature = featureCreated.futureValue
 
       feature must be(featureToCreate)
 
@@ -88,8 +103,13 @@ class FetchFeatureClientSpec
 
       updateFeature("test", featureToCreate)
 
-      val featureCreated = featureClient.updateFeature("test", featureToCreate)
-      val feature        = featureCreated.futureValue
+      //#update-feature
+      val featureCreated = featureClient.updateFeature(
+        "test",
+        DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+      )
+      //#update-feature
+      val feature = featureCreated.futureValue
 
       feature must be(featureToCreate)
 
@@ -113,8 +133,10 @@ class FetchFeatureClientSpec
 
       patchFeature("test", false, featureToSwitch)
 
-      featureClient.switchFeature("test", false).futureValue must be(featureToSwitch)
-
+      //#activate-feature
+      val activated = featureClient.switchFeature("test", false)
+      //#activate-feature
+      activated.futureValue must be(featureToSwitch)
       mock.verifyThat(
         patchRequestedFor(urlEqualTo("/api/features/test"))
           .withRequestBody(
@@ -144,7 +166,10 @@ class FetchFeatureClientSpec
       )
       deleteFeature("test")
 
-      featureClient.deleteFeature("test").futureValue must be(())
+      //#delete-feature
+      val deleted = featureClient.deleteFeature("test")
+      //#delete-feature
+      deleted.futureValue must be(())
 
       mock.verifyThat(
         deleteRequestedFor(urlEqualTo("/api/features/test"))
@@ -155,12 +180,15 @@ class FetchFeatureClientSpec
     "autocreate checking feature" in {
       val feature =
         DateRangeFeature("test", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
-      val featureClient = IzanamiClient(ClientConfig(host))
+      val client = IzanamiClient(ClientConfig(host))
+      //#feature-client-autocreate
+      val featureClient = client
         .featureClient(
           FetchStrategy(Crash),
           autocreate = true,
           fallback = Features(feature)
         )
+      //#feature-client-autocreate
 
       registerNoFeature()
 

@@ -2,6 +2,7 @@ package izanami.javadsl;
 
 import akka.actor.ActorSystem;
 import akka.testkit.javadsl.TestKit;
+import akka.Done;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.typesafe.config.ConfigFactory;
 import io.vavr.Tuple2;
@@ -19,6 +20,7 @@ import org.reactivecouchbase.json.Syntax;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
@@ -207,6 +209,83 @@ public class IzanamiTest {
     }
 
 
+    @Test
+    public void configsCrud() {
+        JsValue expected = Json.obj(
+                Syntax.$("id", "my:config"),
+                Syntax.$("value", Json.obj(Syntax.$("value", "A configuration")))
+            );
+
+        stubFor(
+                post(urlEqualTo("/api/configs"))
+                    .willReturn(aResponse()
+                        .withStatus(201)
+                        .withBody(
+                            Json.stringify(expected)
+                        )
+                    )
+            );
+
+        stubFor(
+                put(urlEqualTo("/api/configs/my:previous:config"))
+                    .willReturn(aResponse()
+                        .withStatus(200)
+                        .withBody(
+                            Json.stringify(expected)
+                        )
+                    )
+            );
+
+        stubFor(
+                delete(urlEqualTo("/api/configs/my:config"))
+                    .willReturn(aResponse()
+                        .withStatus(204)
+                    )
+            );
+
+        //#config-autocreate
+        Boolean autocreate = true;
+        ConfigClient configClient = izanamiClient.configClient(
+                Strategies.fetchStrategy(),
+                Configs.configs(
+                        Config.config("my:config", Json.obj(
+                                Syntax.$("value", "Fallback value")
+                        ))
+                ),
+                autocreate
+        );
+        //#config-autocreate
+
+        //#create-config-json
+        JsValue createdJson = configClient.createConfig("my:config", Json.obj(Syntax.$("value", "A configuration"))).get();
+        //#create-config-json
+        assertThat(createdJson).isEqualTo(expected);
+        verify(postRequestedFor(urlMatching("/api/configs")));
+
+        //#create-config
+        Config created = configClient.createConfig(Config.config("my:config", Json.obj(Syntax.$("value", "A configuration")))).get();
+        //#create-config
+        assertThat(created).isEqualTo(Config.config("my:config", Json.obj(Syntax.$("value", "A configuration"))));
+        verify(postRequestedFor(urlMatching("/api/configs")));
+        
+        //#update-config-json
+        JsValue updatedJson = configClient.updateConfig("my:previous:config", "my:config", Json.obj(Syntax.$("value", "A configuration"))).get();
+        //#update-config-json
+        assertThat(updatedJson).isEqualTo(expected);
+        verify(putRequestedFor(urlMatching("/api/configs/my:previous:config")));
+
+        //#update-config
+        Config updated = configClient.updateConfig("my:previous:config", Config.config("my:config", Json.obj(Syntax.$("value", "A configuration")))).get();
+        //#update-config
+        assertThat(updated).isEqualTo(Config.config("my:config", Json.obj(Syntax.$("value", "A configuration"))));
+        verify(putRequestedFor(urlMatching("/api/configs/my:previous:config")));
+
+
+        //#delete-config
+        Done deleted = configClient.deleteConfig("my:config").get();
+        //#delete-config        
+        verify(deleteRequestedFor(urlMatching("/api/configs/my:config")));
+    }
 
     @Test
     public void feature() {
@@ -280,6 +359,102 @@ public class IzanamiTest {
         //wireMockRule.findAllUnmatchedRequests().forEach(System.out::println);
     }
 
+
+
+    @Test
+    public void featuresCrud() {
+        JsValue expectedFeature = Json.obj(
+                Syntax.$("id", "my:feature"),
+                Syntax.$("activationStrategy", "HOUR_RANGE"),
+                Syntax.$("enabled", true), 
+                Syntax.$("parameters", Json.obj(
+                        Syntax.$("startAt", "05:25"), 
+                        Syntax.$("endAt", "16:30") 
+                )) 
+        );
+        Feature expected = Features.hourRange("my:feature", true, LocalTime.of(5, 25), LocalTime.of(16, 30));
+        stubFor(
+                post(urlPathEqualTo("/api/features"))
+                        .willReturn(aResponse()
+                                .withStatus(201)
+                                .withBody(Json.stringify(expectedFeature))
+                        )
+        );
+        stubFor(
+                put(urlPathEqualTo("/api/features/my:previous:feature"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withBody(Json.stringify(expectedFeature))
+                        )
+        );
+        stubFor(
+                patch(urlPathEqualTo("/api/features/my:feature"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withBody(Json.stringify(expectedFeature))
+                        )
+        );
+        stubFor(
+                delete(urlPathEqualTo("/api/features/my:feature"))
+                        .willReturn(aResponse()
+                                .withStatus(204)                                
+                        )
+        );
+
+        //#feature-client-autocreate
+        Boolean autocreate = true; 
+        FeatureClient featureClient = izanamiClient.featureClient(
+                Strategies.fetchStrategy(),
+                Features.features(
+                        Features.feature("my:feature", false)
+                ),
+                autocreate
+        );
+        //#feature-client-autocreate
+
+        //#create-feature-json
+        Feature createdJson = featureClient.createJsonFeature(
+                "my:feature", 
+                true, 
+                Features.hourRangeType(),
+                Option.of(Json.obj(
+                        Syntax.$("startAt", "05:25"), 
+                        Syntax.$("endAt", "16:30") 
+                ))
+        ).get();
+        //#create-feature-json
+        assertThat(createdJson).isEqualTo(expected);
+        verify(postRequestedFor(urlMatching("/api/features")));
+
+        //#create-feature
+        Feature created = featureClient.createFeature(
+                Features.hourRange("my:feature", true, LocalTime.of(5, 25), LocalTime.of(16, 30))
+        ).get();
+        //#create-feature
+        assertThat(created).isEqualTo(expected);
+        verify(postRequestedFor(urlMatching("/api/features")));
+        
+        //#update-feature
+        Feature updated = featureClient.updateFeature("my:previous:feature", Features.hourRange("my:feature:test", true, LocalTime.of(5, 25), LocalTime.of(16, 30))).get();
+        //#update-feature
+        assertThat(updated).isEqualTo(expected);
+        verify(putRequestedFor(urlMatching("/api/features/my:previous:feature")));
+
+
+        //#delete-feature
+        Done deleted = featureClient.deleteFeature("my:feature").get();
+        //#delete-feature        
+        verify(deleteRequestedFor(urlMatching("/api/features/my:feature")));
+
+
+        //#activate-feature
+        Feature activated = featureClient.switchFeature("my:feature", true).get();
+        //#activate-feature
+        assertThat(updated).isEqualTo(expected);
+        verify(patchRequestedFor(urlMatching("/api/features/my:feature")));
+
+
+    }
 
     @Test
     public void features() {

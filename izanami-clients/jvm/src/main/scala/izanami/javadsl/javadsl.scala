@@ -21,6 +21,8 @@ import scala.annotation.varargs
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 import org.reactivecouchbase.json.mapping.JsValidator
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 object IzanamiClient {
 
@@ -95,6 +97,29 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
                       underlyingClient.featureClient(strategy, fallback.andThen(_.underlying)))
 
   /**
+   * Get a featureClient instance to interact with features.
+   *
+   * For example :
+   *
+   * {{{
+   *   FeatureClient featureClient = izanamiClient.featureClient(
+   *        Strategies.smartCacheWithSseStrategy("mytvshows:*"),
+   *        Features.parseJson(environment.getProperty("izanami.fallback.features"))
+   *   );
+   * }}}
+   *
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy, Strategies.fetchWithCacheStrategy, Strategies.smartCacheWithPollingStrategy, Strategies.smartCacheWithSseStrategy
+   * @param fallback: a fallback in case of the server is not available
+   * @param autocreate enable config autocreation taking value from fallback
+   * @return the [[izanami.javadsl.FeatureClient]]
+   */
+  def featureClient(strategy: izanami.Strategy,
+                    fallback: ClientConfig => Features,
+                    autocreate: Boolean): FeatureClient =
+    new FeatureClient(underlyingClient.actorSystem,
+                      underlyingClient.featureClient(strategy, fallback.andThen(_.underlying), autocreate = autocreate))
+
+  /**
    *
    * Get a configClient instance to interact with shared config.
    *
@@ -109,9 +134,11 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
    * @return the [[izanami.javadsl.ConfigClient]]
    */
   def configClient(strategy: izanami.Strategy): ConfigClient =
-    new ConfigClient(underlyingClient.actorSystem,
-                     clientConfig,
-                     underlyingClient.configClient(strategy, izanami.scaladsl.Configs(Seq.empty)))
+    new ConfigClient(
+      underlyingClient.actorSystem,
+      clientConfig,
+      underlyingClient.configClient(strategy, izanami.scaladsl.Configs(Seq.empty))
+    )
 
   /**
    * Get a configClient instance to interact with shared config.
@@ -133,6 +160,28 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
     new ConfigClient(underlyingClient.actorSystem,
                      clientConfig,
                      underlyingClient.configClient(strategy, fallback.underlying))
+
+  /**
+   * Get a configClient instance to interact with shared config.
+   *
+   * For example :
+   *
+   * {{{
+   *   ConfigClient configClient = izanamiClient.configClient(
+   *      Strategies.smartCacheWithSseStrategy("mytvshows:*"),
+   *      Configs.parseJson(environment.getProperty("izanami.fallback.configs"))
+   *   );
+   * }}}
+   *
+   * @param strategy: Strategies.dev, Strategies.fetchStrategy, Strategies.fetchWithCacheStrategy, Strategies.smartCacheWithPollingStrategy, Strategies.smartCacheWithSseStrategy
+   * @param fallback: a fallback in case of the server is not available
+   * @param autocreate enable config autocreation taking value from fallback
+   * @return the [[izanami.javadsl.ConfigClient]]
+   */
+  def configClient(strategy: izanami.Strategy, fallback: Configs, autocreate: Boolean): ConfigClient =
+    new ConfigClient(underlyingClient.actorSystem,
+                     clientConfig,
+                     underlyingClient.configClient(strategy, fallback.underlying, autocreate = autocreate))
 
   /**
    * Get a experimentClient instance to interact with experiments.
@@ -316,7 +365,25 @@ object Features {
       )
   }
 
-  def feature(key: String, active: Boolean) = DefaultFeature(key, active)
+  def feature(key: String, active: Boolean)                          = DefaultFeature(key, active)
+  def defaultFeature(key: String, active: Boolean)                   = DefaultFeature(key, active)
+  def releaseDate(key: String, active: Boolean, date: LocalDateTime) = ReleaseDateFeature(key, active, date)
+  def dateRange(key: String, active: Boolean, from: LocalDateTime, to: LocalDateTime) =
+    DateRangeFeature(key, active, from, to)
+  def hourRange(key: String, active: Boolean, startAt: LocalTime, endAt: LocalTime) =
+    HourRangeFeature(key, active, None, startAt, endAt)
+  def percentage(key: String, active: Boolean, percentage: Int) = PercentageFeature(key, active, None, percentage)
+  def script(key: String, active: Boolean, `type`: String, script: String) =
+    ScriptFeature(key, active, None, Script(`type`, script))
+  def globalScript(key: String, active: Boolean, ref: String) = GlobalScriptFeature(key, active, None, ref)
+
+  def noStrategyType(): FeatureType   = FeatureType.NO_STRATEGY
+  def releaseDateType(): FeatureType  = FeatureType.RELEASE_DATE
+  def dateRangeType(): FeatureType    = FeatureType.DATE_RANGE
+  def hourRangeType(): FeatureType    = FeatureType.HOUR_RANGE
+  def percentageType(): FeatureType   = FeatureType.PERCENTAGE
+  def scriptType(): FeatureType       = FeatureType.SCRIPT
+  def globalScriptType(): FeatureType = FeatureType.GLOBAL_SCRIPT
 
   def parseJson(json: String): ClientConfig => Features =
     izanami.scaladsl.Features.parseJson(json).andThen(Features.apply _)
@@ -377,9 +444,9 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createFeature(feature: Feature, parameters: Option[JsObject] = Option.none()): Future[Feature] =
+  def createFeature(feature: Feature): Future[Feature] =
     underlying
-      .createFeature(feature, parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
+      .createFeature(feature, None)
       .toJava
 
   /**
@@ -389,8 +456,8 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def updateFeature(id: String, feature: Feature, parameters: Option[JsObject] = Option.none()): Future[Feature] =
-    underlying.updateFeature(id, feature, parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject])).toJava
+  def updateFeature(id: String, feature: Feature): Future[Feature] =
+    underlying.updateFeature(id, feature, None).toJava
 
   /**
    * Enabled or disable a feature
