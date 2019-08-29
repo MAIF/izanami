@@ -104,6 +104,34 @@ trait ConfigMockServer extends MockServer {
     )
   }
 
+  def registerCreateConfig(config: Config) {
+    val jsonBody = Json.stringify(Json.toJson(config))
+    mock.register(
+          post(urlPathEqualTo("/api/configs"))
+            .withHeader("Content-Type", containing("application/json"))
+            .withRequestBody(equalToJson(jsonBody))
+            .willReturn(
+              aResponse()
+                .withStatus(201)
+                .withBody(jsonBody)
+            )
+        )
+  }
+
+  def registerUpdateConfig(id: String, config: Config) {
+    val jsonBody = Json.stringify(Json.toJson(config))
+    mock.register(
+          put(urlPathEqualTo(s"/api/configs/$id"))
+            .withHeader("Content-Type", containing("application/json"))
+            .withRequestBody(equalToJson(jsonBody))
+            .willReturn(
+              aResponse()
+                .withStatus(201)
+                .withBody(jsonBody)
+            )
+        )
+  }
+
   def registerNoConfig(): Unit =
     mock.register(
       get(urlPathMatching(s"/api/config/.*"))

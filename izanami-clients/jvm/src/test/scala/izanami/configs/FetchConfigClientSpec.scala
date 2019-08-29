@@ -43,16 +43,8 @@ class FetchConfigClientSpec
 
       val config   = Config("test", Json.obj("value" -> 1))
       val jsonBody = Json.stringify(Json.toJson(config))
-      mock.register(
-        post(urlPathEqualTo("/api/configs"))
-          .withHeader("Content-Type", containing("application/json"))
-          .withRequestBody(equalToJson(jsonBody))
-          .willReturn(
-            aResponse()
-              .withStatus(201)
-              .withBody(jsonBody)
-          )
-      )
+      registerCreateConfig(config)
+      
       //#create-config
       val jsoncreated = client.createConfig(Config("test", Json.obj("value" -> 1)))
       //#create-config
@@ -77,16 +69,8 @@ class FetchConfigClientSpec
       )
       val config   = Config("test", Json.obj("value" -> 1))
       val jsonBody = Json.stringify(Json.toJson(config))
-      mock.register(
-        post(urlPathEqualTo("/api/configs"))
-          .withHeader("Content-Type", containing("application/json"))
-          .withRequestBody(equalToJson(jsonBody))
-          .willReturn(
-            aResponse()
-              .withStatus(201)
-              .withBody(jsonBody)
-          )
-      )
+      registerCreateConfig(config)
+      
       //#create-config
       val configCreated = client.createConfig("test", Json.obj("value" -> 1))
       //#create-config
@@ -113,16 +97,9 @@ class FetchConfigClientSpec
 
       val config   = Config("newtest", Json.obj("value" -> 1))
       val jsonBody = Json.stringify(Json.toJson(config))
-      mock.register(
-        put(urlPathEqualTo("/api/configs/test"))
-          .withHeader("Content-Type", containing("application/json"))
-          .withRequestBody(equalToJson(jsonBody))
-          .willReturn(
-            aResponse()
-              .withStatus(200)
-              .withBody(jsonBody)
-          )
-      )
+
+      registerUpdateConfig("test", config)
+      
       //#update-config
       val configUpdated = client.updateConfig("test", Config("newtest", Json.obj("value" -> 1)))
       //#update-config
@@ -147,17 +124,9 @@ class FetchConfigClientSpec
         )
       )
       val config   = Config("newtest", Json.obj("value" -> 1))
-      val jsonBody = Json.stringify(Json.toJson(config))
-      mock.register(
-        put(urlPathEqualTo("/api/configs/test"))
-          .withHeader("Content-Type", containing("application/json"))
-          .withRequestBody(equalToJson(jsonBody))
-          .willReturn(
-            aResponse()
-              .withStatus(200)
-              .withBody(jsonBody)
-          )
-      )
+      val jsonBody = Json.stringify(Json.toJson(config))    
+      registerUpdateConfig("test", config)
+      
       //#update-config-json
       val configUpdated = client.updateConfig("test", "newtest", Json.obj("value" -> 1))
       //#update-config-json
@@ -214,6 +183,7 @@ class FetchConfigClientSpec
       //#config-autocreate
 
       registerNoConfig()
+      registerCreateConfig(Config("test", Json.obj("value" -> 2)))
 
       val futureConfig = izanamiClient.config("test").futureValue
 
