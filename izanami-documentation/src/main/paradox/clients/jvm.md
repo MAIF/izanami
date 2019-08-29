@@ -173,6 +173,23 @@ Java
 Scala
 :   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #config-error-strategy }
 
+### Client usage 
+
+#### Get configs for a pattern 
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #all-configs }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #all-configs }
+
+#### Get one config 
+
+Java
+:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #one-config }
+
+Scala
+:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #one-config }
 
 #### Create / Update / Delete configs 
 
@@ -218,34 +235,15 @@ Scala
 :   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #delete-config }
 
 
-### Autocreate configs
+#### Autocreate configs
 
 You can autocreate configs that are define as fallback. To enable this you need set the `autocreate` parameter when the client is created. 
+
 Java
 :   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #config-autocreate }
 
 Scala
 :   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #config-autocreate }
-
-
-### Client usage 
-
-
-#### Get configs for a pattern 
-
-Java
-:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #all-configs }
-
-Scala
-:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #all-configs }
-
-#### Get one config 
-
-Java
-:   @@snip [client.java](../../../../../izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java) { #one-config }
-
-Scala
-:   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala) { #one-config }
 
  
 ## Features client
@@ -376,7 +374,7 @@ Java
 Scala
 :   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala) { #check-conditional-context }
 
-### Create / update / delete 
+#### Create / update / delete 
 
 With the client you can mutate features. 
 
@@ -421,7 +419,7 @@ Scala
 :   @@snip [client.scala](../../../../../izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala) { #activate-feature }
 
 
-### Autocreate features
+#### Autocreate features
 
 You can autocreate features that are define as fallback. To enable this you need set the `autocreate` parameter when the client is created. 
 

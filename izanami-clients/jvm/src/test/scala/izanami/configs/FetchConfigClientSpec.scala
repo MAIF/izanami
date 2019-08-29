@@ -71,9 +71,9 @@ class FetchConfigClientSpec
       val jsonBody = Json.stringify(Json.toJson(config))
       registerCreateConfig(config)
       
-      //#create-config
+      //#create-config-json
       val configCreated = client.createConfig("test", Json.obj("value" -> 1))
-      //#create-config
+      //#create-config-json
       configCreated.futureValue must be(Json.toJson(config))
 
       mock.verifyThat(
@@ -156,9 +156,9 @@ class FetchConfigClientSpec
               .withStatus(204)
           )
       )
-      //#update-config
+      //#delete-config
       val configDeleted = client.deleteConfig("test")
-      //#update-config
+      //#delete-config
       configDeleted.futureValue must be(())
 
       mock.verifyThat(

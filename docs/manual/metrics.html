@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Izanami</title>
+<title>Metrics · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -26,7 +26,7 @@
 <div class="off-canvas position-left" id="off-canvas-menu" data-off-canvas>
 <nav class="off-canvas-nav">
 <div class="nav-home">
-<a href="index.html" class="active">
+<a href="index.html" >
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
@@ -73,7 +73,7 @@
   </ul></li>
   <li><a href="keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="events.html" class="page">Listen to events</a></li>
-  <li><a href="metrics.html" class="page">Metrics</a></li>
+  <li><a href="metrics.html" class="active page">Metrics</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -104,7 +104,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </a>
 <div class="title-wrapper">
 <div class="title-logo"></div>
-<div class="title"><a href="index.html" class="active">Izanami</a></div>
+<div class="title"><a href="index.html">Izanami</a></div>
 </div>
 <!--
 <a href="https://www.example.com" class="logo show-for-medium">logo</a>
@@ -117,7 +117,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="medium-3 large-2 show-for-medium column">
 <nav class="site-nav">
 <div class="nav-home">
-<a href="index.html" class="active">
+<a href="index.html" >
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
@@ -164,7 +164,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </ul></li>
   <li><a href="keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="events.html" class="page">Listen to events</a></li>
-  <li><a href="metrics.html" class="page">Metrics</a></li>
+  <li><a href="metrics.html" class="active page">Metrics</a></li>
   <li><a href="clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -190,32 +190,69 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-header row">
 <div class="medium-12 show-for-medium column">
+<div class="nav-breadcrumbs">
+<ul>
+  <li><a href="index.html">Izanami</a></li>
+  <li>Metrics</li>
+</ul>
+</div>
 </div>
 </div>
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#izanami" name="izanami" class="anchor"><span class="anchor-link"></span></a>Izanami</h1>
-<p>Izanami is a shared configuration, feature flipping and A/B testing service written in scala and developed by the <a href="https://maif.github.io/" target="_blank">MAIF OSS</a> team.</p>
-<p>Izanami is perfectly well suited for micro services environments, it provides a UI to allow non-tech users to toggle features and to handle A/B testing.</p>
-<p>You can also interact with Izanami using REST APIs from you favorite language or listen to events by registering webhook or using server sent events.</p>
-<p>Izanami also provides first class integration : Java, Scala, Node and React and CLI clients are available to integrate Izanami with your application.</p><div class="izanami-logo">
-<p><img src="img/izanami.gif" alt="izanami" /> </p></div>
-<p>Download it :</p>
-<pre class="prettyprint"><code class="language-bash">wget --quiet &#39;https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar&#39;
+<h1><a href="#metrics" name="metrics" class="anchor"><span class="anchor-link"></span></a>Metrics</h1>
+<p>Izanami provide metrics that are available with : </p>
+<ul>
+  <li>console</li>
+  <li>log</li>
+  <li>http (endpoint <code>/metrics</code>)</li>
+  <li>kafka</li>
+  <li>elasticsearch</li>
+</ul>
+<p>The metrics are available in json or prometheus format. </p>
+<p>You can configure the metrics using env variable or system properties: </p>
+<pre class="prettyprint"><code class="language-bash">bin/izanami \ 
+    -Dizanami.metrics.verbose=true \
+    -Dizanami.metrics.includeCount=true \
+    &quot;-Dizanami.metrics.refresh=1 minute&quot; \ 
+    -Dizanami.metrics.console.enabled=true \
+    &quot;-Dizanami.metrics.console.interval=20 seconds&quot; \
+    -Dizanami.metrics.log.enabled=true \
+    &quot;-Dizanami.metrics.log.interval=20 seconds&quot; \
+    -Dizanami.metrics.http.format=json \
+    -Dizanami.metrics.kafka.enabled=true \
+    -Dizanami.metrics.kafka.topic=izanami-metrics \
+    &quot;-Dizanami.metrics.kafka.pushInterval=20 seconds&quot; \
+    -Dizanami.metrics.kafka.format=prometheus \
+    -Dizanami.metrics.elastic.enabled=true \
+    &quot;-Dizanami.metrics.elastic.index=&#39;izanami-metrics-&#39;yyyy-MM-dd&quot; \
+    &quot;-Dizanami.metrics.elastic.pushInterval=20 seconds&quot;     
 </code></pre>
-<p>Run it (JDK 8 needed)</p>
-<pre class="prettyprint"><code class="language-zsh">java -jar izanami.jar
+<p>Or </p>
+<pre class="prettyprint"><code class="language-bash">export METRICS_VERBOSE=true 
+export METRICS_COUNT=true 
+export METRICS_COUNT_REFRESH_INTERVAL=20 seconds 
+export METRICS_CONSOLE_ENABLED=true 
+export METRICS_CONSOLE_INTERVAL=20 seconds 
+export METRICS_LOG_ENABLED=true 
+export METRICS_LOG_INTERVAL=20 seconds 
+export METRICS_HTTP_FORMAT=prometheus 
+export METRICS_KAFKA_ENABLED=true 
+export METRICS_KAFKA_TOPIC=izanami-metrics 
+export METRICS_KAFKA_INTERVAL=20 seconds
+export METRICS_KAFKA_FORMAT=json
+export METRICS_ELASTIC_ENABLED=true 
+export METRICS_ELASTIC_INDEX=&#39;izanami-metrics-&#39;yyyy-MM-dd 
+export METRICS_ELASTIC_INTERVAL=20 seconds
+bin/izanami 
 </code></pre>
-<p>Go to <a href="http://localhost:9000">http://localhost:9000</a></p>
-<p>And then log in using <code>admin</code> / <code>admin123</code></p>
-<p>Follow the <a href="quickstart.html">getting started page</a> to see more about Izanami. </p>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/index.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/metrics.md">here</a>.
 </div>
 
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="quickstart.html">Quick start</a></p>
+<p><strong>Next:</strong> <a href="clients/index.html">Clients</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
