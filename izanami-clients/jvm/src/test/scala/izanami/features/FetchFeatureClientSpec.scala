@@ -197,6 +197,7 @@ class FetchFeatureClientSpec
       //#feature-client-autocreate
 
       registerNoFeature()
+      createFeature(feature)
 
       val futureCheck: Future[Boolean] = featureClient.checkFeature(feature.id)
 
@@ -320,7 +321,7 @@ class FetchFeatureClientSpec
 
     "Test feature active" in {
       mock.resetRequests()
-      
+
       val featureClient = IzanamiClient(
         ClientConfig(host)
       ).featureClient(
