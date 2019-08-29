@@ -169,6 +169,7 @@ class FetchConfigClientSpec
 
     "autocreate getting config" in {
       mock.resetRequests()
+
       val client = IzanamiClient(
         ClientConfig(host)
       )
@@ -195,8 +196,9 @@ class FetchConfigClientSpec
 
     }
 
-    "autocreate listing config" in {
+    "autocreate listing config" in {    
       mock.resetRequests()
+
       val client = IzanamiClient(
         ClientConfig(host)
       ).configClient(
@@ -221,6 +223,7 @@ class FetchConfigClientSpec
 
     "List configs" in {
       mock.resetRequests()
+
       val client = IzanamiClient(
         ClientConfig(host)
       )
@@ -251,6 +254,7 @@ class FetchConfigClientSpec
 
     "List configs with multiple pages" in {
       mock.resetRequests()
+
       val izanamiClient = IzanamiClient(ClientConfig(host, pageSize = 2))
       //#config-error-strategy
       val configClient = izanamiClient.configClient(
@@ -295,6 +299,7 @@ class FetchConfigClientSpec
 
     "Get one config" in {
       mock.resetRequests()
+      
       val izanamiClient = IzanamiClient(
         ClientConfig(host)
       ).configClient(
