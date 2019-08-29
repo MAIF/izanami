@@ -73,6 +73,7 @@
   </ul></li>
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
+  <li><a href="../metrics.html" class="page">Metrics</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -163,6 +164,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </ul></li>
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
+  <li><a href="../metrics.html" class="page">Metrics</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -872,16 +874,40 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>false</code> </td>
     </tr>
     <tr>
-      <td><code>izanami.metrics.consoleEnabled</code> </td>
+      <td><code>izanami.metrics.includeCount</code> </td>
+      <td><code>METRICS_COUNT</code> </td>
+      <td>If true, the count for features, config, experiments, user, webhook will be visible in the metrics </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.refresh</code> </td>
+      <td><code>METRICS_COUNT_REFRESH_INTERVAL</code> </td>
+      <td>the refresh interval for count metrics (used by console and log) </td>
+      <td><code>5 minutes</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.console.enabled</code> </td>
       <td><code>METRICS_CONSOLE_ENABLED</code> </td>
       <td>If true, metrics are logged in the console </td>
       <td><code>false</code> </td>
     </tr>
     <tr>
-      <td><code>izanami.metrics.logEnabled</code> </td>
+      <td><code>izanami.metrics.console.interval</code> </td>
+      <td><code>METRICS_CONSOLE_INTERVAL</code> </td>
+      <td>interval of the logged metrics </td>
+      <td><code>5 minutes</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.log.enabled</code> </td>
       <td><code>METRICS_LOG_ENABLED</code> </td>
       <td>If true, metrics are logged with slf4j </td>
       <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.metrics.log.interval</code> </td>
+      <td><code>METRICS_LOG_INTERVAL</code> </td>
+      <td>interval of the logged metrics </td>
+      <td><code>5 minutes</code> </td>
     </tr>
     <tr>
       <td><code>izanami.metrics.http.defaultFormat</code> </td>
