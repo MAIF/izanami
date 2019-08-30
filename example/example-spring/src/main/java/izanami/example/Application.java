@@ -96,7 +96,8 @@ public class Application {
         FeatureClient featureClient(IzanamiClient izanamiClient, Environment environment) {
             return izanamiClient.featureClient(
                     Strategies.smartCacheWithPollingStrategy(FiniteDuration.create(1, TimeUnit.HOURS), "mytvshows:*"),
-                    Features.parseJson(environment.getProperty("izanami.fallback.features"))
+                    Features.parseJson(environment.getProperty("izanami.fallback.features")),
+                    true
             );
         }
 
