@@ -150,7 +150,7 @@ class FetchFeatureClientSpec
                 Json.arr(
                   Json.obj(
                     "op"    -> "replace",
-                    "path"  -> "enabled",
+                    "path"  -> "/enabled",
                     "value" -> false
                   )
                 )

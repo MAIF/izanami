@@ -335,8 +335,8 @@ trait FeatureClient {
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createFeature(feature: Feature, parameters: Option[JsObject] = None): Future[Feature] =
-    cudFeatureClient.createFeature(feature, parameters)
+  def createFeature(feature: Feature): Future[Feature] =
+    cudFeatureClient.createFeature(feature)
 
   /**
    * Update a feature
@@ -345,8 +345,8 @@ trait FeatureClient {
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def updateFeature(id: String, feature: Feature, parameters: Option[JsObject] = None): Future[Feature] =
-    cudFeatureClient.updateFeature(id, feature, parameters)
+  def updateFeature(id: String, feature: Feature): Future[Feature] =
+    cudFeatureClient.updateFeature(id, feature)
 
   /**
    * Enabled or disable a feature
