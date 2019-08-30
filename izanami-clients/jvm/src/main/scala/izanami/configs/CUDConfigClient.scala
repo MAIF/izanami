@@ -29,7 +29,7 @@ trait CUDConfigClient {
           .validate[Config]
           .fold(
             { err =>
-              val message = s"Error reading config ${config.id}, response=$err"
+              val message = s"Error creating config ${config.id}, response=$err"
               FastFuture.failed(IzanamiException(message))
             }, { FastFuture.successful }
           )
@@ -43,7 +43,7 @@ trait CUDConfigClient {
         .validate[Config]
         .fold(
           { err =>
-            val message = s"Error reading config ${config.id}, response=$err"
+            val message = s"Error updating config ${config.id}, response=$err"
             FastFuture.failed(IzanamiException(message))
           }, { FastFuture.successful }
         )
