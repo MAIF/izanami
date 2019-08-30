@@ -31,7 +31,7 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
         case (status, json) if status == StatusCodes.Created =>
           FastFuture.successful(Json.parse(json).as[Feature](Feature.reads))
         case (status, body) => {
-          val message = s"Error creating feature ${feature.id} : status=$status, response=$body"
+          val message = s"Error creating feature ${feature.id} : status=$status, body=$payload response=$body"
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
@@ -51,7 +51,7 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
         case (status, json) if status == StatusCodes.Created =>
           FastFuture.successful(Json.parse(json).as[Feature](Feature.reads))
         case (status, body) => {
-          val message = s"Error creating feature $id : status=$status, response=$body"
+          val message = s"Error creating feature $id : status=$status, body=$payload response=$body"
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
@@ -68,7 +68,7 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
         case (status, json) if status == StatusCodes.OK =>
           FastFuture.successful(Json.parse(json).as[Feature](Feature.reads))
         case (status, body) => {
-          val message = s"Error updating feature ${feature.id} : status=$status, response=$body"
+          val message = s"Error updating feature $id / ${feature.id} : status=$status, body=$payload response=$body"
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
@@ -89,7 +89,7 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
         case (status, json) if status == StatusCodes.OK =>
           FastFuture.successful(Json.parse(json).as[Feature](Feature.reads))
         case (status, body) => {
-          val message = s"Error patching feature ${id} : status=$status, response=$body"
+          val message = s"Error patching feature ${id} : status=$status, body=$patch response=$body"
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
