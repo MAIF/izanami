@@ -378,7 +378,7 @@ trait FeatureMockServer extends MockServer {
               Json.arr(
                 Json.obj(
                   "op"    -> "replace",
-                  "path"  -> "enabled",
+                  "path"  -> "/enabled",
                   "value" -> enabled
                 )
               )

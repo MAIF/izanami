@@ -39,8 +39,7 @@ class FallbackFeatureStategy(f: Features)(implicit val izanamiDispatcher: Izanam
   def fallback: Features = fallbackRef.get()
 
   override def createFeature(
-      feature: Feature,
-      parameters: Option[JsObject]
+      feature: Feature
   ): Future[Feature] = {
     fallbackRef.set(
       fallback.copy(
@@ -76,7 +75,7 @@ class FallbackFeatureStategy(f: Features)(implicit val izanamiDispatcher: Izanam
     }
   }
 
-  override def updateFeature(id: String, feature: Feature, parameters: Option[JsObject] = None): Future[Feature] = {
+  override def updateFeature(id: String, feature: Feature): Future[Feature] = {
     fallbackRef.set(
       fallback.copy(
         featuresSeq = fallback.featuresSeq.filter(_.id == id) :+ feature
