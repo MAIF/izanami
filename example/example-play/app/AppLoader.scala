@@ -55,7 +55,8 @@ object modules {
       case IzanamiProd =>
         izanamiClient.featureClient(
           CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
-          Features.parseJson(appConfig.izanami.fallback.features)
+          Features.parseJson(appConfig.izanami.fallback.features), 
+          autocreate = true
         )
     }
 

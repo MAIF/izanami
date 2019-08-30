@@ -29,7 +29,7 @@ trait CUDConfigClient {
           .validate[Config]
           .fold(
             { err =>
-              val message = s"Error reading config ${config.id}, response=$err"
+              val message = s"Error creating config ${config.id}, parsing error=$err"
               FastFuture.failed(IzanamiException(message))
             }, { FastFuture.successful }
           )
@@ -43,7 +43,7 @@ trait CUDConfigClient {
         .validate[Config]
         .fold(
           { err =>
-            val message = s"Error reading config ${config.id}, response=$err"
+            val message = s"Error updating config ${config.id}, parsing error=$err"
             FastFuture.failed(IzanamiException(message))
           }, { FastFuture.successful }
         )
@@ -63,31 +63,35 @@ class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: Iz
 
   override implicit val ec: ExecutionContext = izanamiDispatcher.ec
 
-  override def createConfig(id: String, config: JsValue): Future[JsValue] =
+  override def createConfig(id: String, config: JsValue): Future[JsValue] = {
+    val payload = Json.obj("id" -> id, "value" -> config)
     client
-      .post("/api/configs", Json.obj("id" -> id, "value" -> config))
+      .post("/api/configs", payload)
       .flatMap {
         case (status, json) if status == StatusCodes.Created =>
           FastFuture.successful(Json.parse(json))
         case (status, body) => {
-          val message = s"Error creating config $id : status=$status, response=$body"
+          val message = s"Error creating config $id : status=$status, body=$payload response=$body"
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
       }(izanamiDispatcher.ec)
+  }
 
-  override def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] =
+  override def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] = {
+    val payload = Json.obj("id" -> id, "value" -> config)
     client
-      .put(s"/api/configs/$oldId", Json.obj("id" -> id, "value" -> config))
+      .put(s"/api/configs/$oldId", payload)
       .flatMap {
         case (status, json) if status == StatusCodes.OK =>
           FastFuture.successful(Json.parse(json))
         case (status, body) => {
-          val message = s"Error updating config $id : status=$status, response=$body"
+          val message = s"Error updating config $id : status=$status, body=$payload response=$body"
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
       }(izanamiDispatcher.ec)
+  }
 
   override def deleteConfig(id: String): Future[Unit] =
     client

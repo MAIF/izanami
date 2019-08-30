@@ -446,7 +446,7 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    */
   def createFeature(feature: Feature): Future[Feature] =
     underlying
-      .createFeature(feature, None)
+      .createFeature(feature)
       .toJava
 
   /**
@@ -457,7 +457,7 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * @return
    */
   def updateFeature(id: String, feature: Feature): Future[Feature] =
-    underlying.updateFeature(id, feature, None).toJava
+    underlying.updateFeature(id, feature).toJava
 
   /**
    * Enabled or disable a feature
