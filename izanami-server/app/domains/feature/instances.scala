@@ -19,23 +19,26 @@ import java.time.LocalTime
 
 object DefaultFeatureInstances {
 
+  import play.api.libs.functional.syntax._
   import play.api.libs.json._
-  import playjson.all._
-  import syntax.singleton._
-  val reads: Reads[DefaultFeature] = jsonRead[DefaultFeature].withRules(
-    'parameters ->> orElse[JsValue](JsNull)
-  )
-  val writes: Writes[DefaultFeature] = Json
-    .writes[DefaultFeature]
-    .transform { o: JsObject =>
-      (o \ "parameters").as[JsValue] match {
-        case JsNull =>
-          o - "parameters" ++ Json.obj("activationStrategy" -> NO_STRATEGY)
-        case _ =>
-          o ++ Json.obj("activationStrategy" -> NO_STRATEGY)
-      }
-    }
 
+  val reads: Reads[DefaultFeature] = (
+    (__ \ "id").read[Key] and
+    (__ \ "enabled").read[Boolean] and
+    (__ \ "description").readNullable[String] and 
+    (__ \ "parameters").read[JsValue].orElse(Reads.pure(JsNull))
+  )(DefaultFeature.apply _)
+  
+  val writes: Writes[DefaultFeature] = 
+    (FeatureInstances.commonWrite and 
+         (__ \ "parameters").write[JsValue].transform { (v: JsValue) => 
+            v match {
+              case o: JsObject => o ++ Json.obj("activationStrategy" -> NO_STRATEGY)
+              case _ => Json.obj("activationStrategy" -> NO_STRATEGY)
+            }
+        }
+      )(unlift(DefaultFeature.unapply))
+        
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
 
   def isActive: IsActive[DefaultFeature] = new IsActive[DefaultFeature] {
@@ -61,6 +64,7 @@ object GlobalScriptFeatureInstances {
   private val reads: Reads[GlobalScriptFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
+    (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "ref").read[String]
   )(GlobalScriptFeature.apply _)
 
@@ -106,6 +110,7 @@ object ScriptFeatureInstances {
   private val reads: Reads[ScriptFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
+    (__ \ "description").readNullable[String] and
     (__ \ "parameters").read[Script](ScriptInstances.reads)
   )(ScriptFeature.apply _)
 
@@ -137,6 +142,7 @@ object DateRangeFeatureInstances {
   val reads: Reads[DateRangeFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
+    (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "from")
       .read[LocalDateTime](localDateTimeReads(pattern)) and
     (__ \ "parameters" \ "to")
@@ -182,6 +188,7 @@ object ReleaseDateFeatureInstances {
   val reads: Reads[ReleaseDateFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
+    (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "releaseDate")
       .read[LocalDateTime](
         localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)).orElse(localDateTimeReads(pattern3))
@@ -218,6 +225,7 @@ object PercentageFeatureInstances {
   val reads: Reads[PercentageFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
+    (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "percentage").read[Int](min(0) keepAnd max(100))
   )(PercentageFeature.apply _)
 
@@ -261,6 +269,7 @@ object HourRangeFeatureInstances {
   val reads: Reads[HourRangeFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
+    (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "startAt")
       .read[LocalTime](localTimeReads(pattern)) and
     (__ \ "parameters" \ "endAt")
@@ -331,7 +340,8 @@ object FeatureInstances {
 
   private[feature] val commonWrite =
   (__ \ "id").write[FeatureKey] and
-  (__ \ "enabled").write[Boolean]
+  (__ \ "enabled").write[Boolean] and 
+  (__ \ "description").writeNullable[String] 
 
   val reads: Reads[Feature] = Reads[Feature] {
     case o if (o \ "activationStrategy").asOpt[String].contains(NO_STRATEGY) =>
