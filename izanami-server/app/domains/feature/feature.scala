@@ -27,6 +27,8 @@ sealed trait Feature {
 
   def enabled: Boolean
 
+  def description: Option[String]
+
   def toJson(active: Boolean): JsValue =
     FeatureInstances.format.writes(this).as[JsObject] ++ Json.obj("active" -> active)
 }
@@ -81,13 +83,13 @@ trait IsActive[A <: Feature] {
   def isActive(feature: A, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean]
 }
 
-case class DefaultFeature(id: FeatureKey, enabled: Boolean, parameters: JsValue = JsNull)             extends Feature
-case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, ref: String)                         extends Feature
-case class ScriptFeature(id: FeatureKey, enabled: Boolean, script: Script)                            extends Feature
-case class DateRangeFeature(id: FeatureKey, enabled: Boolean, from: LocalDateTime, to: LocalDateTime) extends Feature
-case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, date: LocalDateTime)                  extends Feature
-case class HourRangeFeature(id: FeatureKey, enabled: Boolean, startAt: LocalTime, endAt: LocalTime)   extends Feature
-case class PercentageFeature(id: FeatureKey, enabled: Boolean, percentage: Int)                       extends Feature
+case class DefaultFeature(id: FeatureKey, enabled: Boolean, description: Option[String], parameters: JsValue = JsNull)             extends Feature
+case class GlobalScriptFeature(id: FeatureKey, enabled: Boolean, description: Option[String], ref: String)                         extends Feature
+case class ScriptFeature(id: FeatureKey, enabled: Boolean, description: Option[String], script: Script)                            extends Feature
+case class DateRangeFeature(id: FeatureKey, enabled: Boolean, description: Option[String], from: LocalDateTime, to: LocalDateTime) extends Feature
+case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, description: Option[String], date: LocalDateTime)                  extends Feature
+case class HourRangeFeature(id: FeatureKey, enabled: Boolean, description: Option[String], startAt: LocalTime, endAt: LocalTime)   extends Feature
+case class PercentageFeature(id: FeatureKey, enabled: Boolean, description: Option[String], percentage: Int)                       extends Feature
 
 object FeatureType {
   val NO_STRATEGY   = "NO_STRATEGY"
