@@ -224,6 +224,11 @@ export class FeaturesPage extends Component {
       },
       error: { key: "obj.activationStrategy" }
     },
+    description: {
+      type: "string", 
+      props: { label: "Feature description", placeholder: `Description` },
+      error: { key: "obj.description" }
+    },
     enabled: {
       type: "bool",
       props: { label: "Feature active", placeholder: `Feature active` },
@@ -380,7 +385,7 @@ export class FeaturesPage extends Component {
           <Key value={item.id} />
         </Link>
       )
-    },
+    },    
     {
       title: "Strategy",
       notFilterable: true,
@@ -395,7 +400,7 @@ export class FeaturesPage extends Component {
     }
   ];
 
-  formFlow = ["id", "enabled", "---", "activationStrategy", "parameters"];
+  formFlow = ["id", "enabled", "description", "---", "activationStrategy", "parameters"];
 
   fetchItems = args => {
     const { search = [], page, pageSize } = args;
