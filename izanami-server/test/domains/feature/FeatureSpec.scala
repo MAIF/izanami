@@ -80,7 +80,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(DefaultFeature(Key("id"), true))
+      result.get must be(DefaultFeature(Key("id"), true, None))
 
     }
 
@@ -98,7 +98,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(GlobalScriptFeature(Key("id"), true, "ref"))
+      result.get must be(GlobalScriptFeature(Key("id"), true, None, "ref"))
 
     }
 
@@ -116,7 +116,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(ScriptFeature(Key("id"), true, JavascriptScript("script")))
+      result.get must be(ScriptFeature(Key("id"), true, None, JavascriptScript("script")))
 
     }
 
@@ -135,7 +135,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 12)))
+      result.get must be(ReleaseDateFeature(Key("id"), true, None, LocalDateTime.of(2017, 1, 1, 12, 12, 12)))
 
     }
 
@@ -154,7 +154,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 0)))
+      result.get must be(ReleaseDateFeature(Key("id"), true, None, LocalDateTime.of(2017, 1, 1, 12, 12, 0)))
 
     }
 
@@ -175,7 +175,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
-      result.get must be(HourRangeFeature(Key("id"), true, LocalTime.of(2, 15), LocalTime.of(17, 30)))
+      result.get must be(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 15), LocalTime.of(17, 30)))
 
     }
 
@@ -193,7 +193,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |}
         """.stripMargin)
 
-      Json.toJson(DefaultFeature(Key("id"), true)) must be(json)
+      Json.toJson(DefaultFeature(Key("id"), true, None)) must be(json)
     }
 
     "Serialize GlobalScriptFeature" in {
@@ -207,7 +207,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |}
         """.stripMargin)
 
-      Json.toJson(GlobalScriptFeature(Key("id"), true, "ref")) must be(json)
+      Json.toJson(GlobalScriptFeature(Key("id"), true, None, "ref")) must be(json)
     }
 
     "Serialize ScriptFeature" in {
@@ -220,7 +220,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "parameters": { "type": "javascript", "script": "script" }
           |}
         """.stripMargin)
-      Json.toJson(ScriptFeature(Key("id"), true, JavascriptScript("script"))) must be(json)
+      Json.toJson(ScriptFeature(Key("id"), true, None, JavascriptScript("script"))) must be(json)
     }
 
     "Serialize ReleaseDateFeature" in {
@@ -234,7 +234,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "parameters": { "releaseDate": "01/01/2017 12:12:12" }
           |}
         """.stripMargin)
-      Json.toJson(ReleaseDateFeature(Key("id"), true, LocalDateTime.of(2017, 1, 1, 12, 12, 12))) must be(json)
+      Json.toJson(ReleaseDateFeature(Key("id"), true, None, LocalDateTime.of(2017, 1, 1, 12, 12, 12))) must be(json)
     }
 
     "Serialize HourRangeFeature" in {
@@ -251,16 +251,18 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   }
           |}
         """.stripMargin)
-      Json.toJson(HourRangeFeature(Key("id"), true, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(json)
+      Json.toJson(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(json)
     }
   }
 
   "Feature graph" must {
     "Serialization must be ok" in {
-      val features = List(DefaultFeature(Key("a"), true),
-                          DefaultFeature(Key("a:b"), false),
-                          DefaultFeature(Key("a:b:c"), true),
-                          DefaultFeature(Key("a:b:d"), false))
+      val features = List(
+        DefaultFeature(Key("a"), true, None),
+        DefaultFeature(Key("a:b"), false, None),
+        DefaultFeature(Key("a:b:c"), true, None),
+        DefaultFeature(Key("a:b:d"), false, None)
+      )
 
       import FeatureInstances._
 
@@ -291,7 +293,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "active" in {
       val from    = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
-      val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
+      val feature = DateRangeFeature(Key("key"), true, None, from = from, to = to)
 
       import cats._
       runIsActive(DateRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
@@ -300,7 +302,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "inactive" in {
       val from    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.MINUTES)
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(2, ChronoUnit.HOURS)
-      val feature = DateRangeFeature(Key("key"), true, from = from, to = to)
+      val feature = DateRangeFeature(Key("key"), true, None, from = from, to = to)
 
       import cats._
       runIsActive(DateRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)
@@ -310,7 +312,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "Release date feature" must {
     "active" in {
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
-      val feature = ReleaseDateFeature(Key("key"), true, date = date)
+      val feature = ReleaseDateFeature(Key("key"), true, None, date = date)
 
       import cats._
       runIsActive(ReleaseDateFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
@@ -318,7 +320,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "inactive" in {
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.MINUTES)
-      val feature = ReleaseDateFeature(Key("key"), true, date = date)
+      val feature = ReleaseDateFeature(Key("key"), true, None, date = date)
 
       import cats._
       runIsActive(ReleaseDateFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)
@@ -327,7 +329,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   "Percentage feature" must {
     "Calc ratio" in {
-      val feature = PercentageFeature(Key("key"), true, 60)
+      val feature = PercentageFeature(Key("key"), true, None, 60)
 
       val count: Int = calcPercentage(feature) { i =>
         s"string-number-$i"
@@ -349,7 +351,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val startAt = LocalTime.now().minus(Duration.ofHours(1))
       val endAt   = LocalTime.now().plus(Duration.ofMinutes(30))
-      val feature = HourRangeFeature(Key("key"), true, startAt, endAt)
+      val feature = HourRangeFeature(Key("key"), true, None, startAt, endAt)
 
       runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
 
@@ -359,7 +361,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val startAt = LocalTime.now().plus(Duration.ofMinutes(1))
       val endAt   = LocalTime.now().plus(Duration.ofMinutes(30))
-      val feature = HourRangeFeature(Key("key"), true, startAt, endAt)
+      val feature = HourRangeFeature(Key("key"), true, None, startAt, endAt)
 
       runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)
 
@@ -373,7 +375,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "create" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val created = run(ctx)(FeatureService.create(id, feature))
       created must be(feature)
@@ -390,7 +392,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "create id not equal" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val created = run(ctx)(FeatureService.create(Key("other"), feature).either)
       created must be(Left(IdMustBeTheSame(feature.id, Key("other"))))
@@ -401,7 +403,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "update if data not exists" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val updated = run(ctx)(FeatureService.update(id, id, feature).either)
       updated must be(Left(DataShouldExists(id)))
@@ -410,7 +412,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "update" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val test = for {
         _       <- FeatureService.create(id, feature)
@@ -434,7 +436,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id      = Key("test")
       val newId   = Key("test2")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val test = for {
         _       <- FeatureService.create(id, feature)
@@ -457,7 +459,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "delete" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val test = for {
         _       <- FeatureService.create(id, feature)
@@ -478,7 +480,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "delete empty data" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val deleted = run(ctx)(FeatureService.delete(id).either)
       deleted must be(Left(DataShouldExists(id)))
@@ -489,7 +491,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "get by id when active" in {
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
-      val feature = ReleaseDateFeature(id, true, date = date)
+      val feature = ReleaseDateFeature(id, true, None, date = date)
       val ctx     = TestFeatureContext()
 
       val test = for {
@@ -499,7 +501,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val mayBeFeature = run(ctx)(test)
       inside(mayBeFeature) {
-        case Some((ReleaseDateFeature(ident, enabled, _), isActive)) =>
+        case Some((ReleaseDateFeature(ident, enabled, None, _), isActive)) =>
           ident must be(id)
           enabled must be(true)
           isActive must be(true)
@@ -509,7 +511,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "get by id when not active" in {
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
-      val feature = ReleaseDateFeature(id, true, date = date)
+      val feature = ReleaseDateFeature(id, true, None, date = date)
       val ctx     = TestFeatureContext()
 
       val test = for {
@@ -519,7 +521,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val mayBeFeature = run(ctx)(test)
       inside(mayBeFeature) {
-        case Some((ReleaseDateFeature(ident, enabled, _), isActive)) =>
+        case Some((ReleaseDateFeature(ident, enabled, None, _), isActive)) =>
           ident must be(id)
           enabled must be(true)
           isActive must be(false)
@@ -529,7 +531,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "find when not active" in {
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
-      val feature = ReleaseDateFeature(id, true, date = date)
+      val feature = ReleaseDateFeature(id, true, None, date = date)
       val ctx     = TestFeatureContext()
 
       val test = for {
@@ -545,7 +547,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           size must be(20)
           nbElt must be(1)
           inside(pages.head) {
-            case (ReleaseDateFeature(ident, enabled, _), isActive) =>
+            case (ReleaseDateFeature(ident, enabled, None, _), isActive) =>
               ident must be(id)
               enabled must be(true)
               isActive must be(false)
@@ -556,7 +558,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "find stream when not active" in {
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
-      val feature = ReleaseDateFeature(id, true, date = date)
+      val feature = ReleaseDateFeature(id, true, None, date = date)
       val ctx     = TestFeatureContext()
 
       val test = for {
@@ -567,7 +569,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val mayBeFeature = run(ctx)(test)
       inside(mayBeFeature.head) {
-        case (key, ReleaseDateFeature(ident, enabled, _), isActive) =>
+        case (key, ReleaseDateFeature(ident, enabled, None, _), isActive) =>
           key must be(id)
           ident must be(id)
           enabled must be(true)
@@ -577,9 +579,9 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "feature tree flat" in {
       val id1      = Key("test")
-      val feature1 = DefaultFeature(id1, true)
+      val feature1 = DefaultFeature(id1, true, None)
       val id2      = Key("test:other")
-      val feature2 = DefaultFeature(id2, false)
+      val feature2 = DefaultFeature(id2, false, None)
 
       val ctx = TestFeatureContext()
 
@@ -601,9 +603,9 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "feature tree tree" in {
       val id1      = Key("test")
-      val feature1 = DefaultFeature(id1, true)
+      val feature1 = DefaultFeature(id1, true, None)
       val id2      = Key("test:other")
-      val feature2 = DefaultFeature(id2, false)
+      val feature2 = DefaultFeature(id2, false, None)
 
       val ctx = TestFeatureContext()
 
@@ -630,7 +632,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "import data" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val res = run(ctx)(FeatureService.importData.flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -645,7 +647,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "import data invalid format" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val res = run(ctx)(FeatureService.importData.flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -663,7 +665,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "import data data exist" in {
       val id      = Key("test")
       val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true)
+      val feature = DefaultFeature(id, true, None)
 
       val test = for {
         _ <- FeatureService.create(id, feature)

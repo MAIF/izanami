@@ -25,20 +25,19 @@ object DefaultFeatureInstances {
   val reads: Reads[DefaultFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean] and
-    (__ \ "description").readNullable[String] and 
-    (__ \ "parameters").read[JsValue].orElse(Reads.pure(JsNull))
+    (__ \ "description").readNullable[String] and
+    (__ \ "parameters").readNullable[JsValue].map(_.getOrElse(JsNull))
   )(DefaultFeature.apply _)
-  
-  val writes: Writes[DefaultFeature] = 
-    (FeatureInstances.commonWrite and 
-         (__ \ "parameters").write[JsValue].transform { (v: JsValue) => 
-            v match {
-              case o: JsObject => o ++ Json.obj("activationStrategy" -> NO_STRATEGY)
-              case _ => Json.obj("activationStrategy" -> NO_STRATEGY)
-            }
-        }
-      )(unlift(DefaultFeature.unapply))
-        
+
+  val writes: Writes[DefaultFeature] =
+    ((FeatureInstances.commonWrite and
+    (__ \ "parameters").write[JsValue]))(unlift(DefaultFeature.unapply)).transform { o: JsObject =>
+      JsObject(o.fields.flatMap {
+        case (_, JsNull) => None
+        case other       => Some(other)
+      }) ++ Json.obj("activationStrategy" -> NO_STRATEGY)
+    }
+
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
 
   def isActive: IsActive[DefaultFeature] = new IsActive[DefaultFeature] {
@@ -340,8 +339,8 @@ object FeatureInstances {
 
   private[feature] val commonWrite =
   (__ \ "id").write[FeatureKey] and
-  (__ \ "enabled").write[Boolean] and 
-  (__ \ "description").writeNullable[String] 
+  (__ \ "enabled").write[Boolean] and
+  (__ \ "description").writeNullable[String]
 
   val reads: Reads[Feature] = Reads[Feature] {
     case o if (o \ "activationStrategy").asOpt[String].contains(NO_STRATEGY) =>
