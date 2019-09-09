@@ -37,20 +37,17 @@ object DynamoJsonDataStore {
     new DynamoJsonDataStore(client, tableName, storeName)
 }
 
-class DynamoJsonDataStore(client: AlpakkaClient, rawTableName: String, rawStoreName: String)(
+class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: String)(
     implicit actorSystem: ActorSystem
 ) extends JsonDataStore {
 
   import zio._
 
-  private val tableName = rawTableName.replaceAll(":", "_")
-  private val storeName = rawStoreName.replaceAll(":", "_")
-
   private implicit val ec: ExecutionContext   = actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
   override def start: RIO[DataStoreContext, Unit] =
-    Logger.info(s"Load store Dynamo for namespace $rawStoreName")
+    Logger.info(s"Load store Dynamo for namespace $storeName")
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     for {

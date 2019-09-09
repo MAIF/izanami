@@ -36,7 +36,7 @@ object ExperimentVariantEventDynamoService {
     new ExperimentVariantEventDynamoService(client, config.eventsTableName)
 }
 
-class ExperimentVariantEventDynamoService(client: DynamoClient, rawTableName: String)(
+class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: String)(
     implicit actorSystem: ActorSystem
 ) extends ExperimentVariantEventService {
   import cats.implicits._
@@ -45,8 +45,6 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, rawTableName: St
 
   private implicit val ec: ExecutionContext   = actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
-
-  val tableName: String = rawTableName.replaceAll(":", "_")
 
   override def create(
       id: ExperimentVariantEventKey,
