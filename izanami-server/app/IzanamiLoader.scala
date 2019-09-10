@@ -53,6 +53,7 @@ class IzanamiLoader extends ApplicationLoader {
 }
 
 package object modules {
+  import scala.concurrent.Future
 
   class IzanamiComponentsInstances(context: Context)
       extends BuiltInComponentsFromContext(context)
@@ -128,6 +129,10 @@ package object modules {
       *> Import.importFile(izanamiConfig.experimentEvent.db, ExperimentVariantEventService.importData)
       *> patchs.run().ignore
     )
+
+    applicationLifecycle.addStopHook { () =>
+      Future(globalContext.prometheusRegistry.clear())
+    }
 
     lazy val homeController: HomeController                 = wire[HomeController]
     lazy val globalScripController: GlobalScriptController  = wire[GlobalScriptController]
