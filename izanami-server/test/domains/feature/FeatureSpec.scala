@@ -84,6 +84,21 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     }
 
+    "Deserialize DefaultFeature without enabled" in {
+      import FeatureInstances._
+      val json = Json.parse("""
+          |{
+          |   "id": "id",
+          |   "activationStrategy": "NO_STRATEGY"
+          |}
+        """.stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(DefaultFeature(Key("id"), false, None))
+    }
+
     "Deserialize GlobalScriptFeature" in {
       import FeatureInstances._
       val json = Json.parse("""
@@ -99,6 +114,23 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       result mustBe an[JsSuccess[_]]
 
       result.get must be(GlobalScriptFeature(Key("id"), true, None, "ref"))
+
+    }
+
+    "Deserialize GlobalScriptFeature  without enabled" in {
+      import FeatureInstances._
+      val json = Json.parse("""
+          |{
+          |   "id": "id",
+          |   "activationStrategy": "GLOBAL_SCRIPT",
+          |   "parameters": { "ref": "ref" }
+          |}
+        """.stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(GlobalScriptFeature(Key("id"), false, None, "ref"))
 
     }
 
@@ -120,6 +152,23 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     }
 
+    "Deserialize ScriptFeature without enabled" in {
+      import FeatureInstances._
+      val json = Json.parse("""
+          |{
+          |   "id": "id",
+          |   "activationStrategy": "SCRIPT",
+          |   "parameters": { "script": "script" }
+          |}
+        """.stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(ScriptFeature(Key("id"), false, None, JavascriptScript("script")))
+
+    }
+
     "Deserialize ReleaseDateFeature" in {
       import FeatureInstances._
       val json =
@@ -136,6 +185,24 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       result mustBe an[JsSuccess[_]]
 
       result.get must be(ReleaseDateFeature(Key("id"), true, None, LocalDateTime.of(2017, 1, 1, 12, 12, 12)))
+
+    }
+
+    "Deserialize ReleaseDateFeature without enabled" in {
+      import FeatureInstances._
+      val json =
+        Json.parse("""
+          |{
+          |   "id": "id",
+          |   "activationStrategy": "RELEASE_DATE",
+          |   "parameters": { "releaseDate": "01/01/2017 12:12:12" }
+          |}
+        """.stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(ReleaseDateFeature(Key("id"), false, None, LocalDateTime.of(2017, 1, 1, 12, 12, 12)))
 
     }
 
@@ -177,6 +244,25 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       result.get must be(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 15), LocalTime.of(17, 30)))
 
+    }
+
+    "Deserialize HourRangeFeature  without enabled" in {
+      import FeatureInstances._
+      val json =
+        Json.parse("""
+                |{
+                |   "id": "id",
+                |   "activationStrategy": "HOUR_RANGE",
+                |   "parameters": { 
+                |     "startAt": "02:15",
+                |     "endAt": "17:30" 
+                |   }
+                |}""".stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(HourRangeFeature(Key("id"), false, None, LocalTime.of(2, 15), LocalTime.of(17, 30)))
     }
 
   }
