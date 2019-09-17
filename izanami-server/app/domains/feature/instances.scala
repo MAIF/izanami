@@ -24,7 +24,7 @@ object DefaultFeatureInstances {
 
   val reads: Reads[DefaultFeature] = (
     (__ \ "id").read[Key] and
-    (__ \ "enabled").read[Boolean] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters").readNullable[JsValue].map(_.getOrElse(JsNull))
   )(DefaultFeature.apply _)
@@ -62,7 +62,7 @@ object GlobalScriptFeatureInstances {
 
   private val reads: Reads[GlobalScriptFeature] = (
     (__ \ "id").read[Key] and
-    (__ \ "enabled").read[Boolean] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "ref").read[String]
   )(GlobalScriptFeature.apply _)
@@ -108,7 +108,7 @@ object ScriptFeatureInstances {
 
   private val reads: Reads[ScriptFeature] = (
     (__ \ "id").read[Key] and
-    (__ \ "enabled").read[Boolean] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters").read[Script](ScriptInstances.reads)
   )(ScriptFeature.apply _)
@@ -140,7 +140,7 @@ object DateRangeFeatureInstances {
 
   val reads: Reads[DateRangeFeature] = (
     (__ \ "id").read[Key] and
-    (__ \ "enabled").read[Boolean] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "from")
       .read[LocalDateTime](localDateTimeReads(pattern)) and
@@ -186,7 +186,7 @@ object ReleaseDateFeatureInstances {
 
   val reads: Reads[ReleaseDateFeature] = (
     (__ \ "id").read[Key] and
-    (__ \ "enabled").read[Boolean] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "releaseDate")
       .read[LocalDateTime](
@@ -223,7 +223,7 @@ object PercentageFeatureInstances {
 
   val reads: Reads[PercentageFeature] = (
     (__ \ "id").read[Key] and
-    (__ \ "enabled").read[Boolean] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "percentage").read[Int](min(0) keepAnd max(100))
   )(PercentageFeature.apply _)
@@ -267,7 +267,7 @@ object HourRangeFeatureInstances {
 
   val reads: Reads[HourRangeFeature] = (
     (__ \ "id").read[Key] and
-    (__ \ "enabled").read[Boolean] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "startAt")
       .read[LocalTime](localTimeReads(pattern)) and
