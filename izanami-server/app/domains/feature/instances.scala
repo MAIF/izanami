@@ -16,6 +16,7 @@ import zio.{IO, Task, ZIO}
 
 import scala.util.hashing.MurmurHash3
 import java.time.LocalTime
+import metrics.MetricsService
 
 object DefaultFeatureInstances {
 
@@ -320,7 +321,9 @@ object FeatureInstances {
         case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive.isActive(f, context)
         case f: PercentageFeature   => PercentageFeatureInstances.isActive.isActive(f, context)
         case f: HourRangeFeature    => HourRangeFeatureInstances.isActive.isActive(f, context)
-      })
+      }) >>= { checked =>
+        MetricsService.incFeatureCheckCount(feature.id.key, checked) *> ZIO.succeed(checked)
+      }
     }
 
   implicit val isActive: IsActive[Feature] =

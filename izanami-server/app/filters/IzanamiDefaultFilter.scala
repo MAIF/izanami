@@ -39,14 +39,14 @@ object PrometheusMetricsHolder {
   val prometheursRequestCounter = io.prometheus.client.Counter
     .build()
     .name("request_count")
-    .labelNames("http_method", "request_path", "query_params")
+    .labelNames("http_method", "request_path", "request_status")
     .help("Count of http request")
     .create()
 
   val prometheursRequestHisto = io.prometheus.client.Histogram
     .build()
     .name("request_duration_details")
-    .labelNames("http_method", "request_path", "query_params")
+    .labelNames("http_method", "request_path")
     .help("Duration of http request")
     .create()
 
@@ -101,17 +101,9 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
     val startTime: Long = System.currentTimeMillis
     val maybeClaim      = Try(requestHeader.cookies.get(config.cookieClaim).get.value).toOption
 
-    val queryParamsStr = requestHeader.queryString.toSeq
-      .map {
-        case (name, values) => s"$name=${values.mkString(",")}"
-      }
-      .mkString("&")
-
-    val counterWithLabels =
-      PrometheusMetricsHolder.prometheursRequestCounter.labels(requestHeader.method, requestHeader.path, queryParamsStr)
     val histoWithLabels =
       PrometheusMetricsHolder.prometheursRequestHisto
-        .labels(requestHeader.method, requestHeader.path, queryParamsStr)
+        .labels(requestHeader.method, requestHeader.path)
         .startTimer()
 
     val maybeAuthorization = requestHeader.headers
@@ -289,7 +281,9 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
         timerMethod.foreach(_.stop())
         timerMethodPath.stop()
 
-        counterWithLabels.inc()
+        PrometheusMetricsHolder.prometheursRequestCounter
+          .labels(requestHeader.method, requestHeader.path, s"${resp.header.status}")
+          .inc()
         histoWithLabels.observeDuration()
 
       case Failure(e) =>
@@ -299,7 +293,7 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
         timerMethod.foreach(_.stop())
         timerMethodPath.stop()
 
-        counterWithLabels.inc()
+        PrometheusMetricsHolder.prometheursRequestCounter.labels(requestHeader.method, requestHeader.path, "500").inc()
         histoWithLabels.observeDuration()
     }
     result
