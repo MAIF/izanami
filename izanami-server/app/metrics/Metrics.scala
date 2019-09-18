@@ -64,6 +64,7 @@ import io.prometheus.client.Collector
 import zio.Ref
 import io.prometheus.client.Counter
 import io.prometheus.client.Histogram
+import zio.UIO
 
 trait MetricsModule extends IzanamiConfigModule {
   def metricRegistry: MetricRegistry
@@ -125,6 +126,39 @@ object MetricsService {
     )
     objectMapper
   }
+
+  private val featureCheckCount = Counter
+    .build()
+    .name("feature_check_count")
+    .labelNames("key", "active")
+    .help("Count feature check")
+    .create()
+
+  private val featureCreatedCount = Counter
+    .build()
+    .name("feature_created_count")
+    .labelNames("key")
+    .help("Count for feature creations")
+    .create()
+
+  private val featureUpdatedCount = Counter
+    .build()
+    .name("feature_updated_count")
+    .labelNames("key")
+    .help("Count for feature updates")
+    .create()
+
+  private val featureDeletedCount = Counter
+    .build()
+    .name("feature_deleted_count")
+    .labelNames("key")
+    .help("Count for feature deletions")
+    .create()
+
+  featureCheckCount.register()
+  featureCreatedCount.register()
+  featureUpdatedCount.register()
+  featureDeletedCount.register()
 
   private def startMetricsLogger(metricsConfig: MetricsConfig,
                                  context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
@@ -240,8 +274,12 @@ object MetricsService {
 
   def start: RIO[MetricsContext, Unit] =
     for {
-      runtime        <- ZIO.runtime[MetricsContext]
-      context        <- ZIO.environment[MetricsContext]
+      runtime <- ZIO.runtime[MetricsContext]
+      context <- ZIO.environment[MetricsContext]
+      // _              <- ZIO(featureCheckCount.register())
+      // _              <- ZIO(featureCreatedCount.register())
+      // _              <- ZIO(featureUpdatedCount.register())
+      // _              <- ZIO(featureDeletedCount.register())
       _              = context.metricRegistry.register("jvm.memory", new MemoryUsageGaugeSet())
       _              = context.metricRegistry.register("jvm.thread", new ThreadStatesGaugeSet())
       metricsConfig  = context.izanamiConfig.metrics
@@ -278,6 +316,18 @@ object MetricsService {
               context.prometheus,
               objectMapper,
               context.izanamiConfig.metrics)
+
+  def incFeatureCheckCount(key: String, active: Boolean): UIO[Unit] =
+    UIO(featureCheckCount.labels(key, s"$active").inc())
+
+  def incFeatureCreated(key: String): UIO[Unit] =
+    UIO(featureCreatedCount.labels(key).inc())
+
+  def incFeatureUpdated(key: String): UIO[Unit] =
+    UIO(featureUpdatedCount.labels(key).inc())
+
+  def incFeatureDeleted(key: String): UIO[Unit] =
+    UIO(featureDeletedCount.labels(key).inc())
 
   // def counter(name: String,
   //             help: String,
