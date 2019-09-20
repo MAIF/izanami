@@ -358,7 +358,6 @@ object FeatureInstances {
       GlobalScriptFeatureInstances.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(PERCENTAGE) =>
       PercentageFeatureInstances.format.reads(o)
-      GlobalScriptFeatureInstances.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(HOUR_RANGE) =>
       HourRangeFeatureInstances.format.reads(o)
     case _ =>
