@@ -42,7 +42,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
       val key1     = Key("key:1")
       val key2     = Key("key:2")
-      val feature1 = DefaultFeature(key1, false)
+      val feature1 = DefaultFeature(key1, false, None)
       underlyingStore.create(key1, Json.toJson(feature1)).either.unsafeRunSync()
 
       val inMemoryWithDb = new InMemoryWithDbStore(
@@ -56,7 +56,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       Thread.sleep(500)
 
       val feature1Updated = feature1.copy(enabled = true)
-      val feature2        = DefaultFeature(key2, false)
+      val feature2        = DefaultFeature(key2, false, None)
 
       actorSystem.eventStream.publish(FeatureUpdated(key1, feature1, feature1Updated, authInfo = None))
       actorSystem.eventStream.publish(FeatureCreated(key2, feature2, authInfo = None))
@@ -78,7 +78,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
     val key1     = Key("key:1")
     val key2     = Key("key:2")
-    val feature1 = DefaultFeature(key1, false)
+    val feature1 = DefaultFeature(key1, false, None)
     underlyingStore.create(key1, Json.toJson(feature1)).either.unsafeRunSync()
 
     val inMemoryWithDb = new InMemoryWithDbStore(
