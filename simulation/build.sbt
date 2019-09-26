@@ -1,7 +1,7 @@
 name := """simulation"""
 organization := "fr.maif"
 
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.9"
 
 lazy val simulation = (project in file("."))
   .enablePlugins(GatlingPlugin)

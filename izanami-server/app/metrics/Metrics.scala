@@ -58,10 +58,18 @@ import domains.script.GlobalScriptService
 import domains.webhook.WebhookService
 import domains.abtesting.ExperimentService
 import zio.Schedule
+import io.prometheus.client.CollectorRegistry
+import java.{util => ju}
+import io.prometheus.client.Collector
+import zio.Ref
+import io.prometheus.client.Counter
+import io.prometheus.client.Histogram
+import zio.UIO
 
 trait MetricsModule extends IzanamiConfigModule {
   def metricRegistry: MetricRegistry
-  val prometheus: DropwizardExports = new DropwizardExports(metricRegistry)
+  val prometheusRegistry: CollectorRegistry = CollectorRegistry.defaultRegistry
+  val prometheus: DropwizardExports         = new DropwizardExports(metricRegistry)
 }
 
 trait MetricsContext
@@ -82,13 +90,18 @@ trait MetricsContext
     with ExperimentContext
 
 case class Metrics(metricRegistry: MetricRegistry,
+                   prometheusRegistry: CollectorRegistry,
                    prometheus: DropwizardExports,
                    objectMapper: ObjectMapper,
                    metricsConfig: MetricsConfig) {
 
   def prometheusExport: String = {
-    val writer = new StringWriter()
-    TextFormat.write004(writer, new SimpleEnum(prometheus.collect()))
+    val writer             = new StringWriter()
+    val prometheuseMetrics = ju.Collections.list(prometheusRegistry.metricFamilySamples())
+    val dropwizardMetrics  = prometheus.collect()
+    dropwizardMetrics.addAll(prometheuseMetrics)
+
+    TextFormat.write004(writer, new SimpleEnum(dropwizardMetrics))
     writer.toString
   }
 
@@ -113,6 +126,39 @@ object MetricsService {
     )
     objectMapper
   }
+
+  private val featureCheckCount = Counter
+    .build()
+    .name("feature_check_count")
+    .labelNames("key", "active")
+    .help("Count feature check")
+    .create()
+
+  private val featureCreatedCount = Counter
+    .build()
+    .name("feature_created_count")
+    .labelNames("key")
+    .help("Count for feature creations")
+    .create()
+
+  private val featureUpdatedCount = Counter
+    .build()
+    .name("feature_updated_count")
+    .labelNames("key")
+    .help("Count for feature updates")
+    .create()
+
+  private val featureDeletedCount = Counter
+    .build()
+    .name("feature_deleted_count")
+    .labelNames("key")
+    .help("Count for feature deletions")
+    .create()
+
+  featureCheckCount.register()
+  featureCreatedCount.register()
+  featureUpdatedCount.register()
+  featureDeletedCount.register()
 
   private def startMetricsLogger(metricsConfig: MetricsConfig,
                                  context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
@@ -228,8 +274,12 @@ object MetricsService {
 
   def start: RIO[MetricsContext, Unit] =
     for {
-      runtime        <- ZIO.runtime[MetricsContext]
-      context        <- ZIO.environment[MetricsContext]
+      runtime <- ZIO.runtime[MetricsContext]
+      context <- ZIO.environment[MetricsContext]
+      // _              <- ZIO(featureCheckCount.register())
+      // _              <- ZIO(featureCreatedCount.register())
+      // _              <- ZIO(featureUpdatedCount.register())
+      // _              <- ZIO(featureDeletedCount.register())
       _              = context.metricRegistry.register("jvm.memory", new MemoryUsageGaugeSet())
       _              = context.metricRegistry.register("jvm.thread", new ThreadStatesGaugeSet())
       metricsConfig  = context.izanamiConfig.metrics
@@ -260,8 +310,94 @@ object MetricsService {
           countAndStore(count, GlobalScriptService.count(Query.oneOf("*")), "globalScript", metricRegistry) <&>
           countAndStore(count, UserService.count(Query.oneOf("*")), "user", metricRegistry) <&>
           countAndStore(count, WebhookService.count(Query.oneOf("*")), "webhook", metricRegistry))
-    } yield Metrics(context.metricRegistry, context.prometheus, objectMapper, context.izanamiConfig.metrics)
+    } yield
+      Metrics(context.metricRegistry,
+              context.prometheusRegistry,
+              context.prometheus,
+              objectMapper,
+              context.izanamiConfig.metrics)
 
+  def incFeatureCheckCount(key: String, active: Boolean): UIO[Unit] =
+    UIO(featureCheckCount.labels(key, s"$active").inc())
+
+  def incFeatureCreated(key: String): UIO[Unit] =
+    UIO(featureCreatedCount.labels(key).inc())
+
+  def incFeatureUpdated(key: String): UIO[Unit] =
+    UIO(featureUpdatedCount.labels(key).inc())
+
+  def incFeatureDeleted(key: String): UIO[Unit] =
+    UIO(featureDeletedCount.labels(key).inc())
+
+  // def counter(name: String,
+  //             help: String,
+  //             labels: (String, String)*): RIO[MetricsContext, io.prometheus.client.Counter] = {
+
+  //   import cats._
+  //   import cats.implicits._
+  //   val sortedLabels     = labels.sortBy(_._1)
+  //   val sortedLabelNames = sortedLabels.map(_._1)
+  //   for {
+  //     context <- ZIO.environment[MetricsContext]
+  //     _       <- Logger.info(s"Registering counter $name $sortedLabelNames")
+  //     metric <- context.prometheusMetrics.modify { metrics =>
+  //                metrics.collect {
+  //                  case PrometheusCounter(n, l, counter) if n === name && l == sortedLabelNames => counter
+  //                }.headOption match {
+  //                  case None =>
+  //                    val metricBuidler = io.prometheus.client.Counter
+  //                      .build()
+  //                      .name(name)
+  //                      .help(help)
+
+  //                    val metric = if (sortedLabelNames.isEmpty) {
+  //                      metricBuidler.create()
+  //                    } else {
+  //                      metricBuidler
+  //                        .labelNames(sortedLabelNames.toArray: _*)
+  //                        .create()
+  //                    }
+
+  //                    metric.register(context.prometheusRegistry)
+  //                    (metric, metrics :+ PrometheusCounter(name, sortedLabelNames, metric))
+  //                  case Some(metric) => (metric, metrics)
+  //                }
+  //              }
+  //   } yield metric
+  // }
+  // def histogram(name: String,
+  //               help: String,
+  //               labels: (String, String)*): RIO[MetricsContext, io.prometheus.client.Histogram] = {
+  //   val sortedLabels     = labels.sortBy(_._1)
+  //   val sortedLabelNames = sortedLabels.map(_._1)
+  //   for {
+  //     context <- ZIO.environment[MetricsContext]
+  //     _       <- Logger.info(s"Registering histogram $name $sortedLabelNames")
+  //     metric <- context.prometheusMetrics.modify { metrics =>
+  //                metrics.collect {
+  //                  case PrometheusHistogram(n, l, counter) if n == name && l == sortedLabelNames => counter
+  //                }.headOption match {
+  //                  case None =>
+  //                    val metricBuidler = io.prometheus.client.Histogram
+  //                      .build()
+  //                      .name(name)
+  //                      .help(help)
+
+  //                    val metric = if (sortedLabelNames.isEmpty) {
+  //                      metricBuidler.create()
+  //                    } else {
+  //                      metricBuidler
+  //                        .labelNames(sortedLabelNames.toArray: _*)
+  //                        .create()
+  //                    }
+
+  //                    metric.register(context.prometheusRegistry)
+  //                    (metric, metrics :+ PrometheusHistogram(name, sortedLabelNames, metric))
+  //                  case Some(metric) => (metric, metrics)
+  //                }
+  //              }
+  //   } yield metric
+  // }
   private def countAndStore[Ctx](enabled: Boolean,
                                  count: => RIO[Ctx, Long],
                                  name: String,

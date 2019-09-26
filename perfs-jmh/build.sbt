@@ -1,4 +1,4 @@
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.9"
 val akkaVersion = "2.5.12"
 
 libraryDependencies ++= Seq(

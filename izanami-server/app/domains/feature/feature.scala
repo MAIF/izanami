@@ -18,6 +18,8 @@ import store._
 import zio.{RIO, ZIO}
 import domains.{AuthInfo, AuthInfoModule}
 import java.time.LocalTime
+import metrics.Metrics
+import metrics.MetricsService
 
 sealed trait Strategy
 
@@ -149,6 +151,7 @@ object FeatureService {
       feature  <- jsResultToError(created.validate[Feature])
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(FeatureCreated(id, feature, authInfo = authInfo))
+      _        <- MetricsService.incFeatureCreated(id.key)
     } yield feature
 
   def update(oldId: FeatureKey, id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
@@ -159,6 +162,7 @@ object FeatureService {
       feature      <- jsResultToError(updated.validate[Feature])
       authInfo     <- AuthInfo.authInfo
       _            <- EventStore.publish(FeatureUpdated(id, oldValue, feature, authInfo = authInfo))
+      _            <- MetricsService.incFeatureUpdated(id.key)
     } yield feature
 
   def delete(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Feature] =
@@ -167,10 +171,11 @@ object FeatureService {
       feature  <- jsResultToError(deleted.validate[Feature])
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(FeatureDeleted(id, feature, authInfo = authInfo))
+      _        <- MetricsService.incFeatureDeleted(id.key)
     } yield feature
 
   def deleteAll(query: Query): ZIO[FeatureContext, IzanamiErrors, Unit] =
-    FeatureDataStore.deleteAll(query)
+    FeatureDataStore.deleteAll(query) <* MetricsService.incFeatureCreated(query.toString())
 
   def getById(id: FeatureKey): RIO[FeatureContext, Option[Feature]] =
     for {
