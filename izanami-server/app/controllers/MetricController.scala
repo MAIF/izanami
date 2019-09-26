@@ -15,7 +15,7 @@ class MetricController(AuthAction: ActionBuilder[AuthContext, AnyContent], cc: C
       req match {
         case Accepts.Json =>
           Ok(metrics.jsonExport).withHeaders("Content-Type" -> "application/json")
-        case Prometheus =>
+        case Prometheus() =>
           Ok(metrics.prometheusExport)
         case _ =>
           Ok(metrics.defaultHttpFormat)

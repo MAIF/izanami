@@ -27,20 +27,51 @@ import zio.{DefaultRuntime, Runtime, ZIO}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util._
+import io.prometheus.client.Gauge
+import io.prometheus.client.Counter
+import metrics.MetricsContext
+import metrics.Metrics
+import metrics.MetricsService
+import io.prometheus.client.Histogram
+
+object PrometheusMetricsHolder {
+
+  val prometheursRequestCounter = io.prometheus.client.Counter
+    .build()
+    .name("request_count")
+    .labelNames("http_method", "request_path", "request_status")
+    .help("Count of http request")
+    .create()
+
+  val prometheursRequestHisto = io.prometheus.client.Histogram
+    .build()
+    .name("request_duration_details")
+    .labelNames("http_method", "request_path")
+    .help("Duration of http request")
+    .create()
+
+  prometheursRequestCounter.register()
+  prometheursRequestHisto.register()
+}
 
 class IzanamiDefaultFilter[F[_]: Effect](env: Env,
                                          izanamiConfig: IzanamiConfig,
                                          config: DefaultFilter,
                                          apikeyConfig: ApikeyConfig)(
     implicit ec: ExecutionContext,
-    runtime: Runtime[ApiKeyContext],
+    runtime: Runtime[ApiKeyContext with MetricsContext],
     val mat: Materializer
 ) extends Filter {
 
   import cats.effect.implicits._
+  import scala.collection.JavaConverters._
 
   private val logger  = Logger("filter")
   private val decoder = Base64.getDecoder
+  // private val knownQueryParams = Seq("active", "clientId", "configs", "domains", "experiments", "features", "flat", "name_only", "newLevel",
+  // "page", "pageSize", "pattern", "patterns", "render", "scripts")
+
+  //private val labelNames = Seq("http_method", "request_path", "query_params").sorted.toArray
 
   private val allowedPath: Seq[String] = izanamiConfig.contextPath match {
     case "/" => config.allowedPaths
@@ -69,6 +100,11 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
 
     val startTime: Long = System.currentTimeMillis
     val maybeClaim      = Try(requestHeader.cookies.get(config.cookieClaim).get.value).toOption
+
+    val histoWithLabels =
+      PrometheusMetricsHolder.prometheursRequestHisto
+        .labels(requestHeader.method, requestHeader.path)
+        .startTimer()
 
     val maybeAuthorization = requestHeader.headers
       .get("Authorization")
@@ -244,12 +280,21 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
         timer.stop()
         timerMethod.foreach(_.stop())
         timerMethodPath.stop()
+
+        PrometheusMetricsHolder.prometheursRequestCounter
+          .labels(requestHeader.method, requestHeader.path, s"${resp.header.status}")
+          .inc()
+        histoWithLabels.observeDuration()
+
       case Failure(e) =>
         logger.error(s"Error for request ${requestHeader.method} ${requestHeader.uri}", e)
         env.metricRegistry.meter(name("request", "500", "rate")).mark()
         timer.stop()
         timerMethod.foreach(_.stop())
         timerMethodPath.stop()
+
+        PrometheusMetricsHolder.prometheursRequestCounter.labels(requestHeader.method, requestHeader.path, "500").inc()
+        histoWithLabels.observeDuration()
     }
     result
   }
