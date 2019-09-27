@@ -14,7 +14,8 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
     case default: env.Default => true
     case _                    => false
   }
-  lazy val baseURL: String = _env.baseURL
+  lazy val baseURL: String             = _env.baseURL
+  lazy val confirmationDialog: Boolean = _env.izanamiConfig.confirmationDialog
   lazy val logout: String = if (_env.izanamiConfig.logout.url.startsWith("http")) {
     _env.izanamiConfig.logout.url
   } else {
@@ -29,7 +30,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
       case Some(_) =>
         Ok(
           views.html
-            .index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth), version)
+            .index(_env, baseURL, logout, confirmationDialog, enabledUserManagement, toJson(ctx.auth), version)
         )
       case None =>
         Redirect(s"$baseURL/login")
@@ -37,7 +38,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
   }
 
   def login() = AuthAction { ctx =>
-    Ok(views.html.index(_env, baseURL, logout, enabledUserManagement, toJson(ctx.auth), version))
+    Ok(views.html.index(_env, baseURL, logout, confirmationDialog, enabledUserManagement, toJson(ctx.auth), version))
   }
 
   def otherRoutes(anyPath: String) = index()
