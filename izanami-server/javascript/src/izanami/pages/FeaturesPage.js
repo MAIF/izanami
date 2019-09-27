@@ -370,7 +370,7 @@ export class FeaturesPage extends Component {
       value={item.enabled}
       onChange={(v, input) => {
         let confirmRes = true;
-        if (process.env.confirmationToggle) {
+        if (this.props.confirmationDialog) {
           confirmRes = window.confirm("Are you sure you want to toggle " + item.id);
         }
 
