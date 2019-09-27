@@ -24,8 +24,6 @@
     <div id="app"></div>
     <script type="application/javascript">
         window.__contextPath = '@baseURL';
-        console.log("idex scanal html");
-        console.log(@confirmationDialog);
         Izanami.init(document.getElementById("app"), '@logout', @confirmationDialog, @enabledUserManagement, JSON.parse('@Html(Json.stringify(user))'));
     </script>
     <script>'Version: @version'</script>
