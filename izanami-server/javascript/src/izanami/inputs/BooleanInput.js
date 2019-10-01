@@ -74,13 +74,13 @@ export class SimpleBooleanInput extends Component {
   toggleOff = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.setState({ enabled: false });
-    this.props.onChange(false);
+    this.props.onChange(false, this);
   };
 
   toggleOn = e => {
     if (e && e.preventDefault) e.preventDefault();
     this.setState({ enabled: true });
-    this.props.onChange(true);
+    this.props.onChange(true, this);
   };
 
   componentWillReceiveProps(nextProps) {
