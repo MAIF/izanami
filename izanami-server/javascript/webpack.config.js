@@ -1,13 +1,13 @@
-const webpack = require("webpack");
-const path = require("path");
+const webpack = require('webpack');
+const path = require('path');
 
 const isDev = process.env.NODE_ENV !== "production";
 
 const plugins = [
   new webpack.DefinePlugin({
-    __DEV__: process.env.NODE_ENV === "production",
-    "process.env": {
-      NODE_ENV: JSON.stringify(process.env.NODE_ENV || "dev")
+    '__DEV__': process.env.NODE_ENV === 'production',
+    'process.env': {
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'dev')
     }
   })
 ];

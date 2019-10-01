@@ -382,6 +382,7 @@ class ScriptSpec
     "/",
     "/",
     false,
+    false,
     "X-Forwarded-For",
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
     DbConfig(""),

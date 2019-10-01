@@ -51,6 +51,7 @@ export class LoggedApp extends Component {
         setTitle={t => DynamicTitle.setContent(t)}
         getTitle={() => DynamicTitle.getContent()}
         user={this.props.user}
+        confirmationDialog={this.props.confirmationDialog}
         setSidebarContent={c => DynamicSidebar.setContent(c)}
         {...newProps}
       />
