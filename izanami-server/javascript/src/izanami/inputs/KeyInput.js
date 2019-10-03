@@ -305,7 +305,7 @@ export class KeyInput extends Component {
                 <div className="keypicker-input" style={{ overflow: "hidden" }}>
                   <input
                     type="text"
-                    size={`${this.state.textValue.length}`}
+                    size={`${(this.state.textValue || "").length}`}
                     onChange={this.computeValue}
                     value={this.state.textValue}
                     onFocus={this.onFocus}
