@@ -9,6 +9,10 @@ import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNam
 import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import zio.Runtime
+import akka.stream.scaladsl.Flow
+import scala.util.Success
+import scala.util.Failure
+import libs.logs.IzanamiLogger
 
 class EventsController(system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
@@ -17,6 +21,7 @@ class EventsController(system: ActorSystem,
 
   import libs.http._
   import domains.events.Events._
+  import system.dispatcher
 
   private implicit val nameExtractor =
     EventNameExtractor[IzanamiEvent](_ => None) //Some(event.`type`))
@@ -30,6 +35,10 @@ class EventsController(system: ActorSystem,
   def eventsForADomain(domain: String, patterns: String) =
     events(domain.split(","), patterns)
 
+  val logEvent = Flow[IzanamiEvent].map { event =>
+    event
+  }
+
   private def events[T <: IzanamiEvent](domains: Seq[String], patterns: String) =
     AuthAction.asyncTask[EventStoreContext] { ctx =>
       val allPatterns: Seq[String] = ctx.authorizedPatterns ++ patterns
@@ -38,13 +47,20 @@ class EventsController(system: ActorSystem,
 
       val lastEventId = ctx.request.headers.get("Last-Event-ID").map(_.toLong)
       val allDomains  = domains.map(JsString).flatMap(_.validate[Domain].asOpt)
+
       EventStore
         .events(allDomains, allPatterns, lastEventId)
         .map { source =>
-          Ok.chunked(
-              source via EventSource.flow
-            )
-            .as("text/event-stream")
+          val eventSource = (source via logEvent via EventSource.flow).watchTermination() { (m, fDone) =>
+            fDone.onComplete {
+              case Success(_) =>
+                IzanamiLogger.debug("SSE disconnected")
+              case Failure(e) =>
+                IzanamiLogger.error("Error during SSE ", e)
+            }
+            fDone
+          }
+          Ok.chunked(eventSource).as("text/event-stream")
         }
     }
 
