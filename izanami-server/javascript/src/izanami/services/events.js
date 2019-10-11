@@ -28,7 +28,9 @@ const IzanamiEvents = {
         e => {
           console.debug("New event", e);
           const data = JSON.parse(e.data);
-          callback.forEach(cb => cb(data));
+          if (data.type !== 'KEEP_ALIVE') {          
+            callback.forEach(cb => cb(data));
+          }
         },
         false
       );
