@@ -18,6 +18,6 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind"              % "2.9.3",
   "io.vavr"                    % "vavr-jackson"                  % "0.9.2",
   "com.auth0"                  % "java-jwt"                      % "3.1.0",
-  "fr.maif"                    %% "izanami-client"               % "1.4.5-SNAPSHOT",
+  "fr.maif"                    %% "izanami-client"               % "1.5.2",
   "org.iq80.leveldb"           % "leveldb"                       % "0.10"
 )
