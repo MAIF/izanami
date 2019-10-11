@@ -8,6 +8,12 @@ import izanami.{Feature, FeatureType, IzanamiDispatcher}
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
+import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.MediaType
+import akka.http.scaladsl.model.MediaTypes
+import akka.http.scaladsl.model.HttpCharsets
 
 object CUDFeatureClient {
   def apply(client: HttpClient)(implicit izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem) =
@@ -55,7 +61,19 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
+      }
+  }
 
+  def importFeature(features: Seq[Feature]): Future[Unit] = {
+    val payload = features.map(f => Json.toJsObject(f)).map(Json.stringify).mkString("\n")
+    client
+      .rawPost("/api/features.ndjson",
+               HttpEntity(MediaType.applicationWithFixedCharset("nd-json", HttpCharsets.`UTF-8`), payload))
+      .map { case (status, body) =>
+        if (status != StatusCodes.OK) {
+          logger.debug(s"Fail to import feature $body")
+        }
+        ()
       }
   }
 
