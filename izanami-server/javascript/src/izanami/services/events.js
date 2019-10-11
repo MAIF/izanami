@@ -18,15 +18,19 @@ const IzanamiEvents = {
         "error",
         e => {
           console.error("SSE error", e);
+          IzanamiEvents.stop()
+          IzanamiEvents.start()
         },
         false
       );
       eventSource.addEventListener(
         "message",
         e => {
-          console.log("New event", e);
+          console.debug("New event", e);
           const data = JSON.parse(e.data);
-          callback.forEach(cb => cb(data));
+          if (data.type !== 'KEEP_ALIVE') {          
+            callback.forEach(cb => cb(data));
+          }
         },
         false
       );

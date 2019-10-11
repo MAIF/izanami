@@ -13,6 +13,7 @@ import store.Result.IzanamiErrors
 import zio.{IO, Task}
 
 import scala.util.Try
+import zio.ZIO
 
 class BasicEventStore(implicit system: ActorSystem) extends EventStore {
 
@@ -23,11 +24,12 @@ class BasicEventStore(implicit system: ActorSystem) extends EventStore {
   private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
   system.actorOf(EventStreamActor.props(queue))
 
-  override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] = {
+  override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] =
     //Already published
-    system.eventStream.publish(event)
-    IO.succeed(Done)
-  }
+    Task {
+      system.eventStream.publish(event)
+      Done
+    }.refineToOrDie[IzanamiErrors]
 
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],
