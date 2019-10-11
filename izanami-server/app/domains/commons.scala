@@ -371,6 +371,7 @@ object Domain {
   case object User       extends Domain
   case object Script     extends Domain
   case object Webhook    extends Domain
+  case object Unknown    extends Domain
 
   val reads: Reads[Domain] = Reads[Domain] {
     case JsString(s) if s === "Experiment" => JsSuccess(Experiment)
@@ -379,6 +380,7 @@ object Domain {
     case JsString(s) if s === "Feature"    => JsSuccess(Feature)
     case JsString(s) if s === "User"       => JsSuccess(User)
     case JsString(s) if s === "Webhook"    => JsSuccess(Webhook)
+    case JsString(s) if s === "Unknown"    => JsSuccess(Unknown)
     case _                                 => JsError("domain.invalid")
   }
 
@@ -390,6 +392,7 @@ object Domain {
     case User       => JsString("User")
     case Script     => JsString("Script")
     case Webhook    => JsString("Webhook")
+    case Unknown    => JsString("Unknown")
   }
 
   implicit val format: Format[Domain] = Format(reads, writes)

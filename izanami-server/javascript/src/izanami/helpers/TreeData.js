@@ -34,7 +34,6 @@ export function addOrUpdateInTree(segments, value, tree) {
 function createTree(key, segments, value) {
   const [head, ...rest] = segments || [];
   const id = `${key}:${head}`;
-  console.log("id", id);
   if (rest.length > 0) {
     return {
       key: head,

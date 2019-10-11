@@ -235,4 +235,5 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
               s => List(s)
             )
       }
+      .filter { _.`type` != "KEEP_ALIVE" }
 }
