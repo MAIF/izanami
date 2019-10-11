@@ -174,11 +174,16 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   }
 
   def post(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+    rawPost(path, HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)), params)
+
+  def rawPost(path: String,
+              entity: HttpEntity.Strict,
+              params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
     singleRequest(
       HttpRequest(
         method = HttpMethods.POST,
         uri = buildUri(path, params),
-        entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
+        entity = entity,
         headers = headers
       )
     ).flatMap { parseResponse }

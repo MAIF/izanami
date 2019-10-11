@@ -99,9 +99,7 @@ private[features] class FetchFeatureClient(
         val features = parseFeatures(json)
         if (autocreate) {
           val toCreate = fallback.filterWith(pattern).featuresSeq.filterNot(features.contains)
-          Future.traverse(toCreate) { f =>
-            cudFeatureClient.createFeature(f)
-          }
+          cudFeatureClient.importFeature(toCreate)
         }
         Features(clientConfig, features, fallback.featuresSeq)
       }
@@ -119,9 +117,7 @@ private[features] class FetchFeatureClient(
         val features = parseFeatures(json)
         if (autocreate) {
           val toCreate = fallback.filterWith(pattern).fallback.filterNot(features.contains)
-          Future.traverse(toCreate) { f =>
-            cudFeatureClient.createFeature(f)
-          }
+          cudFeatureClient.importFeature(toCreate)
         }
         Features(clientConfig, features, fallback.featuresSeq)
       }
@@ -143,7 +139,6 @@ private[features] class FetchFeatureClient(
         case (status, _) if status == StatusCodes.NotFound =>
           if (autocreate) {
             fallback.featuresSeq.find(_.id == convertedKey).foreach { f =>
-              println(s"Feature to create : ${f}")
               cudFeatureClient.createFeature(f)
             }
           }
