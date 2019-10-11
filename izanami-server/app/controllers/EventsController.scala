@@ -13,6 +13,11 @@ import akka.stream.scaladsl.Flow
 import scala.util.Success
 import scala.util.Failure
 import libs.logs.IzanamiLogger
+import java.time.LocalDateTime
+import play.api.libs.json.JsValue
+import scala.concurrent.duration.DurationDouble
+import domains.AuthInfo
+import domains.Key
 
 class EventsController(system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
@@ -39,6 +44,18 @@ class EventsController(system: ActorSystem,
     event
   }
 
+  case class KeepAliveEvent() extends IzanamiEvent {
+    val _id: Long                  = 0
+    val domain: Domain             = domains.Domain.Unknown
+    val authInfo: Option[AuthInfo] = None
+    val key: Key                   = Key("na")
+    def timestamp: LocalDateTime   = LocalDateTime.now()
+    val `type`: String             = "KEEP_ALIVE"
+    val payload: JsValue           = Json.obj()
+  }
+
+  val keepAlive = Flow[IzanamiEvent].keepAlive(30.seconds, () => KeepAliveEvent())
+
   private def events[T <: IzanamiEvent](domains: Seq[String], patterns: String) =
     AuthAction.asyncTask[EventStoreContext] { ctx =>
       val allPatterns: Seq[String] = ctx.authorizedPatterns ++ patterns
@@ -51,7 +68,7 @@ class EventsController(system: ActorSystem,
       EventStore
         .events(allDomains, allPatterns, lastEventId)
         .map { source =>
-          val eventSource = (source via logEvent via EventSource.flow).watchTermination() { (m, fDone) =>
+          val eventSource = (source via keepAlive via logEvent via EventSource.flow).watchTermination() { (m, fDone) =>
             fDone.onComplete {
               case Success(_) =>
                 IzanamiLogger.debug("SSE disconnected")
