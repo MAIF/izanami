@@ -8,12 +8,12 @@ Our team was in charge to bring tools and we knew that one game changer in term 
 As every team could use their own language, framework or whatever, we needed a solution that could work with every technology. 
 We've tried existing product but we found nothing that satisfied our needs :
  
-* Technology agnostic : HTTP seams to be the best solution here 
-* API first : the UI is just client of the API  
-* Tracability : the platform should publish event listenable by the clients 
+* Technology agnostic: HTTP seams to be the best solution here 
+* API first: the UI is just client of the API  
+* Tracability: the platform should publish event listenable by the clients 
 
 
-And here come **Izanami**, our feature flipping, shared configuration and A/B testing platform.  
+And here comes **Izanami**, our feature flipping, shared configuration and A/B testing platform.  
 
 
 @@@ div { .izanami-logo }
