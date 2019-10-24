@@ -181,23 +181,8 @@ class ConfigController(system: ActorSystem,
     }
   }
 
-  def upload() = AuthAction.asyncTask[ConfigContext](Import.ndJson) { ctx =>
-    ConfigService.importData.flatMap { flow =>
-      Task.fromFuture { implicit ec =>
-        ctx.body
-          .via(flow)
-          .map {
-            case r if r.isError => BadRequest(Json.toJson(r))
-            case r              => Ok(Json.toJson(r))
-          }
-          .recover {
-            case e: Throwable =>
-              IzanamiLogger.error("Error importing file", e)
-              InternalServerError
-          }
-          .runWith(Sink.head)
-      }
-    }
+  def upload(strStrategy: String) = AuthAction.asyncTask[ConfigContext](Import.ndJson) { ctx =>
+    ImportData.importHttp(strStrategy, ctx.body, ConfigService.importData)
   }
 
 }

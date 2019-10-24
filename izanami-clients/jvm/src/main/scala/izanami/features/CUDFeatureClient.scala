@@ -69,11 +69,12 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
     client
       .rawPost("/api/features.ndjson",
                HttpEntity(MediaType.applicationWithFixedCharset("nd-json", HttpCharsets.`UTF-8`), payload))
-      .map { case (status, body) =>
-        if (status != StatusCodes.OK) {
-          logger.debug(s"Fail to import feature $body")
-        }
-        ()
+      .map {
+        case (status, body) =>
+          if (status != StatusCodes.OK) {
+            logger.debug(s"Fail to import feature $body")
+          }
+          ()
       }
   }
 

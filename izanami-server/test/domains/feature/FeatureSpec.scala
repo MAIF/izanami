@@ -720,7 +720,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val ctx     = TestFeatureContext()
       val feature = DefaultFeature(id, true, None)
 
-      val res = run(ctx)(FeatureService.importData.flatMap { flow =>
+      val res = run(ctx)(FeatureService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(List((id.key, FeatureInstances.format.writes(feature))))
             .via(flow)
@@ -735,7 +735,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val ctx     = TestFeatureContext()
       val feature = DefaultFeature(id, true, None)
 
-      val res = run(ctx)(FeatureService.importData.flatMap { flow =>
+      val res = run(ctx)(FeatureService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(
             List(
@@ -755,7 +755,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val test = for {
         _ <- FeatureService.create(id, feature)
-        res <- FeatureService.importData.flatMap { flow =>
+        res <- FeatureService.importData().flatMap { flow =>
                 Task.fromFuture { implicit ec =>
                   Source(
                     List(

@@ -16,7 +16,7 @@ PATCH   /api/configs/:id                    controllers.ConfigController.patch(i
 DELETE  /api/configs/:id                    controllers.ConfigController.delete(id)
 GET     /api/tree/configs                   controllers.ConfigController.tree(pattern: String ?= "*")
 GET     /api/configs.ndjson                 controllers.ConfigController.download()
-POST    /api/configs.ndjson                 controllers.ConfigController.upload()
+POST    /api/configs.ndjson                 controllers.ConfigController.upload(strategy: String ?= "Keep")
 GET     /api/counts/configs                 controllers.ConfigController.count()
 
 #Configs spring
@@ -34,7 +34,7 @@ DELETE  /api/features/:id                   controllers.FeatureController.delete
 GET     /api/features/:id/check             controllers.FeatureController.check(id)
 POST    /api/features/:id/check             controllers.FeatureController.checkWithContext(id)
 GET     /api/features.ndjson                controllers.FeatureController.download()
-POST    /api/features.ndjson                controllers.FeatureController.upload()
+POST    /api/features.ndjson                controllers.FeatureController.upload(strategy: String ?= "Keep")
 POST    /api/tree/features                  controllers.FeatureController.tree(pattern: String ?= "*", flat: Boolean = false)
 GET     /api/tree/features                  controllers.FeatureController.treeGet(pattern: String ?= "*", flat: Boolean = false)
 GET     /api/counts/features                controllers.FeatureController.count()
@@ -49,14 +49,14 @@ PUT     /api/scripts/:id                    controllers.GlobalScriptController.u
 PATCH   /api/scripts/:id                    controllers.GlobalScriptController.patch(id)
 DELETE  /api/scripts/:id                    controllers.GlobalScriptController.delete(id)
 GET     /api/scripts.ndjson                 controllers.GlobalScriptController.download()
-POST    /api/scripts.ndjson                 controllers.GlobalScriptController.upload()
+POST    /api/scripts.ndjson                 controllers.GlobalScriptController.upload(strategy: String ?= "Keep")
 
 #Experiments
 GET     /api/experiments                    controllers.ExperimentController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, render: String ?= "flat")
 GET     /api/tree/experiments               controllers.ExperimentController.tree(pattern: String ?= "*", clientId: String)
 POST    /api/experiments                    controllers.ExperimentController.create()
 GET     /api/experiments.ndjson             controllers.ExperimentController.downloadExperiments()
-POST    /api/experiments.ndjson             controllers.ExperimentController.uploadExperiments()
+POST    /api/experiments.ndjson             controllers.ExperimentController.uploadExperiments(strategy: String ?= "Keep")
 GET     /api/experiments/events.ndjson      controllers.ExperimentController.downloadEvents()
 POST    /api/experiments/events.ndjson      controllers.ExperimentController.uploadEvents()
 DELETE  /api/experiments                    controllers.ExperimentController.deleteAll(pattern: String ?= "*")
@@ -73,7 +73,7 @@ GET     /api/counts/experiments             controllers.ExperimentController.cou
 #Webhooks
 GET     /api/webhooks                       controllers.WebhookController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
 GET     /api/webhooks.ndjson                controllers.WebhookController.download()
-POST    /api/webhooks.ndjson                controllers.WebhookController.upload()
+POST    /api/webhooks.ndjson                controllers.WebhookController.upload(strategy: String ?= "Keep")
 POST    /api/webhooks                       controllers.WebhookController.create()
 GET     /api/webhooks/:id                   controllers.WebhookController.get(id)
 PUT     /api/webhooks/:id                   controllers.WebhookController.update(id)
@@ -84,7 +84,7 @@ GET     /api/counts/webhooks                controllers.WebhookController.count(
 #Users
 GET     /api/users                          controllers.UserController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
 GET     /api/users.ndjson                   controllers.UserController.download()
-POST    /api/users.ndjson                   controllers.UserController.upload()
+POST    /api/users.ndjson                   controllers.UserController.upload(strategy: String ?= "Keep")
 POST    /api/users                          controllers.UserController.create()
 DELETE  /api/users                          controllers.UserController.deleteAll(pattern: String ?= "*")
 GET     /api/users/:id                      controllers.UserController.get(id)
@@ -96,7 +96,7 @@ GET     /api/counts/users                   controllers.UserController.count()
 #Apikeys
 GET     /api/apikeys                        controllers.ApikeyController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
 GET     /api/apikeys.ndjson                 controllers.ApikeyController.download()
-POST    /api/apikeys.ndjson                 controllers.ApikeyController.upload()
+POST    /api/apikeys.ndjson                 controllers.ApikeyController.upload(strategy: String ?= "Keep")
 POST    /api/apikeys                        controllers.ApikeyController.create()
 GET     /api/apikeys/:id                    controllers.ApikeyController.get(id)
 PUT     /api/apikeys/:id                    controllers.ApikeyController.update(id)

@@ -146,22 +146,16 @@ object UserService {
   def count(query: Query): RIO[UserContext, Long] =
     UserDataStore.count(query)
 
-  def importData: RIO[UserContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
-    import cats.implicits._
-    ZIO.runtime[UserContext].map { runtime =>
-      Flow[(String, JsValue)]
-        .map { case (s, json) => (s, UserNoPasswordInstances.format.reads(json)) }
-        .mapAsync(4) {
-          case (_, JsSuccess(user, _)) =>
-            runtime.unsafeRunToFuture(
-              create(Key(user.id), user).either.map { ImportResult.fromResult }
-            )
-          case (s, JsError(_)) => FastFuture.successful(ImportResult.error("json.parse.error", s))
-        }
-        .fold(ImportResult()) {
-          _ |+| _
-        }
-    }
-  }
+  def importData(
+      strategy: ImportStrategy = ImportStrategy.Keep
+  ): RIO[UserContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ImportData
+      .importDataFlow[UserContext, UserKey, User](
+        strategy,
+        user => Key(user.id),
+        key => getById(key),
+        (key, data) => create(key, data),
+        (key, data) => update(key, key, data)
+      )(UserInstances.format)
 
 }
