@@ -39,7 +39,7 @@ trait CUDConfigClient {
       }
 
   def createConfig(id: String, config: JsValue): Future[JsValue]
-  
+
   def importConfigs(configs: Seq[Config]): Future[Unit]
 
   def updateConfig(id: String, config: Config): Future[Config] =
@@ -88,11 +88,12 @@ class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: Iz
     client
       .rawPost("/api/configs.ndjson",
                HttpEntity(MediaType.applicationWithFixedCharset("nd-json", HttpCharsets.`UTF-8`), payload))
-      .map { case (status, body) =>
-        if (status != StatusCodes.OK) {
-          logger.debug(s"Fail to import feature $body")
-        }
-        ()
+      .map {
+        case (status, body) =>
+          if (status != StatusCodes.OK) {
+            logger.debug(s"Fail to import feature $body")
+          }
+          ()
       }(izanamiDispatcher.ec)
   }
 

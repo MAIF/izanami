@@ -52,19 +52,24 @@ case class ClientConfig(
     assert(clientId != null, "clientId should not be null")
     this.copy(clientId = Some(clientId))
   }
+
   def withClientIdHeaderName(clientIdHeaderName: String) = {
     assert(clientIdHeaderName != null, "clientIdHeaderName should not be null")
     this.copy(clientIdHeaderName = clientIdHeaderName)
   }
+
   def withClientSecret(clientSecret: String) = {
     assert(clientSecret != null, "clientSecret should not be null")
     this.copy(clientSecret = Some(clientSecret))
   }
+
   def withClientSecretHeaderName(clientSecretHeaderName: String) = {
     assert(clientSecretHeaderName != null, "clientSecretHeaderName should not be null")
     this.copy(clientSecretHeaderName = clientSecretHeaderName)
   }
+
   def sseBackend() = this.copy(backend = IzanamiBackend.SseBackend)
+
   def withPageSize(pageSize: Int) = {
     assert(pageSize > 0, "pageSize should not be a positive number")
     this.copy(pageSize = pageSize)
@@ -75,6 +80,7 @@ case class ClientConfig(
   }
   def withDefaultBlockingDispatcher() =
     this.copy(dispatcher = "izanami.blocking-dispatcher")
+
   def withZoneId(zoneId: ZoneId) = {
     assert(zoneId != null, "zoneId should not be null")
     this.copy(zoneId = zoneId)

@@ -3,10 +3,9 @@ package domains.script
 import akka.http.scaladsl.util.FastFuture
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import domains.PlayModule
+import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key, PlayModule}
 import domains.events.{EventStore, EventStoreContext}
 import domains.script.Script.ScriptCache
-import domains.{AuthInfo, AuthInfoModule, ImportResult, Key}
 import env.Env
 import libs.logs.LoggerModule
 import play.api.libs.json._
@@ -159,22 +158,17 @@ object GlobalScriptService {
   def count(query: Query): RIO[GlobalScriptContext, Long] =
     GlobalScriptDataStore.count(query)
 
-  def importData: RIO[GlobalScriptContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
-    ZIO.runtime[GlobalScriptContext].map { runtime =>
-      import cats.implicits._
-      Flow[(String, JsValue)]
-        .map { case (s, json) => (s, json.validate[GlobalScript]) }
-        .mapAsync(4) {
-          case (_, JsSuccess(script, _)) =>
-            runtime.unsafeRunToFuture(
-              create(script.id, script).either.map { ImportResult.fromResult }
-            )
-          case (s, JsError(_)) => FastFuture.successful(ImportResult.error("json.parse.error", s))
-        }
-        .fold(ImportResult()) {
-          _ |+| _
-        }
-    }
+  def importData(
+      strategy: ImportStrategy = ImportStrategy.Keep
+  ): RIO[GlobalScriptContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ImportData
+      .importDataFlow[GlobalScriptContext, GlobalScriptKey, GlobalScript](
+        strategy,
+        _.id,
+        key => getById(key),
+        (key, data) => create(key, data),
+        (key, data) => update(key, key, data)
+      )(GlobalScriptInstances.format)
 
   val eventAdapter = Flow[IzanamiEvent].collect {
     case GlobalScriptCreated(key, script, _, _, _) =>

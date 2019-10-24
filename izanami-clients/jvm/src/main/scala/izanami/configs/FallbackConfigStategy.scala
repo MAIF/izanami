@@ -60,7 +60,7 @@ class FallbackConfigStategy(f: Configs)(
         )
       )
       FastFuture.successful(())
-    }  
+    }
 
     override def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] = {
       fallbackRef.set(

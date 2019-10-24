@@ -108,25 +108,16 @@ object WebhookService {
   def count(query: Query): RIO[WebhookContext, Long] =
     WebhookDataStore.count(query)
 
-  def importData: RIO[WebhookContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
-    import domains.webhook.WebhookInstances._
-    ZIO.runtime[WebhookContext].map { runtime =>
-      import cats.implicits._
-      Flow[(String, JsValue)]
-        .map { case (s, json) => (s, json.validate[Webhook]) }
-        .mapAsync(4) {
-          case (_, JsSuccess(webhook, _)) =>
-            runtime.unsafeRunToFuture(
-              create(webhook.clientId, webhook).either.map { either =>
-                ImportResult.fromResult(either)
-              }
-            )
-          case (s, JsError(_)) => FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-        }
-        .fold(ImportResult()) {
-          _ |+| _
-        }
-    }
-  }
+  def importData(
+      strategy: ImportStrategy = ImportStrategy.Keep
+  ): RIO[WebhookContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ImportData
+      .importDataFlow[WebhookContext, WebhookKey, Webhook](
+        strategy,
+        _.clientId,
+        key => getById(key),
+        (key, data) => create(key, data),
+        (key, data) => update(key, key, data)
+      )(WebhookInstances.format)
 
 }

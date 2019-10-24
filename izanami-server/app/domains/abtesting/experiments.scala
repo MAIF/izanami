@@ -8,7 +8,7 @@ import akka.NotUsed
 import cats.data.NonEmptyList
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.{EventStore, EventStoreContext}
-import domains.{AkkaModule, ImportResult, Key}
+import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
 import store.Result.{AppErrors, Result, ValidatedResult}
@@ -17,10 +17,8 @@ import cats.implicits._
 import cats.data.Validated._
 import libs.ziohelper.JsResults.jsResultToError
 import zio.{RIO, ZIO}
-import domains.AuthInfoModule
 
 import scala.util.hashing.MurmurHash3
-import domains.AuthInfo
 
 case class Traffic(traffic: Double) extends AnyVal
 
@@ -245,28 +243,17 @@ object ExperimentService {
   def count(query: Query): RIO[ExperimentContext, Long] =
     ExperimentDataStore.count(query)
 
-  def importData: RIO[ExperimentContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
-    import cats.implicits._
-    for {
-      runtime <- ZIO.runtime[ExperimentContext]
-      res <- ZIO.access[ExperimentContext] { ctx =>
-              Flow[(String, JsValue)]
-                .map { case (s, json) => (s, ExperimentInstances.format.reads(json)) }
-                .mapAsync(4) {
-                  case (_, JsSuccess(obj, _)) =>
-                    runtime.unsafeRunToFuture(
-                      create(obj.id, obj).either.map { either =>
-                        ImportResult.fromResult(either)
-                      }
-                    )
-                  case (s, JsError(_)) => FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
-                }
-                .fold(ImportResult()) {
-                  _ |+| _
-                }
-            }
-    } yield res
-  }
+  def importData(
+      strategy: ImportStrategy = ImportStrategy.Keep
+  ): RIO[ExperimentContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ImportData
+      .importDataFlow[ExperimentContext, ExperimentKey, Experiment](
+        strategy,
+        _.id,
+        key => getById(key),
+        (key, data) => create(key, data),
+        (key, data) => update(key, key, data)
+      )(ExperimentInstances.format)
 
   def toGraph(clientId: String): Flow[Experiment, JsObject, NotUsed] =
     Flow[Experiment]

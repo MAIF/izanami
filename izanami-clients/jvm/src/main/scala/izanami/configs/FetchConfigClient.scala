@@ -96,7 +96,7 @@ private[configs] class FetchConfigClient(
         val configs = Configs.fromJson(json, fallback.configs)
         if (autocreate) {
           val toCreate: Seq[Config] = fallback.filterWith(pattern).configs.filterNot(configs.configs.contains)
-          cudConfigClient.importConfigs(toCreate)        
+          cudConfigClient.importConfigs(toCreate)
         }
         configs
       }

@@ -4,8 +4,6 @@ addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.7.3") // Apache 2.0
 
 addSbtPlugin("com.lucidchart" % "sbt-scalafmt" % "1.15") // Apache 2.0
 
-addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.3") // Apache 2.0
-
 addSbtPlugin("io.gatling" % "gatling-sbt" % "3.0.0") // Apache 2.0
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.0") // Apache 2.0

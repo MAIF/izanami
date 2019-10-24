@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import domains.abtesting.Experiment.ExperimentKey
-import domains.{Import, IsAllowed, Key, Node}
+import domains.{Import, ImportData, IsAllowed, Key, Node}
 import domains.abtesting._
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
@@ -276,25 +276,8 @@ class ExperimentController(ctx: ExperimentContext,
 
   }
 
-  def uploadExperiments() = AuthAction.asyncTask[ExperimentContext](Import.ndJson) { ctx =>
-    for {
-      flow <- ExperimentService.importData
-      res <- ZIO.fromFuture(
-              _ =>
-                ctx.body
-                  .via(flow)
-                  .map {
-                    case r if r.isError => BadRequest(Json.toJson(r))
-                    case r              => Ok(Json.toJson(r))
-                  }
-                  .recover {
-                    case e: Throwable =>
-                      IzanamiLogger.error("Error importing file", e)
-                      InternalServerError
-                  }
-                  .runWith(Sink.head)
-            )
-    } yield res
+  def uploadExperiments(strStrategy: String) = AuthAction.asyncTask[ExperimentContext](Import.ndJson) { ctx =>
+    ImportData.importHttp(strStrategy, ctx.body, ExperimentService.importData)
   }
 
   def downloadEvents(): Action[AnyContent] = AuthAction.asyncTask[ExperimentContext] { ctx =>
@@ -317,7 +300,7 @@ class ExperimentController(ctx: ExperimentContext,
 
   def uploadEvents() = AuthAction.asyncTask[ExperimentContext](Import.ndJson) { ctx =>
     for {
-      flow <- ExperimentService.importData
+      flow <- ExperimentVariantEventService.importData
       res <- ZIO.fromFuture(
               _ =>
                 ctx.body

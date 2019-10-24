@@ -251,7 +251,7 @@ class ScriptSpec
       val ctx          = TestGlobalScriptContext()
       val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
 
-      val res = run(ctx)(GlobalScriptService.importData.flatMap { flow =>
+      val res = run(ctx)(GlobalScriptService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(List((id.key, GlobalScriptInstances.format.writes(globalScript))))
             .via(flow)
@@ -266,7 +266,7 @@ class ScriptSpec
       val ctx          = TestGlobalScriptContext()
       val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
 
-      val res = run(ctx)(GlobalScriptService.importData.flatMap { flow =>
+      val res = run(ctx)(GlobalScriptService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(
             List(
@@ -286,7 +286,7 @@ class ScriptSpec
 
       val test = for {
         _ <- GlobalScriptService.create(id, globalScript)
-        res <- GlobalScriptService.importData.flatMap { flow =>
+        res <- GlobalScriptService.importData().flatMap { flow =>
                 Task.fromFuture { implicit ec =>
                   Source(
                     List(
