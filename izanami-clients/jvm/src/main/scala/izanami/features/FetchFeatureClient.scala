@@ -98,7 +98,7 @@ private[features] class FetchFeatureClient(
       .map { json =>
         val features = parseFeatures(json)
         if (autocreate) {
-          val toCreate = fallback.filterWith(pattern).featuresSeq.filterNot(features.contains)
+          val toCreate = fallback.featureToCreate(features, pattern)
           if (toCreate.nonEmpty) {
             logger.debug("Importing features {}", toCreate)
             cudFeatureClient.importFeature(toCreate)
@@ -110,26 +110,30 @@ private[features] class FetchFeatureClient(
       .map(_.filterWith(pattern))
   }
 
-  override def features(pattern: Seq[String], context: JsObject): Future[Features] = {
-    val convertedPattern =
-      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
-    val query = Seq("pattern" -> convertedPattern)
-    client
-      .fetchPagesWithContext("/api/features/_checks", context, query)
-      .map { json =>
-        val features = parseFeatures(json)
-        if (autocreate) {
-          val toCreate = fallback.filterWith(pattern).fallback.filterNot(features.contains)
-          if (toCreate.nonEmpty) {
-            logger.debug("Importing features {}", toCreate)
-            cudFeatureClient.importFeature(toCreate)
+  override def features(pattern: Seq[String], context: JsObject): Future[Features] =
+    context match {
+      case JsObject(v) if v.isEmpty =>
+        features(pattern)
+      case _ =>
+        val convertedPattern =
+          Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
+        val query = Seq("pattern" -> convertedPattern)
+        client
+          .fetchPagesWithContext("/api/features/_checks", context, query)
+          .map { json =>
+            val features = parseFeatures(json)
+            if (autocreate) {
+              val toCreate = fallback.featureToCreate(features, pattern)
+              if (toCreate.nonEmpty) {
+                logger.debug("Importing features {}", toCreate)
+                cudFeatureClient.importFeature(toCreate)
+              }
+            }
+            Features(clientConfig, features, fallback.featuresSeq)
           }
-        }
-        Features(clientConfig, features, fallback.featuresSeq)
-      }
-      .recoverWith(handleFailure(fallback))
-      .map(_.filterWith(pattern))
-  }
+          .recoverWith(handleFailure(fallback))
+          .map(_.filterWith(pattern))
+    }
 
   override def checkFeature(key: String): Future[Boolean] =
     checkFeature(key, Json.obj())

@@ -451,6 +451,16 @@ trait FeatureMockServer extends MockServer {
         )
     )
 
+  def registerNoFeatureWithContext(): Unit =
+    mock.register(
+      post(urlPathMatching(s"/api/features/_checks"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody("[]")
+        )
+    )
+
 }
 
 case class Context[T, Event](host: String,

@@ -234,11 +234,6 @@ class FetchFeatureClientSpec
                |${Json.stringify(Json.toJson(feature2))}""".stripMargin))
           .withHeader("Content-Type", containing("application/nd-json"))
       )
-//      mock.verifyThat(
-//        postRequestedFor(urlEqualTo("/api/features"))
-//          .withRequestBody(equalToJson(Json.stringify(Json.toJson(feature2))))
-//          .withHeader("Content-Type", containing("application/json"))
-//      )
     }
 
     "List features" in {

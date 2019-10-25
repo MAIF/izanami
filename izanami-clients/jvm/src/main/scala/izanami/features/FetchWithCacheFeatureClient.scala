@@ -62,7 +62,7 @@ private[features] class FetchWithCacheFeatureClient(
         FastFuture.successful(Features(clientConfig, features))
       case None =>
         val futureFeatures =
-          underlyingStrategy.features(convertedPattern, context)
+          underlyingStrategy.features(pattern, context)
         futureFeatures.onComplete {
           case Success(f) =>
             cache.put(CacheKey(convertedPattern, context), f.featuresSeq)
@@ -81,7 +81,7 @@ private[features] class FetchWithCacheFeatureClient(
       case Some(features) =>
         FastFuture.successful(features.find(_.id == convertedKey).exists(_.isActive(clientConfig)))
       case None =>
-        val futureFeatures = underlyingStrategy.features(convertedKey, context)
+        val futureFeatures = underlyingStrategy.features(Seq(convertedKey), context)
         futureFeatures.onComplete {
           case Success(features) =>
             cache.put(CacheKey(convertedKey, context), features.featuresSeq)
