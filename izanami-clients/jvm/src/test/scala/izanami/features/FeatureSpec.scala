@@ -5,6 +5,8 @@ import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json._
 import java.time.LocalTime
 
+import izanami.scaladsl.Features
+
 class FeatureSpec
     extends IzanamiSpec
     with BeforeAndAfterAll
@@ -95,6 +97,21 @@ class FeatureSpec
 
       val written = Json.toJson(HourRangeFeature("id", true, None, LocalTime.of(5, 25), LocalTime.of(16, 30)))
       written must be(json)
+    }
+  }
+
+  "Features" should {
+
+    "Extract feature to create with empty list found" in {
+      val toCreate =
+        Features(ClientConfig(""), Seq(DefaultFeature("id", true))).featureToCreate(Seq.empty, Seq("*"))
+      toCreate must be(Seq(DefaultFeature("id", true)))
+    }
+
+    "Extract feature to create" in {
+      val toCreate = Features(ClientConfig(""), Seq(DefaultFeature("id", true)))
+        .featureToCreate(Seq(DefaultFeature("id2", true)), Seq("*"))
+      toCreate must be(Seq(DefaultFeature("id", true)))
     }
   }
 

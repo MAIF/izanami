@@ -4,7 +4,7 @@ import controllers.actions.SecuredAction
 import domains.me.{LevelDbMeRepository, MeRepository, MeService, MeServiceImpl}
 import domains.shows.{AllShows, BetaSerieShows, Shows, TvdbShows}
 import env._
-import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy}
+import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy, FetchWithCacheStrategy}
 import filter.OtoroshiFilter
 import izanami.scaladsl._
 import izanami.{ClientConfig, Experiments, IzanamiDispatcher}
@@ -55,7 +55,7 @@ object modules {
         )
       case IzanamiProd =>
         izanamiClient.featureClient(
-          CacheWithSseStrategy(patterns = Seq("mytvshows:*"), pollingInterval = Some(1.second)),
+          FetchWithCacheStrategy(maxElement = 20, duration = 1.minute),
           Features.parseJson(appConfig.izanami.fallback.features),
           autocreate = true
         )
