@@ -160,7 +160,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val ctx    = TestApikeyContext()
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
 
-      val res = run(ctx)(ApikeyService.importData.flatMap { flow =>
+      val res = run(ctx)(ApikeyService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(List((id.key, ApikeyInstances.format.writes(apikey))))
             .via(flow)
@@ -175,7 +175,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val ctx    = TestApikeyContext()
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
 
-      val res = run(ctx)(ApikeyService.importData.flatMap { flow =>
+      val res = run(ctx)(ApikeyService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(
             List(
@@ -195,7 +195,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
       val test = for {
         _ <- ApikeyService.create(id, apikey)
-        res <- ApikeyService.importData.flatMap { flow =>
+        res <- ApikeyService.importData().flatMap { flow =>
                 Task.fromFuture { implicit ec =>
                   Source(
                     List(
@@ -208,7 +208,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       } yield res
 
       val res = run(ctx)(test)
-      res must contain only (ImportResult(errors = AppErrors.error("error.data.exists", id.key)))
+      res must contain only (ImportResult())
     }
 
   }

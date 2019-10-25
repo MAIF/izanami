@@ -92,24 +92,15 @@ object ApikeyService {
   def count(query: Query): RIO[ApiKeyContext, Long] =
     ApiKeyDataStore.count(query)
 
-  def importData: RIO[ApiKeyContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
-    import cats.implicits._
-
-    // format: off
-    ZIO.runtime[ApiKeyContext].map { runtime => 
-        Flow[(String, JsValue)]
-        .map { case (s, json) => (s, ApikeyInstances.format.reads(json)) }
-        .mapAsync(4) {
-          case (_, JsSuccess(obj, _)) =>
-            runtime.unsafeRunToFuture(
-              create(Key(obj.clientId), obj).either.map { either =>
-                ImportResult.fromResult(either)
-              }
-            )
-          case (s, JsError(_)) => FastFuture.successful(ImportResult.error("json.parse.error", s))
-        }
-        .fold(ImportResult()) { _ |+| _ }
-    }
-    // format: on
-  }
+  def importData(
+      strategy: ImportStrategy = ImportStrategy.Keep
+  ): RIO[ApiKeyContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ImportData
+      .importDataFlow[ApiKeyContext, ApikeyKey, Apikey](
+        strategy,
+        data => Key(data.clientId),
+        key => getById(key),
+        (key, data) => create(key, data),
+        (key, data) => update(key, key, data)
+      )(ApikeyInstances.format)
 }

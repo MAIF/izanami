@@ -193,7 +193,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val ctx  = TestUserContext()
       val user = User(id.key, "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
 
-      val res = run(ctx)(UserService.importData.flatMap { flow =>
+      val res = run(ctx)(UserService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(List((id.key, UserInstances.format.writes(user))))
             .via(flow)
@@ -208,7 +208,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val ctx  = TestUserContext()
       val user = User(id.key, "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
 
-      val res = run(ctx)(UserService.importData.flatMap { flow =>
+      val res = run(ctx)(UserService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(
             List(
@@ -228,7 +228,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
       val test = for {
         _ <- UserService.create(id, user)
-        res <- UserService.importData.flatMap { flow =>
+        res <- UserService.importData().flatMap { flow =>
                 Task.fromFuture { implicit ec =>
                   Source(
                     List(
@@ -241,7 +241,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       } yield res
 
       val res = run(ctx)(test)
-      res must contain only (ImportResult(errors = AppErrors.error("error.data.exists", id.key)))
+      res must contain only (ImportResult())
     }
 
   }

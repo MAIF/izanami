@@ -6,7 +6,7 @@ import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import domains.webhook.{Webhook, WebhookContext, WebhookInstances, WebhookService}
-import domains.{Import, IsAllowed, Key}
+import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
@@ -142,23 +142,8 @@ class WebhookController(system: ActorSystem,
 
   }
 
-  def upload() = AuthAction.asyncTask[WebhookContext](Import.ndJson) { ctx =>
-    WebhookService.importData.flatMap { flow =>
-      ZIO.fromFuture { implicit ec =>
-        ctx.body
-          .via(flow)
-          .map {
-            case r if r.isError => BadRequest(Json.toJson(r))
-            case r              => Ok(Json.toJson(r))
-          }
-          .recover {
-            case e: Throwable =>
-              IzanamiLogger.error("Error importing file", e)
-              InternalServerError
-          }
-          .runWith(Sink.head)
-      }
-    }
+  def upload(strStrategy: String) = AuthAction.asyncTask[WebhookContext](Import.ndJson) { ctx =>
+    ImportData.importHttp(strStrategy, ctx.body, WebhookService.importData)
   }
 
   private def isWebhookAllowed(webhook: Webhook,

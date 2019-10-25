@@ -119,13 +119,13 @@ package object modules {
       *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook)
       *> MetricsService.start
       // Import files
-      *> Import.importFile(izanamiConfig.globalScript.db, GlobalScriptService.importData)
-      *> Import.importFile(izanamiConfig.config.db, ConfigService.importData)
-      *> Import.importFile(izanamiConfig.features.db, FeatureService.importData)
-      *> Import.importFile(izanamiConfig.apikey.db, ApikeyService.importData)
-      *> Import.importFile(izanamiConfig.user.db, UserService.importData)
-      *> Import.importFile(izanamiConfig.webhook.db, WebhookService.importData)
-      *> Import.importFile(izanamiConfig.experiment.db, ExperimentService.importData)
+      *> Import.importFile(izanamiConfig.globalScript.db, GlobalScriptService.importData())
+      *> Import.importFile(izanamiConfig.config.db, ConfigService.importData())
+      *> Import.importFile(izanamiConfig.features.db, FeatureService.importData())
+      *> Import.importFile(izanamiConfig.apikey.db, ApikeyService.importData())
+      *> Import.importFile(izanamiConfig.user.db, UserService.importData())
+      *> Import.importFile(izanamiConfig.webhook.db, WebhookService.importData())
+      *> Import.importFile(izanamiConfig.experiment.db, ExperimentService.importData())
       *> Import.importFile(izanamiConfig.experimentEvent.db, ExperimentVariantEventService.importData)
       *> patchs.run().ignore
     )

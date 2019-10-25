@@ -44,7 +44,7 @@ class FetchConfigClientSpec
       val config   = Config("test", Json.obj("value" -> 1))
       val jsonBody = Json.stringify(Json.toJson(config))
       registerCreateConfig(config)
-      
+
       //#create-config
       val jsoncreated = client.createConfig(Config("test", Json.obj("value" -> 1)))
       //#create-config
@@ -70,7 +70,7 @@ class FetchConfigClientSpec
       val config   = Config("test", Json.obj("value" -> 1))
       val jsonBody = Json.stringify(Json.toJson(config))
       registerCreateConfig(config)
-      
+
       //#create-config-json
       val configCreated = client.createConfig("test", Json.obj("value" -> 1))
       //#create-config-json
@@ -99,7 +99,7 @@ class FetchConfigClientSpec
       val jsonBody = Json.stringify(Json.toJson(config))
 
       registerUpdateConfig("test", config)
-      
+
       //#update-config
       val configUpdated = client.updateConfig("test", Config("newtest", Json.obj("value" -> 1)))
       //#update-config
@@ -124,7 +124,7 @@ class FetchConfigClientSpec
         )
       )
       val config   = Config("newtest", Json.obj("value" -> 1))
-      val jsonBody = Json.stringify(Json.toJson(config))    
+      val jsonBody = Json.stringify(Json.toJson(config))
       registerUpdateConfig("test", config)
 
       //#update-config-json
@@ -196,7 +196,7 @@ class FetchConfigClientSpec
 
     }
 
-    "autocreate listing config" in {    
+    "autocreate listing config" in {
       mock.resetRequests()
 
       val client = IzanamiClient(
@@ -214,9 +214,9 @@ class FetchConfigClientSpec
       val configs: Configs = client.configs("*").futureValue
 
       mock.verifyThat(
-        postRequestedFor(urlEqualTo("/api/configs"))
-          .withRequestBody(equalToJson(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
-          .withHeader("Content-Type", containing("application/json"))
+        postRequestedFor(urlEqualTo("/api/configs.ndjson"))
+          .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+          .withHeader("Content-Type", containing("application/nd-json"))
       )
 
     }
@@ -299,7 +299,7 @@ class FetchConfigClientSpec
 
     "Get one config" in {
       mock.resetRequests()
-      
+
       val izanamiClient = IzanamiClient(
         ClientConfig(host)
       ).configClient(

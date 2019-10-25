@@ -127,6 +127,65 @@ class SmartCacheConfigClientSpec
 
     }
 
+    "autocreate getting config" in {
+      mock.resetRequests()
+
+      val client = IzanamiClient(
+        ClientConfig(host)
+      )
+      //#config-autocreate
+      val izanamiClient = client.configClient(
+        strategy = CacheWithPollingStrategy(
+          patterns = Seq("*"),
+          pollingInterval = 3.second
+        ),
+        fallback = Configs(
+          "test" -> Json.obj("value" -> 2)
+        ),
+        autocreate = true
+      )
+      //#config-autocreate
+
+      registerNoConfig()
+      registerCreateConfig(Config("test", Json.obj("value" -> 2)))
+
+      val futureConfig = izanamiClient.config("test").futureValue
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/configs.ndjson"))
+          .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+          .withHeader("Content-Type", containing("application/nd-json"))
+      )
+    }
+
+    "autocreate listing config" in {
+      mock.resetRequests()
+
+      val client = IzanamiClient(
+        ClientConfig(host)
+      ).configClient(
+        strategy = CacheWithPollingStrategy(
+          patterns = Seq("*"),
+          pollingInterval = 3.second
+        ),
+        fallback = Configs(
+          "test" -> Json.obj("value" -> 2)
+        ),
+        autocreate = true
+      )
+      registerPage(Seq.empty)
+      registerCreateConfig(Config("test", Json.obj("value" -> 2)))
+
+      val configs: Configs = client.configs("*").futureValue
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/configs.ndjson"))
+          .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+          .withHeader("Content-Type", containing("application/nd-json"))
+      )
+
+    }
+
     "Configs by pattern with sse" in {
       runServer { ctx =>
         import akka.pattern

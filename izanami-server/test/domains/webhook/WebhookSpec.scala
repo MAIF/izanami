@@ -182,7 +182,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val ctx     = TestWebhookContext()
       val webhook = Webhook(id, "http://localhost:8080")
 
-      val res = run(ctx)(WebhookService.importData.flatMap { flow =>
+      val res = run(ctx)(WebhookService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(List((id.key, WebhookInstances.format.writes(webhook))))
             .via(flow)
@@ -197,7 +197,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val ctx     = TestWebhookContext()
       val webhook = Webhook(id, "http://localhost:8080")
 
-      val res = run(ctx)(WebhookService.importData.flatMap { flow =>
+      val res = run(ctx)(WebhookService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(
             List(
@@ -217,7 +217,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val test = for {
         _ <- WebhookService.create(id, webhook)
-        res <- WebhookService.importData.flatMap { flow =>
+        res <- WebhookService.importData().flatMap { flow =>
                 Task.fromFuture { implicit ec =>
                   Source(
                     List(
@@ -230,7 +230,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield res
 
       val res = run(ctx)(test)
-      res must contain only (ImportResult(errors = AppErrors.error("error.data.exists", id.key)))
+      res must contain only (ImportResult())
     }
 
   }

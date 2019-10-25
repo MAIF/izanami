@@ -147,7 +147,10 @@ export class WebHooksPage extends Component {
             downloadLinks={[
               { title: "Download", link: "/api/webhooks.ndjson" }
             ]}
-            uploadLinks={[{ title: "Upload", link: "/api/webhooks.ndjson" }]}
+            uploadLinks={[
+              { title: "Upload - replace if exists", link: "/api/webhooks.ndjson?strategy=Replace" },
+              { title: "Upload - ignore if exists", link: "/api/webhooks.ndjson?strategy=Keep" }
+            ]}
             showActions={true}
             showLink={false}
             eventNames={{

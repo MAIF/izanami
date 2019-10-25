@@ -6,15 +6,13 @@ import akka.stream.scaladsl.{Flow, Source}
 import domains.config.Config.ConfigKey
 import domains.events.{EventStore, EventStoreContext}
 import domains.events.Events.{ConfigCreated, ConfigDeleted, ConfigUpdated}
-import domains.{ImportResult, Key}
+import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
 import store.Result.{AppErrors, ErrorMessage, IzanamiErrors}
 import store._
 import libs.logs.Logger
 import store.Result.DataShouldExists
-import domains.AuthInfoModule
-import domains.AuthInfo
 import store.Result.IdMustBeTheSame
 
 case class Config(id: ConfigKey, value: JsValue)
@@ -97,21 +95,15 @@ object ConfigService {
   def count(query: Query): RIO[ConfigContext, Long] =
     ConfigDataStore.count(query)
 
-  def importData: RIO[ConfigContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
-    import cats.implicits._
-    ZIO.runtime[ConfigContext].map { runtime =>
-      Flow[(String, JsValue)]
-        .map { case (s, json) => (s, ConfigInstances.format.reads(json)) }
-        .mapAsync(4) {
-          case (_, JsSuccess(config, _)) =>
-            runtime.unsafeRunToFuture(
-              create(config.id, config).either
-                .map { ImportResult.fromResult }
-            )
-          case (s, JsError(_)) =>
-            FastFuture.successful[ImportResult](ImportResult.error("json.parse.error", s))
-        }
-        .fold(ImportResult()) { _ |+| _ }
-    }
-  }
+  def importData(
+      strategy: ImportStrategy = ImportStrategy.Keep
+  ): RIO[ConfigContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ImportData
+      .importDataFlow[ConfigContext, ConfigKey, Config](
+        strategy,
+        _.id,
+        key => getById(key),
+        (key, data) => create(key, data),
+        (key, data) => update(key, key, data)
+      )(ConfigInstances.format)
 }

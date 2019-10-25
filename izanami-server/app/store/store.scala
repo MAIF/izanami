@@ -196,6 +196,16 @@ trait DataStore[Key, Data] {
   import zio._
   def create(id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
   def update(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
+
+  def upsert(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data] =
+    for {
+      mayBeData <- getById(oldId).refineToOrDie[IzanamiErrors]
+      result <- mayBeData match {
+                 case Some(_) => update(oldId, id, data)
+                 case None    => create(id, data)
+               }
+    } yield result
+
   def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, Data]
   def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit]
   def deleteAll(patterns: Seq[String]): ZIO[DataStoreContext, IzanamiErrors, Unit] = deleteAll(Query.oneOf(patterns))
@@ -218,6 +228,9 @@ trait JsonDataStoreHelper[R <: DataStoreContext] {
 
   def update(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
     ZIO.accessM[R](accessStore(_).update(oldId, id, data))
+
+  def upsert(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
+    ZIO.accessM[R](accessStore(_).upsert(oldId, id, data))
 
   def delete(id: Key): ZIO[R, IzanamiErrors, JsValue] =
     ZIO.accessM[R](accessStore(_).delete(id))

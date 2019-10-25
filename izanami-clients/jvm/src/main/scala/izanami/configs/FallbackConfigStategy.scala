@@ -53,6 +53,15 @@ class FallbackConfigStategy(f: Configs)(
       FastFuture.successful(config)
     }
 
+    override def importConfigs(configs: Seq[Config]): Future[Unit] = {
+      fallbackRef.set(
+        fallback.copy(
+          configs = fallback.configs ++ configs
+        )
+      )
+      FastFuture.successful(())
+    }
+
     override def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] = {
       fallbackRef.set(
         fallback.copy(

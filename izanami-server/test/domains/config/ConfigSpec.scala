@@ -164,7 +164,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val ctx    = TestConfigContext()
       val config = Config(id, Json.obj("key" -> "value"))
 
-      val res = run(ctx)(ConfigService.importData.flatMap { flow =>
+      val res = run(ctx)(ConfigService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(List((id.key, ConfigInstances.format.writes(config))))
             .via(flow)
@@ -179,7 +179,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val ctx    = TestConfigContext()
       val config = Config(id, Json.obj("key" -> "value"))
 
-      val res = run(ctx)(ConfigService.importData.flatMap { flow =>
+      val res = run(ctx)(ConfigService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
           Source(
             List(
@@ -199,7 +199,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
       val test = for {
         _ <- ConfigService.create(id, config)
-        res <- ConfigService.importData.flatMap { flow =>
+        res <- ConfigService.importData().flatMap { flow =>
                 Task.fromFuture { implicit ec =>
                   Source(
                     List(
@@ -212,7 +212,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       } yield res
 
       val res = run(ctx)(test)
-      res must contain only (ImportResult(errors = AppErrors.error("error.data.exists", id.key)))
+      res must contain only (ImportResult())
     }
 
   }

@@ -110,7 +110,10 @@ export class ApikeyPage extends Component {
             showLink={false}
             extractKey={item => item.clientId}
             downloadLinks={[{ title: "Download", link: "/api/apikeys.ndjson" }]}
-            uploadLinks={[{ title: "Upload", link: "/api/apikeys.ndjson" }]}
+            uploadLinks={[
+              { title: "Upload - replace if exists", link: "/api/apikeys.ndjson?strategy=Replace" },
+              { title: "Upload - ignore if exists", link: "/api/apikeys.ndjson?strategy=Keep" }
+            ]}
             eventNames={{
               created: "APIKEY_CREATED",
               updated: "APIKEY_UPDATED",

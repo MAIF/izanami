@@ -1,8 +1,11 @@
 package izanami.features
 
+import java.time.LocalDateTime
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
+import com.github.tomakehurst.wiremock.client.WireMock.{containing, equalTo, equalToJson, postRequestedFor, urlEqualTo}
 import izanami.Strategy.FetchWithCacheStrategy
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
@@ -10,9 +13,15 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json.Json
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll with MockitoSugar with FeatureServer {
+class FetchWithCacheFeatureClientSpec
+    extends IzanamiSpec
+    with BeforeAndAfterAll
+    with MockitoSugar
+    with FeatureServer
+    with FeatureMockServer {
 
   implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
@@ -93,6 +102,57 @@ class FetchWithCacheFeatureClientSpec extends IzanamiSpec with BeforeAndAfterAll
 
         strategy.checkFeature("other").futureValue must be(false)
       }
+    }
+
+    "autocreate checking feature" in {
+      mock.resetRequests()
+      val feature =
+        DateRangeFeature("test", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+      val client = IzanamiClient(ClientConfig(host))
+      val featureClient = client
+        .featureClient(
+          FetchWithCacheStrategy(2, 1.second),
+          autocreate = true,
+          fallback = Features(feature)
+        )
+
+      registerPage(group = Seq.empty, pattern = "test")
+
+      val futureCheck: Future[Boolean] = featureClient.checkFeature(feature.id)
+
+      futureCheck.futureValue must be(false)
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/features.ndjson"))
+          .withRequestBody(equalTo(s"""${Json.stringify(Json.toJson(feature))}""".stripMargin))
+          .withHeader("Content-Type", containing("application/nd-json"))
+      )
+    }
+
+    "autocreate searching by pattern" in {
+      mock.resetRequests()
+
+      val feature1 = DefaultFeature("test1", true)
+      val feature2 =
+        DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+      val featureClient = IzanamiClient(ClientConfig(host))
+        .featureClient(
+          FetchWithCacheStrategy(2, 1.second),
+          autocreate = true,
+          fallback = Features(
+            feature1,
+            feature2
+          )
+        )
+      registerPage(group = Seq.empty)
+      featureClient.features("*").futureValue
+
+      mock.verifyThat(
+        postRequestedFor(urlEqualTo("/api/features.ndjson"))
+          .withRequestBody(equalTo(s"""${Json.stringify(Json.toJson(feature1))}
+                                      |${Json.stringify(Json.toJson(feature2))}""".stripMargin))
+          .withHeader("Content-Type", containing("application/nd-json"))
+      )
     }
   }
 

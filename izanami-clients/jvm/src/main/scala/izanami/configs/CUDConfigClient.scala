@@ -12,6 +12,9 @@ import play.api.libs.json.{JsObject, Json}
 import scala.concurrent.Future
 import play.api.libs.json.JsValue
 import scala.concurrent.ExecutionContext
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.model.MediaType
+import akka.http.scaladsl.model.HttpCharsets
 
 object CUDConfigClient {
   def apply(client: HttpClient)(implicit izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem) =
@@ -37,6 +40,8 @@ trait CUDConfigClient {
 
   def createConfig(id: String, config: JsValue): Future[JsValue]
 
+  def importConfigs(configs: Seq[Config]): Future[Unit]
+
   def updateConfig(id: String, config: Config): Future[Config] =
     updateConfig(id, config.id, config.value).flatMap { json =>
       json
@@ -59,7 +64,7 @@ class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: Iz
     extends CUDConfigClient {
 
   import izanamiDispatcher.ec
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   override implicit val ec: ExecutionContext = izanamiDispatcher.ec
 
@@ -75,6 +80,20 @@ class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: Iz
           logger.error(message)
           FastFuture.failed(IzanamiException(message))
         }
+      }(izanamiDispatcher.ec)
+  }
+
+  def importConfigs(configs: Seq[Config]): Future[Unit] = {
+    val payload = configs.map(f => Json.toJsObject(f)).map(Json.stringify).mkString("\n")
+    client
+      .rawPost("/api/configs.ndjson",
+               HttpEntity(MediaType.applicationWithFixedCharset("nd-json", HttpCharsets.`UTF-8`), payload))
+      .map {
+        case (status, body) =>
+          if (status != StatusCodes.OK) {
+            logger.debug(s"Fail to import feature $body")
+          }
+          ()
       }(izanamiDispatcher.ec)
   }
 

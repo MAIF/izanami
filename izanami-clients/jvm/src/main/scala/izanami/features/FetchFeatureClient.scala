@@ -48,7 +48,7 @@ private[features] class FetchFeatureClient(
 
   import client._
   import izanamiDispatcher.ec
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
     commons.handleFailure[T](errorStrategy)(_)(actorSystem)
@@ -98,9 +98,10 @@ private[features] class FetchFeatureClient(
       .map { json =>
         val features = parseFeatures(json)
         if (autocreate) {
-          val toCreate = fallback.filterWith(pattern).featuresSeq.filterNot(features.contains)
-          Future.traverse(toCreate) { f =>
-            cudFeatureClient.createFeature(f)
+          val toCreate = fallback.featureToCreate(features, pattern)
+          if (toCreate.nonEmpty) {
+            logger.debug("Importing features {}", toCreate)
+            cudFeatureClient.importFeature(toCreate)
           }
         }
         Features(clientConfig, features, fallback.featuresSeq)
@@ -109,25 +110,30 @@ private[features] class FetchFeatureClient(
       .map(_.filterWith(pattern))
   }
 
-  override def features(pattern: Seq[String], context: JsObject): Future[Features] = {
-    val convertedPattern =
-      Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
-    val query = Seq("pattern" -> convertedPattern)
-    client
-      .fetchPagesWithContext("/api/features/_checks", context, query)
-      .map { json =>
-        val features = parseFeatures(json)
-        if (autocreate) {
-          val toCreate = fallback.filterWith(pattern).fallback.filterNot(features.contains)
-          Future.traverse(toCreate) { f =>
-            cudFeatureClient.createFeature(f)
+  override def features(pattern: Seq[String], context: JsObject): Future[Features] =
+    context match {
+      case JsObject(v) if v.isEmpty =>
+        features(pattern)
+      case _ =>
+        val convertedPattern =
+          Option(pattern).map(_.map(_.replace(".", ":")).mkString(",")).getOrElse("*")
+        val query = Seq("pattern" -> convertedPattern)
+        client
+          .fetchPagesWithContext("/api/features/_checks", context, query)
+          .map { json =>
+            val features = parseFeatures(json)
+            if (autocreate) {
+              val toCreate = fallback.featureToCreate(features, pattern)
+              if (toCreate.nonEmpty) {
+                logger.debug("Importing features {}", toCreate)
+                cudFeatureClient.importFeature(toCreate)
+              }
+            }
+            Features(clientConfig, features, fallback.featuresSeq)
           }
-        }
-        Features(clientConfig, features, fallback.featuresSeq)
-      }
-      .recoverWith(handleFailure(fallback))
-      .map(_.filterWith(pattern))
-  }
+          .recoverWith(handleFailure(fallback))
+          .map(_.filterWith(pattern))
+    }
 
   override def checkFeature(key: String): Future[Boolean] =
     checkFeature(key, Json.obj())
@@ -143,7 +149,7 @@ private[features] class FetchFeatureClient(
         case (status, _) if status == StatusCodes.NotFound =>
           if (autocreate) {
             fallback.featuresSeq.find(_.id == convertedKey).foreach { f =>
-              println(s"Feature to create : ${f}")
+              logger.debug("Importing feature {}", f)
               cudFeatureClient.createFeature(f)
             }
           }
