@@ -43,7 +43,7 @@ private[features] class FetchWithCacheFeatureClient(
 
   implicit val timeout = Timeout(10.second)
 
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   private val cache: Cache[CacheKey, Seq[Feature]] = CacheBuilder
     .newBuilder()

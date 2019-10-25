@@ -64,7 +64,7 @@ class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: Iz
     extends CUDConfigClient {
 
   import izanamiDispatcher.ec
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   override implicit val ec: ExecutionContext = izanamiDispatcher.ec
 

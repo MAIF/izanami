@@ -48,7 +48,7 @@ private[features] class FetchFeatureClient(
 
   import client._
   import izanamiDispatcher.ec
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
     commons.handleFailure[T](errorStrategy)(_)(actorSystem)
@@ -99,7 +99,10 @@ private[features] class FetchFeatureClient(
         val features = parseFeatures(json)
         if (autocreate) {
           val toCreate = fallback.filterWith(pattern).featuresSeq.filterNot(features.contains)
-          cudFeatureClient.importFeature(toCreate)
+          if (toCreate.nonEmpty) {
+            logger.debug("Importing features {}", toCreate)
+            cudFeatureClient.importFeature(toCreate)
+          }
         }
         Features(clientConfig, features, fallback.featuresSeq)
       }
@@ -117,7 +120,10 @@ private[features] class FetchFeatureClient(
         val features = parseFeatures(json)
         if (autocreate) {
           val toCreate = fallback.filterWith(pattern).fallback.filterNot(features.contains)
-          cudFeatureClient.importFeature(toCreate)
+          if (toCreate.nonEmpty) {
+            logger.debug("Importing features {}", toCreate)
+            cudFeatureClient.importFeature(toCreate)
+          }
         }
         Features(clientConfig, features, fallback.featuresSeq)
       }
@@ -139,6 +145,7 @@ private[features] class FetchFeatureClient(
         case (status, _) if status == StatusCodes.NotFound =>
           if (autocreate) {
             fallback.featuresSeq.find(_.id == convertedKey).foreach { f =>
+              logger.debug("Importing feature {}", f)
               cudFeatureClient.createFeature(f)
             }
           }

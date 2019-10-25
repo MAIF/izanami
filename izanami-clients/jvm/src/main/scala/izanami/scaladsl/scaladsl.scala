@@ -194,7 +194,7 @@ case class Proxy(
 )(implicit actorSystem: ActorSystem, izanamiDispatcher: IzanamiDispatcher) {
 
   import izanamiDispatcher.ec
-  val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  val logger = Logging(actorSystem, this.getClass.getName)
 
   def withFeatureClient(featureClient: FeatureClient) =
     this.copy(featureClient = Some(featureClient))
