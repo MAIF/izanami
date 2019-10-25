@@ -17,6 +17,7 @@ import play.api._
 import router.Routes
 
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
 class AppLoader extends ApplicationLoader {
   def load(context: Context) = {
@@ -54,8 +55,8 @@ object modules {
         )
       case IzanamiProd =>
         izanamiClient.featureClient(
-          CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
-          Features.parseJson(appConfig.izanami.fallback.features), 
+          CacheWithSseStrategy(patterns = Seq("mytvshows:*"), pollingInterval = Some(1.second)),
+          Features.parseJson(appConfig.izanami.fallback.features),
           autocreate = true
         )
     }
@@ -88,7 +89,7 @@ object modules {
 
     private lazy val proxy: Proxy = Proxy(
       featureClient = Some(featureClient),
-      featurePattern = "mytvshows:*",
+      featurePattern = Seq("mytvshows:*"),
       configClient = None,
       experimentClient = Some(experimentClient)
     )

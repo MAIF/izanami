@@ -24,7 +24,7 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
                                            actorSystem: ActorSystem) {
 
   import izanamiDispatcher.ec
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   def createFeature(feature: Feature): Future[Feature] = {
     import Feature._

@@ -32,7 +32,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments, er
 
   private val fallbackStrategy = FallbackExperimentStrategy(fallback)
 
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
     commons.handleFailure[T](errorStrategy)(_)

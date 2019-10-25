@@ -90,7 +90,7 @@ lazy val publishSettings =
   } else {
     publishCommonsSettings ++ Seq(
       publishTo := Some(
-        "Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local"
+        "Artifactory Realm" at "https://oss.jfrog.org/artifactory/oss-snapshot-local"
       ),
       bintrayReleaseOnPublish := false,
       credentials := List(
