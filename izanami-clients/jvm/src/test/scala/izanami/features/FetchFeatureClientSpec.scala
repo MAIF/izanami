@@ -230,11 +230,9 @@ class FetchFeatureClientSpec
 
       mock.verifyThat(
         postRequestedFor(urlEqualTo("/api/features.ndjson"))
-          .withRequestBody(equalTo(
-            s"""${Json.stringify(Json.toJson(feature1))}
-               |${Json.stringify(Json.toJson(feature2))}
-               |""".stripMargin))
-          //.withHeader("Content-Type", containing("application/json"))
+          .withRequestBody(equalTo(s"""${Json.stringify(Json.toJson(feature1))}
+               |${Json.stringify(Json.toJson(feature2))}""".stripMargin))
+          .withHeader("Content-Type", containing("application/nd-json"))
       )
 //      mock.verifyThat(
 //        postRequestedFor(urlEqualTo("/api/features"))
