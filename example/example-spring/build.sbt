@@ -7,7 +7,7 @@ mainClass := Some("izanami.example.Application")
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
-  "Artifactory Realm" at "https://oss.jfrog.org/artifactory/oss-snapshot-local"
+  ("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local").withAllowInsecureProtocol(true)
 )
 
 libraryDependencies ++= Seq(
