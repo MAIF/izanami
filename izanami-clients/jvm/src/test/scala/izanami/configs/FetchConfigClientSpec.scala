@@ -189,8 +189,8 @@ class FetchConfigClientSpec
       val futureConfig = izanamiClient.config("test").futureValue
 
       mock.verifyThat(
-        postRequestedFor(urlEqualTo("/api/configs"))
-          .withRequestBody(equalToJson(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+        postRequestedFor(urlEqualTo("/api/configs.ndjson"))
+          .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
           .withHeader("Content-Type", containing("application/json"))
       )
 

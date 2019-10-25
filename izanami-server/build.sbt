@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"        %% "akka-cluster"                  % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster-tools"            % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion, // Apache 2.0
-  "dev.zio"                  %% "zio"                           % "1.0.0-RC11-1",
+  "dev.zio"                  %% "zio"                           % "1.0.0-RC15",
   "dev.zio"                  %% "zio-interop-cats"              % "2.0.0.0-RC6",
   "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.17.1",
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.17.1-play27",
