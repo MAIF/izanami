@@ -241,7 +241,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       } yield res
 
       val res = run(ctx)(test)
-      res must contain only (ImportResult(errors = AppErrors.error("error.data.exists", id.key)))
+      res must contain only (ImportResult())
     }
 
   }

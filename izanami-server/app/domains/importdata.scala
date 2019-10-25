@@ -3,8 +3,7 @@ package domains
 import akka.NotUsed
 import akka.stream.{scaladsl, Materializer}
 import akka.stream.scaladsl.{Flow, Source}
-import domains.feature.FeatureContext
-import libs.logs.IzanamiLogger
+import libs.logs.{IzanamiLogger, Logger, LoggerModule}
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Reads}
 import play.api.mvc.Results
 import store.Result.{AppErrors, IzanamiErrors}
@@ -24,13 +23,12 @@ object ImportStrategy {
 
 object ImportData {
 
-  import cats.implicits._
   import fs2._
   import streamz.converter._
   import zio._
   import zio.interop.catz._
 
-  def importData[Ctx, Key, Data](
+  def importData[Ctx <: LoggerModule, Key, Data](
       strategy: ImportStrategy,
       key: Data => Key,
       get: Key => RIO[Ctx, Option[Data]],
@@ -39,58 +37,60 @@ object ImportData {
   )(implicit reads: Reads[Data]): RIO[Ctx, Pipe[Task, (String, JsValue), ImportResult]] = {
 
     val mutation: (Key, Data) => RIO[Ctx, ImportResult] = strategy match {
+
       case ImportStrategy.Replace =>
         (key, data) =>
-          val result: ZIO[Ctx, IzanamiErrors, Data] = for {
-            mayBeData <- get(key).refineToOrDie[IzanamiErrors]
+          for {
+            _         <- Logger.debug(s"Replacing $key with $data")
+            mayBeData <- get(key)
             result <- mayBeData match {
-                       case Some(_) => update(key, data)
-                       case None    => create(key, data)
+                       case Some(_) => update(key, data).either.map { ImportResult.fromResult }
+                       case None    => create(key, data).either.map { ImportResult.fromResult }
                      }
           } yield result
-          result.either.map { ImportResult.fromResult }
+
       case ImportStrategy.Keep =>
         (key, data) =>
-          val result: ZIO[Ctx, IzanamiErrors, Data] = for {
-            mayBeData <- get(key).refineToOrDie[IzanamiErrors]
+          for {
+            _         <- Logger.debug(s"Inserting $key with $data")
+            mayBeData <- get(key)
             result <- mayBeData match {
-                       case Some(_) => ZIO(data).refineToOrDie[IzanamiErrors]
-                       case None    => create(key, data)
+                       case Some(_) => ZIO(ImportResult())
+                       case None    => create(key, data).either.map { ImportResult.fromResult }
                      }
           } yield result
-          result.either.map { ImportResult.fromResult }
     }
 
     ZIO.access[Ctx] { ctx =>
       { in: Stream[Task, (String, JsValue)] =>
         in.map { case (s, json) => (s, json.validate[Data]) }
-          .mapAsync(4) {
-            case (_, JsSuccess(obj, _)) =>
-              val value: RIO[Ctx, ImportResult] = mutation(key(obj), obj)
-              ZIO.provide(ctx)(value)
-            case (s, JsError(_)) => Task(ImportResult.error("json.parse.error", s))
+          .evalMap {
+            case (_, JsSuccess(obj, _)) => ZIO.provide(ctx)(mutation(key(obj), obj))
+            case (s, JsError(_))        => Task(ImportResult.error("json.parse.error", s))
           }
-          .fold(ImportResult()) { _ |+| _ }
+          .foldMonoid
       }
     }
   }
 
-  def importDataFlow[Ctx, Key, Data](
+  def importDataFlow[Ctx <: LoggerModule, Key, Data](
       strategy: ImportStrategy,
       key: Data => Key,
       get: Key => RIO[Ctx, Option[Data]],
       create: (Key, Data) => ZIO[Ctx, IzanamiErrors, Data],
       update: (Key, Data) => ZIO[Ctx, IzanamiErrors, Data]
   )(implicit reads: Reads[Data]): RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]] =
-    ZIO.runtime[Any].flatMap { implicit r =>
+    ZIO.runtime[Ctx].flatMap { implicit r =>
       importData(strategy, key, get, create, update)
         .map { _.toFlow }
         .map { Flow.fromGraph }
     }
 
-  def importHttp[Ctx](strStrategy: String,
-                      body: Source[(String, JsValue), _],
-                      importFunction: ImportStrategy => RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]])(
+  def importHttp[Ctx <: LoggerModule](
+      strStrategy: String,
+      body: Source[(String, JsValue), _],
+      importFunction: ImportStrategy => RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]]
+  )(
       implicit m: Materializer
   ): RIO[Ctx, play.api.mvc.Result] = {
     import play.api.libs.json._
