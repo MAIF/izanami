@@ -127,7 +127,10 @@ export class UserPage extends Component {
             deleteItem={this.deleteItem}
             createItem={this.createItem}
             downloadLinks={[{ title: "Download", link: "/api/users.ndjson" }]}
-            uploadLinks={[{ title: "Upload", link: "/api/users.ndjson" }]}
+            uploadLinks={[
+              { title: "Upload - replace if exists", link: "/api/users.ndjson?strategy=Replace" },
+              { title: "Upload - ignore if exists", link: "/api/users.ndjson?strategy=Keep" }
+            ]}
             showActions={true}
             showLink={false}
             eventNames={{
