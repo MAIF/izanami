@@ -47,15 +47,15 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"        %% "akka-cluster-tools"            % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion, // Apache 2.0
   "dev.zio"                  %% "zio"                           % "1.0.0-RC11-1",
-  "dev.zio"                  %% "zio-interop-cats"              % "2.0.0.0-RC2",
+  "dev.zio"                  %% "zio-interop-cats"              % "2.0.0.0-RC6",
   "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.17.1",
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.17.1-play27",
   "org.scala-lang.modules"   %% "scala-collection-compat"       % "0.1.1",
   "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"  % alpakkaVersion, // Apache 2.0
   "io.lettuce"               % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
-  "org.typelevel"            %% "cats-core"                     % "2.0.0-RC1", // MIT license
-  "org.typelevel"            %% "cats-effect"                   % "2.0.0-M5", // MIT license
+  "org.typelevel"            %% "cats-core"                     % "2.0.0", // MIT license
+  "org.typelevel"            %% "cats-effect"                   % "2.0.0", // MIT license
   "org.tpolecat"             %% "doobie-core"                   % doobieVersion,
   "org.tpolecat"             %% "doobie-hikari"                 % doobieVersion,
   "org.tpolecat"             %% "doobie-postgres"               % doobieVersion,

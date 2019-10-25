@@ -9,7 +9,7 @@ then
 else 
     docker-compose -f docker-compose.test.yml up -d $DOCKER 
 fi 
-sbt "project izanami-server" "it:testOnly $TEST"
+sbt  -Dsbt.color=always -Dsbt.supershell=false "project izanami-server" "it:testOnly $TEST"
 if [ -z "$DOCKER" ];
 then 
     echo "No docker to stop"
