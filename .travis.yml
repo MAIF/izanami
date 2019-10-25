@@ -17,7 +17,7 @@ jobs:
       name: "Run unit test"
       os: linux
       jdk: openjdk8
-      script: sbt -jvm-opts .jvmopts-travis test 
+      script: sbt -jvm-opts .jvmopts-travis  -Dsbt.color=always -Dsbt.supershell=false test
 
     - stage: server_it
       name: "Run integration that depends on cassandra"
@@ -80,7 +80,7 @@ jobs:
       jdk: openjdk8
       script: 
       - sh ./scripts/build-javascript.sh
-      - sbt -jvm-opts .jvmopts-travis ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;jvm/publishLocal"
+      - sbt  -Dsbt.color=always -Dsbt.supershell=false -jvm-opts .jvmopts-travis ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;jvm/publishLocal"
 
     - stage: publish 
       name: "Build server package and publish it to bintray"

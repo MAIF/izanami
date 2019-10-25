@@ -46,7 +46,7 @@ private[configs] class FetchConfigClient(
 
   import client._
   import izanamiDispatcher.ec
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   private def handleFailure[T]: T => PartialFunction[Throwable, Future[T]] =
     commons.handleFailure[T](errorStrategy)(_)(actorSystem)
@@ -96,14 +96,10 @@ private[configs] class FetchConfigClient(
         val configs = Configs.fromJson(json, fallback.configs)
         if (autocreate) {
           val toCreate: Seq[Config] = fallback.filterWith(pattern).configs.filterNot(configs.configs.contains)
-          Future
-            .traverse(toCreate) { c =>
-              cudConfigClient.createConfig(c)
-            }
-            .onComplete {
-              case Failure(e) => logger.error("Error autocreating configs: ", e)
-              case _          =>
-            }
+          if (toCreate.nonEmpty) {
+            logger.debug("Importing configs {}", toCreate)
+            cudConfigClient.importConfigs(toCreate)
+          }
         }
         configs
       }

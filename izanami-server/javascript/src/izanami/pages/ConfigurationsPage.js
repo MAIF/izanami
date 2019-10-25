@@ -154,7 +154,10 @@ export class ConfigurationsPage extends Component {
             deleteItem={this.deleteItem}
             createItem={this.createItem}
             downloadLinks={[{ title: "Download", link: "/api/configs.ndjson" }]}
-            uploadLinks={[{ title: "Upload", link: "/api/configs.ndjson" }]}
+            uploadLinks={[
+              { title: "Upload - replace if exists", link: "/api/configs.ndjson?strategy=Replace" },
+              { title: "Upload - ignore if exists", link: "/api/configs.ndjson?strategy=Keep" }
+            ]}
             showActions={true}
             showLink={false}
             eventNames={{

@@ -163,7 +163,10 @@ export class GlobalScriptsPage extends Component {
             deleteItem={this.deleteItem}
             createItem={this.createItem}
             downloadLinks={[{ title: "Download", link: "/api/scripts.ndjson" }]}
-            uploadLinks={[{ title: "Upload", link: "/api/scripts.ndjson" }]}
+            uploadLinks={[
+              { title: "Upload - replace if exists", link: "/api/scripts.ndjson?strategy=Replace" },
+              { title: "Upload - ignore if exists", link: "/api/scripts.ndjson?strategy=Keep" }
+            ]}
             showActions={true}
             eventNames={{
               created: "GLOBALSCRIPT_CREATED",

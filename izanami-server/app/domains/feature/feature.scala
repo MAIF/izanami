@@ -9,15 +9,15 @@ import domains.events.{EventStore, EventStoreContext}
 import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureInstances.isActive
 import domains.script.{GlobalScriptContext, RunnableScriptContext, Script, ScriptCacheModule}
-import domains.{ImportResult, Key}
+import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import env.Env
 import libs.logs.LoggerModule
 import play.api.libs.json._
 import store.Result._
 import store._
 import zio.{RIO, ZIO}
-import domains.{AuthInfo, AuthInfoModule}
 import java.time.LocalTime
+
 import metrics.Metrics
 import metrics.MetricsService
 
@@ -269,33 +269,23 @@ object FeatureService {
       flow <- tree(flat)(context)
     } yield s.map(_._2).via(flow)
 
-  def importData: RIO[FeatureContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
-    ZIO.runtime[FeatureContext].map { runtime =>
-      import cats.implicits._
-      Flow[(String, JsValue)]
-        .map { case (s, json) => (s, json.validate[Feature]) }
-        .mapAsync(4) {
-          case (_, JsSuccess(obj, _)) =>
-            runtime.unsafeRunToFuture(
-              create(obj.id, obj).either
-                .map { ImportResult.fromResult }
-            )
-          case (s, JsError(_)) => FastFuture.successful(ImportResult.error("json.parse.error", s))
-        }
-        .fold(ImportResult()) {
-          _ |+| _
-        }
-    }
+  def importData(
+      strategy: ImportStrategy = ImportStrategy.Keep
+  ): RIO[FeatureContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+    ImportData
+      .importDataFlow[FeatureContext, FeatureKey, Feature](
+        strategy,
+        _.id,
+        key => getById(key),
+        (key, data) => create(key, data),
+        (key, data) => update(key, key, data)
+      )(FeatureInstances.format)
 
   private def tree(
       flatRepr: Boolean
   )(context: JsObject): RIO[FeatureContext, Flow[Feature, JsValue, NotUsed]] =
-    for {
-      runtime <- ZIO.runtime[FeatureContext]
-      res <- ZIO.accessM[FeatureContext] { _ =>
-              if (flatRepr) Feature.flat(context)
-              else Feature.toGraph(context)
-            }
-    } yield res
-
+    ZIO.accessM[FeatureContext] { _ =>
+      if (flatRepr) Feature.flat(context)
+      else Feature.toGraph(context)
+    }
 }

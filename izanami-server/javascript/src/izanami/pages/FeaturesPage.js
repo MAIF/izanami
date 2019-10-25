@@ -519,7 +519,10 @@ export class FeaturesPage extends Component {
             downloadLinks={[
               { title: "Download", link: "/api/features.ndjson" }
             ]}
-            uploadLinks={[{ title: "Upload", link: "/api/features.ndjson" }]}
+            uploadLinks={[
+                { title: "Upload - replace if exists", link: "/api/features.ndjson?strategy=Replace" },
+                { title: "Upload - ignore if exists", link: "/api/features.ndjson?strategy=Keep" }
+            ]}
             extractKey={item => item.id}
           />
         </div>

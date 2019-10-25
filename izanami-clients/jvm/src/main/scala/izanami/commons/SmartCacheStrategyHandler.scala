@@ -25,7 +25,7 @@ class SmartCacheStrategyHandler[T](
   private val cache: TrieMap[String, T] = TrieMap[String, T](fallback.toSeq: _*)
   private val patternsRef               = new AtomicReference[Seq[String]](initialPatterns)
   private val pollingScheduler          = new AtomicReference[Option[Cancellable]](None)
-  private val log                       = Logging(system, this.getClass.getSimpleName)
+  private val log                       = Logging(system, this.getClass.getName)
 
   private def patterns = patternsRef.get()
 

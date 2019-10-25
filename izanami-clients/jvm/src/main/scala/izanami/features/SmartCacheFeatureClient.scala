@@ -44,7 +44,7 @@ private[features] class SmartCacheFeatureClient(
 
   implicit val timeout = Timeout(10.second)
 
-  private val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  private val logger = Logging(actorSystem, this.getClass.getName)
 
   private val smartCacheStrategyHandler = new SmartCacheStrategyHandler[Feature](
     izanamiDispatcher,

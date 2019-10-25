@@ -174,16 +174,24 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   }
 
   def post(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+    rawPost(path, HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)), params)
+
+  def rawPost(path: String,
+              entity: HttpEntity.Strict,
+              params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
+    logger.debug(s"POST ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
         method = HttpMethods.POST,
         uri = buildUri(path, params),
-        entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
+        entity = entity,
         headers = headers
       )
     ).flatMap { parseResponse }
+  }
 
-  def put(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+  def put(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
+    logger.debug(s"PUT ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
         method = HttpMethods.PUT,
@@ -192,8 +200,10 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         headers = headers
       )
     ).flatMap { parseResponse }
+  }
 
-  def patch(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+  def patch(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
+    logger.debug(s"PUT ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
         method = HttpMethods.PATCH,
@@ -202,8 +212,10 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         headers = headers
       )
     ).flatMap { parseResponse }
+  }
 
-  def delete(path: String, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
+  def delete(path: String, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
+    logger.debug(s"DELETE ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
         method = HttpMethods.DELETE,
@@ -211,6 +223,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         headers = headers
       )
     ).flatMap { parseResponse }
+  }
 
   def eventStream(): Source[IzanamiEvent, NotUsed] =
     EventSource(

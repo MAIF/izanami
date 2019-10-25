@@ -4,7 +4,7 @@ import controllers.actions.SecuredAction
 import domains.me.{LevelDbMeRepository, MeRepository, MeService, MeServiceImpl}
 import domains.shows.{AllShows, BetaSerieShows, Shows, TvdbShows}
 import env._
-import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy}
+import izanami.Strategy.{CacheWithSseStrategy, DevStrategy, FetchStrategy, FetchWithCacheStrategy}
 import filter.OtoroshiFilter
 import izanami.scaladsl._
 import izanami.{ClientConfig, Experiments, IzanamiDispatcher}
@@ -17,6 +17,7 @@ import play.api._
 import router.Routes
 
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
 class AppLoader extends ApplicationLoader {
   def load(context: Context) = {
@@ -54,8 +55,8 @@ object modules {
         )
       case IzanamiProd =>
         izanamiClient.featureClient(
-          CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
-          Features.parseJson(appConfig.izanami.fallback.features), 
+          FetchWithCacheStrategy(maxElement = 20, duration = 1.minute),
+          Features.parseJson(appConfig.izanami.fallback.features),
           autocreate = true
         )
     }
@@ -88,7 +89,7 @@ object modules {
 
     private lazy val proxy: Proxy = Proxy(
       featureClient = Some(featureClient),
-      featurePattern = "mytvshows:*",
+      featurePattern = Seq("mytvshows:*"),
       configClient = None,
       experimentClient = Some(experimentClient)
     )

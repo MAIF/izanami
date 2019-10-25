@@ -194,7 +194,7 @@ case class Proxy(
 )(implicit actorSystem: ActorSystem, izanamiDispatcher: IzanamiDispatcher) {
 
   import izanamiDispatcher.ec
-  val logger = Logging(actorSystem, this.getClass.getSimpleName)
+  val logger = Logging(actorSystem, this.getClass.getName)
 
   def withFeatureClient(featureClient: FeatureClient) =
     this.copy(featureClient = Some(featureClient))
@@ -530,6 +530,9 @@ case class Features(clientConfig: ClientConfig, featuresSeq: Seq[Feature], fallb
       featuresSeq = featuresSeq.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id))),
       fallback = fallback.filter(f => patterns.exists(p => PatternsUtil.matchPattern(p)(f.id)))
     )
+
+  private[izanami] def featureToCreate(features: Seq[Feature], pattern: Seq[String]): Seq[Feature] =
+    this.filterWith(pattern).featuresSeq.filterNot(features.contains)
 
   def tree(): JsObject = {
     val fallbackTree: JsObject =
