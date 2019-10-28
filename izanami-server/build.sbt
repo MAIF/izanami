@@ -19,10 +19,10 @@ lazy val `izanami-server` = (project in file("."))
   .disablePlugins(BintrayPlugin)
 
 val akkaVersion     = "2.5.23"
-val alpakkaVersion  = "1.0.2"
+val alpakkaVersion  = "1.1.2"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.0"
-val doobieVersion   = "0.6.0"
+val doobieVersion   = "0.8.4"
 val akkaHttpVersion = "10.1.8"
 
 resolvers ++= Seq(
@@ -37,8 +37,8 @@ libraryDependencies ++= Seq(
   ehcache,
   "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
   "com.auth0"                % "java-jwt"                       % "3.3.0", // MIT license
-  "org.gnieh"                %% "diffson-play-json"             % "3.1.1", //
-  "com.softwaremill.macwire" %% "macros"                        % "2.3.1" % "provided", // Apache 2.0
+  "org.gnieh"                %% "diffson-play-json"             % "4.0.0", //
+  "com.softwaremill.macwire" %% "macros"                        % "2.3.3" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-slf4j"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                   % akkaVersion, // Apache 2.0
@@ -48,9 +48,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion, // Apache 2.0
   "dev.zio"                  %% "zio"                           % "1.0.0-RC15",
   "dev.zio"                  %% "zio-interop-cats"              % "2.0.0.0-RC6",
-  "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.17.1",
-  "org.reactivemongo"        %% "play2-reactivemongo"           % "0.17.1-play27",
-  "org.scala-lang.modules"   %% "scala-collection-compat"       % "0.1.1",
+  "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.18.8",
+  "org.reactivemongo"        %% "play2-reactivemongo"           % "0.18.8-play27",
   "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"  % alpakkaVersion, // Apache 2.0
   "io.lettuce"               % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
@@ -61,11 +60,10 @@ libraryDependencies ++= Seq(
   "org.tpolecat"             %% "doobie-postgres"               % doobieVersion,
   "com.github.krasserm"      %% "streamz-converter"             % "0.10-M2",
   "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
-  "com.adelegue"             %% "playjson-extended"             % "0.0.5", // Apache 2.0
-  "com.github.pureconfig"    %% "pureconfig"                    % "0.8.0", // Apache 2.0
+  "com.github.pureconfig"    %% "pureconfig"                    % "0.12.1", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % alpakkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"             % "1.0.4", // Apache 2.0
-  "com.adelegue"             %% "elastic-scala-http"            % "0.0.13", // Apache 2.0
+  "com.adelegue"             %% "elastic-scala-http"            % "0.0.14", // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                   % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jvm"                    % metricsVersion, // Apache 2.0
@@ -79,11 +77,11 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"     % "kotlin-script-util"             % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"     % kotlinVersion,
   "com.typesafe.akka"        %% "akka-http"                     % akkaHttpVersion % "it,test", // Apache 2.0
-  "de.heikoseeberger"        %% "akka-http-play-json"           % "1.25.2" % "it,test" excludeAll ExclusionRule(
+  "de.heikoseeberger"        %% "akka-http-play-json"           % "1.29.1" % "it,test" excludeAll ExclusionRule(
     "com.typesafe.play",
     "play-json"
   ), // Apache 2.0
-  "org.scalatestplus.play"   %% "scalatestplus-play" % "3.1.1"  % "it,test", // Apache 2.0
+  "org.scalatestplus.play"   %% "scalatestplus-play" % "4.0.3"  % "it,test", // Apache 2.0
   "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
   "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
   "org.apache.logging.log4j" % "log4j-api"           % "2.8.2"  % "it,test", // MIT license
@@ -113,6 +111,7 @@ scalacOptions ++= Seq(
 )
 
 addCompilerPlugin(scalafixSemanticdb)
+scalafixDependencies in ThisBuild += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.1"
 
 coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
@@ -121,12 +120,6 @@ sources in (Compile, doc) := Seq.empty
 publishArtifact in (Compile, packageDoc) := false
 
 parallelExecution in Test := false
-
-//scalafmtOnCompile in ThisBuild := true
-//
-//scalafmtTestOnCompile in ThisBuild := true
-//
-//scalafmtVersion in ThisBuild := "1.2.0"
 
 /// ASSEMBLY CONFIG
 

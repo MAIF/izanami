@@ -2,7 +2,6 @@ package domains
 
 import play.api.libs.json.{JsError, JsString, JsSuccess, Json}
 import store.{EmptyPattern, StringPattern}
-import sun.font.LayoutPathImpl.EmptyPath
 import test.IzanamiSpec
 
 /**

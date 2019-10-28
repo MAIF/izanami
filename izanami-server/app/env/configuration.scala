@@ -21,7 +21,7 @@ case object Dynamo         extends DbType with Product with Serializable
 case object Postgresql     extends DbType with Product with Serializable
 
 object DbType {
-  def fromString(s: String) = s match {
+  def fromString(s: String): DbType = s match {
     case "Cassandra"      => Cassandra
     case "Redis"          => Redis
     case "LevelDB"        => LevelDB
@@ -42,18 +42,22 @@ object EventStoreType {
 }
 
 object IzanamiConfig {
+  import pureconfig.generic.ProductHint
+  import pureconfig.generic.FieldCoproductHint
+  import pureconfig.generic.auto._
   import pureconfig.ConfigConvert.viaString
   import pureconfig.ConvertHelpers.catchReadError
 
-  implicit def hint[T] =
+  private implicit def hint[T]: ProductHint[T] =
     ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
 
-  implicit val filterConfHint = new FieldCoproductHint[IzanamiFilter]("type") {
-    override def fieldValue(name: String) = name
-  }
+  private implicit val filterConfHint: FieldCoproductHint[IzanamiFilter] =
+    new FieldCoproductHint[IzanamiFilter]("type") {
+      override def fieldValue(name: String): String = name
+    }
 
-  implicit val storeConfHint = new FieldCoproductHint[EventsConfig]("store") {
-    override def fieldValue(name: String) = name.dropRight("Events".length)
+  private implicit val storeConfHint: FieldCoproductHint[EventsConfig] = new FieldCoproductHint[EventsConfig]("store") {
+    override def fieldValue(name: String): String = name.dropRight("Events".length)
   }
 
   implicit val dbTypeHint: ConfigConvert[DbType] =
@@ -75,7 +79,7 @@ object IzanamiConfig {
     )
 
   def apply(configuration: Configuration): IzanamiConfig =
-    loadConfigOrThrow[IzanamiConfig](configuration.underlying, "izanami")
+    ConfigSource.fromConfig(configuration.underlying).at("izanami").loadOrThrow[IzanamiConfig]
 }
 
 case class IzanamiConfig(

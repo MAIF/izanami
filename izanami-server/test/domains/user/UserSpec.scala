@@ -9,7 +9,7 @@ import store.Result.IzanamiErrors
 import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
-import zio.{DefaultRuntime, Task, ZIO}
+import zio.{DefaultRuntime, Task}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -23,7 +23,7 @@ import domains.events.Events
 import domains.events.Events._
 import store.Result.IdMustBeTheSame
 import store.Result.DataShouldExists
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Sink, Source}
 import play.api.libs.json.Json
 import domains.ImportResult
 import store.Result.AppErrors

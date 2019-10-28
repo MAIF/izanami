@@ -13,15 +13,11 @@ import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
 import play.api.libs.json.Json
 import scala.collection.mutable
-import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import store.Result.DataShouldExists
 import store.Result.IdMustBeTheSame
 import test.IzanamiSpec
 import test.TestEventStore
-import zio.internal.PlatformLive
-import zio.RIO
-import zio.ZIO
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import org.scalatest.BeforeAndAfterAll

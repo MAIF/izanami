@@ -42,9 +42,6 @@ lazy val jvm = (project in file("."))
       Resolver.jcenterRepo,
       Resolver.bintrayRepo("larousso", "maven")
     )
-//    scalafmtOnCompile in ThisBuild := true,
-//    scalafmtTestOnCompile in ThisBuild := true,
-//    scalafmtVersion in ThisBuild := "1.2.0"
   )
   .settings(publishSettings: _*)
 

@@ -1,7 +1,5 @@
 package domains.script
 
-import cats.Applicative
-import cats.effect.IO
 import com.codahale.metrics.MetricRegistry
 import controllers.AssetsComponents
 import domains.script.Script.ScriptCache
