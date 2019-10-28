@@ -1,5 +1,4 @@
 package libs.ziohelper
-import cats.data.EitherT
 import play.api.libs.json.{JsError, JsPath, JsResult, JsSuccess, JsonValidationError}
 import store.Result.AppErrors
 import zio._

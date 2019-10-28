@@ -1,11 +1,5 @@
 package domains.apikey
-import akka.NotUsed
-import akka.stream.scaladsl.Flow
-import cats.effect.Effect
 import domains._
-import store.Result.{AppErrors, ErrorMessage}
-
-import scala.concurrent.ExecutionContext
 
 object ApikeyInstances {
 

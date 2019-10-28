@@ -2,7 +2,6 @@ package domains.abtesting
 
 import java.time.LocalDateTime
 
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
 import cats.data.NonEmptyList
@@ -312,7 +311,7 @@ object ExperimentService {
                 import ctx._
                 getById(experimentKey).flatMap { mayBeExp =>
                   ZIO
-                    .fromFuture { implicit ec =>
+                    .fromFuture { _ =>
                       Source(mayBeExp.toList)
                         .flatMapConcat { experiment =>
                           Source

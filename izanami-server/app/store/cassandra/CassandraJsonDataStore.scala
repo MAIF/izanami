@@ -15,7 +15,7 @@ import env.{CassandraConfig, DbDomainConfig}
 import libs.streams.Flows
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{AppErrors, ErrorMessage, IzanamiErrors}
+import store.Result.IzanamiErrors
 import store._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -215,7 +215,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
                       case (n, id) =>
                         val query =
                           s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
-                        val args = Seq(n, id)
+                        Seq(n, id)
                         runtime.unsafeRunToFuture(executeWithSessionT(query, n, id))
                     }
                     .runFold(0)((acc, _) => acc + 1)
@@ -231,7 +231,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     if (query.hasEmpty) {
       Task.succeed(0L)
     } else {
-      Task.fromFuture { implicit ec =>
+      Task.fromFuture { _ =>
         getByIdLikeRaw(query)
           .runFold(0L) { (acc, _) =>
             acc + 1
@@ -241,8 +241,6 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
 }
 
 object Cassandra {
-
-  import cats.effect.IO
 
   def sessionT()(implicit cluster: Cluster): zio.Task[Session] =
     zio.Task.fromFuture(implicit ec => cluster.connectAsync().toFuture)

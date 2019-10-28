@@ -2,13 +2,11 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import domains.user.{User, UserContext, UserInstances, UserNoPasswordInstances, UserService}
 import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
-import libs.logs.IzanamiLogger
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
@@ -52,9 +50,9 @@ class UserController(system: ActorSystem,
     import UserInstances._
     val body = ctx.request.body
     for {
-      user  <- jsResultToHttpResponse(body.validate[User])
-      _     <- isUserAllowed(ctx, user)
-      event <- UserService.create(Key(user.id), user).mapError { IzanamiErrors.toHttpResult }
+      user <- jsResultToHttpResponse(body.validate[User])
+      _    <- isUserAllowed(ctx, user)
+      _    <- UserService.create(Key(user.id), user).mapError { IzanamiErrors.toHttpResult }
     } yield Created(UserNoPasswordInstances.format.writes(user))
 
   }
@@ -62,11 +60,11 @@ class UserController(system: ActorSystem,
   private def isUserAllowed(ctx: SecuredAuthContext[_], user: User)(implicit A: IsAllowed[User]): IO[Result, Unit] =
     IsAllowed[User].isAllowed(user, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
 
-  def get(id: String): Action[AnyContent] = AuthAction.asyncZio[UserContext] { ctx =>
+  def get(id: String): Action[AnyContent] = AuthAction.asyncZio[UserContext] { _ =>
     import UserNoPasswordInstances._
     val key = Key(id)
     for {
-      mayBeUser <- UserService.getById(key).mapError(e => InternalServerError)
+      mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
     } yield Ok(Json.toJson(user))
   }
@@ -85,7 +83,7 @@ class UserController(system: ActorSystem,
     import UserInstances._
     val key = Key(id)
     for {
-      mayBeUser <- UserService.getById(key).mapError(e => InternalServerError)
+      mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
       _         <- isUserAllowed(ctx, user)
       updated   <- jsResultToHttpResponse(Patch.patch(ctx.request.body, user))
@@ -97,7 +95,7 @@ class UserController(system: ActorSystem,
     import UserInstances._
     val key = Key(id)
     for {
-      mayBeUser <- UserService.getById(key).mapError(e => InternalServerError)
+      mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
       _         <- isUserAllowed(ctx, user)
       _         <- UserService.delete(key).mapError { IzanamiErrors.toHttpResult }

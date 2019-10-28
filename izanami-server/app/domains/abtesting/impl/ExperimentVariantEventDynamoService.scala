@@ -11,11 +11,10 @@ import akka.stream.alpakka.dynamodb.AwsOp._
 import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
 import akka.{NotUsed}
 import domains.abtesting._
-import domains.events.{EventStore, EventStoreModule}
+import domains.events.EventStore
 import env.DynamoConfig
-import store.Result.{IzanamiErrors, Result}
+import store.Result.IzanamiErrors
 
-import scala.concurrent.ExecutionContext
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, _}
 import domains.Key
 import domains.abtesting.Experiment.ExperimentKey
@@ -39,11 +38,9 @@ object ExperimentVariantEventDynamoService {
 class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: String)(
     implicit actorSystem: ActorSystem
 ) extends ExperimentVariantEventService {
-  import cats.implicits._
-  import libs.effects._
   import ExperimentVariantEventInstances._
 
-  private implicit val ec: ExecutionContext   = actorSystem.dispatcher
+  actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
   override def create(
@@ -75,7 +72,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
     for {
       _ <- Logger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
       res <- ZIO
-              .fromFuture { implicit ec =>
+              .fromFuture { _ =>
                 DynamoDb
                   .source(request)
                   .withAttributes(DynamoAttributes.client(client))
@@ -108,7 +105,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .via(DynamoDb.flow[DeleteItem].withAttributes(DynamoAttributes.client(client)))
 
     val deletes = ZIO
-      .fromFuture { implicit ec =>
+      .fromFuture { _ =>
         findExperimentVariantEvents(experiment)
           .map(_._2)
           .via(delete)
@@ -210,7 +207,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withLimit(1)
 
     Logger.debug(s"Dynamo check on $tableName") *>
-    ZIO.fromFuture { implicit ec =>
+    ZIO.fromFuture { _ =>
       DynamoDb
         .source(request)
         .withAttributes(DynamoAttributes.client(client))

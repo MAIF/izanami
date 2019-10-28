@@ -1,7 +1,6 @@
 package domains.config
 
 import akka.NotUsed
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import domains.config.Config.ConfigKey
 import domains.events.{EventStore, EventStoreContext}
@@ -9,9 +8,8 @@ import domains.events.Events.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.{AppErrors, ErrorMessage, IzanamiErrors}
+import store.Result.IzanamiErrors
 import store._
-import libs.logs.Logger
 import store.Result.DataShouldExists
 import store.Result.IdMustBeTheSame
 

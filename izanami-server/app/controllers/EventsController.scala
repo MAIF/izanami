@@ -68,7 +68,7 @@ class EventsController(system: ActorSystem,
       EventStore
         .events(allDomains, allPatterns, lastEventId)
         .map { source =>
-          val eventSource = (source via keepAlive via logEvent via EventSource.flow).watchTermination() { (m, fDone) =>
+          val eventSource = (source via keepAlive via logEvent via EventSource.flow).watchTermination() { (_, fDone) =>
             fDone.onComplete {
               case Success(_) =>
                 IzanamiLogger.debug("SSE disconnected")

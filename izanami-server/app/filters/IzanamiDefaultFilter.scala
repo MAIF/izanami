@@ -12,27 +12,18 @@ import com.auth0.jwt.interfaces._
 import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.Timer
 import com.google.common.base.Charsets
-import domains.apikey.{ApiKeyContext, Apikey, ApikeyService}
+import domains.apikey.{ApiKeyContext, ApikeyService}
 import domains.user.User
-import domains.{AuthInfo, AuthorizedPattern, Key}
+import domains.{AuthorizedPattern, Key}
 import env._
-import libs.logs.IzanamiLogger
 import play.api.Logger
 import play.api.libs.json._
-import play.api.libs.typedmap._
 import play.api.mvc._
-import store.Result
-import store.Result.AppErrors
-import zio.{DefaultRuntime, Runtime, ZIO}
+import zio.Runtime
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util._
-import io.prometheus.client.Gauge
-import io.prometheus.client.Counter
 import metrics.MetricsContext
-import metrics.Metrics
-import metrics.MetricsService
-import io.prometheus.client.Histogram
 
 object PrometheusMetricsHolder {
 
@@ -62,9 +53,6 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
     runtime: Runtime[ApiKeyContext with MetricsContext],
     val mat: Materializer
 ) extends Filter {
-
-  import cats.effect.implicits._
-  import scala.collection.JavaConverters._
 
   private val logger  = Logger("filter")
   private val decoder = Base64.getDecoder

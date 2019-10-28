@@ -1,9 +1,7 @@
 package controllers
 
-import akka.actor.ActorSystem
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import controllers.actions.AuthContext
 import domains.{AuthorizedPattern, Key}
 import domains.user.{User, UserContext, UserService}
 import env.Env
@@ -19,10 +17,7 @@ object Auth {
   implicit val format = Json.format[Auth]
 }
 
-class AuthController(_env: Env,
-                     AuthAction: ActionBuilder[AuthContext, AnyContent],
-                     system: ActorSystem,
-                     cc: ControllerComponents)(implicit R: Runtime[UserContext])
+class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[UserContext])
     extends AbstractController(cc) {
 
   import domains.user.UserNoPasswordInstances._

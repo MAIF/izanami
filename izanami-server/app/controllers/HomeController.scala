@@ -11,8 +11,8 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
     extends AbstractController(cc) {
 
   lazy val enabledUserManagement: Boolean = _env.izanamiConfig.filter match {
-    case default: env.Default => true
-    case _                    => false
+    case _: env.Default => true
+    case _              => false
   }
   lazy val baseURL: String = _env.baseURL
   lazy val logout: String = if (_env.izanamiConfig.logout.url.startsWith("http")) {

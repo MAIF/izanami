@@ -2,13 +2,11 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import domains.apikey.{ApiKeyContext, Apikey, ApikeyInstances, ApikeyService}
 import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
-import libs.logs.IzanamiLogger
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
@@ -64,7 +62,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     import ApikeyInstances._
     val key = Key(id)
     for {
-      mayBe  <- ApikeyService.getById(key).mapError(e => InternalServerError)
+      mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
     } yield Ok(Json.toJson(apikey))
@@ -87,7 +85,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     val key = Key(id)
     // format: off
     for {
-      mayBe   <- ApikeyService.getById(key).mapError(e => InternalServerError)
+      mayBe   <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _       <- IsAllowed[Apikey].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
@@ -101,7 +99,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
 
     val key = Key(id)
     for {
-      mayBe  <- ApikeyService.getById(key).mapError(e => InternalServerError)
+      mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
       _      <- ApikeyService.delete(key).mapError { IzanamiErrors.toHttpResult }
@@ -110,7 +108,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.asyncZio[ApiKeyContext] { ctx =>
+    AuthAction.asyncZio[ApiKeyContext] { _ =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       ApikeyService
         .deleteAll(allPatterns)

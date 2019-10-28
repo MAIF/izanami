@@ -2,22 +2,19 @@ package domains.abtesting.impl
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{ConcurrentEffect, ContextShift}
 import domains.abtesting._
 import domains.events.EventStore
 import doobie.util.fragment.Fragment
-import env.{DbDomainConfig, PostgresqlConfig}
-import store.Result.{IzanamiErrors, Result}
+import env.DbDomainConfig
+import store.Result.IzanamiErrors
 import store.postgresql.{PgData, PostgresqlClient}
-import cats.effect.implicits._
 import cats.implicits._
 import doobie.implicits._
 import fs2.Stream
 import libs.logs.IzanamiLogger
 import play.api.libs.json.JsValue
-import store.Result
 import zio.{RIO, Task, ZIO}
 import libs.logs.Logger
 import domains.AuthInfo
@@ -26,16 +23,13 @@ import domains.events.Events.ExperimentVariantEventsDeleted
 
 object ExperimentVariantEventPostgresqlService {
   def apply(
-      config: PostgresqlConfig,
       client: PostgresqlClient,
       domainConfig: DbDomainConfig,
   ): ExperimentVariantEventPostgresqlService =
-    new ExperimentVariantEventPostgresqlService(client, config, domainConfig)
+    new ExperimentVariantEventPostgresqlService(client, domainConfig)
 }
 
-class ExperimentVariantEventPostgresqlService(client: PostgresqlClient,
-                                              config: PostgresqlConfig,
-                                              domainConfig: DbDomainConfig)
+class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainConfig: DbDomainConfig)
     extends ExperimentVariantEventService {
 
   import zio.interop.catz._
@@ -62,7 +56,6 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient,
     val createdScript = (sql"CREATE INDEX IF NOT EXISTS " ++
     Fragment.const(s"${tableName}_created_idx ") ++ fr" ON " ++ fragTableName ++ fr" (created)")
 
-    import cats.effect.implicits._
     Logger.debug(s"Applying script $createTableScript") *>
     Logger.debug(s"Applying script $experimentIdScript") *>
     Logger.debug(s"Applying script $variantIdScript") *>

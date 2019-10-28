@@ -7,13 +7,11 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
-import cats.implicits._
 import domains.Key
 import env.DbDomainConfig
 import libs.streams.Flows
-import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.IzanamiErrors
 import store._
 import io.lettuce.core._
 import io.lettuce.core.api.async.RedisAsyncCommands
@@ -82,9 +80,6 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
           }
       }
 
-  private def patternsToKey(patterns: Seq[String]): Seq[Key] =
-    patterns.map(Key.apply).map(buildKey)
-
   private def findKeys(query: Query): Source[Key, NotUsed] = query match {
     case q if q.hasEmpty =>
       Source.empty
@@ -127,8 +122,6 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   private def rawUpdate(id: Key, data: JsValue) =
     zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).refineToOrDie[IzanamiErrors]
 
-  private def rawDelete(id: Key) = zioFromCs(command().del(buildKey(id).key)).refineToOrDie[IzanamiErrors]
-
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     for {
       mayBe <- getByKeyId(oldId: Key).refineToOrDie[IzanamiErrors]
@@ -154,7 +147,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
       .flatMap(
         s =>
           IO.fromFuture(
-            implicit ec =>
+            _ =>
               s.map { case (k, _) => k.key }
                 .grouped(20)
                 .mapAsync(10) { keys =>
@@ -167,7 +160,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
         )
       )
       .refineToOrDie[IzanamiErrors]
-      .map(_ => ())
+      .unit
 
   override def getById(id: Key): Task[Option[JsValue]] =
     getByKeyId(id)
@@ -191,7 +184,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
     for {
       runtime <- ZIO.runtime[Any]
       res <- IO
-              .fromFuture { implicit ec =>
+              .fromFuture { _ =>
                 findKeys(query)
                   .via(Flows.count {
                     Flow[Key]
@@ -215,7 +208,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   override def count(query: Query): Task[Long] =
     findByQuery(query)
       .flatMap { s =>
-        IO.fromFuture { implicit ec =>
+        IO.fromFuture { _ =>
           s.runFold(0L) { (acc, _) =>
             acc + 1
           }

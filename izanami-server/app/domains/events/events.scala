@@ -1,6 +1,5 @@
 package domains.events
 
-import java.io.Closeable
 import java.time.LocalDateTime
 
 import akka.actor.ActorSystem
@@ -29,9 +28,8 @@ import libs.IdGenerator
 import libs.database.Drivers
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
-import play.api.{Environment, Logger}
+import play.api.Logger
 import store.Result.IzanamiErrors
-import store.Result
 import zio.{RIO, Task, ZIO}
 import libs.logs.LoggerModule
 import domains.AuthInfoModule
@@ -767,11 +765,10 @@ object EventStore {
   def apply(izanamiConfig: IzanamiConfig,
             drivers: Drivers,
             configuration: play.api.Configuration,
-            environment: Environment,
             applicationLifecycle: ApplicationLifecycle)(implicit actorSystem: ActorSystem): EventStore =
     izanamiConfig.events match {
       case InMemoryEvents(_)    => new BasicEventStore
-      case KafkaEvents(c)       => new KafkaEventStore(environment, actorSystem, izanamiConfig.db.kafka.get, c)
+      case KafkaEvents(c)       => new KafkaEventStore(actorSystem, izanamiConfig.db.kafka.get, c)
       case RedisEvents(c)       => new RedisEventStore(drivers.redisClient.get, c, actorSystem)
       case DistributedEvents(c) => new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
       case other                => throw new IllegalArgumentException(s"Unknown event store $other")

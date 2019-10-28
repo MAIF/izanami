@@ -103,13 +103,15 @@ resourceDirectory in ITest := (baseDirectory apply { baseDir: File =>
 
 scalacOptions ++= Seq(
   "-Ypartial-unification",
-  "-Xfatal-warnings",
   "-feature",
   "-language:higherKinds",
   "-language:implicitConversions",
   "-language:existentials",
-  "-Xfatal-warnings"
+  "-Yrangepos"
+//  "-Xfatal-warnings"
 )
+
+addCompilerPlugin(scalafixSemanticdb)
 
 coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
@@ -119,11 +121,11 @@ publishArtifact in (Compile, packageDoc) := false
 
 parallelExecution in Test := false
 
-scalafmtOnCompile in ThisBuild := true
-
-scalafmtTestOnCompile in ThisBuild := true
-
-scalafmtVersion in ThisBuild := "1.2.0"
+//scalafmtOnCompile in ThisBuild := true
+//
+//scalafmtTestOnCompile in ThisBuild := true
+//
+//scalafmtVersion in ThisBuild := "1.2.0"
 
 /// ASSEMBLY CONFIG
 

@@ -10,19 +10,17 @@ import cats.kernel.Eq
 import cats.kernel.Monoid
 import com.codahale.metrics.MetricRegistry
 import domains.abtesting.{ExperimentContext, ExperimentVariantEventService}
-import domains.apikey.{ApiKeyContext, Apikey}
+import domains.apikey.ApiKeyContext
 import domains.config.ConfigContext
 import domains.events.EventStore
 import domains.feature.FeatureContext
 import domains.script.GlobalScriptContext
 import domains.script.Script.ScriptCache
-import domains.user.{User, UserContext}
+import domains.user.UserContext
 import domains.webhook.WebhookContext
 import env.{DbDomainConfig, IzanamiConfig}
 import libs.database.Drivers
 import libs.logs.{IzanamiLogger, Logger, LoggerModule, ProdLogger}
-import metrics.MetricsModule
-import org.jetbrains.kotlin.js.parser.sourcemaps.JsonObject
 import play.api.Environment
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
@@ -33,7 +31,6 @@ import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 import store.{EmptyPattern, JsonDataStore, Pattern, StringPattern}
-import store.leveldb.DbStores
 import store.memorywithdb.InMemoryWithDbStore
 import store.Result._
 import zio.{RIO, Task, ZIO}
@@ -249,14 +246,14 @@ object Import {
   val toJson = Flow[ByteString] via newLineSplit map (_.utf8String) filterNot (_.isEmpty) map (l => (l, Json.parse(l)))
 
   def ndJson(implicit ec: ExecutionContext): BodyParser[Source[(String, JsValue), _]] =
-    BodyParser { req =>
+    BodyParser { _ =>
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
     }
 
   def importFile[Ctx <: LoggerModule](
       db: DbDomainConfig,
       process: RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]]
-  )(implicit ec: ExecutionContext, materializer: Materializer): RIO[Ctx, Unit] =
+  )(implicit materializer: Materializer): RIO[Ctx, Unit] =
     process.flatMap { proc =>
       import zio.interop.catz._
       import cats.implicits._
@@ -308,7 +305,7 @@ object ImportResult {
   def fromResult[T](r: Either[IzanamiErrors, T]): ImportResult = r match {
     case Right(_)             => ImportResult(success = 1)
     case Left(err: AppErrors) => ImportResult(errors = err)
-    case Left(IdMustBeTheSame(fromObject, inParam)) =>
+    case Left(IdMustBeTheSame(_, inParam)) =>
       ImportResult(errors = AppErrors.error("error.id.not.the.same", inParam.key, inParam.key))
     case Left(DataShouldExists(id))    => ImportResult(errors = AppErrors.error("error.data.missing", id.key))
     case Left(DataShouldNotExists(id)) => ImportResult(errors = AppErrors.error("error.data.exists", id.key))

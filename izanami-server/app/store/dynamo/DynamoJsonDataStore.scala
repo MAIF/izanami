@@ -12,14 +12,14 @@ import com.amazonaws.services.dynamodbv2.model.{ConditionalCheckFailedException,
 import domains.Key
 import env.{DbDomainConfig, DynamoConfig}
 import libs.streams.Flows
-import libs.logs.{IzanamiLogger, Logger}
+import libs.logs.Logger
 import play.api.libs.json.JsValue
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.IzanamiErrors
 import libs.dynamo.DynamoMapper
 import store.{DataStoreContext, DefaultPagingResult, JsonDataStore, PagingResult, Query}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists
 
@@ -43,7 +43,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
 
   import zio._
 
-  private implicit val ec: ExecutionContext   = actorSystem.dispatcher
+  actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
   override def start: RIO[DataStoreContext, Unit] =
@@ -73,7 +73,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
           "store" -> new AttributeValue().withS(storeName)
         ).asJava
       )
-    IO.fromFuture { implicit ec =>
+    IO.fromFuture { _ =>
         DynamoDb
           .source(request)
           .withAttributes(DynamoAttributes.client(client))

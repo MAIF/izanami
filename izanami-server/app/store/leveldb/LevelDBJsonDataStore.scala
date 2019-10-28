@@ -15,7 +15,7 @@ import org.iq80.leveldb.impl.Iq80DBFactory._
 import libs.logs.{IzanamiLogger, Logger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.IzanamiErrors
 import store._
 import zio.blocking.Blocking.Live
 
@@ -105,9 +105,6 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
 
   private def getByKeys(keys: Key*): Task[Seq[(String, JsValue)]] =
     getByIds(keys.map(_.key): _*)
-
-  private def patternsToKey(patterns: Seq[String]): Seq[Key] =
-    patterns.map(Key.apply).map(buildKey)
 
   private def keys(query: Query): Source[Key, NotUsed] =
     getAllKeys()
@@ -238,7 +235,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
     for {
       source <- findByQuery(query)
       res <- Task.fromFuture(
-              implicit ec =>
+              _ =>
                 source.runFold(0L) { (acc, _) =>
                   acc + 1
               }

@@ -5,7 +5,7 @@ import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.mvc.{AbstractController, ControllerComponents}
 
 object Implicits {
-  implicit class EnhancedJsValue(val value: JsValue) extends AnyVal {
+  implicit class EnhancedJsValue(private val value: JsValue) extends AnyVal {
     def ~~>(description: String): JsValue =
       value.as[JsObject] ++ Json.obj(
         "description" -> description
@@ -17,11 +17,11 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
 
   import Implicits._
 
-  def swagger = Action { req =>
+  def swagger = Action {
     Ok(swaggerDescriptor()).withHeaders("Access-Control-Allow-Origin" -> "*")
   }
 
-  def swaggerUi = Action { req =>
+  def swaggerUi = Action {
     Ok(views.html.swagger(_env, s"/api/swagger.json"))
   }
 
@@ -254,8 +254,7 @@ class SwaggerController(_env: Env, val cc: ControllerComponents) extends Abstrac
   )
   private val SimpleUriType = Json.obj("type" -> "string", "format" -> "uri", "example"    -> "http://www.google.com")
   private val StringArray   = Json.obj("type" -> "array", "format"  -> "string", "example" -> Json.arr("value1", "value2"))
-  private val DateType =
-    Json.obj("type" -> "string", "format" -> "date", "example" -> "2017-07-21")
+  Json.obj("type" -> "string", "format" -> "date", "example" -> "2017-07-21")
   private val OptionalDateType =
     Json.obj("type" -> "string", "required" -> false, "format" -> "date", "example" -> "2017-07-21")
   private val SimpleEmailType = Json.obj("type" -> "string", "format" -> "email", "example" -> "admin@otoroshi.io")

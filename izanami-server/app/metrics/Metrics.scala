@@ -7,26 +7,19 @@ import java.util
 import java.util.Date
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorSystem, Cancellable}
-import akka.http.scaladsl.util.FastFuture
 import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, ThreadStatesGaugeSet}
 import com.codahale.metrics.{ConsoleReporter, MetricRegistry, Slf4jReporter}
 import com.fasterxml.jackson.databind.ObjectMapper
 import domains.IzanamiConfigModule
 import domains.events.impl.KafkaSettings
-import env.{Env, IzanamiConfig, MetricsConfig}
+import env.MetricsConfig
 import io.prometheus.client.dropwizard.DropwizardExports
 import io.prometheus.client.exporter.common.TextFormat
-import libs.database.Drivers
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.slf4j.LoggerFactory
-import libs.logs.IzanamiLogger
-import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsObject, Json}
 import zio.Task
 
-import scala.util.Failure
-import scala.Option
 import zio.RIO
 import domains._
 import zio.ZIO
@@ -39,7 +32,6 @@ import org.apache.kafka.clients.producer.RecordMetadata
 import zio.Cause.Fail
 import zio.Cause.Die
 import zio.Fiber
-import org.apache.kafka.common.metrics.MetricConfig
 import domains.config.ConfigContext
 import domains.feature.FeatureContext
 import domains.script.GlobalScriptContext
@@ -51,19 +43,13 @@ import domains.config.ConfigService
 import store.Query
 import com.codahale.metrics.Gauge
 import domains.feature.FeatureService
-import domains.script.GlobalScript
-import domains.user.User
 import domains.user.UserService
 import domains.script.GlobalScriptService
 import domains.webhook.WebhookService
 import domains.abtesting.ExperimentService
-import zio.Schedule
 import io.prometheus.client.CollectorRegistry
 import java.{util => ju}
-import io.prometheus.client.Collector
-import zio.Ref
 import io.prometheus.client.Counter
-import io.prometheus.client.Histogram
 import zio.UIO
 
 trait MetricsModule extends IzanamiConfigModule {
@@ -195,11 +181,9 @@ object MetricsService {
   private def startMetricsKafka(metricsConfig: MetricsConfig,
                                 context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
     if (metricsConfig.kafka.enabled) {
-      import cats.implicits._
-      import zio.interop.catz._
       val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
         kafkaConfig      <- ZIO.fromOption(context.izanamiConfig.db.kafka)
-        producerSettings = KafkaSettings.producerSettings(context.environment, context.system, kafkaConfig)
+        producerSettings = KafkaSettings.producerSettings(context.system, kafkaConfig)
         producer         = producerSettings.createKafkaProducer
         _                <- Logger.info("Enabling kafka metrics reporter")
         fiber <- (this.metrics flatMap { (metrics: Metrics) =>
@@ -238,8 +222,6 @@ object MetricsService {
   private def startMetricsElastic(metricsConfig: MetricsConfig,
                                   context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
     if (metricsConfig.elastic.enabled) {
-      import cats.implicits._
-      import zio.interop.catz._
       import DateTimeFormatter._
 
       val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
