@@ -29,8 +29,8 @@ libraryDependencies ++= Seq(
   "com.github.pureconfig"    %% "pureconfig"     % "0.8.0" // Apache 2.0
 )
 
-scalafmtOnCompile in ThisBuild := true
-
-scalafmtTestOnCompile in ThisBuild := true
-
-scalafmtVersion in ThisBuild := "1.2.0"
+//scalafmtOnCompile in ThisBuild := true
+//
+//scalafmtTestOnCompile in ThisBuild := true
+//
+//scalafmtVersion in ThisBuild := "1.2.0"
