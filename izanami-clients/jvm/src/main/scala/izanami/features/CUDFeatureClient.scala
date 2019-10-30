@@ -8,11 +8,8 @@ import izanami.{Feature, FeatureType, IzanamiDispatcher}
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
-import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.HttpEntity
-import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaType
-import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.HttpCharsets
 
 object CUDFeatureClient {
@@ -116,7 +113,6 @@ class CUDFeatureClient(client: HttpClient)(implicit val izanamiDispatcher: Izana
   }
 
   def deleteFeature(id: String): Future[Unit] = {
-    import Feature._
     client
       .delete(s"/api/features/$id")
       .flatMap {

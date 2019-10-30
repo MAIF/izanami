@@ -7,7 +7,7 @@ import izanami.commons.{HttpClient, IzanamiException}
 import izanami.IzanamiDispatcher
 import izanami.scaladsl.Config
 import izanami.scaladsl.Config._
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.Json
 
 import scala.concurrent.Future
 import play.api.libs.json.JsValue
@@ -63,7 +63,6 @@ class CUDConfigClientImpl(client: HttpClient)(implicit val izanamiDispatcher: Iz
                                               actorSystem: ActorSystem)
     extends CUDConfigClient {
 
-  import izanamiDispatcher.ec
   private val logger = Logging(actorSystem, this.getClass.getName)
 
   override implicit val ec: ExecutionContext = izanamiDispatcher.ec

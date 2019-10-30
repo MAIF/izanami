@@ -12,7 +12,6 @@ import izanami.scaladsl.{ExperimentClient, ExperimentsClient}
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 object FetchExperimentsStrategy {
   def apply(httpClient: HttpClient, fallback: Experiments, errorStrategy: ErrorStrategy)(

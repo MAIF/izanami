@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
-import com.github.tomakehurst.wiremock.client.WireMock.{containing, equalTo, equalToJson, postRequestedFor, urlEqualTo}
+import com.github.tomakehurst.wiremock.client.WireMock.{containing, equalTo, postRequestedFor, urlEqualTo}
 import izanami.Strategy.FetchWithCacheStrategy
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
@@ -26,7 +26,7 @@ class FetchWithCacheFeatureClientSpec
   implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
 
-  override def afterAll {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

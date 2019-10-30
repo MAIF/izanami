@@ -1,14 +1,10 @@
 package izanami.configs
 
-import java.time.LocalDateTime
-import java.util
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
-import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy}
 import izanami._
 import izanami.scaladsl.ConfigEvent.ConfigUpdated
@@ -31,7 +27,7 @@ class SmartCacheConfigClientSpec
 
   import system.dispatcher
 
-  override def afterAll {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

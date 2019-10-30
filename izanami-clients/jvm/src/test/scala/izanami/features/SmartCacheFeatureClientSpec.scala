@@ -2,7 +2,7 @@ package izanami.features
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.{pattern, Done}
+import akka.pattern
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
@@ -32,7 +32,7 @@ class SmartCacheFeatureClientSpec
 
   import system.dispatcher
 
-  override def afterAll {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

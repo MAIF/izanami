@@ -5,13 +5,13 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Materializer}
+import akka.stream.Materializer
 import akka.util.Timeout
 import com.google.common.cache.{Cache, CacheBuilder}
 import izanami.Strategy.FetchWithCacheStrategy
 import izanami.scaladsl._
 import izanami._
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.Json
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt

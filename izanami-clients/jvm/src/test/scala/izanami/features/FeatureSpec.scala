@@ -83,7 +83,6 @@ class FeatureSpec
 
     "Feature hour range deserialization" in {
 
-      import izanami.Feature
       import izanami.Feature._
 
       val json = Json.parse("""
