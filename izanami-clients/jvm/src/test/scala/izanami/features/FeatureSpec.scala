@@ -30,7 +30,7 @@ class FeatureSpec
 
       val jsResult = json.validate[Feature]
       jsResult must be(
-        JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")), __ \ "parameters" \ "script")
+        JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")))
       )
     }
 
@@ -48,7 +48,7 @@ class FeatureSpec
 
       val jsResult = json.validate[Feature]
       jsResult must be(
-        JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")), __ \ "parameters" \ "script")
+        JsSuccess(ScriptFeature("id", true, None, Script("javascript", "script")))
       )
     }
 
