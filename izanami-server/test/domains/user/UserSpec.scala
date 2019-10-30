@@ -134,6 +134,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id           = Key("test")
       val ctx          = TestUserContext()
       val user         = User(id.key, "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
+      val oldUser      = user.copy(password = Some(Sha.hexSha512("ragnar123456")))
       val expectedUser = user.copy(name = "Ragnard Lodbrok", password = Some(Sha.hexSha512("ragnar123456")))
 
       val test = for {
@@ -148,7 +149,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       inside(ctx.events.last) {
         case UserUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
-          oldValue must be(expectedUser)
+          oldValue must be(oldUser)
           newValue must be(expectedUser)
           auth must be(authInfo)
       }
