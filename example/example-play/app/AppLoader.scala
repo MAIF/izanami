@@ -51,12 +51,12 @@ object modules {
       case IzanamiDev =>
         izanamiClient.featureClient(
           DevStrategy,
-          Features.parseJson(appConfig.izanami.fallback.features)
+          Features.parseJson(appConfig.izanami.fallback.features.conf)
         )
       case IzanamiProd =>
         izanamiClient.featureClient(
           FetchWithCacheStrategy(maxElement = 20, duration = 1.minute),
-          Features.parseJson(appConfig.izanami.fallback.features),
+          Features.parseJson(appConfig.izanami.fallback.features.conf),
           autocreate = true
         )
     }
@@ -65,12 +65,12 @@ object modules {
       case IzanamiDev =>
         izanamiClient.configClient(
           DevStrategy,
-          Configs.parseJson(appConfig.izanami.fallback.configs)
+          Configs.parseJson(appConfig.izanami.fallback.configs.conf)
         )
       case IzanamiProd =>
         izanamiClient.configClient(
           CacheWithSseStrategy(patterns = Seq("mytvshows:*")),
-          Configs.parseJson(appConfig.izanami.fallback.configs)
+          Configs.parseJson(appConfig.izanami.fallback.configs.conf)
         )
     }
 
@@ -78,12 +78,12 @@ object modules {
       case IzanamiDev =>
         izanamiClient.experimentClient(
           DevStrategy,
-          Experiments.parseJson(appConfig.izanami.fallback.experiments)
+          Experiments.parseJson(appConfig.izanami.fallback.experiments.conf)
         )
       case IzanamiProd =>
         izanamiClient.experimentClient(
           FetchStrategy(),
-          Experiments.parseJson(appConfig.izanami.fallback.experiments)
+          Experiments.parseJson(appConfig.izanami.fallback.experiments.conf)
         )
     }
 

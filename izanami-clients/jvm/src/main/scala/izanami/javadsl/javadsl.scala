@@ -1029,7 +1029,7 @@ private[javadsl] object Vavr {
 
   implicit class ToScalaSeq[T](o: io.vavr.collection.Seq[T]) {
     def toScala(): scala.Seq[T] = {
-      import scala.collection.JavaConverters._
+      import scala.jdk.CollectionConverters._
       o.asJava().asScala.toSeq
     }
   }
