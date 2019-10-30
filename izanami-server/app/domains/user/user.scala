@@ -121,8 +121,8 @@ object UserService {
     for {
       mayBeUser   <- getById(oldId).refineToOrDie[IzanamiErrors]
       oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId))
-      user        = User.updateUser(data, oldValue)
-      updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(user))
+      toUpdate        = User.updateUser(data, oldValue)
+      updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
       user        <- jsResultToError(updated.validate[User])
       authInfo    <- AuthInfo.authInfo
       _           <- EventStore.publish(UserUpdated(id, oldValue, user, authInfo = authInfo))
