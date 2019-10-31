@@ -24,11 +24,21 @@ case class User(id: String,
                 authorizedPattern: AuthorizedPattern.AuthorizedPattern)
     extends AuthInfo {
   override def mayBeEmail: Option[String] = Some(email)
+
 }
 
 object User {
 
   type UserKey = Key
+
+  def updateUser(newUser: User, oldUser: User): User = {
+    import cats.implicits._
+    if (newUser.password === oldUser.password) {
+      newUser
+    } else {
+      newUser.copy(password = newUser.password.map(p => Sha.hexSha512(p)))
+    }
+  }
 
   def fromJwtToken(jwt: DecodedJWT): Option[User] = {
     import scala.collection.JavaConverters._
@@ -111,8 +121,8 @@ object UserService {
     for {
       mayBeUser   <- getById(oldId).refineToOrDie[IzanamiErrors]
       oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId))
-      user =      data.copy(password = data.password.map(p => Sha.hexSha512(p)))
-      updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(user))
+      toUpdate        = User.updateUser(data, oldValue)
+      updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
       user        <- jsResultToError(updated.validate[User])
       authInfo    <- AuthInfo.authInfo
       _           <- EventStore.publish(UserUpdated(id, oldValue, user, authInfo = authInfo))

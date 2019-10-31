@@ -106,7 +106,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       updated must be(Left(DataShouldExists(id)))
     }
 
-    "update" in {
+    "update changing password" in {
       val id           = Key("test")
       val ctx          = TestUserContext()
       val user         = User(id.key, "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
@@ -125,6 +125,31 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         case UserUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
           oldValue must be(expectedUser)
+          newValue must be(expectedUser)
+          auth must be(authInfo)
+      }
+    }
+
+    "update keeping password" in {
+      val id           = Key("test")
+      val ctx          = TestUserContext()
+      val user         = User(id.key, "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
+      val oldUser      = user.copy(password = Some(Sha.hexSha512("ragnar123456")))
+      val expectedUser = user.copy(name = "Ragnard Lodbrok", password = Some(Sha.hexSha512("ragnar123456")))
+
+      val test = for {
+        created <- UserService.create(id, user)
+        updated <- UserService.update(id, id, user.copy(name = "Ragnard Lodbrok", password = created.password))
+      } yield updated
+
+      val updated = run(ctx)(test)
+      updated must be(expectedUser)
+      ctx.userDataStore.inMemoryStore.contains(id) must be(true)
+      ctx.events must have size 2
+      inside(ctx.events.last) {
+        case UserUpdated(i, oldValue, newValue, _, _, auth) =>
+          i must be(id)
+          oldValue must be(oldUser)
           newValue must be(expectedUser)
           auth must be(authInfo)
       }
