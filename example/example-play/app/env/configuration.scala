@@ -1,19 +1,24 @@
 package env
 
+import com.typesafe.config.{ConfigList, ConfigRenderOptions}
 import play.api.Configuration
-import play.api.libs.json.JsObject
 import pureconfig._
 
 object AppConfig {
 
   import pureconfig.ConfigConvert.viaString
   import pureconfig.ConvertHelpers.catchReadError
+  import pureconfig.generic.auto._
+
+  implicit val fallbackConfigHint: ConfigReader[FallbackConfig] = ConfigReader[ConfigList].map { l =>
+    FallbackConfig(l.render(ConfigRenderOptions.concise()))
+  }
 
   implicit val dbTypeHint: ConfigConvert[IzanamiMode] =
     viaString[IzanamiMode](catchReadError { IzanamiMode.fromString }, _.toString)
 
   def apply(configuration: Configuration): AppConfig =
-    loadConfigOrThrow[AppConfig](configuration.underlying, "tvdb")
+    ConfigSource.fromConfig(configuration.underlying).at("tvdb").loadOrThrow[AppConfig]
 }
 
 sealed trait IzanamiMode
@@ -44,10 +49,12 @@ case class IzanamiConf(
 )
 
 case class IzanamiFallbackConf(
-    features: String,
-    configs: String,
-    experiments: String
+    features: FallbackConfig,
+    configs: FallbackConfig,
+    experiments: FallbackConfig
 )
+
+case class FallbackConfig(conf: String) extends AnyVal
 
 case class BetaSerieConfig(url: String, apiKey: String)
 case class TvdbConfig(url: String, apiKey: String, baseUrl: String)

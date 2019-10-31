@@ -1,17 +1,14 @@
 package domains.abtesting
 import java.time.LocalDateTime
 
-import domains.feature.ReleaseDateFeatureInstances.{pattern, pattern2}
 import domains.{AuthInfo, IsAllowed, Key}
 import play.api.libs.json._
 import play.api.libs.json.Reads._
-import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Writes.temporalWrites
 
 object ExperimentInstances {
   import libs.json._
-
   // Traffic
   val trafficReads: Reads[Traffic] = __.read[Double](min(0.0) keepAnd max(1.0)).map(Traffic.apply)
   val trafficWrites: Writes[Traffic] = Writes[Traffic] { t =>
@@ -49,10 +46,9 @@ object ExperimentInstances {
   implicit val isAllowed: IsAllowed[Experiment] = new IsAllowed[Experiment] {
     override def isAllowed(value: Experiment)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.id.key)(auth)
   }
-  implicit val format: Format[Experiment]        = Json.format[Experiment]
-  implicit val experimentEq: cats.Eq[Experiment] = cats.Eq.fromUniversalEquals
-
-  private implicit val experimentResultEventFormat = Json.format[ExperimentResultEvent]
+  implicit val experimentResultEventFormat: Format[ExperimentResultEvent] = Json.format[ExperimentResultEvent]
+  implicit val format: Format[Experiment]                                 = Json.format[Experiment]
+  implicit val experimentEq: cats.Eq[Experiment]                          = cats.Eq.fromUniversalEquals
 
   implicit val variantResultFormat: Format[VariantResult] = {
     implicit val eveFormat: Format[ExperimentVariantEvent] = ExperimentVariantEventInstances.format

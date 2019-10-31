@@ -9,7 +9,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import cats.effect.Effect
 import domains.Key
 import domains.abtesting._
 import domains.events.{EventStore}
@@ -46,9 +45,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
 
   import cats.implicits._
   import elastic.implicits._
-  import libs.effects._
   import elastic.codec.PlayJson._
-  import actorSystem.dispatcher
   import ExperimentVariantEventInstances._
 
   private implicit val mat = ActorMaterializer()
@@ -382,9 +379,6 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       }
   }
 
-  private def max(experimentId: String): RIO[ExperimentVariantEventServiceModule, Option[LocalDateTime]] =
-    minOrMaxQuery(experimentId, "desc")
-
   private def min(experimentId: String): RIO[ExperimentVariantEventServiceModule, Option[LocalDateTime]] =
     minOrMaxQuery(experimentId, "asc")
 
@@ -412,6 +406,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       experimentId: String,
       variant: Variant
   ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] = {
+    import actorSystem.dispatcher
 
     val variantId: String = variant.id
 
@@ -446,7 +441,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
                     }
                   }
                 }
-              case SearchResponse(_, _, _, hits, _, None) =>
+              case SearchResponse(_, _, _, _, _, None) =>
                 Seq.empty[ExperimentResultEvent]
             }
         }
@@ -486,11 +481,14 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
   override def listAll(
       patterns: Seq[String]
   ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
-    Task(
-      index
-        .scroll(Json.obj("query" -> Json.obj("match_all" -> Json.obj())))
-        .mapConcat(s => s.hitsAs[ExperimentVariantEvent].toList)
-        .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+    Task.fromFuture(
+      implicit ec =>
+        FastFuture.successful(
+          index
+            .scroll(Json.obj("query" -> Json.obj("match_all" -> Json.obj())))
+            .mapConcat(s => s.hitsAs[ExperimentVariantEvent].toList)
+            .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+      )
     )
 
   override def check(): Task[Unit] =

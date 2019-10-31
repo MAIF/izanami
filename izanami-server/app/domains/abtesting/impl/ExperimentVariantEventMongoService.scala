@@ -67,7 +67,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
     Index(Seq("variantId"    -> IndexType.Ascending), unique = false)
   )
 
-  private val counterIndexesDefinition: Seq[Index] = Seq(
+  Seq(
     Index(Seq("id" -> IndexType.Ascending), unique = true)
   )
 
@@ -80,20 +80,6 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
         )
       )
     }.unit
-
-  private def getCounter(collName: String, experimentId: String, variantId: String): Task[Long] = {
-    val id = s"$experimentId.$variantId"
-    ZIO
-      .fromFuture { implicit ec =>
-        mongoApi.database
-          .flatMap(
-            _.collection[JSONCollection](collName)
-              .find(Json.obj("id" -> id), projection = Option.empty[JsObject])
-              .one[Counter]
-          )
-      }
-      .map(_.map(_.value).getOrElse(0))
-  }
 
   override def create(
       id: ExperimentVariantEventKey,

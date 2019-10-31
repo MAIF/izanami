@@ -58,13 +58,10 @@ class ExperimentVariantEventLevelDBService(
     extends ExperimentVariantEventService {
 
   import cats.implicits._
-  import cats.effect.implicits._
-  import libs.effects._
   import actorSystem.dispatcher
   import domains.events.Events._
-  import ExperimentVariantEventInstances._
 
-  implicit private val materializer = ActorMaterializer()
+  ActorMaterializer()
 
   private val db: DB =
     factory.open(new File(dbPath), new Options().createIfMissing(true))
@@ -83,7 +80,7 @@ class ExperimentVariantEventLevelDBService(
     val eventsKey: String = s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}"
     val strEvent          = Json.stringify(ExperimentVariantEventInstances.format.writes(data))
     for {
-      result   <- sadd(eventsKey, strEvent).refineToOrDie[IzanamiErrors]
+      _        <- sadd(eventsKey, strEvent).refineToOrDie[IzanamiErrors]
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield data

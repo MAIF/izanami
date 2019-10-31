@@ -1,7 +1,6 @@
 package controllers
 
 import java.security.MessageDigest
-import java.util.Base64
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -22,7 +21,6 @@ class SpringConfigController(izanamiConfig: IzanamiConfig,
                              val cc: ControllerComponents)(implicit R: Runtime[ConfigContext])
     extends AbstractController(cc) {
 
-  import cats.implicits._
   import libs.http._
 
   implicit val materializer = ActorMaterializer()(system)
@@ -97,7 +95,7 @@ class SpringConfigController(izanamiConfig: IzanamiConfig,
           }
         }
       }
-      result.mapError { e =>
+      result.mapError { _ =>
         InternalServerError("")
       }
   }

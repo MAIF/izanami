@@ -8,7 +8,7 @@ import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.Sink
 import domains.Domain
 import domains.events.Events.{IzanamiEvent, WebhookCreated, WebhookDeleted, WebhookUpdated}
-import domains.events.{EventStore, Events}
+import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
 import domains.webhook.notifications.WebHookActor._
 import domains.webhook.{Webhook, WebhookContext, WebhookService}
@@ -16,7 +16,6 @@ import env.WebhookConfig
 import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
-import store.Result.AppErrors
 import store.Query
 import zio.{Runtime, ZIO}
 
@@ -47,8 +46,7 @@ class WebHooksActor(wSClient: WSClient, config: WebhookConfig, runtime: Runtime[
       case WebhookBannedException(id) =>
         IzanamiLogger.error(s"Webhook with id $id is banned")
         Stop
-      case e =>
-        Restart
+      case _ => Restart
     }
 
   override def receive = {
@@ -78,12 +76,12 @@ class WebHooksActor(wSClient: WSClient, config: WebhookConfig, runtime: Runtime[
         EventStore
           .events(domains = Seq(Domain.Webhook))
           .flatMap { s =>
-            ZIO.fromFuture { implicit ec =>
+            ZIO.fromFuture { _ =>
               val f = s.runWith(Sink.foreach { event =>
                 self ! event
               })
               f.onComplete {
-                case Success(d) => IzanamiLogger.debug(s"Stream finished")
+                case Success(_) => IzanamiLogger.debug(s"Stream finished")
                 case Failure(e) => IzanamiLogger.error("Error consuming event stream", e)
               }
               f
@@ -155,9 +153,7 @@ object WebHookActor {
 class WebHookActor(wSClient: WSClient, webhook: Webhook, config: WebhookConfig, runtime: Runtime[WebhookContext])
     extends Actor {
 
-  import cats._
   import cats.implicits._
-  import cats.effect.implicits._
   import context.dispatcher
 
   //Mutables vars
@@ -193,7 +189,7 @@ class WebHookActor(wSClient: WSClient, webhook: Webhook, config: WebhookConfig, 
         queue = queue + event
         if (queue.size >= config.events.group) {
           IzanamiLogger.debug(s"[Webhook] Sending events by group ${config.events.group}")
-          sendEvents(queue, id, callbackUrl, effectivesHeaders)
+          sendEvents(id, callbackUrl, effectivesHeaders)
         }
 
       case ResetErrors =>
@@ -205,17 +201,14 @@ class WebHookActor(wSClient: WSClient, webhook: Webhook, config: WebhookConfig, 
 
       case SendEvents if queue.nonEmpty =>
         IzanamiLogger.debug(s"[Webhook] Sending events within ${config.events.within}")
-        sendEvents(queue, id, callbackUrl, effectivesHeaders)
+        sendEvents(id, callbackUrl, effectivesHeaders)
 
       case WebhookBanned =>
         throw WebhookBannedException(id)
     }
   }
 
-  private def sendEvents(events: Set[Events.IzanamiEvent],
-                         id: WebhookKey,
-                         callbackUrl: String,
-                         effectivesHeaders: Seq[(String, String)]): Unit = {
+  private def sendEvents(id: WebhookKey, callbackUrl: String, effectivesHeaders: Seq[(String, String)]): Unit = {
     val json: JsValue =
       Json.obj("objectsEdited" -> JsArray(queue.map(_.toJson).toSeq))
     queue = Set.empty[IzanamiEvent]

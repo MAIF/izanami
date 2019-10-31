@@ -1,15 +1,13 @@
 package domains.script
 
-import akka.http.scaladsl.util.FastFuture
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
 import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key, PlayModule}
 import domains.events.{EventStore, EventStoreContext}
 import domains.script.Script.ScriptCache
-import env.Env
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.{AppErrors, ErrorMessage, IzanamiErrors}
+import store.Result.IzanamiErrors
 import store._
 import zio.blocking.Blocking
 import zio.{RIO, Task, ZIO}
@@ -171,7 +169,7 @@ object GlobalScriptService {
       )(GlobalScriptInstances.format)
 
   val eventAdapter = Flow[IzanamiEvent].collect {
-    case GlobalScriptCreated(key, script, _, _, _) =>
+    case GlobalScriptCreated(_, _, _, _, _) =>
   }
 }
 

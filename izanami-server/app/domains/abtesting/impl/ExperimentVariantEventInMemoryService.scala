@@ -8,14 +8,12 @@ import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.scaladsl.Source
 import domains.abtesting._
 import env.DbDomainConfig
-import store.Result.{IzanamiErrors, Result}
-import store.Result
+import store.Result.IzanamiErrors
 import ExperimentDataStoreActor._
-import cats.effect.Effect
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
-import domains.events.{EventStore, EventStoreModule}
+import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
-import zio.{RIO, Task, UIO, ZIO}
+import zio.{RIO, Task, ZIO}
 
 import scala.concurrent.Future
 import domains.AuthInfo
@@ -39,11 +37,8 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
   import akka.pattern._
   import akka.util.Timeout
   import cats.implicits._
-  import cats.effect.implicits._
-  import libs.effects._
 
   import scala.concurrent.duration.DurationInt
-  import ExperimentVariantEventInstances._
 
   private implicit val timeout: Timeout = Timeout(5.second)
 
@@ -55,7 +50,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
       data: ExperimentVariantEvent
   ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
     ZIO
-      .fromFuture { implicit ec =>
+      .fromFuture { _ =>
         (store ? AddEvent(id.experimentId.key, id.variantId, data)).mapTo[ExperimentVariantEvent]
       }
       .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
@@ -69,7 +64,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
       experiment: Experiment
   ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
     ZIO
-      .fromFuture { implicit ec =>
+      .fromFuture { _ =>
         (store ? DeleteEvents(experiment.id.key)).mapTo[Done]
       }
       .unit
@@ -80,7 +75,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
   override def findVariantResult(
       experiment: Experiment
   ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { implicit runtime =>
+    ZIO.runtime[ExperimentVariantEventServiceModule].map { _ =>
       Source
         .fromFuture(
           experiment.variants.toList

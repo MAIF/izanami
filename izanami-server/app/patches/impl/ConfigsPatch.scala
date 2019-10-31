@@ -16,7 +16,6 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
 import store.Result.AppErrors
 import store.{JsonDataStore, Query, Result}
-import store.leveldb.DbStores
 import store.memorywithdb.CacheEvent
 import zio.{Task, RIO, ZIO}
 
@@ -50,7 +49,7 @@ class ConfigsPatch(
       _       <- jsonDataStore.start 
       runtime <- ZIO.runtime[GlobalContext]
       source  <- jsonDataStore.findByQuery(Query.oneOf("*"))
-      res     <- Task.fromFuture { implicit ec =>
+      res     <- Task.fromFuture { _ =>
                     source.map(_._2)
                       .mapAsync(2) { l =>
                         val update: ZIO[ConfigContext, Result.IzanamiErrors, Product with Serializable] = OldConfig.format.reads(l).fold(

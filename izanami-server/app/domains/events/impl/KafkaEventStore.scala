@@ -14,7 +14,6 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, Consumer => KConsumer}
 import org.apache.kafka.clients.producer.{Callback, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
-import play.api.Environment
 import play.api.libs.json.Json
 
 import scala.util.control.NonFatal
@@ -33,11 +32,8 @@ object KafkaSettings {
   import akka.kafka.{ConsumerSettings, ProducerSettings}
   import org.apache.kafka.clients.consumer.ConsumerConfig
   import org.apache.kafka.common.config.SslConfigs
-  import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
-  def consumerSettings(_env: Environment,
-                       system: ActorSystem,
-                       config: KafkaConfig): ConsumerSettings[String, String] = {
+  def consumerSettings(system: ActorSystem, config: KafkaConfig): ConsumerSettings[String, String] = {
 
     val settings = ConsumerSettings
       .create(system, new StringDeserializer(), new StringDeserializer())
@@ -64,9 +60,7 @@ object KafkaSettings {
     s.getOrElse(settings)
   }
 
-  def producerSettings(_env: Environment,
-                       system: ActorSystem,
-                       config: KafkaConfig): ProducerSettings[String, String] = {
+  def producerSettings(system: ActorSystem, config: KafkaConfig): ProducerSettings[String, String] = {
     val settings = ProducerSettings
       .create(system, new StringSerializer(), new StringSerializer())
       .withBootstrapServers(config.servers)
@@ -91,10 +85,7 @@ object KafkaSettings {
   }
 }
 
-class KafkaEventStore(_env: Environment,
-                      system: ActorSystem,
-                      clusterConfig: KafkaConfig,
-                      eventsConfig: KafkaEventsConfig)
+class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsConfig: KafkaEventsConfig)
     extends EventStore {
 
   import scala.collection.JavaConverters._
@@ -104,13 +95,13 @@ class KafkaEventStore(_env: Environment,
     Logger.info(s"Initializing kafka event store $clusterConfig")
 
   private lazy val producerSettings =
-    KafkaSettings.producerSettings(_env, system, clusterConfig)
+    KafkaSettings.producerSettings(system, clusterConfig)
 
   private lazy val producer =
     producerSettings.createKafkaProducer
 
   val settings: ConsumerSettings[String, String] = KafkaSettings
-    .consumerSettings(_env, system, clusterConfig)
+    .consumerSettings(system, clusterConfig)
     .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
 
@@ -119,7 +110,6 @@ class KafkaEventStore(_env: Environment,
   tmpConsumer.close()
 
   override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] = {
-    import cats.implicits._
     system.eventStream.publish(event)
     IO.effectAsync[Throwable, Done] { cb =>
         try {
@@ -140,7 +130,7 @@ class KafkaEventStore(_env: Environment,
     val kafkaConsumer: KConsumer[String, String] =
       settings.createKafkaConsumer()
 
-    val subscription: ManualSubscription = lastEventId.map { id =>
+    val subscription: ManualSubscription = lastEventId.map { _ =>
       val lastDate: Long = System.currentTimeMillis() - (1000 * 60 * 60 * 24)
       val topicsInfo: Seq[(TopicPartition, Long)] =
         partitions.map { t =>
@@ -199,7 +189,7 @@ class KafkaEventStore(_env: Environment,
     IO.effectAsync { cb =>
       system.dispatchers.lookup("izanami.blocking-dispatcher").execute { () =>
         try {
-          val consumer = KafkaSettings.consumerSettings(_env, system, clusterConfig).createKafkaConsumer()
+          val consumer = KafkaSettings.consumerSettings(system, clusterConfig).createKafkaConsumer()
           consumer.partitionsFor(eventsConfig.topic)
           consumer.close()
           cb(IO.succeed(()))

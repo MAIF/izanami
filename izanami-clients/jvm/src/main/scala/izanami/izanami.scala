@@ -6,7 +6,6 @@ import akka.actor.ActorSystem
 import izanami.Strategy._
 import izanami.commons.{IzanamiException, PatternsUtil}
 import play.api.libs.json._
-import shapeless.syntax
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import java.time.LocalTime
@@ -356,7 +355,6 @@ object GlobalScriptFeature {
 
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
-  import playjson.all._
 
   val writes: OWrites[GlobalScriptFeature] = (
     Feature.commonWrite and
@@ -367,9 +365,12 @@ object GlobalScriptFeature {
       o ++ Json.obj("activationStrategy" -> FeatureType.GLOBAL_SCRIPT.name)
     }
 
-  private val reads: Reads[GlobalScriptFeature] = transform(
-    (__ \ 'parameters \ 'ref) to (__ \ 'ref)
-  ) andThen Json.reads[GlobalScriptFeature]
+  private val reads: Reads[GlobalScriptFeature] = (
+    (__ \ "id").read[String] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
+    (__ \ "active").readNullable[Boolean] and
+    (__ \ "parameters" \ "ref").read[String]
+  )(GlobalScriptFeature.apply _)
 
   val format: OFormat[GlobalScriptFeature] = OFormat(reads, writes)
 
@@ -399,7 +400,6 @@ object ScriptFeature {
 
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
-  import playjson.all._
 
   val writes: OWrites[ScriptFeature] = (
     Feature.commonWrite and
@@ -410,9 +410,12 @@ object ScriptFeature {
       o ++ Json.obj("activationStrategy" -> FeatureType.SCRIPT.name)
     }
 
-  private val reads: Reads[ScriptFeature] = transform(
-    (__ \ "parameters" \ "script") to (__ \ "script")
-  ) andThen Json.reads[ScriptFeature]
+  private val reads: Reads[ScriptFeature] = (
+    (__ \ "id").read[String] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
+    (__ \ "active").readNullable[Boolean] and
+    (__ \ "parameters" \ "script").read[Script](Script.format)
+  )(ScriptFeature.apply _)
 
   val format = OFormat(reads, writes)
 
@@ -427,20 +430,19 @@ object ReleaseDateFeature {
   import play.api.libs.json.Reads.localDateTimeReads
   import play.api.libs.json.Writes.temporalWrites
   import play.api.libs.json._
-  import playjson.all._
-  import syntax.singleton._
 
   private val pattern  = "dd/MM/yyyy HH:mm:ss"
   private val pattern2 = "dd/MM/yyyy HH:mm"
   private val pattern3 = "yyyy-MM-dd HH:mm:ss"
 
-  private val reads: Reads[ReleaseDateFeature] = transform(
-    (__ \ "parameters" \ "releaseDate") to (__ \ "date")
-  ) andThen jsonRead[ReleaseDateFeature].withRules(
-    'date ->> read[LocalDateTime](
-      localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)).orElse(localDateTimeReads(pattern3))
-    )
-  )
+  val reads: Reads[ReleaseDateFeature] = (
+    (__ \ "id").read[String] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
+    (__ \ "parameters" \ "releaseDate")
+      .read[LocalDateTime](
+        localDateTimeReads(pattern).orElse(localDateTimeReads(pattern2)).orElse(localDateTimeReads(pattern3))
+      )
+  )(ReleaseDateFeature.apply _)
 
   private val writes: OWrites[ReleaseDateFeature] = (
     Feature.commonWrite and

@@ -1,6 +1,6 @@
 package libs.logs
 import play.api.{MarkerContext, Logger => PlayLogger}
-import zio.{RIO, Task, UIO, ZIO}
+import zio.{UIO, ZIO}
 
 trait Logger {
   import zio._

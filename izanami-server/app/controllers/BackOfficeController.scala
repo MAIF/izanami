@@ -1,6 +1,5 @@
 package controllers
 
-import akka.actor.ActorSystem
 import ch.qos.logback.classic.{Level, LoggerContext}
 import controllers.actions.SecuredAuthContext
 import domains.user.User
@@ -8,9 +7,7 @@ import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 
-class BackOfficeController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                           system: ActorSystem,
-                           cc: ControllerComponents)
+class BackOfficeController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)
     extends AbstractController(cc) {
 
   def changeLogLevel(name: String, newLevel: Option[String]) = AuthAction { ctx =>

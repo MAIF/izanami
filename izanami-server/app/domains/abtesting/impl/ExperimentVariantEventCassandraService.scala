@@ -10,7 +10,7 @@ import akka.NotUsed
 import com.datastax.driver.core.{Row, Session, SimpleStatement}
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.abtesting._
-import domains.events.{EventStore, EventStoreModule}
+import domains.events.EventStore
 import env.{CassandraConfig, DbDomainConfig}
 import libs.logs.IzanamiLogger
 import play.api.libs.json._
@@ -41,12 +41,10 @@ class ExperimentVariantEventCassandraService(session: Session, config: DbDomainC
   private val keyspace           = cassandraConfig.keyspace
   import Cassandra._
   import cats.implicits._
-  import cats.effect.implicits._
   import domains.events.Events._
 
-  implicit private val mat  = ActorMaterializer()
+  ActorMaterializer()
   implicit private val sess = session
-  import actorSystem.dispatcher
 
   //Events table
   override def start: RIO[ExperimentVariantEventServiceModule, Unit] =

@@ -1,30 +1,28 @@
 package domains.webhook
 import java.time.LocalDateTime
 
-import domains.Domain.Domain
+import domains.webhook.Webhook.WebhookKey
 import domains.{AuthInfo, Domain, IsAllowed, Key}
-import play.api.libs.json.{Format, Json, Reads}
-import playjson.rules.{jsonRead, orElse}
 
 object WebhookInstances {
 
-  import Domain._
   import play.api.libs.json._
-  import playjson.rules._
-  import shapeless.syntax.singleton._
+  import play.api.libs.functional.syntax._
 
   implicit val isAllowed: IsAllowed[Webhook] = new IsAllowed[Webhook] {
     override def isAllowed(value: Webhook)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.clientId)(auth)
   }
 
-  private val reads: Reads[Webhook] = jsonRead[Webhook].withRules(
-    'domains ->> orElse(Seq.empty[Domain]) and
-    'patterns ->> orElse(Seq.empty[String]) and
-    'types ->> orElse(Seq.empty[String]) and
-    'headers ->> orElse(Json.obj()) and
-    'created ->> orElse(LocalDateTime.now()) and
-    'isBanned ->> orElse(false)
-  )
+  private val reads: Reads[Webhook] = (
+    (__ \ "clientId").read[WebhookKey] and
+    (__ \ "callbackUrl").read[String] and
+    (__ \ "domains").read[Seq[Domain.Domain]].orElse(Reads.pure(Seq.empty[Domain.Domain])) and
+    (__ \ "patterns").read[Seq[String]].orElse(Reads.pure(Seq.empty[String])) and
+    (__ \ "types").read[Seq[String]].orElse(Reads.pure(Seq.empty[String])) and
+    (__ \ "headers").read[JsObject].orElse(Reads.pure(Json.obj())) and
+    (__ \ "created").read[LocalDateTime].orElse(Reads.pure(LocalDateTime.now())) and
+    (__ \ "isBanned").read[Boolean].orElse(Reads.pure(false))
+  )(Webhook.apply _)
 
   private val writes = Json.writes[Webhook]
 

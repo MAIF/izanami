@@ -15,7 +15,6 @@ import org.reactivestreams.Publisher
 import play.api.libs.json.{JsObject, JsValue, Json}
 
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 object FetchFeatureClient {
   def apply(client: HttpClient,

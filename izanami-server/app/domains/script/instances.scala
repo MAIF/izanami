@@ -2,15 +2,10 @@ package domains.script
 import java.util.function.BiConsumer
 
 import akka.Done
-import akka.actor.ActorSystem
-import cats.effect.{Async, IO}
-import cats.implicits._
 import com.fasterxml.jackson.databind.node.ObjectNode
 import domains.PlayModule
 import domains.script.Script.ScriptCache
-import domains.script.ScriptInstances.jsObjectToMap
 import domains.{AuthInfo, IsAllowed, Key}
-import env.Env
 import javax.script._
 import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
 import libs.logs.IzanamiLogger
@@ -117,9 +112,7 @@ object ScriptInstances {
   }
 
   implicit def runnableScript[ScriptCache]: RunnableScript[Script] = new RunnableScript[Script] {
-    override def run(script: Script, context: JsObject): zio.RIO[RunnableScriptContext, ScriptExecution] = {
-
-      import zio.interop.catz._
+    override def run(script: Script, context: JsObject): zio.RIO[RunnableScriptContext, ScriptExecution] =
       script match {
         case s: ScalaScript =>
           Logger.debug(s"Executing scala script $s") *>
@@ -131,7 +124,6 @@ object ScriptInstances {
           Logger.debug(s"Executing kotlin script $s") *>
           executeKotlinScript(s, context)
       }
-    }
   }
 
   private def executeKotlinScript(script: KotlinScript,
@@ -186,8 +178,8 @@ object ScriptInstances {
             .effectAsync[Boolean] { cb =>
               implicit val ec = env.ec
               Try {
-                val client = new KHttpClient(env.wSClient, cb)
-                val ctx    = context.as[ObjectNode]
+                new KHttpClient(env.wSClient, cb)
+                val ctx = context.as[ObjectNode]
                 featureScript.run(
                   (p1: AnyRef) => console.println(p1),
                   ctx,
@@ -384,10 +376,10 @@ object ScriptInstances {
 class PlayScriptCache(api: AsyncCacheApi) extends ScriptCache {
 
   override def get[T: ClassTag](id: String): Task[Option[T]] =
-    Task.fromFuture(implicit ec => api.get[T](id))
+    Task.fromFuture(_ => api.get[T](id))
 
   override def set[T: ClassTag](id: String, value: T): Task[Unit] = {
-    val update = Task.fromFuture(implicit ec => api.set(id, value))
+    val update = Task.fromFuture(_ => api.set(id, value))
     for {
       mayBeResult <- get(id)
       _           <- mayBeResult.fold(update)(_ => Task.succeed(Done))

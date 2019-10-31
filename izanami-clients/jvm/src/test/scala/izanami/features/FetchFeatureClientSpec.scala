@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
-import com.github.tomakehurst.wiremock.client.WireMock._
 import izanami.FeatureEvent.{FeatureCreated, FeatureDeleted, FeatureUpdated}
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
@@ -420,7 +419,7 @@ class FetchFeatureClientSpec
     }
   }
 
-  override def afterAll {
+  override def afterAll: Unit = {
     _wireMockServer.stop()
     TestKit.shutdownActorSystem(system)
   }

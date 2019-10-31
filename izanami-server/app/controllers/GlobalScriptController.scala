@@ -2,15 +2,11 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-import domains.script.Script.ScriptCache
 import domains.script._
 import domains.{Import, ImportData, IsAllowed, Key}
-import env.Env
 import libs.patch.Patch
-import libs.logs.IzanamiLogger
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsObject, JsValue, Json}
@@ -20,11 +16,10 @@ import store.Result.{AppErrors, IzanamiErrors}
 import zio.{IO, Runtime, ZIO}
 
 class GlobalScriptController(
-    env: Env,
     system: ActorSystem,
     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
     cc: ControllerComponents
-)(implicit s: ScriptCache, R: Runtime[GlobalScriptContext])
+)(implicit R: Runtime[GlobalScriptContext])
     extends AbstractController(cc) {
 
   import system.dispatcher
@@ -87,7 +82,7 @@ class GlobalScriptController(
     val key = Key(id)
     for {
       _            <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
-      mayBeScript  <- GlobalScriptService.getById(key).mapError(e => InternalServerError)
+      mayBeScript  <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       globalScript <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
     } yield Ok(Json.toJson(globalScript))
   }
@@ -108,7 +103,7 @@ class GlobalScriptController(
       import GlobalScriptInstances._
       val key = Key(id)
       for {
-        mayBeScript <- GlobalScriptService.getById(key).mapError(e => InternalServerError)
+        mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
         current     <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
         _           <- isScriptAllowed(ctx, current)
         body        = ctx.request.body
@@ -125,10 +120,10 @@ class GlobalScriptController(
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      mayBeScript <- GlobalScriptService.getById(key).mapError(e => InternalServerError)
+      mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       script      <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
       _           <- isScriptAllowed(ctx, script)
-      deleted     <- GlobalScriptService.delete(key).mapError { IzanamiErrors.toHttpResult }
+      _           <- GlobalScriptService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(script))
   }
 
@@ -174,7 +169,6 @@ class GlobalScriptController(
   }
 
   def debug() = AuthAction.asyncZio[GlobalScriptContext](parse.json) { ctx =>
-    import DebugScript._
     import domains.script.ScriptInstances._
     import domains.script.syntax._
     // format: off
@@ -182,7 +176,7 @@ class GlobalScriptController(
     for {
       debugScript                  <- jsResultToHttpResponse(DebugScript.format.reads(body))
       DebugScript(context, script) = debugScript
-      execution                    <- script.run(context).mapError(e => InternalServerError(""))
+      execution                    <- script.run(context).mapError(_ => InternalServerError(""))
     } yield Ok(Json.toJson(execution))
     // format: on
   }

@@ -103,7 +103,7 @@ object ImportData {
           importFunction(strategy)
             .flatMap { flow =>
               ZIO.fromFuture(
-                implicit ec =>
+                _ =>
                   body
                     .via(flow)
                     .map {

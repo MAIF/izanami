@@ -1,6 +1,5 @@
 package domains.abtesting
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 import domains.Key
 import play.api.libs.json._
@@ -18,9 +17,9 @@ object ExperimentVariantEventKeyInstances {
 object ExperimentVariantDisplayedInstances {
   implicit val format = {
     import ExperimentInstances._
-    implicit val kf                                   = ExperimentVariantEventKeyInstances.format
-    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.localDateTimeReads("yyyy-MM-dd'T'HH:mm:ss.SSS")
-    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.temporalWrites("yyyy-MM-dd'T'HH:mm:ss.SSS")
+    implicit val kf: Format[ExperimentVariantEventKey] = ExperimentVariantEventKeyInstances.format
+    implicit val dateTimeReads: Reads[LocalDateTime]   = Reads.localDateTimeReads("yyyy-MM-dd'T'HH:mm:ss.SSS")
+    implicit val dateTimeWrite: Writes[LocalDateTime]  = Writes.temporalWrites("yyyy-MM-dd'T'HH:mm:ss.SSS")
     Json.format[ExperimentVariantDisplayed]
   }
 }
@@ -28,9 +27,9 @@ object ExperimentVariantDisplayedInstances {
 object ExperimentVariantWonInstances {
   implicit val format = {
     import ExperimentInstances._
-    implicit val kf                                   = ExperimentVariantEventKeyInstances.format
-    implicit val dateTimeReads: Reads[LocalDateTime]  = Reads.localDateTimeReads("yyyy-MM-dd'T'HH:mm:ss.SSS")
-    implicit val dateTimeWrite: Writes[LocalDateTime] = Writes.temporalWrites("yyyy-MM-dd'T'HH:mm:ss.SSS")
+    implicit val kf: Format[ExperimentVariantEventKey] = ExperimentVariantEventKeyInstances.format
+    implicit val dateTimeReads: Reads[LocalDateTime]   = Reads.localDateTimeReads("yyyy-MM-dd'T'HH:mm:ss.SSS")
+    implicit val dateTimeWrite: Writes[LocalDateTime]  = Writes.temporalWrites("yyyy-MM-dd'T'HH:mm:ss.SSS")
     Json.format[ExperimentVariantWon]
   }
 }
@@ -47,7 +46,7 @@ object ExperimentVariantEventInstances {
         ExperimentVariantDisplayedInstances.format.reads(event)
       case event if (event \ "@type").asOpt[String].contains("VariantWonEvent") =>
         ExperimentVariantWonInstances.format.reads(event)
-      case other => JsError("error.bad.format")
+      case _ => JsError("error.bad.format")
     }
   }
 

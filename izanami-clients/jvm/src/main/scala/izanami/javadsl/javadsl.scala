@@ -13,14 +13,11 @@ import io.vavr.collection.List
 import io.vavr.concurrent.Future
 import io.vavr.control.{Option, Try}
 import izanami._
-import izanami.features.CUDFeatureClient
 import org.reactivecouchbase.json.{JsObject, JsValue, Json}
 import org.reactivestreams.Publisher
 
-import scala.annotation.varargs
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
-import org.reactivecouchbase.json.mapping.JsValidator
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -1032,8 +1029,8 @@ private[javadsl] object Vavr {
 
   implicit class ToScalaSeq[T](o: io.vavr.collection.Seq[T]) {
     def toScala(): scala.Seq[T] = {
-      import scala.collection.JavaConverters._
-      o.asJava().asScala
+      import scala.jdk.CollectionConverters._
+      o.asJava().asScala.toSeq
     }
   }
 

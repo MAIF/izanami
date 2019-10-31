@@ -11,15 +11,10 @@ import libs.logs.ProdLogger
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
 import scala.collection.mutable
-import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import store.Result.DataShouldExists
 import test.IzanamiSpec
 import test.TestEventStore
-import zio.internal.PlatformLive
-import zio.RIO
-import zio.ZIO
-import org.scalatest.run
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
 import play.api.libs.json.Json

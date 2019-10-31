@@ -6,8 +6,7 @@ import java.time.temporal.ChronoUnit
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
-import akka.{Done, NotUsed}
-import cats.effect.Effect
+import akka.NotUsed
 import domains.{ImportResult, Key}
 import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting.impl.{
@@ -26,7 +25,6 @@ import env.{
   DbType,
   Dynamo,
   Elastic,
-  ExperimentEventConfig,
   InMemory,
   InMemoryWithDb,
   IzanamiConfig,
@@ -40,12 +38,11 @@ import libs.database.Drivers
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
-import store.Result.{ErrorMessage, IzanamiErrors, Result}
+import store.Result.{ErrorMessage, IzanamiErrors}
 import zio.blocking.Blocking
-import zio.{DefaultRuntime, IO, RIO, Task, ZIO}
+import zio.{RIO, Task, ZIO}
 
 import scala.collection.immutable.HashSet
-import scala.concurrent.ExecutionContext
 import store.DataStoreContext
 
 /* ************************************************************************* */
@@ -120,10 +117,11 @@ object ExperimentVariantEvent {
     }
   }
 
-  def eventAggregation(experimentId: String,
-                       nbVariant: Int,
-                       interval: ChronoUnit = ChronoUnit.HOURS,
-                       removeDouble: Boolean = false): Flow[ExperimentVariantEvent, VariantResult, NotUsed] = {
+  def eventAggregation(
+      experimentId: String,
+      nbVariant: Int,
+      interval: ChronoUnit = ChronoUnit.HOURS
+  ): Flow[ExperimentVariantEvent, VariantResult, NotUsed] = {
     IzanamiLogger.debug(s"Building event results for $experimentId, interval = $interval")
     Flow[ExperimentVariantEvent]
       .groupBy(nbVariant, _.variant.id)
@@ -219,9 +217,7 @@ object ExperimentVariantEventService {
   def start: zio.RIO[ExperimentVariantEventModule, Unit] =
     ZIO.accessM(_.experimentVariantEventService.start)
 
-  def importData(
-      implicit ec: ExecutionContext
-  ): zio.RIO[ExperimentVariantEventModule, Flow[(String, JsValue), ImportResult, NotUsed]] =
+  def importData: zio.RIO[ExperimentVariantEventModule, Flow[(String, JsValue), ImportResult, NotUsed]] =
     ZIO.accessM(_.experimentVariantEventService.importData)
 
   def apply(izanamiConfig: IzanamiConfig, drivers: Drivers, applicationLifecycle: ApplicationLifecycle)(
@@ -238,7 +234,7 @@ object ExperimentVariantEventService {
         case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
         case Mongo    =>  ExperimentVariantEventMongoService(conf, drivers.mongoApi.get)
         case Dynamo   =>  ExperimentVariantEventDynamoService(izanamiConfig.db.dynamo.get, drivers.dynamoClient.get)
-        case Postgresql   =>  ExperimentVariantEventPostgresqlService(izanamiConfig.db.postgresql.get, drivers.postgresqlClient.get, conf)
+        case Postgresql   =>  ExperimentVariantEventPostgresqlService(drivers.postgresqlClient.get, conf)
         case _ => throw new IllegalArgumentException("Unsupported store type ")
       }
       val store = conf.`type` match {
@@ -273,11 +269,8 @@ trait ExperimentVariantEventService {
 
   def start: RIO[ExperimentVariantEventServiceModule, Unit] = Task.succeed(())
 
-  def importData(
-      implicit ec: ExecutionContext
-  ): RIO[ExperimentVariantEventServiceModule, Flow[(String, JsValue), ImportResult, NotUsed]] = {
+  def importData: RIO[ExperimentVariantEventServiceModule, Flow[(String, JsValue), ImportResult, NotUsed]] = {
     import cats.implicits._
-    import libs.streams.syntax._
     import ExperimentVariantEventInstances._
 
     for {

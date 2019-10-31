@@ -8,17 +8,14 @@ import controllers.actions.SecuredAuthContext
 import domains.feature.{Feature, FeatureContext, FeatureInstances, FeatureService}
 import domains._
 import domains.feature.Feature.FeatureKey
-import domains.webhook.Webhook
-import env.Env
 import libs.patch.Patch
-import libs.logs.IzanamiLogger
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
 import store.Query
 import store.Result.{AppErrors, IzanamiErrors}
-import zio.{IO, Runtime, ZIO}
+import zio.{Runtime, ZIO}
 
 class FeatureController(system: ActorSystem,
                         AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
@@ -26,7 +23,6 @@ class FeatureController(system: ActorSystem,
     extends AbstractController(cc) {
 
   import system.dispatcher
-  import AppErrors._
   import libs.http._
   import FeatureInstances._
 
@@ -78,7 +74,7 @@ class FeatureController(system: ActorSystem,
                   )
                 )
               }
-              .mapError(e => InternalServerError)
+              .mapError(_ => InternalServerError)
           }
         case "tree" =>
           if (active) {
@@ -86,7 +82,7 @@ class FeatureController(system: ActorSystem,
               .findByQueryActive(Json.obj(), query)
               .flatMap { source =>
                 ZIO.fromFuture(
-                  implicit ec =>
+                  _ =>
                     source
                       .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
                       .map {
@@ -100,13 +96,13 @@ class FeatureController(system: ActorSystem,
                       .runWith(Sink.head)
                 )
               }
-              .mapError(e => InternalServerError)
+              .mapError(_ => InternalServerError)
           } else {
             FeatureService
               .findByQuery(query)
               .flatMap { source =>
                 ZIO.fromFuture(
-                  implicit ec =>
+                  _ =>
                     source
                       .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
                       .map { Node.valuesToNodes[Feature] }
@@ -117,7 +113,7 @@ class FeatureController(system: ActorSystem,
                       .runWith(Sink.head)
                 )
               }
-              .mapError(e => InternalServerError)
+              .mapError(_ => InternalServerError)
           }
         case _ =>
           ZIO.succeed(BadRequest(Json.toJson(AppErrors.error("unknown.render.option"))))
@@ -175,7 +171,7 @@ class FeatureController(system: ActorSystem,
         FeatureService
           .getFeatureTree(query, flat, context)
           .flatMap { source =>
-            ZIO.fromFuture(implicit ec => source.map(graph => Ok(graph)).runWith(Sink.head))
+            ZIO.fromFuture(_ => source.map(graph => Ok(graph)).runWith(Sink.head))
           }
       case _ =>
         ZIO.succeed(BadRequest(Json.toJson(AppErrors.error("error.json.invalid"))))
@@ -196,7 +192,7 @@ class FeatureController(system: ActorSystem,
     val key = Key(id)
     for {
       _            <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
-      mayBeFeature <- FeatureService.getById(key).mapError(e => InternalServerError)
+      mayBeFeature <- FeatureService.getById(key).mapError(_ => InternalServerError)
       feature      <- ZIO.fromOption(mayBeFeature).mapError(_ => NotFound)
     } yield Ok(Json.toJson(feature))
   }
@@ -211,7 +207,6 @@ class FeatureController(system: ActorSystem,
     }
 
   private def checkFeatureWithcontext(id: String, user: Option[AuthInfo], contextJson: JsValue) = {
-    import FeatureInstances._
     val key = Key(id)
     for {
       context   <- jsResultToHttpResponse(contextJson.validate[JsObject])
@@ -234,7 +229,7 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     val key = Key(id)
     for {
-      mayBe   <- FeatureService.getById(key).mapError(e => InternalServerError)
+      mayBe   <- FeatureService.getById(key).mapError(_ => InternalServerError)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _       <- IsAllowed[Feature].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
@@ -245,18 +240,21 @@ class FeatureController(system: ActorSystem,
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[FeatureContext] { ctx =>
     val key = Key(id)
     for {
-      mayBe   <- FeatureService.getById(key).mapError(e => InternalServerError)
+      mayBe   <- FeatureService.getById(key).mapError(_ => InternalServerError)
       feature <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
-      deleted <- FeatureService.delete(key).mapError { IzanamiErrors.toHttpResult }
+      _       <- FeatureService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(FeatureInstances.format.writes(feature))
   }
 
   def deleteAll(pattern: String): Action[AnyContent] = AuthAction.asyncZio[FeatureContext] { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
-    for {
-      deletes <- FeatureService.deleteAll(query).mapError { IzanamiErrors.toHttpResult }
-    } yield Ok
+    FeatureService
+      .deleteAll(query)
+      .mapError { IzanamiErrors.toHttpResult }
+      .map { _ =>
+        Ok
+      }
   }
 
   def count(): Action[Unit] = AuthAction.asyncTask[FeatureContext](parse.empty) { ctx =>

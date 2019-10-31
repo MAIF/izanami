@@ -38,7 +38,6 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
   import actorSystem.dispatcher
   import domains.events.Events._
   import libs.effects._
-  import libs.streams.syntax._
   import cats.implicits._
   import ExperimentVariantEventInstances._
 
@@ -62,13 +61,6 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
           cb(Task.succeed(ok))
         }
       })
-    }
-
-  private def get(id: String): Task[Option[String]] =
-    zioFromCs {
-      command().get(id)
-    }.map { s =>
-      Option(s)
     }
 
   private def findKeys(pattern: String): Source[String, NotUsed] =
@@ -181,7 +173,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
   ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] = {
     val deletes =
       ZIO
-        .fromFuture { implicit ec =>
+        .fromFuture { _ =>
           findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
             .grouped(100)
             .mapAsync(10) { keys =>

@@ -4,9 +4,8 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import domains.Key
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{ErrorMessage, IzanamiErrors, Result}
+import store.Result.{IzanamiErrors, Result}
 import store.{Query, _}
-import cats.data._
 import cats.free.Free
 import cats.implicits._
 import doobie._
@@ -16,7 +15,6 @@ import doobie.Fragments._
 import fs2.Stream
 import env.DbDomainConfig
 import org.postgresql.util.PGobject
-import libs.logs.IzanamiLogger
 import libs.logs.Logger
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists
@@ -70,11 +68,9 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
        )
     """
 
-  override def start: RIO[DataStoreContext, Unit] = {
-    import cats.effect.implicits._
+  override def start: RIO[DataStoreContext, Unit] =
     Logger.debug(s"Applying script $dbScript") *>
     dbScript.update.run.transact(xa).unit
-  }
 
   override def create(
       id: Key,
@@ -192,7 +188,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
     val value: IO[IzanamiErrors, Int] = q.update.run
       .transact(xa)
       .refineToOrDie[IzanamiErrors]
-    value.map(r => ())
+    value.unit
   }
 
   override def count(query: Query): Task[Long] =
@@ -217,14 +213,6 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
           Fragment.empty
       }
       .intercalate(fr" OR ") ++ fr" ) "
-
-  private def patternsClause(patterns: Seq[String]): Option[Fragment] =
-    NonEmptyList
-      .fromList(patterns.toList)
-      .map(_.map { p =>
-        val updatedP = p.replaceAll("\\*", ".*")
-        fr" id ~ $updatedP "
-      }.intercalate(fr" AND "))
 
   private def insertQuery(id: Key, data: JsValue): Update0 =
     (sql"insert into " ++ fragTableName ++ fr" (id, payload) values (${id.key}, $data) ").update

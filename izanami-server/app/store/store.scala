@@ -2,12 +2,11 @@ package store
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Source}
-import akka.{Done, NotUsed}
+import akka.NotUsed
 import cats.Semigroup
 import cats.data.{NonEmptyList, Validated}
-import cats.effect.{ConcurrentEffect, ContextShift, Effect}
 import cats.kernel.Monoid
-import domains.events.{EventStore, EventStoreContext}
+import domains.events.EventStoreContext
 import domains.Key
 import domains.events.Events.IzanamiEvent
 import env._
@@ -19,7 +18,7 @@ import play.api.mvc.Results
 import store.Result.IzanamiErrors
 import store.cassandra.CassandraJsonDataStore
 import store.elastic.ElasticJsonDataStore
-import store.leveldb.{DbStores, LevelDBJsonDataStore}
+import store.leveldb.LevelDBJsonDataStore
 import store.memory.InMemoryJsonDataStore
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
 import store.mongo.MongoJsonDataStore
@@ -118,7 +117,7 @@ object Result {
     def collect[E2](p: PartialFunction[E, E2]): Result[E2] =
       r match {
         case Right(elt) if p.isDefinedAt(elt) => Result.ok(p(elt))
-        case Right(elt)                       => Result.error("error.result.filtered")
+        case Right(_)                         => Result.error("error.result.filtered")
         case Left(e)                          => Result.error(e)
       }
   }

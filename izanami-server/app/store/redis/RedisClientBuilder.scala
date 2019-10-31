@@ -7,7 +7,6 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
 import io.lettuce.core.{RedisClient, RedisURI}
 import play.api.inject.ApplicationLifecycle
 
-import scala.collection.immutable
 import scala.concurrent.{ExecutionContext, Future}
 
 object RedisClientBuilder {

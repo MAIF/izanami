@@ -1,10 +1,7 @@
 package libs
 import java.util.concurrent.CompletionStage
 
-import cats.effect.Async
-
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{Future, Promise}
 
 object effects {
 

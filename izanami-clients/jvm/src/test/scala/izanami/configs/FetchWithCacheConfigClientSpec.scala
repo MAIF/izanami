@@ -17,7 +17,7 @@ class FetchWithCacheConfigClientSpec extends IzanamiSpec with BeforeAndAfterAll 
   implicit val system       = ActorSystem("test")
   implicit val materializer = ActorMaterializer()
 
-  override def afterAll {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

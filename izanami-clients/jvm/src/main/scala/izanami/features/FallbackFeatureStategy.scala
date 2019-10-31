@@ -8,7 +8,7 @@ import izanami.commons.IzanamiException
 import izanami.scaladsl._
 import izanami.{Feature, FeatureEvent, FeatureType, IzanamiDispatcher}
 import org.reactivestreams.{Publisher, Subscriber}
-import play.api.libs.json.{JsError, JsObject, JsSuccess, Json}
+import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
 import java.util.concurrent.atomic.AtomicReference

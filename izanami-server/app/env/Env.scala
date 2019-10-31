@@ -5,7 +5,7 @@ import com.codahale.metrics.MetricRegistry
 import controllers.AssetsFinder
 import libs.logs.IzanamiLogger
 import play.api.libs.ws.WSClient
-import play.api.{Environment, Logger, Mode}
+import play.api.{Environment, Mode}
 import cats._
 import cats.implicits._
 
