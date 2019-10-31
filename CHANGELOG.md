@@ -1,5 +1,81 @@
 # Changelog 
 
+## Version 1.5.3
+
+A bug fixes and feature release 
+
+Main features :  
+* import now have options to replace or keep existing datas
+
+Major fixes are 
+ * fix bugs with autocreate option on the jvm client 
+ * fix bugs on the UI 
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.5.3
+
+## Version 1.5.2
+
+Main features :  
+ * Better prometheus metrics 
+ * Creating feature can be done without "enabled" field (set at false by default) 
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.5.2
+
+## Version 1.5.1
+
+Main features :  
+ * The features now have a description 
+
+Major fixes are
+ *  a regression on table naming with dynamo db
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.5.1
+
+## Version 1.5.0
+
+Main features : 
+ * autocreate option 
+ * feature strategy for a range of hours 
+ * event are enrished with the user that has done the action  
+ * metrics improved 
+
+This release comes with a big internal refactoring of the server 
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.5.O
+
+## Version 1.4.4
+
+A bug fixes release 
+
+Major fixes are 
+ * Multiple patterns can be used for searching in the api 
+ * Docker image doesn't respond to SIGTERM
+ * Multiple exclusion for sucured endpoints 
+ 
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.4.4
+ 
+## Version 1.4.3
+
+A bug fixes release 
+
+Major fixes are 
+ * Upgrade to playframework 2.7.1
+ * Problem saving webhooks patterns 
+ * Healthcheck failure with dynamo DB 
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.4.3
+
+## Version 1.4.2
+
+A bug fixes release 
+
+### Bugfix
+
+The bug fixes are listed here : 
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.4.2
+
+
 ## Version 1.4.0
 
 ### Postgresql supported as database 
