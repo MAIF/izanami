@@ -9,7 +9,7 @@ import domains.Key
 import domains.abtesting.ExperimentInstances
 import domains.apikey.ApikeyInstances
 import domains.config.ConfigInstances
-import domains.events.{EventStore, EventStoreModule}
+import domains.events.EventStore
 import domains.events.Events._
 import domains.feature.FeatureInstances
 import domains.script.GlobalScriptInstances
@@ -48,50 +48,50 @@ object InMemoryWithDbStore {
     case GlobalScriptCreated(id, script, _, _, _) => Create(id, GlobalScriptInstances.format.writes(script))
     case GlobalScriptUpdated(id, old, script, _, _, _) =>
       Update(old.id, id, GlobalScriptInstances.format.writes(script))
-    case GlobalScriptDeleted(id, _, _, _, _)            => Delete(id)
-    case GlobalScriptsDeleted(count, patterns, _, _, _) => DeleteAll(patterns)
+    case GlobalScriptDeleted(id, _, _, _, _)        => Delete(id)
+    case GlobalScriptsDeleted(_, patterns, _, _, _) => DeleteAll(patterns)
   }
 
   lazy val configEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ConfigCreated(id, value, _, _, _)        => Create(id, ConfigInstances.format.writes(value))
-    case ConfigUpdated(id, old, value, _, _, _)   => Update(old.id, id, ConfigInstances.format.writes(value))
-    case ConfigDeleted(id, _, _, _, _)            => Delete(id)
-    case ConfigsDeleted(count, patterns, _, _, _) => DeleteAll(patterns)
+    case ConfigCreated(id, value, _, _, _)      => Create(id, ConfigInstances.format.writes(value))
+    case ConfigUpdated(id, old, value, _, _, _) => Update(old.id, id, ConfigInstances.format.writes(value))
+    case ConfigDeleted(id, _, _, _, _)          => Delete(id)
+    case ConfigsDeleted(_, patterns, _, _, _)   => DeleteAll(patterns)
   }
 
   lazy val featureEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case FeatureCreated(id, value, _, _, _)        => Create(id, FeatureInstances.format.writes(value))
-    case FeatureUpdated(id, old, value, _, _, _)   => Update(old.id, id, FeatureInstances.format.writes(value))
-    case FeatureDeleted(id, _, _, _, _)            => Delete(id)
-    case FeaturesDeleted(count, patterns, _, _, _) => DeleteAll(patterns)
+    case FeatureCreated(id, value, _, _, _)      => Create(id, FeatureInstances.format.writes(value))
+    case FeatureUpdated(id, old, value, _, _, _) => Update(old.id, id, FeatureInstances.format.writes(value))
+    case FeatureDeleted(id, _, _, _, _)          => Delete(id)
+    case FeaturesDeleted(_, patterns, _, _, _)   => DeleteAll(patterns)
   }
 
   lazy val experimentEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ExperimentCreated(id, value, _, _, _)        => Create(id, ExperimentInstances.format.writes(value))
-    case ExperimentUpdated(id, old, value, _, _, _)   => Update(old.id, id, ExperimentInstances.format.writes(value))
-    case ExperimentDeleted(id, _, _, _, _)            => Delete(id)
-    case ExperimentsDeleted(count, patterns, _, _, _) => DeleteAll(patterns)
+    case ExperimentCreated(id, value, _, _, _)      => Create(id, ExperimentInstances.format.writes(value))
+    case ExperimentUpdated(id, old, value, _, _, _) => Update(old.id, id, ExperimentInstances.format.writes(value))
+    case ExperimentDeleted(id, _, _, _, _)          => Delete(id)
+    case ExperimentsDeleted(_, patterns, _, _, _)   => DeleteAll(patterns)
   }
 
   lazy val webhookEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case WebhookCreated(id, value, _, _, _)        => Create(id, WebhookInstances.format.writes(value))
-    case WebhookUpdated(id, old, value, _, _, _)   => Update(old.clientId, id, WebhookInstances.format.writes(value))
-    case WebhookDeleted(id, _, _, _, _)            => Delete(id)
-    case WebhooksDeleted(count, patterns, _, _, _) => DeleteAll(patterns)
+    case WebhookCreated(id, value, _, _, _)      => Create(id, WebhookInstances.format.writes(value))
+    case WebhookUpdated(id, old, value, _, _, _) => Update(old.clientId, id, WebhookInstances.format.writes(value))
+    case WebhookDeleted(id, _, _, _, _)          => Delete(id)
+    case WebhooksDeleted(_, patterns, _, _, _)   => DeleteAll(patterns)
   }
 
   lazy val userEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case UserCreated(id, value, _, _, _)        => Create(id, UserInstances.format.writes(value))
-    case UserUpdated(id, old, value, _, _, _)   => Update(Key(old.id), id, UserInstances.format.writes(value))
-    case UserDeleted(id, _, _, _, _)            => Delete(id)
-    case UsersDeleted(count, patterns, _, _, _) => DeleteAll(patterns)
+    case UserCreated(id, value, _, _, _)      => Create(id, UserInstances.format.writes(value))
+    case UserUpdated(id, old, value, _, _, _) => Update(Key(old.id), id, UserInstances.format.writes(value))
+    case UserDeleted(id, _, _, _, _)          => Delete(id)
+    case UsersDeleted(_, patterns, _, _, _)   => DeleteAll(patterns)
   }
 
   lazy val apikeyEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
-    case ApikeyCreated(id, value, _, _, _)        => Create(id, ApikeyInstances.format.writes(value))
-    case ApikeyUpdated(id, old, value, _, _, _)   => Update(Key(old.clientId), id, ApikeyInstances.format.writes(value))
-    case ApikeyDeleted(id, _, _, _, _)            => Delete(id)
-    case ApikeysDeleted(count, patterns, _, _, _) => DeleteAll(patterns)
+    case ApikeyCreated(id, value, _, _, _)      => Create(id, ApikeyInstances.format.writes(value))
+    case ApikeyUpdated(id, old, value, _, _, _) => Update(Key(old.clientId), id, ApikeyInstances.format.writes(value))
+    case ApikeyDeleted(id, _, _, _, _)          => Delete(id)
+    case ApikeysDeleted(_, patterns, _, _, _)   => DeleteAll(patterns)
   }
 }
 
@@ -102,7 +102,7 @@ class InMemoryWithDbStore(
     eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
     applicationLifecycle: ApplicationLifecycle
 )(implicit system: ActorSystem)
-    extends BaseInMemoryJsonDataStore(name)
+    extends BaseInMemoryJsonDataStore()
     with JsonDataStore {
 
   import zio._
@@ -136,7 +136,7 @@ class InMemoryWithDbStore(
     for {
       cache  <- loadCacheFromDb
       events <- EventStore.events()
-      res <- IO.fromFuture { implicit ec =>
+      res <- IO.fromFuture { _ =>
               RestartSource
                 .onFailuresWithBackoff(1.second, 20.second, 1)(
                   () =>

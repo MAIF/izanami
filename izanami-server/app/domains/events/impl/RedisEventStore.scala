@@ -9,7 +9,6 @@ import domains.events.Events.IzanamiEvent
 import domains.events.{EventLogger, EventStore}
 import env.RedisEventsConfig
 import io.lettuce.core.api.StatefulRedisConnection
-import io.lettuce.core.pubsub.api.async.RedisPubSubAsyncCommands
 import io.lettuce.core.pubsub.{RedisPubSubListener, StatefulRedisPubSubConnection}
 import libs.streams.CacheableQueue
 import libs.logs.IzanamiLogger
@@ -32,7 +31,7 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
 
   private val connection: StatefulRedisConnection[String, String]             = client.connection
   private val connectionPubSub: StatefulRedisPubSubConnection[String, String] = client.connectPubSub()
-  private val channel: RedisPubSubAsyncCommands[String, String]               = connectionPubSub.async()
+  connectionPubSub.async()
 
   private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
 

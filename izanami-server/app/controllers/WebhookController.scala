@@ -2,20 +2,18 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import domains.webhook.{Webhook, WebhookContext, WebhookInstances, WebhookService}
 import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
-import libs.logs.IzanamiLogger
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Result.{AppErrors, IzanamiErrors}
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import store.Query
-import zio.{IO, Runtime, ZIO}
+import zio.{Runtime, ZIO}
 
 class WebhookController(system: ActorSystem,
                         AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
@@ -56,7 +54,7 @@ class WebhookController(system: ActorSystem,
     for {
       webhook <- jsResultToHttpResponse(body.validate[Webhook])
       _       <- isWebhookAllowed(webhook, ctx)
-      event   <- WebhookService.create(webhook.clientId, webhook).mapError { IzanamiErrors.toHttpResult }
+      _       <- WebhookService.create(webhook.clientId, webhook).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(webhook))
 
   }
@@ -66,7 +64,7 @@ class WebhookController(system: ActorSystem,
     val key = Key(id)
     for {
       _       <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
-      mayBe   <- WebhookService.getById(key).mapError(e => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
     } yield Ok(Json.toJson(webhook))
   }
@@ -85,7 +83,7 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      mayBe   <- WebhookService.getById(key).mapError(e => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _       <- isWebhookAllowed(webhook, ctx)
       body    = ctx.request.body
@@ -98,7 +96,7 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      mayBe   <- WebhookService.getById(key).mapError(e => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _       <- isWebhookAllowed(webhook, ctx)
       _       <- WebhookService.delete(key).mapError { IzanamiErrors.toHttpResult }
@@ -106,7 +104,7 @@ class WebhookController(system: ActorSystem,
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.asyncZio[WebhookContext] { ctx =>
+    AuthAction.asyncZio[WebhookContext] { _ =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
       WebhookService
         .deleteAll(allPatterns)

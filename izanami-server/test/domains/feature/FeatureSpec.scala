@@ -18,7 +18,6 @@ import domains.Key
 import domains.script._
 import domains.script.GlobalScript.GlobalScriptKey
 import domains.script.Script.ScriptCache
-import domains.user.User
 import libs.logs.{Logger, ProdLogger}
 import libs.logs.Logger
 import libs.logs.ProdLogger
@@ -38,7 +37,6 @@ import test.TestEventStore
 import zio.{DefaultRuntime, RIO, Task, ZIO}
 import zio.blocking.Blocking
 import zio.internal.Executor
-import zio.internal.PlatformLive
 import zio.RIO
 import zio.ZIO
 import org.scalatest.BeforeAndAfterAll
@@ -53,8 +51,6 @@ import test.FakeApplicationLifecycle
 import play.api.Configuration
 import play.api.libs.json.JsArray
 import java.time.LocalTime
-import java.time.temporal.Temporal
-import java.time.temporal.TemporalAmount
 import java.time.Duration
 import play.api.inject.ApplicationLifecycle
 
@@ -350,7 +346,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
         DefaultFeature(Key("a:b:d"), false, None)
       )
 
-      import FeatureInstances._
 
       val graph = Source(features)
         .via(
@@ -381,7 +376,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, None, from = from, to = to)
 
-      import cats._
       runIsActive(DateRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
     }
 
@@ -390,7 +384,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val to      = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(2, ChronoUnit.HOURS)
       val feature = DateRangeFeature(Key("key"), true, None, from = from, to = to)
 
-      import cats._
       runIsActive(DateRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)
     }
   }
@@ -400,7 +393,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
       val feature = ReleaseDateFeature(Key("key"), true, None, date = date)
 
-      import cats._
       runIsActive(ReleaseDateFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
     }
 
@@ -408,7 +400,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.MINUTES)
       val feature = ReleaseDateFeature(Key("key"), true, None, date = date)
 
-      import cats._
       runIsActive(ReleaseDateFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)
     }
   }
@@ -819,7 +810,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     runtime.unsafeRun(ZIO.provide(isActiveContext)(t))
 
   private def isActiveContext: IsActiveContext = new IsActiveContext {
-    import zio.interop.catz._
     override val blocking: Blocking.Service[Any] = blockingInstance
     override val logger: Logger                  = new ProdLogger
     override val scriptCache: ScriptCache        = fakeCache
@@ -841,7 +831,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   }
 
   private def calcPercentage(feature: PercentageFeature)(mkString: Int => String) = {
-    import cats._
     val count = (0 to 1000)
       .map { i =>
         val isActive =

@@ -2,7 +2,6 @@ package domains.feature
 
 import java.time.LocalDateTime
 
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import akka.NotUsed
 import domains.events.{EventStore, EventStoreContext}
@@ -10,7 +9,6 @@ import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureInstances.isActive
 import domains.script.{GlobalScriptContext, RunnableScriptContext, Script, ScriptCacheModule}
 import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
-import env.Env
 import libs.logs.LoggerModule
 import play.api.libs.json._
 import store.Result._
@@ -18,7 +16,6 @@ import store._
 import zio.{RIO, ZIO}
 import java.time.LocalTime
 
-import metrics.Metrics
 import metrics.MetricsService
 
 sealed trait Strategy
@@ -41,7 +38,7 @@ object Feature {
   def withActive(context: JsObject): RIO[IsActiveContext, Flow[Feature, (Boolean, Feature), NotUsed]] =
     for {
       runtime <- ZIO.runtime[IsActiveContext]
-      res <- RIO.access[IsActiveContext] { ctx =>
+      res <- RIO.access[IsActiveContext] { _ =>
               Flow[Feature]
                 .mapAsyncUnordered(2) { feature =>
                   val testIfisActive: RIO[IsActiveContext, (Boolean, Feature)] =
@@ -234,7 +231,7 @@ object FeatureService {
                         query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
     for {
       runtime <- ZIO.runtime[FeatureContext]
-      res <- ZIO.accessM[FeatureContext] { ctx =>
+      res <- ZIO.accessM[FeatureContext] { _ =>
               val value: RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] = FeatureDataStore
                 .findByQuery(query)
                 .map { source =>

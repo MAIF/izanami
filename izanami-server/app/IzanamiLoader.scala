@@ -1,8 +1,5 @@
 import akka.actor.ActorSystem
-import akka.NotUsed
-import akka.stream.scaladsl.Flow
 import libs.logs.IzanamiLogger
-import metrics.Metrics
 import zio.{Runtime, Task}
 import zio.interop.catz._
 import com.codahale.metrics.MetricRegistry
@@ -13,7 +10,6 @@ import domains.config.{ConfigDataStore, ConfigService}
 import domains.{GlobalContext, Import}
 import domains.abtesting.{ExperimentVariantEventService, _}
 import domains.apikey.{ApiKeyDataStore, ApikeyService}
-import domains.events.Events.IzanamiEvent
 import domains.events._
 import domains.feature.{FeatureDataStore, FeatureService}
 import domains.script.Script.ScriptCache
@@ -25,8 +21,7 @@ import libs.database.Drivers
 import env._
 import filters.{IzanamiDefaultFilter, OtoroshiFilter}
 import handlers.ErrorHandler
-import patches.{PatchInstance, Patchs}
-import patches.impl.ConfigsPatch
+import patches.Patchs
 import play.api.ApplicationLoader.Context
 import play.api._
 import play.api.cache.ehcache.EhCacheComponents
@@ -37,9 +32,6 @@ import play.api.routing.Router
 import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 import router.Routes
-import store.leveldb.DbStores
-import store.JsonDataStore
-import store.memorywithdb.CacheEvent
 import zio.internal.PlatformLive
 
 class IzanamiLoader extends ApplicationLoader {
@@ -91,7 +83,7 @@ package object modules {
 
     /* Event store */
     lazy val zioEventStore: EventStore =
-      EventStore(izanamiConfig, drivers, configuration, environment, applicationLifecycle)
+      EventStore(izanamiConfig, drivers, configuration, applicationLifecycle)
 
     val globalContext: GlobalContext = GlobalContext(
       izanamiConfig,

@@ -1,34 +1,28 @@
 package store.memory
 
 import akka.{Done, NotUsed}
-import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import domains.Key
 import env.DbDomainConfig
-import play.api.libs.json.{JsValue, _}
-import store.Result.{ErrorMessage, IzanamiErrors, Result}
+import play.api.libs.json.JsValue
+import store.Result.{IzanamiErrors, Result}
 import store._
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
 import libs.logs.Logger
 import libs.logs.IzanamiLogger
 import store.Result.DataShouldExists
-import cats._
-import cats.syntax._
-import cats.data._
-import cats.implicits._
 import store.Result.DataShouldNotExists
 
 object InMemoryJsonDataStore {
 
-  def apply(dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem): InMemoryJsonDataStore = {
+  def apply(dbDomainConfig: DbDomainConfig): InMemoryJsonDataStore = {
     val namespace = dbDomainConfig.conf.namespace
     new InMemoryJsonDataStore(namespace)
   }
 }
 class InMemoryJsonDataStore(name: String, inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue])
-    extends BaseInMemoryJsonDataStore(name, inMemoryStore)
+    extends BaseInMemoryJsonDataStore(inMemoryStore)
     with JsonDataStore {
 
   import zio._
@@ -60,7 +54,7 @@ class InMemoryJsonDataStore(name: String, inMemoryStore: TrieMap[Key, JsValue] =
     Task(countSync(query))
 }
 
-class BaseInMemoryJsonDataStore(name: String, val inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]) {
+class BaseInMemoryJsonDataStore(val inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]) {
 
   protected def createSync(id: Key, data: JsValue): Result[JsValue] =
     inMemoryStore.get(id) match {

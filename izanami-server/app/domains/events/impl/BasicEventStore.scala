@@ -13,7 +13,6 @@ import store.Result.IzanamiErrors
 import zio.{IO, Task}
 
 import scala.util.Try
-import zio.ZIO
 
 class BasicEventStore(implicit system: ActorSystem) extends EventStore {
 

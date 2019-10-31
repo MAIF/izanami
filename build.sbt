@@ -48,12 +48,6 @@ val setVersionToNpmProject = ReleaseStep(action = st => {
   st
 })
 
-scalafmtOnCompile in ThisBuild := true
-
-scalafmtTestOnCompile in ThisBuild := true
-
-scalafmtVersion in ThisBuild := "1.2.0"
-
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies, // : ReleaseStep
   inquireVersions, // : ReleaseStep

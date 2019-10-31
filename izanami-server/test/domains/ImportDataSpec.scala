@@ -6,7 +6,7 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import store.Result.IzanamiErrors
 import test.IzanamiSpec
 import zio.internal.PlatformLive
-import zio.{DefaultRuntime, RIO, Runtime, Task, ZIO}
+import zio.{Runtime, Task}
 
 import scala.collection.mutable
 
@@ -28,7 +28,6 @@ class ImportDataSpec extends IzanamiSpec {
       import fs2._
       import Viking._
       import zio.interop.catz._
-      import cats.implicits._
 
       val datas: mutable.Map[String, Viking] = mutable.Map(
         "1" -> Viking("1", "Ragnar")

@@ -18,8 +18,7 @@ import store.Query
 import store.Result.{AppErrors, IzanamiErrors}
 import zio.{Runtime, Task, ZIO}
 
-class ExperimentController(ctx: ExperimentContext,
-                           system: ActorSystem,
+class ExperimentController(system: ActorSystem,
                            AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
                            cc: ControllerComponents)(implicit runtime: Runtime[ExperimentContext])
     extends AbstractController(cc) {
@@ -56,7 +55,7 @@ class ExperimentController(ctx: ExperimentContext,
           ExperimentService
             .findByQuery(query)
             .flatMap { s =>
-              ZIO.fromFuture { implicit ec =>
+              ZIO.fromFuture { _ =>
                 s.fold(List.empty[(ExperimentKey, Experiment)])(_ :+ _)
                   .map { v =>
                     Node.valuesToNodes[Experiment](v)(ExperimentInstances.format)
@@ -80,7 +79,7 @@ class ExperimentController(ctx: ExperimentContext,
       for {
         s <- ExperimentService.findByQuery(query)
         r <- ZIO.fromFuture(
-              implicit ec =>
+              _ =>
                 s.map(_._2)
                   .via(ExperimentService.toGraph(clientId))
                   .map { graph =>
@@ -108,7 +107,7 @@ class ExperimentController(ctx: ExperimentContext,
       val key = Key(id)
       for {
         _          <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
-        mayBe      <- ExperimentService.getById(key).mapError(e => InternalServerError)
+        mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
         experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))
     }
@@ -127,7 +126,7 @@ class ExperimentController(ctx: ExperimentContext,
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe   <- ExperimentService.getById(key).mapError(e => InternalServerError)
+      mayBe   <- ExperimentService.getById(key).mapError(_ => InternalServerError)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _       <- isExperimentAllowed(current, ctx)
       body    = ctx.request.body
@@ -140,10 +139,10 @@ class ExperimentController(ctx: ExperimentContext,
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe      <- ExperimentService.getById(key).mapError(e => InternalServerError)
+      mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
       experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _          <- isExperimentAllowed(experiment, ctx)
-      deleted    <- ExperimentService.delete(key).mapError { IzanamiErrors.toHttpResult }
+      _          <- ExperimentService.delete(key).mapError { IzanamiErrors.toHttpResult }
       _          <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(experiment))
   }
@@ -156,7 +155,7 @@ class ExperimentController(ctx: ExperimentContext,
       _ <- ExperimentService
             .findByQuery(query)
             .map { s =>
-              ZIO.fromFuture { implicit ec =>
+              ZIO.fromFuture { _ =>
                 s.map(_._2)
                   .flatMapMerge(
                     4, { experiment =>
@@ -169,7 +168,7 @@ class ExperimentController(ctx: ExperimentContext,
                   .runWith(Sink.ignore)
               }
             }
-            .mapError { e =>
+            .mapError { _ =>
               InternalServerError("")
             }
 
@@ -180,7 +179,7 @@ class ExperimentController(ctx: ExperimentContext,
   /* Campaign */
 
   def getVariantForClient(experimentId: String, clientId: String): Action[Unit] =
-    AuthAction.asyncZio[ExperimentContext](parse.empty) { ctx =>
+    AuthAction.asyncZio[ExperimentContext](parse.empty) { _ =>
       import ExperimentInstances._
       for {
         variant <- ExperimentService.variantFor(Key(experimentId), clientId).mapError { IzanamiErrors.toHttpResult }
@@ -188,7 +187,7 @@ class ExperimentController(ctx: ExperimentContext,
     }
 
   def variantDisplayed(experimentId: String, clientId: String): Action[AnyContent] =
-    AuthAction.asyncZio[ExperimentContext] { ctx =>
+    AuthAction.asyncZio[ExperimentContext] { _ =>
       import ExperimentVariantEventInstances._
 
       val experimentKey = Key(experimentId)
@@ -212,7 +211,7 @@ class ExperimentController(ctx: ExperimentContext,
     }
 
   def variantWon(experimentId: String, clientId: String): Action[AnyContent] =
-    AuthAction.asyncZio[ExperimentContext] { ctx =>
+    AuthAction.asyncZio[ExperimentContext] { _ =>
       import ExperimentVariantEventInstances._
       val experimentKey = Key(experimentId)
 
@@ -234,7 +233,7 @@ class ExperimentController(ctx: ExperimentContext,
     }
 
   def results(experimentId: String): Action[Unit] =
-    AuthAction.asyncZio[ExperimentContext](parse.empty) { ctx =>
+    AuthAction.asyncZio[ExperimentContext](parse.empty) { _ =>
       import ExperimentInstances._
       val experimentKey = Key(experimentId)
       ExperimentService

@@ -1,18 +1,12 @@
 package domains.feature
 import java.time.{LocalDateTime, ZoneId}
 
-import cats.Applicative
-import cats.effect.{Async, Effect}
 import domains.{AuthInfo, IsAllowed, Key}
 import domains.script._
-import env.Env
-import shapeless.syntax
-import store.Result
-import store.Result.{AppErrors, IzanamiErrors, Result}
+import store.Result.{AppErrors, IzanamiErrors}
 import FeatureType._
 import domains.feature.Feature.FeatureKey
-import domains.script.Script.ScriptCache
-import zio.{IO, Task, ZIO}
+import zio.ZIO
 
 import scala.util.hashing.MurmurHash3
 import java.time.LocalTime
@@ -117,7 +111,6 @@ object ScriptFeatureInstances {
   implicit val format: Format[ScriptFeature] = Format(reads, writes)
 
   def isActive: IsActive[ScriptFeature] = new IsActive[ScriptFeature] {
-    import cats.implicits._
     import domains.script.syntax._
     import domains.script.ScriptInstances._
     override def isActive(feature: ScriptFeature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
@@ -162,7 +155,6 @@ object DateRangeFeatureInstances {
   implicit val format: Format[DateRangeFeature] = Format(reads, writes)
 
   def isActive: IsActive[DateRangeFeature] = new IsActive[DateRangeFeature] {
-    import cats.implicits._
     override def isActive(feature: DateRangeFeature,
                           context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] = {
       val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
@@ -206,7 +198,6 @@ object ReleaseDateFeatureInstances {
   implicit val format: Format[ReleaseDateFeature] = Format(reads, writes)
 
   def isActive: IsActive[ReleaseDateFeature] = new IsActive[ReleaseDateFeature] {
-    import cats.implicits._
     override def isActive(
         feature: ReleaseDateFeature,
         context: JsObject
@@ -239,7 +230,6 @@ object PercentageFeatureInstances {
   implicit val format: Format[PercentageFeature] = Format(reads, writes)
 
   def isActive: IsActive[PercentageFeature] = new IsActive[PercentageFeature] {
-    import cats.implicits._
     override def isActive(feature: PercentageFeature,
                           context: JsObject): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] =
       ((context \ "id").asOpt[String], feature.enabled) match {
@@ -301,7 +291,6 @@ object HourRangeFeatureInstances {
 
 object FeatureInstances {
   import FeatureType._
-  import cats.implicits._
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
@@ -310,9 +299,7 @@ object FeatureInstances {
   }
 
   def isActive(feature: Feature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
-    ZIO.accessM { cxt =>
-      import zio.interop.catz._
-
+    ZIO.accessM { _ =>
       (feature match {
         case f: DefaultFeature      => DefaultFeatureInstances.isActive.isActive(f, context)
         case f: GlobalScriptFeature => GlobalScriptFeatureInstances.isActive.isActive(f, context)

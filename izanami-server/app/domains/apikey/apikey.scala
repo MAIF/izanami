@@ -1,18 +1,15 @@
 package domains.apikey
 
-import akka.http.scaladsl.util.FastFuture
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
 import domains.AuthorizedPattern.AuthorizedPattern
-import domains.abtesting.Experiment.ExperimentKey
 import domains.events.{EventStore, EventStoreContext}
 import domains._
 import libs.logs.LoggerModule
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import store._
-import zio.{IO, RIO, Task, ZIO}
-import akka.stream.Materializer
+import zio.{IO, RIO, ZIO}
 
 case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: AuthorizedPattern)
     extends AuthInfo {

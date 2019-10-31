@@ -1,12 +1,11 @@
 package domains.abtesting
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.{ChronoField, ChronoUnit, TemporalField}
+import java.time.temporal.{ChronoField, ChronoUnit}
 
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
-import cats.effect.IO
 import domains.Key
 import domains.abtesting.impl.ExperimentVariantEventInMemoryService
 import domains.events.{EventStore, Events}
@@ -14,18 +13,17 @@ import domains.events.Events.ExperimentCreated
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
-import store.Result.{AppErrors, IzanamiErrors, Result}
+import store.Result.{AppErrors, IzanamiErrors}
 import store.{JsonDataStore, Result}
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
 import zio.internal.{Executor, PlatformLive}
-import zio.{DefaultRuntime, RIO, Task, ZIO}
+import zio.{DefaultRuntime, RIO, ZIO}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Random
-import domains.user.User
 import domains.AuthInfo
 import store.Result.IdMustBeTheSame
 
@@ -33,7 +31,6 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
   import ExperimentInstances._
 
   implicit val actorSystem: ActorSystem = ActorSystem()
-  import actorSystem.dispatcher
   implicit val runtime = new DefaultRuntime {}
 
   "Experiment" must {

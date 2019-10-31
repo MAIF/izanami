@@ -5,11 +5,10 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import domains.{GlobalContext, Key}
-import domains.config.ConfigContext
 import libs.logs.IzanamiLogger
 import play.api.libs.json.Json
 import store.JsonDataStore
-import zio.{Runtime, Task, ZIO}
+import zio.{Task, ZIO}
 
 import scala.util.{Failure, Success}
 import env.IzanamiConfig

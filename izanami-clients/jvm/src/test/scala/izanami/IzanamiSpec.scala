@@ -104,7 +104,7 @@ trait ConfigMockServer extends MockServer {
     )
   }
 
-  def registerCreateConfig(config: Config) {
+  def registerCreateConfig(config: Config): Unit = {
     val jsonBody = Json.stringify(Json.toJson(config))
     mock.register(
       post(urlPathEqualTo("/api/configs"))
@@ -118,7 +118,7 @@ trait ConfigMockServer extends MockServer {
     )
   }
 
-  def registerUpdateConfig(id: String, config: Config) {
+  def registerUpdateConfig(id: String, config: Config): Unit = {
     val jsonBody = Json.stringify(Json.toJson(config))
     mock.register(
       put(urlPathEqualTo(s"/api/configs/$id"))

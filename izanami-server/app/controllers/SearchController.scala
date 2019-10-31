@@ -4,10 +4,10 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.{GraphDSL, Interleave, Sink, Source}
 import akka.stream.{ActorMaterializer, SourceShape}
 import controllers.actions.SecuredAuthContext
-import domains.abtesting.{ExperimentContext, ExperimentService}
-import domains.config.{ConfigContext, ConfigService}
-import domains.feature.{FeatureContext, FeatureService}
-import domains.script.{GlobalScriptContext, GlobalScriptService}
+import domains.abtesting.ExperimentService
+import domains.config.ConfigService
+import domains.feature.FeatureService
+import domains.script.GlobalScriptService
 import domains.GlobalContext
 import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
@@ -54,7 +54,7 @@ class SearchController(
                              .map(value => Source(value.toList))
                          else ZIO.succeed(Source.empty[JsValue])
 
-        scriptsRes <- if (experiments)
+        scriptsRes <- if (scripts)
                        GlobalScriptService
                          .findByQuery(query, 1, 10)
                          .map(_.results.map(value => Json.obj("type" -> "scripts", "id" -> Json.toJson(value.id))))

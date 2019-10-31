@@ -1,6 +1,5 @@
 package domains.user
 
-import akka.http.scaladsl.util.FastFuture
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
 import com.auth0.jwt.interfaces.DecodedJWT

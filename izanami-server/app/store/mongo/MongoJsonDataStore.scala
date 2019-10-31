@@ -2,13 +2,13 @@ package store.mongo
 
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.implicits._
 import domains.Key
 import env.DbDomainConfig
 import libs.mongo.MongoUtils
-import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.akkastream._
@@ -16,10 +16,10 @@ import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference, WriteConcern}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.IzanamiErrors
 import store._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import libs.logs.Logger
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists
@@ -39,7 +39,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     extends JsonDataStore {
 
   import zio._
-  import actorSystem.dispatcher
+  //import actorSystem.dispatcher
 
   private val collectionName = namespace.replaceAll(":", "_")
 
@@ -48,7 +48,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
 
   private val indexesDefinition: Seq[Index] = Seq(Index(Seq("id" -> IndexType.Ascending), unique = true))
 
-  private def initIndexes(): Future[Unit] =
+  private def initIndexes()(implicit ec: ExecutionContext): Future[Unit] =
     MongoUtils.initIndexes(collectionName, indexesDefinition)
 
   override def start: RIO[DataStoreContext, Unit] =
@@ -57,7 +57,8 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
       initIndexes()
     }
 
-  private def storeCollection = mongoApi.database.map(_.collection[JSONCollection](collectionName))
+  private def storeCollection(implicit ec: ExecutionContext) =
+    mongoApi.database.map(_.collection[JSONCollection](collectionName))
   private def storeCollectionT: Task[JSONCollection] = Task.fromFuture { implicit ec =>
     mongoApi.database.map(_.collection[JSONCollection](collectionName))
   }
@@ -164,12 +165,15 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
   override def findByQuery(q: Query): RIO[DataStoreContext, Source[(Key, JsValue), NotUsed]] = {
     val query = buildMongoQuery(q)
     Logger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream") *>
-    Task(Source.fromFuture(storeCollection).flatMapConcat {
-      _.find(query, projection = Option.empty[JsObject])
-        .cursor[MongoDoc](ReadPreference.primary)
-        .documentSource()
-        .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
-    })
+    Task.fromFuture(
+      implicit ec =>
+        FastFuture.successful(Source.fromFuture(storeCollection).flatMapConcat {
+          _.find(query, projection = Option.empty[JsObject])
+            .cursor[MongoDoc](ReadPreference.primary)
+            .documentSource()
+            .map(mongoDoc => (mongoDoc.id, mongoDoc.data))
+        })
+    )
   }
 
   private def countRaw(query: Query)(implicit collection: JSONCollection): RIO[DataStoreContext, Long] = {

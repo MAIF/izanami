@@ -17,7 +17,7 @@ import play.api.libs.json._
 import scala.concurrent.ExecutionContext
 import store._
 import store.elastic.ElasticJsonDataStore.EsDocument
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.IzanamiErrors
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists
 
@@ -30,8 +30,6 @@ object ElasticJsonDataStore {
   case class EsDocument(key: Key, value: JsValue)
 
   object EsDocument {
-    import playjson.all._
-    import shapeless.syntax.singleton._
 
     private val reads: Reads[EsDocument] = Json.reads[EsDocument]
 

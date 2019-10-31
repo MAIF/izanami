@@ -1,15 +1,20 @@
 package libs.patch
 
+import diffson._
+import jsonpatch.{Operation, _}
+import diffson.playJson._
+import diffson.playJson.DiffsonProtocol._
 import play.api.libs.json._
-import gnieh.diffson.playJson._
 
 object Patch {
 
-  def patch[T](patchs: JsValue, value: T)(implicit reads: Reads[T], writes: Writes[T]): JsResult[T] = {
-    val patch            = JsonPatch(patchs)
-    val toPatch: JsValue = writes.writes(value)
-    val patched: JsValue = patch(toPatch)
-    reads.reads(patched)
-  }
+  def patch[T](patchs: JsValue, value: T)(implicit reads: Reads[T], writes: Writes[T]): JsResult[T] =
+    for {
+      ops     <- patchs.validate[List[Operation[JsValue]]]
+      patch   = JsonPatch(ops)
+      toPatch = writes.writes(value)
+      patched <- patch(toPatch)
+      r       <- reads.reads(patched)
+    } yield r
 
 }

@@ -3,16 +3,14 @@ package izanami.commons
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.http.javadsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.Http.HostConnectionPool
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
 import akka.stream.alpakka.sse.scaladsl.EventSource
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import izanami.{ClientConfig, IzanamiEvent}
 import play.api.libs.json.{JsValue, Json, Reads}
@@ -20,7 +18,7 @@ import play.api.libs.json.{JsValue, Json, Reads}
 import scala.collection.immutable
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationDouble
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 private object PagingResult {
   import play.api.libs.json._
@@ -203,7 +201,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   }
 
   def patch(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
-    logger.debug(s"PUT ${config.host} $path, params = $params")
+    logger.debug(s"PATCH ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
         method = HttpMethods.PATCH,

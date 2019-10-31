@@ -16,7 +16,6 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{ActionBuilder, _}
-import store.leveldb.DbStores
 import akka.{Done, NotUsed}
 import akka.stream.scaladsl.Source
 import domains.Domain.Domain
