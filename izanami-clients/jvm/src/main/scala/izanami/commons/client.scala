@@ -201,7 +201,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   }
 
   def patch(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
-    logger.debug(s"PUT ${config.host} $path, params = $params")
+    logger.debug(s"PATCH ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
         method = HttpMethods.PATCH,
