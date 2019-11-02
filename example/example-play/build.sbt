@@ -6,7 +6,7 @@ lazy val `example-play` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-//scalaVersion := "2.13.0"
+//scalaVersion := "2.13.1"
 scalaVersion := "2.12.9"
 
 val akkaVersion = "2.5.23"
