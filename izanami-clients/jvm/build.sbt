@@ -7,9 +7,9 @@ val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefin
   Seq(RevolverPlugin, BintrayPlugin)
 }
 
-scalaVersion := "2.13.0"
+scalaVersion := "2.13.1"
 
-crossScalaVersions := List("2.12.9", "2.13.0")
+crossScalaVersions := List("2.12.9", "2.13.1")
 
 val akkaVersion     = "2.5.23"
 val akkaHttpVersion = "10.1.8"
