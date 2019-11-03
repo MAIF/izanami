@@ -37,7 +37,7 @@ class BackOfficeController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
 
   def getAllLoggers() = AuthAction { ctx =>
     if (isAdmin(ctx)) {
-      import collection.JavaConverters._
+      import scala.jdk.CollectionConverters._
       val loggerContext =
         LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
       val rawLoggers = loggerContext.getLoggerList.asScala.toIndexedSeq

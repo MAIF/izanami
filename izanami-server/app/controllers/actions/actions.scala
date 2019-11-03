@@ -20,7 +20,7 @@ case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extend
   val auth: Option[AuthInfo] = Some(authInfo)
 
   def authorizedPatterns: Seq[String] =
-    authInfo.authorizedPattern.split(",")
+    authInfo.authorizedPattern.split(",").toIndexedSeq
 }
 
 class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(

@@ -30,7 +30,7 @@ case class ScalaConsole(logs: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.
   def println(args: AnyRef): Unit =
     logs += args.toString
 
-  def scriptLogs = ScriptLogs(logs)
+  def scriptLogs = ScriptLogs(logs.toSeq)
 }
 
 case class JsConsole(logs: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty) {
@@ -38,7 +38,7 @@ case class JsConsole(logs: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.emp
   def log(args: AnyRef*): Unit =
     logs += args.mkString(", ")
 
-  def scriptLogs = ScriptLogs(logs)
+  def scriptLogs = ScriptLogs(logs.toSeq)
 }
 
 trait FeatureScript {
@@ -223,7 +223,7 @@ object ScriptInstances {
   private def executeScalaScript(script: ScalaScript,
                                  context: JsObject): RIO[RunnableScriptContext, ScriptExecution] = {
 
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     import zio._
     val finalScript: String =
       s"""
@@ -354,12 +354,12 @@ object ScriptInstances {
   }
 
   private def jsObjectToMap(jsObject: JsObject): java.util.Map[String, AnyRef] = {
-    import scala.collection.JavaConverters._
-    jsObject.value.mapValues(asMap).toMap.asJava
+    import scala.jdk.CollectionConverters._
+    jsObject.value.view.mapValues(asMap).toMap.asJava
   }
 
   private def asMap(jsValue: JsValue): AnyRef = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     jsValue match {
       case JsString(s)        => s
       case JsNumber(value)    => value
@@ -391,7 +391,7 @@ class HttpClient(wSClient: play.api.libs.ws.WSClient, promise: (ZIO[Any, Throwab
     implicit ec: ExecutionContext
 ) {
   def call(optionsMap: java.util.Map[String, AnyRef], callback: BiConsumer[String, String]): Unit = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val options: mutable.Map[String, AnyRef] = optionsMap.asScala
     val url: String                          = options("url").asInstanceOf[String]
     val method: String                       = options.getOrElse("method", "get").asInstanceOf[String]

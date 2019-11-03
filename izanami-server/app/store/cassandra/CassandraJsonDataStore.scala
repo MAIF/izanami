@@ -16,10 +16,11 @@ import libs.streams.Flows
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
 import store.Result.IzanamiErrors
-import store._
+import store.{DataStoreContext, _}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import libs.logs.Logger
+import store.DataStore.DataStoreIO
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists
 
@@ -245,7 +246,7 @@ object Cassandra {
   def sessionT()(implicit cluster: Cluster): zio.Task[Session] =
     zio.Task.fromFuture(implicit ec => cluster.connectAsync().toFuture)
 
-  def executeWithSessionT(query: String, args: Any*)(implicit session: Session): zio.RIO[DataStoreContext, ResultSet] =
+  def executeWithSessionT(query: String, args: Any*)(implicit session: Session): DataStoreIO[ResultSet] =
     if (args.isEmpty) {
       Logger.debug(s"Running query $query ") *>
       zio.Task.fromFuture(implicit ec => session.executeAsync(query).toFuture)

@@ -24,7 +24,7 @@ import libs.dynamo.DynamoMapper
 import libs.logs.IzanamiLogger
 import zio.{RIO, Task, ZIO}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import libs.logs.Logger
 import domains.AuthInfo
 

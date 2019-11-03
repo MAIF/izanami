@@ -18,7 +18,7 @@ import store.Result.IzanamiErrors
 import libs.dynamo.DynamoMapper
 import store.{DataStoreContext, DefaultPagingResult, JsonDataStore, PagingResult, Query}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.Future
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists

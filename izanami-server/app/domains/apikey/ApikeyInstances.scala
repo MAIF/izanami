@@ -16,10 +16,10 @@ object ApikeyInstances {
   private val reads: Reads[Apikey] = {
     import domains.AuthorizedPattern._
     (
-      (__ \ 'clientId).read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
-      (__ \ 'name).read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
-      (__ \ 'clientSecret).read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
-      (__ \ 'authorizedPattern).read[AuthorizedPattern](AuthorizedPattern.reads)
+      (__ \ "clientId").read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
+      (__ \ "name").read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
+      (__ \ "clientSecret").read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
+      (__ \ "authorizedPattern").read[AuthorizedPattern](AuthorizedPattern.reads)
     )(Apikey.apply _)
   }
 

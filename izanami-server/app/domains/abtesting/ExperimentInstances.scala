@@ -10,7 +10,10 @@ import play.api.libs.json.Writes.temporalWrites
 object ExperimentInstances {
   import libs.json._
   // Traffic
-  val trafficReads: Reads[Traffic] = __.read[Double](min(0.0) keepAnd max(1.0)).map(Traffic.apply)
+  val trafficReads: Reads[Traffic] = {
+    import Ordering.Double.TotalOrdering
+    __.read[Double](min(0.0) keepAnd max(1.0)).map(Traffic.apply)
+  }
   val trafficWrites: Writes[Traffic] = Writes[Traffic] { t =>
     JsNumber(t.traffic)
   }

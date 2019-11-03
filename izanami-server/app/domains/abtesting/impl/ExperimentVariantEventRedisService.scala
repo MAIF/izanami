@@ -20,7 +20,7 @@ import store.Result.IzanamiErrors
 import store.redis.RedisWrapper
 import zio.{RIO, Task, ZIO}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.Future
 import domains.AuthInfo
 
