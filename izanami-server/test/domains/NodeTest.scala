@@ -26,21 +26,6 @@ class NodeTest extends IzanamiSpec {
           "otoroshi",
           List(
             Node(
-              Key("otoroshi:prod"),
-              "prod",
-              List(
-                Node(
-                  Key("otoroshi:prod:seg1"),
-                  "seg1",
-                  List(
-                    Node(Key("otoroshi:prod:seg1:seg2"),
-                         "seg2",
-                         List(Node(Key("otoroshi:prod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))))
-                  )
-                )
-              )
-            ),
-            Node(
               Key("otoroshi:preprod"),
               "preprod",
               List(
@@ -53,6 +38,21 @@ class NodeTest extends IzanamiSpec {
                          List(
                            Node(Key("otoroshi:preprod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
                          ))
+                  )
+                )
+              )
+            ),
+            Node(
+              Key("otoroshi:prod"),
+              "prod",
+              List(
+                Node(
+                  Key("otoroshi:prod:seg1"),
+                  "seg1",
+                  List(
+                    Node(Key("otoroshi:prod:seg1:seg2"),
+                         "seg2",
+                         List(Node(Key("otoroshi:prod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))))
                   )
                 )
               )
@@ -79,6 +79,27 @@ class NodeTest extends IzanamiSpec {
           "izanami",
           List(
             Node(
+              Key("izanami:preprod"),
+              "preprod",
+              List(
+                Node(
+                  Key("izanami:preprod:seg1"),
+                  "seg1",
+                  List(
+                    Node(
+                      Key("izanami:preprod:seg1:seg2"),
+                      "seg2",
+                      List(
+                        Node(Key("izanami:preprod:seg1:seg2:seg4"), "seg4", value = Some(JsString("v1"))),
+                        Node(Key("izanami:preprod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
+                      )
+                    ),
+                    Node(Key("izanami:preprod:seg1:seg3"), "seg3", value = Some(JsString("v1")))
+                  )
+                )
+              )
+            ),
+            Node(
               Key("izanami:prod"),
               "prod",
               List(
@@ -91,27 +112,6 @@ class NodeTest extends IzanamiSpec {
                          List(Node(Key("izanami:prod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))))
                   ),
                   Some(JsString("v1"))
-                )
-              )
-            ),
-            Node(
-              Key("izanami:preprod"),
-              "preprod",
-              List(
-                Node(
-                  Key("izanami:preprod:seg1"),
-                  "seg1",
-                  List(
-                    Node(Key("izanami:preprod:seg1:seg3"), "seg3", value = Some(JsString("v1"))),
-                    Node(
-                      Key("izanami:preprod:seg1:seg2"),
-                      "seg2",
-                      List(
-                        Node(Key("izanami:preprod:seg1:seg2:seg4"), "seg4", value = Some(JsString("v1"))),
-                        Node(Key("izanami:preprod:seg1:seg2:seg3"), "seg3", value = Some(JsString("v1")))
-                      )
-                    )
-                  )
                 )
               )
             )
