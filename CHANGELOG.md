@@ -1,5 +1,11 @@
 # Changelog 
 
+## Version 1.5.4
+
+This version bring cross compilation for scala 2.12 and scala 2.13. 
+
+https://github.com/MAIF/izanami/issues?q=is%3Aissue+milestone%3Av1.5.3
+
 ## Version 1.5.3
 
 A bug fixes and feature release 
