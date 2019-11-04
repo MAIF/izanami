@@ -1,6 +1,4 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
-import play.sbt.routes.RoutesKeys
-import sbt.Keys.testOptions
 
 name := """izanami"""
 
@@ -9,7 +7,6 @@ packageName in Universal := "izanami"
 name in Universal := "izanami"
 
 scalaVersion := "2.13.1"
-//scalaVersion := "2.12.9"
 
 lazy val ITest = config("it") extend Test
 
@@ -34,9 +31,6 @@ resolvers ++= Seq(
   ("streamz at bintray" at "http://dl.bintray.com/streamz/maven").withAllowInsecureProtocol(true),
   ("larousso at bintray" at "http://dl.bintray.com/larousso/maven").withAllowInsecureProtocol(true)
 )
-
-//RoutesKeys.routesImport := Seq.empty
-//RoutesKeys.generateReverseRouter := false
 
 libraryDependencies ++= Seq(
   ws,
@@ -122,7 +116,6 @@ scalacOptions ++= Seq(
 )
 
 addCompilerPlugin(scalafixSemanticdb)
-//scalafixDependencies in ThisBuild += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.2"
 
 coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
@@ -133,7 +126,6 @@ publishArtifact in (Compile, packageDoc) := false
 parallelExecution in Test := false
 
 /// ASSEMBLY CONFIG
-
 mainClass in assembly := Some("play.core.server.ProdServerStart")
 test in assembly := {}
 assemblyJarName in assembly := "izanami.jar"
