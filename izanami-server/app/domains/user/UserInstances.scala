@@ -27,12 +27,12 @@ object UserInstances {
   private[user] val reads: Reads[User] = {
     import domains.AuthorizedPattern._
     (
-      (__ \ 'id).read[String] and
-      (__ \ 'name).read[String](pattern("^[\\p{L} .'-]+$".r)) and
-      (__ \ 'email).read[String](email) and
-      (__ \ 'password).readNullable[String] and
-      (__ \ 'admin).read[Boolean] and
-      (__ \ 'authorizedPattern).read[AuthorizedPattern](AuthorizedPattern.reads)
+      (__ \ "id").read[String] and
+      (__ \ "name").read[String](pattern("^[\\p{L} .'-]+$".r)) and
+      (__ \ "email").read[String](email) and
+      (__ \ "password").readNullable[String] and
+      (__ \ "admin").read[Boolean] and
+      (__ \ "authorizedPattern").read[AuthorizedPattern](AuthorizedPattern.reads)
     )(User.apply _)
   }
 

@@ -1,6 +1,4 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
-import play.sbt.routes.RoutesKeys
-import sbt.Keys.testOptions
 
 name := """izanami"""
 
@@ -8,7 +6,7 @@ packageName in Universal := "izanami"
 
 name in Universal := "izanami"
 
-scalaVersion := "2.12.9"
+scalaVersion := "2.13.1"
 
 lazy val ITest = config("it") extend Test
 
@@ -29,10 +27,10 @@ val silencerVersion = "1.4.4"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
-  Resolver.sonatypeRepo("releases")
+  Resolver.sonatypeRepo("releases"),
+  ("streamz at bintray" at "http://dl.bintray.com/streamz/maven").withAllowInsecureProtocol(true),
+  ("larousso at bintray" at "http://dl.bintray.com/larousso/maven").withAllowInsecureProtocol(true)
 )
-
-//RoutesKeys.routesImport := Seq.empty
 
 libraryDependencies ++= Seq(
   ws,
@@ -43,15 +41,15 @@ libraryDependencies ++= Seq(
   "com.auth0"                % "java-jwt"                       % "3.3.0", // MIT license
   "org.gnieh"                %% "diffson-play-json"             % "4.0.0", //
   "com.softwaremill.macwire" %% "macros"                        % "2.3.3" % "provided", // Apache 2.0
+  "org.scala-lang.modules"   %% "scala-collection-compat"       % "2.1.2",
   "com.typesafe.akka"        %% "akka-actor"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-slf4j"                    % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                   % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor-typed"              % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster"                  % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-cluster-tools"            % akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion, // Apache 2.0
-  "dev.zio"                  %% "zio"                           % "1.0.0-RC15",
-  "dev.zio"                  %% "zio-interop-cats"              % "2.0.0.0-RC6",
+  "dev.zio"                  %% "zio"                           % "1.0.0-RC16",
+  "dev.zio"                  %% "zio-interop-cats"              % "2.0.0.0-RC7",
   "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.18.8",
   "org.reactivemongo"        %% "play2-reactivemongo"           % "0.18.8-play27",
   "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"  % alpakkaVersion, // Apache 2.0
@@ -62,7 +60,7 @@ libraryDependencies ++= Seq(
   "org.tpolecat"             %% "doobie-core"                   % doobieVersion,
   "org.tpolecat"             %% "doobie-hikari"                 % doobieVersion,
   "org.tpolecat"             %% "doobie-postgres"               % doobieVersion,
-  "com.github.krasserm"      %% "streamz-converter"             % "0.10-M2",
+  "com.github.krasserm"      %% "streamz-converter"             % "0.11-RC1",
   "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                    % "0.12.1", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % alpakkaVersion, // Apache 2.0
@@ -81,6 +79,7 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"     % "kotlin-script-util"             % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"     % kotlinVersion,
   "com.typesafe.akka"        %% "akka-http"                     % akkaHttpVersion % "it,test", // Apache 2.0
+  "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion % "it,test", // Apache 2.0
   "de.heikoseeberger"        %% "akka-http-play-json"           % "1.29.1" % "it,test" excludeAll ExclusionRule(
     "com.typesafe.play",
     "play-json"
@@ -99,7 +98,7 @@ scalacOptions += "-P:silencer:pathFilters=target/.*"
 // Make sure you only exclude warnings for the project directories, i.e. make builds reproducible
 scalacOptions += s"-P:silencer:sourceRoots=${baseDirectory.value.getCanonicalPath}"
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.8")
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
 
 scalaSource in ITest := baseDirectory.value / "it"
 resourceDirectory in ITest := (baseDirectory apply { baseDir: File =>
@@ -107,7 +106,6 @@ resourceDirectory in ITest := (baseDirectory apply { baseDir: File =>
 }).value
 
 scalacOptions ++= Seq(
-  "-Ypartial-unification",
   "-feature",
   "-language:higherKinds",
   "-language:implicitConversions",
@@ -118,7 +116,6 @@ scalacOptions ++= Seq(
 )
 
 addCompilerPlugin(scalafixSemanticdb)
-scalafixDependencies in ThisBuild += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.1"
 
 coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
@@ -129,7 +126,6 @@ publishArtifact in (Compile, packageDoc) := false
 parallelExecution in Test := false
 
 /// ASSEMBLY CONFIG
-
 mainClass in assembly := Some("play.core.server.ProdServerStart")
 test in assembly := {}
 assemblyJarName in assembly := "izanami.jar"

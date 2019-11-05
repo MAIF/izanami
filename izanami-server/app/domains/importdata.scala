@@ -64,7 +64,7 @@ object ImportData {
     ZIO.access[Ctx] { ctx =>
       { in: Stream[Task, (String, JsValue)] =>
         in.map { case (s, json) => (s, json.validate[Data]) }
-          .evalMap {
+          .evalMap[Task, ImportResult] {
             case (_, JsSuccess(obj, _)) => ZIO.provide(ctx)(mutation(key(obj), obj))
             case (s, JsError(_))        => Task(ImportResult.error("json.parse.error", s))
           }

@@ -27,6 +27,7 @@ import scala.concurrent.Future
 import scala.util.Try
 import scala.collection.concurrent.TrieMap
 import domains.AuthInfo
+import domains.abtesting.impl.ExperimentVariantEventDbStores.BlockingIO
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    LEVEL DB     ////////////////////////////////////
@@ -34,6 +35,8 @@ import domains.AuthInfo
 
 object ExperimentVariantEventDbStores {
   val stores = TrieMap.empty[String, ExperimentVariantEventLevelDBService]
+
+  type BlockingIO[A] = zio.RIO[zio.blocking.Blocking, A]
 }
 
 object ExperimentVariantEventLevelDBService {
@@ -199,13 +202,13 @@ class ExperimentVariantEventLevelDBService(
       }
       .getOrElse(Set.empty[ByteString])
 
-  private def sadd(key: String, members: String*): RIO[Blocking, Long] =
+  private def sadd(key: String, members: String*): BlockingIO[Long] =
     saddBS(key, members.map(ByteString.apply): _*)
 
   private def setSetAt(key: String, set: Set[ByteString]): Unit =
     db.put(bytes(key), bytes(set.map(_.utf8String).mkString(";;;")))
 
-  private def saddBS(key: String, members: ByteString*): RIO[Blocking, Long] =
+  private def saddBS(key: String, members: ByteString*): BlockingIO[Long] =
     zio.blocking.blocking(Task {
       val seq    = getSetAt(key)
       val newSeq = seq ++ members
@@ -213,7 +216,7 @@ class ExperimentVariantEventLevelDBService(
       members.size
     })
 
-  private def del(keys: String*): RIO[Blocking, Long] =
+  private def del(keys: String*): BlockingIO[Long] =
     zio.blocking.blocking(Task {
       keys
         .map { k =>
@@ -223,7 +226,7 @@ class ExperimentVariantEventLevelDBService(
         .foldLeft(0L)((a, b) => a + b)
     })
 
-  private def smembers(key: String): RIO[Blocking, Seq[ByteString]] =
+  private def smembers(key: String): BlockingIO[Seq[ByteString]] =
     zio.blocking.blocking(Task {
       val seq = getSetAt(key)
       seq.toSeq

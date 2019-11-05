@@ -191,6 +191,10 @@ object Query {
 
 trait DataStoreContext extends LoggerModule with EventStoreContext
 
+object DataStore {
+  type DataStoreIO[A] = zio.RIO[DataStoreContext, A]
+}
+
 trait DataStore[Key, Data] {
   import zio._
   def create(id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
