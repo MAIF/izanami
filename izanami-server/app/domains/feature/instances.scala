@@ -298,7 +298,9 @@ object FeatureInstances {
     override def isAllowed(value: Feature)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.id)(auth)
   }
 
-  def isActive(feature: Feature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+  type IsActiveIO[A] = zio.ZIO[IsActiveContext, IzanamiErrors, A]
+
+  def isActive(feature: Feature, context: JsObject): IsActiveIO[Boolean] =
     ZIO.accessM { _ =>
       (feature match {
         case f: DefaultFeature      => DefaultFeatureInstances.isActive.isActive(f, context)

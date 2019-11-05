@@ -20,7 +20,7 @@ object JsResults {
   def liftJsResult[T, E](jsResult: JsResult[T])(onError: Seq[(JsPath, Seq[JsonValidationError])] => E): IO[E, T] =
     jsResult match {
       case JsSuccess(value, _) => IO.succeed(value)
-      case JsError(errors)     => IO.fail(onError(errors))
+      case JsError(errors)     => IO.fail(onError(errors.toSeq.map(t => t.copy(_2 = t._2.toSeq))))
     }
 
   def fromJsResult[C <: LoggerModule, T, E](
@@ -28,7 +28,7 @@ object JsResults {
   )(onError: Seq[(JsPath, Seq[JsonValidationError])] => ZIO[C, E, T]): ZIO[C, E, T] =
     jsResult match {
       case JsSuccess(value, _) => ZIO.succeed(value)
-      case JsError(errors)     => onError(errors)
+      case JsError(errors)     => onError(errors.toSeq.map(t => t.copy(_2 = t._2.toSeq)))
     }
 
 }

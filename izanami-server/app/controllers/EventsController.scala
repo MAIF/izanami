@@ -35,10 +35,10 @@ class EventsController(system: ActorSystem,
     EventDataExtractor[IzanamiEvent](event => Json.stringify(event.toJson))
 
   def allEvents(patterns: String, domains: String) =
-    events(domains.split(","), patterns)
+    events(domains.split(",").toIndexedSeq, patterns)
 
   def eventsForADomain(domain: String, patterns: String) =
-    events(domain.split(","), patterns)
+    events(domain.split(",").toIndexedSeq, patterns)
 
   val logEvent = Flow[IzanamiEvent].map { event =>
     event

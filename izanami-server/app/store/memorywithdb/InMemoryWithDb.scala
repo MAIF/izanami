@@ -115,15 +115,11 @@ class InMemoryWithDbStore(
       fiber   <- init().fork
     } yield {
       val cancellable: Option[Cancellable] = dbConfig.pollingInterval.map { interval =>
-        system.scheduler.schedule(
-          interval,
-          interval,
-          () => {
-            IzanamiLogger.debug(s"Reloading data from db for $name")
-            runtime.unsafeRunToFuture(loadCacheFromDb.flatMap(s => ZIO.fromFuture(_ => s.runWith(Sink.ignore))))
-            ()
-          }
-        )
+        system.scheduler.schedule(interval, interval) {
+          IzanamiLogger.debug(s"Reloading data from db for $name")
+          runtime.unsafeRunToFuture(loadCacheFromDb.flatMap(s => ZIO.fromFuture(_ => s.runWith(Sink.ignore))))
+          ()
+        }
       }
       applicationLifecycle.addStopHook(() => {
         runtime.unsafeRun(fiber.interrupt)

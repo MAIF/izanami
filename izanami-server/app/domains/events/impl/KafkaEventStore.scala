@@ -88,7 +88,7 @@ object KafkaSettings {
 class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsConfig: KafkaEventsConfig)
     extends EventStore {
 
-  import scala.collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
   import system.dispatcher
 
   override def start: RIO[EventStoreContext, Unit] =
@@ -130,16 +130,18 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
     val kafkaConsumer: KConsumer[String, String] =
       settings.createKafkaConsumer()
 
+    val partitionSeq = partitions.toSeq
+
     val subscription: ManualSubscription = lastEventId.map { _ =>
       val lastDate: Long = System.currentTimeMillis() - (1000 * 60 * 60 * 24)
       val topicsInfo: Seq[(TopicPartition, Long)] =
-        partitions.map { t =>
+        partitionSeq.map { t =>
           new TopicPartition(eventsConfig.topic, t.partition()) -> lastDate
         }
       Subscriptions.assignmentOffsetsForTimes(topicsInfo: _*)
     } getOrElse {
       val topicsInfo: Seq[TopicPartition] =
-        partitions.map { t =>
+        partitionSeq.map { t =>
           new TopicPartition(eventsConfig.topic, t.partition())
         }
       Subscriptions.assignment(topicsInfo: _*)

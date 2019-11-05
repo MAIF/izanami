@@ -40,7 +40,7 @@ object User {
   }
 
   def fromJwtToken(jwt: DecodedJWT): Option[User] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val claims = jwt.getClaims.asScala
     for {
       name   <- claims.get("name").map(_.asString())
@@ -60,7 +60,7 @@ object User {
   }
 
   def fromOtoroshiJwtToken(jwt: DecodedJWT): Option[User] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val claims = jwt.getClaims.asScala
     for {
       name   <- claims.get("name").map(_.asString())

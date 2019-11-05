@@ -17,7 +17,7 @@ import io.lettuce.core._
 import io.lettuce.core.api.async.RedisAsyncCommands
 
 import scala.compat.java8.FutureConverters._
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import libs.logs.Logger
 import store.Result.DataShouldExists
 import store.Result.DataShouldNotExists
@@ -71,7 +71,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   private def getByIds(keys: Key*): Task[Seq[(String, JsValue)]] =
     zioFromCs(command().mget(keys.map(buildKey).map(_.key): _*))
       .map { entries =>
-        entries.asScala
+        entries.asScala.toSeq
           .map { kv =>
             (kv.getKey, Option(kv.getValue))
           }

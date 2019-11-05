@@ -428,7 +428,7 @@ case class Key(key: String) {
     case _  => Key(s"$key:${path.key}")
   }
 
-  val segments: Seq[String] = key.split(":")
+  val segments: Seq[String] = key.split(":").toIndexedSeq
 
   val jsPath: JsPath = segments.foldLeft[JsPath](JsPath) { (p, s) =>
     p \ s

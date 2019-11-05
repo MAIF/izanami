@@ -54,7 +54,7 @@ class OtoroshiFilter[F[_]](env: Env, config: OtoroshiFilterConfig)(implicit ec: 
             )
         )
       case ("prod", Some(claim)) =>
-        import scala.collection.JavaConverters._
+        import scala.jdk.CollectionConverters._
         val tryDecode: Try[Future[Result]] = Try {
           val decoded: DecodedJWT     = verifier.verify(claim)
           val maybeUser: Option[User] = User.fromOtoroshiJwtToken(decoded)

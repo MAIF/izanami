@@ -60,8 +60,8 @@ object Experiment {
     val allPercentage: Seq[(Variant, Double)] = variants
       .foldLeft((0.0, Seq.empty[(Variant, Double)])) {
         case ((stack, seq), variant) =>
-          val traffic  = variant.traffic.traffic
-          val newStack = stack + (traffic * 100)
+          val traffic          = variant.traffic.traffic
+          val newStack: Double = stack + (traffic * 100)
           (newStack, seq :+ variant -> newStack)
       }
       ._2
