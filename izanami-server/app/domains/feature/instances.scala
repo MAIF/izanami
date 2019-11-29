@@ -3,7 +3,7 @@ import java.time.{LocalDateTime, ZoneId}
 
 import domains.{AuthInfo, IsAllowed, Key}
 import domains.script._
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.{IzanamiErrors, ValidationErrors}
 import FeatureType._
 import domains.feature.Feature.FeatureKey
 import zio.ZIO
@@ -76,7 +76,7 @@ object GlobalScriptFeatureInstances {
       ): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
         for {
           mayBeScript <- GlobalScriptService.getById(Key(feature.ref)).refineToOrDie[IzanamiErrors]
-          script      <- ZIO.fromOption(mayBeScript).mapError(_ => AppErrors.error("script.not.found"))
+          script      <- ZIO.fromOption(mayBeScript).mapError(_ => ValidationErrors.error("script.not.found"))
           exec <- script.source
                    .run(context)
                    .map {
@@ -241,7 +241,7 @@ object PercentageFeatureInstances {
             ZIO.succeed(false)
           }
         case (None, true) =>
-          ZIO.fail(AppErrors.error("context.id.missing"))
+          ZIO.fail(ValidationErrors.error("context.id.missing"))
         case _ =>
           ZIO.succeed(false)
       }

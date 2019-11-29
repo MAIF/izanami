@@ -13,7 +13,7 @@ import domains.events.Events.ExperimentCreated
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.{IzanamiErrors, ValidationErrors}
 import store.{JsonDataStore, Result}
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
@@ -31,7 +31,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
   import ExperimentInstances._
 
   implicit val actorSystem: ActorSystem = ActorSystem()
-  implicit val runtime = new DefaultRuntime {}
+  implicit val runtime                  = new DefaultRuntime {}
 
   "Experiment" must {
 
@@ -340,7 +340,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         )
       )
 
-      Experiment.validate(experiment) mustBe Left(AppErrors.error("error.traffic.not.cent.percent"))
+      Experiment.validate(experiment) mustBe Left(ValidationErrors.error("error.traffic.not.cent.percent"))
     }
 
     "Validation fail if campaign date are wrong" in {
@@ -367,7 +367,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         )
       )
 
-      Experiment.validate(experiment) mustBe Left(AppErrors.error("error.campaign.date.invalid"))
+      Experiment.validate(experiment) mustBe Left(ValidationErrors.error("error.campaign.date.invalid"))
     }
 
     "create a experiment" in {
@@ -428,7 +428,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       )
       val value: Either[IzanamiErrors, Experiment] =
         runSync(context, ExperimentService.create(experiment.id, experiment).either)
-      value mustBe Left(AppErrors.error("error.traffic.not.cent.percent"))
+      value mustBe Left(ValidationErrors.error("error.traffic.not.cent.percent"))
 
       store.get(experiment.id) mustBe None
       events must have size 0

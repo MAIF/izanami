@@ -190,7 +190,7 @@ object FeatureService {
                        (f, active)
                      }
                      .catchSome {
-                       case _: AppErrors => IO.succeed((f, false))
+                       case _: ValidationErrors => IO.succeed((f, false))
                      }
                  }
     } yield result
@@ -215,7 +215,7 @@ object FeatureService {
                                 (f, active)
                               }
                               .catchSome {
-                                case _: AppErrors => IO.succeed((f, false))
+                                case _: ValidationErrors => IO.succeed((f, false))
                               }
                           }
     } yield DefaultPagingResult(pagesWithActive, pages.page, pages.pageSize, pages.count)

@@ -12,7 +12,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.{IzanamiErrors, ValidationErrors}
 import zio.{Runtime, ZIO}
 
 class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
@@ -52,7 +52,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
 
     for {
       apikey <- jsResultToHttpResponse(ctx.request.body.validate[Apikey])
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
       _      <- ApikeyService.create(Key(apikey.clientId), apikey).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(apikey))
 
@@ -64,7 +64,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     for {
       mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
     } yield Ok(Json.toJson(apikey))
   }
 
@@ -73,7 +73,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
 
     for {
       apikey <- jsResultToHttpResponse(ctx.request.body.validate[Apikey])
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
       _      <- ApikeyService.update(Key(id), Key(apikey.clientId), apikey).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(apikey))
 
@@ -87,7 +87,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     for {
       mayBe   <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- IsAllowed[Apikey].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _       <- IsAllowed[Apikey].isAllowed(current, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
       _ <- ApikeyService.update(key, Key(current.clientId), updated).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
@@ -101,7 +101,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     for {
       mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
       _      <- ApikeyService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(apikey))
 

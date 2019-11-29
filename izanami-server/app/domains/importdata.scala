@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{Flow, Source}
 import libs.logs.{IzanamiLogger, Logger, LoggerModule}
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Reads}
 import play.api.mvc.Results
-import store.Result.{AppErrors, IzanamiErrors}
+import store.Result.{IzanamiErrors, ValidationErrors}
 
 sealed trait ImportStrategy extends Product with Serializable
 object ImportStrategy {
@@ -17,7 +17,7 @@ object ImportStrategy {
     str match {
       case "Replace" => Right(Replace)
       case "Keep"    => Right(Keep)
-      case _         => Left(AppErrors.error("error.strategy.expected", "Replace", "Keep"))
+      case _         => Left(ValidationErrors.error("error.strategy.expected", "Replace", "Keep"))
     }
 }
 

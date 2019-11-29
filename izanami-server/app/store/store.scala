@@ -36,11 +36,11 @@ object Result {
 
   object IzanamiErrors {
     def toHttpResult(error: IzanamiErrors) = error match {
-      case err: AppErrors => Results.BadRequest(err.toJson)
+      case err: ValidationErrors => Results.BadRequest(err.toJson)
       case IdMustBeTheSame(fromObject, inParam) =>
-        Results.BadRequest(AppErrors.error("error.id.not.the.same", inParam.key, inParam.key).toJson)
-      case DataShouldExists(id)    => Results.BadRequest(AppErrors.error("error.data.missing", id.key).toJson)
-      case DataShouldNotExists(id) => Results.BadRequest(AppErrors.error("error.data.exists", id.key).toJson)
+        Results.BadRequest(ValidationErrors.error("error.id.not.the.same", inParam.key, inParam.key).toJson)
+      case DataShouldExists(id)    => Results.BadRequest(ValidationErrors.error("error.data.missing", id.key).toJson)
+      case DataShouldNotExists(id) => Results.BadRequest(ValidationErrors.error("error.data.exists", id.key).toJson)
     }
   }
 
@@ -48,42 +48,43 @@ object Result {
   case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiErrors
   case class DataShouldExists(id: Key)                      extends IzanamiErrors
   case class DataShouldNotExists(id: Key)                   extends IzanamiErrors
-  case class AppErrors(errors: Seq[ErrorMessage] = Seq.empty, fieldErrors: Map[String, List[ErrorMessage]] = Map.empty)
+  case class ValidationErrors(errors: Seq[ErrorMessage] = Seq.empty,
+                              fieldErrors: Map[String, List[ErrorMessage]] = Map.empty)
       extends IzanamiErrors {
-    def ++(s: AppErrors): AppErrors =
+    def ++(s: ValidationErrors): ValidationErrors =
       this.copy(errors = errors ++ s.errors, fieldErrors = fieldErrors ++ s.fieldErrors)
-    def addFieldError(field: String, errors: List[ErrorMessage]): AppErrors =
+    def addFieldError(field: String, errors: List[ErrorMessage]): ValidationErrors =
       fieldErrors.get(field) match {
         case Some(err) =>
-          AppErrors(errors, fieldErrors + (field -> (err ++ errors)))
-        case None => AppErrors(errors, fieldErrors + (field -> errors))
+          ValidationErrors(errors, fieldErrors + (field -> (err ++ errors)))
+        case None => ValidationErrors(errors, fieldErrors + (field -> errors))
       }
 
     def toJson: JsValue =
-      AppErrors.format.writes(this)
+      ValidationErrors.format.writes(this)
 
     def isEmpty: Boolean = errors.isEmpty && fieldErrors.isEmpty
   }
 
-  object AppErrors {
+  object ValidationErrors {
     import cats.syntax.semigroup._
     import cats.instances.all._
 
-    implicit val format = Json.format[AppErrors]
+    implicit val format = Json.format[ValidationErrors]
 
-    def fromJsError(jsError: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
+    def fromJsError(jsError: Seq[(JsPath, Seq[JsonValidationError])]): ValidationErrors = {
       val fieldErrors = jsError.map {
         case (k, v) =>
           (k.toJsonString, v.map(err => ErrorMessage(err.message, err.args.map(_.toString): _*)).toList)
       }.toMap
-      AppErrors(fieldErrors = fieldErrors)
+      ValidationErrors(fieldErrors = fieldErrors)
     }
 
-    def error(message: String): AppErrors =
-      AppErrors(Seq(ErrorMessage(message)))
+    def error(message: String): ValidationErrors =
+      ValidationErrors(Seq(ErrorMessage(message)))
 
-    def error(message: String, args: String*): AppErrors =
-      AppErrors(Seq(ErrorMessage(message, args: _*)))
+    def error(message: String, args: String*): ValidationErrors =
+      ValidationErrors(Seq(ErrorMessage(message, args: _*)))
 
     private def optionCombine[A: Semigroup](a: A, opt: Option[A]): A =
       opt.map(a |+| _).getOrElse(a)
@@ -93,25 +94,25 @@ object Result {
         case (acc, (k, v)) => acc.updated(k, optionCombine(v, acc.get(k)))
       }
 
-    implicit val monoid: Monoid[AppErrors] = new Monoid[AppErrors] {
-      override def empty = AppErrors()
-      override def combine(x: AppErrors, y: AppErrors) = {
+    implicit val monoid: Monoid[ValidationErrors] = new Monoid[ValidationErrors] {
+      override def empty = ValidationErrors()
+      override def combine(x: ValidationErrors, y: ValidationErrors) = {
         val errors      = x.errors ++ y.errors
         val fieldErrors = mergeMap(x.fieldErrors, y.fieldErrors)
-        AppErrors(errors, fieldErrors)
+        ValidationErrors(errors, fieldErrors)
       }
     }
   }
 
-  type ValidatedResult[+E] = Validated[AppErrors, E]
+  type ValidatedResult[+E] = Validated[ValidationErrors, E]
   type Result[+E]          = Either[IzanamiErrors, E]
   def ok[E](event: E): Result[E]                = Right(event)
   def error[E](error: IzanamiErrors): Result[E] = Left(error)
   def error[E](messages: String*): Result[E] =
-    Left(AppErrors(messages.map(m => ErrorMessage(m))))
-  def errors[E](errs: ErrorMessage*): Result[E] = Left(AppErrors(errs))
+    Left(ValidationErrors(messages.map(m => ErrorMessage(m))))
+  def errors[E](errs: ErrorMessage*): Result[E] = Left(ValidationErrors(errs))
   def fieldError[E](field: String, errs: ErrorMessage*): Result[E] =
-    Left(AppErrors(fieldErrors = Map(field -> errs.toList)))
+    Left(ValidationErrors(fieldErrors = Map(field -> errs.toList)))
 
   implicit class ResultOps[E](r: Result[E]) {
     def collect[E2](p: PartialFunction[E, E2]): Result[E2] =

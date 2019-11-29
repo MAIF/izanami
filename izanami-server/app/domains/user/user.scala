@@ -107,7 +107,7 @@ object UserService {
   def create(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     for {
       _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id)))
-      pass     <- ZIO.fromOption(data.password).mapError(_ => AppErrors.error("password.missing"))
+      pass     <- ZIO.fromOption(data.password).mapError(_ => ValidationErrors.error("password.missing"))
       user     = data.copy(password = Some(Sha.hexSha512(pass)))
       created  <- UserDataStore.create(id, UserInstances.format.writes(user))
       user     <- jsResultToError(created.validate[User])

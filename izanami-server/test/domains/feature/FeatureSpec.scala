@@ -42,7 +42,7 @@ import zio.ZIO
 import org.scalatest.BeforeAndAfterAll
 import akka.testkit.TestKit
 import domains.ImportResult
-import store.Result.AppErrors
+import store.Result.ValidationErrors
 import store.Result.IdMustBeTheSame
 import play.api.Environment
 import scala.concurrent.ExecutionContext
@@ -345,7 +345,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
         DefaultFeature(Key("a:b:c"), true, None),
         DefaultFeature(Key("a:b:d"), false, None)
       )
-
 
       val graph = Source(features)
         .via(
@@ -736,7 +735,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = ValidationErrors.error("json.parse.error", id.key)))
     }
 
     "import data data exist" in {

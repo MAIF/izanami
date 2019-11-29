@@ -10,7 +10,7 @@ import domains.events.{EventStore, EventStoreContext}
 import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.{AppErrors, Result, ValidatedResult}
+import store.Result.{Result, ValidatedResult, ValidationErrors}
 import store.{Result, _}
 import cats.implicits._
 import cats.data.Validated._
@@ -86,18 +86,18 @@ object Experiment {
 
   private def validateTraffic(experiment: Experiment): ValidatedResult[Experiment] = {
     val allTraffic = experiment.variants.map(_.traffic.traffic).reduceLeft(_ + _)
-    Either.cond(allTraffic === 1, experiment, AppErrors.error("error.traffic.not.cent.percent")).toValidated
+    Either.cond(allTraffic === 1, experiment, ValidationErrors.error("error.traffic.not.cent.percent")).toValidated
   }
 
   private def validateCampaign(experiment: Experiment): ValidatedResult[Experiment] =
     experiment.campaign.fold(
-      experiment.valid[AppErrors]
+      experiment.valid[ValidationErrors]
     ) { c =>
       Either
         .cond(
           c.from.isBefore(c.to),
           experiment,
-          AppErrors.error("error.campaign.date.invalid")
+          ValidationErrors.error("error.campaign.date.invalid")
         )
         .toValidated
     }
@@ -277,12 +277,12 @@ object ExperimentService {
     for {
 
       mayBeExp    <- getById(experimentKey).refineToOrDie[IzanamiErrors]
-      experiment  <- ZIO.fromOption(mayBeExp).mapError(_ => AppErrors.error("error.experiment.missing"))
+      experiment  <- ZIO.fromOption(mayBeExp).mapError(_ => ValidationErrors.error("error.experiment.missing"))
 
       variant <- experiment.campaign match {
 
         case Some(ClosedCampaign(_, _, won)) =>
-          ZIO.fromOption(experiment.variants.find(_.id === won)).mapError(_ => AppErrors.error("error.variant.missing"))
+          ZIO.fromOption(experiment.variants.find(_.id === won)).mapError(_ => ValidationErrors.error("error.variant.missing"))
 
         case Some(CurrentCampaign(from, to)) if to.isBefore(now) || to.isEqual(now) =>
           for {

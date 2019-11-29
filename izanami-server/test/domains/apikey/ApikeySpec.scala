@@ -22,7 +22,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import zio.Task
 import domains.ImportResult
-import store.Result.AppErrors
+import store.Result.ValidationErrors
 import store.Result.IdMustBeTheSame
 
 class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
@@ -180,7 +180,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = ValidationErrors.error("json.parse.error", id.key)))
     }
 
     "import data data exist" in {

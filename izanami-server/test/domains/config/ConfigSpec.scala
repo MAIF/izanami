@@ -26,7 +26,7 @@ import zio.Task
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
 import domains.ImportResult
-import store.Result.AppErrors
+import store.Result.ValidationErrors
 
 class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -185,7 +185,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = ValidationErrors.error("json.parse.error", id.key)))
     }
 
     "import data data exist" in {

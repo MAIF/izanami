@@ -39,7 +39,7 @@ import domains.apikey.Apikey
 import domains.AuthorizedPattern
 import test.IzanamiSpec
 import domains.ImportResult
-import store.Result.AppErrors
+import store.Result.ValidationErrors
 import store.Result.DataShouldExists
 import store.Result.IdMustBeTheSame
 import play.api.Environment
@@ -274,7 +274,7 @@ class ScriptSpec
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = ValidationErrors.error("json.parse.error", id.key)))
     }
 
     "import data data exist" in {
