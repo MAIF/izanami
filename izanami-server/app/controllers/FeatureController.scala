@@ -14,7 +14,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
 import store.Query
-import store.Result.{IzanamiErrors, ValidationErrors}
+import store.Result.{IzanamiErrors, ValidationError}
 import zio.{Runtime, ZIO}
 
 class FeatureController(system: ActorSystem,
@@ -27,6 +27,12 @@ class FeatureController(system: ActorSystem,
   import FeatureInstances._
 
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
+
+  case class CopyRequest(from: Key, to: Key)
+
+  object CopyRequest {
+    implicit val format = Json.format[CopyRequest]
+  }
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncZio[FeatureContext](parse.empty) { ctx =>
@@ -116,7 +122,7 @@ class FeatureController(system: ActorSystem,
               .mapError(_ => InternalServerError)
           }
         case _ =>
-          ZIO.succeed(BadRequest(Json.toJson(ValidationErrors.error("unknown.render.option"))))
+          ZIO.succeed(BadRequest(Json.toJson(ValidationError.error("unknown.render.option"))))
       }
 
     }
@@ -150,7 +156,7 @@ class FeatureController(system: ActorSystem,
             }
             .mapError { IzanamiErrors.toHttpResult }
         case _ =>
-          ZIO.succeed(BadRequest(Json.toJson(ValidationErrors.error("error.json.invalid"))))
+          ZIO.succeed(BadRequest(Json.toJson(ValidationError.error("error.json.invalid"))))
       }
     }
 
@@ -174,7 +180,7 @@ class FeatureController(system: ActorSystem,
             ZIO.fromFuture(_ => source.map(graph => Ok(graph)).runWith(Sink.head))
           }
       case _ =>
-        ZIO.succeed(BadRequest(Json.toJson(ValidationErrors.error("error.json.invalid"))))
+        ZIO.succeed(BadRequest(Json.toJson(ValidationError.error("error.json.invalid"))))
     }
   }
 
@@ -182,7 +188,7 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     for {
       feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
-      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       _       <- FeatureService.create(feature.id, feature).mapError { IzanamiErrors.toHttpResult }
     } yield Created(Json.toJson(feature))
   }
@@ -191,7 +197,7 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     val key = Key(id)
     for {
-      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       mayBeFeature <- FeatureService.getById(key).mapError(_ => InternalServerError)
       feature      <- ZIO.fromOption(mayBeFeature).mapError(_ => NotFound)
     } yield Ok(Json.toJson(feature))
@@ -210,7 +216,7 @@ class FeatureController(system: ActorSystem,
     val key = Key(id)
     for {
       context   <- jsResultToHttpResponse(contextJson.validate[JsObject])
-      _         <- Key.isAllowed(key, user)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _         <- Key.isAllowed(key, user)(Forbidden(ValidationError.error("error.forbidden").toJson))
       mayBePair <- FeatureService.getByIdActive(context, key).mapError { IzanamiErrors.toHttpResult }
       pair      <- ZIO.fromOption(mayBePair).mapError(_ => NotFound)
     } yield Ok(Json.obj("active" -> (pair._2 && pair._1.enabled)))
@@ -220,7 +226,7 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     for {
       feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
-      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       _       <- FeatureService.update(Key(id), feature.id, feature).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(feature))
   }
@@ -231,7 +237,7 @@ class FeatureController(system: ActorSystem,
     for {
       mayBe   <- FeatureService.getById(key).mapError(_ => InternalServerError)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- IsAllowed[Feature].isAllowed(current, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _       <- IsAllowed[Feature].isAllowed(current, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
       _       <- FeatureService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
@@ -242,7 +248,7 @@ class FeatureController(system: ActorSystem,
     for {
       mayBe   <- FeatureService.getById(key).mapError(_ => InternalServerError)
       feature <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       _       <- FeatureService.delete(key).mapError { IzanamiErrors.toHttpResult }
     } yield Ok(FeatureInstances.format.writes(feature))
   }
@@ -262,6 +268,16 @@ class FeatureController(system: ActorSystem,
     FeatureService.count(query).map { count =>
       Ok(Json.obj("count" -> count))
     }
+  }
+
+  def copyNode(): Action[JsValue] = AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
+    import CopyRequest._
+    for {
+      request <- jsResultToHttpResponse(ctx.request.body.validate[CopyRequest])
+      _       <- Key.isAllowed(request.from, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
+      _       <- Key.isAllowed(request.to, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
+      _       <- FeatureService.copyNode(request.from, request.to).mapError { IzanamiErrors.toHttpResult }
+    } yield { Ok(Json.obj()) }
   }
 
   def download(): Action[AnyContent] = AuthAction.asyncTask[FeatureContext] { ctx =>

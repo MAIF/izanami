@@ -14,7 +14,7 @@ import patches.PatchInstance
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
-import store.Result.ValidationErrors
+import store.Result.ValidationError
 import store.{JsonDataStore, Query, Result}
 import store.memorywithdb.CacheEvent
 import zio.{Task, RIO, ZIO}
@@ -52,8 +52,8 @@ class ConfigsPatch(
       res     <- Task.fromFuture { _ =>
                     source.map(_._2)
                       .mapAsync(2) { l =>
-                        val update: ZIO[ConfigContext, Result.IzanamiErrors, Product with Serializable] = OldConfig.format.reads(l).fold(
-                          { e => ZIO.succeed(Result.error[Config](ValidationErrors.fromJsError(e.toSeq.map(t => t.copy(_2 = t._2.toSeq))))) },
+                        val update: ZIO[ConfigContext, Result.IzanamiErrors, Config] = OldConfig.format.reads(l).fold(
+                          { e => ZIO.fromEither(Result.error[Config](ValidationError.fromJsError(e.toSeq.map(t => t.copy(_2 = t._2.toSeq))))) },
                           { config => ConfigService.update(config.id, config.id, Config(config.id, Json.parse(config.value))) }
                         )
                         runtime.unsafeRunToFuture(update.either)

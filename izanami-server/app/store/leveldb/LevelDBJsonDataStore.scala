@@ -51,6 +51,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   import zio._
   import zio.interop.catz._
   import cats.implicits._
+  import IzanamiErrors._
 
   private val client: DB = try {
     factory.open(new File(dbPath), new Options().createIfMissing(true))
@@ -139,7 +140,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
       .refineToOrDie[IzanamiErrors]
       .flatMap {
         case Some(_) =>
-          IO.fail(DataShouldNotExists(id))
+          IO.fail(DataShouldNotExists(id).toErrors)
         case None =>
           toAsync {
             client.put(bytes(id.key), bytes(Json.stringify(data)))
@@ -156,7 +157,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
           client.put(bytes(id.key), bytes(Json.stringify(data)))
           IO.succeed(data)
         case None =>
-          IO.fail(DataShouldExists(id))
+          IO.fail(DataShouldExists(id).toErrors)
       }
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
@@ -169,7 +170,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
             value
           }.refineToOrDie[IzanamiErrors]
         case None =>
-          IO.fail(DataShouldExists(id))
+          IO.fail(DataShouldExists(id).toErrors)
       }
 
   override def getById(id: Key): Task[Option[JsValue]] = {

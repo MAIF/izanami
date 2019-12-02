@@ -42,6 +42,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
 ) extends JsonDataStore {
 
   import zio._
+  import IzanamiErrors._
 
   actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
@@ -53,7 +54,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
     for {
       _     <- Logger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
       mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
-      _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+      _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
       _     <- ZIO.when(oldId =!= id)(delete(oldId))
       _     <- put(id, data, createOnly = oldId =!= id)
     } yield data
@@ -81,7 +82,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
       }
       .map(_ => data)
       .catchAll {
-        case _: ConditionalCheckFailedException => ZIO.fail(DataShouldNotExists(id))
+        case _: ConditionalCheckFailedException => ZIO.fail(DataShouldNotExists(id).toErrors)
       }
   }
 
@@ -106,7 +107,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
           .map(DynamoMapper.toJsValue)
       }
       .catchAll {
-        case _: ConditionalCheckFailedException => ZIO.fail(DataShouldExists(id))
+        case _: ConditionalCheckFailedException => ZIO.fail(DataShouldExists(id).toErrors)
       }
   }
 

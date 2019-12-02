@@ -12,7 +12,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.{IzanamiErrors, ValidationErrors}
+import store.Result.{IzanamiErrors, ValidationError}
 import zio.{IO, Runtime, ZIO}
 
 class UserController(system: ActorSystem,
@@ -58,7 +58,7 @@ class UserController(system: ActorSystem,
   }
 
   private def isUserAllowed(ctx: SecuredAuthContext[_], user: User)(implicit A: IsAllowed[User]): IO[Result, Unit] =
-    IsAllowed[User].isAllowed(user, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+    IsAllowed[User].isAllowed(user, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
 
   def get(id: String): Action[AnyContent] = AuthAction.asyncZio[UserContext] { _ =>
     import UserNoPasswordInstances._

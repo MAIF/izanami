@@ -12,7 +12,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.{IzanamiErrors, ValidationErrors}
+import store.Result.{IzanamiErrors, ValidationError}
 import zio.{IO, Runtime, ZIO}
 
 class GlobalScriptController(
@@ -81,7 +81,7 @@ class GlobalScriptController(
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       mayBeScript  <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       globalScript <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
     } yield Ok(Json.toJson(globalScript))
@@ -114,7 +114,7 @@ class GlobalScriptController(
 
   private def isScriptAllowed(ctx: SecuredAuthContext[_],
                               current: GlobalScript)(implicit A: IsAllowed[GlobalScript]): IO[Result, Unit] =
-    IsAllowed[GlobalScript].isAllowed(current, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+    IsAllowed[GlobalScript].isAllowed(current, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[GlobalScriptContext] { ctx =>
     import GlobalScriptInstances._

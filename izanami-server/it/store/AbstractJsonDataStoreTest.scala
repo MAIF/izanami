@@ -27,17 +27,18 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
 
   def akkaConfig: Option[Config] = None
 
-  implicit val system: ActorSystem = ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
+  implicit val system: ActorSystem =
+    ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val mat : Materializer = ActorMaterializer()
+  implicit val mat: Materializer    = ActorMaterializer()
   private val context = new DataStoreContext {
-    override def eventStore: EventStore = new TestEventStore()
-    override def logger: Logger         = new ProdLogger
+    override def eventStore: EventStore                                     = new TestEventStore()
+    override def logger: Logger                                             = new ProdLogger
     override def withAuthInfo(authInfo: Option[AuthInfo]): DataStoreContext = this
-    override def authInfo: Option[AuthInfo]                        = None
+    override def authInfo: Option[AuthInfo]                                 = None
   }
   implicit val runtime: Runtime[DataStoreContext] = Runtime(context, PlatformLive.Default)
-  private val random = Random
+  private val random                              = Random
   import zio._
   import zio.interop.catz._
 
@@ -45,7 +46,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     def unsafeRunSync(): T = runtime.unsafeRun(t)
   }
 
-  def dataStore(dataStore: String) : JsonDataStore
+  def dataStore(dataStore: String): JsonDataStore
 
   def initAndGetDataStore(name: String): JsonDataStore = {
     val store = dataStore(name)
@@ -58,8 +59,8 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     "crud" in {
       val ds = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
 
-      val key1 = Key("key:1")
-      val value1 = Json.obj("name" -> "test")
+      val key1                                         = Key("key:1")
+      val value1                                       = Json.obj("name" -> "test")
       val mayBeCreated: Either[IzanamiErrors, JsValue] = ds.create(key1, value1).either.unsafeRunSync()
 
       mayBeCreated must be(Result.ok(value1))
@@ -68,7 +69,7 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
 
       foundInDb must be(Some(value1))
 
-      val value1Updated = Json.obj("name" -> "test1")
+      val value1Updated                                = Json.obj("name" -> "test1")
       val mayBeUpdated: Either[IzanamiErrors, JsValue] = ds.update(key1, key1, value1Updated).either.unsafeRunSync()
 
       mayBeUpdated must be(Result.ok(value1Updated))
@@ -81,8 +82,8 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     }
 
     "create twice" in {
-      val ds = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
-      val key1 = Key("key:1")
+      val ds     = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
+      val key1   = Key("key:1")
       val value1 = Json.obj("name" -> "test")
 
       val mayBeCreated: Either[IzanamiErrors, JsValue] = ds.create(key1, value1).either.unsafeRunSync()
@@ -93,8 +94,8 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     }
 
     "update if not exists" in {
-      val ds = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
-      val key1 = Key("key:1")
+      val ds     = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
+      val key1   = Key("key:1")
       val value1 = Json.obj("name" -> "test")
 
       val mayBeCreated: Either[IzanamiErrors, JsValue] = ds.update(key1, key1, value1).either.unsafeRunSync()
@@ -103,9 +104,9 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     }
 
     "update changing id " in {
-      val ds = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
-      val key1 = Key("key:1")
-      val key2 = Key("key:2")
+      val ds     = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
+      val key1   = Key("key:1")
+      val key2   = Key("key:2")
       val value1 = Json.obj("name" -> "test")
 
       val mayBeCreated: Either[IzanamiErrors, JsValue] = ds.create(key1, value1).either.unsafeRunSync()
@@ -123,25 +124,26 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
 
       val ds = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
 
-
-      val v1 = (Key("key:1"), Json.obj("name" -> "value1"))
-      val v2 = (Key("key:2"), Json.obj("name" -> "value2"))
+      val v1 = (Key("key:1"), Json.obj("name"                -> "value1"))
+      val v2 = (Key("key:2"), Json.obj("name"                -> "value2"))
       val v3 = (Key("key2:subkey1:subkey1"), Json.obj("name" -> "value3"))
       val v4 = (Key("key2:subkey1:subkey2"), Json.obj("name" -> "value4"))
       val v5 = (Key("key2:subkey2:subkey1"), Json.obj("name" -> "value5"))
-      val v6 = (Key("key3:subkey"), Json.obj("name" -> "value6"))
+      val v6 = (Key("key3:subkey"), Json.obj("name"          -> "value6"))
 
-      List(v1, v2, v3, v4, v5, v6).traverse {
-        case (k, v) => ds.create(k, v)
-      }.either.unsafeRunSync()
-
+      List(v1, v2, v3, v4, v5, v6)
+        .traverse {
+          case (k, v) => ds.create(k, v)
+        }
+        .either
+        .unsafeRunSync()
 
       val results = ds.findByQuery(Query.oneOf("key:1", "key:2", "key4"), 1, 10).unsafeRunSync()
       results.count must be(2)
       results.results must contain theSameElementsAs Seq(v1._2, v2._2)
 
-
-      val results2 = ds.findByQuery(Query.oneOf("key:1", "key:2", "key4").and(Query.oneOf("key:1")), 1, 10).unsafeRunSync()
+      val results2 =
+        ds.findByQuery(Query.oneOf("key:1", "key:2", "key4").and(Query.oneOf("key:1")), 1, 10).unsafeRunSync()
 
       results2.count must be(1)
       results2.results must contain theSameElementsAs Seq(v1._2)
@@ -155,7 +157,9 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
 
       val ds = initAndGetDataStore(s"crud:test:${random.nextInt(10000)}")
       (1 to 10)
-        .map { i => (Key(s"key:$i"), Json.obj("name" -> s"value-$i")) }
+        .map { i =>
+          (Key(s"key:$i"), Json.obj("name" -> s"value-$i"))
+        }
         .toList
         .traverse { case (k, v) => ds.create(k, v) }
         .either

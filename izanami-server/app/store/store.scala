@@ -34,57 +34,74 @@ object Result {
     implicit val format = Json.format[ErrorMessage]
   }
 
+  type IzanamiErrors = NonEmptyList[IzanamiError]
+
   object IzanamiErrors {
-    def toHttpResult(error: IzanamiErrors) = error match {
-      case err: ValidationErrors => Results.BadRequest(err.toJson)
-      case IdMustBeTheSame(fromObject, inParam) =>
-        Results.BadRequest(ValidationErrors.error("error.id.not.the.same", inParam.key, inParam.key).toJson)
-      case DataShouldExists(id)    => Results.BadRequest(ValidationErrors.error("error.data.missing", id.key).toJson)
-      case DataShouldNotExists(id) => Results.BadRequest(ValidationErrors.error("error.data.exists", id.key).toJson)
+
+    import cats.implicits._
+
+    def apply(error: IzanamiError, rest: IzanamiError*): IzanamiErrors = NonEmptyList.of[IzanamiError](error, rest: _*)
+
+    def toHttpResult(error: IzanamiErrors) =
+      Results.BadRequest(error.foldMap {
+        case err: ValidationError => err
+        case IdMustBeTheSame(fromObject, inParam) =>
+          ValidationError.error("error.id.not.the.same", inParam.key, inParam.key)
+        case DataShouldExists(id)    => ValidationError.error("error.data.missing", id.key)
+        case DataShouldNotExists(id) => ValidationError.error("error.data.exists", id.key)
+      }.toJson)
+
+    implicit class ToErrorsOps(err: IzanamiError) {
+      def toErrors: IzanamiErrors = apply(err)
     }
+
+    implicit def semigroup(implicit SG: Semigroup[NonEmptyList[IzanamiError]]): Semigroup[IzanamiErrors] =
+      new Semigroup[IzanamiErrors] {
+        override def combine(x: IzanamiErrors, y: IzanamiErrors): IzanamiErrors = SG.combine(x, y)
+      }
   }
 
-  sealed trait IzanamiErrors
-  case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiErrors
-  case class DataShouldExists(id: Key)                      extends IzanamiErrors
-  case class DataShouldNotExists(id: Key)                   extends IzanamiErrors
-  case class ValidationErrors(errors: Seq[ErrorMessage] = Seq.empty,
-                              fieldErrors: Map[String, List[ErrorMessage]] = Map.empty)
-      extends IzanamiErrors {
-    def ++(s: ValidationErrors): ValidationErrors =
+  sealed trait IzanamiError
+  case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiError
+  case class DataShouldExists(id: Key)                      extends IzanamiError
+  case class DataShouldNotExists(id: Key)                   extends IzanamiError
+  case class ValidationError(errors: Seq[ErrorMessage] = Seq.empty,
+                             fieldErrors: Map[String, List[ErrorMessage]] = Map.empty)
+      extends IzanamiError {
+    def ++(s: ValidationError): ValidationError =
       this.copy(errors = errors ++ s.errors, fieldErrors = fieldErrors ++ s.fieldErrors)
-    def addFieldError(field: String, errors: List[ErrorMessage]): ValidationErrors =
+    def addFieldError(field: String, errors: List[ErrorMessage]): ValidationError =
       fieldErrors.get(field) match {
         case Some(err) =>
-          ValidationErrors(errors, fieldErrors + (field -> (err ++ errors)))
-        case None => ValidationErrors(errors, fieldErrors + (field -> errors))
+          ValidationError(errors, fieldErrors + (field -> (err ++ errors)))
+        case None => ValidationError(errors, fieldErrors + (field -> errors))
       }
 
     def toJson: JsValue =
-      ValidationErrors.format.writes(this)
+      ValidationError.format.writes(this)
 
     def isEmpty: Boolean = errors.isEmpty && fieldErrors.isEmpty
   }
 
-  object ValidationErrors {
+  object ValidationError {
     import cats.syntax.semigroup._
     import cats.instances.all._
 
-    implicit val format = Json.format[ValidationErrors]
+    implicit val format = Json.format[ValidationError]
 
-    def fromJsError(jsError: Seq[(JsPath, Seq[JsonValidationError])]): ValidationErrors = {
+    def fromJsError(jsError: Seq[(JsPath, Seq[JsonValidationError])]): ValidationError = {
       val fieldErrors = jsError.map {
         case (k, v) =>
           (k.toJsonString, v.map(err => ErrorMessage(err.message, err.args.map(_.toString): _*)).toList)
       }.toMap
-      ValidationErrors(fieldErrors = fieldErrors)
+      ValidationError(fieldErrors = fieldErrors)
     }
 
-    def error(message: String): ValidationErrors =
-      ValidationErrors(Seq(ErrorMessage(message)))
+    def error(message: String): ValidationError =
+      ValidationError(Seq(ErrorMessage(message)))
 
-    def error(message: String, args: String*): ValidationErrors =
-      ValidationErrors(Seq(ErrorMessage(message, args: _*)))
+    def error(message: String, args: String*): ValidationError =
+      ValidationError(Seq(ErrorMessage(message, args: _*)))
 
     private def optionCombine[A: Semigroup](a: A, opt: Option[A]): A =
       opt.map(a |+| _).getOrElse(a)
@@ -94,25 +111,26 @@ object Result {
         case (acc, (k, v)) => acc.updated(k, optionCombine(v, acc.get(k)))
       }
 
-    implicit val monoid: Monoid[ValidationErrors] = new Monoid[ValidationErrors] {
-      override def empty = ValidationErrors()
-      override def combine(x: ValidationErrors, y: ValidationErrors) = {
+    implicit val monoid: Monoid[ValidationError] = new Monoid[ValidationError] {
+      override def empty = ValidationError()
+      override def combine(x: ValidationError, y: ValidationError) = {
         val errors      = x.errors ++ y.errors
         val fieldErrors = mergeMap(x.fieldErrors, y.fieldErrors)
-        ValidationErrors(errors, fieldErrors)
+        ValidationError(errors, fieldErrors)
       }
     }
   }
 
-  type ValidatedResult[+E] = Validated[ValidationErrors, E]
+  type ValidatedResult[+E] = Validated[ValidationError, E]
   type Result[+E]          = Either[IzanamiErrors, E]
   def ok[E](event: E): Result[E]                = Right(event)
   def error[E](error: IzanamiErrors): Result[E] = Left(error)
+  def error[E](error: IzanamiError): Result[E]  = Left(IzanamiErrors(error))
   def error[E](messages: String*): Result[E] =
-    Left(ValidationErrors(messages.map(m => ErrorMessage(m))))
-  def errors[E](errs: ErrorMessage*): Result[E] = Left(ValidationErrors(errs))
+    Left(IzanamiErrors(ValidationError(messages.map(m => ErrorMessage(m)))))
+  def errors[E](errs: ErrorMessage*): Result[E] = Left(IzanamiErrors(ValidationError(errs)))
   def fieldError[E](field: String, errs: ErrorMessage*): Result[E] =
-    Left(ValidationErrors(fieldErrors = Map(field -> errs.toList)))
+    Left(IzanamiErrors.apply(ValidationError(fieldErrors = Map(field -> errs.toList))))
 
   implicit class ResultOps[E](r: Result[E]) {
     def collect[E2](p: PartialFunction[E, E2]): Result[E2] =

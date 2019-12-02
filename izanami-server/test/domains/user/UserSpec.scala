@@ -1,6 +1,6 @@
 package domains.user
 import domains.{AuthorizedPattern, Key}
-import domains.events.{EventStore, Events}
+import domains.events.EventStore
 import libs.crypto.Sha
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
@@ -26,12 +26,13 @@ import store.Result.DataShouldExists
 import akka.stream.scaladsl.{Sink, Source}
 import play.api.libs.json.Json
 import domains.ImportResult
-import store.Result.ValidationErrors
+import store.Result.ValidationError
 
 class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
   implicit val system = ActorSystem("test")
   implicit val mat    = ActorMaterializer()
+  import IzanamiErrors._
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
@@ -92,7 +93,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val user = User("user1", "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
 
       val created = run(ctx)(UserService.create(id, user).either)
-      created must be(Left(IdMustBeTheSame(Key(user.id), id)))
+      created must be(Left(IdMustBeTheSame(Key(user.id), id).toErrors))
       ctx.userDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -103,7 +104,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val user = User(id.key, "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
 
       val updated = run(ctx)(UserService.update(id, id, user).either)
-      updated must be(Left(DataShouldExists(id)))
+      updated must be(Left(DataShouldExists(id).toErrors))
     }
 
     "update changing password" in {
@@ -203,12 +204,11 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "delete empty data" in {
-      val id   = Key("test")
-      val ctx  = TestUserContext()
-      val user = User(id.key, "Ragnard", "ragnard@gmail.com", Some("ragnar123456"), false, AuthorizedPattern("*"))
+      val id  = Key("test")
+      val ctx = TestUserContext()
 
       val deleted = run(ctx)(UserService.delete(id).either)
-      deleted must be(Left(DataShouldExists(id)))
+      deleted must be(Left(DataShouldExists(id).toErrors))
       ctx.userDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -243,7 +243,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = ValidationErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = ValidationError.error("json.parse.error", id.key)))
     }
 
     "import data data exist" in {

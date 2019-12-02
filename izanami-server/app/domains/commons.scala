@@ -277,7 +277,7 @@ object Import {
     }
 }
 
-case class ImportResult(success: Int = 0, errors: ValidationErrors = ValidationErrors()) {
+case class ImportResult(success: Int = 0, errors: ValidationError = ValidationError()) {
   def isError = !errors.isEmpty
 }
 
@@ -295,8 +295,8 @@ object ImportResult {
   }
 
   def error(key: String, arg: String*) =
-    ImportResult(errors = ValidationErrors(errors = Seq(ErrorMessage(key, arg: _*))))
-  def error(e: ErrorMessage) = ImportResult(errors = ValidationErrors(errors = Seq(e)))
+    ImportResult(errors = ValidationError(errors = Seq(ErrorMessage(key, arg: _*))))
+  def error(e: ErrorMessage) = ImportResult(errors = ValidationError(errors = Seq(e)))
 
 //  def fromResult[T](r: Result[T]): ImportResult = r match {
 //    case Right(_)  => ImportResult(success = 1)
@@ -304,12 +304,15 @@ object ImportResult {
 //  }
 
   def fromResult[T](r: Either[IzanamiErrors, T]): ImportResult = r match {
-    case Right(_)                    => ImportResult(success = 1)
-    case Left(err: ValidationErrors) => ImportResult(errors = err)
-    case Left(IdMustBeTheSame(_, inParam)) =>
-      ImportResult(errors = ValidationErrors.error("error.id.not.the.same", inParam.key, inParam.key))
-    case Left(DataShouldExists(id))    => ImportResult(errors = ValidationErrors.error("error.data.missing", id.key))
-    case Left(DataShouldNotExists(id)) => ImportResult(errors = ValidationErrors.error("error.data.exists", id.key))
+    case Right(_) => ImportResult(success = 1)
+    case Left(errors) =>
+      errors.foldMap {
+        case err: ValidationError => ImportResult(errors = err)
+        case IdMustBeTheSame(_, inParam) =>
+          ImportResult(errors = ValidationError.error("error.id.not.the.same", inParam.key, inParam.key))
+        case DataShouldExists(id)    => ImportResult(errors = ValidationError.error("error.data.missing", id.key))
+        case DataShouldNotExists(id) => ImportResult(errors = ValidationError.error("error.data.exists", id.key))
+      }
   }
 
 }

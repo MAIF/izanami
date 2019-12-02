@@ -15,7 +15,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.{IzanamiErrors, ValidationErrors}
+import store.Result.{IzanamiErrors, ValidationError}
 import zio.{Runtime, Task, ZIO}
 
 class ExperimentController(system: ActorSystem,
@@ -68,7 +68,7 @@ class ExperimentController(system: ActorSystem,
               }
             }
         case _ =>
-          Task.succeed(BadRequest(Json.toJson(ValidationErrors.error("unknown.render.option"))))
+          Task.succeed(BadRequest(Json.toJson(ValidationError.error("unknown.render.option"))))
       }
 
     }
@@ -106,7 +106,7 @@ class ExperimentController(system: ActorSystem,
       import ExperimentInstances._
       val key = Key(id)
       for {
-        _          <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+        _          <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
         mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
         experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))
@@ -320,6 +320,6 @@ class ExperimentController(system: ActorSystem,
 
   private def isExperimentAllowed(experiment: Experiment,
                                   ctx: SecuredAuthContext[_])(implicit A: IsAllowed[Experiment]): zio.IO[Result, Unit] =
-    IsAllowed[Experiment].isAllowed(experiment, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+    IsAllowed[Experiment].isAllowed(experiment, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
 
 }

@@ -41,10 +41,11 @@ object ConfigService {
   import libs.ziohelper.JsResults._
   import ConfigInstances._
   import libs.streams.syntax._
+  import IzanamiErrors._
 
   def create(id: ConfigKey, data: Config): ZIO[ConfigContext, IzanamiErrors, Config] =
     for {
-      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id)))
+      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
       created  <- ConfigDataStore.create(id, ConfigInstances.format.writes(data))
       apikey   <- fromJsResult(created.validate[Config]) { handleJsError }
       authInfo <- AuthInfo.authInfo
@@ -55,7 +56,7 @@ object ConfigService {
     // format: off
     for {
       mayBeConfig <- getById(oldId).refineToOrDie[IzanamiErrors]
-      oldValue    <- ZIO.fromOption(mayBeConfig).mapError(_ => DataShouldExists(oldId))
+      oldValue    <- ZIO.fromOption(mayBeConfig).mapError(_ => DataShouldExists(oldId).toErrors)
       updated     <- ConfigDataStore.update(oldId, id, ConfigInstances.format.writes(data))
       experiment  <- fromJsResult(updated.validate[Config]) { handleJsError }
       authInfo    <- AuthInfo.authInfo

@@ -10,7 +10,7 @@ import domains.events.{EventStore, EventStoreContext}
 import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.{Result, ValidatedResult, ValidationErrors}
+import store.Result.{IzanamiErrors, ValidatedResult, ValidationError}
 import store.{Result, _}
 import cats.implicits._
 import cats.data.Validated._
@@ -73,7 +73,7 @@ object Experiment {
       .getOrElse(variants.head)
   }
 
-  def validate(experiment: Experiment): Result[Experiment] = {
+  def validate(experiment: Experiment): Either[IzanamiErrors, Experiment] = {
     import Result._
     val validations: ValidatedResult[Experiment] = (
       validateTraffic(experiment),
@@ -81,23 +81,23 @@ object Experiment {
     ).mapN { (_, _) =>
       experiment
     }
-    validations.toEither
+    validations.toEither.leftMap(err => IzanamiErrors(err))
   }
 
   private def validateTraffic(experiment: Experiment): ValidatedResult[Experiment] = {
     val allTraffic = experiment.variants.map(_.traffic.traffic).reduceLeft(_ + _)
-    Either.cond(allTraffic === 1, experiment, ValidationErrors.error("error.traffic.not.cent.percent")).toValidated
+    Either.cond(allTraffic === 1, experiment, ValidationError.error("error.traffic.not.cent.percent")).toValidated
   }
 
   private def validateCampaign(experiment: Experiment): ValidatedResult[Experiment] =
     experiment.campaign.fold(
-      experiment.valid[ValidationErrors]
+      experiment.valid[ValidationError]
     ) { c =>
       Either
         .cond(
           c.from.isBefore(c.to),
           experiment,
-          ValidationErrors.error("error.campaign.date.invalid")
+          ValidationError.error("error.campaign.date.invalid")
         )
         .toValidated
     }
@@ -164,6 +164,7 @@ object ExperimentService {
   import ExperimentInstances._
   import domains.events.Events.{ExperimentCreated, ExperimentDeleted, ExperimentUpdated}
   import store.Result._
+  import IzanamiErrors._
 
   def create(id: ExperimentKey, data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
     import ExperimentInstances._
@@ -184,9 +185,9 @@ object ExperimentService {
     // format: off
     for {
       _           <- ZIO.fromEither(Experiment.validate(data))
-      _           <- ZIO.when(oldId =!= id)(ZIO.fail(IdMustBeTheSame(oldId, id)))      
+      _           <- ZIO.when(oldId =!= id)(ZIO.fail(IdMustBeTheSame(oldId, id).toErrors))      
       mayBe       <- getById(oldId).refineToOrDie[IzanamiErrors]
-      oldValue    <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+      oldValue    <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
       _           <- ZIO.when(Experiment.isTrafficChanged(oldValue, data)) {
                        ExperimentVariantEventService.deleteEventsForExperiment(oldValue)
                      }
@@ -277,12 +278,12 @@ object ExperimentService {
     for {
 
       mayBeExp    <- getById(experimentKey).refineToOrDie[IzanamiErrors]
-      experiment  <- ZIO.fromOption(mayBeExp).mapError(_ => ValidationErrors.error("error.experiment.missing"))
+      experiment  <- ZIO.fromOption(mayBeExp).mapError(_ => ValidationError.error("error.experiment.missing").toErrors)
 
       variant <- experiment.campaign match {
 
         case Some(ClosedCampaign(_, _, won)) =>
-          ZIO.fromOption(experiment.variants.find(_.id === won)).mapError(_ => ValidationErrors.error("error.variant.missing"))
+          ZIO.fromOption(experiment.variants.find(_.id === won)).mapError(_ => ValidationError.error("error.variant.missing").toErrors)
 
         case Some(CurrentCampaign(from, to)) if to.isBefore(now) || to.isEqual(now) =>
           for {

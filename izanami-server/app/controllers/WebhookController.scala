@@ -10,7 +10,7 @@ import libs.patch.Patch
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import store.Result.{IzanamiErrors, ValidationErrors}
+import store.Result.{IzanamiErrors, ValidationError}
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import store.Query
 import zio.{Runtime, ZIO}
@@ -63,7 +63,7 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      _       <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+      _       <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
     } yield Ok(Json.toJson(webhook))
@@ -146,6 +146,6 @@ class WebhookController(system: ActorSystem,
 
   private def isWebhookAllowed(webhook: Webhook,
                                ctx: SecuredAuthContext[_])(implicit A: IsAllowed[Webhook]): zio.IO[Result, Unit] =
-    IsAllowed[Webhook].isAllowed(webhook, ctx.auth)(Forbidden(ValidationErrors.error("error.forbidden").toJson))
+    IsAllowed[Webhook].isAllowed(webhook, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
 
 }

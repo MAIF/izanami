@@ -14,6 +14,7 @@ import env.WebhookConfig
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
+import store.Result.IzanamiErrors
 import store._
 import zio._
 
@@ -51,6 +52,7 @@ object WebhookService {
   import libs.streams.syntax._
   import domains.events.Events._
   import store.Result._
+  import IzanamiErrors._
 
   def startHooks(wsClient: WSClient, config: WebhookConfig)(
       implicit actorSystem: ActorSystem
@@ -62,7 +64,7 @@ object WebhookService {
 
   def create(id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
     for {
-      _        <- IO.when(data.clientId =!= id)(IO.fail(IdMustBeTheSame(data.clientId, id)))
+      _        <- IO.when(data.clientId =!= id)(IO.fail(IdMustBeTheSame(data.clientId, id).toErrors))
       created  <- WebhookDataStore.create(id, WebhookInstances.format.writes(data))
       webhook  <- jsResultToError(created.validate[Webhook])
       authInfo <- AuthInfo.authInfo
@@ -72,7 +74,7 @@ object WebhookService {
   def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
     for {
       mayBeHook <- getById(oldId).refineToOrDie[IzanamiErrors]
-      oldValue  <- ZIO.fromOption(mayBeHook).mapError(_ => DataShouldExists(oldId))
+      oldValue  <- ZIO.fromOption(mayBeHook).mapError(_ => DataShouldExists(oldId).toErrors)
       updated   <- WebhookDataStore.update(oldId, id, WebhookInstances.format.writes(data))
       hook      <- jsResultToError(updated.validate[Webhook])
       authInfo  <- AuthInfo.authInfo

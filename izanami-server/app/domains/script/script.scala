@@ -96,10 +96,11 @@ object GlobalScriptService {
   import GlobalScriptInstances._
   import libs.ziohelper.JsResults._
   import domains.events.Events._
+  import IzanamiErrors._
 
   def create(id: GlobalScriptKey, data: GlobalScript): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
     for {
-      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id)))
+      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
       created  <- GlobalScriptDataStore.create(id, GlobalScriptInstances.format.writes(data))
       apikey   <- jsResultToError(created.validate[GlobalScript])
       authInfo <- AuthInfo.authInfo
@@ -112,7 +113,7 @@ object GlobalScriptService {
     // format: off
     for {
       mayBeScript <- getById(oldId).refineToOrDie[IzanamiErrors]
-      oldValue    <- ZIO.fromOption(mayBeScript).mapError(_ => DataShouldExists(oldId))
+      oldValue    <- ZIO.fromOption(mayBeScript).mapError(_ => DataShouldExists(oldId).toErrors)
       updated     <- GlobalScriptDataStore.update(oldId, id, GlobalScriptInstances.format.writes(data))
       apikey      <- jsResultToError(updated.validate[GlobalScript])
       authInfo    <- AuthInfo.authInfo

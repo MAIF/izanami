@@ -37,6 +37,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   import zio._
   import system.dispatcher
   import cats.implicits._
+  import IzanamiErrors._
 
   private implicit val mat = ActorMaterializer()(system)
 
@@ -111,7 +112,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
       .refineToOrDie[IzanamiErrors]
       .flatMap {
         case Some(_) =>
-          IO.fail(DataShouldNotExists(id))
+          IO.fail(DataShouldNotExists(id).toErrors)
 
         case None =>
           zioFromCs(command().set(buildKey(id).key, Json.stringify(data)))
@@ -125,7 +126,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     for {
       mayBe <- getByKeyId(oldId: Key).refineToOrDie[IzanamiErrors]
-      _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+      _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
       _     <- IO.when(oldId =!= id)(zioFromCs(command().del(buildKey(oldId).key)).refineToOrDie[IzanamiErrors])
       _     <- if (oldId === id) rawUpdate(id, data) else create(id, data)
     } yield data
@@ -139,7 +140,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
             .refineToOrDie[IzanamiErrors]
             .map(_ => value)
         case None =>
-          IO.fail(DataShouldExists(id))
+          IO.fail(DataShouldExists(id).toErrors)
       }
 
   override def deleteAll(query: Query): IO[IzanamiErrors, Unit] =

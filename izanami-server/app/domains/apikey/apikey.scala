@@ -44,10 +44,11 @@ object ApikeyService {
   import ApikeyInstances._
   import domains.events.Events._
   import store.Result._
+  import IzanamiErrors._
 
   def create(id: ApikeyKey, data: Apikey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
     for {
-      _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id)))
+      _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
       created  <- ApiKeyDataStore.create(id, Json.toJson(data))
       apikey   <- jsResultToError(created.validate[Apikey])
       authInfo <- AuthInfo.authInfo
@@ -57,7 +58,7 @@ object ApikeyService {
   def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
     for {
       mayBeOld <- getById(oldId).refineToOrDie[IzanamiErrors]
-      oldValue <- ZIO.fromOption(mayBeOld).mapError(_ => DataShouldExists(oldId))
+      oldValue <- ZIO.fromOption(mayBeOld).mapError(_ => DataShouldExists(oldId).toErrors)
       updated  <- ApiKeyDataStore.update(oldId, id, Json.toJson(data))
       apikey   <- jsResultToError(updated.validate[Apikey])
       authInfo <- AuthInfo.authInfo
