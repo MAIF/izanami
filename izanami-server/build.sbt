@@ -110,8 +110,8 @@ scalacOptions ++= Seq(
   "-language:higherKinds",
   "-language:implicitConversions",
   "-language:existentials",
-  "-Ywarn-unused:imports",
-//  "-Xfatal-warnings",
+//  "-Ywarn-unused:imports",
+  "-Xfatal-warnings",
   "-Yrangepos"
 )
 

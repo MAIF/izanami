@@ -11,7 +11,7 @@ import domains.script.{GlobalScriptContext, RunnableScriptContext, Script, Scrip
 import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result._
+import store.Result.{IzanamiErrors, _}
 import store._
 import zio.{RIO, ZIO}
 import java.time.LocalTime
@@ -290,31 +290,31 @@ object FeatureService {
     import cats.implicits._
     import IzanamiErrors._
     for {
-      _      <- ZIO.fromEither(validateKeys(from, to))
+      _      <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
       values <- findAllByQuery(Query.oneOf((from / "*").key)).refineToOrDie[IzanamiErrors]
-      _      <- values.parTraverse { case (_, v) => copyOne(from, to, v) }.mapError(_.reduce)
+      _      <- values.parTraverse_ { case (_, v) => copyOne(from, to, v) }.mapError(_.reduce)
     } yield ()
   }
 
-  private case class InvalidCopyKey(id: Key) {
-    def message = ErrorMessage("invalid.key.format", id.key)
+  private def copyOne(from: Key,
+                      to: Key,
+                      feature: Feature): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
+    val newId = to / feature.id.drop(from.key)
+    FeatureService.create(newId, copyFeature(newId, feature)).mapError(NonEmptyList.one)
   }
 
-  private def validateKeys(key1: Key, key2: Key): Either[IzanamiErrors, (Key, Key)] = {
-    import cats.implicits._
-    import IzanamiErrors._
-    (key1, key2)
-      .parTraverse(k => validateKey(k).leftMap(err => NonEmptyList.of(ValidationError(Seq(err.message)).toErrors)))
-      .leftMap(_.reduce)
+  def copyFeature(id: FeatureKey, feature: Feature): Feature = feature match {
+    case f: DefaultFeature      => f.copy(id = id, enabled = false)
+    case f: GlobalScriptFeature => f.copy(id = id, enabled = false)
+    case f: ScriptFeature       => f.copy(id = id, enabled = false)
+    case f: DateRangeFeature    => f.copy(id = id, enabled = false)
+    case f: ReleaseDateFeature  => f.copy(id = id, enabled = false)
+    case f: HourRangeFeature    => f.copy(id = id, enabled = false)
+    case f: PercentageFeature   => f.copy(id = id, enabled = false)
   }
 
-  private def validateKey(key: Key): Either[InvalidCopyKey, Key] =
-    Either.cond(!key.segments.exists(_ === "*"), key, InvalidCopyKey(key))
-
-  private def copyOne(from: Key, to: Key, feature: Feature): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] =
-    FeatureService
-      .create(to / feature.id.drop(from.key), feature)
-      .mapError(err => NonEmptyList.of(err))
+  private def validateKey(key: Key): Either[IzanamiErrors, Key] =
+    Either.cond(!key.segments.exists(_ === "*"), key, IzanamiErrors(InvalidCopyKey(key)))
 
   def importData(
       strategy: ImportStrategy = ImportStrategy.Keep

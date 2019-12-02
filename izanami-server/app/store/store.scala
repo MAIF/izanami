@@ -42,9 +42,12 @@ object Result {
 
     def apply(error: IzanamiError, rest: IzanamiError*): IzanamiErrors = NonEmptyList.of[IzanamiError](error, rest: _*)
 
+    def fromNel(nel: NonEmptyList[IzanamiError]): IzanamiErrors = nel
+
     def toHttpResult(error: IzanamiErrors) =
       Results.BadRequest(error.foldMap {
         case err: ValidationError => err
+        case InvalidCopyKey(id)   => ValidationError.error("error.id.copy.invalid", id.key)
         case IdMustBeTheSame(fromObject, inParam) =>
           ValidationError.error("error.id.not.the.same", inParam.key, inParam.key)
         case DataShouldExists(id)    => ValidationError.error("error.data.missing", id.key)
@@ -57,11 +60,14 @@ object Result {
 
     implicit def semigroup(implicit SG: Semigroup[NonEmptyList[IzanamiError]]): Semigroup[IzanamiErrors] =
       new Semigroup[IzanamiErrors] {
-        override def combine(x: IzanamiErrors, y: IzanamiErrors): IzanamiErrors = SG.combine(x, y)
+        override def combine(x: IzanamiErrors, y: IzanamiErrors): IzanamiErrors =
+          fromNel(x ++ y.toList)
       }
   }
 
   sealed trait IzanamiError
+
+  case class InvalidCopyKey(id: Key)                        extends IzanamiError
   case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiError
   case class DataShouldExists(id: Key)                      extends IzanamiError
   case class DataShouldNotExists(id: Key)                   extends IzanamiError

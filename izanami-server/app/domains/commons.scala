@@ -308,6 +308,7 @@ object ImportResult {
     case Left(errors) =>
       errors.foldMap {
         case err: ValidationError => ImportResult(errors = err)
+        case InvalidCopyKey(id)   => ImportResult(errors = ValidationError.error("error.id.copy.invalid", id.key))
         case IdMustBeTheSame(_, inParam) =>
           ImportResult(errors = ValidationError.error("error.id.not.the.same", inParam.key, inParam.key))
         case DataShouldExists(id)    => ImportResult(errors = ValidationError.error("error.data.missing", id.key))

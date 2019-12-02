@@ -28,7 +28,7 @@ import scala.util.Random
 import store.JsonDataStore
 import store._
 import store.memory.InMemoryJsonDataStore
-import store.Result.{DataShouldExists, IzanamiErrors}
+import store.Result.{DataShouldExists, IdMustBeTheSame, InvalidCopyKey, IzanamiErrors, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import zio.{DefaultRuntime, Task}
@@ -39,8 +39,6 @@ import zio.ZIO
 import org.scalatest.BeforeAndAfterAll
 import akka.testkit.TestKit
 import domains.ImportResult
-import store.Result.ValidationError
-import store.Result.IdMustBeTheSame
 import play.api.Environment
 
 import scala.concurrent.ExecutionContext
@@ -51,6 +49,7 @@ import play.api.libs.json.JsArray
 import java.time.LocalTime
 import java.time.Duration
 
+import cats.data.NonEmptyList
 import play.api.inject.ApplicationLifecycle
 
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
@@ -530,6 +529,65 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           i must be(newId)
           oldValue must be(feature)
           newValue must be(feature)
+          auth must be(authInfo)
+      }
+    }
+
+    "copy node" in {
+      val id1       = Key("my:awesome:feature:to:copy1")
+      val id2       = Key("my:awesome:feature:to:copy2")
+      val copiedId1 = Key("my:awesome:other:feature:to:copy1")
+      val copiedId2 = Key("my:awesome:other:feature:to:copy2")
+      val ctx       = TestFeatureContext()
+      val feature1  = DefaultFeature(id1, true, None)
+      val feature2  = DefaultFeature(id2, true, None)
+
+      val test = for {
+        _      <- FeatureService.create(id1, feature1)
+        _      <- FeatureService.create(id2, feature2)
+        copied <- FeatureService.copyNode(Key("my:awesome"), Key("my:awesome:other"))
+      } yield copied
+
+      run(ctx)(test)
+      ctx.featureDataStore.inMemoryStore.contains(id1) must be(true)
+      ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
+      ctx.featureDataStore.inMemoryStore.contains(copiedId1) must be(true)
+      ctx.featureDataStore.inMemoryStore.contains(copiedId2) must be(true)
+      inside(ctx.events.last) {
+        case FeatureCreated(i, newValue, _, _, auth) =>
+          i must be(copiedId2)
+          newValue must be(feature2.copy(id = copiedId2, enabled = false))
+          auth must be(authInfo)
+      }
+    }
+
+    "invalid key" in {
+      val id1       = Key("my:awesome:feature:to:copy1")
+      val id2       = Key("my:awesome:feature:to:copy2")
+      val copiedId1 = Key("my:awesome:other:feature:to:copy1")
+      val copiedId2 = Key("my:awesome:other:feature:to:copy2")
+      val ctx       = TestFeatureContext()
+      val feature1  = DefaultFeature(id1, true, None)
+      val feature2  = DefaultFeature(id2, true, None)
+      val from      = Key("my:*:awesome")
+      val to        = Key("my:awesome:*:other")
+
+      val test = for {
+        _      <- FeatureService.create(id1, feature1)
+        _      <- FeatureService.create(id2, feature2)
+        copied <- FeatureService.copyNode(from, to)
+      } yield copied
+
+      val copied = run(ctx)(test.either)
+      copied must be(Left(NonEmptyList.of(InvalidCopyKey(from), InvalidCopyKey(to))))
+      ctx.featureDataStore.inMemoryStore.contains(id1) must be(true)
+      ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
+      ctx.featureDataStore.inMemoryStore.contains(copiedId1) must be(false)
+      ctx.featureDataStore.inMemoryStore.contains(copiedId2) must be(false)
+      inside(ctx.events.last) {
+        case FeatureCreated(i, newValue, _, _, auth) =>
+          i must be(id2)
+          newValue must be(feature2)
           auth must be(authInfo)
       }
     }
