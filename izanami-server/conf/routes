@@ -8,23 +8,199 @@ GET     /                                   controllers.HomeController.index
 
 
 #Configs
+
+###
+#  summary: list configs
+#  tags:
+#    - Config Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.ConfigListResult'
+###
 GET     /api/configs                        controllers.ConfigController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, render: String ?= "flat")
+###
+#  summary: Create a Config
+#  tags:
+#    - Config Endpoints
+#  requestBody:
+#    description: Create a new config
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.config.Config'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.config.Config'
+###
 POST    /api/configs                        controllers.ConfigController.create()
+###
+#  summary: get a config
+#  tags:
+#    - Config Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.config.Config'
+###
 GET     /api/configs/:id                    controllers.ConfigController.get(id)
+###
+#  summary: Update a Config
+#  tags:
+#    - Config Endpoints
+#  requestBody:
+#    description: Update a config
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.config.Config'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.config.Config'
+###
 PUT     /api/configs/:id                    controllers.ConfigController.update(id)
+###
+#  summary: patch a config
+#  tags:
+#    - Config Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/PatchRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.config.Config'
+###
 PATCH   /api/configs/:id                    controllers.ConfigController.patch(id)
+###
+#  summary: Delete a Config
+#  tags:
+#    - Config Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.config.Config'
+###
 DELETE  /api/configs/:id                    controllers.ConfigController.delete(id)
+###
+#  summary: Configs as tree
+#  tags:
+#    - Config Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 GET     /api/tree/configs                   controllers.ConfigController.tree(pattern: String ?= "*")
+###
+#  summary: Downalod Configs
+#  tags:
+#    - Config Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            type: array
+#            items:
+#              $ref: '#/components/schemas/domains.config.Config'
+###
 GET     /api/configs.ndjson                 controllers.ConfigController.download()
+###
+#  summary: Upload Configs
+#  tags:
+#    - Config Endpoints
+#  requestBody:
+#    description: Update a config
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.config.Config'
+#  responses:
+#    200:
+#      description: success
+###
 POST    /api/configs.ndjson                 controllers.ConfigController.upload(strategy: String ?= "Keep")
+###
+#  summary: Count Configs
+#  tags:
+#    - Config Endpoints
+#  responses:
+#    200:
+#      description: success
+###
 GET     /api/counts/configs                 controllers.ConfigController.count()
 
 #Configs spring
 GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.SpringConfigController.raw(rootKey, appName, profile)
 
 #Features
+
+
+###
+#  summary: list features
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.FeatureListResult'
+###
 GET     /api/features                       controllers.FeatureController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false, render: String ?= "flat")
+###
+#  summary: check features
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.FeatureListResult'
+###
 POST    /api/features/_checks               controllers.FeatureController.listWithContext(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+POST    /api/features/_copy                 controllers.FeatureController.copyNode()
 POST    /api/features                       controllers.FeatureController.create()
 DELETE  /api/features                       controllers.FeatureController.deleteAll(pattern: String ?= "*")
 GET     /api/features/:id                   controllers.FeatureController.get(id: String)
@@ -120,12 +296,16 @@ GET     /api/bo/loggers/:name/level         controllers.BackOfficeController.get
 PUT     /api/bo/loggers/:name/level         controllers.BackOfficeController.changeLogLevel(name, newLevel: Option[String])
 GET     /api/bo/loggers                     controllers.BackOfficeController.getAllLoggers()
 
-GET     /api/swagger.json                   controllers.SwaggerController.swagger()
-GET     /swagger/ui                         controllers.SwaggerController.swaggerUi()
+#GET     /api/swagger.json                   controllers.SwaggerController.swagger()
+#GET     /swagger/ui                         controllers.SwaggerController.swaggerUi()
 
+### NoDocs ###
+GET   /docs/swagger-ui/*file                controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
 
 # Map static resources from the /public folder to the /assets URL path
+### NoDocs ###
 GET     /assets/*file                       controllers.Assets.versioned(file: String)
+#GET   /assets/*file                 controllers.Assets.versioned(path="/public", file: Asset)
 
 GET     /login                              controllers.HomeController.login()
 GET     /metrics                            controllers.MetricController.metricsEndpoint()

@@ -13,7 +13,7 @@ lazy val ITest = config("it") extend Test
 lazy val `izanami-server` = (project in file("."))
   .configs(ITest)
   .settings(Defaults.itSettings: _*)
-  .enablePlugins(PlayScala, DockerPlugin)
+  .enablePlugins(PlayScala, SwaggerPlugin, DockerPlugin)
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
@@ -28,6 +28,7 @@ val silencerVersion = "1.4.4"
 resolvers ++= Seq(
   Resolver.jcenterRepo,
   Resolver.sonatypeRepo("releases"),
+  Resolver.bintrayIvyRepo("sohoffice", "sbt-plugins"),
   ("streamz at bintray" at "http://dl.bintray.com/streamz/maven").withAllowInsecureProtocol(true),
   ("larousso at bintray" at "http://dl.bintray.com/larousso/maven").withAllowInsecureProtocol(true)
 )
@@ -78,6 +79,7 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"     % "kotlin-script-runtime"          % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-script-util"             % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"     % kotlinVersion,
+  "org.webjars"              % "swagger-ui"                     % "3.24.3",
   "com.typesafe.akka"        %% "akka-http"                     % akkaHttpVersion % "it,test", // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion % "it,test", // Apache 2.0
   "de.heikoseeberger"        %% "akka-http-play-json"           % "1.29.1" % "it,test" excludeAll ExclusionRule(
@@ -124,6 +126,9 @@ sources in (Compile, doc) := Seq.empty
 publishArtifact in (Compile, packageDoc) := false
 
 parallelExecution in Test := false
+
+swaggerDomainNameSpaces := Seq("domains", "controllers.dto")
+swaggerV3 := true
 
 /// ASSEMBLY CONFIG
 mainClass in assembly := Some("play.core.server.ProdServerStart")

@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
+import controllers.dto.{Metadata, UserListResult}
 import domains.user.{User, UserContext, UserInstances, UserNoPasswordInstances, UserService}
 import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
@@ -27,22 +28,11 @@ class UserController(system: ActorSystem,
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
     AuthAction.asyncTask[UserContext] { ctx =>
-      import UserNoPasswordInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
       UserService
         .findByQuery(query, page, nbElementPerPage)
         .map { r =>
-          Ok(
-            Json.obj(
-              "results" -> Json.toJson(r.results),
-              "metadata" -> Json.obj(
-                "page"     -> page,
-                "pageSize" -> nbElementPerPage,
-                "count"    -> r.count,
-                "nbPages"  -> r.nbPages
-              )
-            )
-          )
+          Ok(Json.toJson(UserListResult(r.results, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
         }
     }
 

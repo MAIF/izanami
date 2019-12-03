@@ -285,32 +285,33 @@ object FeatureService {
       flow <- tree(flat)(context)
     } yield s.map(_._2).via(flow)
 
-  def copyNode(from: Key, to: Key): ZIO[FeatureContext, IzanamiErrors, Unit] = {
+  def copyNode(from: Key, to: Key, default: Boolean): ZIO[FeatureContext, IzanamiErrors, List[Feature]] = {
     import zio.interop.catz._
     import cats.implicits._
     import IzanamiErrors._
     for {
-      _      <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
-      values <- findAllByQuery(Query.oneOf((from / "*").key)).refineToOrDie[IzanamiErrors]
-      _      <- values.parTraverse_ { case (_, v) => copyOne(from, to, v) }.mapError(_.reduce)
-    } yield ()
+      _        <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
+      values   <- findAllByQuery(Query.oneOf((from / "*").key)).refineToOrDie[IzanamiErrors]
+      features <- values.parTraverse { case (_, v) => copyOne(from, to, v, default) }.mapError(_.reduce)
+    } yield features
   }
 
   private def copyOne(from: Key,
                       to: Key,
-                      feature: Feature): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
+                      feature: Feature,
+                      default: Boolean): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
     val newId = to / feature.id.drop(from.key)
-    FeatureService.create(newId, copyFeature(newId, feature)).mapError(NonEmptyList.one)
+    FeatureService.create(newId, copyFeature(newId, feature, default)).mapError(NonEmptyList.one)
   }
 
-  def copyFeature(id: FeatureKey, feature: Feature): Feature = feature match {
-    case f: DefaultFeature      => f.copy(id = id, enabled = false)
-    case f: GlobalScriptFeature => f.copy(id = id, enabled = false)
-    case f: ScriptFeature       => f.copy(id = id, enabled = false)
-    case f: DateRangeFeature    => f.copy(id = id, enabled = false)
-    case f: ReleaseDateFeature  => f.copy(id = id, enabled = false)
-    case f: HourRangeFeature    => f.copy(id = id, enabled = false)
-    case f: PercentageFeature   => f.copy(id = id, enabled = false)
+  def copyFeature(id: FeatureKey, feature: Feature, default: Boolean): Feature = feature match {
+    case f: DefaultFeature      => f.copy(id = id, enabled = default)
+    case f: GlobalScriptFeature => f.copy(id = id, enabled = default)
+    case f: ScriptFeature       => f.copy(id = id, enabled = default)
+    case f: DateRangeFeature    => f.copy(id = id, enabled = default)
+    case f: ReleaseDateFeature  => f.copy(id = id, enabled = default)
+    case f: HourRangeFeature    => f.copy(id = id, enabled = default)
+    case f: PercentageFeature   => f.copy(id = id, enabled = default)
   }
 
   private def validateKey(key: Key): Either[IzanamiErrors, Key] =

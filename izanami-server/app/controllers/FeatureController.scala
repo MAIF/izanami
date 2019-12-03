@@ -5,13 +5,13 @@ import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
+import controllers.dto.{FeatureListResult, Metadata}
 import domains.feature.{Feature, FeatureContext, FeatureInstances, FeatureService}
 import domains._
 import domains.feature.Feature.FeatureKey
 import libs.patch.Patch
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
-import play.api.libs.json._
 import play.api.mvc._
 import store.Query
 import store.Result.{IzanamiErrors, ValidationError}
@@ -25,13 +25,24 @@ class FeatureController(system: ActorSystem,
   import system.dispatcher
   import libs.http._
   import FeatureInstances._
+  import play.api.libs.json._
 
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
 
-  case class CopyRequest(from: Key, to: Key)
+  case class CopyRequest(from: Key, to: Key, default: Boolean)
 
   object CopyRequest {
     implicit val format = Json.format[CopyRequest]
+  }
+
+  case class CopyNodeResponse(features: List[Feature])
+
+  object CopyNodeResponse {
+    implicit val format = {
+      import play.api.libs.json._
+      implicit val fRead = FeatureInstances.format
+      Json.writes[CopyNodeResponse]
+    }
   }
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
@@ -69,14 +80,9 @@ class FeatureController(system: ActorSystem,
               .findByQuery(query, page, nbElementPerPage)
               .map { pagingResult =>
                 Ok(
-                  Json.obj(
-                    "results" -> Json.toJson(pagingResult.results),
-                    "metadata" -> Json.obj(
-                      "page"     -> page,
-                      "pageSize" -> nbElementPerPage,
-                      "count"    -> pagingResult.count,
-                      "nbPages"  -> pagingResult.nbPages
-                    )
+                  Json.toJson(
+                    FeatureListResult(pagingResult.results,
+                                      Metadata(page, nbElementPerPage, pagingResult.count, pagingResult.nbPages))
                   )
                 )
               }
@@ -276,8 +282,8 @@ class FeatureController(system: ActorSystem,
       request <- jsResultToHttpResponse(ctx.request.body.validate[CopyRequest])
       _       <- Key.isAllowed(request.from, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       _       <- Key.isAllowed(request.to, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
-      _       <- FeatureService.copyNode(request.from, request.to).mapError { IzanamiErrors.toHttpResult }
-    } yield { Ok(Json.obj()) }
+      f       <- FeatureService.copyNode(request.from, request.to, request.default).mapError { IzanamiErrors.toHttpResult }
+    } yield { Ok(CopyNodeResponse.format.writes(CopyNodeResponse(f))) }
   }
 
   def download(): Action[AnyContent] = AuthAction.asyncTask[FeatureContext] { ctx =>

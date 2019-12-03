@@ -545,7 +545,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val test = for {
         _      <- FeatureService.create(id1, feature1)
         _      <- FeatureService.create(id2, feature2)
-        copied <- FeatureService.copyNode(Key("my:awesome"), Key("my:awesome:other"))
+        copied <- FeatureService.copyNode(Key("my:awesome"), Key("my:awesome:other"), false)
       } yield copied
 
       run(ctx)(test)
@@ -575,7 +575,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val test = for {
         _      <- FeatureService.create(id1, feature1)
         _      <- FeatureService.create(id2, feature2)
-        copied <- FeatureService.copyNode(from, to)
+        copied <- FeatureService.copyNode(from, to, false)
       } yield copied
 
       val copied = run(ctx)(test.either)
@@ -584,12 +584,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
       ctx.featureDataStore.inMemoryStore.contains(copiedId1) must be(false)
       ctx.featureDataStore.inMemoryStore.contains(copiedId2) must be(false)
-      inside(ctx.events.last) {
-        case FeatureCreated(i, newValue, _, _, auth) =>
-          i must be(id2)
-          newValue must be(feature2)
-          auth must be(authInfo)
-      }
     }
 
     "delete" in {

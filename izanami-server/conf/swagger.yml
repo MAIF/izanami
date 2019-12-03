@@ -1,0 +1,42 @@
+---
+openapi: 3.0.0
+info:
+  title: "Izanami API"
+  description: |
+    API of Izanami
+  version: "1.0.0"
+consumes:
+  - application/json
+produces:
+  - application/json
+components:
+  schemas:
+    PatchRequest:
+      type: array
+      items:
+        $ref: "#/components/schemas/PatchDocument"
+    PatchDocument:
+      description: A JSONPatch document as defined by RFC 6902
+      required:
+        - "op"
+        - "path"
+      properties:
+        op:
+          type: string
+          description: The operation to be performed
+          enum:
+            - "add"
+            - "remove"
+            - "replace"
+            - "move"
+            - "copy"
+            - "test"
+        path:
+          type: string
+          description: A JSON-Pointer
+        value:
+          type: object
+          description: The value to be used within the operations.
+        from:
+          type: string
+          description: A string containing a JSON Pointer value.

@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
+import controllers.dto.{GlobalScriptListResult, Metadata}
 import domains.script._
 import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
@@ -37,33 +38,15 @@ class GlobalScriptController(
           name_only match {
             case Some(true) =>
               Ok(
-                Json.obj(
-                  "results" -> Json.toJson(r.results.map {
-                    case GlobalScript(id, name, _, _) =>
-                      Json.obj("label" -> name, "value" -> id)
-                  }),
-                  "metadata" -> Json.obj(
-                    "page"     -> page,
-                    "pageSize" -> nbElementPerPage,
-                    "count"    -> r.count,
-                    "nbPages"  -> r.nbPages
-                  )
-                )
+                GlobalScriptListResult.partialFormat
+                  .writes(GlobalScriptListResult(r.results, Metadata(page, nbElementPerPage, r.count, r.nbPages)))
               )
             case _ =>
               Ok(
-                Json.obj(
-                  "results" -> Json.toJson(r.results),
-                  "metadata" -> Json.obj(
-                    "page"     -> page,
-                    "pageSize" -> nbElementPerPage,
-                    "count"    -> r.count,
-                    "nbPages"  -> r.nbPages
-                  )
-                )
+                GlobalScriptListResult.format
+                  .writes(GlobalScriptListResult(r.results, Metadata(page, nbElementPerPage, r.count, r.nbPages)))
               )
           }
-
         }
     }
 
