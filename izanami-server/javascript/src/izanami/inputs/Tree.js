@@ -53,7 +53,7 @@ class CopyNodeWindow extends Component {
               </div>
             </div>
             <KeyInput label={'To'} search={this.search} value={''} onChange={key => this.setState({key})} />
-            <BooleanInput label={'Activate'}
+            <BooleanInput label={'Active'}
                           value={this.state.defaultValue}
                           onChange={defaultValue => this.setState({defaultValue})} />
             <div className="form-group">
