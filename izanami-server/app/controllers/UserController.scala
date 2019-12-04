@@ -4,7 +4,8 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-import controllers.dto.{Metadata, UserListResult}
+import controllers.dto.meta.Metadata
+import controllers.dto.user.UserListResult
 import domains.user.{User, UserContext, UserInstances, UserNoPasswordInstances, UserService}
 import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
@@ -32,7 +33,7 @@ class UserController(system: ActorSystem,
       UserService
         .findByQuery(query, page, nbElementPerPage)
         .map { r =>
-          Ok(Json.toJson(UserListResult(r.results, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
+          Ok(Json.toJson(UserListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
         }
     }
 

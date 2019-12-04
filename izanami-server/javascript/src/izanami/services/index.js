@@ -47,14 +47,14 @@ export function fetchFeatures(args) {
       }
     }
   )
-    .then(jsonBody)
-    .then(({ results, metadata: { page, pageSize, count, nbPages } }) => ({
-      results,
-      nbPages,
-      page,
-      pageSize,
-      count
-    }));
+  .then(jsonBody)
+  .then(({ results, metadata: { page, pageSize, count, nbPages } }) => ({
+    results,
+    nbPages,
+    page,
+    pageSize,
+    count
+  }));
 }
 
 export function fetchFeaturesTree(args) {
@@ -93,6 +93,20 @@ export function createFeature(feature) {
   }).then(rawResponse);
 }
 
+export function copyNode(from, to, active) {
+  return fetch(
+      `${window.__contextPath}/api/features/_copy`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({from, to, default:active})
+      }
+  ).then(rawResponse);
+}
 export function updateFeature(id, feature) {
   return fetch(`${window.__contextPath}/api/features/${id}`, {
     method: "PUT",

@@ -5,7 +5,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-import controllers.dto.{ConfigListResult, Metadata}
+import controllers.dto.config.ConfigListResult
+import controllers.dto.meta.Metadata
 import domains._
 import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigContext, ConfigInstances, ConfigService}
@@ -38,7 +39,7 @@ class ConfigController(system: ActorSystem,
           ConfigService
             .findByQuery(query, page, nbElementPerPage)
             .map { r =>
-              Ok(Json.toJson(ConfigListResult(r.results, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
+              Ok(Json.toJson(ConfigListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
             }
 
         case "tree" =>

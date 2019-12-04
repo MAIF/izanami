@@ -29,7 +29,6 @@ export class BooleanInput extends Component {
 
   render() {
     const value = !!this.props.value;
-
     return (
       <div>
         <div className="form-group">

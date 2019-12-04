@@ -1,0 +1,19 @@
+.copy-node-window {
+  border: 1px solid $colorBleue;
+  border-radius: 4px;
+  background-color: $fondNavbar;
+  min-width: 400px;
+  margin-left: 50px;
+}
+
+.copy-node-from {
+  display: flex;
+}
+
+.key-value-value-big {
+  color: white;
+  display: inline-block;
+  margin-left: 2px;
+  vertical-align: bottom;
+  cursor: pointer;
+}

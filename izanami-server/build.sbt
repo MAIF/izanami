@@ -127,7 +127,14 @@ publishArtifact in (Compile, packageDoc) := false
 
 parallelExecution in Test := false
 
-swaggerDomainNameSpaces := Seq("domains", "controllers.dto")
+swaggerDomainNameSpaces := Seq(
+  "domains",
+  "controllers.dto.abtesting",
+  "controllers.dto.config",
+  "controllers.dto.script",
+  "controllers.dto.user",
+  "controllers.dto.meta"
+)
 swaggerV3 := true
 
 /// ASSEMBLY CONFIG

@@ -5,7 +5,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-import controllers.dto.{ExperimentListResult, Metadata}
+import controllers.dto.abtesting.ExperimentListResult
+import controllers.dto.meta.Metadata
 import domains.abtesting.Experiment.ExperimentKey
 import domains.{Import, ImportData, IsAllowed, Key, Node}
 import domains.abtesting._
@@ -39,7 +40,10 @@ class ExperimentController(system: ActorSystem,
           ExperimentService
             .findByQuery(query, page, nbElementPerPage)
             .map { r =>
-              Ok(Json.toJson(ExperimentListResult(r.results, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
+              Ok(
+                Json
+                  .toJson(ExperimentListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages)))
+              )
             }
         case "tree" =>
           import Node._

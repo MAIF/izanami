@@ -5,7 +5,9 @@ import akka.stream.scaladsl.Sink
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-import controllers.dto.{FeatureListResult, Metadata}
+import controllers.dto.feature.CopyRequest
+import controllers.dto.feature.FeatureListResult
+import controllers.dto.meta.Metadata
 import domains.feature.{Feature, FeatureContext, FeatureInstances, FeatureService}
 import domains._
 import domains.feature.Feature.FeatureKey
@@ -28,22 +30,6 @@ class FeatureController(system: ActorSystem,
   import play.api.libs.json._
 
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
-
-  case class CopyRequest(from: Key, to: Key, default: Boolean)
-
-  object CopyRequest {
-    implicit val format = Json.format[CopyRequest]
-  }
-
-  case class CopyNodeResponse(features: List[Feature])
-
-  object CopyNodeResponse {
-    implicit val format = {
-      import play.api.libs.json._
-      implicit val fRead = FeatureInstances.format
-      Json.writes[CopyNodeResponse]
-    }
-  }
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncZio[FeatureContext](parse.empty) { ctx =>
@@ -81,7 +67,7 @@ class FeatureController(system: ActorSystem,
               .map { pagingResult =>
                 Ok(
                   Json.toJson(
-                    FeatureListResult(pagingResult.results,
+                    FeatureListResult(pagingResult.results.toList,
                                       Metadata(page, nbElementPerPage, pagingResult.count, pagingResult.nbPages))
                   )
                 )
@@ -277,13 +263,15 @@ class FeatureController(system: ActorSystem,
   }
 
   def copyNode(): Action[JsValue] = AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
-    import CopyRequest._
+    import controllers.dto.feature.CopyNodeResponse
     for {
       request <- jsResultToHttpResponse(ctx.request.body.validate[CopyRequest])
       _       <- Key.isAllowed(request.from, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       _       <- Key.isAllowed(request.to, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
       f       <- FeatureService.copyNode(request.from, request.to, request.default).mapError { IzanamiErrors.toHttpResult }
-    } yield { Ok(CopyNodeResponse.format.writes(CopyNodeResponse(f))) }
+    } yield {
+      Ok(Json.toJson(CopyNodeResponse(f)))
+    }
   }
 
   def download(): Action[AnyContent] = AuthAction.asyncTask[FeatureContext] { ctx =>

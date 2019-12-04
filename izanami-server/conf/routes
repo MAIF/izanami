@@ -7,7 +7,12 @@
 GET     /                                   controllers.HomeController.index
 
 
-#Configs
+
+
+#########################################################################
+#                           Configs                                     #
+#########################################################################
+
 
 ###
 #  summary: list configs
@@ -20,7 +25,7 @@ GET     /                                   controllers.HomeController.index
 #        application/json:
 #          schema:
 #            items:
-#              $ref: '#/components/schemas/controllers.dto.ConfigListResult'
+#              $ref: '#/components/schemas/controllers.dto.config.ConfigListResult'
 ###
 GET     /api/configs                        controllers.ConfigController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, render: String ?= "flat")
 ###
@@ -169,8 +174,10 @@ GET     /api/counts/configs                 controllers.ConfigController.count()
 #Configs spring
 GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.SpringConfigController.raw(rootKey, appName, profile)
 
-#Features
 
+#########################################################################
+#                           Features                                    #
+#########################################################################
 
 ###
 #  summary: list features
@@ -183,7 +190,7 @@ GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.SpringCo
 #        application/json:
 #          schema:
 #            items:
-#              $ref: '#/components/schemas/controllers.dto.FeatureListResult'
+#              $ref: '#/components/schemas/controllers.dto.feature.FeatureListResult'
 ###
 GET     /api/features                       controllers.FeatureController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, active: Boolean ?= false, render: String ?= "flat")
 ###
@@ -197,34 +204,421 @@ GET     /api/features                       controllers.FeatureController.list(p
 #        application/json:
 #          schema:
 #            items:
-#              $ref: '#/components/schemas/controllers.dto.FeatureListResult'
+#              $ref: '#/components/schemas/controllers.dto.feature.FeatureListResult'
 ###
 POST    /api/features/_checks               controllers.FeatureController.listWithContext(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+###
+#  summary: copy features
+#  tags:
+#    - Feature Endpoints
+#  requestBody:
+#    description: Update a config
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/controllers.dto.feature.CopyRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.CopyResponse'
+###
 POST    /api/features/_copy                 controllers.FeatureController.copyNode()
+###
+#  summary: create feature
+#  tags:
+#    - Feature Endpoints
+#  requestBody:
+#    description: Create a config
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.feature.Feature'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.feature.Feature'
+###
 POST    /api/features                       controllers.FeatureController.create()
+###
+#  summary: delete features by pattern
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+###
 DELETE  /api/features                       controllers.FeatureController.deleteAll(pattern: String ?= "*")
+###
+#  summary: get a feature
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.feature.Feature'
+###
 GET     /api/features/:id                   controllers.FeatureController.get(id: String)
+###
+#  summary: update a feature
+#  tags:
+#    - Feature Endpoints
+#  requestBody:
+#    description: Create a config
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.feature.Feature'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.feature.Feature'
+###
 PUT     /api/features/:id                   controllers.FeatureController.update(id)
+###
+#  summary: patch a feature
+#  tags:
+#    - Feature Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/PatchRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.config.Config'
+###
 PATCH   /api/features/:id                   controllers.FeatureController.patch(id)
+###
+#  summary: delete a feature
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.feature.Feature'
+###
 DELETE  /api/features/:id                   controllers.FeatureController.delete(id)
+###
+#  summary: check a feature by id
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+###
 GET     /api/features/:id/check             controllers.FeatureController.check(id)
+###
+#  summary: check a feature by id with context
+#  tags:
+#    - Feature Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          type: object
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+###
 POST    /api/features/:id/check             controllers.FeatureController.checkWithContext(id)
+###
+#  summary: download feature
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.feature.Feature'
+###
 GET     /api/features.ndjson                controllers.FeatureController.download()
+###
+#  summary: download feature
+#  tags:
+#    - Feature Endpoints
+#  requestBody:
+#    description: Create a config
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.feature.Feature'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.feature.Feature'
+###
 POST    /api/features.ndjson                controllers.FeatureController.upload(strategy: String ?= "Keep")
+###
+#  summary: feature as tree
+#  tags:
+#    - Feature Endpoints
+#  requestBody:
+#    description: Context
+#    required: true
+#    content:
+#      application/json:
+#        type: object
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 POST    /api/tree/features                  controllers.FeatureController.tree(pattern: String ?= "*", flat: Boolean = false)
+###
+#  summary: feature as tree
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 GET     /api/tree/features                  controllers.FeatureController.treeGet(pattern: String ?= "*", flat: Boolean = false)
+###
+#  summary: count features
+#  tags:
+#    - Feature Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: number
+###
 GET     /api/counts/features                controllers.FeatureController.count()
 
 #GlobalScript
+
+#########################################################################
+#                        GlobalScript                                   #
+#########################################################################
+
+
+###
+#  summary: list global script
+#  tags:
+#    - GlobalScript Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.GlobalScriptListResult'
+###
 GET     /api/scripts                        controllers.GlobalScriptController.list(pattern: String ?= "*", name_only: Option[Boolean], page: Int ?= 1, pageSize: Int ?= 15)
+
+###
+#  summary: create global script
+#  tags:
+#    - GlobalScript Endpoints
+#  requestBody:
+#    description: Create a script
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.script.GlobalScript'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.script.GlobalScript'
+###
 POST    /api/scripts                        controllers.GlobalScriptController.create()
+
+###
+#  summary: delete by pattern
+#  tags:
+#    - GlobalScript Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+###
 DELETE  /api/scripts                        controllers.GlobalScriptController.deleteAll(pattern: String ?= "*")
+
+###
+#  summary: debug a script execution
+#  tags:
+#    - GlobalScript Endpoints
+#  requestBody:
+#    description: Create a script
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          type: object
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#               type: object
+###
 POST    /api/scripts/_debug                 controllers.GlobalScriptController.debug()
+
+###
+#  summary: get by id script
+#  tags:
+#    - GlobalScript Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.script.GlobalScript'
+###
 GET     /api/scripts/:id                    controllers.GlobalScriptController.get(id)
+
+###
+#  summary: update by id script
+#  tags:
+#    - GlobalScript Endpoints
+#  requestBody:
+#    description: Update a script
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.script.GlobalScript'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.script.GlobalScript'
+###
 PUT     /api/scripts/:id                    controllers.GlobalScriptController.update(id)
+
+###
+#  summary: patch a global script
+#  tags:
+#    - GlobalScript Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/PatchRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.script.GlobalScript'
+###
 PATCH   /api/scripts/:id                    controllers.GlobalScriptController.patch(id)
+
+###
+#  summary: delete by by id
+#  tags:
+#    - GlobalScript Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.script.GlobalScript'
+###
 DELETE  /api/scripts/:id                    controllers.GlobalScriptController.delete(id)
+
+###
+#  summary: download global script
+#  tags:
+#    - GlobalScript Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            $ref: '#/components/schemas/domains.script.GlobalScript'
+###
 GET     /api/scripts.ndjson                 controllers.GlobalScriptController.download()
+
+###
+#  summary: download global script
+#  tags:
+#    - GlobalScript Endpoints
+#  requestBody:
+#    description: Create a script
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.script.GlobalScript'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            type: object
+###
 POST    /api/scripts.ndjson                 controllers.GlobalScriptController.upload(strategy: String ?= "Keep")
 
 #Experiments

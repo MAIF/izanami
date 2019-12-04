@@ -40,3 +40,86 @@ components:
         from:
           type: string
           description: A string containing a JSON Pointer value.
+
+    domains.feature.Feature:
+      properties:
+        id:
+          type: string
+        enabled:
+          type: boolean
+        description:
+          type: string
+        parameters:
+          type: object
+          properties:
+            activationStrategy:
+              type: string
+              required: true
+              enum: [NO_STRATEGY, RELEASE_DATE, DATE_RANGE, SCRIPT, GLOBAL_SCRIPT, PERCENTAGE, HOUR_RANGE]
+            releaseDate:
+              type: string
+              required: false
+            from:
+              type: string
+              required: false
+              format: date
+            to:
+              type: string
+              required: false
+              format: date
+            percentage:
+              type: number
+              required: false
+            ref:
+              type: string
+              required: true
+            script:
+              type: string
+              required: false
+            type:
+              type: string
+              required: false
+              enum: [scala, javascript]
+    domains.feature.FeatureActive:
+      allOf:
+        - $ref: '#/components/schemas/domains.feature.Feature'
+        - type: object
+          properties:
+            active:
+              type: boolean
+    controllers.dto.feature.FeatureListResult:
+      properties:
+        results:
+          type: array
+          $ref: '#/components/schemas/domains.feature.Feature'
+        metadata:
+          page:
+            required: true
+            type: integer
+          pageSize:
+            required: true
+            type: integer
+          count:
+            required: true
+            type: integer
+          nbPages:
+            required: true
+            type: integer
+#    controllers.dto.feature.FeatureListResultActive:
+#      properties:
+#        results:
+#          type: array
+#          $ref: '#/components/schemas/domains.feature.FeatureActive'
+#        metadata:
+#          page:
+#            required: true
+#            type: integer
+#          pageSize:
+#            required: true
+#            type: integer
+#          count:
+#            required: true
+#            type: integer
+#          nbPages:
+#            required: true
+#            type: integer
