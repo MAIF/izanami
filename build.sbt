@@ -18,10 +18,6 @@ lazy val `izanami-documentation` = project
 
 lazy val `izanami-server` = project
 
-lazy val `perfs-jmh` = project
-  .dependsOn(`izanami-server`)
-  .enablePlugins(NoPublish, JmhPlugin)
-
 lazy val `izanami-clients` = project
 
 lazy val `example` = project

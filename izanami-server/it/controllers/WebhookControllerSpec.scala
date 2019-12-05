@@ -247,7 +247,7 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
 
         Thread.sleep(1100)
 
-        val strings: Seq[String] = ctx.state
+        val strings: List[String] = ctx.state
           .map(_.as[JsObject])
           .flatMap { obj =>
             (obj \ "objectsEdited").as[Seq[JsValue]]
@@ -255,7 +255,7 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
           .map { json =>
             (json \ "type").as[String]
           }
-
+          .toList
         strings must be(Seq("CONFIG_CREATED"))
       }
 
@@ -265,9 +265,13 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
 
   private def formatResults(jsValue: JsValue): JsValue = jsValue match {
     case o: JsObject =>
-      val results: Seq[JsValue] = (o \ "results").as[JsArray].value.map { r =>
-        r.as[JsObject] - "created"
-      }
+      val results: List[JsValue] = (o \ "results")
+        .as[JsArray]
+        .value
+        .map { r =>
+          r.as[JsObject] - "created"
+        }
+        .toList
       o ++ Json.obj("results" -> JsArray(results))
     case _ => jsValue
   }

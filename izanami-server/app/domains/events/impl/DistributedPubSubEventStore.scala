@@ -19,7 +19,7 @@ import libs.streams.CacheableQueue
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.{IO, Task}
 
 import scala.util.Try

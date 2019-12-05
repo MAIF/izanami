@@ -29,7 +29,7 @@ import libs.database.Drivers
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.Logger
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.{RIO, Task, ZIO}
 import libs.logs.LoggerModule
 import domains.AuthInfoModule

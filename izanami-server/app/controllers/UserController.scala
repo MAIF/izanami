@@ -4,6 +4,9 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
+
+import controllers.dto.meta.Metadata
+import controllers.dto.user.UserListResult
 import domains.user.{User, UserContext, UserInstances, UserNoPasswordInstances, UserService}
 import domains.{Import, ImportData, IsAllowed, Key}
 import libs.patch.Patch
@@ -12,7 +15,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.{AppErrors, IzanamiErrors}
+import controllers.dto.error.ApiErrors
 import zio.{IO, Runtime, ZIO}
 
 class UserController(system: ActorSystem,
@@ -27,22 +30,11 @@ class UserController(system: ActorSystem,
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
     AuthAction.asyncTask[UserContext] { ctx =>
-      import UserNoPasswordInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
       UserService
         .findByQuery(query, page, nbElementPerPage)
         .map { r =>
-          Ok(
-            Json.obj(
-              "results" -> Json.toJson(r.results),
-              "metadata" -> Json.obj(
-                "page"     -> page,
-                "pageSize" -> nbElementPerPage,
-                "count"    -> r.count,
-                "nbPages"  -> r.nbPages
-              )
-            )
-          )
+          Ok(Json.toJson(UserListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
         }
     }
 
@@ -52,13 +44,13 @@ class UserController(system: ActorSystem,
     for {
       user <- jsResultToHttpResponse(body.validate[User])
       _    <- isUserAllowed(ctx, user)
-      _    <- UserService.create(Key(user.id), user).mapError { IzanamiErrors.toHttpResult }
+      _    <- UserService.create(Key(user.id), user).mapError { ApiErrors.toHttpResult }
     } yield Created(UserNoPasswordInstances.format.writes(user))
 
   }
 
   private def isUserAllowed(ctx: SecuredAuthContext[_], user: User)(implicit A: IsAllowed[User]): IO[Result, Unit] =
-    IsAllowed[User].isAllowed(user, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+    IsAllowed[User].isAllowed(user, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
   def get(id: String): Action[AnyContent] = AuthAction.asyncZio[UserContext] { _ =>
     import UserNoPasswordInstances._
@@ -75,7 +67,7 @@ class UserController(system: ActorSystem,
     for {
       user <- jsResultToHttpResponse(userOrError)
       _    <- isUserAllowed(ctx, user)
-      _    <- UserService.update(Key(id), Key(user.id), user).mapError { IzanamiErrors.toHttpResult }
+      _    <- UserService.update(Key(id), Key(user.id), user).mapError { ApiErrors.toHttpResult }
     } yield Ok(UserNoPasswordInstances.format.writes(user))
   }
 
@@ -87,7 +79,7 @@ class UserController(system: ActorSystem,
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
       _         <- isUserAllowed(ctx, user)
       updated   <- jsResultToHttpResponse(Patch.patch(ctx.request.body, user))
-      _         <- UserService.update(key, Key(user.id), updated).mapError { IzanamiErrors.toHttpResult }
+      _         <- UserService.update(key, Key(user.id), updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(UserNoPasswordInstances.format.writes(updated))
   }
 
@@ -98,7 +90,7 @@ class UserController(system: ActorSystem,
       mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
       _         <- isUserAllowed(ctx, user)
-      _         <- UserService.delete(key).mapError { IzanamiErrors.toHttpResult }
+      _         <- UserService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(UserNoPasswordInstances.format.writes(user))
   }
 
@@ -107,7 +99,7 @@ class UserController(system: ActorSystem,
       val allPatterns = ctx.authorizedPatterns :+ patterns
       UserService
         .deleteAll(allPatterns)
-        .mapError { IzanamiErrors.toHttpResult }
+        .mapError { ApiErrors.toHttpResult }
         .map { _ =>
           Ok
         }

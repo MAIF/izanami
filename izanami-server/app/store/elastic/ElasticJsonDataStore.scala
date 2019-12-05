@@ -14,12 +14,11 @@ import env.{DbDomainConfig, ElasticConfig}
 import libs.logs.IzanamiLogger
 import libs.logs.Logger
 import play.api.libs.json._
+
 import scala.concurrent.ExecutionContext
 import store._
 import store.elastic.ElasticJsonDataStore.EsDocument
-import store.Result.IzanamiErrors
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.{DataShouldExists, DataShouldNotExists, IzanamiErrors}
 
 object ElasticJsonDataStore {
   def apply(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
@@ -45,6 +44,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
 
   import zio._
   import store.elastic.ElasticJsonDataStore.EsDocument._
+  import IzanamiErrors._
 
   private implicit val mat: Materializer = ActorMaterializer()
 
@@ -99,7 +99,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
           }
       }
       .catchAll {
-        case EsException(_, 409, _) => IO.fail(DataShouldNotExists(id))
+        case EsException(_, 409, _) => IO.fail(DataShouldNotExists(id).toErrors)
       }
 
   private def genUpdate(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
@@ -107,7 +107,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
       // format: off
       for {
         mayBe <- getById(id).refineToOrDie[IzanamiErrors]
-        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- IO.fromFuture { implicit ec => index.index[EsDocument](EsDocument(id, data),
                                                                         id = Some(id.key),
                                                                         refresh = elasticConfig.automaticRefresh)
@@ -119,7 +119,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
     } else {
       for {
         mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
-        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- delete(oldId)
         _     <- create(id, data)
       } yield data
@@ -128,7 +128,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
     for {
       mayBe <- getById(id).refineToOrDie[IzanamiErrors]
-      value <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(id))
+      value <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(id).toErrors)
       _ <- IO
             .fromFuture(implicit ec => index.delete(id.key, refresh = elasticConfig.automaticRefresh))
             .refineToOrDie[IzanamiErrors]

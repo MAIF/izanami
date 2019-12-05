@@ -19,7 +19,7 @@ import play.api.libs.json.Json
 import scala.util.control.NonFatal
 import domains.events.EventLogger._
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.{IO, Task}
 
 import scala.collection.mutable

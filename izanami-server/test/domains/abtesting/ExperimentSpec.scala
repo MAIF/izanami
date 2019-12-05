@@ -6,15 +6,15 @@ import java.time.temporal.{ChronoField, ChronoUnit}
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
-import domains.Key
+import domains.{errors, AuthInfo, Key}
 import domains.abtesting.impl.ExperimentVariantEventInMemoryService
 import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
-import store.Result.{AppErrors, IzanamiErrors}
-import store.{JsonDataStore, Result}
+import domains.errors.{IzanamiErrors, ValidationError}
+import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
@@ -24,14 +24,14 @@ import zio.{DefaultRuntime, RIO, ZIO}
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Random
-import domains.AuthInfo
-import store.Result.IdMustBeTheSame
+import domains.errors.IdMustBeTheSame
 
 class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
   import ExperimentInstances._
 
   implicit val actorSystem: ActorSystem = ActorSystem()
-  implicit val runtime = new DefaultRuntime {}
+  implicit val runtime                  = new DefaultRuntime {}
+  import IzanamiErrors._
 
   "Experiment" must {
 
@@ -340,7 +340,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         )
       )
 
-      Experiment.validate(experiment) mustBe Left(AppErrors.error("error.traffic.not.cent.percent"))
+      Experiment.validate(experiment) mustBe Left(ValidationError.error("error.traffic.not.cent.percent").toErrors)
     }
 
     "Validation fail if campaign date are wrong" in {
@@ -367,7 +367,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         )
       )
 
-      Experiment.validate(experiment) mustBe Left(AppErrors.error("error.campaign.date.invalid"))
+      Experiment.validate(experiment) mustBe Left(ValidationError.error("error.campaign.date.invalid").toErrors)
     }
 
     "create a experiment" in {
@@ -428,7 +428,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       )
       val value: Either[IzanamiErrors, Experiment] =
         runSync(context, ExperimentService.create(experiment.id, experiment).either)
-      value mustBe Left(AppErrors.error("error.traffic.not.cent.percent"))
+      value mustBe Left(ValidationError.error("error.traffic.not.cent.percent").toErrors)
 
       store.get(experiment.id) mustBe None
       events must have size 0
@@ -460,7 +460,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val oldId = Key("oldtest")
       val value: Either[IzanamiErrors, Experiment] =
         runSync(context, ExperimentService.update(oldId, experiment.id, experiment).either)
-      value mustBe Left(IdMustBeTheSame(oldId, experiment.id))
+      value mustBe Left(IdMustBeTheSame(oldId, experiment.id).toErrors)
 
       store.get(experiment.id) mustBe None
       events must have size 0
@@ -674,7 +674,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
   }
 
   private def variantFor(context: ExperimentContext, id: Key, clientId: String): Variant = {
-    val r: Either[Result.IzanamiErrors, Variant] = runSync(context, ExperimentService.variantFor(id, clientId).either)
+    val r: Either[errors.IzanamiErrors, Variant] = runSync(context, ExperimentService.variantFor(id, clientId).either)
     r.toOption.get
   }
 

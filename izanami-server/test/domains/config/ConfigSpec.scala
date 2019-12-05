@@ -12,10 +12,10 @@ import libs.logs.ProdLogger
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
 import play.api.libs.json.Json
+
 import scala.collection.mutable
 import store.memory.InMemoryJsonDataStore
-import store.Result.DataShouldExists
-import store.Result.IdMustBeTheSame
+import domains.errors.{DataShouldExists, IdMustBeTheSame, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import akka.actor.ActorSystem
@@ -26,12 +26,13 @@ import zio.Task
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
 import domains.ImportResult
-import store.Result.AppErrors
 
 class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
   implicit val system = ActorSystem("test")
   implicit val mat    = ActorMaterializer()
+
+  import domains.errors.IzanamiErrors._
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
@@ -62,7 +63,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val config = Config(Key("other"), Json.obj("key" -> "value"))
 
       val created = run(ctx)(ConfigService.create(id, config).either)
-      created must be(Left(IdMustBeTheSame(config.id, id)))
+      created must be(Left(IdMustBeTheSame(config.id, id).toErrors))
       ctx.configDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -73,7 +74,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val config = Config(id, Json.obj("key" -> "value"))
 
       val updated = run(ctx)(ConfigService.update(id, id, config).either)
-      updated must be(Left(DataShouldExists(id)))
+      updated must be(Left(DataShouldExists(id).toErrors))
     }
 
     "update" in {
@@ -150,7 +151,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val config = Config(id, Json.obj("key" -> "value"))
 
       val deleted = run(ctx)(ConfigService.delete(id).either)
-      deleted must be(Left(DataShouldExists(id)))
+      deleted must be(Left(DataShouldExists(id).toErrors))
       ctx.configDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -185,7 +186,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

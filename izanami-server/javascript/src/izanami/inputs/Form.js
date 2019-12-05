@@ -221,6 +221,7 @@ export class Form extends Component {
             >
               <KeyInput
                 disabled={disabled}
+                copyButton={true}
                 value={this.getValue(name, "")}
                 {...props}
                 onChange={v => this.changeValue(name, v)}

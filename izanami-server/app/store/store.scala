@@ -15,7 +15,7 @@ import libs.logs.{IzanamiLogger, LoggerModule}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.mvc.Results
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.cassandra.CassandraJsonDataStore
 import store.elastic.ElasticJsonDataStore
 import store.leveldb.LevelDBJsonDataStore
@@ -25,103 +25,6 @@ import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
 import store.dynamo.DynamoJsonDataStore
 import store.postgresql.PostgresqlJsonDataStore
-
-object Result {
-
-  case class ErrorMessage(message: String, args: String*)
-
-  object ErrorMessage {
-    implicit val format = Json.format[ErrorMessage]
-  }
-
-  object IzanamiErrors {
-    def toHttpResult(error: IzanamiErrors) = error match {
-      case err: AppErrors => Results.BadRequest(err.toJson)
-      case IdMustBeTheSame(fromObject, inParam) =>
-        Results.BadRequest(AppErrors.error("error.id.not.the.same", inParam.key, inParam.key).toJson)
-      case DataShouldExists(id)    => Results.BadRequest(AppErrors.error("error.data.missing", id.key).toJson)
-      case DataShouldNotExists(id) => Results.BadRequest(AppErrors.error("error.data.exists", id.key).toJson)
-    }
-  }
-
-  sealed trait IzanamiErrors
-  case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiErrors
-  case class DataShouldExists(id: Key)                      extends IzanamiErrors
-  case class DataShouldNotExists(id: Key)                   extends IzanamiErrors
-  case class AppErrors(errors: Seq[ErrorMessage] = Seq.empty, fieldErrors: Map[String, List[ErrorMessage]] = Map.empty)
-      extends IzanamiErrors {
-    def ++(s: AppErrors): AppErrors =
-      this.copy(errors = errors ++ s.errors, fieldErrors = fieldErrors ++ s.fieldErrors)
-    def addFieldError(field: String, errors: List[ErrorMessage]): AppErrors =
-      fieldErrors.get(field) match {
-        case Some(err) =>
-          AppErrors(errors, fieldErrors + (field -> (err ++ errors)))
-        case None => AppErrors(errors, fieldErrors + (field -> errors))
-      }
-
-    def toJson: JsValue =
-      AppErrors.format.writes(this)
-
-    def isEmpty: Boolean = errors.isEmpty && fieldErrors.isEmpty
-  }
-
-  object AppErrors {
-    import cats.syntax.semigroup._
-    import cats.instances.all._
-
-    implicit val format = Json.format[AppErrors]
-
-    def fromJsError(jsError: Seq[(JsPath, Seq[JsonValidationError])]): AppErrors = {
-      val fieldErrors = jsError.map {
-        case (k, v) =>
-          (k.toJsonString, v.map(err => ErrorMessage(err.message, err.args.map(_.toString): _*)).toList)
-      }.toMap
-      AppErrors(fieldErrors = fieldErrors)
-    }
-
-    def error(message: String): AppErrors =
-      AppErrors(Seq(ErrorMessage(message)))
-
-    def error(message: String, args: String*): AppErrors =
-      AppErrors(Seq(ErrorMessage(message, args: _*)))
-
-    private def optionCombine[A: Semigroup](a: A, opt: Option[A]): A =
-      opt.map(a |+| _).getOrElse(a)
-
-    private def mergeMap[K, V: Semigroup](lhs: Map[K, V], rhs: Map[K, V]): Map[K, V] =
-      lhs.foldLeft(rhs) {
-        case (acc, (k, v)) => acc.updated(k, optionCombine(v, acc.get(k)))
-      }
-
-    implicit val monoid: Monoid[AppErrors] = new Monoid[AppErrors] {
-      override def empty = AppErrors()
-      override def combine(x: AppErrors, y: AppErrors) = {
-        val errors      = x.errors ++ y.errors
-        val fieldErrors = mergeMap(x.fieldErrors, y.fieldErrors)
-        AppErrors(errors, fieldErrors)
-      }
-    }
-  }
-
-  type ValidatedResult[+E] = Validated[AppErrors, E]
-  type Result[+E]          = Either[IzanamiErrors, E]
-  def ok[E](event: E): Result[E]                = Right(event)
-  def error[E](error: IzanamiErrors): Result[E] = Left(error)
-  def error[E](messages: String*): Result[E] =
-    Left(AppErrors(messages.map(m => ErrorMessage(m))))
-  def errors[E](errs: ErrorMessage*): Result[E] = Left(AppErrors(errs))
-  def fieldError[E](field: String, errs: ErrorMessage*): Result[E] =
-    Left(AppErrors(fieldErrors = Map(field -> errs.toList)))
-
-  implicit class ResultOps[E](r: Result[E]) {
-    def collect[E2](p: PartialFunction[E, E2]): Result[E2] =
-      r match {
-        case Right(elt) if p.isDefinedAt(elt) => Result.ok(p(elt))
-        case Right(_)                         => Result.error("error.result.filtered")
-        case Left(e)                          => Result.error(e)
-      }
-  }
-}
 
 trait PagingResult[Data] {
   def results: Seq[Data]

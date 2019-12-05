@@ -2,20 +2,21 @@ package domains.feature
 
 import java.time.LocalDateTime
 
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
 import domains.events.{EventStore, EventStoreContext}
 import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureInstances.isActive
 import domains.script.{GlobalScriptContext, RunnableScriptContext, Script, ScriptCacheModule}
-import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
+import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result._
+import domains.errors.{IzanamiErrors, _}
 import store._
 import zio.{RIO, ZIO}
 import java.time.LocalTime
 
+import cats.data.NonEmptyList
 import metrics.MetricsService
 
 sealed trait Strategy
@@ -120,6 +121,7 @@ trait FeatureDataStoreModule {
 
 trait FeatureContext
     extends FeatureDataStoreModule
+    with AkkaModule
     with LoggerModule
     with DataStoreContext
     with EventStoreContext
@@ -133,17 +135,17 @@ object FeatureDataStore extends JsonDataStoreHelper[FeatureContext] {
 }
 
 object FeatureService {
-  import cats.implicits._
   import zio._
   import zio.interop.catz._
   import cats.implicits._
   import libs.ziohelper.JsResults._
   import FeatureInstances._
   import domains.events.Events._
+  import IzanamiErrors._
 
   def create(id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
     for {
-      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id)))
+      _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
       created  <- FeatureDataStore.create(id, format.writes(data))
       feature  <- jsResultToError(created.validate[Feature])
       authInfo <- AuthInfo.authInfo
@@ -154,7 +156,7 @@ object FeatureService {
   def update(oldId: FeatureKey, id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
     for {
       mayBeFeature <- getById(oldId).refineToOrDie[IzanamiErrors]
-      oldValue     <- ZIO.fromOption(mayBeFeature).mapError(_ => DataShouldExists(oldId))
+      oldValue     <- ZIO.fromOption(mayBeFeature).mapError(_ => DataShouldExists(oldId).toErrors)
       updated      <- FeatureDataStore.update(oldId, id, format.writes(data))
       feature      <- jsResultToError(updated.validate[Feature])
       authInfo     <- AuthInfo.authInfo
@@ -190,7 +192,7 @@ object FeatureService {
                        (f, active)
                      }
                      .catchSome {
-                       case _: AppErrors => IO.succeed((f, false))
+                       case _: IzanamiErrors => IO.succeed((f, false))
                      }
                  }
     } yield result
@@ -215,7 +217,7 @@ object FeatureService {
                                 (f, active)
                               }
                               .catchSome {
-                                case _: AppErrors => IO.succeed((f, false))
+                                case _: IzanamiErrors => IO.succeed((f, false))
                               }
                           }
     } yield DefaultPagingResult(pagesWithActive, pages.page, pages.pageSize, pages.count)
@@ -226,6 +228,23 @@ object FeatureService {
         case (k, v) => (k, v.validate[Feature].get)
       }
     }
+
+  def findAllByQuery(query: Query): RIO[FeatureContext, List[(FeatureKey, Feature)]] =
+    FeatureDataStore
+      .findByQuery(query)
+      .map { s =>
+        s.map {
+          case (k, v) => (k, v.validate[Feature].get)
+        }
+      }
+      .flatMap { source =>
+        ZIO.accessM[FeatureContext] { ctx =>
+          ZIO.fromFuture { _ =>
+            source.runWith(Sink.seq)(ctx.mat)
+          }
+        }
+      }
+      .map { _.toList }
 
   def findByQueryActive(context: JsObject,
                         query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
@@ -265,6 +284,44 @@ object FeatureService {
       s    <- findByQuery(query)
       flow <- tree(flat)(context)
     } yield s.map(_._2).via(flow)
+
+  def copyNode(from: Key, to: Key, default: Boolean): ZIO[FeatureContext, IzanamiErrors, List[Feature]] = {
+    import zio.interop.catz._
+    import cats.implicits._
+    import IzanamiErrors._
+    for {
+      _        <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
+      values   <- findAllByQuery(Query.oneOf(from.key, (from / "*").key)).refineToOrDie[IzanamiErrors]
+      features <- values.parTraverse { case (_, v) => copyOne(from, to, v, default) }.mapError(_.reduce)
+    } yield features
+  }
+
+  private def copyOne(from: Key,
+                      to: Key,
+                      feature: Feature,
+                      default: Boolean): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
+    val newId            = to / feature.id.drop(from.key)
+    val featureToCreated = copyFeature(newId, feature, default)
+    FeatureService
+      .create(newId, featureToCreated)
+      .catchSome {
+        case NonEmptyList(DataShouldNotExists(_), Nil) => IO.succeed(featureToCreated)
+      }
+      .mapError(NonEmptyList.one)
+  }
+
+  def copyFeature(id: FeatureKey, feature: Feature, default: Boolean): Feature = feature match {
+    case f: DefaultFeature      => f.copy(id = id, enabled = default)
+    case f: GlobalScriptFeature => f.copy(id = id, enabled = default)
+    case f: ScriptFeature       => f.copy(id = id, enabled = default)
+    case f: DateRangeFeature    => f.copy(id = id, enabled = default)
+    case f: ReleaseDateFeature  => f.copy(id = id, enabled = default)
+    case f: HourRangeFeature    => f.copy(id = id, enabled = default)
+    case f: PercentageFeature   => f.copy(id = id, enabled = default)
+  }
+
+  private def validateKey(key: Key): Either[IzanamiErrors, Key] =
+    Either.cond(!key.segments.exists(_ === "*"), key, IzanamiErrors(InvalidCopyKey(key)))
 
   def importData(
       strategy: ImportStrategy = ImportStrategy.Keep

@@ -4,7 +4,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.{ActorMaterializer, Materializer}
-import domains.GlobalContext
+import domains.{GlobalContext, errors}
 import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigContext, ConfigService}
 import domains.events.Events.IzanamiEvent
@@ -14,10 +14,10 @@ import patches.PatchInstance
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
-import store.Result.AppErrors
-import store.{JsonDataStore, Query, Result}
+import domains.errors.ValidationError
+import store.{JsonDataStore, Query}
 import store.memorywithdb.CacheEvent
-import zio.{Task, RIO, ZIO}
+import zio.{RIO, Task, ZIO}
 
 private[impl] case class OldConfig(id: ConfigKey, value: String)
 
@@ -52,8 +52,8 @@ class ConfigsPatch(
       res     <- Task.fromFuture { _ =>
                     source.map(_._2)
                       .mapAsync(2) { l =>
-                        val update: ZIO[ConfigContext, Result.IzanamiErrors, Product with Serializable] = OldConfig.format.reads(l).fold(
-                          { e => ZIO.succeed(Result.error[Config](AppErrors.fromJsError(e.toSeq.map(t => t.copy(_2 = t._2.toSeq))))) },
+                        val update: ZIO[ConfigContext, errors.IzanamiErrors, Config] = OldConfig.format.reads(l).fold(
+                          { e => ZIO.fromEither(errors.Result.error[Config](ValidationError.fromJsError(e.toSeq.map(t => t.copy(_2 = t._2.toSeq))))) },
                           { config => ConfigService.update(config.id, config.id, Config(config.id, Json.parse(config.value))) }
                         )
                         runtime.unsafeRunToFuture(update.either)

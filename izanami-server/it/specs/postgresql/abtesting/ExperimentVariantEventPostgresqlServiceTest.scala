@@ -9,8 +9,10 @@ import test.FakeApplicationLifecycle
 import zio.Task
 import domains.abtesting.impl.ExperimentVariantEventPostgresqlService
 
-class ExperimentVariantEventPostgresqlServiceTest extends AbstractExperimentServiceTest("Postgresql") with BeforeAndAfter with BeforeAndAfterAll {
-
+class ExperimentVariantEventPostgresqlServiceTest
+    extends AbstractExperimentServiceTest("Postgresql")
+    with BeforeAndAfter
+    with BeforeAndAfterAll {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
   import zio.interop.catz._
@@ -18,15 +20,21 @@ class ExperimentVariantEventPostgresqlServiceTest extends AbstractExperimentServ
   private val pgConfig = PostgresqlConfig(
     "org.postgresql.Driver",
     "jdbc:postgresql://localhost:5556/izanami",
-    "izanami", "izanami", 32, None
+    "izanami",
+    "izanami",
+    32,
+    None
   )
 
   private def client: Option[PostgresqlClient] = PostgresqlClient.postgresqlClient(
-    system, new FakeApplicationLifecycle(), Some(pgConfig)
+    system,
+    new FakeApplicationLifecycle(),
+    Some(pgConfig)
   )
 
   override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventPostgresqlService(
-    pgConfig, client.get, DbDomainConfig(env.Postgresql, DbDomainConfigDetails(name, None), None)
+    client.get,
+    DbDomainConfig(env.Postgresql, DbDomainConfigDetails(name, None), None)
   )
 
 }
