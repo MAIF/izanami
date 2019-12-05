@@ -5,7 +5,7 @@ import libs.crypto.Sha
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.JsValue
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
@@ -21,12 +21,12 @@ import akka.testkit.TestKit
 import domains.apikey.Apikey
 import domains.events.Events
 import domains.events.Events._
-import store.Result.IdMustBeTheSame
-import store.Result.DataShouldExists
+import domains.errors.IdMustBeTheSame
+import domains.errors.DataShouldExists
 import akka.stream.scaladsl.{Sink, Source}
 import play.api.libs.json.Json
 import domains.ImportResult
-import store.Result.ValidationError
+import domains.errors.ValidationError
 
 class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -243,7 +243,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = ValidationError.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

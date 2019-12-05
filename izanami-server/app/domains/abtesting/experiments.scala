@@ -10,8 +10,8 @@ import domains.events.{EventStore, EventStoreContext}
 import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.{IzanamiErrors, ValidatedResult, ValidationError}
-import store.{Result, _}
+import domains.errors.{IzanamiErrors, ValidatedResult, ValidationError}
+import store.{_}
 import cats.implicits._
 import cats.data.Validated._
 import libs.ziohelper.JsResults.jsResultToError
@@ -74,7 +74,7 @@ object Experiment {
   }
 
   def validate(experiment: Experiment): Either[IzanamiErrors, Experiment] = {
-    import Result._
+    import domains.errors._
     val validations: ValidatedResult[Experiment] = (
       validateTraffic(experiment),
       validateCampaign(experiment)
@@ -163,7 +163,7 @@ object ExperimentService {
   import Experiment._
   import ExperimentInstances._
   import domains.events.Events.{ExperimentCreated, ExperimentDeleted, ExperimentUpdated}
-  import store.Result._
+  import domains.errors._
   import IzanamiErrors._
 
   def create(id: ExperimentKey, data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {

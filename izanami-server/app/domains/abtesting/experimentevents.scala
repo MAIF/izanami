@@ -38,7 +38,7 @@ import libs.database.Drivers
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
-import store.Result.{ErrorMessage, IzanamiErrors}
+import domains.errors.{ErrorMessage, IzanamiErrors}
 import zio.blocking.Blocking
 import zio.{RIO, Task, ZIO}
 

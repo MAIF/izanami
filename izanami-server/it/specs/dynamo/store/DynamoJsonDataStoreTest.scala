@@ -16,16 +16,15 @@ import scala.util.Try
 import store.dynamo.DynamoJsonDataStore
 import store.dynamo.DynamoClient
 
-class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb")  with BeforeAndAfter with BeforeAndAfterAll {
+class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb") with BeforeAndAfter with BeforeAndAfterAll {
 
-  private val region = "eu-west-1"
-  private val host = "127.0.0.1"
-  private val port = 8001
+  private val region    = "eu-west-1"
+  private val host      = "127.0.0.1"
+  private val port      = 8001
   private val accessKey = "dummy-access-key"
   private val secretKey = "dummy-secretKey-key"
 
-  override def akkaConfig: Option[Config] = Some(ConfigFactory.parseString(
-    s"""
+  override def akkaConfig: Option[Config] = Some(ConfigFactory.parseString(s"""
       |akka.stream.alpakka.dynamodb {
       |  region = "eu-west-1"
       |  host = $host
@@ -40,15 +39,23 @@ class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb")  wit
     """.stripMargin))
 
   def getClient(name: String) = {
-    val Some(client) = DynamoClient.dynamoClient(Some(
-      DynamoConfig(name, name, region, host, port, tls = false, accessKey = Some(accessKey), secretKey = Some(secretKey))
-    ))
+    val Some(client) = DynamoClient.dynamoClient(
+      Some(
+        DynamoConfig(name,
+                     name,
+                     region,
+                     host,
+                     port,
+                     tls = false,
+                     accessKey = Some(accessKey),
+                     secretKey = Some(secretKey))
+      )
+    )
     client
   }
 
   override def dataStore(name: String): DynamoJsonDataStore =
     DynamoJsonDataStore(getClient(name), name, "test")
-
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
     super.before(fun)
@@ -61,7 +68,7 @@ class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb")  wit
   }
 
   private def deleteAll = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     val settings = DynamoSettings(region, host)
       .withPort(port)
@@ -72,7 +79,8 @@ class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb")  wit
     val client = AlpakkaClient(settings)
 
     Try {
-      DynamoDb.source(new ListTablesRequest())
+      DynamoDb
+        .source(new ListTablesRequest())
         .withAttributes(DynamoAttributes.client(client))
         .mapConcat(_.getTableNames.asScala.toList)
         .flatMapMerge(2, { table =>

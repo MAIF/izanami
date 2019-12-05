@@ -32,7 +32,7 @@ import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 import store.{EmptyPattern, JsonDataStore, Pattern, StringPattern}
 import store.memorywithdb.InMemoryWithDbStore
-import store.Result._
+import errors._
 import zio.{RIO, Task, ZIO}
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -277,14 +277,12 @@ object Import {
     }
 }
 
-case class ImportResult(success: Int = 0, errors: ValidationError = ValidationError()) {
+case class ImportResult(success: Int = 0, errors: List[IzanamiError] = List.empty) {
   def isError = !errors.isEmpty
 }
 
 object ImportResult {
   import cats.syntax.semigroup._
-
-  implicit val format = Json.format[ImportResult]
 
   implicit val monoid = new Monoid[ImportResult] {
     override def empty = ImportResult()
@@ -295,25 +293,12 @@ object ImportResult {
   }
 
   def error(key: String, arg: String*) =
-    ImportResult(errors = ValidationError(errors = Seq(ErrorMessage(key, arg: _*))))
-  def error(e: ErrorMessage) = ImportResult(errors = ValidationError(errors = Seq(e)))
-
-//  def fromResult[T](r: Result[T]): ImportResult = r match {
-//    case Right(_)  => ImportResult(success = 1)
-//    case Left(err) => ImportResult(errors = err)
-//  }
+    ImportResult(errors = List(ValidationError(errors = Seq(ErrorMessage(key, arg: _*)))))
+  def error(e: ErrorMessage) = ImportResult(errors = List(ValidationError(errors = Seq(e))))
 
   def fromResult[T](r: Either[IzanamiErrors, T]): ImportResult = r match {
-    case Right(_) => ImportResult(success = 1)
-    case Left(errors) =>
-      errors.foldMap {
-        case err: ValidationError => ImportResult(errors = err)
-        case InvalidCopyKey(id)   => ImportResult(errors = ValidationError.error("error.id.copy.invalid", id.key))
-        case IdMustBeTheSame(_, inParam) =>
-          ImportResult(errors = ValidationError.error("error.id.not.the.same", inParam.key, inParam.key))
-        case DataShouldExists(id)    => ImportResult(errors = ValidationError.error("error.data.missing", id.key))
-        case DataShouldNotExists(id) => ImportResult(errors = ValidationError.error("error.data.exists", id.key))
-      }
+    case Right(_)     => ImportResult(success = 1)
+    case Left(errors) => ImportResult(errors = errors.toList)
   }
 
 }

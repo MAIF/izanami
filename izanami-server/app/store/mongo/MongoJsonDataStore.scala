@@ -16,13 +16,13 @@ import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference, WriteConcern}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
 
 import scala.concurrent.{ExecutionContext, Future}
 import libs.logs.Logger
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 case class MongoDoc(id: Key, data: JsValue)
 

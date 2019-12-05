@@ -43,7 +43,7 @@ object ApikeyService {
   import Apikey._
   import ApikeyInstances._
   import domains.events.Events._
-  import store.Result._
+  import errors._
   import IzanamiErrors._
 
   def create(id: ApikeyKey, data: Apikey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =

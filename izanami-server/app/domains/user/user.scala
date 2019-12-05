@@ -12,7 +12,7 @@ import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import store._
 import domains.AuthInfoModule
-import store.Result.IzanamiErrors
+import errors.IzanamiErrors
 
 import scala.util.Try
 
@@ -103,7 +103,7 @@ object UserService {
   import libs.streams.syntax._
   import UserInstances._
   import domains.events.Events._
-  import store.Result._
+  import errors._
   import IzanamiErrors._
 
   def create(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =

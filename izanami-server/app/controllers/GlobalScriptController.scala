@@ -5,7 +5,6 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import controllers.dto.meta.Metadata
-import controllers.dto.script
 import controllers.dto.script.GlobalScriptListResult
 import domains.script._
 import domains.{Import, ImportData, IsAllowed, Key}
@@ -15,7 +14,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.{IzanamiErrors, ValidationError}
+import controllers.dto.error.ApiErrors
 import zio.{IO, Runtime, ZIO}
 
 class GlobalScriptController(
@@ -49,8 +48,7 @@ class GlobalScriptController(
               Ok(
                 GlobalScriptListResult.format
                   .writes(
-                    script.GlobalScriptListResult(r.results.toList,
-                                                  Metadata(page, nbElementPerPage, r.count, r.nbPages))
+                    GlobalScriptListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages))
                   )
               )
           }
@@ -63,7 +61,7 @@ class GlobalScriptController(
     for {
       script <- jsResultToHttpResponse(body.validate[GlobalScript])
       _      <- isScriptAllowed(ctx, script)
-      _      <- GlobalScriptService.create(script.id, script).mapError { IzanamiErrors.toHttpResult }
+      _      <- GlobalScriptService.create(script.id, script).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(script))
   }
 
@@ -71,7 +69,7 @@ class GlobalScriptController(
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
+      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       mayBeScript  <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       globalScript <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
     } yield Ok(Json.toJson(globalScript))
@@ -84,7 +82,7 @@ class GlobalScriptController(
       for {
         script <- jsResultToHttpResponse(body.validate[GlobalScript])
         _      <- isScriptAllowed(ctx, script)
-        _      <- GlobalScriptService.update(Key(id), script.id, script).mapError { IzanamiErrors.toHttpResult }
+        _      <- GlobalScriptService.update(Key(id), script.id, script).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(script))
     }
 
@@ -98,13 +96,13 @@ class GlobalScriptController(
         _           <- isScriptAllowed(ctx, current)
         body        = ctx.request.body
         updated     <- jsResultToHttpResponse(Patch.patch(body, current))
-        _           <- GlobalScriptService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
+        _           <- GlobalScriptService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(updated))
     }
 
   private def isScriptAllowed(ctx: SecuredAuthContext[_],
                               current: GlobalScript)(implicit A: IsAllowed[GlobalScript]): IO[Result, Unit] =
-    IsAllowed[GlobalScript].isAllowed(current, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
+    IsAllowed[GlobalScript].isAllowed(current, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[GlobalScriptContext] { ctx =>
     import GlobalScriptInstances._
@@ -113,7 +111,7 @@ class GlobalScriptController(
       mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       script      <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
       _           <- isScriptAllowed(ctx, script)
-      _           <- GlobalScriptService.delete(key).mapError { IzanamiErrors.toHttpResult }
+      _           <- GlobalScriptService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(script))
   }
 
@@ -122,7 +120,7 @@ class GlobalScriptController(
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
       GlobalScriptService
         .deleteAll(query)
-        .mapError { IzanamiErrors.toHttpResult }
+        .mapError { ApiErrors.toHttpResult }
         .map(_ => Ok)
     }
 

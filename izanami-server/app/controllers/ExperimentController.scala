@@ -5,6 +5,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
+
+import controllers.dto.importresult.ImportResultDto
 import controllers.dto.abtesting.ExperimentListResult
 import controllers.dto.meta.Metadata
 import domains.abtesting.Experiment.ExperimentKey
@@ -17,7 +19,7 @@ import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import store.Result.{IzanamiErrors, ValidationError}
+import controllers.dto.error.ApiErrors
 import zio.{Runtime, Task, ZIO}
 
 class ExperimentController(system: ActorSystem,
@@ -63,7 +65,7 @@ class ExperimentController(system: ActorSystem,
               }
             }
         case _ =>
-          Task.succeed(BadRequest(Json.toJson(ValidationError.error("unknown.render.option"))))
+          Task.succeed(BadRequest(Json.toJson(ApiErrors.error("unknown.render.option"))))
       }
 
     }
@@ -92,7 +94,7 @@ class ExperimentController(system: ActorSystem,
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
       _          <- isExperimentAllowed(experiment, ctx)
-      _          <- ExperimentService.create(experiment.id, experiment).mapError { IzanamiErrors.toHttpResult }
+      _          <- ExperimentService.create(experiment.id, experiment).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(experiment))
   }
 
@@ -101,7 +103,7 @@ class ExperimentController(system: ActorSystem,
       import ExperimentInstances._
       val key = Key(id)
       for {
-        _          <- Key.isAllowed(key, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
+        _          <- Key.isAllowed(key, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
         mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
         experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))
@@ -113,7 +115,7 @@ class ExperimentController(system: ActorSystem,
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
       _          <- isExperimentAllowed(experiment, ctx)
-      _          <- ExperimentService.update(Key(id), experiment.id, experiment).mapError { IzanamiErrors.toHttpResult }
+      _          <- ExperimentService.update(Key(id), experiment.id, experiment).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(experiment))
   }
 
@@ -126,7 +128,7 @@ class ExperimentController(system: ActorSystem,
       _       <- isExperimentAllowed(current, ctx)
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, current))
-      _       <- ExperimentService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
+      _       <- ExperimentService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
   }
 
@@ -137,8 +139,10 @@ class ExperimentController(system: ActorSystem,
       mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
       experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _          <- isExperimentAllowed(experiment, ctx)
-      _          <- ExperimentService.delete(key).mapError { IzanamiErrors.toHttpResult }
-      _          <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError { IzanamiErrors.toHttpResult }
+      _          <- ExperimentService.delete(key).mapError { ApiErrors.toHttpResult }
+      _ <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError {
+            ApiErrors.toHttpResult
+          }
     } yield Ok(Json.toJson(experiment))
   }
 
@@ -167,7 +171,7 @@ class ExperimentController(system: ActorSystem,
               InternalServerError("")
             }
 
-      _ <- ExperimentService.deleteAll(query).mapError { IzanamiErrors.toHttpResult }
+      _ <- ExperimentService.deleteAll(query).mapError { ApiErrors.toHttpResult }
     } yield Ok
   }
 
@@ -177,7 +181,7 @@ class ExperimentController(system: ActorSystem,
     AuthAction.asyncZio[ExperimentContext](parse.empty) { _ =>
       import ExperimentInstances._
       for {
-        variant <- ExperimentService.variantFor(Key(experimentId), clientId).mapError { IzanamiErrors.toHttpResult }
+        variant <- ExperimentService.variantFor(Key(experimentId), clientId).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(variant))
     }
 
@@ -187,7 +191,7 @@ class ExperimentController(system: ActorSystem,
 
       val experimentKey = Key(experimentId)
       for {
-        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { IzanamiErrors.toHttpResult }
+        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { ApiErrors.toHttpResult }
         key = ExperimentVariantEventKey(experimentKey,
                                         variant.id,
                                         clientId,
@@ -200,7 +204,7 @@ class ExperimentController(system: ActorSystem,
                                                       transformation = 0,
                                                       variantId = variant.id)
         eventCreated <- ExperimentVariantEventService.create(key, variantDisplayed).mapError {
-                         IzanamiErrors.toHttpResult
+                         ApiErrors.toHttpResult
                        }
       } yield Ok(Json.toJson(eventCreated))
     }
@@ -211,7 +215,7 @@ class ExperimentController(system: ActorSystem,
       val experimentKey = Key(experimentId)
 
       for {
-        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { IzanamiErrors.toHttpResult }
+        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { ApiErrors.toHttpResult }
         key = ExperimentVariantEventKey(experimentKey,
                                         variant.id,
                                         clientId,
@@ -223,7 +227,7 @@ class ExperimentController(system: ActorSystem,
                                           variant,
                                           transformation = 0,
                                           variantId = variant.id)
-        eventCreated <- ExperimentVariantEventService.create(key, variantWon).mapError { IzanamiErrors.toHttpResult }
+        eventCreated <- ExperimentVariantEventService.create(key, variantWon).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(Json.toJson(eventCreated)))
     }
 
@@ -233,7 +237,7 @@ class ExperimentController(system: ActorSystem,
       val experimentKey = Key(experimentId)
       ExperimentService
         .experimentResult(experimentKey)
-        .mapError { IzanamiErrors.toHttpResult }
+        .mapError { ApiErrors.toHttpResult }
         .map { r =>
           Ok(Json.toJson(r))
         }
@@ -300,8 +304,8 @@ class ExperimentController(system: ActorSystem,
                 ctx.body
                   .via(flow)
                   .map {
-                    case r if r.isError => BadRequest(Json.toJson(r))
-                    case r              => Ok(Json.toJson(r))
+                    case r if r.isError => BadRequest(Json.toJson(ImportResultDto.fromImportResult(r)))
+                    case r              => Ok(Json.toJson(ImportResultDto.fromImportResult(r)))
                   }
                   .recover {
                     case e: Throwable =>
@@ -315,6 +319,6 @@ class ExperimentController(system: ActorSystem,
 
   private def isExperimentAllowed(experiment: Experiment,
                                   ctx: SecuredAuthContext[_])(implicit A: IsAllowed[Experiment]): zio.IO[Result, Unit] =
-    IsAllowed[Experiment].isAllowed(experiment, ctx.auth)(Forbidden(ValidationError.error("error.forbidden").toJson))
+    IsAllowed[Experiment].isAllowed(experiment, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
 }

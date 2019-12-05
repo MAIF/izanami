@@ -5,23 +5,20 @@ import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.Sink
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
-import domains.Key
+import domains.{errors, AuthInfo, Key}
 import domains.events.EventStore
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{ErrorMessage, IzanamiErrors}
+import domains.errors.{DataShouldExists, DataShouldNotExists, ErrorMessage, IzanamiErrors, Result}
 import test.TestEventStore
 import zio.internal.PlatformLive
 import zio.{DefaultRuntime, Runtime}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
-import store.Result.DataShouldNotExists
-import store.Result.DataShouldExists
 import domains.user.User
-import domains.AuthInfo
 
 abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with ScalaFutures with IntegrationPatience {
 

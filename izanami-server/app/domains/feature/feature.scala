@@ -11,7 +11,7 @@ import domains.script.{GlobalScriptContext, RunnableScriptContext, Script, Scrip
 import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.{IzanamiErrors, _}
+import domains.errors.{IzanamiErrors, _}
 import store._
 import zio.{RIO, ZIO}
 import java.time.LocalTime

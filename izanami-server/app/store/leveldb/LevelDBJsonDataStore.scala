@@ -15,15 +15,15 @@ import org.iq80.leveldb.impl.Iq80DBFactory._
 import libs.logs.{IzanamiLogger, Logger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
 import zio.blocking.Blocking.Live
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 object DbStores {
   val stores = TrieMap.empty[String, LevelDBJsonDataStore]

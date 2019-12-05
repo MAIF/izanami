@@ -3,7 +3,7 @@ package domains
 import fs2.Pipe
 import libs.logs.{Logger, LoggerModule, ProdLogger}
 import play.api.libs.json.{JsObject, JsValue, Json}
-import store.Result.IzanamiErrors
+import errors.IzanamiErrors
 import test.IzanamiSpec
 import zio.internal.PlatformLive
 import zio.{Runtime, Task}

@@ -11,7 +11,7 @@ import domains.Key
 import env.DbDomainConfig
 import libs.streams.Flows
 import play.api.libs.json.{JsValue, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
 import io.lettuce.core._
 import io.lettuce.core.api.async.RedisAsyncCommands
@@ -19,8 +19,8 @@ import io.lettuce.core.api.async.RedisAsyncCommands
 import scala.compat.java8.FutureConverters._
 import scala.jdk.CollectionConverters._
 import libs.logs.Logger
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 object RedisJsonDataStore {
   def apply(client: RedisWrapper, name: String)(implicit system: ActorSystem): RedisJsonDataStore =

@@ -8,10 +8,10 @@ import domains.events.Events.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
-import store.Result.DataShouldExists
-import store.Result.IdMustBeTheSame
+import domains.errors.DataShouldExists
+import domains.errors.IdMustBeTheSame
 
 case class Config(id: ConfigKey, value: JsValue)
 

@@ -130,10 +130,13 @@ parallelExecution in Test := false
 swaggerDomainNameSpaces := Seq(
   "domains",
   "controllers.dto.abtesting",
+  "controllers.dto.apikeys",
   "controllers.dto.config",
   "controllers.dto.script",
   "controllers.dto.user",
-  "controllers.dto.meta"
+  "controllers.dto.meta",
+//  "controllers.dto.errors",
+  "controllers.dto.importresult"
 )
 swaggerV3 := true
 

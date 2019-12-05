@@ -39,9 +39,9 @@ import domains.apikey.Apikey
 import domains.AuthorizedPattern
 import test.IzanamiSpec
 import domains.ImportResult
-import store.Result.ValidationError
-import store.Result.DataShouldExists
-import store.Result.IdMustBeTheSame
+import domains.errors.ValidationError
+import domains.errors.DataShouldExists
+import domains.errors.IdMustBeTheSame
 import play.api.Environment
 import scala.concurrent.ExecutionContext
 import play.libs.ws.WSClient
@@ -62,7 +62,7 @@ class ScriptSpec
   implicit val mat              = ActorMaterializer()
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
-  import store.Result.IzanamiErrors._
+  import domains.errors.IzanamiErrors._
 
   implicit val runtime = new DefaultRuntime {}
 
@@ -275,7 +275,7 @@ class ScriptSpec
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = ValidationError.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

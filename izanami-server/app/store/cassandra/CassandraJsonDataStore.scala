@@ -15,14 +15,14 @@ import env.{CassandraConfig, DbDomainConfig}
 import libs.streams.Flows
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.{DataStoreContext, _}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import libs.logs.Logger
 import store.DataStore.DataStoreIO
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 object CassandraJsonDataStore {
   def apply(session: Session, cassandraConfig: CassandraConfig, config: DbDomainConfig)(

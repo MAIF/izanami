@@ -6,15 +6,15 @@ import java.time.temporal.{ChronoField, ChronoUnit}
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
-import domains.Key
+import domains.{errors, AuthInfo, Key}
 import domains.abtesting.impl.ExperimentVariantEventInMemoryService
 import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
-import store.Result.{IzanamiErrors, ValidationError}
-import store.{JsonDataStore, Result}
+import domains.errors.{IzanamiErrors, ValidationError}
+import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
@@ -24,8 +24,7 @@ import zio.{DefaultRuntime, RIO, ZIO}
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Random
-import domains.AuthInfo
-import store.Result.IdMustBeTheSame
+import domains.errors.IdMustBeTheSame
 
 class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
   import ExperimentInstances._
@@ -675,7 +674,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
   }
 
   private def variantFor(context: ExperimentContext, id: Key, clientId: String): Variant = {
-    val r: Either[Result.IzanamiErrors, Variant] = runSync(context, ExperimentService.variantFor(id, clientId).either)
+    val r: Either[errors.IzanamiErrors, Variant] = runSync(context, ExperimentService.variantFor(id, clientId).either)
     r.toOption.get
   }
 

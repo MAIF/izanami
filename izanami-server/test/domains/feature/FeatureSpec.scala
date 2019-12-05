@@ -28,7 +28,7 @@ import scala.util.Random
 import store.JsonDataStore
 import store._
 import store.memory.InMemoryJsonDataStore
-import store.Result.{DataShouldExists, IdMustBeTheSame, InvalidCopyKey, IzanamiErrors, ValidationError}
+import domains.errors.{DataShouldExists, IdMustBeTheSame, InvalidCopyKey, IzanamiErrors, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import zio.{DefaultRuntime, Task}
@@ -808,7 +808,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = ValidationError.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

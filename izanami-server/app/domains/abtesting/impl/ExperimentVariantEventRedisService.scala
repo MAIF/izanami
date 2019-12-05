@@ -16,7 +16,7 @@ import env.DbDomainConfig
 import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
 import io.lettuce.core.api.async.RedisAsyncCommands
 import play.api.libs.json.Json
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.redis.RedisWrapper
 import zio.{RIO, Task, ZIO}
 

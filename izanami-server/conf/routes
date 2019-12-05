@@ -3,16 +3,13 @@
 # https://www.playframework.com/documentation/latest/ScalaRouting
 # ~~~~
 
-# An example controller showing a sample home page
+
+### NoDocs ###
 GET     /                                   controllers.HomeController.index
-
-
-
 
 #########################################################################
 #                           Configs                                     #
 #########################################################################
-
 
 ###
 #  summary: list configs
@@ -47,6 +44,13 @@ GET     /api/configs                        controllers.ConfigController.list(pa
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.config.Config'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.errors.HttpErrors'
 ###
 POST    /api/configs                        controllers.ConfigController.create()
 ###
@@ -131,7 +135,7 @@ DELETE  /api/configs/:id                    controllers.ConfigController.delete(
 ###
 GET     /api/tree/configs                   controllers.ConfigController.tree(pattern: String ?= "*")
 ###
-#  summary: Downalod Configs
+#  summary: Downlaod Configs
 #  tags:
 #    - Config Endpoints
 #  responses:
@@ -159,6 +163,10 @@ GET     /api/configs.ndjson                 controllers.ConfigController.downloa
 #  responses:
 #    200:
 #      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
 ###
 POST    /api/configs.ndjson                 controllers.ConfigController.upload(strategy: String ?= "Keep")
 ###
@@ -385,10 +393,9 @@ GET     /api/features.ndjson                controllers.FeatureController.downlo
 #    200:
 #      description: success
 #      content:
-#        application/nd-json:
+#        application/json:
 #          schema:
-#            items:
-#              $ref: '#/components/schemas/domains.feature.Feature'
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
 ###
 POST    /api/features.ndjson                controllers.FeatureController.upload(strategy: String ?= "Keep")
 ###
@@ -437,7 +444,6 @@ GET     /api/tree/features                  controllers.FeatureController.treeGe
 ###
 GET     /api/counts/features                controllers.FeatureController.count()
 
-#GlobalScript
 
 #########################################################################
 #                        GlobalScript                                   #
@@ -615,63 +621,769 @@ GET     /api/scripts.ndjson                 controllers.GlobalScriptController.d
 #    200:
 #      description: success
 #      content:
-#        application/nd-json:
+#        application/json:
 #          schema:
-#            type: object
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
 ###
 POST    /api/scripts.ndjson                 controllers.GlobalScriptController.upload(strategy: String ?= "Keep")
 
-#Experiments
+
+
+#########################################################################
+#                        Experiments                                    #
+#########################################################################
+
+###
+#  summary: list experiments
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.ExperimentListResult'
+###
 GET     /api/experiments                    controllers.ExperimentController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15, render: String ?= "flat")
+###
+#  summary: experiments as tree
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              type: object
+###
 GET     /api/tree/experiments               controllers.ExperimentController.tree(pattern: String ?= "*", clientId: String)
+###
+#  summary: create experiment
+#  tags:
+#    - Experiment Endpoints
+#  requestBody:
+#    description: Create an experiment
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.abtesting.Experiment'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.Experiment'
+###
 POST    /api/experiments                    controllers.ExperimentController.create()
+###
+#  summary: download experiments
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.Experiment'
+###
 GET     /api/experiments.ndjson             controllers.ExperimentController.downloadExperiments()
+###
+#  summary: upload experiments
+#  tags:
+#    - Experiment Endpoints
+#  requestBody:
+#    description: Create an experiment
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.abtesting.Experiment'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
+###
 POST    /api/experiments.ndjson             controllers.ExperimentController.uploadExperiments(strategy: String ?= "Keep")
+###
+#  summary: download experiments
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.ExperimentVariantEvent'
+###
 GET     /api/experiments/events.ndjson      controllers.ExperimentController.downloadEvents()
+###
+#  summary: upload experiments
+#  tags:
+#    - Experiment Endpoints
+#  requestBody:
+#    description: Create an experiment
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.abtesting.ExperimentVariantEvent'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
+###
 POST    /api/experiments/events.ndjson      controllers.ExperimentController.uploadEvents()
+###
+#  summary: delete experiments by pattern
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+###
 DELETE  /api/experiments                    controllers.ExperimentController.deleteAll(pattern: String ?= "*")
+###
+#  summary: get an experiment
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.Experiment'
+###
 GET     /api/experiments/:id                controllers.ExperimentController.get(id, clientId: Option[String])
+###
+#  summary: update an experiment
+#  tags:
+#    - Experiment Endpoints
+#  requestBody:
+#    description: Update an experiment
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.abtesting.Experiment'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.Experiment'
+###
 PUT     /api/experiments/:id                controllers.ExperimentController.update(id)
+###
+#  summary: patch an experiment
+#  tags:
+#    - Experiment Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/PatchRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.abtesting.Experiment'
+###
 PATCH   /api/experiments/:id                controllers.ExperimentController.patch(id)
+###
+#  summary: delete an experiment
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.Experiment'
+###
 DELETE  /api/experiments/:id                controllers.ExperimentController.delete(id)
+###
+#  summary: delete an experiment
+#  description: Get the variant for the client
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.Variant'
+###
 GET     /api/experiments/:id/variant        controllers.ExperimentController.getVariantForClient(id: String, clientId: String)
+###
+#  summary: mark a variant as displayed
+#  description: This variant was displayed
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.ExperimentVariantEvent'
+###
 POST    /api/experiments/:id/displayed      controllers.ExperimentController.variantDisplayed(id: String, clientId: String)
+###
+#  summary: mark a variant as won
+#  description: This variant has won
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.ExperimentVariantEvent'
+###
 POST    /api/experiments/:id/won            controllers.ExperimentController.variantWon(id: String, clientId: String)
+###
+#  summary: get the current result
+#  description: Get the current result for this campaign
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.abtesting.ExperimentResult'
+###
 GET     /api/experiments/:id/results        controllers.ExperimentController.results(id: String)
+###
+#  summary: get the count of experiments
+#  tags:
+#    - Experiment Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              type: number
+###
 GET     /api/counts/experiments             controllers.ExperimentController.count()
 
-#Webhooks
+
+
+#########################################################################
+#                           Webhooks                                    #
+#########################################################################
+
+###
+#  summary: list whebhooks
+#  tags:
+#    - Webhook Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.WebhookListResult'
+###
 GET     /api/webhooks                       controllers.WebhookController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+###
+#  summary: download webhooks
+#  tags:
+#    - Webhook Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            $ref: '#/components/schemas/domains.webhook.Webhook'
+###
 GET     /api/webhooks.ndjson                controllers.WebhookController.download()
+###
+#  summary: upload webhooks
+#  tags:
+#    - Webhook Endpoints
+#  requestBody:
+#    description: Create an experiment
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.webhook.Webhook'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
+###
 POST    /api/webhooks.ndjson                controllers.WebhookController.upload(strategy: String ?= "Keep")
+###
+#  summary: create whebhook
+#  tags:
+#    - Webhook Endpoints
+#  requestBody:
+#    description: Create a whebhook
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.webhook.Webhook'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.webhook.Webhook'
+###
 POST    /api/webhooks                       controllers.WebhookController.create()
+###
+#  summary: get a whebhook
+#  tags:
+#    - Webhook Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.webhook.Webhook'
+###
 GET     /api/webhooks/:id                   controllers.WebhookController.get(id)
+###
+#  summary: update a whebhook
+#  tags:
+#    - Webhook Endpoints
+#  requestBody:
+#    description: Update a whebhook
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.webhook.Webhook'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.webhook.Webhook'
+###
 PUT     /api/webhooks/:id                   controllers.WebhookController.update(id)
+###
+#  summary: patch a webhook
+#  tags:
+#    - Webhook Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/PatchRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.webhook.Webhook'
+###
 PATCH   /api/webhooks/:id                   controllers.WebhookController.patch(id)
+###
+#  summary: delete a whebhook
+#  tags:
+#    - Webhook Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.webhook.Webhook'
+###
 DELETE  /api/webhooks/:id                   controllers.WebhookController.delete(id)
+###
+#  summary: count whebhooks
+#  tags:
+#    - Webhook Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              type: number
+###
 GET     /api/counts/webhooks                controllers.WebhookController.count()
 
-#Users
+
+#########################################################################
+#                               User                                    #
+#########################################################################
+
+###
+#  summary: list users
+#  tags:
+#    - User Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.UserListResult'
+###
 GET     /api/users                          controllers.UserController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+###
+#  summary: download user
+#  tags:
+#    - User Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/nd-json:
+#          schema:
+#            $ref: '#/components/schemas/domains.user.User'
+###
 GET     /api/users.ndjson                   controllers.UserController.download()
+###
+#  summary: upload user
+#  tags:
+#    - User Endpoints
+#  requestBody:
+#    description: users as nd-json format
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.user.User'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
+###
 POST    /api/users.ndjson                   controllers.UserController.upload(strategy: String ?= "Keep")
+###
+#  summary: create a User
+#  tags:
+#    - User Endpoints
+#  requestBody:
+#    description: create a user
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.user.User'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.user.User'
+###
 POST    /api/users                          controllers.UserController.create()
+###
+#  summary: delete users
+#  tags:
+#    - User Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              type: object
+###
 DELETE  /api/users                          controllers.UserController.deleteAll(pattern: String ?= "*")
+###
+#  summary: get a User
+#  tags:
+#    - User Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.user.User'
+###
 GET     /api/users/:id                      controllers.UserController.get(id)
+###
+#  summary: update a User
+#  tags:
+#    - User Endpoints
+#  requestBody:
+#    description: Update a user
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.user.User'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.user.User'
+###
 PUT     /api/users/:id                      controllers.UserController.update(id)
+###
+#  summary: patch a webhook
+#  tags:
+#    - Webhook Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/PatchRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.user.User'
+###
 PATCH   /api/users/:id                      controllers.UserController.patch(id)
+###
+#  summary: delete a User
+#  tags:
+#    - User Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.user.User'
+###
 DELETE  /api/users/:id                      controllers.UserController.delete(id)
+###
+#  summary: count users
+#  tags:
+#    - User Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              type: number
+###
 GET     /api/counts/users                   controllers.UserController.count()
 
-#Apikeys
+
+#########################################################################
+#                             Apikeys                                   #
+#########################################################################
+
+###
+#  summary: list apikeys
+#  tags:
+#    - ApiKey Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/controllers.dto.ApikeyListResult'
+###
 GET     /api/apikeys                        controllers.ApikeyController.list(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+###
+#  summary: download apikeys
+#  tags:
+#    - ApiKey Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.apikey.Apikey'
+###
 GET     /api/apikeys.ndjson                 controllers.ApikeyController.download()
+###
+#  summary: upload apikeys
+#  tags:
+#    - ApiKey Endpoints
+#  requestBody:
+#    description: create an Apikey
+#    required: true
+#    content:
+#      application/nd-json:
+#        schema:
+#          $ref: '#/components/schemas/domains.apikey.Apikey'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/controllers.dto.import.ImportResultDto'
+###
 POST    /api/apikeys.ndjson                 controllers.ApikeyController.upload(strategy: String ?= "Keep")
+###
+#  summary: create an apikey
+#  tags:
+#    - ApiKey Endpoints
+#  requestBody:
+#    description: create an Apikey
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.apikey.Apikey'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.apikey.Apikey'
+###
 POST    /api/apikeys                        controllers.ApikeyController.create()
+###
+#  summary: get an apikey
+#  tags:
+#    - ApiKey Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.apikey.Apikey'
+###
 GET     /api/apikeys/:id                    controllers.ApikeyController.get(id)
+###
+#  summary: update an apikey
+#  tags:
+#    - ApiKey Endpoints
+#  requestBody:
+#    description: update an Apikey
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/domains.apikey.Apikey'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.apikey.Apikey'
+###
 PUT     /api/apikeys/:id                    controllers.ApikeyController.update(id)
+###
+#  summary: patch an apikey
+#  tags:
+#    - ApiKey Endpoints
+#  requestBody:
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          $ref: '#/components/schemas/PatchRequest'
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            $ref: '#/components/schemas/domains.apikey.Apikey'
+###
 PATCH   /api/apikeys/:id                    controllers.ApikeyController.patch(id)
+###
+#  summary: delete an apikey
+#  tags:
+#    - ApiKey Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/domains.apikey.Apikey'
+###
 DELETE  /api/apikeys/:id                    controllers.ApikeyController.delete(id)
+###
+#  summary: count apikeys
+#  tags:
+#    - ApiKey Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              type: number
+###
 GET     /api/counts/apikeys                 controllers.ApikeyController.count()
 
 
@@ -686,22 +1398,22 @@ GET     /api/_health                        controllers.HealthCheckController.ch
 POST    /api/login                          controllers.AuthController.authenticate()
 GET     /api/logout                         controllers.AuthController.logout()
 
+### NoDocs ###
 GET     /api/bo/loggers/:name/level         controllers.BackOfficeController.getLogLevel(name)
+### NoDocs ###
 PUT     /api/bo/loggers/:name/level         controllers.BackOfficeController.changeLogLevel(name, newLevel: Option[String])
+### NoDocs ###
 GET     /api/bo/loggers                     controllers.BackOfficeController.getAllLoggers()
-
-#GET     /api/swagger.json                   controllers.SwaggerController.swagger()
-#GET     /swagger/ui                         controllers.SwaggerController.swaggerUi()
 
 ### NoDocs ###
 GET   /docs/swagger-ui/*file                controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
 
-# Map static resources from the /public folder to the /assets URL path
 ### NoDocs ###
 GET     /assets/*file                       controllers.Assets.versioned(file: String)
-#GET   /assets/*file                 controllers.Assets.versioned(path="/public", file: Asset)
 
+### NoDocs ###
 GET     /login                              controllers.HomeController.login()
 GET     /metrics                            controllers.MetricController.metricsEndpoint()
 
+### NoDocs ###
 GET     /*other                             controllers.HomeController.otherRoutes(other)

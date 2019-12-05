@@ -13,7 +13,7 @@ import akka.{NotUsed}
 import domains.abtesting._
 import domains.events.EventStore
 import env.DynamoConfig
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, _}
 import domains.Key

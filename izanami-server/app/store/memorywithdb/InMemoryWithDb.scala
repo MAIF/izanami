@@ -19,7 +19,7 @@ import env.{DbDomainConfig, InMemoryWithDbConfig}
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
 import store.memory.BaseInMemoryJsonDataStore
 

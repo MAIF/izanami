@@ -21,17 +21,17 @@ import domains.events.EventStore
 import test.TestEventStore
 import domains.events.Events
 import domains.events.Events._
-import store.Result.{DataShouldExists, IdMustBeTheSame}
+import domains.errors.{DataShouldExists, IdMustBeTheSame}
 import zio._
 import akka.stream.scaladsl.{Sink, Source}
 import domains.ImportResult
-import store.Result.ValidationError
+import domains.errors.ValidationError
 
 class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
   implicit val system = ActorSystem("test")
   implicit val mat    = ActorMaterializer()
-  import store.Result.IzanamiErrors._
+  import domains.errors.IzanamiErrors._
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
@@ -208,7 +208,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = ValidationError.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

@@ -14,7 +14,7 @@ import env.WebhookConfig
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
-import store.Result.IzanamiErrors
+import errors.IzanamiErrors
 import store._
 import zio._
 
@@ -51,7 +51,7 @@ object WebhookService {
   import cats.implicits._
   import libs.streams.syntax._
   import domains.events.Events._
-  import store.Result._
+  import errors._
   import IzanamiErrors._
 
   def startHooks(wsClient: WSClient, config: WebhookConfig)(

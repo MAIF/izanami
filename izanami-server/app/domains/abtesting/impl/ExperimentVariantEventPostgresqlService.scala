@@ -8,7 +8,7 @@ import domains.abtesting._
 import domains.events.EventStore
 import doobie.util.fragment.Fragment
 import env.DbDomainConfig
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.postgresql.{PgData, PostgresqlClient}
 import cats.implicits._
 import doobie.implicits._

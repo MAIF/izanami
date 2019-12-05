@@ -18,7 +18,7 @@ import play.api.libs.json._
 import scala.concurrent.ExecutionContext
 import store._
 import store.elastic.ElasticJsonDataStore.EsDocument
-import store.Result.{DataShouldExists, DataShouldNotExists, IzanamiErrors}
+import domains.errors.{DataShouldExists, DataShouldNotExists, IzanamiErrors}
 
 object ElasticJsonDataStore {
   def apply(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(

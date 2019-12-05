@@ -7,13 +7,13 @@ import domains.events.{EventStore, EventStoreContext}
 import domains.script.Script.ScriptCache
 import libs.logs.LoggerModule
 import play.api.libs.json._
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
 import zio.blocking.Blocking
 import zio.{RIO, Task, ZIO}
 
 import scala.reflect.ClassTag
-import store.Result.{DataShouldExists, IdMustBeTheSame}
+import domains.errors.{DataShouldExists, IdMustBeTheSame}
 
 sealed trait Script
 final case class JavascriptScript(script: String) extends Script

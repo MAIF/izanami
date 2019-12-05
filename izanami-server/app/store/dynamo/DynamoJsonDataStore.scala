@@ -14,14 +14,14 @@ import env.{DbDomainConfig, DynamoConfig}
 import libs.streams.Flows
 import libs.logs.Logger
 import play.api.libs.json.JsValue
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import libs.dynamo.DynamoMapper
 import store.{DataStoreContext, DefaultPagingResult, JsonDataStore, PagingResult, Query}
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.Future
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 object DynamoJsonDataStore {
   def apply(client: AlpakkaClient, dynamoConfig: DynamoConfig, config: DbDomainConfig)(

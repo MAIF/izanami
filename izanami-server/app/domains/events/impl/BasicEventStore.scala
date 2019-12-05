@@ -9,7 +9,7 @@ import domains.events.EventLogger._
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import libs.streams.CacheableQueue
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.{IO, Task}
 
 import scala.util.Try

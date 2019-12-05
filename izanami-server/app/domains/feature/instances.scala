@@ -3,7 +3,7 @@ import java.time.{LocalDateTime, ZoneId}
 
 import domains.{AuthInfo, IsAllowed, Key}
 import domains.script._
-import store.Result.{IzanamiErrors, ValidationError}
+import domains.errors.{IzanamiErrors, ValidationError}
 import FeatureType._
 import domains.feature.Feature.FeatureKey
 import zio.ZIO

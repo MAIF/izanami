@@ -13,7 +13,7 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.collection.mutable
 import store.memory.InMemoryJsonDataStore
-import store.Result.{DataShouldExists, IdMustBeTheSame, ValidationError}
+import domains.errors.{DataShouldExists, IdMustBeTheSame, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import akka.stream.scaladsl.Source
@@ -29,7 +29,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
   implicit val system = ActorSystem("test")
   implicit val mat    = ActorMaterializer()
 
-  import store.Result.IzanamiErrors._
+  import domains.errors.IzanamiErrors._
 
   val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
 
@@ -180,7 +180,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = ValidationError.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

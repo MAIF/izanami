@@ -1,7 +1,7 @@
 package libs.ziohelper
 import cats.data.NonEmptyList
 import play.api.libs.json.{JsError, JsPath, JsResult, JsSuccess, JsonValidationError}
-import store.Result.{IzanamiErrors, ValidationError}
+import domains.errors.{IzanamiErrors, ValidationError}
 import zio._
 import libs.logs.LoggerModule
 import libs.logs.Logger
