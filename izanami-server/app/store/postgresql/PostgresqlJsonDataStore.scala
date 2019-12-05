@@ -77,7 +77,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
       _ <- dbScript.update.run
       _ <- createIndex.update.run.recover {
             case e =>
-              IzanamiLogger.error(s"Error creating gin_trgm_ops index $tableName", e)
+              IzanamiLogger.error(s"Error creating search index to $tableName, you should add the extension pg_tgrm", e)
               0
           }
     } yield ()).transact(xa).unit
