@@ -50,7 +50,7 @@ GET     /api/configs                        controllers.ConfigController.list(pa
 #        application/json:
 #          schema:
 #            items:
-#              $ref: '#/components/schemas/controllers.dto.errors.HttpErrors'
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/configs                        controllers.ConfigController.create()
 ###
@@ -86,6 +86,13 @@ GET     /api/configs/:id                    controllers.ConfigController.get(id)
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.config.Config'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PUT     /api/configs/:id                    controllers.ConfigController.update(id)
 ###
@@ -105,6 +112,13 @@ PUT     /api/configs/:id                    controllers.ConfigController.update(
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.config.Config'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PATCH   /api/configs/:id                    controllers.ConfigController.patch(id)
 ###
@@ -179,7 +193,18 @@ POST    /api/configs.ndjson                 controllers.ConfigController.upload(
 ###
 GET     /api/counts/configs                 controllers.ConfigController.count()
 
-#Configs spring
+###
+#  summary: Configs for spring config server
+#  tags:
+#    - Config Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 GET     /api/config-server/raw/:rootKey/:appName/:profile   controllers.SpringConfigController.raw(rootKey, appName, profile)
 
 
@@ -213,6 +238,13 @@ GET     /api/features                       controllers.FeatureController.list(p
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/controllers.dto.feature.FeatureListResult'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/features/_checks               controllers.FeatureController.listWithContext(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
 ###
@@ -234,6 +266,13 @@ POST    /api/features/_checks               controllers.FeatureController.listWi
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/controllers.dto.CopyResponse'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/features/_copy                 controllers.FeatureController.copyNode()
 ###
@@ -255,6 +294,13 @@ POST    /api/features/_copy                 controllers.FeatureController.copyNo
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.feature.Feature'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/features                       controllers.FeatureController.create()
 ###
@@ -266,6 +312,13 @@ POST    /api/features                       controllers.FeatureController.create
 #      description: success
 #      content:
 #        application/json:
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/features                       controllers.FeatureController.deleteAll(pattern: String ?= "*")
 ###
@@ -301,6 +354,13 @@ GET     /api/features/:id                   controllers.FeatureController.get(id
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.feature.Feature'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PUT     /api/features/:id                   controllers.FeatureController.update(id)
 ###
@@ -320,6 +380,13 @@ PUT     /api/features/:id                   controllers.FeatureController.update
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.config.Config'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PATCH   /api/features/:id                   controllers.FeatureController.patch(id)
 ###
@@ -334,6 +401,13 @@ PATCH   /api/features/:id                   controllers.FeatureController.patch(
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.feature.Feature'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/features/:id                   controllers.FeatureController.delete(id)
 ###
@@ -484,6 +558,13 @@ GET     /api/scripts                        controllers.GlobalScriptController.l
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.script.GlobalScript'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/scripts                        controllers.GlobalScriptController.create()
 
@@ -496,6 +577,13 @@ POST    /api/scripts                        controllers.GlobalScriptController.c
 #      description: success
 #      content:
 #        application/json:
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/scripts                        controllers.GlobalScriptController.deleteAll(pattern: String ?= "*")
 
@@ -575,6 +663,13 @@ PUT     /api/scripts/:id                    controllers.GlobalScriptController.u
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.script.GlobalScript'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PATCH   /api/scripts/:id                    controllers.GlobalScriptController.patch(id)
 
@@ -589,6 +684,13 @@ PATCH   /api/scripts/:id                    controllers.GlobalScriptController.p
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.script.GlobalScript'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/scripts/:id                    controllers.GlobalScriptController.delete(id)
 
@@ -680,6 +782,13 @@ GET     /api/tree/experiments               controllers.ExperimentController.tre
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.abtesting.Experiment'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/experiments                    controllers.ExperimentController.create()
 ###
@@ -757,6 +866,13 @@ POST    /api/experiments/events.ndjson      controllers.ExperimentController.upl
 #  responses:
 #    200:
 #      description: success
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/experiments                    controllers.ExperimentController.deleteAll(pattern: String ?= "*")
 ###
@@ -792,6 +908,13 @@ GET     /api/experiments/:id                controllers.ExperimentController.get
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.abtesting.Experiment'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PUT     /api/experiments/:id                controllers.ExperimentController.update(id)
 ###
@@ -811,6 +934,13 @@ PUT     /api/experiments/:id                controllers.ExperimentController.upd
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.abtesting.Experiment'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PATCH   /api/experiments/:id                controllers.ExperimentController.patch(id)
 ###
@@ -825,6 +955,13 @@ PATCH   /api/experiments/:id                controllers.ExperimentController.pat
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.abtesting.Experiment'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/experiments/:id                controllers.ExperimentController.delete(id)
 ###
@@ -855,6 +992,13 @@ GET     /api/experiments/:id/variant        controllers.ExperimentController.get
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.abtesting.ExperimentVariantEvent'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/experiments/:id/displayed      controllers.ExperimentController.variantDisplayed(id: String, clientId: String)
 ###
@@ -974,6 +1118,13 @@ POST    /api/webhooks.ndjson                controllers.WebhookController.upload
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.webhook.Webhook'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/webhooks                       controllers.WebhookController.create()
 ###
@@ -1009,6 +1160,13 @@ GET     /api/webhooks/:id                   controllers.WebhookController.get(id
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.webhook.Webhook'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PUT     /api/webhooks/:id                   controllers.WebhookController.update(id)
 ###
@@ -1028,6 +1186,13 @@ PUT     /api/webhooks/:id                   controllers.WebhookController.update
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.webhook.Webhook'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PATCH   /api/webhooks/:id                   controllers.WebhookController.patch(id)
 ###
@@ -1042,6 +1207,13 @@ PATCH   /api/webhooks/:id                   controllers.WebhookController.patch(
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.webhook.Webhook'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/webhooks/:id                   controllers.WebhookController.delete(id)
 ###
@@ -1130,6 +1302,13 @@ POST    /api/users.ndjson                   controllers.UserController.upload(st
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.user.User'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/users                          controllers.UserController.create()
 ###
@@ -1144,6 +1323,13 @@ POST    /api/users                          controllers.UserController.create()
 #          schema:
 #            items:
 #              type: object
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/users                          controllers.UserController.deleteAll(pattern: String ?= "*")
 ###
@@ -1179,6 +1365,13 @@ GET     /api/users/:id                      controllers.UserController.get(id)
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.user.User'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PUT     /api/users/:id                      controllers.UserController.update(id)
 ###
@@ -1198,6 +1391,13 @@ PUT     /api/users/:id                      controllers.UserController.update(id
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.user.User'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PATCH   /api/users/:id                      controllers.UserController.patch(id)
 ###
@@ -1212,6 +1412,13 @@ PATCH   /api/users/:id                      controllers.UserController.patch(id)
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.user.User'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/users/:id                      controllers.UserController.delete(id)
 ###
@@ -1301,6 +1508,13 @@ POST    /api/apikeys.ndjson                 controllers.ApikeyController.upload(
 #          schema:
 #            items:
 #              $ref: '#/components/schemas/domains.apikey.Apikey'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 POST    /api/apikeys                        controllers.ApikeyController.create()
 ###
@@ -1355,6 +1569,13 @@ PUT     /api/apikeys/:id                    controllers.ApikeyController.update(
 #        application/json:
 #          schema:
 #            $ref: '#/components/schemas/domains.apikey.Apikey'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
+#            items:
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 PATCH   /api/apikeys/:id                    controllers.ApikeyController.patch(id)
 ###
@@ -1367,8 +1588,14 @@ PATCH   /api/apikeys/:id                    controllers.ApikeyController.patch(i
 #      content:
 #        application/json:
 #          schema:
+#            $ref: '#/components/schemas/domains.apikey.Apikey'
+#    400:
+#      description: functionnal errors
+#      content:
+#        application/json:
+#          schema:
 #            items:
-#              $ref: '#/components/schemas/domains.apikey.Apikey'
+#              $ref: '#/components/schemas/ApiErrors'
 ###
 DELETE  /api/apikeys/:id                    controllers.ApikeyController.delete(id)
 ###
@@ -1381,21 +1608,127 @@ DELETE  /api/apikeys/:id                    controllers.ApikeyController.delete(
 #      content:
 #        application/json:
 #          schema:
-#            items:
-#              type: number
+#            type: number
 ###
 GET     /api/counts/apikeys                 controllers.ApikeyController.count()
 
 
+#########################################################################
+#                              Events                                   #
+#########################################################################
+
+###
+#  summary: event with SSE
+#  tags:
+#    - Event Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 GET     /api/events                         controllers.EventsController.allEvents(pattern: String ?= "*", domains: String ?= "")
+###
+#  summary: event by domains with SSE
+#  tags:
+#    - Event Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 GET     /api/events/:domain                 controllers.EventsController.eventsForADomain(domain: String, patterns: String ?= "")
 
-# Search
-GET     /api/_search                        controllers.SearchController.search(patterns: String, features: Boolean ?= true, configs: Boolean ?= true, experiments: Boolean ?= true, scripts: Boolean ?= true)
-GET     /api/_health                        controllers.HealthCheckController.check
+#########################################################################
+#                              Search                                   #
+#########################################################################
 
-#Authentication
+###
+#  summary: search
+#  tags:
+#    - Search Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
+GET     /api/_search                        controllers.SearchController.search(patterns: String, features: Boolean ?= true, configs: Boolean ?= true, experiments: Boolean ?= true, scripts: Boolean ?= true)
+
+#########################################################################
+#                            Healthcheck                                #
+#########################################################################
+
+###
+#  summary: health
+#  tags:
+#    - Admin Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
+GET     /api/_health                        controllers.HealthCheckController.check
+###
+#  summary: metrics for prometheus
+#  tags:
+#    - Admin Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
+GET     /metrics                            controllers.MetricController.metricsEndpoint()
+
+#########################################################################
+#                               Auth                                    #
+#########################################################################
+
+###
+#  summary: login
+#  tags:
+#    - Auth Endpoints
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 POST    /api/login                          controllers.AuthController.authenticate()
+###
+#  summary: logout
+#  tags:
+#    - Auth Endpoints
+#  requestBody:
+#    description: create an Apikey
+#    required: true
+#    content:
+#      application/json:
+#        schema:
+#          type: object
+#  responses:
+#    200:
+#      description: success
+#      content:
+#        application/json:
+#          schema:
+#            type: object
+###
 GET     /api/logout                         controllers.AuthController.logout()
 
 ### NoDocs ###
@@ -1413,7 +1746,6 @@ GET     /assets/*file                       controllers.Assets.versioned(file: S
 
 ### NoDocs ###
 GET     /login                              controllers.HomeController.login()
-GET     /metrics                            controllers.MetricController.metricsEndpoint()
 
 ### NoDocs ###
 GET     /*other                             controllers.HomeController.otherRoutes(other)

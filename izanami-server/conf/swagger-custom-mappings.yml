@@ -7,6 +7,12 @@
     - type: string
 - type: play\.api\.libs\.json\.jsvalue
   specAsParameter:
+    - type: any
+- type: play\.api\.libs\.json\.jsobject
+  specAsParameter:
     - type: object
+- type: string with shapeless\.tag\.tagged
+  specAsParameter:
+    - type: string
 - type: request
   specAsParameter: []

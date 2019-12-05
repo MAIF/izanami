@@ -105,21 +105,24 @@ components:
           nbPages:
             required: true
             type: integer
-#    controllers.dto.feature.FeatureListResultActive:
-#      properties:
-#        results:
-#          type: array
-#          $ref: '#/components/schemas/domains.feature.FeatureActive'
-#        metadata:
-#          page:
-#            required: true
-#            type: integer
-#          pageSize:
-#            required: true
-#            type: integer
-#          count:
-#            required: true
-#            type: integer
-#          nbPages:
-#            required: true
-#            type: integer
+    ApiError:
+      properties:
+        message:
+          type: string
+        args:
+          type: array
+          items: string
+    ApiErrors:
+      properties:
+        errors:
+          type: array
+          $ref: '#/components/schemas/ApiError'
+        fieldErrors:
+          type: object
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              $ref: '#/components/schemas/ApiError'
+            }
+          }
+
