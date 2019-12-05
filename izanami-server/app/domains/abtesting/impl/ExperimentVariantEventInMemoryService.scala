@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.scaladsl.Source
 import domains.abtesting._
 import env.DbDomainConfig
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import ExperimentDataStoreActor._
 import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.EventStore

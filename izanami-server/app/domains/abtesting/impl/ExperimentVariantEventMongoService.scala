@@ -21,7 +21,7 @@ import reactivemongo.api.ReadPreference
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.{RIO, Task, ZIO}
 
 import scala.concurrent.{ExecutionContext, Future}

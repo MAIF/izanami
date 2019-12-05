@@ -21,16 +21,17 @@ import domains.events.EventStore
 import test.TestEventStore
 import domains.events.Events
 import domains.events.Events._
-import store.Result.{DataShouldExists, IdMustBeTheSame}
+import domains.errors.{DataShouldExists, IdMustBeTheSame}
 import zio._
 import akka.stream.scaladsl.{Sink, Source}
 import domains.ImportResult
-import store.Result.AppErrors
+import domains.errors.ValidationError
 
 class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
   implicit val system = ActorSystem("test")
   implicit val mat    = ActorMaterializer()
+  import domains.errors.IzanamiErrors._
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
@@ -84,7 +85,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val webhook = Webhook(Key("other"), "http://localhost:8080")
 
       val created = run(ctx)(WebhookService.create(id, webhook).either)
-      created must be(Left(IdMustBeTheSame(webhook.clientId, id)))
+      created must be(Left(IdMustBeTheSame(webhook.clientId, id).toErrors))
       ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -95,7 +96,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val webhook = Webhook(id, "http://localhost:8080")
 
       val updated = run(ctx)(WebhookService.update(id, id, webhook).either)
-      updated must be(Left(DataShouldExists(id)))
+      updated must be(Left(DataShouldExists(id).toErrors))
     }
 
     "update" in {
@@ -172,7 +173,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val webhook = Webhook(id, "http://localhost:8080")
 
       val deleted = run(ctx)(WebhookService.delete(id).either)
-      deleted must be(Left(DataShouldExists(id)))
+      deleted must be(Left(DataShouldExists(id).toErrors))
       ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -207,7 +208,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

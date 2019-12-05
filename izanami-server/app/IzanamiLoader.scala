@@ -140,7 +140,6 @@ package object modules {
     lazy val eventsController: EventsController             = wire[EventsController]
     lazy val searchController: SearchController             = wire[SearchController]
     lazy val backOfficeController: BackOfficeController     = wire[BackOfficeController]
-    lazy val swaggerController: SwaggerController           = wire[SwaggerController]
     lazy val metricsController: MetricController            = wire[MetricController]
 
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {

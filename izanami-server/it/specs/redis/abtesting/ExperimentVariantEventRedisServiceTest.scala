@@ -9,10 +9,13 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.redis.RedisClientBuilder
 import test.FakeApplicationLifecycle
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import domains.abtesting.impl.ExperimentVariantEventRedisService
 
-class ExperimentVariantEventRedisServiceTest extends AbstractExperimentServiceTest("Postgresql") with BeforeAndAfter with BeforeAndAfterAll {
+class ExperimentVariantEventRedisServiceTest
+    extends AbstractExperimentServiceTest("Postgresql")
+    with BeforeAndAfter
+    with BeforeAndAfterAll {
 
   import zio.interop.catz._
 
@@ -23,7 +26,8 @@ class ExperimentVariantEventRedisServiceTest extends AbstractExperimentServiceTe
   )
 
   override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventRedisService(
-    DbDomainConfig(env.Redis, DbDomainConfigDetails(name, None), None), redisWrapper
+    DbDomainConfig(env.Redis, DbDomainConfigDetails(name, None), None),
+    redisWrapper
   )
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
@@ -38,6 +42,9 @@ class ExperimentVariantEventRedisServiceTest extends AbstractExperimentServiceTe
     redisWrapper.get.underlying.shutdown(Duration.ZERO, Duration.ofSeconds(5))
   }
 
-  private def deleteAllData = redisWrapper.get.connection.sync().del(redisWrapper.get.connection.sync().keys("*").asScala:_*)
+  private def deleteAllData =
+    redisWrapper.get.connection
+      .sync()
+      .del(redisWrapper.get.connection.sync().keys("*").asScala.toSeq: _*)
 
 }

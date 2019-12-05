@@ -14,7 +14,7 @@ import domains.events.EventStore
 import env.{CassandraConfig, DbDomainConfig}
 import libs.logs.IzanamiLogger
 import play.api.libs.json._
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.cassandra.Cassandra
 import zio.{RIO, Task, ZIO}
 import libs.logs.Logger

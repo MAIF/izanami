@@ -10,9 +10,10 @@ import libs.logs.Logger
 import libs.logs.ProdLogger
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
+
 import scala.collection.mutable
 import store.memory.InMemoryJsonDataStore
-import store.Result.DataShouldExists
+import domains.errors.{DataShouldExists, IdMustBeTheSame, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import akka.stream.scaladsl.Source
@@ -22,13 +23,13 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import zio.Task
 import domains.ImportResult
-import store.Result.AppErrors
-import store.Result.IdMustBeTheSame
 
 class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
 
   implicit val system = ActorSystem("test")
   implicit val mat    = ActorMaterializer()
+
+  import domains.errors.IzanamiErrors._
 
   val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
 
@@ -57,7 +58,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
 
       val created = run(ctx)(ApikeyService.create(id, apikey).either)
-      created must be(Left(IdMustBeTheSame(Key("clientId"), id)))
+      created must be(Left(IdMustBeTheSame(Key("clientId"), id).toErrors))
       ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -68,7 +69,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
 
       val updated = run(ctx)(ApikeyService.update(id, id, apikey).either)
-      updated must be(Left(DataShouldExists(id)))
+      updated must be(Left(DataShouldExists(id).toErrors))
     }
 
     "update" in {
@@ -140,12 +141,11 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     }
 
     "delete empty data" in {
-      val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val id  = Key("clientId")
+      val ctx = TestApikeyContext()
 
       val deleted = run(ctx)(ApikeyService.delete(id).either)
-      deleted must be(Left(DataShouldExists(id)))
+      deleted must be(Left(DataShouldExists(id).toErrors))
       ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -180,7 +180,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

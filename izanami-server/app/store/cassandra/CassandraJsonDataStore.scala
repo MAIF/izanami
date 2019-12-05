@@ -15,14 +15,14 @@ import env.{CassandraConfig, DbDomainConfig}
 import libs.streams.Flows
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.{DataStoreContext, _}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import libs.logs.Logger
 import store.DataStore.DataStoreIO
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 object CassandraJsonDataStore {
   def apply(session: Session, cassandraConfig: CassandraConfig, config: DbDomainConfig)(
@@ -41,6 +41,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
 
   import zio._
   import Cassandra._
+  import IzanamiErrors._
 
   implicit private val mat: Materializer = ActorMaterializer()(actorSystem)
   implicit private val _session: Session = session
@@ -75,7 +76,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
       .refineToOrDie[IzanamiErrors]
       .flatMap {
         case Some(_) =>
-          ZIO.fail(DataShouldNotExists(id))
+          ZIO.fail(DataShouldNotExists(id).toErrors)
         case None =>
           createRaw(id, data)
       }
@@ -98,7 +99,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
         .refineToOrDie[IzanamiErrors]
         .flatMap {
           case Some(_) => updateRaw(id: Key, data)
-          case None    => ZIO.fail(DataShouldExists(id))
+          case None    => ZIO.fail(DataShouldExists(id).toErrors)
         }
     } else {
       deleteRaw(oldId)
@@ -121,7 +122,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
       .refineToOrDie[IzanamiErrors]
       .flatMap {
         case Some(d) => deleteRaw(id).map(_ => d)
-        case None    => IO.fail(DataShouldExists(id))
+        case None    => IO.fail(DataShouldExists(id).toErrors)
       }
 
   private def deleteRaw(id: Key): ZIO[DataStoreContext, IzanamiErrors, Unit] = {

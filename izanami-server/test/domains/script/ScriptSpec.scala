@@ -39,9 +39,9 @@ import domains.apikey.Apikey
 import domains.AuthorizedPattern
 import test.IzanamiSpec
 import domains.ImportResult
-import store.Result.AppErrors
-import store.Result.DataShouldExists
-import store.Result.IdMustBeTheSame
+import domains.errors.ValidationError
+import domains.errors.DataShouldExists
+import domains.errors.IdMustBeTheSame
 import play.api.Environment
 import scala.concurrent.ExecutionContext
 import play.libs.ws.WSClient
@@ -61,6 +61,8 @@ class ScriptSpec
   implicit val system           = ActorSystem("test")
   implicit val mat              = ActorMaterializer()
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
+
+  import domains.errors.IzanamiErrors._
 
   implicit val runtime = new DefaultRuntime {}
 
@@ -151,7 +153,7 @@ class ScriptSpec
       val globalScript = GlobalScript(Key("other"), "name", "description", JavascriptScript(script))
 
       val created = run(ctx)(GlobalScriptService.create(id, globalScript).either)
-      created must be(Left(IdMustBeTheSame(globalScript.id, id)))
+      created must be(Left(IdMustBeTheSame(globalScript.id, id).toErrors))
       ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -162,7 +164,7 @@ class ScriptSpec
       val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
 
       val updated = run(ctx)(GlobalScriptService.update(id, id, globalScript).either)
-      updated must be(Left(DataShouldExists(id)))
+      updated must be(Left(DataShouldExists(id).toErrors))
     }
 
     "update" in {
@@ -234,12 +236,11 @@ class ScriptSpec
     }
 
     "delete empty data" in {
-      val id           = Key("test")
-      val ctx          = TestGlobalScriptContext()
-      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+      val id  = Key("test")
+      val ctx = TestGlobalScriptContext()
 
       val deleted = run(ctx)(GlobalScriptService.delete(id).either)
-      deleted must be(Left(DataShouldExists(id)))
+      deleted must be(Left(DataShouldExists(id).toErrors))
       ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 0
     }
@@ -274,7 +275,7 @@ class ScriptSpec
             .runWith(Sink.seq)
         }
       })
-      res must contain only (ImportResult(errors = AppErrors.error("json.parse.error", id.key)))
+      res must contain only (ImportResult(errors = List(ValidationError.error("json.parse.error", id.key))))
     }
 
     "import data data exist" in {

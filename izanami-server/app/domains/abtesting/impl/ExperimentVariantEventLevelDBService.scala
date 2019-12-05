@@ -19,7 +19,7 @@ import org.iq80.leveldb.impl.Iq80DBFactory.{asString, bytes, factory}
 import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.blocking.Blocking
 import zio.{RIO, Task, ZIO}
 

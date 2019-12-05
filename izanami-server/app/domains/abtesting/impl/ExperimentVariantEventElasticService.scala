@@ -17,7 +17,7 @@ import elastic.api._
 import env.{DbDomainConfig, ElasticConfig}
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsObject, JsValue, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.{IO, RIO, Task, ZIO}
 
 import scala.concurrent.{ExecutionContext, Future}

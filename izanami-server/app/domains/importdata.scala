@@ -3,13 +3,19 @@ package domains
 import akka.NotUsed
 import akka.stream.{scaladsl, Materializer}
 import akka.stream.scaladsl.{Flow, Source}
+
+import controllers.dto.importresult.ImportResultDto
+import controllers.dto.error.ApiErrors
 import libs.logs.{IzanamiLogger, Logger, LoggerModule}
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Reads}
 import play.api.mvc.Results
-import store.Result.{AppErrors, IzanamiErrors}
+import errors.{IzanamiErrors, ValidationError}
 
 sealed trait ImportStrategy extends Product with Serializable
 object ImportStrategy {
+
+  import IzanamiErrors._
+
   case object Replace extends ImportStrategy
   case object Keep    extends ImportStrategy
 
@@ -17,7 +23,7 @@ object ImportStrategy {
     str match {
       case "Replace" => Right(Replace)
       case "Keep"    => Right(Keep)
-      case _         => Left(AppErrors.error("error.strategy.expected", "Replace", "Keep"))
+      case _         => Left(ValidationError.error("error.strategy.expected", "Replace", "Keep").toErrors)
     }
 }
 
@@ -98,7 +104,7 @@ object ImportData {
       .parse(strStrategy)
       .fold(
         { err =>
-          ZIO(IzanamiErrors.toHttpResult(err))
+          ZIO(ApiErrors.toHttpResult(err))
         }, { strategy =>
           importFunction(strategy)
             .flatMap { flow =>
@@ -107,8 +113,8 @@ object ImportData {
                   body
                     .via(flow)
                     .map {
-                      case r if r.isError => Results.BadRequest(Json.toJson(r))
-                      case r              => Results.Ok(Json.toJson(r))
+                      case r if r.isError => Results.BadRequest(Json.toJson(ImportResultDto.fromImportResult(r)))
+                      case r              => Results.Ok(Json.toJson(ImportResultDto.fromImportResult(r)))
                     }
                     .recover {
                       case e: Throwable =>

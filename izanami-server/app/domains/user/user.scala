@@ -12,6 +12,7 @@ import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import store._
 import domains.AuthInfoModule
+import errors.IzanamiErrors
 
 import scala.util.Try
 
@@ -102,12 +103,13 @@ object UserService {
   import libs.streams.syntax._
   import UserInstances._
   import domains.events.Events._
-  import store.Result._
+  import errors._
+  import IzanamiErrors._
 
   def create(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     for {
-      _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id)))
-      pass     <- ZIO.fromOption(data.password).mapError(_ => AppErrors.error("password.missing"))
+      _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
+      pass     <- ZIO.fromOption(data.password).mapError(_ => ValidationError.error("password.missing").toErrors)
       user     = data.copy(password = Some(Sha.hexSha512(pass)))
       created  <- UserDataStore.create(id, UserInstances.format.writes(user))
       user     <- jsResultToError(created.validate[User])
@@ -119,7 +121,7 @@ object UserService {
     // format: off
     for {
       mayBeUser   <- getById(oldId).refineToOrDie[IzanamiErrors]
-      oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId))
+      oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId).toErrors)
       toUpdate        = User.updateUser(data, oldValue)
       updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
       user        <- jsResultToError(updated.validate[User])

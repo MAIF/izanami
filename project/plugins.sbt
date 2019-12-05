@@ -1,3 +1,8 @@
+resolvers ++= Seq(
+  Resolver.jcenterRepo,
+  Resolver.bintrayIvyRepo("sohoffice", "sbt-plugins")
+)
+
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.7.3") // Apache 2.0
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.2.0") // Apache 2.0
@@ -29,3 +34,6 @@ addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.3.4")
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
 
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.7")
+
+//addSbtPlugin("com.sohoffice" %% "sbt-descriptive-play-swagger" % "0.7.5")
+addSbtPlugin("com.iheart" % "sbt-play-swagger" % "0.9.0-PLAY2.7")

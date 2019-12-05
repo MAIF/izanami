@@ -3,13 +3,14 @@ import java.time.{LocalDateTime, ZoneId}
 
 import domains.{AuthInfo, IsAllowed, Key}
 import domains.script._
-import store.Result.{AppErrors, IzanamiErrors}
+import domains.errors.{IzanamiErrors, ValidationError}
 import FeatureType._
 import domains.feature.Feature.FeatureKey
 import zio.ZIO
 
 import scala.util.hashing.MurmurHash3
 import java.time.LocalTime
+
 import metrics.MetricsService
 
 object DefaultFeatureInstances {
@@ -76,7 +77,7 @@ object GlobalScriptFeatureInstances {
       ): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
         for {
           mayBeScript <- GlobalScriptService.getById(Key(feature.ref)).refineToOrDie[IzanamiErrors]
-          script      <- ZIO.fromOption(mayBeScript).mapError(_ => AppErrors.error("script.not.found"))
+          script      <- ZIO.fromOption(mayBeScript).mapError(_ => IzanamiErrors(ValidationError.error("script.not.found")))
           exec <- script.source
                    .run(context)
                    .map {
@@ -241,7 +242,7 @@ object PercentageFeatureInstances {
             ZIO.succeed(false)
           }
         case (None, true) =>
-          ZIO.fail(AppErrors.error("context.id.missing"))
+          ZIO.fail(IzanamiErrors(ValidationError.error("context.id.missing")))
         case _ =>
           ZIO.succeed(false)
       }

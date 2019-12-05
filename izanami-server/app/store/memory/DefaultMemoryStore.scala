@@ -2,17 +2,17 @@ package store.memory
 
 import akka.{Done, NotUsed}
 import akka.stream.scaladsl.Source
-import domains.Key
+import domains.{errors, Key}
 import env.DbDomainConfig
 import play.api.libs.json.JsValue
-import store.Result.{IzanamiErrors, Result}
+import domains.errors.{IzanamiErrors, Result}
 import store._
 
 import scala.collection.concurrent.TrieMap
 import libs.logs.Logger
 import libs.logs.IzanamiLogger
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 object InMemoryJsonDataStore {
 
@@ -59,35 +59,35 @@ class BaseInMemoryJsonDataStore(val inMemoryStore: TrieMap[Key, JsValue] = TrieM
   protected def createSync(id: Key, data: JsValue): Result[JsValue] =
     inMemoryStore.get(id) match {
       case Some(_) =>
-        Result.error[JsValue](DataShouldNotExists(id))
+        errors.Result.error[JsValue](DataShouldNotExists(id))
       case None =>
         inMemoryStore.put(id, data)
-        Result.ok(data)
+        errors.Result.ok(data)
     }
 
   protected def updateSync(oldId: Key, id: Key, data: JsValue): Result[JsValue] =
     if (inMemoryStore.contains(oldId)) {
       inMemoryStore.remove(oldId)
       inMemoryStore.put(id, data)
-      Result.ok(data)
+      errors.Result.ok(data)
     } else {
       IzanamiLogger.error(s"Error data missing for $oldId")
-      Result.error(DataShouldExists(id))
+      errors.Result.error(DataShouldExists(id))
     }
 
   protected def deleteSync(id: Key): Result[JsValue] =
     inMemoryStore.remove(id) match {
       case Some(data: JsValue) =>
-        val value: Result[JsValue] = Result.ok(data)
+        val value: Result[JsValue] = errors.Result.ok(data)
         value
       case None =>
-        Result.error(DataShouldExists(id))
+        errors.Result.error(DataShouldExists(id))
     }
 
   protected def deleteAllSync(query: Query): Result[Unit] = {
     val keys = find(query).map(_._1)
     keys.foreach { inMemoryStore.remove }
-    Result.ok(Done)
+    errors.Result.ok(Done)
   }
 
   protected def getByIdSync(id: Key): Option[JsValue] =

@@ -13,7 +13,7 @@ import io.lettuce.core.pubsub.{RedisPubSubListener, StatefulRedisPubSubConnectio
 import libs.streams.CacheableQueue
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsError, JsResult, JsSuccess, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store.redis.RedisWrapper
 import zio.{IO, Task}
 

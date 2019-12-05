@@ -16,13 +16,13 @@ import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference, WriteConcern}
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
 
 import scala.concurrent.{ExecutionContext, Future}
 import libs.logs.Logger
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 case class MongoDoc(id: Key, data: JsValue)
 
@@ -39,7 +39,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     extends JsonDataStore {
 
   import zio._
-  //import actorSystem.dispatcher
+  import IzanamiErrors._
 
   private val collectionName = namespace.replaceAll(":", "_")
 
@@ -69,7 +69,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
       _     <- Logger.debug(s"Creating $id => $data")
       coll  <- storeCollectionIO
       mayBe <- getByIdRaw(id)(coll).refineToOrDie[IzanamiErrors]
-      _     <- IO.fromOption(mayBe).flip.mapError(_ => DataShouldNotExists(id))
+      _     <- IO.fromOption(mayBe).flip.mapError(_ => DataShouldNotExists(id).toErrors)
       res <- IO
               .fromFuture { implicit ec =>
                 coll
@@ -86,7 +86,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     storeCollectionIO.flatMap { implicit coll =>
       for {
         mayBe <- getByIdRaw(oldId).refineToOrDie[IzanamiErrors]
-        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId))
+        _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- ZIO.when(oldId =!= id)(deleteRaw(oldId))
         _     <- if (oldId === id) updateRaw(id, data) else createRaw(id, data)
       } yield data
@@ -96,7 +96,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     storeCollectionIO.flatMap { implicit collection: JSONCollection =>
       getByIdRaw(id).refineToOrDie[IzanamiErrors].flatMap {
         case Some(data) => deleteRaw(id).map(_ => data)
-        case None       => IO.fail(DataShouldExists(id))
+        case None       => IO.fail(DataShouldExists(id).toErrors)
       }
     }
 

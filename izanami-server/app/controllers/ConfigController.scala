@@ -5,6 +5,9 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
+
+import controllers.dto.config.ConfigListResult
+import controllers.dto.meta.Metadata
 import domains._
 import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigContext, ConfigInstances, ConfigService}
@@ -13,7 +16,7 @@ import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
-import store.Result.{AppErrors, IzanamiErrors}
+import controllers.dto.error.ApiErrors
 import store.Query
 import zio.Runtime
 
@@ -37,17 +40,7 @@ class ConfigController(system: ActorSystem,
           ConfigService
             .findByQuery(query, page, nbElementPerPage)
             .map { r =>
-              Ok(
-                Json.obj(
-                  "results" -> Json.toJson(r.results),
-                  "metadata" -> Json.obj(
-                    "page"     -> page,
-                    "pageSize" -> nbElementPerPage,
-                    "count"    -> r.count,
-                    "nbPages"  -> r.nbPages
-                  )
-                )
-              )
+              Ok(Json.toJson(ConfigListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
             }
 
         case "tree" =>
@@ -100,8 +93,10 @@ class ConfigController(system: ActorSystem,
 
     for {
       config <- jsResultToHttpResponse(ctx.request.body.validate[Config])
-      _      <- IsAllowed[Config].isAllowed(config, ctx.auth) { Unauthorized(AppErrors.error("error.forbidden").toJson) }
-      _      <- ConfigService.create(config.id, config).mapError { IzanamiErrors.toHttpResult }
+      _ <- IsAllowed[Config].isAllowed(config, ctx.auth) {
+            Unauthorized(ApiErrors.error("error.forbidden").toJson)
+          }
+      _ <- ConfigService.create(config.id, config).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(config))
 
   }
@@ -110,7 +105,7 @@ class ConfigController(system: ActorSystem,
     import ConfigInstances._
     val key = Key(id)
     for {
-      _           <- Key.isAllowed(key, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _           <- Key.isAllowed(key, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
       config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
     } yield Ok(Json.toJson(config))
@@ -120,8 +115,8 @@ class ConfigController(system: ActorSystem,
     import ConfigInstances._
     for {
       config <- jsResultToHttpResponse(ctx.request.body.validate[Config])
-      _      <- IsAllowed[Config].isAllowed(config, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
-      _      <- ConfigService.update(Key(id), config.id, config).mapError { IzanamiErrors.toHttpResult }
+      _      <- IsAllowed[Config].isAllowed(config, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
+      _      <- ConfigService.update(Key(id), config.id, config).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(config))
   }
 
@@ -131,9 +126,9 @@ class ConfigController(system: ActorSystem,
     for {
       mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
       current     <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
-      _           <- IsAllowed[Config].isAllowed(current, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
+      _           <- IsAllowed[Config].isAllowed(current, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       updated     <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
-      _           <- ConfigService.update(key, current.id, updated).mapError { IzanamiErrors.toHttpResult }
+      _           <- ConfigService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
   }
 
@@ -143,8 +138,8 @@ class ConfigController(system: ActorSystem,
     for {
       mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
       config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
-      _           <- IsAllowed[Config].isAllowed(config, ctx.auth)(Forbidden(AppErrors.error("error.forbidden").toJson))
-      _           <- ConfigService.delete(key).mapError { IzanamiErrors.toHttpResult }
+      _           <- IsAllowed[Config].isAllowed(config, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
+      _           <- ConfigService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(config))
   }
 
@@ -153,7 +148,7 @@ class ConfigController(system: ActorSystem,
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(patterns.toList.flatMap(_.split(",")))
       ConfigService
         .deleteAll(query)
-        .mapError { IzanamiErrors.toHttpResult }
+        .mapError { ApiErrors.toHttpResult }
         .map { _ =>
           Ok
         }

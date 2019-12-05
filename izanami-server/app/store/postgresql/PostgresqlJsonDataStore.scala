@@ -2,9 +2,9 @@ package store.postgresql
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import domains.Key
+import domains.{errors, Key}
 import play.api.libs.json.{JsValue, Json}
-import store.Result.{IzanamiErrors, Result}
+import domains.errors.{IzanamiErrors, Result}
 import store.{Query, _}
 import cats.free.Free
 import cats.implicits._
@@ -16,8 +16,8 @@ import fs2.Stream
 import env.DbDomainConfig
 import org.postgresql.util.PGobject
 import libs.logs.Logger
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 case class PgData(id: Key, data: JsValue)
 
@@ -81,12 +81,12 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
       exists <- getByKeyQuery(id)
       r <- exists match {
             case Some(_) =>
-              Result
+              errors.Result
                 .error[JsValue](DataShouldNotExists(id))
                 .pure[ConnectionIO]
             case None =>
               insertQuery(id, data).run
-                .map(_ => Result.ok(data))
+                .map(_ => errors.Result.ok(data))
           }
     } yield r
 
@@ -106,18 +106,18 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
       exists <- getByKeyQuery(oldId)
       r <- exists match {
             case None =>
-              Result
+              errors.Result
                 .error[JsValue](DataShouldExists(oldId))
                 .pure[ConnectionIO]
             case Some(_) =>
               if (oldId === id) {
                 updateQuery(id, data).run
-                  .map(_ => Result.ok(data))
+                  .map(_ => errors.Result.ok(data))
               } else {
                 for {
                   _ <- deleteByIdQuery(oldId).run
                   _ <- insertQuery(id, data).run
-                } yield Result.ok(data)
+                } yield errors.Result.ok(data)
               }
           }
     } yield r
@@ -133,12 +133,12 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
       exists <- getByKeyQuery(id)
       r <- exists match {
             case None =>
-              Result
+              errors.Result
                 .error[JsValue](DataShouldExists(id))
                 .pure[ConnectionIO]
             case Some(data) =>
               deleteByIdQuery(id).run
-                .map(_ => Result.ok(data.data))
+                .map(_ => errors.Result.ok(data.data))
           }
     } yield r
 

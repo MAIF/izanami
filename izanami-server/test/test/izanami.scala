@@ -21,7 +21,7 @@ import akka.stream.scaladsl.Source
 import domains.Domain.Domain
 import domains.events.Events.IzanamiEvent
 import domains.events.{EventStore, Events}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import zio.{IO, Task}
 
 import scala.collection.mutable

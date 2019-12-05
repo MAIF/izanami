@@ -62,11 +62,15 @@ export class Table extends Component {
     treeModeEnabled: PropTypes.bool,
     renderTreeLeaf: PropTypes.func,
     itemLink: PropTypes.func,
-    searchColumnName: PropTypes.string
+    searchColumnName: PropTypes.string,
+    copyNodeWindow: PropTypes.bool,
+    copyNodes: PropTypes.func,
+    searchKeys: PropTypes.func
   };
 
   static defaultProps = {
     searchColumnName: "key",
+    copyNodeWindow: false,
     rowNavigation: false,
     pageSize: 20,
     firstSort: null,
@@ -834,6 +838,9 @@ export class Table extends Component {
                 <Tree
                   datas={this.state.tree || []}
                   renderValue={this.renderLeaf}
+                  copyNodeWindow={this.props.copyNodeWindow || false}
+                  copyNodes={this.props.copyNodes}
+                  searchKeys={this.props.searchKeys}
                   itemLink={this.props.itemLink}
                   initialSearch={this.props.parentProps.location.query.search}
                   search={this.search}

@@ -15,15 +15,15 @@ import org.iq80.leveldb.impl.Iq80DBFactory._
 import libs.logs.{IzanamiLogger, Logger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
-import store.Result.IzanamiErrors
+import domains.errors.IzanamiErrors
 import store._
 import zio.blocking.Blocking.Live
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
-import store.Result.DataShouldExists
-import store.Result.DataShouldNotExists
+import domains.errors.DataShouldExists
+import domains.errors.DataShouldNotExists
 
 object DbStores {
   val stores = TrieMap.empty[String, LevelDBJsonDataStore]
@@ -51,6 +51,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   import zio._
   import zio.interop.catz._
   import cats.implicits._
+  import IzanamiErrors._
 
   private val client: DB = try {
     factory.open(new File(dbPath), new Options().createIfMissing(true))
@@ -139,7 +140,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
       .refineToOrDie[IzanamiErrors]
       .flatMap {
         case Some(_) =>
-          IO.fail(DataShouldNotExists(id))
+          IO.fail(DataShouldNotExists(id).toErrors)
         case None =>
           toAsync {
             client.put(bytes(id.key), bytes(Json.stringify(data)))
@@ -156,7 +157,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
           client.put(bytes(id.key), bytes(Json.stringify(data)))
           IO.succeed(data)
         case None =>
-          IO.fail(DataShouldExists(id))
+          IO.fail(DataShouldExists(id).toErrors)
       }
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
@@ -169,7 +170,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
             value
           }.refineToOrDie[IzanamiErrors]
         case None =>
-          IO.fail(DataShouldExists(id))
+          IO.fail(DataShouldExists(id).toErrors)
       }
 
   override def getById(id: Key): Task[Option[JsValue]] = {
