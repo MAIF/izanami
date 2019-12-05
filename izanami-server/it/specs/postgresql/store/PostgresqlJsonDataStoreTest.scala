@@ -7,22 +7,36 @@ import test.FakeApplicationLifecycle
 import store.postgresql.PostgresqlClient
 import store.postgresql.PostgresqlJsonDataStore
 
-class PostgresqlJsonDataStoreTest extends AbstractJsonDataStoreTest("Postgresql")  with BeforeAndAfter with BeforeAndAfterAll {
+class PostgresqlJsonDataStoreTest
+    extends AbstractJsonDataStoreTest("Postgresql")
+    with BeforeAndAfter
+    with BeforeAndAfterAll {
   import zio._
   import zio.interop.catz._
 
   private val pgConfig = PostgresqlConfig(
     "org.postgresql.Driver",
     "jdbc:postgresql://localhost:5556/izanami",
-    "izanami", "izanami", 32, None
+    "izanami",
+    "izanami",
+    32,
+    None
   )
 
-  private def client: Option[PostgresqlClient] = PostgresqlClient.postgresqlClient(
-    system, new FakeApplicationLifecycle(), Some(pgConfig)
+  private val client: Option[PostgresqlClient] = PostgresqlClient.postgresqlClient(
+    system,
+    new FakeApplicationLifecycle(),
+    Some(pgConfig)
   )
 
-  override def dataStore(name: String): PostgresqlJsonDataStore =
-    PostgresqlJsonDataStore(client.get, DbDomainConfig(env.Postgresql, DbDomainConfigDetails(name, None), None))
+  override def dataStore(name: String): PostgresqlJsonDataStore = {
+    val store =
+      PostgresqlJsonDataStore(client.get, DbDomainConfig(env.Postgresql, DbDomainConfigDetails(name, None), None))
+    store
+  }
 
-
+  override protected def afterAll(): Unit = {
+    super.afterAll()
+    client.get.database.shutdown()
+  }
 }

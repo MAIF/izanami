@@ -120,6 +120,7 @@ trait DataStore[Key, Data] {
   def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, Data), NotUsed]]
   def count(query: Query): RIO[DataStoreContext, Long]
   def start: RIO[DataStoreContext, Unit] = Task.succeed(())
+  def close: RIO[DataStoreContext, Unit] = Task.succeed(())
 }
 
 trait JsonDataStore extends DataStore[Key, JsValue]
@@ -161,6 +162,7 @@ trait JsonDataStoreHelper[R <: DataStoreContext] {
 
   def start: RIO[R, Unit] = ZIO.accessM[R](accessStore(_).start)
 
+  def close: RIO[R, Unit] = ZIO.accessM[R](accessStore(_).close)
 }
 
 object JsonDataStore {
