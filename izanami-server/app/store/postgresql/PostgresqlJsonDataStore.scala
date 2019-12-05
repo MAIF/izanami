@@ -69,7 +69,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
     """
 
   private val createIndex = sql"""
-       CREATE INDEX IF NOT EXISTS trgm_idx_""" ++ fragTableName ++ sql""" ON users USING gin (key gin_trgm_ops)"""
+       CREATE INDEX IF NOT EXISTS trgm_idx_""" ++ fragTableName ++ fr""" ON """ ++ fragTableName ++ fr"""  USING gin (id gin_trgm_ops)"""
 
   override def start: RIO[DataStoreContext, Unit] =
     Logger.debug(s"Applying script $dbScript") *>
