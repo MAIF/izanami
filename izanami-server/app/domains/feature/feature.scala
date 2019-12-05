@@ -291,7 +291,7 @@ object FeatureService {
     import IzanamiErrors._
     for {
       _        <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
-      values   <- findAllByQuery(Query.oneOf((from / "*").key)).refineToOrDie[IzanamiErrors]
+      values   <- findAllByQuery(Query.oneOf(from.key, (from / "*").key)).refineToOrDie[IzanamiErrors]
       features <- values.parTraverse { case (_, v) => copyOne(from, to, v, default) }.mapError(_.reduce)
     } yield features
   }
@@ -300,8 +300,14 @@ object FeatureService {
                       to: Key,
                       feature: Feature,
                       default: Boolean): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
-    val newId = to / feature.id.drop(from.key)
-    FeatureService.create(newId, copyFeature(newId, feature, default)).mapError(NonEmptyList.one)
+    val newId            = to / feature.id.drop(from.key)
+    val featureToCreated = copyFeature(newId, feature, default)
+    FeatureService
+      .create(newId, featureToCreated)
+      .catchSome {
+        case NonEmptyList(DataShouldNotExists(_), Nil) => IO.succeed(featureToCreated)
+      }
+      .mapError(NonEmptyList.one)
   }
 
   def copyFeature(id: FeatureKey, feature: Feature, default: Boolean): Feature = feature match {

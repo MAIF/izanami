@@ -561,6 +561,25 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       }
     }
 
+    "copy existing node" in {
+      val id1      = Key("my:awesome:feature:to:copy1")
+      val id2      = Key("my:awesome:feature:to:copy2")
+      val ctx      = TestFeatureContext()
+      val feature1 = DefaultFeature(id1, true, None)
+      val feature2 = DefaultFeature(id2, true, None)
+
+      val test = for {
+        _      <- FeatureService.create(id1, feature1)
+        _      <- FeatureService.create(id2, feature2)
+        copied <- FeatureService.copyNode(Key("my:awesome"), Key("my:awesome"), false)
+      } yield copied
+
+      run(ctx)(test)
+      ctx.featureDataStore.inMemoryStore.contains(id1) must be(true)
+      ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
+      ctx.events.size must be(2)
+    }
+
     "invalid key" in {
       val id1       = Key("my:awesome:feature:to:copy1")
       val id2       = Key("my:awesome:feature:to:copy2")
