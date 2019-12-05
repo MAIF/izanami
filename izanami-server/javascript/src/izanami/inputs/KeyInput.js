@@ -249,7 +249,7 @@ export class KeyInput extends Component {
   };
 
   render() {
-    const size = this.state.segments.length;
+    const autoFocus = this.props.autoFocus || (this.state.segments.length === 0);
     return (
       <div className="form-group">
         <label
@@ -274,7 +274,6 @@ export class KeyInput extends Component {
                         key={`value-${i}`}
                       >
                         <input
-                          autoFocus="true"
                           type="text"
                           ref={e => {
                             e && e.setSelectionRange(99999, 99999);
@@ -304,6 +303,7 @@ export class KeyInput extends Component {
                 })}
                 <div className="keypicker-input" style={{ overflow: "hidden" }}>
                   <input
+                    autoFocus={autoFocus}
                     type="text"
                     size={`${(this.state.textValue || "").length}`}
                     onChange={this.computeValue}
@@ -314,7 +314,7 @@ export class KeyInput extends Component {
                   />
                 </div>
               </span>
-              <span>
+              {this.props.copyButton && <span>
                 <button
                   type="button"
                   className="btn btn-small btn-success"
@@ -323,7 +323,7 @@ export class KeyInput extends Component {
                 >
                   <i className="far fa-copy" />
                 </button>
-              </span>
+              </span>}
             </div>
             {this.state.open && (
               <div className="keypicker-menu-outer">

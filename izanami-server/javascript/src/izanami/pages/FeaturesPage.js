@@ -250,7 +250,7 @@ export class FeaturesPage extends Component {
       page: 1,
       pageSize: 20,
       search: pattern
-    }).map(({ results }) => results.map(({ id }) => id));
+    }).then(({ results }) => results.map(({ id }) => id));
   };
 
   editSchema = {
@@ -489,6 +489,9 @@ export class FeaturesPage extends Component {
               parameters: {},
               id: id || ""
             })}
+            copyNodeWindow={true}
+            copyNodes={(from, to, active) => IzanamiServices.copyFeatureNodes(from, to, active)}
+            searchKeys={this.searchKey}
             treeModeEnabled={true}
             renderTreeLeaf={this.renderTreeLeaf}
             itemLink={this.itemLink}

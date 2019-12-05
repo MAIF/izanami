@@ -93,7 +93,7 @@ export function createFeature(feature) {
   }).then(rawResponse);
 }
 
-export function copyNode(from, to, active) {
+export function copyFeatureNodes(from, to, active) {
   return fetch(
       `${window.__contextPath}/api/features/_copy`,
       {

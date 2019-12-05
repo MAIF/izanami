@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import Popover from "react-popover";
 import {KeyInput} from "./KeyInput";
-import {copyNode, fetchFeatures} from '../services'
 import {BooleanInput} from "./BooleanInput";
 
 const Key = props => {
@@ -26,17 +25,11 @@ class CopyNodeWindow extends Component {
     defaultValue: false
   };
 
-  search = pattern => {
-    this.props.open();
-    return fetchFeatures({page: 1, pageSize: 20, search: pattern})
-      .then(({ results }) => results.map(({ id }) => id));
-  };
-
-  clone = (from, to, active) => {
-    console.log('Clone', from, to, active);
-    copyNode(from, to, active).then(_ => {
-      this.props.close();
-    });
+  clone = () => {
+    if (this.props.copyNodes) {
+      this.props.copyNodes(this.props.nodekey, this.state.key, this.state.defaultValue)
+          .then(_ => this.props.close());
+    }
   };
 
   render() {
@@ -52,16 +45,19 @@ class CopyNodeWindow extends Component {
                 <Key value={this.props.nodekey || ''} />
               </div>
             </div>
-            <KeyInput label={'To'} search={this.search} value={''} onChange={key => this.setState({key})} />
+            <KeyInput label={'To'} autoFocus={true} search={this.props.searchKeys} value={''} onChange={key => this.setState({key})} />
             <BooleanInput label={'Active'}
                           value={this.state.defaultValue}
                           onChange={defaultValue => this.setState({defaultValue})} />
             <div className="form-group">
               <div className="col-sm-12">
-                <button type="button" className="btn btn-success pull-right"
-                        onClick={_ => this.clone(this.props.nodekey, this.state.key, this.state.defaultValue)}>
-                  Clone
-                </button>
+                <div className="btn-group pull-right">
+                  <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
+                  <button type="button" className="btn btn-primary"
+                          onClick={_ => this.clone()}>
+                    Clone
+                  </button>
+                </div>
               </div>
             </div>
           </form>
@@ -172,6 +168,7 @@ class Node extends Component {
                   >
                     + child
                   </Link>
+                  {this.props.copyNodeWindow &&
                   <button
                       onMouseOver={_ => this.setState({ openCopy: true})}
                       onMouseOut={_ => this.setState({ openCopy: false})}
@@ -186,13 +183,15 @@ class Node extends Component {
                              onOuterAction={_ => this.setState({openCopy:false})}
                              body={
                                <CopyNodeWindow nodekey={this.props.node.id}
+                                               copyNodes={this.props.copyNodes}
+                                               searchKeys={this.props.searchKeys}
                                                close={_ => this.setState({openCopy:false})}
                                                open={_ => this.setState({openCopy:true})}
                                />
                              } >
                       <i className="glyphicon glyphicon-duplicate" />
                     </Popover>
-                  </button>
+                  </button>}
                   <button
                       onClick={_ => this.search(this.props.node.id)}
                       onMouseOver={ _ => this.setState({openCopy:false}) }
@@ -244,6 +243,9 @@ class Node extends Component {
                   <Node key={`node-${this.props.index}-${i}`}
                         node={n}
                         index={i}
+                        copyNodeWindow={this.props.copyNodeWindow}
+                        copyNodes={this.props.copyNodes}
+                        searchKeys={this.props.searchKeys}
                         renderValue={this.props.renderValue}
                         removeAction={this.props.removeAction}
                         editAction={this.props.editAction}
@@ -267,7 +269,10 @@ export class Tree extends Component {
     itemLink: PropTypes.func,
     search: PropTypes.func,
     editAction: PropTypes.func,
-    removeAction: PropTypes.func
+    removeAction: PropTypes.func,
+    copyNodeWindow: PropTypes.bool,
+    copyNodes: PropTypes.func,
+    searchKeys: PropTypes.func
   };
 
   state = {
@@ -327,6 +332,9 @@ export class Tree extends Component {
                         removeAction={this.props.removeAction}
                         editAction={this.props.editAction}
                         itemLink={this.props.itemLink}
+                        copyNodeWindow={this.props.copyNodeWindow}
+                        copyNodes={this.props.copyNodes}
+                        searchKeys={this.props.searchKeys}
                   />
                 )}
             </ul>
