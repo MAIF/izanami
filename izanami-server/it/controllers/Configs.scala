@@ -1,4 +1,4 @@
-package controllers 
+package controllers
 
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,7 +29,7 @@ object Configs {
 
   val elasticHttpPort: Int = 9210
 
-  val elasticConfiguration: Configuration = Configuration(
+  def elasticConfiguration: Configuration = Configuration(
     ConfigFactory.parseString(s"""
       |izanami.db.default="Elastic"
       |izanami.patchEnabled = false
