@@ -11,14 +11,13 @@ import domains.abtesting.impl.ExperimentVariantEventDynamoService
 
 class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceTest("DynamoDb") {
 
- private val region = "eu-west-1"
- private val host = "127.0.0.1"
- private val port = 8001
- private val accessKey = "dummy-access-key"
- private val secretKey = "dummy-secretKey-key"
+  private val region    = "eu-west-1"
+  private val host      = "127.0.0.1"
+  private val port      = 8001
+  private val accessKey = "dummy-access-key"
+  private val secretKey = "dummy-secretKey-key"
 
- override def akkaConfig: Option[Config] = Some(ConfigFactory.parseString(
-   s"""
+  override def akkaConfig: Option[Config] = Some(ConfigFactory.parseString(s"""
       |akka.stream.alpakka.dynamodb {
       |  region = "eu-west-1"
       |  host = $host
@@ -32,15 +31,24 @@ class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceT
       |}
    """.stripMargin))
 
- def getClient(name: String): AlpakkaClient = {
-   val Some(client) = DynamoClient.dynamoClient(Some(
-     DynamoConfig(name, name, region, host, port, tls = false, accessKey = Some(accessKey), secretKey = Some(secretKey))
-   ))
-   client
- }
+  def getClient(name: String): AlpakkaClient = {
+    val Some(client) = DynamoClient.dynamoClient(
+      Some(
+        DynamoConfig("othername",
+                     name,
+                     region,
+                     host,
+                     port,
+                     tls = false,
+                     accessKey = Some(accessKey),
+                     secretKey = Some(secretKey))
+      )
+    )
+    client
+  }
 
- override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventDynamoService(
-   DynamoConfig(name, name, region, host, port, tls = false, accessKey = Some(accessKey), secretKey = Some(secretKey)),
-   getClient(name)
- )
+  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventDynamoService(
+    DynamoConfig(name, name, region, host, port, tls = false, accessKey = Some(accessKey), secretKey = Some(secretKey)),
+    getClient(name)
+  )
 }

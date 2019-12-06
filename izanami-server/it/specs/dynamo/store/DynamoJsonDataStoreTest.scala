@@ -42,7 +42,7 @@ class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb") with
     val Some(client) = DynamoClient.dynamoClient(
       Some(
         DynamoConfig(name,
-                     name,
+                     s"events_$name",
                      region,
                      host,
                      port,
