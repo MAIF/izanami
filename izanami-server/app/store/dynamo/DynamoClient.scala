@@ -1,5 +1,6 @@
 package store.dynamo
 
+import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.alpakka.dynamodb.{DynamoAttributes, DynamoSettings, DynamoClient => AlpakkaClient}
 import akka.stream.alpakka.dynamodb.AwsOp._
@@ -10,9 +11,10 @@ import env.DynamoConfig
 import libs.logs.IzanamiLogger
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.services.dynamodbv2.model._
+import domains.abtesting.impl.ExperimentVariantEventDynamoService
 
 import scala.concurrent.duration.DurationDouble
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object DynamoClient {
@@ -35,7 +37,7 @@ object DynamoClient {
         .withCredentialsProvider(credentials.getOrElse(new DefaultAWSCredentialsProviderChain()))
 
       val client = AlpakkaClient(settings)
-
+      IzanamiLogger.info(s"Initialization json data store table creation")
       Await.result(
         createIfNotExist(
           client,
@@ -51,31 +53,35 @@ object DynamoClient {
         ),
         30.seconds
       )
-
-      Await.result(
-        createIfNotExist(
-          client,
-          config.eventsTableName,
-          List(
-            new AttributeDefinition().withAttributeName("experimentId").withAttributeType(ScalarAttributeType.S),
-            new AttributeDefinition().withAttributeName("variantId").withAttributeType(ScalarAttributeType.S),
+      IzanamiLogger.info(s"Initialization experiment events table creation")
+      val _ = {
+        import ExperimentVariantEventDynamoService._
+        Await.result(
+          createIfNotExist(
+            client,
+            config.eventsTableName,
+            List(
+              new AttributeDefinition().withAttributeName(experimentId).withAttributeType(ScalarAttributeType.S),
+              new AttributeDefinition().withAttributeName(variantId).withAttributeType(ScalarAttributeType.S),
+            ),
+            List(
+              new KeySchemaElement().withAttributeName(experimentId).withKeyType(KeyType.HASH),
+              new KeySchemaElement().withAttributeName(variantId).withKeyType(KeyType.RANGE)
+            )
           ),
-          List(
-            new KeySchemaElement().withAttributeName("experimentId").withKeyType(KeyType.HASH),
-            new KeySchemaElement().withAttributeName("variantId").withKeyType(KeyType.RANGE)
-          )
-        ),
-        30.seconds
-      )
+          30.seconds
+        )
+      }
       IzanamiLogger.info(s"Initialization of Dynamo is done")
       client
     }
 
-  private def createIfNotExist(client: AlpakkaClient,
-                               rawTableName: String,
-                               attributes: List[AttributeDefinition],
-                               keys: List[KeySchemaElement])(implicit mat: Materializer, ec: ExecutionContext) = {
-    val tableName = rawTableName.replaceAll(":", "_")
+  private def createIfNotExist(
+      client: AlpakkaClient,
+      tableName: String,
+      attributes: List[AttributeDefinition],
+      keys: List[KeySchemaElement]
+  )(implicit mat: Materializer, ec: ExecutionContext): Future[Done] =
     DynamoDb
       .source(new DescribeTableRequest().withTableName(tableName))
       .withAttributes(DynamoAttributes.client(client))
@@ -109,6 +115,5 @@ object DynamoClient {
         }
       )
       .runWith(Sink.ignore)
-  }
 
 }

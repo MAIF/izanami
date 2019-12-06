@@ -59,12 +59,13 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
        |     "$esType" : {
        |       "properties" : {
        |         "key" : { "type" : "keyword" },
-       |         "value" : { "type" : "object" },
-       |         "deathDate": { "type": "date", "format" : "date_hour_minute_second_millis||date_hour_minute_second" },
-       |         "lastUpdate": { "type": "date", "format" : "date_hour_minute_second_millis||date_hour_minute_second" }
+       |         "value" : { 
+       |            "type" : "object",
+       |            "enabled": false
+       |         }
        |       }
        |     }
-       | }
+       |   }
        |}
     """.stripMargin
 

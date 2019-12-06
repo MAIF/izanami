@@ -30,5 +30,6 @@ services:
     image: postgres
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./install_extensions.sh:/docker-entrypoint-initdb.d/install_extensions.sh
     ports:
       - 5556:5432
