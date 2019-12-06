@@ -74,13 +74,12 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
   override def start: RIO[DataStoreContext, Unit] =
     Logger.debug(s"Applying script $dbScript") *>
     (for {
-      _ <- dbScript.update.run
-      _ <- createIndex.update.run.recover {
-            case e =>
-              IzanamiLogger.error(s"Error creating search index to $tableName, you should add the extension pg_tgrm", e)
-              0
+      _ <- dbScript.update.run.transact(xa).unit
+      _ <- createIndex.update.run.transact(xa).unit.catchAll { e =>
+            IzanamiLogger.error(s"Error creating search index to $tableName, you should add the extension pg_tgrm", e)
+            ZIO.unit
           }
-    } yield ()).transact(xa).unit
+    } yield ())
 
   override def create(
       id: Key,

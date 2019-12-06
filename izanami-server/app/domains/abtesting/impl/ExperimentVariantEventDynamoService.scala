@@ -21,7 +21,7 @@ import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import libs.dynamo.DynamoMapper
 import libs.logs.IzanamiLogger
-import zio.{IO, RIO, Schedule, Task, UIO, ZIO}
+import zio.{IO, RIO, Task, ZIO}
 
 import scala.jdk.CollectionConverters._
 import libs.logs.Logger
@@ -150,8 +150,8 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withAttributes(DynamoAttributes.client(client))
       .mapConcat(_.getItems.asScala.toList)
       .map(item => {
-        val experimentId: ExperimentKey = Key(item.get(experimentId).getS)
-        val variantId: String           = item.get(variantId).getS
+        val expId: ExperimentKey = Key(item.get(experimentId).getS)
+        val varId: String        = item.get(variantId).getS
         val events: List[ExperimentVariantEvent] = item
           .get("events")
           .getL
@@ -160,7 +160,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
           .toList
           .map(_.validate[ExperimentVariantEvent].asOpt)
           .collect { case Some(e) => e }
-        (experimentId, variantId, events)
+        (expId, varId, events)
       })
   }
 
