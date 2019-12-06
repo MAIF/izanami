@@ -42,7 +42,6 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
     implicit actorSystem: ActorSystem
 ) extends ExperimentVariantEventService {
   import ExperimentVariantEventInstances._
-  import ExperimentVariantEventDynamoService._
 
   actorSystem.dispatcher
   private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
@@ -60,8 +59,8 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withTableName(tableName)
       .withKey(
         Map(
-          experimentId -> new AttributeValue().withS(experimentId),
-          variantId    -> new AttributeValue().withS(variantId)
+          ExperimentVariantEventDynamoService.experimentId -> new AttributeValue().withS(experimentId),
+          ExperimentVariantEventDynamoService.variantId    -> new AttributeValue().withS(variantId)
         ).asJava
       )
       .withUpdateExpression("SET #events = list_append(if_not_exists(#events, :empty), :event)")
@@ -103,8 +102,8 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
             .withTableName(tableName)
             .withKey(
               Map(
-                experimentId -> new AttributeValue().withS(expId.key),
-                variantId    -> new AttributeValue().withS(variantId)
+                ExperimentVariantEventDynamoService.experimentId -> new AttributeValue().withS(expId.key),
+                ExperimentVariantEventDynamoService.variantId    -> new AttributeValue().withS(variantId)
               ).asJava
             )
         }
@@ -139,7 +138,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withTableName(tableName)
       .withKeyConditions(
         Map(
-          experimentId -> new Condition()
+          ExperimentVariantEventDynamoService.experimentId -> new Condition()
             .withComparisonOperator(ComparisonOperator.EQ)
             .withAttributeValueList(new AttributeValue().withS(experiment.id.key))
         ).asJava
@@ -150,8 +149,8 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withAttributes(DynamoAttributes.client(client))
       .mapConcat(_.getItems.asScala.toList)
       .map(item => {
-        val expId: ExperimentKey = Key(item.get(experimentId).getS)
-        val varId: String        = item.get(variantId).getS
+        val expId: ExperimentKey = Key(item.get(ExperimentVariantEventDynamoService.experimentId).getS)
+        val varId: String        = item.get(ExperimentVariantEventDynamoService.variantId).getS
         val events: List[ExperimentVariantEvent] = item
           .get("events")
           .getL
@@ -196,7 +195,14 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
         .source(request)
         .withAttributes(DynamoAttributes.client(client))
         .mapConcat(_.getItems.asScala.toList)
-        .map(item => Key(item.get(variantId).getS) -> item.get("events").getL.asScala.map(DynamoMapper.toJsValue))
+        .map(
+          item =>
+            Key(item.get(ExperimentVariantEventDynamoService.variantId).getS) -> item
+              .get("events")
+              .getL
+              .asScala
+              .map(DynamoMapper.toJsValue)
+        )
         .filter(_._1.matchAllPatterns(patterns: _*))
         .mapConcat(_._2.toList)
         .map(_.validate[ExperimentVariantEvent].get)
@@ -208,7 +214,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withTableName(tableName)
       .withKeyConditions(
         Map(
-          experimentId -> new Condition()
+          ExperimentVariantEventDynamoService.experimentId -> new Condition()
             .withComparisonOperator(ComparisonOperator.EQ)
             .withAttributeValueList(new AttributeValue().withS("dummyvalue"))
         ).asJava

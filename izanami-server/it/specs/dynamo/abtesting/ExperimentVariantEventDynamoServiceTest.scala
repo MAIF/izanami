@@ -31,24 +31,20 @@ class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceT
       |}
    """.stripMargin))
 
-  def getClient(name: String): AlpakkaClient = {
-    val Some(client) = DynamoClient.dynamoClient(
-      Some(
-        DynamoConfig("othername",
-                     name,
-                     region,
-                     host,
-                     port,
-                     tls = false,
-                     accessKey = Some(accessKey),
-                     secretKey = Some(secretKey))
-      )
-    )
+  def getClient(config: DynamoConfig): AlpakkaClient = {
+    val Some(client) = DynamoClient.dynamoClient(Some(config))
     client
   }
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventDynamoService(
-    DynamoConfig(name, name, region, host, port, tls = false, accessKey = Some(accessKey), secretKey = Some(secretKey)),
-    getClient(name)
-  )
+  override def dataStore(name: String): ExperimentVariantEventService = {
+    val config = DynamoConfig("othername",
+                              name,
+                              region,
+                              host,
+                              port,
+                              tls = false,
+                              accessKey = Some(accessKey),
+                              secretKey = Some(secretKey))
+    ExperimentVariantEventDynamoService(config, getClient(config))
+  }
 }

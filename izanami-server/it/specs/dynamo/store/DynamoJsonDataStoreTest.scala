@@ -12,7 +12,7 @@ import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.AbstractJsonDataStoreTest
 
-import scala.util.Try
+import scala.util.{Random, Try}
 import store.dynamo.DynamoJsonDataStore
 import store.dynamo.DynamoClient
 
@@ -54,8 +54,11 @@ class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb") with
     client
   }
 
+  private val dbName = s"test_db_${Random.nextInt(10000)}"
+  val dynamoClient   = getClient(dbName)
+
   override def dataStore(name: String): DynamoJsonDataStore =
-    DynamoJsonDataStore(getClient(name), name, "test")
+    DynamoJsonDataStore(dynamoClient, dbName, name)
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
     super.before(fun)
