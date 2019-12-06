@@ -15,7 +15,7 @@ import doobie.Fragments._
 import fs2.Stream
 import env.DbDomainConfig
 import org.postgresql.util.PGobject
-import libs.logs.Logger
+import libs.logs.{IzanamiLogger, Logger}
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
 
@@ -68,9 +68,18 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
        )
     """
 
+  private val createIndex = sql"""
+       CREATE INDEX IF NOT EXISTS trgm_idx_""" ++ fragTableName ++ fr""" ON """ ++ fragTableName ++ fr"""  USING gin (id gin_trgm_ops)"""
+
   override def start: RIO[DataStoreContext, Unit] =
     Logger.debug(s"Applying script $dbScript") *>
-    dbScript.update.run.transact(xa).unit
+    (for {
+      _ <- dbScript.update.run.transact(xa).unit
+      _ <- createIndex.update.run.transact(xa).unit.catchAll { e =>
+            IzanamiLogger.error(s"Error creating search index to $tableName, you should add the extension pg_tgrm", e)
+            ZIO.unit
+          }
+    } yield ())
 
   override def create(
       id: Key,

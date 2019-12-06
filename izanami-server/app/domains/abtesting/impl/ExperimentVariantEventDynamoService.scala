@@ -9,12 +9,11 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.alpakka.dynamodb._
 import akka.stream.alpakka.dynamodb.AwsOp._
 import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
-import akka.{NotUsed}
+import akka.NotUsed
 import domains.abtesting._
 import domains.events.EventStore
 import env.DynamoConfig
 import domains.errors.IzanamiErrors
-
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, _}
 import domains.Key
 import domains.abtesting.Experiment.ExperimentKey
@@ -22,13 +21,17 @@ import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import libs.dynamo.DynamoMapper
 import libs.logs.IzanamiLogger
-import zio.{RIO, Task, ZIO}
+import zio.{IO, RIO, Task, ZIO}
 
 import scala.jdk.CollectionConverters._
 import libs.logs.Logger
 import domains.AuthInfo
 
 object ExperimentVariantEventDynamoService {
+
+  val experimentId = "experimentId"
+  val variantId    = "variantId"
+
   def apply(config: DynamoConfig, client: DynamoClient)(
       implicit system: ActorSystem
   ): ExperimentVariantEventDynamoService =
@@ -47,17 +50,17 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
   ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
-    val key: String =
-      s"${id.experimentId.key}:${id.variantId}"
 
-    val jsValue = ExperimentVariantEventInstances.format.writes(data)
+    val experimentId = id.experimentId.key
+    val variantId    = s"${id.experimentId.key}:${id.variantId}"
+    val jsValue      = ExperimentVariantEventInstances.format.writes(data)
 
-    val request = new UpdateItemRequest()
+    val request: UpdateItemRequest = new UpdateItemRequest()
       .withTableName(tableName)
       .withKey(
         Map(
-          "experimentId" -> new AttributeValue().withS(id.experimentId.key),
-          "variantId"    -> new AttributeValue().withS(key)
+          ExperimentVariantEventDynamoService.experimentId -> new AttributeValue().withS(experimentId),
+          ExperimentVariantEventDynamoService.variantId    -> new AttributeValue().withS(variantId)
         ).asJava
       )
       .withUpdateExpression("SET #events = list_append(if_not_exists(#events, :empty), :event)")
@@ -70,44 +73,48 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       )
 
     for {
-      _ <- Logger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
-      res <- ZIO
-              .fromFuture { _ =>
-                DynamoDb
-                  .source(request)
-                  .withAttributes(DynamoAttributes.client(client))
-                  .runWith(Sink.head)
-              }
-              .map(_ => data)
-              .refineToOrDie[IzanamiErrors]
+      _        <- Logger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
+      res      <- createEvent(request).map(_ => data)
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield res
 
   }
 
+  private def createEvent(request: UpdateItemRequest): IO[IzanamiErrors, UpdateItemResult] =
+    ZIO
+      .fromFuture { _ =>
+        DynamoDb
+          .source(request)
+          .withAttributes(DynamoAttributes.client(client))
+          .runWith(Sink.head)
+      }
+      .refineToOrDie[IzanamiErrors]
+
   override def deleteEventsForExperiment(
       experiment: Experiment
   ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] = {
 
-    val delete = Flow[ExperimentVariantEventKey]
-      .map(variantId => {
-        new DeleteItemRequest()
-          .withTableName(tableName)
-          .withKey(
-            Map(
-              "experimentId" -> new AttributeValue().withS(experiment.id.key),
-              "variantId"    -> new AttributeValue().withS(variantId.variantId)
-            ).asJava
-          )
-      })
+    val delete = Flow[(ExperimentKey, String)]
+      .map {
+        case (expId, variantId) => {
+          new DeleteItemRequest()
+            .withTableName(tableName)
+            .withKey(
+              Map(
+                ExperimentVariantEventDynamoService.experimentId -> new AttributeValue().withS(expId.key),
+                ExperimentVariantEventDynamoService.variantId    -> new AttributeValue().withS(variantId)
+              ).asJava
+            )
+        }
+      }
       .map(DeleteItem)
       .via(DynamoDb.flow[DeleteItem].withAttributes(DynamoAttributes.client(client)))
 
     val deletes = ZIO
       .fromFuture { _ =>
         findExperimentVariantEvents(experiment)
-          .map(_._2)
+          .map { case (expId, variantId, _) => (expId, variantId) }
           .via(delete)
           .runWith(Sink.ignore)
       }
@@ -124,14 +131,14 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
 
   def findExperimentVariantEvents(
       experiment: Experiment
-  ): Source[(ExperimentKey, ExperimentVariantEventKey, List[ExperimentVariantEvent]), NotUsed] = {
+  ): Source[(ExperimentKey, String, List[ExperimentVariantEvent]), NotUsed] = {
     IzanamiLogger.debug(s"Dynamo find events on $tableName with experiment $experiment")
 
     val request = new QueryRequest()
       .withTableName(tableName)
       .withKeyConditions(
         Map(
-          "experimentId" -> new Condition()
+          ExperimentVariantEventDynamoService.experimentId -> new Condition()
             .withComparisonOperator(ComparisonOperator.EQ)
             .withAttributeValueList(new AttributeValue().withS(experiment.id.key))
         ).asJava
@@ -142,7 +149,8 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withAttributes(DynamoAttributes.client(client))
       .mapConcat(_.getItems.asScala.toList)
       .map(item => {
-        val variantId: ExperimentVariantEventKey = ExperimentVariantEventKey(Key(item.get("variantId").getS))
+        val expId: ExperimentKey = Key(item.get(ExperimentVariantEventDynamoService.experimentId).getS)
+        val varId: String        = item.get(ExperimentVariantEventDynamoService.variantId).getS
         val events: List[ExperimentVariantEvent] = item
           .get("events")
           .getL
@@ -151,7 +159,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
           .toList
           .map(_.validate[ExperimentVariantEvent].asOpt)
           .collect { case Some(e) => e }
-        (variantId.experimentId, variantId, events)
+        (expId, varId, events)
       })
   }
 
@@ -187,7 +195,14 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
         .source(request)
         .withAttributes(DynamoAttributes.client(client))
         .mapConcat(_.getItems.asScala.toList)
-        .map(item => Key(item.get("variantId").getS) -> item.get("events").getL.asScala.map(DynamoMapper.toJsValue))
+        .map(
+          item =>
+            Key(item.get(ExperimentVariantEventDynamoService.variantId).getS) -> item
+              .get("events")
+              .getL
+              .asScala
+              .map(DynamoMapper.toJsValue)
+        )
         .filter(_._1.matchAllPatterns(patterns: _*))
         .mapConcat(_._2.toList)
         .map(_.validate[ExperimentVariantEvent].get)
@@ -199,7 +214,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       .withTableName(tableName)
       .withKeyConditions(
         Map(
-          "experimentId" -> new Condition()
+          ExperimentVariantEventDynamoService.experimentId -> new Condition()
             .withComparisonOperator(ComparisonOperator.EQ)
             .withAttributeValueList(new AttributeValue().withS("dummyvalue"))
         ).asJava
