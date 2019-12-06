@@ -1,5 +1,6 @@
 package store.dynamo
 
+import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.alpakka.dynamodb.{DynamoAttributes, DynamoSettings, DynamoClient => AlpakkaClient}
 import akka.stream.alpakka.dynamodb.AwsOp._
@@ -13,7 +14,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import domains.abtesting.impl.ExperimentVariantEventDynamoService
 
 import scala.concurrent.duration.DurationDouble
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object DynamoClient {
@@ -75,10 +76,12 @@ object DynamoClient {
       client
     }
 
-  private def createIfNotExist(client: AlpakkaClient,
-                               tableName: String,
-                               attributes: List[AttributeDefinition],
-                               keys: List[KeySchemaElement])(implicit mat: Materializer, ec: ExecutionContext) =
+  private def createIfNotExist(
+      client: AlpakkaClient,
+      tableName: String,
+      attributes: List[AttributeDefinition],
+      keys: List[KeySchemaElement]
+  )(implicit mat: Materializer, ec: ExecutionContext): Future[Done] =
     DynamoDb
       .source(new DescribeTableRequest().withTableName(tableName))
       .withAttributes(DynamoAttributes.client(client))
