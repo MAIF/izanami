@@ -1,5 +1,6 @@
 import sbt.Keys.{organization, scalacOptions}
 import sbtrelease.ReleaseStateTransformations._
+import BintrayConfig._
 
 val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
   Seq(RevolverPlugin)
@@ -60,48 +61,3 @@ scalacOptions ++= Seq(
 )
 addCompilerPlugin(scalafixSemanticdb)
 scalafixDependencies in ThisBuild += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.2"
-
-lazy val githubRepo = "maif/izanami"
-
-lazy val publishCommonsSettings = Seq(
-  homepage := Some(url(s"https://github.com/$githubRepo")),
-  startYear := Some(2017),
-  licenses := Seq(("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))),
-  scmInfo := Some(
-    ScmInfo(
-      url(s"https://github.com/$githubRepo"),
-      s"scm:git:https://github.com/$githubRepo.git",
-      Some(s"scm:git:git@github.com:$githubRepo.git")
-    )
-  ),
-  developers := List(
-    Developer("alexandre.delegue", "Alexandre Delègue", "", url(s"https://github.com/larousso"))
-  ),
-  releaseCrossBuild := true,
-  publishMavenStyle := true,
-  publishArtifact in Test := false,
-  bintrayVcsUrl := Some(s"scm:git:git@github.com:$githubRepo.git")
-)
-
-lazy val publishSettings =
-  if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
-    publishCommonsSettings ++ Seq(
-      bintrayOrganization := Some("maif"),
-      pomIncludeRepository := { _ =>
-        false
-      }
-    )
-  } else {
-    publishCommonsSettings ++ Seq(
-      publishTo := Some(
-        ("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local").withAllowInsecureProtocol(true)
-      ),
-      bintrayReleaseOnPublish := false,
-      credentials := List(
-        Credentials("Artifactory Realm",
-                    "oss.jfrog.org",
-                    sys.env.getOrElse("BINTRAY_USER", ""),
-                    sys.env.getOrElse("BINTRAY_PASS", ""))
-      )
-    )
-  }

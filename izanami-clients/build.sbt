@@ -1,3 +1,5 @@
+import BintrayConfig.publishSettings
+
 lazy val `izanami-clients` = (project in file("."))
   .aggregate(jvm, `izanami-spring`)
   .enablePlugins(NoPublish)
@@ -5,4 +7,6 @@ lazy val `izanami-clients` = (project in file("."))
 
 lazy val jvm = project
 
-lazy val `izanami-spring` = project.dependsOn(jvm)
+lazy val `izanami-spring` = project
+  .dependsOn(jvm)
+  .settings(publishSettings: _*)
