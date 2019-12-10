@@ -8,18 +8,21 @@ import izanami.javadsl.ConfigClient;
 import izanami.javadsl.ExperimentsClient;
 import izanami.javadsl.FeatureClient;
 import izanami.javadsl.IzanamiClient;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = ConfigDefaultValuesTest.Application.class)
 @ActiveProfiles(profiles = "default")
 public class ConfigDefaultValuesTest {

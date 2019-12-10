@@ -21,7 +21,8 @@ libraryDependencies ++= Seq(
   "org.hibernate"              % "hibernate-validator"                 % "6.0.16.Final",
   "io.projectreactor"          % "reactor-core"                        % "3.3.1.RELEASE" % Optional,
   "org.springframework.boot"   % "spring-boot-starter-test"            % springbootVersion % Test,
-  "org.assertj"                % "assertj-core"                        % "3.8.0" % Test
+  "org.assertj"                % "assertj-core"                        % "3.8.0" % Test,
+  "com.novocode"               % "junit-interface"                     % "0.11" % Test
 )
 
 resolvers ++= Seq(
