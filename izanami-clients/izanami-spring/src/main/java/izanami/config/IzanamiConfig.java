@@ -20,6 +20,7 @@ public class IzanamiConfig {
 
     @Bean
     IzanamiClient izanamiClient(ActorSystem actorSystem, IzanamiProperties izanamiProperties) {
+
         ClientConfig tmpClientConfig = ClientConfig.create(izanamiProperties.getHost())
                 .withClientId(izanamiProperties.getClientId())
                 .withClientSecret(izanamiProperties.getClientSecret())
