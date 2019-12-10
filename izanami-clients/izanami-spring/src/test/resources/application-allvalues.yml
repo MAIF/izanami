@@ -1,0 +1,53 @@
+
+izanami:
+  host: http://localhost:8080
+  client-id: xxxx
+  client-secret: xxxx
+  client-id-header-name: Izanami-Client
+  client-secret-header-name: Izanami-Secret
+  backend: SseBackend
+  page-size: 5
+  zone-id: America/Phoenix
+  dispatcher: izanami.blocking-dispatcher
+  feature:
+    strategy:
+      type: FetchWithCacheStrategy
+      error-strategy: RecoverWithFallback
+      duration: 2 minutes
+      max-element: 5
+    fallback: >
+      [
+        { "id": "mytvshows:season:markaswatched", "enabled": false },
+        { "id": "mytvshows:providers:tvdb", "enabled": true },
+        { "id": "mytvshows:providers:betaserie", "enabled": false },
+        { "id": "mytvshows:providers:omdb", "enabled": false }
+      ]
+    autocreate: true
+  config:
+    fallback: >
+      [
+        { "id": "izanami:example:config", "value": { "emailProvider": "test" } }
+      ]
+    strategy:
+      type: CacheWithSseStrategy
+      error-strategy: Crash
+      polling-interval: 1 minute
+      patterns: [mytvshows:*, izanami:*]
+    autocreate: true
+  experiment:
+    fallback: >
+      [
+        {
+          "id": "mytvshows:gotoepisodes:button",
+          "name": "Test button",
+          "description": "Test button",
+          "enabled": true,
+          "variant": {
+            "id": "A",
+            "name": "Variant A",
+            "description": "Variant A"
+          }
+        }
+      ]
+    strategy:
+      type: DevStrategy

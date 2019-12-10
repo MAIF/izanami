@@ -69,6 +69,10 @@ case class ClientConfig(
 
   def sseBackend() = this.copy(backend = IzanamiBackend.SseBackend)
 
+  def pollingBackend() = this.copy(backend = IzanamiBackend.PollingBackend)
+
+  def undefined() = this.copy(backend = IzanamiBackend.Undefined)
+
   def withPageSize(pageSize: Int) = {
     assert(pageSize > 0, "pageSize should not be a positive number")
     this.copy(pageSize = pageSize)

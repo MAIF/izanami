@@ -435,10 +435,7 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
 
   /**
    * Create a feature
-   * @param id Feature Id
-   * @param enabled If this feature is enabled by default or not
-   * @param activationStrategy activationStrategy for this feature (@see {@link izanami.FeatureType})
-   * @param parameters optional parameters (depends on activationStrategy)
+   * @param feature Feature
    * @return
    */
   def createFeature(feature: Feature): Future[Feature] =
@@ -450,7 +447,6 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * Update a feature
    * @param id the previous id of the feature
    * @param feature the feature to update
-   * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
   def updateFeature(id: String, feature: Feature): Future[Feature] =
