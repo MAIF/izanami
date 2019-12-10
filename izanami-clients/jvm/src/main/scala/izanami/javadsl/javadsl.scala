@@ -433,11 +433,6 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
                          parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
       .toJava
 
-  /**
-   * Create a feature
-   * @param feature Feature
-   * @return
-   */
   def createFeature(feature: Feature): Future[Feature] =
     underlying
       .createFeature(feature)
