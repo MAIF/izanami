@@ -27,7 +27,7 @@ lazy val jvm = (project in file("."))
       "com.typesafe.akka"          %% "akka-http"               % akkaHttpVersion,
       "com.lightbend.akka"         %% "akka-stream-alpakka-sse" % "1.1.0",
       "org.scala-lang.modules"     %% "scala-collection-compat" % "2.1.2",
-      "io.vavr"                    % "vavr"                     % "0.9.2",
+      "io.vavr"                    % "vavr"                     % "0.10.0",
       "org.reactivecouchbase.json" % "json-lib"                 % "1.0.0",
       "com.google.guava"           % "guava"                    % "25.1-jre",
       "com.typesafe.play"          %% "play-json"               % "2.7.4",

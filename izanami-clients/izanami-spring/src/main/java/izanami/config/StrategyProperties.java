@@ -41,11 +41,15 @@ public class StrategyProperties {
                         errorStrategy
                 )),
                 Case($("CacheWithSseStrategy"), () -> {
-                    String[] patterns = Option.of(this.patterns).map(p -> p.toArray(String[]::new)).getOrElse(new String[]{"*"});
+                    String[] patterns = Option.of(this.patterns)
+                            .map(p -> io.vavr.collection.List.ofAll(p).toJavaArray(String[]::new))
+                            .getOrElse(new String[]{"*"});
                     return Strategies.smartCacheWithSseStrategy(patterns).withErrorStrategy(errorStrategy);
                 }),
                 Case($("CacheWithPollingStrategy"), () -> {
-                    String[] patterns = Option.of(this.patterns).map(p -> p.toArray(String[]::new)).getOrElse(new String[]{"*"});
+                    String[] patterns = Option.of(this.patterns)
+                            .map(p -> io.vavr.collection.List.ofAll(p).toJavaArray(String[]::new))
+                            .getOrElse(new String[]{"*"});
                     return Strategies.smartCacheWithPollingStrategy(
                             Option(pollingInterval).getOrElse(FiniteDuration.create(1, TimeUnit.MINUTES)),
                             patterns

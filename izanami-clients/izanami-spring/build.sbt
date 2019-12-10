@@ -13,7 +13,7 @@ disablePlugins(disabledPlugins: _*)
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka"          %% "akka-stream"                        % akkaVersion,
-  "io.vavr"                    % "vavr"                                % "0.9.2",
+  "io.vavr"                    % "vavr"                                % "0.10.0",
   "org.reactivecouchbase.json" % "json-lib"                            % "1.0.0",
   "org.springframework"        % "spring-context"                      % "5.2.2.RELEASE",
   "org.springframework.boot"   % "spring-boot-autoconfigure"           % springbootVersion,
