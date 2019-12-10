@@ -1,10 +1,10 @@
 package izanami.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 import javax.validation.constraints.NotNull;
-import java.util.List;
 
 @Configuration
 @ConfigurationProperties(prefix = "izanami.feature")
