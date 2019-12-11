@@ -17,7 +17,7 @@ jobs:
       name: "Run unit test"
       os: linux
       jdk: openjdk8
-      script: sbt -jvm-opts .jvmopts-travis  -Dsbt.color=always -Dsbt.supershell=false test
+      script: sbt -jvm-opts .jvmopts-travis  -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/test;jvm/test;izanami-spring/test"
 
     - stage: server_it
       name: "Run integration that depends on cassandra"
