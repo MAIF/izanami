@@ -5,10 +5,7 @@ import izanami.Strategies;
 import izanami.client.ReactiveConfigClient;
 import izanami.client.ReactiveExperimentClient;
 import izanami.client.ReactiveFeatureClient;
-import izanami.javadsl.ConfigClient;
-import izanami.javadsl.ExperimentsClient;
-import izanami.javadsl.FeatureClient;
-import izanami.javadsl.IzanamiClient;
+import izanami.javadsl.*;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,8 +60,14 @@ public class ConfigTest {
     @Autowired
     ExperimentProperties experimentProperties;
 
+    @Autowired
+    ProxyProperties proxyProperties;
+
+    @Autowired
+    Proxy proxy;
+
     @Test
-    public void testConfig() {
+    public void clientProperties() {
         assertThat(izanamiProperties.getHost()).isEqualTo("http://localhost:8080");
         assertThat(izanamiProperties.getClientId()).isEqualTo("xxxx");
         assertThat(izanamiProperties.getClientSecret()).isEqualTo("xxxx");
@@ -123,6 +126,13 @@ public class ConfigTest {
                 "  }\n" +
                 "]\n");
         assertThat(experimentProperties.getStrategy().toStrategy()).isEqualTo(Strategies.dev());
+    }
+
+    @Test
+    public void proxyProperties() {
+        assertThat(proxyProperties.getFeature().getPatterns()).contains("feature*");
+        assertThat(proxyProperties.getConfig().getPatterns()).contains("config*");
+        assertThat(proxyProperties.getExperiment().getPatterns()).contains("experiment*");
     }
 
     @SpringBootApplication

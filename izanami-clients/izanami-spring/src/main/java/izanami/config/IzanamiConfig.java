@@ -2,14 +2,20 @@ package izanami.config;
 
 
 import akka.actor.ActorSystem;
+import io.vavr.collection.List;
+import io.vavr.control.Option;
 import izanami.ClientConfig;
 import izanami.Experiments;
 import izanami.javadsl.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Optional;
+import java.util.function.BiFunction;
 
 import static io.vavr.API.*;
 
@@ -73,4 +79,44 @@ public class IzanamiConfig {
         );
     }
 
+    @Bean
+    @ConditionalOnBean(IzanamiClient.class)
+    Proxy proxy(IzanamiClient izanamiClient,
+                ProxyProperties proxyProperties,
+                Optional<FeatureClient> featureClient,
+                Optional<ConfigClient> configClient,
+                Optional<ExperimentsClient> experimentsClient) {
+
+        Proxy basedProxy = izanamiClient.proxy();
+
+        Proxy featureProxy = zip(
+                Option.ofOptional(featureClient),
+                Option(proxyProperties.getFeature()).flatMap(f -> Option(f.getPatterns())),
+                (c, p) -> basedProxy
+                        .withFeatureClient(c)
+                        .withFeaturePattern(List.ofAll(p).toJavaArray(String[]::new))
+        ).getOrElse(basedProxy);
+
+        Proxy configProxy = zip(
+                Option.ofOptional(configClient),
+                Option(proxyProperties.getConfig()).flatMap(f -> Option(f.getPatterns())),
+                (c, p) -> featureProxy
+                        .withConfigClient(c)
+                        .withConfigPattern(List.ofAll(p).toJavaArray(String[]::new))
+        ).getOrElse(featureProxy);
+
+        return zip(
+                Option.ofOptional(experimentsClient),
+                Option(proxyProperties.getExperiment()).flatMap(f -> Option(f.getPatterns())),
+                (c, p) -> configProxy
+                        .withExperimentsClient(c)
+                        .withExperimentPattern(List.ofAll(p).toJavaArray(String[]::new))
+        ).getOrElse(configProxy);
+    }
+
+    static <T1, T2, T> Option<T> zip(Option<T1> t1, Option<T2> t2, BiFunction<T1, T2, T> f) {
+        return t1.flatMap(v1 ->
+            t2.map(v2 -> f.apply(v1, v2))
+        );
+    }
 }

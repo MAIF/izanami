@@ -51,3 +51,10 @@ izanami:
       ]
     strategy:
       type: DevStrategy
+  proxy:
+    feature:
+      patterns: feature*
+    config:
+      patterns: config*
+    experiment:
+      patterns: experiment*

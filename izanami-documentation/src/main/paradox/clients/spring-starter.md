@@ -33,6 +33,9 @@
 | `izanami.config.autocreate`                 | `true` or `false` (default)                                                                                         | 
 | `izanami.experiment.fallback`               | a json array of experiments used as fallbacks                                                                       |  
 | `izanami.experiment.strategy.type`          | `DevStrategy` or `FetchStrategy`                                                                                    | 
+| `izanami.proxy.feature.patterns`            | Patterns used to expose the features through the proxy                                                              | 
+| `izanami.proxy.config.patterns`             | Patterns used to expose the configs through the proxy                                                               | 
+| `izanami.proxy.experiment.patterns`         | Patterns used to expose the experiments through the proxy                                                           | 
 
 
 ### Spring starter minimum config 
@@ -108,6 +111,13 @@ izanami:
       ]
     strategy:
       type: DevStrategy
+  proxy:
+    feature:
+      patterns: feature*
+    config:
+      patterns: config*
+    experiment:
+      patterns: experiment*
 ```
 
 ## Spring beans
@@ -118,6 +128,7 @@ The beans exposed by this starter are
  * `FeatureClient` : the feature client if feature settings are defined  
  * `ConfigClient` : the config client if feature settings are defined  
  * `ExperimentsClient` : the experiment client if feature settings are defined  
+ * `Proxy` : the proxy used to expose the data via http  
 
 
 If the spring reactor is on the dependencies : 
