@@ -35,7 +35,8 @@ public class IzanamiProxyController {
         return proxy.statusAndStringResponse(context, Option.of(userId))
                 .map(resp ->
                         new ResponseEntity<>(resp._2, HttpStatus.valueOf(resp._1))
-                ).toCompletableFuture();
+                )
+                .toCompletableFuture();
     }
 
     @PostMapping("/experiments/displayed")

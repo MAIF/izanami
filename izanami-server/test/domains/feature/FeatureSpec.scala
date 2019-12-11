@@ -553,10 +553,13 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
       ctx.featureDataStore.inMemoryStore.contains(copiedId1) must be(true)
       ctx.featureDataStore.inMemoryStore.contains(copiedId2) must be(true)
+
       inside(ctx.events.last) {
         case FeatureCreated(i, newValue, _, _, auth) =>
-          i must be(copiedId2)
-          newValue must be(feature2.copy(id = copiedId2, enabled = false))
+          i must (be(copiedId2) or be(copiedId1))
+          newValue must (be(feature1.copy(id = copiedId1, enabled = false)) or be(
+            feature2.copy(id = copiedId2, enabled = false)
+          ))
           auth must be(authInfo)
       }
     }

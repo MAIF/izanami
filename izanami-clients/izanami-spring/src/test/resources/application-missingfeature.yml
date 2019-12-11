@@ -1,0 +1,11 @@
+
+izanami:
+  host: http://localhost:8080
+  client-id: xxxx
+  client-secret: xxxx
+  config:
+    strategy:
+      type: DevStrategy
+  experiment:
+    strategy:
+      type: DevStrategy
