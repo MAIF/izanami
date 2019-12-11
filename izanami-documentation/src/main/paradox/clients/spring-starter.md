@@ -4,7 +4,7 @@
 
 ### Settings 
 
-|Key                                          |Description                                                                                                          |
+|Key                                          | Description                                                                                                         |
 |---------------------------------------------|---------------------------------------------------------------------------------------------------------------------| 
 | `izanami.host`                              | server address. eg http://localhost:9000                                                                            | 
 | `izanami.client-id`                         | client id                                                                                                           | 
