@@ -1,4 +1,5 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
     izanami.config.AkkaConfig,\
     izanami.config.IzanamiConfig,\
-    izanami.config.IzanamiReactiveConfig
+    izanami.config.IzanamiReactiveConfig,\
+    izanami.config.IzanamiDestroy
