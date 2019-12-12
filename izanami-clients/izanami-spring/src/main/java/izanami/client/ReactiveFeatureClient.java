@@ -121,7 +121,6 @@ public class ReactiveFeatureClient {
      * @param key the feature key
      * @param ok call if enabled
      * @param ko call if disabled
-     * @tparam T
      * @return the value
      */
     public <T> Mono<T> featureOrElse(String key, Function0<T> ok, Function0<T> ko) {
@@ -133,7 +132,6 @@ public class ReactiveFeatureClient {
      * @param key the feature key
      * @param ok call if enabled
      * @param ko call if disabled
-     * @tparam T
      * @return the value
      */
     public <T> Mono<T> featureOrElseAsync(String key, Function0<Mono<T>> ok, Function0<Mono<T>> ko) {
@@ -145,7 +143,6 @@ public class ReactiveFeatureClient {
      * @param key the feature key
      * @param ok call if enabled
      * @param ko call if disabled
-     * @tparam T
      * @return the value
      */
     public <T> Mono<T> featureOrElse(String key, JsObject context, Function0<T> ok, Function0<T> ko) {
@@ -158,7 +155,6 @@ public class ReactiveFeatureClient {
      * @param key the feature key
      * @param ok call if enabled
      * @param ko call if disabled
-     * @tparam T
      * @return the value
      */
     public <T> Mono<T> featureOrElseAsync(String key, JsObject context, Function0<Mono<T>> ok, Function0<Mono<T>> ko) {

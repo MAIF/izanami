@@ -61,7 +61,7 @@ public class ReactiveConfigClient {
     /**
      * Delete a config by id.
      * @param id the id of the config to delete
-     * @return
+     * @return done
      */
     public Mono<Done> deleteConfig(String id) {
         return Monos.fromFuture(() -> configClient.deleteConfig(id));
@@ -78,7 +78,7 @@ public class ReactiveConfigClient {
 
     /**
      * Get configs for a pattern like my:keys:*
-     * @param pattern
+     * @param pattern the pattern to search
      * @return the configs
      */
     public Mono<Configs> configs(Seq<String> pattern) {
@@ -88,7 +88,7 @@ public class ReactiveConfigClient {
 
     /**
      * Get a config by his key.
-     * @param key
+     * @param key the key to look up for
      * @return a json value. Empty if the config is not set.
      */
     public Mono<JsValue> config(String key) {
