@@ -11,6 +11,10 @@ val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefin
 
 disablePlugins(disabledPlugins: _*)
 
+organization := "fr.maif"
+
+name := "izanami-spring"
+
 libraryDependencies ++= Seq(
   "org.springframework"      % "spring-context"                      % "5.2.2.RELEASE",
   "org.springframework.boot" % "spring-boot-autoconfigure"           % springbootVersion,
