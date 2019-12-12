@@ -1,7 +1,7 @@
 organization := "fr.maif"
 name := "example-spring"
 
-scalaVersion := "2.12.9"
+scalaVersion := "2.13.1"
 
 mainClass := Some("izanami.example.Application")
 
@@ -10,14 +10,16 @@ resolvers ++= Seq(
   ("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local").withAllowInsecureProtocol(true)
 )
 
+val springVersion = "2.2.0.RELEASE"
+
 libraryDependencies ++= Seq(
-  "org.springframework.boot"   % "spring-boot-starter-web"       % "1.5.8.RELEASE",
-  "org.springframework.boot"   % "spring-boot-starter-thymeleaf" % "1.5.8.RELEASE",
-  "org.springframework.boot"   % "spring-boot-starter-actuator"  % "1.5.8.RELEASE",
-  "org.springframework.cloud"  % "spring-cloud-starter-config"   % "1.4.5.RELEASE",
+  "org.springframework.boot"   % "spring-boot-starter-web"       % springVersion,
+  "org.springframework.boot"   % "spring-boot-starter-thymeleaf" % springVersion,
+  "org.springframework.boot"   % "spring-boot-starter-actuator"  % springVersion,
+  "org.springframework.cloud"  % "spring-cloud-starter-config"   % "2.1.4.RELEASE",
   "com.fasterxml.jackson.core" % "jackson-databind"              % "2.9.3",
-  "io.vavr"                    % "vavr-jackson"                  % "0.9.2",
+  "io.vavr"                    % "vavr-jackson"                  % "0.10.0",
   "com.auth0"                  % "java-jwt"                      % "3.1.0",
-  "fr.maif"                    %% "izanami-client"               % "1.5.2",
+  "fr.maif"                    % "izanami-spring"                % "1.5.5-SNAPSHOT",
   "org.iq80.leveldb"           % "leveldb"                       % "0.10"
 )
