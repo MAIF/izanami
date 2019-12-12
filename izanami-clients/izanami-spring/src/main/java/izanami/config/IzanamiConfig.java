@@ -25,6 +25,11 @@ public class IzanamiConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(IzanamiConfig.class);
 
     @Bean
+    FiniteDurationConverter finiteDurationConverter() {
+        return new FiniteDurationConverter();
+    }
+
+    @Bean
     IzanamiClient izanamiClient(ActorSystem actorSystem, IzanamiProperties izanamiProperties) {
 
         ClientConfig tmpClientConfig = ClientConfig.create(izanamiProperties.getHost())

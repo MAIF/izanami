@@ -96,7 +96,6 @@ public class ConfigDefaultValuesTest {
     @SpringBootApplication
     @Import({AkkaConfig.class, IzanamiConfig.class, IzanamiReactiveConfig.class, IzanamiDestroy.class})
     public static class Application {
-
         public static void main(String[] args) {
             SpringApplication.run(Application.class, args);
         }

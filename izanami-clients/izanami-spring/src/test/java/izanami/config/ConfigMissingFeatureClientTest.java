@@ -4,10 +4,7 @@ import izanami.Strategies;
 import izanami.client.ReactiveConfigClient;
 import izanami.client.ReactiveExperimentClient;
 import izanami.client.ReactiveFeatureClient;
-import izanami.javadsl.ConfigClient;
-import izanami.javadsl.ExperimentsClient;
-import izanami.javadsl.FeatureClient;
-import izanami.javadsl.IzanamiClient;
+import izanami.javadsl.*;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +53,9 @@ public class ConfigMissingFeatureClientTest {
     @Autowired
     ApplicationContext applicationContext;
 
+    @Autowired
+    Proxy proxy;
+
     @Test
     public void testConfig() {
         assertThat(izanamiProperties.getHost()).isEqualTo("http://localhost:8080");
@@ -91,7 +91,6 @@ public class ConfigMissingFeatureClientTest {
     @SpringBootApplication
     @Import({AkkaConfig.class, IzanamiConfig.class, IzanamiReactiveConfig.class, IzanamiDestroy.class})
     public static class Application {
-
         public static void main(String[] args) {
             SpringApplication.run(Application.class, args);
         }

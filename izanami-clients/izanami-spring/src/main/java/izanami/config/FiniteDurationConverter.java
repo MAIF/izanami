@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
-@Component
 @ConfigurationPropertiesBinding
 public class FiniteDurationConverter implements Converter<String, FiniteDuration> {
 
