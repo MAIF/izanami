@@ -2,6 +2,8 @@ package domains.user
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces.DecodedJWT
 import domains.events.{EventStore, EventStoreContext}
 import domains.user.User.UserKey
@@ -30,6 +32,17 @@ case class User(id: String,
 object User {
 
   type UserKey = Key
+
+  def buildToken(user: User, issuer: String, algorithm: Algorithm) =
+    JWT
+      .create()
+      .withIssuer(issuer)
+      .withClaim("name", user.name)
+      .withClaim("user_id", user.id)
+      .withClaim("email", user.email)
+      .withClaim("izanami_authorized_patterns", user.authorizedPattern) // FIXME à voir si on doit mettre une liste???
+      .withClaim("izanami_admin", user.admin.toString)
+      .sign(algorithm)
 
   def updateUser(newUser: User, oldUser: User): User = {
     import cats.implicits._

@@ -3,6 +3,7 @@ package env
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.file.{Path, Paths}
 
+import com.auth0.jwt.algorithms.Algorithm
 import domains.AuthorizedPattern
 import play.api.Configuration
 import pureconfig._
@@ -90,6 +91,7 @@ case class IzanamiConfig(
     confirmationDialog: Boolean,
     headerHost: String,
     filter: IzanamiFilter,
+    openIdConnect: Option[OpenIdConnectConfig],
     db: DbConfig,
     logout: LogoutConfig,
     config: ConfigConfig,
@@ -134,10 +136,31 @@ case class DefaultFilter(allowedPaths: Seq[String],
                          sharedKey: String,
                          cookieClaim: String,
                          apiKeys: ApiKeyHeaders)
-
 sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
 case class Default(default: DefaultFilter)          extends IzanamiFilter
+
+case class OpenIdConnectConfig(authorizeUrl: String,
+                               tokenUrl: String,
+                               userInfoUrl: String,
+                               introspectionUrl: String,
+                               loginUrl: String,
+                               logoutUrl: String,
+                               //callbackUrl: String,
+                               clientId: String,
+                               clientSecret: String,
+                               scope: Option[String] = None,
+                               claims: String = "email name",
+                               accessTokenField: String = "access_token",
+                               //jwtVerifier: Option[Algorithm], // FIXME Algo token
+                               readProfileFromToken: Boolean = false,
+                               useCookie: Boolean = true,
+                               useJson: Boolean = true,
+                               idField: String,
+                               nameField: String,
+                               emailField: String,
+                               adminField: String,
+                               authorizedPatternField: String)
 
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)

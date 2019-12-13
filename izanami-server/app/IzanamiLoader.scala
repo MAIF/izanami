@@ -141,6 +141,7 @@ package object modules {
     lazy val searchController: SearchController             = wire[SearchController]
     lazy val backOfficeController: BackOfficeController     = wire[BackOfficeController]
     lazy val metricsController: MetricController            = wire[MetricController]
+    lazy val oicController: OAuthController                 = wire[OAuthController]
 
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) =>

@@ -38,7 +38,14 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
   }
 
   def login() = AuthAction { ctx =>
-    Ok(views.html.index(_env, baseURL, logout, confirmationDialog, enabledUserManagement, toJson(ctx.auth), version))
+    _env.izanamiConfig.openIdConnect match {
+      case Some(_) =>
+        Redirect(controllers.routes.OAuthController.appLoginPage())
+      case _ =>
+        Ok(
+          views.html.index(_env, baseURL, logout, confirmationDialog, enabledUserManagement, toJson(ctx.auth), version)
+        )
+    }
   }
 
   def otherRoutes(anyPath: String) = index()

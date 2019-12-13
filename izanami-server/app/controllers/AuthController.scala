@@ -42,7 +42,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
           ZIO.succeed {
             user match {
               case User(_, _, _, Some(password), _, _) if password === Sha.hexSha512(auth.password) =>
-                val token: String = buildToken(user)
+                val token: String = User.buildToken(user, _config.issuer, algorithm)
 
                 Ok(Json.toJson(user).as[JsObject] - "password")
                   .withCookies(Cookie(name = cookieName, value = token))
@@ -64,7 +64,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
                                       admin = true,
                                       authorizedPattern = AuthorizedPattern("*"))
 
-                val token: String = buildToken(user)
+                val token: String = User.buildToken(user, _config.issuer, algorithm)
 
                 Ok(Json.toJson(user).as[JsObject] ++ Json.obj("changeme" -> true))
                   .withCookies(Cookie(name = cookieName, value = token))
@@ -75,17 +75,6 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
             .mapError(_ => InternalServerError(""))
       }
   }
-
-  private def buildToken(user: User) =
-    JWT
-      .create()
-      .withIssuer(_config.issuer)
-      .withClaim("name", user.name)
-      .withClaim("user_id", user.id)
-      .withClaim("email", user.email)
-      .withClaim("izanami_authorized_patterns", user.authorizedPattern) // FIXME à voir si on doit mettre une liste???
-      .withClaim("izanami_admin", user.admin.toString)
-      .sign(algorithm)
 
   def logout() = Action { _ =>
     Redirect(s"${_env.baseURL}/login").withCookies(Cookie(name = cookieName, value = "", maxAge = Some(0)))
