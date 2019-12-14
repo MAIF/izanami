@@ -1,10 +1,9 @@
 package controllers
 
-import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import domains.{AuthorizedPattern, Key}
 import domains.user.{User, UserContext, UserService}
-import env.Env
+import env.{DefaultFilter, Env}
 import libs.crypto.Sha
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
@@ -24,11 +23,10 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
   import cats.implicits._
   import libs.http._
 
-  lazy val _config = _env.izanamiConfig.filter match {
+  lazy val _config: DefaultFilter = _env.izanamiConfig.filter match {
     case env.Default(config) => config
     case _                   => throw new RuntimeException("Wrong config")
   }
-  lazy val cookieName           = _config.cookieClaim
   lazy val algorithm: Algorithm = Algorithm.HMAC512(_config.sharedKey)
 
   def authenticate: Action[JsValue] = Action.asyncZio[UserContext](parse.json) { req =>
@@ -45,7 +43,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
                 val token: String = User.buildToken(user, _config.issuer, algorithm)
 
                 Ok(Json.toJson(user).as[JsObject] - "password")
-                  .withCookies(Cookie(name = cookieName, value = token))
+                  .withCookies(Cookie(name = _env.cookieName, value = token))
               case _ =>
                 Forbidden
             }
@@ -67,7 +65,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
                 val token: String = User.buildToken(user, _config.issuer, algorithm)
 
                 Ok(Json.toJson(user).as[JsObject] ++ Json.obj("changeme" -> true))
-                  .withCookies(Cookie(name = cookieName, value = token))
+                  .withCookies(Cookie(name = _env.cookieName, value = token))
               }
               case _ =>
                 Forbidden
@@ -76,7 +74,4 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
       }
   }
 
-  def logout() = Action { _ =>
-    Redirect(s"${_env.baseURL}/login").withCookies(Cookie(name = cookieName, value = "", maxAge = Some(0)))
-  }
 }

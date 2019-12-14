@@ -1729,7 +1729,7 @@ POST    /api/login                          controllers.AuthController.authentic
 #          schema:
 #            type: object
 ###
-GET     /api/logout                         controllers.AuthController.logout()
+GET     /logout                         controllers.HomeController.logout()
 
 
 

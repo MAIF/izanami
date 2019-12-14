@@ -10,27 +10,40 @@ import play.api.mvc._
 class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)
     extends AbstractController(cc) {
 
-  lazy val enabledUserManagement: Boolean = _env.izanamiConfig.filter match {
+  private lazy val enabledUserManagement: Boolean =
+    (_env.izanamiConfig.filter, _env.izanamiConfig.oauth2) match {
+      case (_, Some(_))        => false
+      case (_: env.Default, _) => true
+      case _                   => false
+    }
+  private lazy val enabledApikeyManagement: Boolean = _env.izanamiConfig.filter match {
     case _: env.Default => true
     case _              => false
   }
-  lazy val baseURL: String             = _env.baseURL
-  lazy val confirmationDialog: Boolean = _env.izanamiConfig.confirmationDialog
-  lazy val logout: String = if (_env.izanamiConfig.logout.url.startsWith("http")) {
+  private lazy val baseURL: String             = _env.baseURL
+  private lazy val confirmationDialog: Boolean = _env.izanamiConfig.confirmationDialog
+  private lazy val logoutUrl: String = if (_env.izanamiConfig.logout.url.startsWith("http")) {
     _env.izanamiConfig.logout.url
   } else {
     s"$baseURL${_env.izanamiConfig.logout.url}"
   }
 
-  val p       = getClass.getPackage
-  val version = p.getImplementationVersion
+  private val p: Package      = getClass.getPackage
+  private val version: String = p.getImplementationVersion
 
   def index() = AuthAction { ctx =>
     ctx.auth match {
       case Some(_) =>
         Ok(
           views.html
-            .index(_env, baseURL, logout, confirmationDialog, enabledUserManagement, toJson(ctx.auth), version)
+            .index(_env,
+                   baseURL,
+                   logoutUrl,
+                   confirmationDialog,
+                   enabledUserManagement,
+                   enabledApikeyManagement,
+                   toJson(ctx.auth),
+                   version)
         )
       case None =>
         Redirect(s"$baseURL/login")
@@ -38,13 +51,29 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
   }
 
   def login() = AuthAction { ctx =>
-    _env.izanamiConfig.openIdConnect match {
+    _env.izanamiConfig.oauth2 match {
       case Some(_) =>
         Redirect(controllers.routes.OAuthController.appLoginPage())
       case _ =>
         Ok(
-          views.html.index(_env, baseURL, logout, confirmationDialog, enabledUserManagement, toJson(ctx.auth), version)
+          views.html.index(_env,
+                           baseURL,
+                           logoutUrl,
+                           confirmationDialog,
+                           enabledUserManagement,
+                           enabledApikeyManagement,
+                           toJson(ctx.auth),
+                           version)
         )
+    }
+  }
+
+  def logout() = Action { _ =>
+    _env.izanamiConfig.oauth2 match {
+      case Some(_) =>
+        Redirect(controllers.routes.OAuthController.appLogout())
+      case _ =>
+        Redirect(s"${_env.baseURL}/login").withCookies(Cookie(name = _env.cookieName, value = "", maxAge = Some(0)))
     }
   }
 

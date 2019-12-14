@@ -65,7 +65,7 @@ trait DriversModule {
   def drivers: Drivers
 }
 
-trait OAuthModule extends PlayModule with AuthInfoModule[OAuthModule]
+trait OAuthModule extends PlayModule with LoggerModule with AuthInfoModule[OAuthModule]
 
 trait GlobalContext
     extends AkkaModule

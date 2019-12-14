@@ -14,6 +14,7 @@ import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import store._
 import domains.AuthInfoModule
+import env.Oauth2Config
 import errors.IzanamiErrors
 
 import scala.util.Try
@@ -44,6 +45,23 @@ object User {
       .withClaim("izanami_admin", user.admin.toString)
       .sign(algorithm)
 
+  def fromOAuth(user: JsValue, authConfig: Oauth2Config): Either[IzanamiErrors, User] = {
+    import cats.implicits._
+
+    (Either.fromOption((user \ authConfig.idField).asOpt[String], IzanamiErrors.error("oauth.error.id.missing")),
+     Either.fromOption((user \ authConfig.nameField).asOpt[String].orElse((user \ "sub").asOpt[String]),
+                       IzanamiErrors.error("oauth.error.name.missing")),
+     Either.fromOption((user \ authConfig.emailField).asOpt[String], IzanamiErrors.error("oauth.error.email.missing")),
+     Right(None),
+     Right((user \ authConfig.adminField).asOpt[Boolean].getOrElse(false)),
+     Right(
+       (user \ authConfig.authorizedPatternField)
+         .asOpt[String]
+         .map(s => AuthorizedPattern(s))
+         .getOrElse(AuthorizedPattern(authConfig.defaultPatterns))
+     ))
+      .parMapN(User.apply)
+  }
   def updateUser(newUser: User, oldUser: User): User = {
     import cats.implicits._
     if (newUser.password === oldUser.password) {

@@ -42,8 +42,10 @@ object ApiErrors {
     errors.foldMap {
       case ValidationError(errors, fieldErrors) =>
         ApiErrors(
-          errors.toList.map { case ErrorMessage(m, args) => ApiError(m, List(args)) },
-          fieldErrors.view.mapValues(_.map { case ErrorMessage(m, args) => ApiError(m, List(args)) }).toMap
+          errors.toList.map { case e: ErrorMessage => ApiError(e.message, e.args.toList) },
+          fieldErrors.view
+            .mapValues(_.map { case e: ErrorMessage => ApiError(e.message, e.args.toList) })
+            .toMap
         )
       case InvalidCopyKey(id) => error("error.id.copy.invalid", id.key)
       case IdMustBeTheSame(fromObject, inParam) =>

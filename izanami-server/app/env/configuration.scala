@@ -91,7 +91,7 @@ case class IzanamiConfig(
     confirmationDialog: Boolean,
     headerHost: String,
     filter: IzanamiFilter,
-    openIdConnect: Option[OpenIdConnectConfig],
+    oauth2: Option[Oauth2Config],
     db: DbConfig,
     logout: LogoutConfig,
     config: ConfigConfig,
@@ -140,27 +140,28 @@ sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
 case class Default(default: DefaultFilter)          extends IzanamiFilter
 
-case class OpenIdConnectConfig(authorizeUrl: String,
-                               tokenUrl: String,
-                               userInfoUrl: String,
-                               introspectionUrl: String,
-                               loginUrl: String,
-                               logoutUrl: String,
-                               //callbackUrl: String,
-                               clientId: String,
-                               clientSecret: String,
-                               scope: Option[String] = None,
-                               claims: String = "email name",
-                               accessTokenField: String = "access_token",
-                               //jwtVerifier: Option[Algorithm], // FIXME Algo token
-                               readProfileFromToken: Boolean = false,
-                               useCookie: Boolean = true,
-                               useJson: Boolean = true,
-                               idField: String,
-                               nameField: String,
-                               emailField: String,
-                               adminField: String,
-                               authorizedPatternField: String)
+case class Oauth2Config(authorizeUrl: String,
+                        tokenUrl: String,
+                        userInfoUrl: String,
+                        introspectionUrl: String,
+                        loginUrl: String,
+                        logoutUrl: String,
+                        //callbackUrl: String,
+                        clientId: String,
+                        clientSecret: String,
+                        scope: Option[String] = None,
+                        claims: String = "email name",
+                        accessTokenField: String = "access_token",
+                        //jwtVerifier: Option[Algorithm], // FIXME Algo token
+                        readProfileFromToken: Boolean = false,
+                        useCookie: Boolean = true,
+                        useJson: Boolean = true,
+                        idField: String,
+                        nameField: String,
+                        emailField: String,
+                        adminField: String,
+                        authorizedPatternField: String,
+                        defaultPatterns: String)
 
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)

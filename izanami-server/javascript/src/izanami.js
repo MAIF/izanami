@@ -24,7 +24,7 @@ import { buildRoutedApp } from "./izanami/index";
 import ReactDOM from "react-dom";
 import { createBrowserHistory } from "history";
 
-export function init(node, logout, confirmationDialog, enabledUserManagement, user) {
+export function init(node, logout, confirmationDialog, enabledUserManagement, enabledApikeyManagement, user) {
   let history;
   if (window.__contextPath && window.__contextPath !== "") {
     history = createBrowserHistory({ basename: window.__contextPath });
@@ -38,6 +38,7 @@ export function init(node, logout, confirmationDialog, enabledUserManagement, us
       logout={logout}
       confirmationDialog={confirmationDialog}
       enabledUserManagement={enabledUserManagement}
+      enabledApikeyManagement={enabledApikeyManagement}
     />,
     node
   );

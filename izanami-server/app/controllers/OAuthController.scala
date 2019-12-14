@@ -5,11 +5,12 @@ import akka.util.ByteString
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import controllers.dto.error.ApiErrors
-import domains.{AuthInfoModule, AuthorizedPattern, OAuthModule, PlayModule}
+import domains.OAuthModule
 import domains.errors.IzanamiErrors
 import domains.user.User
-import env.{Env, OpenIdConnectConfig}
-import play.api.libs.json.{JsObject, JsValue, Json}
+import env.{Env, Oauth2Config}
+import libs.logs.Logger
+import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{AbstractController, AnyContent, ControllerComponents, Cookie, Request, Results}
@@ -21,16 +22,14 @@ import scala.util.Try
 class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[OAuthModule])
     extends AbstractController(cc) {
 
-  import cats.implicits._
   import libs.http._
 
-  private val mayBeOpenIdConnectConfig: Option[OpenIdConnectConfig] = _env.izanamiConfig.openIdConnect
+  private val mayBeOauth2Config: Option[Oauth2Config] = _env.izanamiConfig.oauth2
 
   lazy val _config = _env.izanamiConfig.filter match {
     case env.Default(config) => config
     case _                   => throw new RuntimeException("Wrong config")
   }
-  lazy val cookieName           = _config.cookieClaim
   lazy val algorithm: Algorithm = Algorithm.HMAC512(_config.sharedKey)
 
   //FIXME to complete
@@ -44,7 +43,7 @@ class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[O
   }
 
   def appLoginPage() = Action { implicit request =>
-    mayBeOpenIdConnectConfig match {
+    mayBeOauth2Config match {
       case Some(openIdConnectConfig) =>
         val clientId     = openIdConnectConfig.clientId
         val responseType = "code"
@@ -59,7 +58,7 @@ class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[O
         val loginUrl =
           s"${openIdConnectConfig.loginUrl}?${scope}&${claims}client_id=$clientId&response_type=$responseType&redirect_uri=$redirectUri"
         Redirect(loginUrl)
-      case None => BadRequest(Json.toJson(ApiErrors.error("Open Id Connect modulme not configured")))
+      case None => BadRequest(Json.toJson(ApiErrors.error("Open Id Connect module not configured")))
     }
   }
 
@@ -74,50 +73,38 @@ class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[O
   }
 
   def appCallback() = Action.asyncZio[OAuthModule] { implicit ctx =>
-    mayBeOpenIdConnectConfig match {
+    mayBeOauth2Config match {
       case Some(openIdConnectConfig) =>
         paCallback(openIdConnectConfig)
           .map { user =>
-            val token: String = User.buildToken(user, _config.issuer, algorithm)
             Redirect(controllers.routes.HomeController.index())
-              .withCookies(Cookie(name = cookieName, value = token))
+              .withCookies(Cookie(name = _env.cookieName, value = User.buildToken(user, _config.issuer, algorithm)))
           }
           .mapError { err =>
             BadRequest(Json.toJson(ApiErrors.fromErrors(err.toList)))
           }
 
-      case None => ZIO.succeed(BadRequest(Json.toJson(ApiErrors.error("Open Id Connect modulme not configured"))))
+      case None => ZIO.succeed(BadRequest(Json.toJson(ApiErrors.error("Open Id Connect module not configured"))))
     }
   }
 
   def paCallback(
-      authConfig: OpenIdConnectConfig
-  )(implicit request: Request[AnyContent]): ZIO[PlayModule, IzanamiErrors, User] =
+      authConfig: Oauth2Config
+  )(implicit request: Request[AnyContent]): ZIO[OAuthModule, IzanamiErrors, User] =
     for {
-      _          <- ZIO.fromOption(request.getQueryString("error")).flip.mapError(IzanamiErrors.error)
-      code       <- ZIO.fromOption(request.getQueryString("code")).mapError(_ => IzanamiErrors.error("No code :("))
-      wsResponse <- callTokenUrl(code, authConfig)
-      t          <- decodeToken(wsResponse, authConfig)
-      (user, _)  = t
-    } yield {
-      User(
-        id = (user \ authConfig.idField).as[String],
-        name = (user \ authConfig.nameField)
-          .asOpt[String]
-          .orElse((user \ "sub").asOpt[String])
-          .getOrElse("No Name"),
-        email = (user \ authConfig.emailField).asOpt[String].getOrElse("no.name@foo.bar"),
-        admin = (user \ authConfig.adminField).asOpt[Boolean].getOrElse(false),
-        authorizedPattern = (user \ authConfig.authorizedPatternField)
-          .asOpt[String]
-          .map(s => AuthorizedPattern(s))
-          .getOrElse(AuthorizedPattern(""))
-      )
-    }
+      _             <- ZIO.fromOption(request.getQueryString("error")).flip.mapError(IzanamiErrors.error)
+      code          <- ZIO.fromOption(request.getQueryString("code")).mapError(_ => IzanamiErrors.error("No code :("))
+      wsResponse    <- callTokenUrl(code, authConfig)
+      t             <- decodeToken(wsResponse, authConfig)
+      (user, _)     = t
+      _             <- Logger.info(s"User from token $user")
+      effectiveUser <- ZIO.fromEither(User.fromOAuth(user, authConfig))
+      _             <- Logger.info(s"Oauth user logged with $effectiveUser")
+    } yield effectiveUser
 
-  def callTokenUrl(code: String, authConfig: OpenIdConnectConfig)(
+  def callTokenUrl(code: String, authConfig: Oauth2Config)(
       implicit request: Request[AnyContent]
-  ): ZIO[PlayModule, IzanamiErrors, WSResponse] = {
+  ): ZIO[OAuthModule, IzanamiErrors, WSResponse] = {
 
     val clientId     = authConfig.clientId
     val clientSecret = Option(authConfig.clientSecret).map(_.trim).filterNot(_.isEmpty)
@@ -129,7 +116,7 @@ class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[O
     }
 
     for {
-      playModule <- ZIO.environment[PlayModule]
+      playModule <- ZIO.environment[OAuthModule]
       wsClient   = playModule.wSClient
       response <- ZIO
                    .fromFuture { implicit ec =>
@@ -159,32 +146,33 @@ class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[O
   }
 
   def decodeToken(response: WSResponse,
-                  authConfig: OpenIdConnectConfig): ZIO[PlayModule, IzanamiErrors, (JsValue, JsValue)] = {
+                  authConfig: Oauth2Config): ZIO[OAuthModule, IzanamiErrors, (JsValue, JsValue)] = {
 
-    val rawToken: JsValue = response.json
-    println(rawToken)
-    val accessToken = (rawToken \ authConfig.accessTokenField).as[String]
-
+    val rawToken: JsValue              = response.json
     val jwtVerifier: Option[Algorithm] = None
     if (authConfig.readProfileFromToken && jwtVerifier.isDefined) {
-      // println(accessToken)
-      val algo = jwtVerifier.get
-      val tokenHeader =
-        Try(Json.parse(ApacheBase64.decodeBase64(accessToken.split("\\.")(0)))).getOrElse(Json.obj())
-      val tokenBody =
-        Try(Json.parse(ApacheBase64.decodeBase64(accessToken.split("\\.")(1)))).getOrElse(Json.obj())
-      val kid = (tokenHeader \ "kid").asOpt[String]
-      val alg = (tokenHeader \ "alg").asOpt[String].getOrElse("RS256")
       // FIXME JWSK
       for {
-        _ <- ZIO(JWT.require(algo).acceptLeeway(10).build().verify(accessToken)).refineToOrDie[IzanamiErrors]
+        _ <- Logger.info(s"Token $rawToken")
+        accessToken <- ZIO
+                        .fromOption((rawToken \ authConfig.accessTokenField).asOpt[String])
+                        .mapError(_ => IzanamiErrors.error(Json.stringify(rawToken)))
+        algo        = jwtVerifier.get
+        tokenHeader = Try(Json.parse(ApacheBase64.decodeBase64(accessToken.split("\\.")(0)))).getOrElse(Json.obj())
+        tokenBody   = Try(Json.parse(ApacheBase64.decodeBase64(accessToken.split("\\.")(1)))).getOrElse(Json.obj())
+        kid         = (tokenHeader \ "kid").asOpt[String]
+        alg         = (tokenHeader \ "alg").asOpt[String].getOrElse("RS256")
+        _           <- ZIO(JWT.require(algo).acceptLeeway(10).build().verify(accessToken)).refineToOrDie[IzanamiErrors]
 
       } yield (tokenBody, rawToken)
 
     } else {
-
       for {
-        playModule <- ZIO.environment[PlayModule]
+        _ <- Logger.info(s"Token $rawToken")
+        accessToken <- ZIO
+                        .fromOption((rawToken \ authConfig.accessTokenField).asOpt[String])
+                        .mapError(_ => IzanamiErrors.error(Json.stringify(rawToken)))
+        playModule <- ZIO.environment[OAuthModule]
         wsClient   = playModule.wSClient
         response <- ZIO
                      .fromFuture { implicit ec =>
