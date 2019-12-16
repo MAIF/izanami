@@ -29,14 +29,15 @@ object Oauth2Service {
       authConfig: Oauth2Config
   )(implicit request: Request[AnyContent]): ZIO[OAuthModule, IzanamiErrors, User] =
     for {
+      logger        <- Logger("izanami.oauth2")
       _             <- ZIO.fromOption(request.getQueryString("error")).flip.mapError(IzanamiErrors.error)
       code          <- ZIO.fromOption(request.getQueryString("code")).mapError(_ => IzanamiErrors.error("No code :("))
       wsResponse    <- callTokenUrl(baseURL, code, authConfig)
       t             <- decodeToken(wsResponse, authConfig)
       (user, _)     = t
-      _             <- Logger.info(s"User from token $user")
+      _             <- logger.debug(s"User from token $user")
       effectiveUser <- ZIO.fromEither(User.fromOAuth(user, authConfig))
-      _             <- Logger.info(s"Oauth user logged with $effectiveUser")
+      _             <- logger.info(s"Oauth user logged with $effectiveUser")
     } yield effectiveUser
 
   def callTokenUrl(baseURL: String, code: String, authConfig: Oauth2Config)(
@@ -90,7 +91,8 @@ object Oauth2Service {
     (authConfig.readProfileFromToken, authConfig.jwtVerifier) match {
       case (true, Some(algoConfig)) =>
         for {
-          _ <- Logger.debug(s"Token $rawToken")
+          logger <- Logger("izanami.oauth2")
+          _      <- logger.debug(s"Algo is defined in config, decoding token $rawToken")
           accessToken <- ZIO
                           .fromOption((rawToken \ authConfig.accessTokenField).asOpt[String])
                           .mapError(_ => IzanamiErrors.error(Json.stringify(rawToken)))
@@ -103,10 +105,12 @@ object Oauth2Service {
         } yield (tokenBody, rawToken)
       case _ =>
         for {
-          _                <- Logger.debug(s"Token $rawToken")
-          maybeAccessToken = (rawToken \ authConfig.accessTokenField).asOpt[String]
-          accessToken      <- ZIO.fromOption(maybeAccessToken).mapError(_ => IzanamiErrors.error(Json.stringify(rawToken)))
           playModule       <- ZIO.environment[OAuthModule]
+          logger           <- Logger("izanami.oauth2")
+          _                <- logger.debug(s"Algo is not defined in config, finding access token from $rawToken")
+          maybeAccessToken = (rawToken \ authConfig.accessTokenField).asOpt[String]
+          _                <- logger.debug(s"Using userInfoUrl from config to find user data with access token  $maybeAccessToken")
+          accessToken      <- ZIO.fromOption(maybeAccessToken).mapError(_ => IzanamiErrors.error(Json.stringify(rawToken)))
           wsClient         = playModule.wSClient
           response <- ZIO
                        .fromFuture { implicit ec =>
@@ -141,7 +145,8 @@ object Oauth2Service {
     algoSettings match {
       case HS(size, secret) =>
         for {
-          _ <- Logger.debug(s"decoding with HS$size algo ")
+          logger <- Logger("izanami.oauth2")
+          _      <- logger.debug(s"decoding with HS$size algo ")
           res <- ZIO
                   .fromOption {
                     size match {
@@ -156,7 +161,8 @@ object Oauth2Service {
 
       case ES(size, publicKey, privateKey) =>
         for {
-          _       <- Logger.debug(s"decoding with ES$size algo ")
+          logger  <- Logger("izanami.oauth2")
+          _       <- logger.debug(s"decoding with ES$size algo ")
           pubKey  <- getEsPublicKey(publicKey)
           privKey <- privateKey.filterNot(_.trim.isEmpty).traverse(k => getEsPrivateKey(k))
           algo <- ZIO
@@ -172,7 +178,8 @@ object Oauth2Service {
         } yield algo
       case RSA(size, publicKey, privateKey) =>
         for {
-          _       <- Logger.debug(s"decoding with RSA$size algo ")
+          logger  <- Logger("izanami.oauth2")
+          _       <- logger.debug(s"decoding with RSA$size algo ")
           pubKey  <- getRsaPublicKey(publicKey)
           privKey <- privateKey.filterNot(_.trim.isEmpty).traverse(k => getRsaPrivateKey(k))
           algo <- ZIO
@@ -206,7 +213,8 @@ object Oauth2Service {
           }
 
         for {
-          _        <- Logger.debug(s"decoding with JWKS $url ")
+          logger   <- Logger("izanami.oauth2")
+          _        <- logger.debug(s"decoding with JWKS $url $alg and $kid")
           module   <- ZIO.environment[OAuthModule]
           wsClient = module.wSClient
           resp <- ZIO
@@ -280,11 +288,15 @@ object Oauth2Service {
   def getPublicKey(keyBytes: Array[Byte], algorithm: String): ZIO[OAuthModule, IzanamiErrors, PublicKey] =
     for {
       kf <- ZIO(KeyFactory.getInstance(algorithm))
-             .onError(_ => Logger.error("Could not reconstruct the public key, the given algorithm could not be found"))
+             .onError(
+               _ =>
+                 Logger("izanami.oauth2")
+                   .flatMap(_.error("Could not reconstruct the public key, the given algorithm could not be found"))
+             )
              .refineToOrDie[IzanamiErrors]
       keySpec <- ZIO(new X509EncodedKeySpec(keyBytes)).refineToOrDie[IzanamiErrors]
       publicKey <- ZIO(kf.generatePublic(keySpec))
-                    .onError(_ => Logger.error("Could not reconstruct the public key"))
+                    .onError(_ => Logger("izanami.oauth2").flatMap(_.error("Could not reconstruct the public key")))
                     .refineToOrDie[IzanamiErrors]
     } yield publicKey
 
@@ -292,12 +304,14 @@ object Oauth2Service {
     for {
       kf <- ZIO(KeyFactory.getInstance(algorithm))
              .onError(
-               _ => Logger.error("Could not reconstruct the private key, the given algorithm could not be found")
+               _ =>
+                 Logger("izanami.oauth2")
+                   .flatMap(_.error("Could not reconstruct the private key, the given algorithm could not be found"))
              )
              .refineToOrDie[IzanamiErrors]
       keySpec <- ZIO(new PKCS8EncodedKeySpec(keyBytes)).refineToOrDie[IzanamiErrors]
       publicKey <- ZIO(kf.generatePrivate(keySpec))
-                    .onError(_ => Logger.error("Could not reconstruct the private key"))
+                    .onError(_ => Logger("izanami.oauth2").flatMap(_.error("Could not reconstruct the private key")))
                     .refineToOrDie[IzanamiErrors]
     } yield publicKey
 }
