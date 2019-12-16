@@ -3,9 +3,10 @@ package env
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.file.{Path, Paths}
 
-import com.auth0.jwt.algorithms.Algorithm
+import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
 import domains.AuthorizedPattern
 import play.api.Configuration
+import play.api.libs.ws.WSProxyServer
 import pureconfig._
 
 import scala.concurrent.duration.FiniteDuration
@@ -60,6 +61,9 @@ object IzanamiConfig {
   private implicit val storeConfHint: FieldCoproductHint[EventsConfig] = new FieldCoproductHint[EventsConfig]("store") {
     override def fieldValue(name: String): String = name.dropRight("Events".length)
   }
+
+  implicit val keyTypeHint: ConfigConvert[KeyType] =
+    viaString[KeyType](catchReadError { KeyType.parse }, _.getValue)
 
   implicit val dbTypeHint: ConfigConvert[DbType] =
     viaString[DbType](catchReadError { DbType.fromString }, _.toString)
@@ -140,19 +144,25 @@ sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
 case class Default(default: DefaultFilter)          extends IzanamiFilter
 
+sealed trait AlgoSettingsConfig
+case class HS(size: Int, secret: String)                                 extends AlgoSettingsConfig
+case class ES(size: Int, publicKey: String, privateKey: Option[String])  extends AlgoSettingsConfig
+case class RSA(size: Int, publicKey: String, privateKey: Option[String]) extends AlgoSettingsConfig
+case class JWKS(url: String, headers: Option[Map[String, String]], timeout: Option[FiniteDuration])
+    extends AlgoSettingsConfig
+
 case class Oauth2Config(authorizeUrl: String,
                         tokenUrl: String,
                         userInfoUrl: String,
                         introspectionUrl: String,
                         loginUrl: String,
                         logoutUrl: String,
-                        //callbackUrl: String,
                         clientId: String,
                         clientSecret: String,
                         scope: Option[String] = None,
                         claims: String = "email name",
                         accessTokenField: String = "access_token",
-                        //jwtVerifier: Option[Algorithm], // FIXME Algo token
+                        jwtVerifier: Option[AlgoSettingsConfig],
                         readProfileFromToken: Boolean = false,
                         useCookie: Boolean = true,
                         useJson: Boolean = true,

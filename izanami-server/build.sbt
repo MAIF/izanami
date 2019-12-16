@@ -40,6 +40,7 @@ libraryDependencies ++= Seq(
   ehcache,
   "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
   "com.auth0"                % "java-jwt"                       % "3.3.0", // MIT license
+  "com.nimbusds"             % "nimbus-jose-jwt"                % "6.0",
   "org.gnieh"                %% "diffson-play-json"             % "4.0.0", //
   "com.softwaremill.macwire" %% "macros"                        % "2.3.3" % "provided", // Apache 2.0
   "org.scala-lang.modules"   %% "scala-collection-compat"       % "2.1.2",
