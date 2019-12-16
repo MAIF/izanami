@@ -3,15 +3,17 @@ package controllers
 import controllers.actions.AuthContext
 import domains.AuthInfo
 import domains.user.{User, UserNoPasswordInstances}
-import env.Env
+import env.{Env, Oauth2Config}
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 
 class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)
     extends AbstractController(cc) {
 
+  private val maybeOauth2Config: Option[Oauth2Config] = _env.izanamiConfig.oauth2.filter(_.enabled)
+
   private lazy val enabledUserManagement: Boolean =
-    (_env.izanamiConfig.filter, _env.izanamiConfig.oauth2) match {
+    (_env.izanamiConfig.filter, maybeOauth2Config) match {
       case (_, Some(_))        => false
       case (_: env.Default, _) => true
       case _                   => false
@@ -51,7 +53,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
   }
 
   def login() = AuthAction { ctx =>
-    _env.izanamiConfig.oauth2 match {
+    maybeOauth2Config match {
       case Some(_) =>
         Redirect(controllers.routes.OAuthController.appLoginPage())
       case _ =>
@@ -69,7 +71,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
   }
 
   def logout() = Action { _ =>
-    _env.izanamiConfig.oauth2 match {
+    maybeOauth2Config match {
       case Some(_) =>
         Redirect(controllers.routes.OAuthController.appLogout())
       case _ =>

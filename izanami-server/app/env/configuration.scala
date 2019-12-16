@@ -151,7 +151,8 @@ case class RSA(size: Int, publicKey: String, privateKey: Option[String]) extends
 case class JWKS(url: String, headers: Option[Map[String, String]], timeout: Option[FiniteDuration])
     extends AlgoSettingsConfig
 
-case class Oauth2Config(authorizeUrl: String,
+case class Oauth2Config(enabled: Boolean,
+                        authorizeUrl: String,
                         tokenUrl: String,
                         userInfoUrl: String,
                         introspectionUrl: String,

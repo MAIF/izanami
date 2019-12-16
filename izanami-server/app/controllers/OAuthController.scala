@@ -29,7 +29,7 @@ class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[O
 
   import libs.http._
 
-  private val mayBeOauth2Config: Option[Oauth2Config] = _env.izanamiConfig.oauth2
+  private val mayBeOauth2Config: Option[Oauth2Config] = _env.izanamiConfig.oauth2.filter(_.enabled)
 
   lazy val _config = _env.izanamiConfig.filter match {
     case env.Default(config) => config
