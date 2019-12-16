@@ -1734,7 +1734,7 @@ GET     /logout                         controllers.HomeController.logout()
 
 
 
-OPTIONS /api/auth/login                            controllers.OAuthController.appLoginPageOptions()
+#OPTIONS /api/auth/login                            controllers.OAuthController.appLoginPageOptions()
 GET     /api/auth/login                            controllers.OAuthController.appLoginPage()
 GET     /api/auth/logout                           controllers.OAuthController.appLogout()
 GET     /api/auth/callback                         controllers.OAuthController.appCallback()
