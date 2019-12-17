@@ -108,8 +108,8 @@ export class Feature extends Component {
       }
     }
     if (this.state.isFetchPending && !isEmpty(pendingChildren)) {
-      if (debug) console.log('[Features] IzanamiProvider fetchFrom request is pending, rendering first <Pending /> component');
       if (debug) {
+        console.log('[Features] IzanamiProvider fetchFrom request is pending, rendering first <Pending /> component');
         return (
           <Debug isActive={ isActive } path={ path }>
             {pendingChildren[0]}
