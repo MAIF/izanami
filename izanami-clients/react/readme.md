@@ -65,6 +65,9 @@ Once you the provider configured, you can switch code depending on a feature :
 
 ```jsx harmony
 <Feature path="izanami.example.deleteAll">
+  <Pending>
+    <div>Fetching izanami features configuration...</div>
+  </Pending>
   <Enabled>
     <tr>
       <td></td>
