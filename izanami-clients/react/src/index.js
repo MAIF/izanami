@@ -37,6 +37,7 @@ export class IzanamiProvider extends Component {
   state = {
     loading: false,
     fetched: {},
+    isFetchPending: Boolean(this.props.fetchFrom),
   };
 
   constructor(args) {
@@ -81,7 +82,11 @@ export class IzanamiProvider extends Component {
       }
       Api.register(id, this.onDataLoaded);
       this.setState({loading: true});
-      Api.izanamiReload(id, this.props.fetchHeaders);
+      Api.izanamiReload(id, this.props.fetchHeaders).finally(() => {
+        this.setState({
+          isFetchPending: false
+        })
+      })
     }
   }
 
@@ -96,7 +101,7 @@ export class IzanamiProvider extends Component {
         const { debug, features, featuresFallback, experiments, experimentsFallback } = this.state.fetched;
         const id = this.id();
         return (
-          <FeatureProvider id={id} debug={debug} features={features || {}} fallback={featuresFallback} fetchFrom={this.props.fetchFrom}>
+          <FeatureProvider isFetchPending={this.state.isFetchPending} id={id} debug={debug} features={features || {}} fallback={featuresFallback} fetchFrom={this.props.fetchFrom}>
             <ExperimentsProvider id={id} debug={debug} experiments={experiments || {}} experimentsFallback={experimentsFallback}>
               {this.props.children}
             </ExperimentsProvider>

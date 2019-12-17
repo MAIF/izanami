@@ -6,6 +6,7 @@ import { func, string, bool, object, node, oneOfType, arrayOf } from 'prop-types
 import deepEqual from 'deep-equal';
 import deepmerge from 'deepmerge';
 import isFunction from "lodash/isFunction";
+import isEmpty from "lodash/isEmpty"
 import '@ungap/global-this';
 import * as Api from './api';
 import Debug from './debug';
@@ -23,6 +24,12 @@ export class Enabled extends Component {
 }
 
 export class Disabled extends Component {
+  render() {
+    return this.props.children;
+  }
+}
+
+export class Pending extends Component {
   render() {
     return this.props.children;
   }
@@ -46,16 +53,17 @@ export class Feature extends Component {
 
   state = {
     features: {},
-    mergedFeatures: {}
+    mergedFeatures: {},
+    isFetchPending: false,
   };
 
-  onContextChange = ({__mergedFeatures, __id, __debug}) => {
+  onContextChange = ({__mergedFeatures, __id, __debug, __isFetchPending}) => {
     if (__id && this.state.id !== __id ) {
-      this.setState({id: __id, debug: __debug, mergedFeatures: __mergedFeatures});
+      this.setState({id: __id, debug: __debug, mergedFeatures: __mergedFeatures, isFetchPending: __isFetchPending});
       if(__debug) console.log('[Features] Registering to api for ', __id);
       Api.register(__id , this.onFeaturesChanged);
     } else {
-      this.setState({debug: __debug, mergedFeatures: __mergedFeatures});
+      this.setState({debug: __debug, mergedFeatures: __mergedFeatures, isFetchPending: __isFetchPending});
     }
   };
 
@@ -86,6 +94,7 @@ export class Feature extends Component {
     const childrenArray = Array.isArray(children) ? children : [children];
     const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
     const disabledChildren = childrenArray.filter(c => c && c.type === Disabled);
+    const pendingChildren = childrenArray.filter(c => c && c.type === Pending);
     const debug = !!this.state.debug || this.props.debug;
     if (this.props.render && isFunction(this.props.render)) {
       if (debug) {
@@ -98,7 +107,18 @@ export class Feature extends Component {
         return this.props.render(isActive);
       }
     }
-    if (isActive && (enabledChildren.length > 0 || disabledChildren.length > 0)) {
+    if (this.state.isFetchPending && !isEmpty(pendingChildren)) {
+      if (debug) console.log('[Features] IzanamiProvider fetchFrom request is pending, rendering first <Pending /> component');
+      if (debug) {
+        return (
+          <Debug isActive={ isActive } path={ path }>
+            {pendingChildren[0]}
+          </Debug>
+        );
+      }
+      return pendingChildren[0];
+    }
+    else if (isActive && (enabledChildren.length > 0 || disabledChildren.length > 0)) {
       if (debug) console.log(`[Features] feature '${path}' is enabled, rendering first <Enabled /> component`);
       if (debug) {
         return (
@@ -167,7 +187,8 @@ export class FeatureProvider extends Component {
     __features: this.props.features,
     __fallback: this.props.fallback,
     __debug: this.props.debug,
-    __mergedFeatures: deepmerge(this.props.fallback, this.props.features)
+    __mergedFeatures: deepmerge(this.props.fallback, this.props.features),
+    __isFetchPending: this.props.isFetchPending,
   };
 
   registerCb = (callback) => {
@@ -216,6 +237,9 @@ export class FeatureProvider extends Component {
     }
     if (nextProps.debug !== this.props.debug) {
       this.setState({ __debug: nextProps.debug }, this.publish);
+    }
+    if (nextProps.isFetchPending !== this.props.isFetchPending) {
+      this.setState({ __isFetchPending: nextProps.isFetchPending }, this.publish);
     }
   }
 
