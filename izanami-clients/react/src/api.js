@@ -6,7 +6,7 @@ export function izanamiReload(id) {
   let izanamiFetch = izanamiFetchs[id];
   if (izanamiFetch) {
       console.debug("Fetching for id ", id);
-      izanamiFetch().then(r => r.json()).then(data => {
+      return izanamiFetch().then(r => r.json()).then(data => {
           const listeners = izanamiListeners[id] || [];
           listeners.forEach(l => {
               try {
