@@ -147,28 +147,18 @@ test in assembly := {}
 assemblyJarName in assembly := "izanami.jar"
 fullClasspath in assembly += Attributed.blank(PlayKeys.playPackageAssets.value)
 assemblyMergeStrategy in assembly := {
-  //case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-  case PathList("javax", xs @ _*) =>
-    MergeStrategy.first
-  case PathList("net", "jpountz", xs @ _*) =>
-    MergeStrategy.first
-  case PathList("org", "jetbrains", xs @ _*) =>
-    MergeStrategy.first
-  case PathList("META-INF", "native", xs @ _*) =>
-    MergeStrategy.first
-  case PathList("org", "apache", "commons", "logging", xs @ _*) =>
-    MergeStrategy.discard
-  case PathList("zio", xs @ _*) if xs.lastOption.contains("BuildInfo$.class") =>
-    MergeStrategy.first
-  case PathList(ps @ _*) if ps.last == "io.netty.versions.properties" =>
-    MergeStrategy.first
-  case PathList(ps @ _*) if ps.contains("reference-overrides.conf") =>
-    MergeStrategy.concat
-  case PathList(ps @ _*) if ps.exists(_.endsWith(".kotlin_module")) =>
-    MergeStrategy.first
-  case PathList(ps @ _*) if ps.last endsWith ".conf" => MergeStrategy.concat
-  case PathList(ps @ _*) if ps.contains("buildinfo") =>
-    MergeStrategy.discard
+  case PathList("javax", xs @ _*)                                             => MergeStrategy.first
+  case PathList("net", "jpountz", xs @ _*)                                    => MergeStrategy.first
+  case PathList("org", "jetbrains", xs @ _*)                                  => MergeStrategy.first
+  case PathList("META-INF", "native", xs @ _*)                                => MergeStrategy.first
+  case PathList("org", "apache", "commons", "logging", xs @ _*)               => MergeStrategy.discard
+  case PathList("zio", xs @ _*) if xs.lastOption.contains("BuildInfo$.class") => MergeStrategy.first
+  case PathList(ps @ _*) if ps.last == "io.netty.versions.properties"         => MergeStrategy.first
+  case PathList(ps @ _*) if ps.contains("reference-overrides.conf")           => MergeStrategy.concat
+  case PathList(ps @ _*) if ps.exists(_.endsWith(".kotlin_module"))           => MergeStrategy.first
+  case PathList(ps @ _*) if ps.last endsWith ".conf"                          => MergeStrategy.concat
+  case PathList(ps @ _*) if ps.contains("buildinfo")                          => MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last endsWith "reflection-config.json"         => MergeStrategy.first
   case o =>
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(o)
