@@ -42,11 +42,6 @@ public class Application {
     }
 
     @Bean
-    ActorSystem actorSystem() {
-        return ActorSystem.create();
-    }
-
-    @Bean
     @Autowired
     RestTemplate restTemplate(RestTemplateBuilder builder, ObjectMapper objectMapper) {
         return builder.build();
@@ -55,111 +50,6 @@ public class Application {
     @Bean
     Module vavrModule() {
         return new VavrModule();
-    }
-
-    @Bean
-    @Autowired
-    IzanamiClient izanamiClient(ActorSystem actorSystem) {
-        String host = environment.getProperty("izanami.host");
-        String clientId = environment.getProperty("izanami.clientId");
-        String clientSecret = environment.getProperty("izanami.clientSecret");
-        LOGGER.info("Creating izanami client with host {}, client id {}", host, clientId);
-        return IzanamiClient.client(
-                    actorSystem,
-                    ClientConfig
-                        .create(host)
-                        .withClientId(clientId)
-                        .withClientSecret(clientSecret)
-                        .withClientIdHeaderName("Izanami-Client-Id")
-                        .withClientSecretHeaderName("Izanami-Client-Secret")
-                        //.withDispatcher("izanami-example.blocking-io-dispatcher")
-                        .sseBackend()
-                );
-    }
-
-    @Bean
-    @Autowired
-    Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
-        return izanamiClient.proxy()
-                .withFeaturePattern("mytvshows:*")
-                .withFeatureClient(featureClient)
-                .withExperimentPattern("mytvshows:*")
-                .withExperimentsClient(experimentClient);
-    }
-
-    @Configuration
-    @Profile("izanamiProd")
-    static class Prod {
-
-        @Bean
-        @Autowired
-        FeatureClient featureClient(IzanamiClient izanamiClient, Environment environment) {
-            return izanamiClient.featureClient(
-                    Strategies.smartCacheWithPollingStrategy(FiniteDuration.create(1, TimeUnit.HOURS), "mytvshows:*"),
-                    Features.parseJson(environment.getProperty("izanami.fallback.features")),
-                    true
-            );
-        }
-
-        @Bean
-        @Autowired
-        ConfigClient configClient(IzanamiClient izanamiClient, Environment environment) {
-            return izanamiClient.configClient(
-                    Strategies.smartCacheWithSseStrategy("mytvshows:*"),
-                    Configs.parseJson(environment.getProperty("izanami.fallback.configs"))
-            );
-        }
-
-        @Bean
-        @Autowired
-        ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
-
-            return izanamiClient.experimentClient(
-                    Strategies.fetchStrategy(),
-                    Experiments.parseJson(environment.getProperty("izanami.fallback.experiments"))
-            );
-        }
-
-
-    }
-
-    @Configuration
-    @Profile("izanamiLocal")
-    static class Dev {
-
-        @Bean
-        @Autowired
-        FeatureClient featureClientDev(IzanamiClient izanamiClient, Environment environment) {
-            String json = environment.getProperty("izanami.fallback.features");
-            LOGGER.info("Loading feature fallback \n{}", json);
-            return izanamiClient.featureClient(
-                    Strategies.dev(),
-                    Features.parseJson(json)
-            );
-        }
-
-        @Bean
-        @Autowired
-        ConfigClient configClientDev(IzanamiClient izanamiClient, Environment environment) {
-            String json = environment.getProperty("izanami.fallback.configs");
-            LOGGER.info("Loading configs fallback \n{}", json);
-            return izanamiClient.configClient(
-                    Strategies.dev(),
-                    Configs.parseJson(json)
-            );
-        }
-
-        @Bean
-        @Autowired
-        ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
-            String json = environment.getProperty("izanami.fallback.experiments");
-            LOGGER.info("Loading configs fallback \n{}", json);
-            return izanamiClient.experimentClient(
-                    Strategies.dev(),
-                    Experiments.parseJson(json)
-            );
-        }
-
     }
 
     @Configuration
