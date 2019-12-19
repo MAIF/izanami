@@ -1,5 +1,6 @@
 function rawResponse(r) {
   if (r.status === 401) {
+    console.log(401, 'Go to login')
     window.location.href = "/login";
     return {};
   } else {

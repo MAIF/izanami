@@ -2,5 +2,5 @@
 
 -Xms2G
 -Xmx2G
--Xss2M
--XX:ReservedCodeCacheSize=128m
+-Xss1G
+-XX:ReservedCodeCacheSize=256m

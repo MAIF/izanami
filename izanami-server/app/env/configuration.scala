@@ -3,8 +3,10 @@ package env
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.file.{Path, Paths}
 
+import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
 import domains.AuthorizedPattern
 import play.api.Configuration
+import play.api.libs.ws.WSProxyServer
 import pureconfig._
 
 import scala.concurrent.duration.FiniteDuration
@@ -60,6 +62,9 @@ object IzanamiConfig {
     override def fieldValue(name: String): String = name.dropRight("Events".length)
   }
 
+  implicit val keyTypeHint: ConfigConvert[KeyType] =
+    viaString[KeyType](catchReadError { KeyType.parse }, _.getValue)
+
   implicit val dbTypeHint: ConfigConvert[DbType] =
     viaString[DbType](catchReadError { DbType.fromString }, _.toString)
 
@@ -90,6 +95,7 @@ case class IzanamiConfig(
     confirmationDialog: Boolean,
     headerHost: String,
     filter: IzanamiFilter,
+    oauth2: Option[Oauth2Config],
     db: DbConfig,
     logout: LogoutConfig,
     config: ConfigConfig,
@@ -134,10 +140,41 @@ case class DefaultFilter(allowedPaths: Seq[String],
                          sharedKey: String,
                          cookieClaim: String,
                          apiKeys: ApiKeyHeaders)
-
 sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
 case class Default(default: DefaultFilter)          extends IzanamiFilter
+
+sealed trait AlgoSettingsConfig {
+  def enabled: Boolean
+}
+case class HS(enabled: Boolean, size: Int, secret: String)                                 extends AlgoSettingsConfig
+case class ES(enabled: Boolean, size: Int, publicKey: String, privateKey: Option[String])  extends AlgoSettingsConfig
+case class RSA(enabled: Boolean, size: Int, publicKey: String, privateKey: Option[String]) extends AlgoSettingsConfig
+case class JWKS(enabled: Boolean, url: String, headers: Option[Map[String, String]], timeout: Option[FiniteDuration])
+    extends AlgoSettingsConfig
+
+case class Oauth2Config(enabled: Boolean,
+                        authorizeUrl: String,
+                        tokenUrl: String,
+                        userInfoUrl: String,
+                        introspectionUrl: String,
+                        loginUrl: String,
+                        logoutUrl: String,
+                        clientId: String,
+                        clientSecret: String,
+                        scope: Option[String] = None,
+                        claims: String = "email name",
+                        accessTokenField: String = "access_token",
+                        jwtVerifier: Option[AlgoSettingsConfig],
+                        readProfileFromToken: Boolean = false,
+                        useCookie: Boolean = true,
+                        useJson: Boolean = true,
+                        idField: String,
+                        nameField: String,
+                        emailField: String,
+                        adminField: String,
+                        authorizedPatternField: String,
+                        defaultPatterns: String)
 
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)

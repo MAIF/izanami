@@ -42,6 +42,10 @@ case class Env(
 
   def getFile(path: String) = environment.getFile(path)
 
+  val cookieName: String = Option(izanamiConfig.filter)
+    .collect { case Default(config) => config.cookieClaim }
+    .getOrElse("Izanami")
+
   val contextPath: String = if (izanamiConfig.contextPath.endsWith("/")) {
     izanamiConfig.contextPath.dropRight(1)
   } else {
