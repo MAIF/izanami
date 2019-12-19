@@ -55,7 +55,8 @@ package object modules {
 
     IzanamiLogger.info(s"Starting Izanami with java ${System.getProperty("java.version")}")
 
-    lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
+    lazy val izanamiConfig: IzanamiConfig            = IzanamiConfig(configuration)
+    lazy val mayBeOauth2Config: Option[Oauth2Config] = izanamiConfig.oauth2.filter(_.enabled)
 
     implicit val system: ActorSystem = actorSystem
 
@@ -141,6 +142,7 @@ package object modules {
     lazy val searchController: SearchController             = wire[SearchController]
     lazy val backOfficeController: BackOfficeController     = wire[BackOfficeController]
     lazy val metricsController: MetricController            = wire[MetricController]
+    lazy val oicController: OAuthController                 = wire[OAuthController]
 
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) =>

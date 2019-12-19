@@ -1,0 +1,11 @@
+version: '2'
+services:
+  keycloak:
+    image: jboss/keycloak
+    ports:
+      - 8980:8080
+    environment:
+      DB_VENDOR: h2
+      KEYCLOAK_USER: izanami
+      KEYCLOAK_PASSWORD: izanami
+      KEYCLOAK_IMPORT:

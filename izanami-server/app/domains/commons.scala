@@ -65,6 +65,8 @@ trait DriversModule {
   def drivers: Drivers
 }
 
+trait OAuthModule extends PlayModule with LoggerModule with AuthInfoModule[OAuthModule]
+
 trait GlobalContext
     extends AkkaModule
     with LoggerModule
@@ -78,6 +80,7 @@ trait GlobalContext
     with UserContext
     with WebhookContext
     with ExperimentContext
+    with OAuthModule
     with AuthInfoModule[GlobalContext]
     with Clock.Live
 

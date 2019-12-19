@@ -19,6 +19,8 @@ object errors {
 
     def apply(error: IzanamiError, rest: IzanamiError*): IzanamiErrors = NonEmptyList.of[IzanamiError](error, rest: _*)
 
+    def error(message: String) = apply(ValidationError.error(message))
+
     def fromNel(nel: NonEmptyList[IzanamiError]): IzanamiErrors = nel
 
     implicit class ToErrorsOps(err: IzanamiError) {

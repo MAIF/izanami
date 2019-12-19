@@ -1729,7 +1729,18 @@ POST    /api/login                          controllers.AuthController.authentic
 #          schema:
 #            type: object
 ###
-GET     /api/logout                         controllers.AuthController.logout()
+GET     /logout                         controllers.HomeController.logout()
+
+
+
+
+#OPTIONS /api/auth/login                            controllers.OAuthController.appLoginPageOptions()
+GET     /api/auth/login                            controllers.OAuthController.appLoginPage()
+GET     /api/auth/logout                           controllers.OAuthController.appLogout()
+GET     /api/auth/callback                         controllers.OAuthController.appCallback()
+POST    /api/auth/callback                         controllers.OAuthController.appCallback()
+
+
 
 ### NoDocs ###
 GET     /api/bo/loggers/:name/level         controllers.BackOfficeController.getLogLevel(name)

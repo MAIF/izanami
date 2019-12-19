@@ -116,6 +116,11 @@ export class LoggedApp extends Component {
       this.props.user &&
       this.props.user.admin;
 
+    const apikeyManagementEnabled =
+      this.props.enabledApikeyManagement &&
+      this.props.user &&
+      this.props.user.admin;
+
     const selected = (this.props.params || {}).lineId;
 
     const changeme = Cookies.get("notifyuser") || this.props.user.changeme;
@@ -154,7 +159,7 @@ export class LoggedApp extends Component {
                   <i className="fas fa-cog" aria-hidden="true" />
                 </a>
                 <ul className="dropdown-menu">
-                  {userManagementEnabled && [
+                  {userManagementEnabled &&
                     <li key="li-users">
                       <Link
                         to="/users"
@@ -163,7 +168,8 @@ export class LoggedApp extends Component {
                       >
                         Users management
                       </Link>
-                    </li>,
+                    </li>}
+                  {apikeyManagementEnabled &&
                     <li key="li-apikeys">
                       <Link
                         to="/apikeys"
@@ -173,7 +179,7 @@ export class LoggedApp extends Component {
                         Api Keys management
                       </Link>
                     </li>
-                  ]}
+                  }
                   <li>
                     <a href={this.props.logout} className="link-logout">
                       {this.props.user ? this.props.user.email : ""}&nbsp;
@@ -471,7 +477,7 @@ export class LoggedApp extends Component {
                           />
                         )}
 
-                        {userManagementEnabled && (
+                        {apikeyManagementEnabled && (
                           <Route
                             path="/apikeys/:taction/:titem"
                             component={props =>
@@ -479,7 +485,7 @@ export class LoggedApp extends Component {
                             }
                           />
                         )}
-                        {userManagementEnabled && (
+                        {apikeyManagementEnabled && (
                           <Route
                             path="/apikeys/:taction"
                             component={props =>
@@ -487,7 +493,7 @@ export class LoggedApp extends Component {
                             }
                           />
                         )}
-                        {userManagementEnabled && (
+                        {apikeyManagementEnabled && (
                           <Route
                             path="/apikeys"
                             component={props =>

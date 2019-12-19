@@ -384,6 +384,7 @@ class ScriptSpec
     false,
     "X-Forwarded-For",
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
+    None,
     DbConfig(""),
     LogoutConfig(""),
     ConfigConfig(dbConfig),

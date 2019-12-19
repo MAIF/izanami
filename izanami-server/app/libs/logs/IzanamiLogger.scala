@@ -4,6 +4,7 @@ import zio.{UIO, ZIO}
 
 trait Logger {
   import zio._
+  def logger(name: String): Logger
 
   def debug(message: => String)(implicit mc: MarkerContext): UIO[Unit]
 
@@ -21,6 +22,10 @@ trait LoggerModule {
 }
 
 object Logger {
+
+  def apply(loggerName: String): ZIO[LoggerModule, Nothing, Logger] =
+    ZIO.access(_.logger.logger(loggerName))
+
   def debug(message: => String)(implicit mc: MarkerContext): ZIO[LoggerModule, Nothing, Unit] =
     ZIO.accessM(_.logger.debug(message))
   def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): ZIO[LoggerModule, Nothing, Unit] =
@@ -33,8 +38,9 @@ object Logger {
     ZIO.accessM(_.logger.error(message, error))
 }
 
-class ProdLogger extends Logger {
-  val logger = PlayLogger("izanami")
+class ProdLogger(val logger: PlayLogger = PlayLogger("izanami")) extends Logger {
+
+  override def logger(name: String): Logger = new ProdLogger(PlayLogger(name))
 
   def debug(message: => String)(implicit mc: MarkerContext): UIO[Unit] =
     UIO(logger.debug(message)(mc))

@@ -18,6 +18,7 @@
  * [Keys](keys.md)
  * [Events](events.md)
  * [Metrics](metrics.md)
+ * [Identity providers](authprovider/index.md)
  * [Clients](clients/index.md)
  * [Tutorials](tutorials/index.md)
  * [Performances](performances.md)
