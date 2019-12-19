@@ -8,31 +8,20 @@ import domains.auth.Oauth2Service
 import domains.user.User
 import env.{Env, Oauth2Config}
 import play.api.libs.json.Json
-import play.api.mvc.{AbstractController, ControllerComponents, Cookie, Results}
+import play.api.mvc.{AbstractController, ControllerComponents, Cookie}
 import zio.{Runtime, ZIO}
 
-class OAuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[OAuthModule])
-    extends AbstractController(cc) {
+class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: ControllerComponents)(
+    implicit R: Runtime[OAuthModule]
+) extends AbstractController(cc) {
 
   import libs.http._
-
-  private val mayBeOauth2Config: Option[Oauth2Config] = _env.izanamiConfig.oauth2.filter(_.enabled)
 
   lazy val _config = _env.izanamiConfig.filter match {
     case env.Default(config) => config
     case _                   => throw new RuntimeException("Wrong config")
   }
   lazy val algorithm: Algorithm = Algorithm.HMAC512(_config.sharedKey)
-//
-//  //FIXME to complete
-//  def appLoginPageOptions() = Action {
-//    val headers: Map[String, String] = Map(
-//      "Access-Control-Allow-Origin"      -> "*",
-//      "Access-Control-Allow-Credentials" -> "true",
-//      "Access-Control-Allow-Methods"     -> "GET"
-//    )
-//    Results.Ok(ByteString.empty).withHeaders(headers.toSeq: _*)
-//  }
 
   def appLoginPage() = Action { implicit request =>
     mayBeOauth2Config match {

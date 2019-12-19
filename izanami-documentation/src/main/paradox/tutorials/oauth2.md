@@ -129,11 +129,29 @@ Assuming that keycloak was started on `8980` port you can set the following conf
 
 Or with environment variables : 
 
-
 ```
-
+OAUTH2_ENABLED="true"
+OAUTH2_AUTHORIZE_URL="http://localhost:8980/auth/realms/master/protocol/openid-connect/auth"
+OAUTH2_TOKEN_URL="http://localhost:8980/auth/realms/master/protocol/openid-connect/token"
+OAUTH2_USER_INFO_URL="http://localhost:8980/auth/realms/master/protocol/openid-connect/userinfo"
+OAUTH2_INTROSPECTION_URL="http://localhost:8980/auth/realms/master/protocol/openid-connect/token/introspect"
+OAUTH2_LOGIN_URL="http://localhost:8980/auth/realms/master/protocol/openid-connect/auth"
+OAUTH2_LOGOUT_URL="http://localhost:8980/auth/realms/master/protocol/openid-connect/logout"
+OAUTH2_CLIENT_ID="izanami"
+OAUTH2_CLIENT_SECRET="secret"
+OAUTH2_SCOPE="openid profile email name admin authorizedPatterns"
+OAUTH2_READ_FROM_TOKEN="true"
+OAUTH2_USE_COOKIE="false"
+OAUTH2_USE_JSON="false"
+OAUTH2_ID_FIELD="sub"
+OAUTH2_ACCESS_TOKEN_FIELD="access_token"
+OAUTH2_NAME_FIELD="preferred_username"
+OAUTH2_EMAIL_FIELD="email"
+OAUTH2_ADMIN_FIELD="admin"
+OAUTH2_AUTHORIZED_PATTERN_FIELD="authorizedPatterns"
+OAUTH2_DEFAULT_PATTERN=""
 ```
-
+    
 Now if you hit the `http://localhost:9000` izanami homepage, you're redirected to the keycloak login page : 
 
 ![Admin login](../img/tutorial/oauth/izanami_login_admin.png)

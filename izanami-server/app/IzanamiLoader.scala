@@ -55,7 +55,8 @@ package object modules {
 
     IzanamiLogger.info(s"Starting Izanami with java ${System.getProperty("java.version")}")
 
-    lazy val izanamiConfig: IzanamiConfig = IzanamiConfig(configuration)
+    lazy val izanamiConfig: IzanamiConfig            = IzanamiConfig(configuration)
+    lazy val mayBeOauth2Config: Option[Oauth2Config] = izanamiConfig.oauth2.filter(_.enabled)
 
     implicit val system: ActorSystem = actorSystem
 
