@@ -103,48 +103,17 @@ In this example, we're going to use the izanami tryout instance (http://izanami-
 
 The instance is configured on the `src/main/resources/application.yml` file : 
 
-```yaml 
+```yaml
 izanami:
-  host: "http://izanami-tryout.cleverapps.io"
-  clientId: "xxxx"
-  clientSecret: "xxxx"
-``` 
-
-And the client is registered as spring bean like this : 
-
-```java 
-@SpringBootApplication
-public class Application {
-
-    @Autowired
-    Environment environment;
-    
-    @Bean
-    ActorSystem actorSystem() {
-        return ActorSystem.create();
-    }
-
-    @Bean
-    @Autowired
-    IzanamiClient izanamiClient(ActorSystem actorSystem) {
-        String host = environment.getProperty("izanami.host");
-        String clientId = environment.getProperty("izanami.clientId");
-        String clientSecret = environment.getProperty("izanami.clientSecret");
-        LOGGER.info("Creating izanami client with host {}, client id {}", host, clientId);
-        return IzanamiClient.client(
-                    actorSystem,
-                    ClientConfig
-                        .create(host) // The url of the server 
-                        .withClientId(clientId) // The client id of the api 
-                        .withClientSecret(clientSecret) // The client secret of the api                    
-                        .withDispatcher("izanami-example.blocking-io-dispatcher") // To handle blocking calls see the callout after. 
-                        .sseBackend() // To be notified when there is change on the server 
-                );
-    }
-}
+  host: "http://localhost:9000"
+  client-id: xxxx
+  client-secret: xxxx
+  backend: SseBackend
 ```
 
-The client is based on [Akka](https://akka.io/) so you have to provide an `ActorSystem` to make it work. 
+And the client is registered as spring bean with the spring izanami starter.  
+
+The client is based on [Akka](https://akka.io/), an `ActorSystem` is provided but you can override it if needed. 
 
 
 @@@ warning
@@ -166,15 +135,13 @@ izanami-example.blocking-io-dispatcher {
 
 On this example, we configure a thread pool of 32 threads. The reference to this dispatcher should be passed to the client : 
 
-```java
-return IzanamiClient.client(
-        actorSystem,
-        ClientConfig
-            .create(host) // The url of the server 
-            // ...                    
-            .withDispatcher("izanami-example.blocking-io-dispatcher") // Reference to the dispatcher. 
-            // ... 
-    );
+```yaml
+izanami:
+  host: "http://localhost:9000"
+  client-id: xxxx
+  client-secret: xxxx
+  backend: SseBackend
+  dispatcher: izanami-example.blocking-io-dispatcher # <- here 
 ```
 
 @@@
@@ -183,54 +150,42 @@ return IzanamiClient.client(
 Now we have to create a `FeatureClient` in order to use feature flipping. 
 
 In this example we use two spring profiles 
-* `izanamiLocal`: Use on fallback from config and never call the server. You can use it during development if you don't an available Izanami instance.   
-* `izanamiProd` : This profile will use a real Izanami server instance.
+* `dev`: Use on fallback from config and never call the server. You can use it during development if you don't an available Izanami instance.   
+* `prod` : This profile will use a real Izanami server instance.
 
 So for `FeatureClient` we have two configs : 
 
-```java 
-    
-    @Configuration
-    @Profile("izanamiLocal")
-    static class Dev {
-        @Bean
-        @Autowired
-        FeatureClient featureClientDev(IzanamiClient izanamiClient, Environment environment) {
-            String json = environment.getProperty("izanami.fallback.features");
-            LOGGER.info("Loading feature fallback \n{}", json);
-            return izanamiClient.featureClient(
-                    Strategies.dev(), // The dev strategy use only fallback 
-                    Features.parseJson(json)
-            );
-        }
-    }
-    
-    @Configuration
-    @Profile("izanamiProd")
-    static class Prod {
-        @Bean
-        @Autowired
-        FeatureClient featureClient(IzanamiClient izanamiClient, Environment environment) {
-            return izanamiClient.featureClient(
-                    Strategies.smartCacheWithSseStrategy("mytvshows:*"),
-                    Features.parseJson(environment.getProperty("izanami.fallback.features"))
-            );       
-    }
-```
-
-The fallback is read from the config file : 
+The `application.yml` file (dev config): 
 
 ```yaml
 izanami:
-  // ...
-  fallback:
-    features: >
+  host: http://localhost:9000
+  client-id: xxxx
+  client-secret: xxxx
+  backend: SseBackend
+  dispatcher: izanami-example.blocking-io-dispatcher
+  feature:
+    strategy:
+      type: DevStrategy
+    fallback: >
       [
-        { "id": "mytvshows:season:markaswatched", "enabled": true },
+        { "id": "mytvshows:season:markaswatched", "enabled": false },
         { "id": "mytvshows:providers:tvdb", "enabled": true },
         { "id": "mytvshows:providers:betaserie", "enabled": false },
         { "id": "mytvshows:providers:omdb", "enabled": false }
       ]
+    autocreate: true
+```
+
+The `application-prod.yml` file (dev config): 
+
+```yaml
+izanami:
+  feature:
+    strategy:
+      type: CacheWithSseStrategy
+      polling-interval: 1 minute
+      patterns: [mytvshows:*]
 ```
 
 @@@ note
@@ -389,16 +344,14 @@ To call Izanami APIs you need to provide authentication keys and we don't the ke
 
 Don't panic, the Izanami client provide a configurable proxy you can easily integrate in you application.    
 
-First let's create the proxy in the `Application.java` spring configuration class : 
+First let's create the proxy using the configuration : 
 
-```java
-@Bean
-@Autowired
-Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
-    return izanamiClient.proxy()
-            .withFeaturePattern("mytvshows:*") // We will expose the features matching this pattern. 
-            .withFeatureClient(featureClient);
-}
+```yaml
+izanami: 
+  # ...
+  proxy:
+    feature:
+      patterns: mytvshows:*    
 ```
 
 And then expose the features with the `izanami.example.izanami.IzanamiController` :
@@ -571,55 +524,15 @@ To do that we have to
 
 ### The spring plumbing
 
-Like for the features, let's define the `ExperimentsClient` in the `Application.java` class: 
+Like for the features, let's define the `ExperimentsClient` using the spring config: 
 
 For the dev 
 
-```java
-
-@Configuration
-@Profile("izanamiLocal")
-static class Dev {
-    // ... 
-    @Bean
-    @Autowired
-    ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
-        String json = environment.getProperty("izanami.fallback.experiments");
-        LOGGER.info("Loading configs fallback \n{}", json);
-        return izanamiClient.experimentClient(
-                Strategies.dev(),
-                Experiments.parseJson(json)
-        );
-    }
-
-}
-```
-For the prod 
-
-```java
-@Configuration
-@Profile("izanamiProd")
-static class Prod {
-    // ... 
-    @Bean
-    @Autowired
-    ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
-
-        return izanamiClient.experimentClient(
-                Strategies.fetchStrategy(),
-                Experiments.parseJson(environment.getProperty("izanami.fallback.experiments"))
-        );
-    }
-}
-```
-And the fallback configuration is the following : 
-
 ```yaml
-izanami:
-  // ...
-  fallback:
-    // ...
-    experiments: >
+izanami: 
+  # ...
+  experiment:
+    fallback: >
       [
         {
           "id": "mytvshows:gotoepisodes:button",
@@ -633,6 +546,17 @@ izanami:
           }
         }
       ]
+    strategy:
+      type: DevStrategy
+```
+For the prod 
+
+```yaml
+izanami: 
+  # ...
+  experiment:
+    strategy:
+      type: FetchStrategy
 ```
 
 Here we define an experiment with the default variant (A). 
@@ -640,16 +564,14 @@ Here we define an experiment with the default variant (A).
 
 The proxy config should be changed too in order to add the experiments client : 
 
-```java
-@Bean
-@Autowired
-Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
-    return izanamiClient.proxy()
-            .withFeaturePattern("mytvshows:*")
-            .withFeatureClient(featureClient)
-            .withExperimentPattern("mytvshows:*")
-            .withExperimentsClient(experimentClient);
-}
+```yaml
+izanami:
+  # ...
+  proxy:
+    feature:
+      patterns: mytvshows:*
+    experiment:
+      patterns: mytvshows:*
 ```
 
 In the previous chapter the proxy controller was 
