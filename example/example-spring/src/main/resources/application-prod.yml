@@ -1,0 +1,15 @@
+
+izanami:
+  feature:
+    strategy:
+      type: CacheWithSseStrategy
+      polling-interval: 1 minute
+      patterns: [mytvshows:*]
+  config:
+    strategy:
+      type: CacheWithSseStrategy
+      polling-interval: 1 minute
+      patterns: [izanami:*]
+  experiment:
+    strategy:
+      type: FetchStrategy

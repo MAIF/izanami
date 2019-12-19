@@ -1,7 +1,7 @@
 spring:
   profiles:
     active:
-      - izanamiProd
+      - prod
       - dev
   mvc:
     static-path-pattern: "/assets/**"
@@ -29,22 +29,32 @@ otoroshi:
   stateHeaderName: "Otoroshi-State"
   stateRespHeaderName: "Otoroshi-State-Resp"
 izanami:
-  host: "http://localhost:9000"
-  clientId: "xxxx"
-  clientSecret: "xxxx"
-  fallback:
-    features: >
+  host: http://localhost:9000
+  client-id: xxxx
+  client-secret: xxxx
+  backend: SseBackend
+  dispatcher: izanami.blocking-dispatcher
+  feature:
+    strategy:
+      type: DevStrategy
+    fallback: >
       [
         { "id": "mytvshows:season:markaswatched", "enabled": false },
         { "id": "mytvshows:providers:tvdb", "enabled": true },
         { "id": "mytvshows:providers:betaserie", "enabled": false },
         { "id": "mytvshows:providers:omdb", "enabled": false }
       ]
-    configs: >
+    autocreate: true
+  config:
+    fallback: >
       [
         { "id": "izanami:example:config", "value": { "emailProvider": "test" } }
       ]
-    experiments: >
+    strategy:
+      type: DevStrategy
+    autocreate: true
+  experiment:
+    fallback: >
       [
         {
           "id": "mytvshows:gotoepisodes:button",
@@ -58,3 +68,10 @@ izanami:
           }
         }
       ]
+    strategy:
+      type: DevStrategy
+  proxy:
+    feature:
+      patterns: mytvshows:*
+    experiment:
+      patterns: mytvshows:*
