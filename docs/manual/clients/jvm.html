@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.5*
+1.6.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -74,6 +74,7 @@
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../metrics.html" class="page">Metrics</a></li>
+  <li><a href="../authprovider/index.html" class="page">Identity providers</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="active page">Java &amp; Scala</a></li>
@@ -81,10 +82,12 @@
     <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
+    <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
   </ul></li>
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
+    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -121,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.5*
+1.6.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -165,6 +168,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../metrics.html" class="page">Metrics</a></li>
+  <li><a href="../authprovider/index.html" class="page">Identity providers</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="active page">Java &amp; Scala</a></li>
@@ -172,10 +176,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
+    <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
   </ul></li>
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
+    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -280,12 +286,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 )
 </code></pre></dd>
 </dl>
-<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "1.4.5-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
+<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "1.6.1-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
   &lt;groupId&gt;fr.maif&lt;/groupId&gt;
   &lt;artifactId&gt;izanami-client_2.12&lt;/artifactId&gt;
-  &lt;version&gt;1.4.5-SNAPSHOT&lt;/version&gt;
+  &lt;version&gt;1.6.1-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  compile group: 'fr.maif', name: 'izanami-client_2.12', version: '1.4.5-SNAPSHOT'
+  compile group: 'fr.maif', name: 'izanami-client_2.12', version: '1.6.1-SNAPSHOT'
 }</code></pre></dd></dl>
 <p>The client can be used in java or scala. There is two distinct dsl. Be sure to import the correct one : </p>
 <dl>
@@ -527,7 +533,7 @@ ConfigClient fetchWithCacheStrategy = izanamiClient.configClient(
     pollingInterval = 3.second
   ),
   fallback = fallback
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/SmartCacheConfigClientSpec.scala#L57-L63" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/SmartCacheConfigClientSpec.scala#L53-L59" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>The client will cache all the configs matching this patterns. </p>
 <ul>
@@ -680,7 +686,7 @@ ConfigClient configClient = izanamiClient.configClient(
   fallback = Features(
     DefaultFeature(&quot;test2&quot;, true)
   )
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L251-L256" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L246-L251" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>When you set up a client you have to choose a strategy : </p>
 <table>
@@ -726,7 +732,7 @@ ConfigClient configClient = izanamiClient.configClient(
   ClientConfig(host, pageSize = 2)
 ).featureClient(
   Strategies.fetchStrategy()
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L297-L301" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L292-L296" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#the-fetch-with-cache-strategy" name="the-fetch-with-cache-strategy" class="anchor"><span class="anchor-link"></span></a>The fetch with cache strategy</h4>
 <p>The fetch with cache will do dumb cache by http call. You have to provide a the max elements in cache and a TTL. </p>
@@ -750,7 +756,7 @@ FeatureClient featureClientWithCache = izanamiClient.featureClient(
   fallback = Features(
     DefaultFeature(&quot;test2&quot;, true)
   )
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchWithCacheFeatureClientSpec.scala#L28-L35" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchWithCacheFeatureClientSpec.scala#L37-L44" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#the-smart-cache-strategy" name="the-smart-cache-strategy" class="anchor"><span class="anchor-link"></span></a>The smart cache strategy</h4>
 <p>When you choose the smart cache, you have to provide patterns to select the keys that will be in cache: </p>
@@ -798,7 +804,7 @@ FeatureClient featureClientWithCache = izanamiClient.featureClient(
   <dd>
   <pre class="prettyprint"><code class="language-scala">val featureClient = izanamiClient.featureClient(
   FetchStrategy(Crash)
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L42-L44" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L41-L43" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h3><a href="#client-usage" name="client-usage" class="anchor"><span class="anchor-link"></span></a>Client usage</h3>
 <h4><a href="#list-features" name="list-features" class="anchor"><span class="anchor-link"></span></a>List features</h4>
@@ -833,7 +839,7 @@ futureFeatures.onComplete {
 
   case Failure(e) =&gt;
     e.printStackTrace()
-}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L266-L280" class="snippet-full-source github">Full source at GitHub</a></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L261-L275" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#check-feature" name="check-feature" class="anchor"><span class="anchor-link"></span></a>Check feature</h4>
 <dl>
@@ -842,7 +848,7 @@ futureFeatures.onComplete {
   <pre class="prettyprint"><code class="language-java">Future&lt;Boolean&gt; futureCheck = featureClient.checkFeature(&quot;my:feature&quot;);</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L332" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val futureCheck: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L341" class="snippet-full-source github">Full source at GitHub</a></dd>
+  <pre class="prettyprint"><code class="language-scala">val futureCheck: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L336" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>If the feature needs a context to be evaluated: </p>
 <dl>
@@ -854,7 +860,7 @@ futureFeatures.onComplete {
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><code class="language-scala">val context                           = Json.obj(&quot;context&quot; -&gt; true)
-val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;, context)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L353-L354" class="snippet-full-source github">Full source at GitHub</a></dd>
+val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;, context)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L348-L349" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#conditional-code-on-feature" name="conditional-code-on-feature" class="anchor"><span class="anchor-link"></span></a>Conditional code on feature</h4>
 <p>This execute a code and return a value if a feature is active: </p>
@@ -871,7 +877,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   &quot;Feature is active&quot;
 } {
   &quot;Feature is not active&quot;
-}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L358-L362" class="snippet-full-source github">Full source at GitHub</a></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L353-L357" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>Or with a context </p>
 <dl>
@@ -889,7 +895,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   &quot;Feature is active&quot;
 } {
   &quot;Feature is not active&quot;
-}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L366-L370" class="snippet-full-source github">Full source at GitHub</a></dd>
+}</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L361-L365" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#create-update-delete" name="create-update-delete" class="anchor"><span class="anchor-link"></span></a>Create / update / delete</h4>
 <p>With the client you can mutate features. </p>
@@ -913,7 +919,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   true,
   FeatureType.HOUR_RANGE,
   Some(Json.obj(&quot;startAt&quot; -&gt; &quot;05:25&quot;, &quot;endAt&quot; -&gt; &quot;16:30&quot;))
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L54-L59" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L53-L58" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Or with a feature object: Java
   </dt>
   <dd>
@@ -924,7 +930,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <dd>
   <pre class="prettyprint"><code class="language-scala">val featureCreated = featureClient.createFeature(
   DateRangeFeature(&quot;test2&quot;, true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L81-L83" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L80-L82" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>Update a feature : </p>
 <dl>
@@ -936,7 +942,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <pre class="prettyprint"><code class="language-scala">val featureCreated = featureClient.updateFeature(
   &quot;test&quot;,
   DateRangeFeature(&quot;test2&quot;, true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
-)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L111-L114" class="snippet-full-source github">Full source at GitHub</a></dd>
+)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L110-L113" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>Delete a feature : </p>
 <dl>
@@ -945,7 +951,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <pre class="prettyprint"><code class="language-java">Done deleted = featureClient.deleteFeature(&quot;my:feature&quot;).get();</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L445" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val deleted = featureClient.deleteFeature(&quot;test&quot;)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L176" class="snippet-full-source github">Full source at GitHub</a></dd>
+  <pre class="prettyprint"><code class="language-scala">val deleted = featureClient.deleteFeature(&quot;test&quot;)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L175" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <p>You can also activate or deactivate a feature </p>
 <dl>
@@ -954,7 +960,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <pre class="prettyprint"><code class="language-java">Feature activated = featureClient.switchFeature(&quot;my:feature&quot;, true).get();</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L451" class="snippet-full-source github">Full source at GitHub</a></dd>
   <dt>Scala</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-scala">val activated = featureClient.switchFeature(&quot;test&quot;, false)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L142" class="snippet-full-source github">Full source at GitHub</a></dd>
+  <pre class="prettyprint"><code class="language-scala">val activated = featureClient.switchFeature(&quot;test&quot;, false)</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L141" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h4><a href="#autocreate-features" name="autocreate-features" class="anchor"><span class="anchor-link"></span></a>Autocreate features</h4>
 <p>You can autocreate features that are define as fallback. To enable this you need set the <code>autocreate</code> parameter when the client is created. </p>
@@ -976,7 +982,7 @@ FeatureClient featureClient = izanamiClient.featureClient(
     FetchStrategy(Crash),
     autocreate = true,
     fallback = Features(feature)
-  )</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L191-L196" class="snippet-full-source github">Full source at GitHub</a></dd>
+  )</code></pre><a href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L190-L195" class="snippet-full-source github">Full source at GitHub</a></dd>
 </dl>
 <h2><a href="#experiments-client" name="experiments-client" class="anchor"><span class="anchor-link"></span></a>Experiments client</h2>
 <p>To understand how experiments work, just visit this  </p>
