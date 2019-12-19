@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Get Izanami · Izanami</title>
+<title>Oauth2 with keycloak · Izanami</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Izanami'/>
@@ -41,7 +41,7 @@
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
   <li><a href="../features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="../architecture/index.html" class="page">Architecture</a></li>
-  <li><a href="../getizanami/index.html" class="active page">Get Izanami</a>
+  <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
     <li><a href="../getizanami/binaries.html" class="page">From Binaries</a></li>
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
@@ -87,7 +87,7 @@
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
-    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
+    <li><a href="../tutorials/oauth2.html" class="active page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -135,7 +135,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../philosophy.html" class="page">Philosophy</a></li>
   <li><a href="../features.html" class="page">What&rsquo;s in the box</a></li>
   <li><a href="../architecture/index.html" class="page">Architecture</a></li>
-  <li><a href="../getizanami/index.html" class="active page">Get Izanami</a>
+  <li><a href="../getizanami/index.html" class="page">Get Izanami</a>
   <ul>
     <li><a href="../getizanami/binaries.html" class="page">From Binaries</a></li>
     <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
@@ -181,7 +181,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
-    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
+    <li><a href="../tutorials/oauth2.html" class="active page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -199,7 +199,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../index.html">Izanami</a></li>
-  <li>Get Izanami</li>
+  <li><a href="../tutorials/index.html">Tutorials</a></li>
+  <li>Oauth2 with keycloak</li>
 </ul>
 </div>
 </div>
@@ -207,36 +208,150 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#get-izanami" name="get-izanami" class="anchor"><span class="anchor-link"></span></a>Get Izanami</h1>
-<p>There are several ways to run izanami : </p>
+<h1><a href="#oauth2-with-keycloak" name="oauth2-with-keycloak" class="anchor"><span class="anchor-link"></span></a>Oauth2 with keycloak</h1>
 <div class="toc ">
 <ul>
-  <li><a href="../getizanami/binaries.html" class="page">From Binaries</a>
+  <li><a href="../tutorials/oauth2.html#running-keycloak" class="header">Running keycloak</a></li>
+  <li><a href="../tutorials/oauth2.html#define-scope" class="header">Define scope</a>
   <ul>
-    <li><a href="../getizanami/binaries.html#run-izanami-jar" class="header">Run izanami.jar</a></li>
-    <li><a href="../getizanami/binaries.html#run-izanami-zip" class="header">Run izanami.zip</a></li>
+    <li><a href="../tutorials/oauth2.html#define-a-new-scope-for-authorized-patterns-field" class="header">Define a new scope for authorized patterns field</a></li>
+    <li><a href="../tutorials/oauth2.html#define-a-new-scope-for-the-admin-field" class="header">Define a new scope for the admin field</a></li>
+    <li><a href="../tutorials/oauth2.html#define-a-mapper-for-the-admin-field" class="header">Define a mapper for the admin field</a></li>
   </ul></li>
-  <li><a href="../getizanami/docker.html" class="page">From Docker</a></li>
-  <li><a href="../getizanami/fromsources.html" class="page">From sources</a>
+  <li><a href="../tutorials/oauth2.html#create-an-izanami-client" class="header">Create an Izanami client</a></li>
+  <li><a href="../tutorials/oauth2.html#create-users" class="header">Create users</a>
   <ul>
-    <li><a href="../getizanami/fromsources.html#build-the-javascript" class="header">Build the javascript</a></li>
-    <li><a href="../getizanami/fromsources.html#package-the-server" class="header">Package the server</a>
-    <ul>
-      <li><a href="../getizanami/fromsources.html#build-the-native-package" class="header">Build the native package</a></li>
-      <li><a href="../getizanami/fromsources.html#build-the-fat-jar" class="header">Build the fat jar</a></li>
-    </ul></li>
+    <li><a href="../tutorials/oauth2.html#admin-user" class="header">Admin user</a></li>
+    <li><a href="../tutorials/oauth2.html#random-user" class="header">Random user</a></li>
   </ul></li>
+  <li><a href="../tutorials/oauth2.html#configure-izanami" class="header">Configure izanami</a></li>
 </ul>
 </div>
+<p>This tutorial show how to delegate user authentication to keycloak using oauth2. </p>
+<p>On keycloak, you&rsquo;ll need to  * define scope for custom field  * set a dedicated client for Izanami  * add scope to client  * create users with custom attributes  * Configure Izanami </p>
+<h2><a href="#running-keycloak" name="running-keycloak" class="anchor"><span class="anchor-link"></span></a>Running keycloak</h2>
+<p>Just use docker : </p>
+<pre><code>docker-compose -f docker-compose.oauth.yml up 
+</code></pre>
+<p>Go to <code>http://localhost:8980</code> and log with <code>izanami</code> / <code>izanami</code>. </p>
+<h2><a href="#define-scope" name="define-scope" class="anchor"><span class="anchor-link"></span></a>Define scope</h2>
+<p>You first need to define new scopes for  * <code>authorizedPatterns</code> : the pattern applied on keys that the user is able to use  * <code>admin</code> : a boolean to define id the user will be admin</p>
+<h3><a href="#define-a-new-scope-for-authorized-patterns-field" name="define-a-new-scope-for-authorized-patterns-field" class="anchor"><span class="anchor-link"></span></a>Define a new scope for authorized patterns field</h3>
+<p><img src="../img/tutorial/oauth/client_scope_patterns_1.png" alt="Pattern scope" /></p>
+<p>### Define a mapper for authorized patterns field</p>
+<p>Define a mapper for the <code>authorizedPatterns</code> field with a mapper type <code>UserAttribute</code> and the name of the attribute and the name in the claim. Here the name will be <code>authorizedPatterns</code> and the type in json will be a <code>string</code>.</p>
+<p><img src="../img/tutorial/oauth/client_scope_patterns_2_mapper.png" alt="Pattern scope mapper" /> </p>
+<h3><a href="#define-a-new-scope-for-the-admin-field" name="define-a-new-scope-for-the-admin-field" class="anchor"><span class="anchor-link"></span></a>Define a new scope for the admin field</h3>
+<p><img src="../img/tutorial/oauth/client_scope_admin_1.png" alt="Admin scope" /> </p>
+<h3><a href="#define-a-mapper-for-the-admin-field" name="define-a-mapper-for-the-admin-field" class="anchor"><span class="anchor-link"></span></a>Define a mapper for the admin field</h3>
+<p>Define a mapper for the <code>admin</code> field with a mapper type <code>UserAttribute</code> and the name of the attribute and the name in the claim. Here the name will be <code>admin</code> and the type in json will be a <code>boolean</code>.</p>
+<p><img src="../img/tutorial/oauth/client_scope_admin_2_mapper.png" alt="Admin scope mapper" /> </p>
+<h2><a href="#create-an-izanami-client" name="create-an-izanami-client" class="anchor"><span class="anchor-link"></span></a>Create an Izanami client</h2>
+<p>Create a new open id connect client and name it izanami. Set the root url to the url of your server. </p>
+<p><img src="../img/tutorial/oauth/client_izanami_1.png" alt="Izanami client" /> </p>
+<p>In the settings, fill the field with the various urls of izanami. </p>
+<p><img src="../img/tutorial/oauth/client_izanami_2_settings.png" alt="Izanami client" /></p>
+<p>In the client scope panel, add the two scopes created previously. </p>
+<p><img src="../img/tutorial/oauth/izanami_client_3_scope.png" alt="Izanami client" /> </p>
+<p>Next step create some users.</p>
+<h2><a href="#create-users" name="create-users" class="anchor"><span class="anchor-link"></span></a>Create users</h2>
+<p>We will create two users :  * one admin user  * one user with restricted access</p>
+<p>In the users menu, add a new user </p>
+<p><img src="../img/tutorial/oauth/users_all.png" alt="Users" /></p>
+<h3><a href="#admin-user" name="admin-user" class="anchor"><span class="anchor-link"></span></a>Admin user</h3>
+<p>Create an admin user </p>
+<p><img src="../img/tutorial/oauth/users_admin_1.png" alt="Users" /></p>
+<p>In the attributes panel, add two attributes </p>
+<p><img src="../img/tutorial/oauth/users_admin_2_attributes.png" alt="Users" /></p>
+<h3><a href="#random-user" name="random-user" class="anchor"><span class="anchor-link"></span></a>Random user</h3>
+<p>Create an simple user </p>
+<p><img src="../img/tutorial/oauth/users_admin_1.png" alt="Users" /></p>
+<p>In the attributes panel, add the restriction pattern </p>
+<p><img src="../img/tutorial/oauth/users_admin_2_attributes.png" alt="Users" /></p>
+<h2><a href="#configure-izanami" name="configure-izanami" class="anchor"><span class="anchor-link"></span></a>Configure izanami</h2>
+<p>Assuming that keycloak was started on <code>8980</code> port you can set the following configuration : </p>
+<pre><code>  oauth2 {
+    enabled = true
+    authorizeUrl = &quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/auth&quot;
+    tokenUrl = 	&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/token&quot;
+    userInfoUrl = &quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/userinfo&quot;
+    introspectionUrl = 	&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/token/introspect&quot;
+    loginUrl = &quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/auth&quot;
+    logoutUrl = &quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/logout&quot;
+    clientId = &quot;izanami&quot;
+    clientSecret = &quot;secret&quot;
+    scope = &quot;openid profile email name admin authorizedPatterns&quot;    
+    readProfileFromToken = true
+    useCookie = false
+    useJson = false
+    idField = &quot;sub&quot;
+    accessTokenField = &quot;access_token&quot;
+    nameField = &quot;preferred_username&quot;
+    emailField = &quot;email&quot;
+    adminField = &quot;admin&quot;
+    authorizedPatternField = &quot;authorizedPatterns&quot;
+    defaultPatterns = &quot;&quot;
+  }
+</code></pre>
+<p>Or with environment variables : </p>
+<pre><code>OAUTH2_ENABLED=&quot;true&quot;
+OAUTH2_AUTHORIZE_URL=&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/auth&quot;
+OAUTH2_TOKEN_URL=&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/token&quot;
+OAUTH2_USER_INFO_URL=&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/userinfo&quot;
+OAUTH2_INTROSPECTION_URL=&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/token/introspect&quot;
+OAUTH2_LOGIN_URL=&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/auth&quot;
+OAUTH2_LOGOUT_URL=&quot;http://localhost:8980/auth/realms/master/protocol/openid-connect/logout&quot;
+OAUTH2_CLIENT_ID=&quot;izanami&quot;
+OAUTH2_CLIENT_SECRET=&quot;secret&quot;
+OAUTH2_SCOPE=&quot;openid profile email name admin authorizedPatterns&quot;
+OAUTH2_READ_FROM_TOKEN=&quot;true&quot;
+OAUTH2_USE_COOKIE=&quot;false&quot;
+OAUTH2_USE_JSON=&quot;false&quot;
+OAUTH2_ID_FIELD=&quot;sub&quot;
+OAUTH2_ACCESS_TOKEN_FIELD=&quot;access_token&quot;
+OAUTH2_NAME_FIELD=&quot;preferred_username&quot;
+OAUTH2_EMAIL_FIELD=&quot;email&quot;
+OAUTH2_ADMIN_FIELD=&quot;admin&quot;
+OAUTH2_AUTHORIZED_PATTERN_FIELD=&quot;authorizedPatterns&quot;
+OAUTH2_DEFAULT_PATTERN=&quot;&quot;
+</code></pre>
+<p>Now if you hit the <code>http://localhost:9000</code> izanami homepage, you&rsquo;re redirected to the keycloak login page : </p>
+<p><img src="../img/tutorial/oauth/izanami_login_admin.png" alt="Admin login" /></p>
+<p>Just set the admin credentials </p>
+<p>It&rsquo;s fine, the user has access to the api keys configuration, he is an admin. </p>
+<p><img src="../img/tutorial/oauth/izanami_admin_ok.png" alt="Admin login" /></p>
+<p>Retry but this time using the johndoe account </p>
+<p><img src="../img/tutorial/oauth/izanami_login_random.png" alt="Admin login" /></p>
+<p>The api keys configuration, he is not available anymore</p>
+<p><img src="../img/tutorial/oauth/izanami_random_ok.png" alt="Admin login" /></p>
+<p>And the user is not able to create a feature with a pattern he is not allowed </p>
+<p><img src="../img/tutorial/oauth/izanami_random_pattern_ok.png" alt="Admin login" /></p>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/getizanami/index.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/tutorials/oauth2.md">here</a>.
 </div>
 
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../getizanami/binaries.html">From Binaries</a></p>
+<p><strong>Next:</strong> <a href="../performances.html">Performances</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../tutorials/oauth2.html#oauth2-with-keycloak" class="header">Oauth2 with keycloak</a>
+  <ul>
+    <li><a href="../tutorials/oauth2.html#running-keycloak" class="header">Running keycloak</a></li>
+    <li><a href="../tutorials/oauth2.html#define-scope" class="header">Define scope</a></li>
+    <li><a href="../tutorials/oauth2.html#create-an-izanami-client" class="header">Create an Izanami client</a></li>
+    <li><a href="../tutorials/oauth2.html#create-users" class="header">Create users</a></li>
+    <li><a href="../tutorials/oauth2.html#configure-izanami" class="header">Configure izanami</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 

@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.5*
+1.6.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -74,6 +74,7 @@
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../metrics.html" class="page">Metrics</a></li>
+  <li><a href="../authprovider/index.html" class="page">Identity providers</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -81,10 +82,12 @@
     <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
+    <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
   </ul></li>
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
+    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -121,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.5*
+1.6.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -165,6 +168,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../metrics.html" class="page">Metrics</a></li>
+  <li><a href="../authprovider/index.html" class="page">Identity providers</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -172,10 +176,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
+    <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
   </ul></li>
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="page">Spring / React tutorial</a></li>
+    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -959,6 +965,183 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     </tr>
   </tbody>
 </table>
+<h2><a href="#oauth2" name="oauth2" class="anchor"><span class="anchor-link"></span></a>Oauth2</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.oauth2.enabled</code> </td>
+      <td><code>OAUTH2_ENABLED</code> </td>
+      <td>Enable this config </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.authorizeUrl</code> </td>
+      <td><code>OAUTH2_AUTHORIZE_URL</code> </td>
+      <td>Oauth2 authorization url </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.tokenUrl</code> </td>
+      <td><code>OAUTH2_TOKEN_URL</code> </td>
+      <td>Oauth2 token url </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.userInfoUrl</code> </td>
+      <td><code>OAUTH2_USER_INFO_URL</code> </td>
+      <td>Oauth2 user info url </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.introspectionUrl</code> </td>
+      <td><code>OAUTH2_INTROSPECTION_URL</code> </td>
+      <td>Oauth2 introspection url </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.loginUrl</code> </td>
+      <td><code>OAUTH2_LOGIN_URL</code> </td>
+      <td>Oauth2 login url </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.logoutUrl</code> </td>
+      <td><code>OAUTH2_LOGOUT_URL</code> </td>
+      <td>Oauth2 logout url </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.clientId</code> </td>
+      <td><code>OAUTH2_CLIENT_ID</code> </td>
+      <td>Oauth2 client id </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.clientSecret</code> </td>
+      <td><code>OAUTH2_CLIENT_SECRET</code> </td>
+      <td>Oauth2 secret if provided </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.scope</code> </td>
+      <td><code>OAUTH2_SCOPE</code> </td>
+      <td>Oauth2 scope of the requested user info </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.readProfileFromToken</code> </td>
+      <td><code>OAUTH2_READ_FROM_TOKEN</code> </td>
+      <td>Should the user be read from token </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.useCookie</code> </td>
+      <td><code>OAUTH2_USE_COOKIE</code> </td>
+      <td>Pass desc as query param </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.useJson</code> </td>
+      <td><code>OAUTH2_USE_JSON</code> </td>
+      <td>Use json or form to post data to the server </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.idField</code> </td>
+      <td><code>OAUTH2_ID_FIELD</code> </td>
+      <td>the path in the token to access the user id field (required field) </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.accessTokenField</code> </td>
+      <td><code>OAUTH2_ACCESS_TOKEN_FIELD</code> </td>
+      <td>the path in the token to access the access token field (required field) </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.nameField</code> </td>
+      <td><code>OAUTH2_NAME_FIELD</code> </td>
+      <td>the path in the token to access the user name field (required field) </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.emailField</code> </td>
+      <td><code>OAUTH2_EMAIL_FIELD</code> </td>
+      <td>the path in the token to access the user email field (optional field) </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.adminField</code> </td>
+      <td><code>OAUTH2_ADMIN_FIELD</code> </td>
+      <td>the path in the token to access the user admin field (a boolean, false if empty) </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.authorizedPatternField</code> </td>
+      <td><code>OAUTH2_AUTHORIZED_PATTERN_FIELD</code> </td>
+      <td>the path in the token to access the user authorizedPatternField field </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.defaultPatterns</code> </td>
+      <td><code>OAUTH2_DEFAULT_PATTERN</code> </td>
+      <td>the default patterns if authorizedPatternField is missing </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.enabled</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_ENABLED</code> </td>
+      <td>Enable jwt verification </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.type</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_TYPE</code> </td>
+      <td>One of <code>hs</code>, <code>es</code>, <code>rsa</code>, <code>jwks</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.size</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_RSA_SIZE</code> </td>
+      <td>Size of rsa <code>256</code>, <code>384</code>, <code>512</code>s </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.size</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_HS_SIZE</code> </td>
+      <td>Size of hs <code>256</code>, <code>384</code>, <code>512</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.size</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_ES_SIZE</code> </td>
+      <td>Size of es <code>256</code>, <code>384</code>, <code>512</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.secret</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_HS_SECRET</code> </td>
+      <td>Hs secret </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.publicKey</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_RSA_PUBLIC_KEY</code> </td>
+      <td>Rsa public key </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.publicKey</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_ES_PUBLIC_KEY</code> </td>
+      <td>ES public key </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.privateKey</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_RSA_PRIVATE_KEY</code> </td>
+      <td>RSA private key </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.privateKey</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_ES_PRIVATE_KEY</code> </td>
+      <td>ES private key </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.url</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_JWKS_URL</code> </td>
+      <td>JWKS url </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.headers</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_JWKS_HEADERS</code> </td>
+      <td>JWKS headers </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.jwtVerifier.timeout</code> </td>
+      <td><code>OAUTH2_JWT_VERIFIER_JWKS_TIMEOUT</code> </td>
+      <td>JWKS timeout call </td>
+    </tr>
+  </tbody>
+</table>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
 </div>
@@ -982,6 +1165,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
     <li><a href="../settings/settings.html#filters" class="header">Filters</a></li>
     <li><a href="../settings/settings.html#domains" class="header">Domains</a></li>
     <li><a href="../settings/settings.html#metrics" class="header">Metrics</a></li>
+    <li><a href="../settings/settings.html#oauth2" class="header">Oauth2</a></li>
   </ul></li>
 </ul>
 </div>

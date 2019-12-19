@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.5*
+1.6.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -74,6 +74,7 @@
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../metrics.html" class="page">Metrics</a></li>
+  <li><a href="../authprovider/index.html" class="page">Identity providers</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -81,10 +82,12 @@
     <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
+    <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
   </ul></li>
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="active page">Spring / React tutorial</a></li>
+    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -121,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.4.5*
+1.6.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -165,6 +168,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li><a href="../keys.html" class="page">Key definition and best practices</a></li>
   <li><a href="../events.html" class="page">Listen to events</a></li>
   <li><a href="../metrics.html" class="page">Metrics</a></li>
+  <li><a href="../authprovider/index.html" class="page">Identity providers</a></li>
   <li><a href="../clients/index.html" class="page">Clients</a>
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
@@ -172,10 +176,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
+    <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
   </ul></li>
   <li><a href="../tutorials/index.html" class="page">Tutorials</a>
   <ul>
     <li><a href="../tutorials/spring.html" class="active page">Spring / React tutorial</a></li>
+    <li><a href="../tutorials/oauth2.html" class="page">Oauth2 with keycloak</a></li>
   </ul></li>
   <li><a href="../performances.html" class="page">Performances</a></li>
   <li><a href="../developers/index.html" class="page">For Developers</a></li>
@@ -290,43 +296,14 @@ gradle bootRun
 <p>To use Izanami, you first need to instantiate a client.</p>
 <p>In this example, we&rsquo;re going to use the izanami tryout instance (<a href="http://izanami-tryout.cleverapps.io">http://izanami-tryout.cleverapps.io</a>) deployed on <a href="https://www.clever-cloud.com/">clever cloud</a>.</p>
 <p>The instance is configured on the <code>src/main/resources/application.yml</code> file : </p>
-<pre class="prettyprint"><code class="language-yaml ">izanami:
-  host: &quot;http://izanami-tryout.cleverapps.io&quot;
-  clientId: &quot;xxxx&quot;
-  clientSecret: &quot;xxxx&quot;
+<pre class="prettyprint"><code class="language-yaml">izanami:
+  host: &quot;http://localhost:9000&quot;
+  client-id: xxxx
+  client-secret: xxxx
+  backend: SseBackend
 </code></pre>
-<p>And the client is registered as spring bean like this : </p>
-<pre class="prettyprint"><code class="language-java ">@SpringBootApplication
-public class Application {
-
-    @Autowired
-    Environment environment;
-    
-    @Bean
-    ActorSystem actorSystem() {
-        return ActorSystem.create();
-    }
-
-    @Bean
-    @Autowired
-    IzanamiClient izanamiClient(ActorSystem actorSystem) {
-        String host = environment.getProperty(&quot;izanami.host&quot;);
-        String clientId = environment.getProperty(&quot;izanami.clientId&quot;);
-        String clientSecret = environment.getProperty(&quot;izanami.clientSecret&quot;);
-        LOGGER.info(&quot;Creating izanami client with host {}, client id {}&quot;, host, clientId);
-        return IzanamiClient.client(
-                    actorSystem,
-                    ClientConfig
-                        .create(host) // The url of the server 
-                        .withClientId(clientId) // The client id of the api 
-                        .withClientSecret(clientSecret) // The client secret of the api                    
-                        .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;) // To handle blocking calls see the callout after. 
-                        .sseBackend() // To be notified when there is change on the server 
-                );
-    }
-}
-</code></pre>
-<p>The client is based on <a href="https://akka.io/">Akka</a> so you have to provide an <code>ActorSystem</code> to make it work. </p><div class="callout warning "><div class="callout-title">Warning</div>
+<p>And the client is registered as spring bean with the spring izanami starter. </p>
+<p>The client is based on <a href="https://akka.io/">Akka</a>, an <code>ActorSystem</code> is provided but you can override it if needed. </p><div class="callout warning "><div class="callout-title">Warning</div>
 <p>Izanami use non blocking call. In order to block call you have to configure a thread pool. This is done by configuring an akka dispatcher.</p>
 <p>You can find an example on the <code>src/main/resources/application.conf</code> :</p>
 <pre class="prettyprint"><code class="language-hocon">izanami-example.blocking-io-dispatcher {
@@ -339,56 +316,42 @@ public class Application {
 }
 </code></pre>
 <p>On this example, we configure a thread pool of 32 threads. The reference to this dispatcher should be passed to the client : </p>
-<pre class="prettyprint"><code class="language-java">return IzanamiClient.client(
-        actorSystem,
-        ClientConfig
-            .create(host) // The url of the server 
-            // ...                    
-            .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;) // Reference to the dispatcher. 
-            // ... 
-    );
+<pre class="prettyprint"><code class="language-yaml">izanami:
+  host: &quot;http://localhost:9000&quot;
+  client-id: xxxx
+  client-secret: xxxx
+  backend: SseBackend
+  dispatcher: izanami-example.blocking-io-dispatcher # &lt;- here 
 </code></pre></div>
 <p>Now we have to create a <code>FeatureClient</code> in order to use feature flipping. </p>
-<p>In this example we use two spring profiles * <code>izanamiLocal</code>: Use on fallback from config and never call the server. You can use it during development if you don&rsquo;t an available Izanami instance.<br/>* <code>izanamiProd</code> : This profile will use a real Izanami server instance.</p>
+<p>In this example we use two spring profiles * <code>dev</code>: Use on fallback from config and never call the server. You can use it during development if you don&rsquo;t an available Izanami instance.<br/>* <code>prod</code> : This profile will use a real Izanami server instance.</p>
 <p>So for <code>FeatureClient</code> we have two configs : </p>
-<pre class="prettyprint"><code class="language-java "><br/>    @Configuration
-    @Profile(&quot;izanamiLocal&quot;)
-    static class Dev {
-        @Bean
-        @Autowired
-        FeatureClient featureClientDev(IzanamiClient izanamiClient, Environment environment) {
-            String json = environment.getProperty(&quot;izanami.fallback.features&quot;);
-            LOGGER.info(&quot;Loading feature fallback \n{}&quot;, json);
-            return izanamiClient.featureClient(
-                    Strategies.dev(), // The dev strategy use only fallback 
-                    Features.parseJson(json)
-            );
-        }
-    }
-    
-    @Configuration
-    @Profile(&quot;izanamiProd&quot;)
-    static class Prod {
-        @Bean
-        @Autowired
-        FeatureClient featureClient(IzanamiClient izanamiClient, Environment environment) {
-            return izanamiClient.featureClient(
-                    Strategies.smartCacheWithSseStrategy(&quot;mytvshows:*&quot;),
-                    Features.parseJson(environment.getProperty(&quot;izanami.fallback.features&quot;))
-            );       
-    }
-</code></pre>
-<p>The fallback is read from the config file : </p>
+<p>The <code>application.yml</code> file (dev config): </p>
 <pre class="prettyprint"><code class="language-yaml">izanami:
-  // ...
-  fallback:
-    features: &gt;
+  host: http://localhost:9000
+  client-id: xxxx
+  client-secret: xxxx
+  backend: SseBackend
+  dispatcher: izanami-example.blocking-io-dispatcher
+  feature:
+    strategy:
+      type: DevStrategy
+    fallback: &gt;
       [
-        { &quot;id&quot;: &quot;mytvshows:season:markaswatched&quot;, &quot;enabled&quot;: true },
+        { &quot;id&quot;: &quot;mytvshows:season:markaswatched&quot;, &quot;enabled&quot;: false },
         { &quot;id&quot;: &quot;mytvshows:providers:tvdb&quot;, &quot;enabled&quot;: true },
         { &quot;id&quot;: &quot;mytvshows:providers:betaserie&quot;, &quot;enabled&quot;: false },
         { &quot;id&quot;: &quot;mytvshows:providers:omdb&quot;, &quot;enabled&quot;: false }
       ]
+    autocreate: true
+</code></pre>
+<p>The <code>application-prod.yml</code> file (dev config): </p>
+<pre class="prettyprint"><code class="language-yaml">izanami:
+  feature:
+    strategy:
+      type: CacheWithSseStrategy
+      polling-interval: 1 minute
+      patterns: [mytvshows:*]
 </code></pre><div class="callout note "><div class="callout-title">Note</div>
 <p>It&rsquo;s important to configure a fallback in case the server is not available. </p></div>
 <h2><a href="#step-two-feature-flipping-to-switch-the-providers" name="step-two-feature-flipping-to-switch-the-providers" class="anchor"><span class="anchor-link"></span></a>Step two : feature flipping to switch the providers</h2>
@@ -501,14 +464,12 @@ public ShowsApi(FeatureClient featureClient, TvdbShowsApi tvdbShowsApi, BetaSeri
 <h3><a href="#create-a-proxy" name="create-a-proxy" class="anchor"><span class="anchor-link"></span></a>Create a proxy</h3>
 <p>To use feature flipping on the client side we have to use a proxy. To call Izanami APIs you need to provide authentication keys and we don&rsquo;t the keys to be exposed on the client side. </p>
 <p>Don&rsquo;t panic, the Izanami client provide a configurable proxy you can easily integrate in you application. </p>
-<p>First let&rsquo;s create the proxy in the <code>Application.java</code> spring configuration class : </p>
-<pre class="prettyprint"><code class="language-java">@Bean
-@Autowired
-Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
-    return izanamiClient.proxy()
-            .withFeaturePattern(&quot;mytvshows:*&quot;) // We will expose the features matching this pattern. 
-            .withFeatureClient(featureClient);
-}
+<p>First let&rsquo;s create the proxy using the configuration : </p>
+<pre class="prettyprint"><code class="language-yaml">izanami: 
+  # ...
+  proxy:
+    feature:
+      patterns: mytvshows:*    
 </code></pre>
 <p>And then expose the features with the <code>izanami.example.izanami.IzanamiController</code> :</p>
 <pre class="prettyprint"><code class="language-java">@RestController
@@ -638,47 +599,12 @@ ResponseEntity&lt;Me&gt; markSeason(
   <li>Define the button on the client side.</li>
 </ul>
 <h3><a href="#the-spring-plumbing" name="the-spring-plumbing" class="anchor"><span class="anchor-link"></span></a>The spring plumbing</h3>
-<p>Like for the features, let&rsquo;s define the <code>ExperimentsClient</code> in the <code>Application.java</code> class: </p>
+<p>Like for the features, let&rsquo;s define the <code>ExperimentsClient</code> using the spring config: </p>
 <p>For the dev </p>
-<pre class="prettyprint"><code class="language-java"><br/>@Configuration
-@Profile(&quot;izanamiLocal&quot;)
-static class Dev {
-    // ... 
-    @Bean
-    @Autowired
-    ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
-        String json = environment.getProperty(&quot;izanami.fallback.experiments&quot;);
-        LOGGER.info(&quot;Loading configs fallback \n{}&quot;, json);
-        return izanamiClient.experimentClient(
-                Strategies.dev(),
-                Experiments.parseJson(json)
-        );
-    }
-
-}
-</code></pre>
-<p>For the prod </p>
-<pre class="prettyprint"><code class="language-java">@Configuration
-@Profile(&quot;izanamiProd&quot;)
-static class Prod {
-    // ... 
-    @Bean
-    @Autowired
-    ExperimentsClient experimentClient(IzanamiClient izanamiClient, Environment environment) {
-
-        return izanamiClient.experimentClient(
-                Strategies.fetchStrategy(),
-                Experiments.parseJson(environment.getProperty(&quot;izanami.fallback.experiments&quot;))
-        );
-    }
-}
-</code></pre>
-<p>And the fallback configuration is the following : </p>
-<pre class="prettyprint"><code class="language-yaml">izanami:
-  // ...
-  fallback:
-    // ...
-    experiments: &gt;
+<pre class="prettyprint"><code class="language-yaml">izanami: 
+  # ...
+  experiment:
+    fallback: &gt;
       [
         {
           &quot;id&quot;: &quot;mytvshows:gotoepisodes:button&quot;,
@@ -692,18 +618,25 @@ static class Prod {
           }
         }
       ]
+    strategy:
+      type: DevStrategy
+</code></pre>
+<p>For the prod </p>
+<pre class="prettyprint"><code class="language-yaml">izanami: 
+  # ...
+  experiment:
+    strategy:
+      type: FetchStrategy
 </code></pre>
 <p>Here we define an experiment with the default variant (A). </p>
 <p>The proxy config should be changed too in order to add the experiments client : </p>
-<pre class="prettyprint"><code class="language-java">@Bean
-@Autowired
-Proxy proxy(IzanamiClient izanamiClient, FeatureClient featureClient, ExperimentsClient experimentClient) {
-    return izanamiClient.proxy()
-            .withFeaturePattern(&quot;mytvshows:*&quot;)
-            .withFeatureClient(featureClient)
-            .withExperimentPattern(&quot;mytvshows:*&quot;)
-            .withExperimentsClient(experimentClient);
-}
+<pre class="prettyprint"><code class="language-yaml">izanami:
+  # ...
+  proxy:
+    feature:
+      patterns: mytvshows:*
+    experiment:
+      patterns: mytvshows:*
 </code></pre>
 <p>In the previous chapter the proxy controller was </p>
 <pre class="prettyprint"><code class="language-java">@GetMapping()
@@ -869,7 +802,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 </div>
 
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../performances.html">Performances</a></p>
+<p><strong>Next:</strong> <a href="../tutorials/oauth2.html">Oauth2 with keycloak</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
