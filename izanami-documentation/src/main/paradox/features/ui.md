@@ -38,6 +38,14 @@ On the tree mode, an action menu appear with the mouse is over the name of a fea
 * edit a node
 * switch to the flat for a feature 
 
+#### Copy nodes 
+
+You can copy a group of features to a destination selecting the parent node. 
+
+<img src="../img/features/copy_features.png" width="100%" />
+
+You can choose to enable or disable the copied feature by default. 
+
 ## Edit a feature  
 
 When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT
@@ -85,6 +93,7 @@ You can find more details about script @ref[on this page](./index.md#script).
 ### GLOBAL SCRIPT 
 
 Global script strategy is the same as script except that the script are shared between features. 
+
 
 ## Evaluate a feature 
 
