@@ -51,7 +51,7 @@ object User {
     (Either.fromOption((user \ authConfig.idField).asOpt[String], IzanamiErrors.error("oauth.error.id.missing")),
      Either.fromOption((user \ authConfig.nameField).asOpt[String].orElse((user \ "sub").asOpt[String]),
                        IzanamiErrors.error("oauth.error.name.missing")),
-     Either.fromOption((user \ authConfig.emailField).asOpt[String], IzanamiErrors.error("oauth.error.email.missing")),
+     Right((user \ authConfig.emailField).asOpt[String].getOrElse("NA")),
      Right(None),
      Right((user \ authConfig.adminField).asOpt[Boolean].getOrElse(false)),
      Right(

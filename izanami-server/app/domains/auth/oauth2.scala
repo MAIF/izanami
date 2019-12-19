@@ -88,7 +88,7 @@ object Oauth2Service {
 
     val rawToken: JsValue = response.json
 
-    (authConfig.readProfileFromToken, authConfig.jwtVerifier) match {
+    (authConfig.readProfileFromToken, authConfig.jwtVerifier.filter(_.enabled)) match {
       case (true, Some(algoConfig)) =>
         for {
           logger <- Logger("izanami.oauth2")
@@ -143,7 +143,7 @@ object Oauth2Service {
     import cats.implicits._
     import zio.interop.catz._
     algoSettings match {
-      case HS(size, secret) =>
+      case HS(_, size, secret) =>
         for {
           logger <- Logger("izanami.oauth2")
           _      <- logger.debug(s"decoding with HS$size algo ")
@@ -159,7 +159,7 @@ object Oauth2Service {
                   .mapError(_ => IzanamiErrors.error("error.hs.size.invalid"))
         } yield res
 
-      case ES(size, publicKey, privateKey) =>
+      case ES(_, size, publicKey, privateKey) =>
         for {
           logger  <- Logger("izanami.oauth2")
           _       <- logger.debug(s"decoding with ES$size algo ")
@@ -176,7 +176,7 @@ object Oauth2Service {
                    }
                    .mapError(_ => IzanamiErrors.error("error.es.size.invalid"))
         } yield algo
-      case RSA(size, publicKey, privateKey) =>
+      case RSA(_, size, publicKey, privateKey) =>
         for {
           logger  <- Logger("izanami.oauth2")
           _       <- logger.debug(s"decoding with RSA$size algo ")
@@ -194,7 +194,7 @@ object Oauth2Service {
                    .mapError(_ => IzanamiErrors.error("error.rsa.size.invalid"))
         } yield algo
 
-      case JWKS(url, headers, timeout) =>
+      case JWKS(_, url, headers, timeout) =>
         def algoFromJwk(alg: String, jwk: JWK): Option[Algorithm] =
           jwk match {
             case rsaKey: RSAKey =>

@@ -144,11 +144,13 @@ sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
 case class Default(default: DefaultFilter)          extends IzanamiFilter
 
-sealed trait AlgoSettingsConfig
-case class HS(size: Int, secret: String)                                 extends AlgoSettingsConfig
-case class ES(size: Int, publicKey: String, privateKey: Option[String])  extends AlgoSettingsConfig
-case class RSA(size: Int, publicKey: String, privateKey: Option[String]) extends AlgoSettingsConfig
-case class JWKS(url: String, headers: Option[Map[String, String]], timeout: Option[FiniteDuration])
+sealed trait AlgoSettingsConfig {
+  def enabled: Boolean
+}
+case class HS(enabled: Boolean, size: Int, secret: String)                                 extends AlgoSettingsConfig
+case class ES(enabled: Boolean, size: Int, publicKey: String, privateKey: Option[String])  extends AlgoSettingsConfig
+case class RSA(enabled: Boolean, size: Int, publicKey: String, privateKey: Option[String]) extends AlgoSettingsConfig
+case class JWKS(enabled: Boolean, url: String, headers: Option[Map[String, String]], timeout: Option[FiniteDuration])
     extends AlgoSettingsConfig
 
 case class Oauth2Config(enabled: Boolean,
