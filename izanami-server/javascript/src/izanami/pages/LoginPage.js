@@ -72,7 +72,7 @@ export class LoginPage extends Component {
             src={`${window.__contextPath}/assets/images/izanami.png`}
           />
         </div>
-        <div className="col-md-4 col-md-offset-4" style={{ marginTop: "20px" }}>
+        <div className="col-md-4 offset-md-4" style={{ marginTop: "20px" }}>
           <Form
             value={this.state.value}
             onChange={value => this.setState({ value })}
@@ -81,14 +81,14 @@ export class LoginPage extends Component {
           >
             <hr />
             {this.state.error && (
-              <div className="col-sm-offset-2 panel-group">
+              <div className="offset-sm-2 panel-group">
                 <Alerts
                   display={this.state.error}
                   messages={[{ message: "auth.invalid.login" }]}
                 />
               </div>
             )}
-            <div className="form-buttons pull-right">
+            <div className="form-buttons float-right">
               <button
                 type="button"
                 className="btn btn-danger"
