@@ -280,9 +280,11 @@ export class Form extends Component {
 
   render() {
     return (
-      <form className="form-horizontal" style={this.props.style}>
-        {this.props.flow.map((step, idx) => this.generateStep(step, idx))}
-        {this.props.children}
+      <form className="form-horizontal row" style={this.props.style}>
+        <div className="col-12">
+            {this.props.flow.map((step, idx) => this.generateStep(step, idx))}
+            {this.props.children}
+        </div>
       </form>
     );
   }
