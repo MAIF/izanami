@@ -23,7 +23,7 @@ import {
   UserPage,
   WebHooksPage
 } from "./pages";
-//import { popover } from "./inputs/popover";
+import { popover } from "./inputs/popover";
 import queryString from "query-string";
 import isEmpty from "lodash/isEmpty";
 import "../styles/main.scss";
@@ -119,11 +119,11 @@ export class LoggedApp extends Component {
 
     return (
       <div className="container-fluid">
-        <nav className="navbar navbar-inverse navbar-fixed-top">
-          <div className="navbar-header col-md-2">
+        <nav className="navbar navbar-expand-md fixed-top p-0">
+          <a className="navbar-header navbar-brand col-12 col-sm-3 col-lg-2 d-flex flex-column justify-content-center align-items-center" href="/">
             <button
               type="button"
-              className="navbar-toggle collapsed menu"
+              className="navbar-toggler menu"
               data-toggle="collapse"
               data-target="#sidebar"
               aria-expanded="false"
@@ -132,17 +132,43 @@ export class LoggedApp extends Component {
               <span className="sr-only">Toggle sidebar</span>
               <span>Menu</span>
             </button>
-            <a href="/" className="navbar-brand" style={{ display: "flex" }}>
-              イザナミ&nbsp; Izanami
-            </a>
-          </div>
+            <span>イザナミ</span> Izanami
+           </a>
 
-          <div className="container-fluid">
-            <ul key="admin-menu" className="nav navbar-nav navbar-right">
+      <form className="form-inline ml-2">
+          {selected && (
+          <div
+      className="form-group"
+      style={{ marginRight: 10, display: "inline" }}
+  >
+  <span
+      title="Current line"
+      className="label label-success"
+      style={{ fontSize: 20, cursor: "pointer" }}
+  >
+      {selected}
+  </span>
+      </div>
+  )}
+  <div>
+  <MultiSearch
+      filters={[
+              { name: "features", label: "Features", active: true },
+      { name: "configs", label: "Configurations", active: true },
+      { name: "experiments", label: "Experiments", active: true },
+      { name: "scripts", label: "Scripts", active: true }
+  ]}
+      query={this.searchServicesOptions}
+      lineRenderer={this.lineRenderer}
+      onElementSelected={this.gotoService}
+      />
+      </div>
+      </form>
+
+            <ul key="admin-menu" className="navbar-nav ml-auto">
               <li className="dropdown userManagement">
                 <a
                   href="#"
-                  className="dropdown-toggle"
                   data-toggle="dropdown"
                   role="button"
                   aria-haspopup="true"
@@ -150,9 +176,9 @@ export class LoggedApp extends Component {
                 >
                   <i className="fas fa-cog" aria-hidden="true" />
                 </a>
-                <ul className="dropdown-menu">
+                <ul className="dropdown-menu dropdown-menu-right">
                   {userManagementEnabled &&
-                    <li key="li-users">
+                    <li key="li-users" className="dropdown-item">
                       <Link
                         to="/users"
                         className=""
@@ -162,7 +188,7 @@ export class LoggedApp extends Component {
                       </Link>
                     </li>}
                   {apikeyManagementEnabled &&
-                    <li key="li-apikeys">
+                    <li key="li-apikeys" className="dropdown-item">
                       <Link
                         to="/apikeys"
                         className=""
@@ -172,7 +198,7 @@ export class LoggedApp extends Component {
                       </Link>
                     </li>
                   }
-                  <li>
+                  <li className="dropdown-item">
                     <a href={this.props.logout} className="link-logout">
                       {this.props.user ? this.props.user.email : ""}&nbsp;
                       <span className="glyphicon glyphicon-off" />
@@ -209,36 +235,7 @@ export class LoggedApp extends Component {
                 })}
               />
             )}
-            <form className="navbar-form navbar-left">
-              {selected && (
-                <div
-                  className="form-group"
-                  style={{ marginRight: 10, display: "inline" }}
-                >
-                  <span
-                    title="Current line"
-                    className="label label-success"
-                    style={{ fontSize: 20, cursor: "pointer" }}
-                  >
-                    {selected}
-                  </span>
-                </div>
-              )}
-              <div className="form-group" style={{ marginRight: 10 }}>
-                <MultiSearch
-                  filters={[
-                    { name: "features", label: "Features", active: true },
-                    { name: "configs", label: "Configurations", active: true },
-                    { name: "experiments", label: "Experiments", active: true },
-                    { name: "scripts", label: "Scripts", active: true }
-                  ]}
-                  query={this.searchServicesOptions}
-                  lineRenderer={this.lineRenderer}
-                  onElementSelected={this.gotoService}
-                />
-              </div>
-            </form>
-          </div>
+
         </nav>
 
         <div className="container-fluid">
