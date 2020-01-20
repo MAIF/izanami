@@ -132,7 +132,7 @@ trait OneServerPerSuiteWithMyComponents
     with ScalaFutures
     with AddConfiguration { this: TestSuite =>
 
-  def user: User =
+  def user =
     IzanamiUser(id = "id",
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
