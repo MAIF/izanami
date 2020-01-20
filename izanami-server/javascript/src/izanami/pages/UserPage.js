@@ -1,23 +1,38 @@
 import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
-import { Table } from "../inputs";
+import {Table, TextInput} from "../inputs";
 import isEqual from "lodash/isEqual";
+
+
+class StringOrDisabled extends Component {
+
+  render() {
+    const type = this.props.source.type;
+    console.log("Props ", this.props);
+    if (type === 'Izanami') {
+      return <TextInput {...this.props} disabled={false}/>
+    } else {
+      return <TextInput {...this.props} disabled={true}/>
+    }
+  }
+}
+
 export class UserPage extends Component {
   formSchema = {
     id: {
-      type: "string",
-      props: { label: "User Id", placeholder: "The User id" }
+      type: StringOrDisabled,
+      props: { label: "User Id", placeholder: "The User id"}
     },
     name: {
-      type: "string",
-      props: { label: "User Name", placeholder: "The User name" }
+      type: StringOrDisabled,
+      props: { label: "User Name", placeholder: "The User name"}
     },
     email: {
-      type: "string",
-      props: { label: "User email", placeholder: "The User email" }
+      type: StringOrDisabled,
+      props: { label: "User email", placeholder: "The User email"}
     },
     password: {
-      type: "string",
+      type: StringOrDisabled,
       props: {
         label: "User password",
         placeholder: "The User password",

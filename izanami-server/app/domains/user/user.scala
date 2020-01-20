@@ -19,16 +19,27 @@ import errors.IzanamiErrors
 
 import scala.util.Try
 
-case class User(id: String,
-                name: String,
-                email: String,
-                password: Option[String] = None,
-                admin: Boolean,
-                authorizedPattern: AuthorizedPattern.AuthorizedPattern)
-    extends AuthInfo {
+trait User extends AuthInfo {
+  def email: String
+  def admin: Boolean
+  def authorizedPattern: AuthorizedPattern
   override def mayBeEmail: Option[String] = Some(email)
-
+  override def _authorizedPattern: String = authorizedPattern.pattern
 }
+
+case class IzanamiUser(id: String,
+                       name: String,
+                       email: String,
+                       password: String,
+                       admin: Boolean,
+                       authorizedPattern: AuthorizedPattern)
+    extends User
+
+case class OauthUser(id: String, name: String, email: String, admin: Boolean, authorizedPattern: AuthorizedPattern)
+    extends User
+
+case class OtoroshiUser(id: String, name: String, email: String, admin: Boolean, authorizedPattern: AuthorizedPattern)
+    extends User
 
 object User {
 
@@ -41,18 +52,17 @@ object User {
       .withClaim("name", user.name)
       .withClaim("user_id", user.id)
       .withClaim("email", user.email)
-      .withClaim("izanami_authorized_patterns", user.authorizedPattern) // FIXME à voir si on doit mettre une liste???
+      .withClaim("izanami_authorized_patterns", user._authorizedPattern) // FIXME à voir si on doit mettre une liste???
       .withClaim("izanami_admin", user.admin.toString)
       .sign(algorithm)
 
-  def fromOAuth(user: JsValue, authConfig: Oauth2Config): Either[IzanamiErrors, User] = {
+  def fromOAuth(user: JsValue, authConfig: Oauth2Config): Either[IzanamiErrors, OauthUser] = {
     import cats.implicits._
 
     (Either.fromOption((user \ authConfig.idField).asOpt[String], IzanamiErrors.error("oauth.error.id.missing")),
      Either.fromOption((user \ authConfig.nameField).asOpt[String].orElse((user \ "sub").asOpt[String]),
                        IzanamiErrors.error("oauth.error.name.missing")),
      Right((user \ authConfig.emailField).asOpt[String].getOrElse("NA")),
-     Right(None),
      Right((user \ authConfig.adminField).asOpt[Boolean].getOrElse(false)),
      Right(
        (user \ authConfig.authorizedPatternField)
@@ -60,16 +70,19 @@ object User {
          .map(s => AuthorizedPattern(s))
          .getOrElse(AuthorizedPattern(authConfig.defaultPatterns))
      ))
-      .parMapN(User.apply)
+      .parMapN(OauthUser.apply)
   }
-  def updateUser(newUser: User, oldUser: User): User = {
-    import cats.implicits._
-    if (newUser.password === oldUser.password) {
-      newUser
-    } else {
-      newUser.copy(password = newUser.password.map(p => Sha.hexSha512(p)))
+  def updateUser(newUser: User, oldUser: User): User =
+    (newUser, oldUser) match {
+      case (newUser: IzanamiUser, oldUser: IzanamiUser) =>
+        import cats.implicits._
+        if (newUser.password === oldUser.password) {
+          newUser
+        } else {
+          newUser.copy(password = Sha.hexSha512(newUser.password))
+        }
+      case _ => newUser
     }
-  }
 
   def fromJwtToken(jwt: DecodedJWT): Option[User] = {
     import scala.jdk.CollectionConverters._
@@ -88,7 +101,11 @@ object User {
         .flatMap(str => Try(str.toBoolean).toOption)
         .getOrElse(false)
     } yield
-      User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = AuthorizedPattern(patterns))
+      OauthUser(id = userId,
+                name = name,
+                email = email,
+                admin = isAdmin,
+                authorizedPattern = AuthorizedPattern(patterns))
   }
 
   def fromOtoroshiJwtToken(jwt: DecodedJWT): Option[User] = {
@@ -108,7 +125,11 @@ object User {
         .flatMap(str => Try(str.toBoolean).toOption)
         .getOrElse(false)
     } yield
-      User(id = userId, name = name, email = email, admin = isAdmin, authorizedPattern = AuthorizedPattern(patterns))
+      OtoroshiUser(id = userId,
+                   name = name,
+                   email = email,
+                   admin = isAdmin,
+                   authorizedPattern = AuthorizedPattern(patterns))
   }
 
 }
@@ -137,11 +158,23 @@ object UserService {
   import errors._
   import IzanamiErrors._
 
+  def handlePassword(user: User): Either[IzanamiErrors, User] =
+    user match {
+      case u: OauthUser    => Right(u)
+      case u: OtoroshiUser => Right(u)
+      case u: IzanamiUser  => Right(u.copy(password = Sha.hexSha512(u.password)))
+    }
+
+  def createIfNotExists(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
+    getById(id).refineToOrDie[IzanamiErrors].flatMap {
+      case Some(_) => IO.succeed(data)
+      case None    => create(id, data)
+    }
+
   def create(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     for {
       _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
-      pass     <- ZIO.fromOption(data.password).mapError(_ => ValidationError.error("password.missing").toErrors)
-      user     = data.copy(password = Some(Sha.hexSha512(pass)))
+      user     <- ZIO.fromEither(handlePassword(data))
       created  <- UserDataStore.create(id, UserInstances.format.writes(user))
       user     <- jsResultToError(created.validate[User])
       authInfo <- AuthInfo.authInfo
@@ -153,7 +186,7 @@ object UserService {
     for {
       mayBeUser   <- getById(oldId).refineToOrDie[IzanamiErrors]
       oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId).toErrors)
-      toUpdate        = User.updateUser(data, oldValue)
+      toUpdate    = User.updateUser(data, oldValue)
       updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
       user        <- jsResultToError(updated.validate[User])
       authInfo    <- AuthInfo.authInfo

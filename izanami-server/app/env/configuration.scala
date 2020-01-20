@@ -174,7 +174,9 @@ case class Oauth2Config(enabled: Boolean,
                         emailField: String,
                         adminField: String,
                         authorizedPatternField: String,
-                        defaultPatterns: String)
+                        defaultPatterns: String,
+                        izanamiManagedUser: Boolean,
+                        admins: Option[Seq[String]] = None)
 
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)
