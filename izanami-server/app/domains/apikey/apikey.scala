@@ -11,11 +11,10 @@ import play.api.libs.json._
 import store._
 import zio.{IO, RIO, ZIO}
 
-case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: AuthorizedPattern)
-    extends AuthInfo {
+case class Apikey(clientId: String, name: String, clientSecret: String, patterns: AuthorizedPattern) extends AuthInfo {
   override def mayBeEmail: Option[String] = None
   override def id: String                 = clientId
-  override def _authorizedPattern: String = authorizedPattern.pattern
+  override def _authorizedPattern: String = patterns.pattern
 }
 
 object Apikey {
