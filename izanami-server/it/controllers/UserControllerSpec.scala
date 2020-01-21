@@ -115,7 +115,12 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       /* Update */
       val userUpdated =
-        Json.obj("id" -> key2, "name" -> "toto deux", "email" -> key, "admin" -> true, "authorizedPattern" -> "*")
+        Json.obj("id"                -> key2,
+                 "name"              -> "toto deux",
+                 "email"             -> key,
+                 "admin"             -> true,
+                 "authorizedPattern" -> "*",
+                 "type"              -> "Izanami")
       ws.url(s"$rootPath/api/users/$key")
         .put(userUpdated ++ Json.obj("password" -> "password"))
         .futureValue must beAStatus(200)

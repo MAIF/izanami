@@ -37,14 +37,21 @@ object Oauth2Service {
       (user, _)     = t
       _             <- logger.debug(s"User from token $user")
       effectiveUser <- ZIO.fromEither(User.fromOAuth(user, authConfig))
-      _             <- createUserIfNeeded(authConfig, effectiveUser)
+      _             <- createOrUpdateUserIfNeeded(authConfig, effectiveUser)
       endUser       <- enrichWithDb(authConfig, effectiveUser)
       _             <- logger.info(s"Oauth user logged with $endUser")
     } yield endUser
 
-  def createUserIfNeeded(authConfig: Oauth2Config, effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
+  def createOrUpdateUserIfNeeded(authConfig: Oauth2Config,
+                                 effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
     if (authConfig.izanamiManagedUser) {
-      UserService.createIfNotExists(Key(effectiveUser.id), effectiveUser)
+      val id = Key(effectiveUser.id)
+      UserService.getById(id).refineToOrDie[IzanamiErrors].flatMap {
+        case None => UserService.create(id, effectiveUser)
+        case Some(u: OauthUser) =>
+          UserService.update(id, id, u.copy(name = effectiveUser.name, email = effectiveUser.email))
+        case _ => ZIO.succeed(effectiveUser)
+      }
     } else {
       ZIO.succeed(effectiveUser)
     }
