@@ -5,12 +5,12 @@ import isEqual from "lodash/isEqual";
 
 
 class StringOrDisabled extends Component {
-
   render() {
     const type = this.props.source.type;
-    console.log("Props ", this.props);
     if (type === 'Izanami') {
       return <TextInput {...this.props} disabled={false}/>
+    } else if (this.props.hide) {
+      return <div/>;
     } else {
       return <TextInput {...this.props} disabled={true}/>
     }
@@ -36,7 +36,8 @@ export class UserPage extends Component {
       props: {
         label: "User password",
         placeholder: "The User password",
-        type: "password"
+        type: "password",
+        hide: true
       }
     },
     admin: {
