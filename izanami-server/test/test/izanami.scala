@@ -2,8 +2,8 @@ package test
 
 import akka.http.scaladsl.util.FastFuture
 import controllers.actions.{AuthContext, SecuredAuthContext}
-import domains.{AuthorizedPattern}
-import domains.user.User
+import domains.AuthorizedPattern
+import domains.user.{IzanamiUser, User}
 import modules.IzanamiComponentsInstances
 import org.scalactic.Prettifier
 import org.scalatest.concurrent.ScalaFutures
@@ -77,11 +77,12 @@ trait OneAppPerTestWithMyComponents extends OneAppPerTestWithComponents with Sca
   this: TestSuite =>
 
   def user =
-    User(id = "id",
-         name = "Ragnar Lodbrok",
-         email = "ragnar.lodbrok@gmail.com",
-         admin = true,
-         authorizedPattern = AuthorizedPattern("*"))
+    IzanamiUser(id = "id",
+                name = "Ragnar Lodbrok",
+                email = "ragnar.lodbrok@gmail.com",
+                admin = true,
+                password = "",
+                authorizedPattern = AuthorizedPattern("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -94,11 +95,12 @@ trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with S
   this: TestSuite =>
 
   def user =
-    User(id = "id",
-         name = "Ragnar Lodbrok",
-         email = "ragnar.lodbrok@gmail.com",
-         admin = true,
-         authorizedPattern = AuthorizedPattern("*"))
+    IzanamiUser(id = "id",
+                name = "Ragnar Lodbrok",
+                email = "ragnar.lodbrok@gmail.com",
+                admin = true,
+                password = "",
+                authorizedPattern = AuthorizedPattern("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -111,11 +113,12 @@ trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents wi
   this: TestSuite =>
 
   def user =
-    User(id = "id",
-         name = "Ragnar Lodbrok",
-         email = "ragnar.lodbrok@gmail.com",
-         admin = true,
-         authorizedPattern = AuthorizedPattern("*"))
+    IzanamiUser(id = "id",
+                name = "Ragnar Lodbrok",
+                email = "ragnar.lodbrok@gmail.com",
+                admin = true,
+                password = "",
+                authorizedPattern = AuthorizedPattern("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -129,12 +132,13 @@ trait OneServerPerSuiteWithMyComponents
     with ScalaFutures
     with AddConfiguration { this: TestSuite =>
 
-  def user =
-    User(id = "id",
-         name = "Ragnar Lodbrok",
-         email = "ragnar.lodbrok@gmail.com",
-         admin = true,
-         authorizedPattern = AuthorizedPattern("*"))
+  def user: User =
+    IzanamiUser(id = "id",
+                name = "Ragnar Lodbrok",
+                email = "ragnar.lodbrok@gmail.com",
+                admin = true,
+                password = "",
+                authorizedPattern = AuthorizedPattern("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)

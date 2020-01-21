@@ -10,7 +10,7 @@ object ApikeyInstances {
 
   implicit val isAllowed: IsAllowed[Apikey] = new IsAllowed[Apikey] {
     override def isAllowed(value: Apikey)(auth: Option[AuthInfo]): Boolean =
-      Key.isAllowed(Key(value.authorizedPattern))(auth)
+      Key.isAllowed(Key(value._authorizedPattern))(auth)
   }
 
   private val reads: Reads[Apikey] = {
