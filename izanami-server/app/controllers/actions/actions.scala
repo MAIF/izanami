@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 case class AuthContext[A](request: Request[A], auth: Option[AuthInfo]) extends WrappedRequest[A](request) {
   def authorizedPatterns: Seq[String] =
-    auth.toList.flatMap(_.authorizedPattern.split(","))
+    auth.toList.flatMap(_._authorizedPattern.split(","))
 }
 
 case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extends WrappedRequest[A](request) {
@@ -20,7 +20,7 @@ case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extend
   val auth: Option[AuthInfo] = Some(authInfo)
 
   def authorizedPatterns: Seq[String] =
-    authInfo.authorizedPattern.split(",").toIndexedSeq
+    authInfo._authorizedPattern.split(",").toIndexedSeq
 }
 
 class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(

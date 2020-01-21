@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
-import { Table, SimpleBooleanInput } from "../inputs";
+import {Table, SimpleBooleanInput, TextInput} from "../inputs";
 import faker from "faker";
 
 export class WebHooksPage extends Component {
@@ -46,7 +46,8 @@ export class WebHooksPage extends Component {
   };
 
   columns = [
-    { title: "ID", content: item => item.clientId },
+    { title: "ID",
+      content: item => item.clientId },
     {
       title: "Pattern",
       notFilterable: true,

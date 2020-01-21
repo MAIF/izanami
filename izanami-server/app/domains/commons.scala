@@ -65,7 +65,7 @@ trait DriversModule {
   def drivers: Drivers
 }
 
-trait OAuthModule extends PlayModule with LoggerModule with AuthInfoModule[OAuthModule]
+trait OAuthModule extends PlayModule with UserContext with LoggerModule with AuthInfoModule[OAuthModule]
 
 trait GlobalContext
     extends AkkaModule
@@ -227,19 +227,13 @@ object GlobalContext {
   }
 }
 
-sealed trait AuthorizedPatternTag
+case class AuthorizedPattern(pattern: String)
 
 object AuthorizedPattern {
 
-  import shapeless.tag
-  import shapeless.tag.@@
-
-  type AuthorizedPattern = String @@ AuthorizedPatternTag
-
-  def apply(str: String): AuthorizedPattern = tag[AuthorizedPatternTag][String](str)
-
-  implicit val reads: Reads[AuthorizedPattern]   = __.read[String](pattern("^[\\w@\\.0-9\\-,:\\*]+$".r)).map(apply _)
-  implicit val writes: Writes[AuthorizedPattern] = Writes[AuthorizedPattern](JsString.apply)
+  implicit val reads: Reads[AuthorizedPattern] =
+    __.read[String](pattern("^[\\w@\\.0-9\\-,:\\*]+$".r)).map(AuthorizedPattern.apply _)
+  implicit val writes: Writes[AuthorizedPattern] = Writes[AuthorizedPattern](p => JsString(p.pattern))
 }
 
 object Import {
@@ -307,7 +301,7 @@ object ImportResult {
 }
 
 trait AuthInfo {
-  def authorizedPattern: String
+  def _authorizedPattern: String
   def id: String
   def name: String
   def mayBeEmail: Option[String]
@@ -329,7 +323,7 @@ object AuthInfo {
       )(
         (anId: String, aPattern: String, aName: String, anEmail: Option[String]) =>
           new AuthInfo {
-            def authorizedPattern: String  = aPattern
+            def _authorizedPattern: String = aPattern
             def id: String                 = anId
             def name: String               = aName
             def mayBeEmail: Option[String] = anEmail
@@ -342,7 +336,7 @@ object AuthInfo {
         (__ \ "name").write[String] and
         (__ \ "mayBeEmail").writeNullable[String]
       )(unlift[AuthInfo, (String, String, String, Option[String])] { info =>
-        Some((info.id, info.authorizedPattern, info.name, info.mayBeEmail))
+        Some((info.id, info._authorizedPattern, info.name, info.mayBeEmail))
       })
     }
   )
@@ -511,7 +505,7 @@ object Key {
     buildRegexPattern(pattern).r
 
   def isAllowed(key: Key)(auth: Option[AuthInfo]): Boolean = {
-    val pattern = buildRegex(auth.map(_.authorizedPattern).getOrElse(""))
+    val pattern = buildRegex(auth.map(_._authorizedPattern).getOrElse(""))
     key.key match {
       case pattern(_*) => true
       case _           => false
@@ -525,7 +519,7 @@ object Key {
     }
 
   def isAllowed(patternToCheck: String)(auth: Option[AuthInfo]): Boolean = {
-    val pattern = buildRegex(auth.map(_.authorizedPattern).getOrElse(""))
+    val pattern = buildRegex(auth.map(_._authorizedPattern).getOrElse(""))
     patternToCheck match {
       case pattern(_*) => true
       case _           => false

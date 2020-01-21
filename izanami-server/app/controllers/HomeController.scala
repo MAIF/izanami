@@ -14,7 +14,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
 
   private lazy val enabledUserManagement: Boolean =
     (_env.izanamiConfig.filter, maybeOauth2Config) match {
-      case (_, Some(_))        => false
+      case (_, Some(c))        => c.izanamiManagedUser
       case (_: env.Default, _) => true
       case _                   => false
     }

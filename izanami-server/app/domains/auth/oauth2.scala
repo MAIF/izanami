@@ -7,9 +7,9 @@ import java.security.spec.{PKCS8EncodedKeySpec, X509EncodedKeySpec}
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.nimbusds.jose.jwk.{ECKey, JWK, RSAKey}
-import domains.OAuthModule
+import domains.{Key, OAuthModule}
 import domains.errors.IzanamiErrors
-import domains.user.User
+import domains.user.{OauthUser, User, UserContext, UserService}
 import env.{AlgoSettingsConfig, ES, HS, JWKS, Oauth2Config, RSA}
 import libs.logs.Logger
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
@@ -18,8 +18,8 @@ import play.api.libs.ws.WSResponse
 import play.api.mvc.{AnyContent, Request}
 import zio.ZIO
 import org.apache.commons.codec.binary.{Base64 => ApacheBase64}
-import scala.concurrent.duration.DurationDouble
 
+import scala.concurrent.duration.DurationDouble
 import scala.util.Try
 
 object Oauth2Service {
@@ -37,8 +37,44 @@ object Oauth2Service {
       (user, _)     = t
       _             <- logger.debug(s"User from token $user")
       effectiveUser <- ZIO.fromEither(User.fromOAuth(user, authConfig))
-      _             <- logger.info(s"Oauth user logged with $effectiveUser")
-    } yield effectiveUser
+      _             <- createOrUpdateUserIfNeeded(authConfig, effectiveUser)
+      endUser       <- enrichWithDb(authConfig, effectiveUser)
+      _             <- logger.info(s"Oauth user logged with $endUser")
+    } yield endUser
+
+  def createOrUpdateUserIfNeeded(authConfig: Oauth2Config,
+                                 effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
+    if (authConfig.izanamiManagedUser) {
+      val id = Key(effectiveUser.id)
+      UserService.getById(id).refineToOrDie[IzanamiErrors].flatMap {
+        case None => UserService.create(id, effectiveUser)
+        case Some(u: OauthUser) =>
+          UserService.update(id, id, u.copy(name = effectiveUser.name, email = effectiveUser.email))
+        case _ => ZIO.succeed(effectiveUser)
+      }
+    } else {
+      ZIO.succeed(effectiveUser)
+    }
+
+  def enrichWithDb(authConfig: Oauth2Config, effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
+    if (authConfig.izanamiManagedUser) {
+      UserService
+        .getById(Key(effectiveUser.id))
+        .refineToOrDie[IzanamiErrors]
+        .map {
+          _.map { userFromDb =>
+            effectiveUser.copy(
+              admin = userFromDb.admin || adminInConfig(authConfig, effectiveUser.name),
+              authorizedPattern = userFromDb.authorizedPattern
+            )
+          }.getOrElse(effectiveUser)
+        }
+    } else {
+      ZIO.succeed(effectiveUser)
+    }
+
+  def adminInConfig(authConfig: Oauth2Config, name: String): Boolean =
+    authConfig.admins.getOrElse(Seq.empty).contains(name)
 
   def callTokenUrl(baseURL: String, code: String, authConfig: Oauth2Config)(
       implicit request: Request[AnyContent]

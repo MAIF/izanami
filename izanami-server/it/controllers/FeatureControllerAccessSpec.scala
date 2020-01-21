@@ -1,16 +1,16 @@
 package controllers
 
 import domains.AuthorizedPattern
-import domains.user.User
+import domains.user.{IzanamiUser, User}
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables._
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
+
 import scala.util.Random
 import org.scalatest.BeforeAndAfterAll
-
 
 abstract class FeatureControllerWildcardAccessSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
@@ -25,12 +25,13 @@ abstract class FeatureControllerWildcardAccessSpec(name: String, configurationSp
 
   private lazy val rootPath = s"http://localhost:$port"
 
-  override def user: User =
-    User(id = "id",
-         name = "Ragnar Lodbrok",
-         email = "ragnar.lodbrok@gmail.com",
-         admin = false,
-         authorizedPattern = AuthorizedPattern("a:key2:*"))
+  override def user: IzanamiUser =
+    IzanamiUser(id = "id",
+                name = "Ragnar Lodbrok",
+                email = "ragnar.lodbrok@gmail.com",
+                admin = false,
+                password = "",
+                authorizedPattern = AuthorizedPattern("a:key2:*"))
 
   s"$name FeatureControllerWildcardAccessSpec" should {
 
@@ -77,12 +78,13 @@ class FeatureControllerStrictAccessSpec(name: String, configurationSpec: Configu
 
   private lazy val rootPath = s"http://localhost:$port"
 
-  override def user: User =
-    User(id = "id",
-         name = "Ragnar Lodbrok",
-         email = "ragnar.lodbrok@gmail.com",
-         admin = true,
-         authorizedPattern = AuthorizedPattern("a:key"))
+  override def user: IzanamiUser =
+    IzanamiUser(id = "id",
+                name = "Ragnar Lodbrok",
+                email = "ragnar.lodbrok@gmail.com",
+                admin = true,
+                password = "",
+                authorizedPattern = AuthorizedPattern("a:key"))
 
   s"$name FeatureControllerStrictAccessSpec" should {
 

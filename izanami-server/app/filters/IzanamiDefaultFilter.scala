@@ -13,7 +13,7 @@ import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.Timer
 import com.google.common.base.Charsets
 import domains.apikey.{ApiKeyContext, ApikeyService}
-import domains.user.User
+import domains.user.{IzanamiUser, User}
 import domains.{AuthorizedPattern, Key}
 import env._
 import play.api.Logger
@@ -146,11 +146,12 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
           requestHeader.addAttr(
             FilterAttrs.Attrs.AuthInfo,
             Some(
-              User(id = "id",
-                   name = "Ragnard",
-                   email = "ragnard@viking.com",
-                   admin = false,
-                   authorizedPattern = AuthorizedPattern(""))
+              IzanamiUser(id = "id",
+                          name = "Ragnard",
+                          email = "ragnard@viking.com",
+                          admin = false,
+                          password = "NA",
+                          authorizedPattern = AuthorizedPattern(""))
             )
           )
         ).map { result =>
