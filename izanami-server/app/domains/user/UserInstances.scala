@@ -1,6 +1,6 @@
 package domains.user
 
-import domains.{AuthInfo, AuthorizedPattern, IsAllowed, Key}
+import domains.{AuthInfo, AuthorizedPatterns, IsAllowed, Key}
 import play.api.libs.json._
 
 object UserNoPasswordInstances {
@@ -23,11 +23,8 @@ object UserInstances {
   import play.api.libs.json._
   import play.api.libs.json.Reads.{email, pattern}
 
-  implicit val isAllowed: IsAllowed[User] = new IsAllowed[User] {
-    override def isAllowed(value: User)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value._authorizedPattern)(auth)
-  }
   private[user] val reads: Reads[User] = {
-    import domains.AuthorizedPattern._
+    import domains.AuthorizedPatterns._
     val readOtoroshiUser = Json.reads[OtoroshiUser]
     val readIzanamiUser  = Json.reads[IzanamiUser]
     val readOauthUser    = Json.reads[OauthUser]
@@ -40,7 +37,7 @@ object UserInstances {
   }
 
   private[user] val writes: OWrites[User] = {
-    import domains.AuthorizedPattern._
+    import domains.AuthorizedPatterns._
     val writeOtoroshiUser = Json.writes[OtoroshiUser]
     val writeIzanamiUser  = Json.writes[IzanamiUser]
     val writeOauthUser    = Json.writes[OauthUser]

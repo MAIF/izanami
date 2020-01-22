@@ -22,9 +22,7 @@ import scala.util.Try
 trait User extends AuthInfo {
   def email: String
   def admin: Boolean
-  def authorizedPattern: AuthorizedPattern
   override def mayBeEmail: Option[String] = Some(email)
-  override def _authorizedPattern: String = authorizedPattern.pattern
 }
 
 case class IzanamiUser(id: String,
@@ -32,13 +30,13 @@ case class IzanamiUser(id: String,
                        email: String,
                        password: String,
                        admin: Boolean,
-                       authorizedPattern: AuthorizedPattern)
+                       authorizedPatterns: AuthorizedPatterns)
     extends User
 
-case class OauthUser(id: String, name: String, email: String, admin: Boolean, authorizedPattern: AuthorizedPattern)
+case class OauthUser(id: String, name: String, email: String, admin: Boolean, authorizedPatterns: AuthorizedPatterns)
     extends User
 
-case class OtoroshiUser(id: String, name: String, email: String, admin: Boolean, authorizedPattern: AuthorizedPattern)
+case class OtoroshiUser(id: String, name: String, email: String, admin: Boolean, authorizedPatterns: AuthorizedPatterns)
     extends User
 
 object User {
@@ -52,7 +50,7 @@ object User {
       .withClaim("name", user.name)
       .withClaim("user_id", user.id)
       .withClaim("email", user.email)
-      .withClaim("izanami_authorized_patterns", user._authorizedPattern) // FIXME à voir si on doit mettre une liste???
+      .withClaim("izanami_authorized_patterns", AuthorizedPatterns.stringify(user.authorizedPatterns)) // FIXME à voir si on doit mettre une liste???
       .withClaim("izanami_admin", user.admin.toString)
       .sign(algorithm)
 
@@ -67,8 +65,9 @@ object User {
      Right(
        (user \ authConfig.authorizedPatternField)
          .asOpt[String]
-         .map(s => AuthorizedPattern(s))
-         .getOrElse(AuthorizedPattern(authConfig.defaultPatterns))
+         .map(s => AuthorizedPatterns.fromString(s))
+         // TODO : revoir la config
+         .getOrElse(AuthorizedPatterns.fromString(authConfig.defaultPatterns))
      ))
       .parMapN(OauthUser.apply)
   }
@@ -105,7 +104,7 @@ object User {
                 name = name,
                 email = email,
                 admin = isAdmin,
-                authorizedPattern = AuthorizedPattern(patterns))
+                authorizedPatterns = AuthorizedPatterns.fromString(patterns))
   }
 
   def fromOtoroshiJwtToken(jwt: DecodedJWT): Option[User] = {
@@ -129,7 +128,7 @@ object User {
                    name = name,
                    email = email,
                    admin = isAdmin,
-                   authorizedPattern = AuthorizedPattern(patterns))
+                   authorizedPatterns = AuthorizedPatterns.fromString(patterns))
   }
 
 }

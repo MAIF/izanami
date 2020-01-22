@@ -2,10 +2,20 @@ package domains.config
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
+import controllers.dto.error.ApiErrors
 import domains.config.Config.ConfigKey
 import domains.events.{EventStore, EventStoreContext}
 import domains.events.Events.{ConfigCreated, ConfigDeleted, ConfigUpdated}
-import domains.{AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
+import domains.{
+  AuthInfo,
+  AuthInfoModule,
+  AuthorizedPatterns,
+  ImportData,
+  ImportResult,
+  ImportStrategy,
+  Key,
+  PatternRights
+}
 import libs.logs.LoggerModule
 import play.api.libs.json._
 import domains.errors.IzanamiErrors
@@ -45,6 +55,7 @@ object ConfigService {
 
   def create(id: ConfigKey, data: Config): ZIO[ConfigContext, IzanamiErrors, Config] =
     for {
+      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
       _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
       created  <- ConfigDataStore.create(id, ConfigInstances.format.writes(data))
       apikey   <- fromJsResult(created.validate[Config]) { handleJsError }
@@ -55,7 +66,8 @@ object ConfigService {
   def update(oldId: ConfigKey, id: ConfigKey, data: Config): ZIO[ConfigContext, IzanamiErrors, Config] =
     // format: off
     for {
-      mayBeConfig <- getById(oldId).refineToOrDie[IzanamiErrors]
+      _           <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
+      mayBeConfig <- getById(oldId)
       oldValue    <- ZIO.fromOption(mayBeConfig).mapError(_ => DataShouldExists(oldId).toErrors)
       updated     <- ConfigDataStore.update(oldId, id, ConfigInstances.format.writes(data))
       experiment  <- fromJsResult(updated.validate[Config]) { handleJsError }
@@ -67,6 +79,7 @@ object ConfigService {
   def delete(id: ConfigKey): ZIO[ConfigContext, IzanamiErrors, Config] =
     // format: off
     for {
+      _           <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
       deleted     <- ConfigDataStore.delete(id)
       experiment  <- fromJsResult(ConfigInstances.format.reads(deleted)){ handleJsError }
       authInfo    <- AuthInfo.authInfo
@@ -75,11 +88,13 @@ object ConfigService {
     // format: on
 
   def deleteAll(query: Query): ZIO[ConfigContext, IzanamiErrors, Unit] =
+    // TODO deletes
     ConfigDataStore.deleteAll(query)
 
-  def getById(id: ConfigKey): RIO[ConfigContext, Option[Config]] =
+  def getById(id: ConfigKey): ZIO[ConfigContext, IzanamiErrors, Option[Config]] =
     for {
-      mayBeConfig  <- ConfigDataStore.getById(id)
+      _            <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
+      mayBeConfig  <- ConfigDataStore.getById(id).refineToOrDie[IzanamiErrors]
       parsedConfig = mayBeConfig.flatMap(_.validate[Config].asOpt)
     } yield parsedConfig
 

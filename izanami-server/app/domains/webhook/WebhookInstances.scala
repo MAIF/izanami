@@ -9,10 +9,6 @@ object WebhookInstances {
   import play.api.libs.json._
   import play.api.libs.functional.syntax._
 
-  implicit val isAllowed: IsAllowed[Webhook] = new IsAllowed[Webhook] {
-    override def isAllowed(value: Webhook)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.clientId)(auth)
-  }
-
   private val reads: Reads[Webhook] = (
     (__ \ "clientId").read[WebhookKey] and
     (__ \ "callbackUrl").read[String] and

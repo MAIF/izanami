@@ -46,9 +46,6 @@ object ExperimentInstances {
   implicit val variantFormat: Format[Variant] = Json.format[Variant]
   implicit val variantEq: cats.Eq[Variant]    = cats.Eq.fromUniversalEquals
 
-  implicit val isAllowed: IsAllowed[Experiment] = new IsAllowed[Experiment] {
-    override def isAllowed(value: Experiment)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.id.key)(auth)
-  }
   implicit val experimentResultEventFormat: Format[ExperimentResultEvent] = Json.format[ExperimentResultEvent]
   implicit val format: Format[Experiment]                                 = Json.format[Experiment]
   implicit val experimentEq: cats.Eq[Experiment]                          = cats.Eq.fromUniversalEquals

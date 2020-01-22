@@ -37,7 +37,7 @@ object ImportData {
   def importData[Ctx <: LoggerModule, Key, Data](
       strategy: ImportStrategy,
       key: Data => Key,
-      get: Key => RIO[Ctx, Option[Data]],
+      get: Key => ZIO[Ctx, IzanamiErrors, Option[Data]],
       create: (Key, Data) => ZIO[Ctx, IzanamiErrors, Data],
       update: (Key, Data) => ZIO[Ctx, IzanamiErrors, Data]
   )(implicit reads: Reads[Data]): RIO[Ctx, Pipe[Task, (String, JsValue), ImportResult]] = {
@@ -47,8 +47,10 @@ object ImportData {
       case ImportStrategy.Replace =>
         (key, data) =>
           for {
-            _         <- Logger.debug(s"Replacing $key with $data")
-            mayBeData <- get(key)
+            _ <- Logger.debug(s"Replacing $key with $data")
+            mayBeData <- get(key).catchAll { _ =>
+                          ZIO.succeed(None)
+                        }
             result <- mayBeData match {
                        case Some(_) => update(key, data).either.map { ImportResult.fromResult }
                        case None    => create(key, data).either.map { ImportResult.fromResult }
@@ -58,11 +60,14 @@ object ImportData {
       case ImportStrategy.Keep =>
         (key, data) =>
           for {
-            _         <- Logger.debug(s"Inserting $key with $data")
-            mayBeData <- get(key)
+            _ <- Logger.debug(s"Inserting $key with $data")
+            mayBeData <- get(key).catchAll { _ =>
+                          ZIO.succeed(None)
+                        }
             result <- mayBeData match {
                        case Some(_) => ZIO(ImportResult())
-                       case None    => create(key, data).either.map { ImportResult.fromResult }
+                       case None =>
+                         create(key, data).either.map { ImportResult.fromResult }
                      }
           } yield result
     }
@@ -72,7 +77,7 @@ object ImportData {
         in.map { case (s, json) => (s, json.validate[Data]) }
           .evalMap[Task, ImportResult] {
             case (_, JsSuccess(obj, _)) => ZIO.provide(ctx)(mutation(key(obj), obj))
-            case (s, JsError(_))        => Task(ImportResult.error("json.parse.error", s))
+            case (s, JsError(_))        => ZIO(ImportResult.error("json.parse.error", s))
           }
           .foldMonoid
       }
@@ -82,7 +87,7 @@ object ImportData {
   def importDataFlow[Ctx <: LoggerModule, Key, Data](
       strategy: ImportStrategy,
       key: Data => Key,
-      get: Key => RIO[Ctx, Option[Data]],
+      get: Key => ZIO[Ctx, IzanamiErrors, Option[Data]],
       create: (Key, Data) => ZIO[Ctx, IzanamiErrors, Data],
       update: (Key, Data) => ZIO[Ctx, IzanamiErrors, Data]
   )(implicit reads: Reads[Data]): RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]] =

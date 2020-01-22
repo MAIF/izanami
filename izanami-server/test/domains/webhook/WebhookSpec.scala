@@ -11,7 +11,7 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import org.scalatest.BeforeAndAfterAll
 import domains.apikey.Apikey
-import domains.{AuthorizedPattern, Key}
+import domains.{AuthorizedPatterns, Key}
 import scala.collection.mutable
 import domains.AuthInfo
 import store.memory.InMemoryJsonDataStore
@@ -35,7 +35,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
 
   "Webhook" should {
 

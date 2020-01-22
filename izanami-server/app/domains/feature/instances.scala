@@ -295,10 +295,6 @@ object FeatureInstances {
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
-  implicit val isAllowed: IsAllowed[Feature] = new IsAllowed[Feature] {
-    override def isAllowed(value: Feature)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.id)(auth)
-  }
-
   type IsActiveIO[A] = zio.ZIO[IsActiveContext, IzanamiErrors, A]
 
   def isActive(feature: Feature, context: JsObject): IsActiveIO[Boolean] =

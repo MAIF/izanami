@@ -2,7 +2,7 @@ package test
 
 import akka.http.scaladsl.util.FastFuture
 import controllers.actions.{AuthContext, SecuredAuthContext}
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.user.{IzanamiUser, User}
 import modules.IzanamiComponentsInstances
 import org.scalactic.Prettifier
@@ -82,7 +82,7 @@ trait OneAppPerTestWithMyComponents extends OneAppPerTestWithComponents with Sca
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                authorizedPatterns = AuthorizedPatterns.fromString("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -100,7 +100,7 @@ trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with S
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                authorizedPatterns = AuthorizedPatterns.fromString("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -118,7 +118,7 @@ trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents wi
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                authorizedPatterns = AuthorizedPatterns.fromString("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -138,7 +138,7 @@ trait OneServerPerSuiteWithMyComponents
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                authorizedPatterns = AuthorizedPatterns.fromString("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)

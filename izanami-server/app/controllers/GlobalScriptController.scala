@@ -7,7 +7,7 @@ import controllers.actions.SecuredAuthContext
 import controllers.dto.meta.Metadata
 import controllers.dto.script.GlobalScriptListResult
 import domains.script._
-import domains.{Import, ImportData, IsAllowed, Key}
+import domains.{Import, ImportData, IsAllowed, Key, PatternRights}
 import libs.patch.Patch
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
@@ -29,6 +29,7 @@ class GlobalScriptController(
 
   implicit val materializer = ActorMaterializer()(system)
 
+  // TODO abilitations lists
   def list(pattern: String, name_only: Option[Boolean], page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncTask[GlobalScriptContext](parse.empty) { ctx =>
       import GlobalScriptInstances._
@@ -60,7 +61,7 @@ class GlobalScriptController(
     val body = ctx.request.body
     for {
       script <- jsResultToHttpResponse(body.validate[GlobalScript])
-      _      <- isScriptAllowed(ctx, script)
+      _      <- isScriptAllowed(ctx, PatternRights.C, script)
       _      <- GlobalScriptService.create(script.id, script).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(script))
   }
@@ -69,7 +70,7 @@ class GlobalScriptController(
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
+      _            <- Key.isAllowed(key, PatternRights.R, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       mayBeScript  <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       globalScript <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
     } yield Ok(Json.toJson(globalScript))
@@ -81,7 +82,7 @@ class GlobalScriptController(
       val body = ctx.request.body
       for {
         script <- jsResultToHttpResponse(body.validate[GlobalScript])
-        _      <- isScriptAllowed(ctx, script)
+        _      <- isScriptAllowed(ctx, PatternRights.U, script)
         _      <- GlobalScriptService.update(Key(id), script.id, script).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(script))
     }
@@ -93,16 +94,15 @@ class GlobalScriptController(
       for {
         mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
         current     <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
-        _           <- isScriptAllowed(ctx, current)
+        _           <- isScriptAllowed(ctx, PatternRights.U, current)
         body        = ctx.request.body
         updated     <- jsResultToHttpResponse(Patch.patch(body, current))
         _           <- GlobalScriptService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(updated))
     }
 
-  private def isScriptAllowed(ctx: SecuredAuthContext[_],
-                              current: GlobalScript)(implicit A: IsAllowed[GlobalScript]): IO[Result, Unit] =
-    IsAllowed[GlobalScript].isAllowed(current, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
+  private def isScriptAllowed(ctx: SecuredAuthContext[_], r: PatternRights, current: GlobalScript): IO[Result, Unit] =
+    Key.isAllowed(current.id, r, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[GlobalScriptContext] { ctx =>
     import GlobalScriptInstances._
@@ -110,7 +110,7 @@ class GlobalScriptController(
     for {
       mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       script      <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
-      _           <- isScriptAllowed(ctx, script)
+      _           <- isScriptAllowed(ctx, PatternRights.U, script)
       _           <- GlobalScriptService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(script))
   }

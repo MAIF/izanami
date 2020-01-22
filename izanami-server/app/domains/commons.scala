@@ -5,10 +5,12 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import cats.implicits._
 import cats.kernel.Eq
 import cats.kernel.Monoid
 import com.codahale.metrics.MetricRegistry
+import domains.PatternRight.{Create, Delete, Read, Update}
 import domains.abtesting.{ExperimentContext, ExperimentVariantEventService}
 import domains.apikey.ApiKeyContext
 import domains.config.ConfigContext
@@ -27,6 +29,7 @@ import play.api.libs.json._
 import play.api.libs.json.Reads.pattern
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParser
+
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 import scala.util.matching.Regex
@@ -227,15 +230,6 @@ object GlobalContext {
   }
 }
 
-case class AuthorizedPattern(pattern: String)
-
-object AuthorizedPattern {
-
-  implicit val reads: Reads[AuthorizedPattern] =
-    __.read[String](pattern("^[\\w@\\.0-9\\-,:\\*]+$".r)).map(AuthorizedPattern.apply _)
-  implicit val writes: Writes[AuthorizedPattern] = Writes[AuthorizedPattern](p => JsString(p.pattern))
-}
-
 object Import {
   import akka.stream.scaladsl.{Flow, Framing}
   val newLineSplit =
@@ -301,15 +295,17 @@ object ImportResult {
 }
 
 trait AuthInfo {
-  def _authorizedPattern: String
+  def authorizedPatterns: AuthorizedPatterns
   def id: String
   def name: String
   def mayBeEmail: Option[String]
+  def admin: Boolean
 }
 
 object AuthInfo {
   def authInfo: zio.URIO[AuthInfoModule[_], Option[AuthInfo]] = ZIO.access[AuthInfoModule[_]](_.authInfo)
 
+  import AuthorizedPatterns._
   import play.api.libs.json._
   import play.api.libs.functional.syntax._
 
@@ -317,26 +313,29 @@ object AuthInfo {
     {
       (
         (__ \ "id").read[String] and
-        (__ \ "authorizedPattern").read[String] and
+        (__ \ "authorizedPattern").read[AuthorizedPatterns] and
         (__ \ "name").read[String] and
-        (__ \ "mayBeEmail").readNullable[String]
+        (__ \ "mayBeEmail").readNullable[String] and
+        (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
       )(
-        (anId: String, aPattern: String, aName: String, anEmail: Option[String]) =>
+        (anId: String, aPattern: AuthorizedPatterns, aName: String, anEmail: Option[String], anAdmin: Boolean) =>
           new AuthInfo {
-            def _authorizedPattern: String = aPattern
-            def id: String                 = anId
-            def name: String               = aName
-            def mayBeEmail: Option[String] = anEmail
+            def authorizedPatterns: AuthorizedPatterns = aPattern
+            def id: String                             = anId
+            def name: String                           = aName
+            def mayBeEmail: Option[String]             = anEmail
+            def admin: Boolean                         = anAdmin
         }
       )
     }, {
       (
         (__ \ "id").write[String] and
-        (__ \ "authorizedPattern").write[String] and
+        (__ \ "authorizedPattern").write[AuthorizedPatterns] and
         (__ \ "name").write[String] and
-        (__ \ "mayBeEmail").writeNullable[String]
-      )(unlift[AuthInfo, (String, String, String, Option[String])] { info =>
-        Some((info.id, info._authorizedPattern, info.name, info.mayBeEmail))
+        (__ \ "mayBeEmail").writeNullable[String] and
+        (__ \ "admin").write[Boolean]
+      )(unlift[AuthInfo, (String, AuthorizedPatterns, String, Option[String], Boolean)] { info =>
+        Some((info.id, info.authorizedPatterns, info.name, info.mayBeEmail, info.admin))
       })
     }
   )
@@ -471,10 +470,10 @@ object Node {
 }
 
 trait IsAllowed[T] {
-  def isAllowed(value: T)(auth: Option[AuthInfo]): Boolean
+  def isAllowed(value: T, right: PatternRights)(auth: Option[AuthInfo]): Boolean
 
-  def isAllowed[R](value: T, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
-    isAllowed(value)(auth) match {
+  def isAllowed[R](value: T, right: PatternRights, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
+    isAllowed(value, right)(auth) match {
       case true  => zio.IO.succeed(())
       case false => zio.IO.fail(ifNotAllowed)
     }
@@ -504,27 +503,21 @@ object Key {
   private[domains] def buildRegex(pattern: String): Regex =
     buildRegexPattern(pattern).r
 
-  def isAllowed(key: Key)(auth: Option[AuthInfo]): Boolean = {
-    val pattern = buildRegex(auth.map(_._authorizedPattern).getOrElse(""))
-    key.key match {
-      case pattern(_*) => true
-      case _           => false
+  def isAllowed(key: Key, rights: PatternRights)(mayBeAuth: Option[AuthInfo]): Boolean =
+    mayBeAuth.exists { auth =>
+      AuthorizedPatterns.isAllowed(key, rights, auth.authorizedPatterns)
     }
-  }
 
-  def isAllowed[R](key: Key, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
-    isAllowed(key)(auth) match {
+  def isAllowed[R](key: Key, rights: PatternRights, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
+    isAllowed(key, rights)(auth) match {
       case true  => zio.IO.succeed(())
       case false => zio.ZIO.fail(ifNotAllowed)
     }
 
-  def isAllowed(patternToCheck: String)(auth: Option[AuthInfo]): Boolean = {
-    val pattern = buildRegex(auth.map(_._authorizedPattern).getOrElse(""))
-    patternToCheck match {
-      case pattern(_*) => true
-      case _           => false
+  def isAllowed(patternToCheck: String, rights: PatternRights)(mayBeAuth: Option[AuthInfo]): Boolean =
+    mayBeAuth.exists { auth =>
+      AuthorizedPatterns.isAllowed(patternToCheck, rights, auth.authorizedPatterns)
     }
-  }
 
   val reads: Reads[Key] =
     __.read[String](pattern("(([\\w@\\.0-9\\-]+)(:?))+".r)).map(Key.apply)

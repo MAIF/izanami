@@ -1,7 +1,7 @@
 package controllers
 
 import com.auth0.jwt.algorithms.Algorithm
-import domains.{AuthorizedPattern, Key}
+import domains.{AuthorizedPatterns, Key}
 import domains.user.{IzanamiUser, User, UserContext, UserService}
 import env.{DefaultFilter, Env}
 import libs.crypto.Sha
@@ -60,7 +60,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
                                              email = s"$userId@admin.fr",
                                              password = "",
                                              admin = true,
-                                             authorizedPattern = AuthorizedPattern("*"))
+                                             authorizedPatterns = AuthorizedPatterns.All)
 
                 val token: String = User.buildToken(user, _config.issuer, algorithm)
 

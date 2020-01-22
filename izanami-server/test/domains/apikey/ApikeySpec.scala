@@ -1,7 +1,7 @@
 package domains.apikey
 
 import domains.AuthInfo
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore
@@ -31,14 +31,14 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
   import domains.errors.IzanamiErrors._
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
 
   "ApikeyService" must {
 
     "create" in {
       val id     = Key("clientId")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val created = run(ctx)(ApikeyService.create(id, apikey))
       created must be(apikey)
@@ -55,7 +55,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     "create id not equal" in {
       val id     = Key("test")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val created = run(ctx)(ApikeyService.create(id, apikey).either)
       created must be(Left(IdMustBeTheSame(Key("clientId"), id).toErrors))
@@ -66,7 +66,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     "update if data not exists" in {
       val id     = Key("clientId")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val updated = run(ctx)(ApikeyService.update(id, id, apikey).either)
       updated must be(Left(DataShouldExists(id).toErrors))
@@ -75,7 +75,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     "update" in {
       val id     = Key("clientId")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val test = for {
         _       <- ApikeyService.create(id, apikey)
@@ -99,7 +99,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       val id     = Key("clientId")
       val newId  = Key("clientId2")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val test = for {
         _       <- ApikeyService.create(id, apikey)
@@ -122,7 +122,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     "delete" in {
       val id     = Key("clientId")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val test = for {
         _       <- ApikeyService.create(id, apikey)
@@ -153,7 +153,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     "import data" in {
       val id     = Key("clientId")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val res = run(ctx)(ApikeyService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -168,7 +168,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     "import data invalid format" in {
       val id     = Key("clientId")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val res = run(ctx)(ApikeyService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -186,7 +186,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     "import data data exist" in {
       val id     = Key("clientId")
       val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPattern("pattern"))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.fromString("pattern"))
 
       val test = for {
         _ <- ApikeyService.create(id, apikey)

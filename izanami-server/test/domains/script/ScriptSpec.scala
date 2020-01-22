@@ -36,7 +36,7 @@ import domains.Key
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
 import domains.apikey.Apikey
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import test.IzanamiSpec
 import domains.ImportResult
 import domains.errors.ValidationError
@@ -126,7 +126,7 @@ class ScriptSpec
 
   }
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
 
   "ScriptService" must {
 
