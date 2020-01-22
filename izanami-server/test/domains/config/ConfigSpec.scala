@@ -2,7 +2,7 @@ package domains.config
 
 import domains.apikey.Apikey
 import domains.AuthInfo
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore
@@ -36,7 +36,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
 
   "ConfigService" must {
 

@@ -2,7 +2,7 @@ package domains.apikey
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.events.{EventStore, EventStoreContext}
 import domains._
 import libs.logs.LoggerModule
@@ -11,11 +11,14 @@ import play.api.libs.json._
 import store._
 import zio.{IO, RIO, ZIO}
 
-case class Apikey(clientId: String, name: String, clientSecret: String, authorizedPattern: AuthorizedPattern)
+case class Apikey(clientId: String,
+                  name: String,
+                  clientSecret: String,
+                  authorizedPatterns: AuthorizedPatterns,
+                  admin: Boolean = false)
     extends AuthInfo {
   override def mayBeEmail: Option[String] = None
   override def id: String                 = clientId
-  override def _authorizedPattern: String = authorizedPattern.pattern
 }
 
 object Apikey {

@@ -4,19 +4,18 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-
 import controllers.dto.apikeys.ApikeyListResult
 import controllers.dto.error.ApiErrors
 import controllers.dto.meta.Metadata
 import domains.apikey.{ApiKeyContext, Apikey, ApikeyInstances, ApikeyService}
-import domains.{Import, ImportData, IsAllowed, Key}
+import domains.{Import, ImportData, IsAllowed, Key, PatternRights}
 import libs.patch.Patch
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
-import zio.{Runtime, ZIO}
+import zio.{IO, Runtime, ZIO}
 
 class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
     implicit system: ActorSystem,
@@ -46,8 +45,8 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     import ApikeyInstances._
 
     for {
+      _      <- isUserAllowed(ctx)
       apikey <- jsResultToHttpResponse(ctx.request.body.validate[Apikey])
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       _      <- ApikeyService.create(Key(apikey.clientId), apikey).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(apikey))
 
@@ -57,9 +56,9 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     import ApikeyInstances._
     val key = Key(id)
     for {
+      _      <- isUserAllowed(ctx)
       mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
     } yield Ok(Json.toJson(apikey))
   }
 
@@ -67,8 +66,8 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     import ApikeyInstances._
 
     for {
+      _      <- isUserAllowed(ctx)
       apikey <- jsResultToHttpResponse(ctx.request.body.validate[Apikey])
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       _      <- ApikeyService.update(Key(id), Key(apikey.clientId), apikey).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(apikey))
 
@@ -80,9 +79,9 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     val key = Key(id)
     // format: off
     for {
+      _       <- isUserAllowed(ctx)
       mayBe   <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- IsAllowed[Apikey].isAllowed(current, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
       _ <- ApikeyService.update(key, Key(current.clientId), updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
@@ -94,35 +93,36 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
 
     val key = Key(id)
     for {
+      _      <- isUserAllowed(ctx)
       mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _      <- IsAllowed[Apikey].isAllowed(apikey, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       _      <- ApikeyService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(apikey))
 
   }
 
   def deleteAll(patterns: Option[String]): Action[AnyContent] =
-    AuthAction.asyncZio[ApiKeyContext] { _ =>
+    AuthAction.asyncZio[ApiKeyContext] { ctx =>
       val allPatterns = patterns.toList.flatMap(_.split(","))
-      ApikeyService
+      isUserAllowed(ctx) *> ApikeyService
         .deleteAll(allPatterns)
         .mapError { ApiErrors.toHttpResult }
         .map(_ => Ok)
     }
 
-  def count(): Action[AnyContent] = AuthAction.asyncTask[ApiKeyContext] { ctx =>
+  def count(): Action[AnyContent] = AuthAction.asyncZio[ApiKeyContext] { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    ApikeyService.count(query).map { count =>
+    isUserAllowed(ctx) *> ApikeyService.count(query).refineToOrDie[Result].map { count =>
       Ok(Json.obj("count" -> count))
     }
   }
 
-  def download(): Action[AnyContent] = AuthAction.asyncTask[ApiKeyContext] { ctx =>
+  def download(): Action[AnyContent] = AuthAction.asyncZio[ApiKeyContext] { ctx =>
     import ApikeyInstances._
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    ApikeyService
+    isUserAllowed(ctx) *> ApikeyService
       .findByQuery(query)
+      .refineToOrDie[Result]
       .map { s =>
         val source = s
           .map { case (_, data) => Json.toJson(data) }
@@ -136,7 +136,11 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
       }
   }
 
-  def upload(strStrategy: String) = AuthAction.asyncTask[ApiKeyContext](Import.ndJson) { ctx =>
-    ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData)
+  def upload(strStrategy: String) = AuthAction.asyncZio[ApiKeyContext](Import.ndJson) { ctx =>
+    isUserAllowed(ctx) *> ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData).refineToOrDie[Result]
   }
+
+  private def isUserAllowed(ctx: SecuredAuthContext[_]): ZIO[ApiKeyContext, Result, Unit] =
+    IO.when(!ctx.authInfo.admin)(IO.succeed(Forbidden(ApiErrors.error("error.forbidden").toJson)))
+
 }

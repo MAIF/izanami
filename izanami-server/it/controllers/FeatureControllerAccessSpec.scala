@@ -1,6 +1,6 @@
 package controllers
 
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.user.{IzanamiUser, User}
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._

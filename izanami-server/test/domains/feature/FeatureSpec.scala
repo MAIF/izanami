@@ -8,7 +8,7 @@ import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
 import domains.apikey.Apikey
 import domains.AuthInfo
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore
@@ -445,7 +445,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
 
   "FeatureService" must {
 

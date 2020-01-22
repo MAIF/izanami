@@ -65,7 +65,7 @@ object Oauth2Service {
           _.map { userFromDb =>
             effectiveUser.copy(
               admin = userFromDb.admin || adminInConfig(authConfig, effectiveUser.name),
-              authorizedPattern = userFromDb.authorizedPattern
+              authorizedPatterns = userFromDb.authorizedPatterns
             )
           }.getOrElse(effectiveUser)
         }

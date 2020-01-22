@@ -29,10 +29,12 @@ class UserController(system: ActorSystem,
   implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
-    AuthAction.asyncTask[UserContext] { ctx =>
+    AuthAction.asyncZio[UserContext] { ctx =>
+      import UserInstances._
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
-      UserService
+      isUserAllowed(ctx) *> UserService
         .findByQuery(query, page, nbElementPerPage)
+        .refineToOrDie[Result]
         .map { r =>
           Ok(Json.toJson(UserListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
         }
@@ -42,15 +44,12 @@ class UserController(system: ActorSystem,
     import UserInstances._
     val body = ctx.request.body
     for {
+      _    <- isUserAllowed(ctx)
       user <- jsResultToHttpResponse(body.validate[User])
-      _    <- isUserAllowed(ctx, user)
       _    <- UserService.create(Key(user.id), user).mapError { ApiErrors.toHttpResult }
     } yield Created(UserNoPasswordInstances.format.writes(user))
 
   }
-
-  private def isUserAllowed(ctx: SecuredAuthContext[_], user: User)(implicit A: IsAllowed[User]): IO[Result, Unit] =
-    IsAllowed[User].isAllowed(user, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
   def get(id: String): Action[AnyContent] = AuthAction.asyncZio[UserContext] { _ =>
     import UserNoPasswordInstances._
@@ -65,8 +64,8 @@ class UserController(system: ActorSystem,
     import UserInstances._
     val userOrError = UserNoPasswordInstances.format.reads(ctx.request.body)
     for {
+      _    <- isUserAllowed(ctx)
       user <- jsResultToHttpResponse(userOrError)
-      _    <- isUserAllowed(ctx, user)
       _    <- UserService.update(Key(id), Key(user.id), user).mapError { ApiErrors.toHttpResult }
     } yield Ok(UserNoPasswordInstances.format.writes(user))
   }
@@ -75,9 +74,9 @@ class UserController(system: ActorSystem,
     import UserInstances._
     val key = Key(id)
     for {
+      _         <- isUserAllowed(ctx)
       mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
-      _         <- isUserAllowed(ctx, user)
       updated   <- jsResultToHttpResponse(Patch.patch(ctx.request.body, user))
       _         <- UserService.update(key, Key(user.id), updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(UserNoPasswordInstances.format.writes(updated))
@@ -87,17 +86,18 @@ class UserController(system: ActorSystem,
     import UserInstances._
     val key = Key(id)
     for {
+      _         <- isUserAllowed(ctx)
       mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
-      _         <- isUserAllowed(ctx, user)
       _         <- UserService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(UserNoPasswordInstances.format.writes(user))
   }
 
   def deleteAll(patterns: String): Action[AnyContent] =
     AuthAction.asyncZio[UserContext] { ctx =>
+      import UserInstances._
       val allPatterns = ctx.authorizedPatterns :+ patterns
-      UserService
+      isUserAllowed(ctx) *> UserService
         .deleteAll(allPatterns)
         .mapError { ApiErrors.toHttpResult }
         .map { _ =>
@@ -112,11 +112,12 @@ class UserController(system: ActorSystem,
     }
   }
 
-  def download(): Action[AnyContent] = AuthAction.asyncTask[UserContext] { ctx =>
+  def download(): Action[AnyContent] = AuthAction.asyncZio[UserContext] { ctx =>
     import UserInstances._
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    UserService
+    isUserAllowed(ctx) *> UserService
       .findByQuery(query)
+      .refineToOrDie[Result]
       .map { s =>
         val source = s
           .map { case (_, data) => Json.toJson(data) }
@@ -131,8 +132,11 @@ class UserController(system: ActorSystem,
 
   }
 
-  def upload(strStrategy: String) = AuthAction.asyncTask[UserContext](Import.ndJson) { ctx =>
-    ImportData.importHttp(strStrategy, ctx.body, UserService.importData)
+  def upload(strStrategy: String) = AuthAction.asyncZio[UserContext](Import.ndJson) { ctx =>
+    isUserAllowed(ctx) *> ImportData.importHttp(strStrategy, ctx.body, UserService.importData).refineToOrDie[Result]
   }
+
+  private def isUserAllowed(ctx: SecuredAuthContext[_]): ZIO[UserContext, Result, Unit] =
+    IO.when(!ctx.authInfo.admin)(IO.succeed(Forbidden(ApiErrors.error("error.forbidden").toJson)))
 
 }

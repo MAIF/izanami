@@ -1,6 +1,6 @@
 package domains.user
 
-import domains.{AuthorizedPattern, Key}
+import domains.{AuthorizedPatterns, Key}
 import domains.events.EventStore
 import libs.crypto.Sha
 import libs.logs.{Logger, ProdLogger}
@@ -36,7 +36,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
 
   implicit val runtime = new DefaultRuntime {}
 
@@ -45,8 +45,9 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "Hash password" in {
       val context = userContext()
 
-      val key                                  = Key("user1")
-      val ragnard                              = IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+      val key = Key("user1")
+      val ragnard =
+        IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val created: Either[IzanamiErrors, User] = run(context)(UserService.create(key, ragnard).either)
 
       created mustBe Right(ragnard.copy(password = Sha.hexSha512("ragnar123456")))
@@ -68,7 +69,8 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
   "User serder" must {
 
     "read IzanamiUser" in {
-      val user = IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+      val user =
+        IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "Izanami",
         "id"                -> "user1",
@@ -84,7 +86,8 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "read IzanamiUser without type" in {
-      val user = IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+      val user =
+        IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "id"                -> "user1",
         "name"              -> "Ragnard",
@@ -99,7 +102,8 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "write IzanamiUser" in {
-      val user = IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+      val user =
+        IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "Izanami",
         "password"          -> "ragnar123456",
@@ -115,7 +119,8 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "write IzanamiUser without password" in {
-      val user = IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+      val user =
+        IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "Izanami",
         "id"                -> "user1",
@@ -130,7 +135,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "read OauthUser" in {
-      val user = OauthUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPattern("*"))
+      val user = OauthUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "OAuth",
         "id"                -> "user1",
@@ -145,7 +150,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "write OauthUser" in {
-      val user = OauthUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPattern("*"))
+      val user = OauthUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "OAuth",
         "id"                -> "user1",
@@ -160,7 +165,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "read OtoroshiUser" in {
-      val user = OtoroshiUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPattern("*"))
+      val user = OtoroshiUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "Otoroshi",
         "id"                -> "user1",
@@ -175,7 +180,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "write OtoroshihUser" in {
-      val user = OtoroshiUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPattern("*"))
+      val user = OtoroshiUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "Otoroshi",
         "id"                -> "user1",
@@ -197,7 +202,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Sha.hexSha512("ragnar123456"))
 
       val created = run(ctx)(UserService.create(id, user))
@@ -216,7 +221,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "create OAuthUser" in {
       val id           = Key("test")
       val ctx          = TestUserContext()
-      val user         = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPattern("*"))
+      val user         = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val expectedUser = user
 
       val created = run(ctx)(UserService.create(id, user))
@@ -233,9 +238,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "create id not equal" in {
-      val id   = Key("test")
-      val ctx  = TestUserContext()
-      val user = IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+      val id  = Key("test")
+      val ctx = TestUserContext()
+      val user =
+        IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
 
       val created = run(ctx)(UserService.create(id, user).either)
       created must be(Left(IdMustBeTheSame(Key(user.id), id).toErrors))
@@ -244,9 +250,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "update if data not exists" in {
-      val id   = Key("test")
-      val ctx  = TestUserContext()
-      val user = IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+      val id  = Key("test")
+      val ctx = TestUserContext()
+      val user =
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
 
       val updated = run(ctx)(UserService.update(id, id, user).either)
       updated must be(Left(DataShouldExists(id).toErrors))
@@ -256,7 +263,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPattern("*"))
+        OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val expectedUser = user
 
       val test = for {
@@ -281,7 +288,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Sha.hexSha512("ragnar123456"))
 
       val test = for {
@@ -306,7 +313,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val oldUser      = user.copy(password = Sha.hexSha512("ragnar123456"))
       val expectedUser = user.copy(name = "Ragnard Lodbrok", password = Sha.hexSha512("ragnar123456"))
 
@@ -338,7 +345,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val newId = Key("test2")
       val ctx   = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Sha.hexSha512("ragnar123456"))
 
       val test = for {
@@ -363,7 +370,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Sha.hexSha512("ragnar123456"))
 
       val test = for {
@@ -396,7 +403,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
 
       val res = run(ctx)(UserService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -412,7 +419,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
 
       val res = run(ctx)(UserService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -431,7 +438,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id  = Key("test")
       val ctx = TestUserContext()
       val user =
-        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPattern("*"))
+        IzanamiUser(id.key, "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
 
       val test = for {
         _ <- UserService.create(id, user)
