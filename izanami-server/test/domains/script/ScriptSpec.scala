@@ -126,7 +126,7 @@ class ScriptSpec
 
   }
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All))
 
   "ScriptService" must {
 

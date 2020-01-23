@@ -92,7 +92,6 @@ class ExperimentController(system: ActorSystem,
     val body = ctx.request.body
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
-      _          <- isExperimentAllowed(experiment, PatternRights.U, ctx)
       _          <- ExperimentService.create(experiment.id, experiment).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(experiment))
   }
@@ -113,7 +112,6 @@ class ExperimentController(system: ActorSystem,
     val body = ctx.request.body
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
-      _          <- isExperimentAllowed(experiment, PatternRights.U, ctx)
       _          <- ExperimentService.update(Key(id), experiment.id, experiment).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(experiment))
   }
@@ -124,7 +122,6 @@ class ExperimentController(system: ActorSystem,
     for {
       mayBe   <- ExperimentService.getById(key).mapError(_ => InternalServerError)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- isExperimentAllowed(current, PatternRights.U, ctx)
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, current))
       _       <- ExperimentService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
@@ -137,7 +134,6 @@ class ExperimentController(system: ActorSystem,
     for {
       mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
       experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _          <- isExperimentAllowed(experiment, PatternRights.U, ctx)
       _          <- ExperimentService.delete(key).mapError { ApiErrors.toHttpResult }
       _ <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError {
             ApiErrors.toHttpResult
@@ -315,10 +311,5 @@ class ExperimentController(system: ActorSystem,
             )
     } yield res
   }
-
-  private def isExperimentAllowed(experiment: Experiment,
-                                  r: PatternRights,
-                                  ctx: SecuredAuthContext[_]): zio.IO[Result, Unit] =
-    Key.isAllowed(experiment.id, r, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
 }

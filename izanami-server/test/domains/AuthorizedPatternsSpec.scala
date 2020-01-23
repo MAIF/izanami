@@ -1,7 +1,13 @@
 package domains
 
+import cats.data.NonEmptyList
+import domains.errors.{IzanamiErrors, Unauthorized}
+import domains.user.OauthUser
+import libs.logs.{Logger, LoggerModule, ProdLogger}
 import play.api.libs.json.{JsArray, JsError, JsPath, JsString, JsSuccess, Json, JsonValidationError}
 import test.IzanamiSpec
+import zio.internal.PlatformLive
+import zio.{Exit, Runtime, ZIO}
 
 class AuthorizedPatternsSpec extends IzanamiSpec {
   "PatternRight" must {
@@ -108,6 +114,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       AuthorizedPatterns.fromString("abcdefg") must be(
         AuthorizedPatterns(AuthorizedPattern("abcdefg", PatternRights.CRUD))
       )
+      AuthorizedPatterns.fromString("*") must be(AuthorizedPatterns.All)
     }
 
     "stringValue" in {
@@ -170,6 +177,42 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       AuthorizedPatterns.isAllowed("path3", PatternRights.W, authorizedPatterns) must be(true)
 
       AuthorizedPatterns.isAllowed("path4", PatternRights.R, authorizedPatterns) must be(false)
+    }
+
+    "check is allowed" in {
+
+      val authModule = new AuthInfoModule[String] with LoggerModule {
+        override def authInfo: Option[AuthInfo] =
+          Some(OauthUser("1", "john.doe", "john.doe@gmail.fr", true, AuthorizedPatterns.All))
+        override def withAuthInfo(user: Option[AuthInfo]): String = ???
+        override def logger: Logger                               = new ProdLogger
+      }
+
+      val r = Runtime(authModule, PlatformLive.Default)
+      val res: Either[IzanamiErrors, Unit] =
+        r.unsafeRun(AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either)
+      res must be(Right(()))
+    }
+
+    "check is not allowed" in {
+
+      val authModule = new AuthInfoModule[String] with LoggerModule {
+        override def authInfo: Option[AuthInfo] =
+          Some(
+            OauthUser("1",
+                      "john.doe",
+                      "john.doe@gmail.fr",
+                      true,
+                      AuthorizedPatterns(AuthorizedPattern("test", PatternRights.R)))
+          )
+        override def withAuthInfo(user: Option[AuthInfo]): String = ???
+        override def logger: Logger                               = new ProdLogger
+      }
+
+      val r = Runtime(authModule, PlatformLive.Default)
+      val res: Either[IzanamiErrors, Unit] =
+        r.unsafeRun(AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either)
+      res must be(Left(NonEmptyList.of(Unauthorized(Key("test")))))
     }
   }
 }

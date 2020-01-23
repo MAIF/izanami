@@ -100,7 +100,7 @@ trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with S
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPatterns = AuthorizedPatterns.fromString("*"))
+                authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -118,7 +118,7 @@ trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents wi
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPatterns = AuthorizedPatterns.fromString("*"))
+                authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -138,7 +138,7 @@ trait OneServerPerSuiteWithMyComponents
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPatterns = AuthorizedPatterns.fromString("*"))
+                authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)

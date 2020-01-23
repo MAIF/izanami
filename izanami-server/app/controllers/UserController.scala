@@ -34,10 +34,10 @@ class UserController(system: ActorSystem,
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
       isUserAllowed(ctx) *> UserService
         .findByQuery(query, page, nbElementPerPage)
-        .refineToOrDie[Result]
         .map { r =>
           Ok(Json.toJson(UserListResult(r.results.toList, Metadata(page, nbElementPerPage, r.count, r.nbPages))))
         }
+        .mapError { ApiErrors.toHttpResult }
     }
 
   def create(): Action[JsValue] = AuthAction.asyncZio[UserContext](parse.json) { ctx =>
@@ -105,11 +105,14 @@ class UserController(system: ActorSystem,
         }
     }
 
-  def count(): Action[AnyContent] = AuthAction.asyncTask[UserContext] { ctx =>
+  def count(): Action[AnyContent] = AuthAction.asyncZio[UserContext] { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    UserService.count(query).map { count =>
-      Ok(Json.obj("count" -> count))
-    }
+    UserService
+      .count(query)
+      .map { count =>
+        Ok(Json.obj("count" -> count))
+      }
+      .mapError { ApiErrors.toHttpResult }
   }
 
   def download(): Action[AnyContent] = AuthAction.asyncZio[UserContext] { ctx =>
@@ -117,7 +120,6 @@ class UserController(system: ActorSystem,
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
     isUserAllowed(ctx) *> UserService
       .findByQuery(query)
-      .refineToOrDie[Result]
       .map { s =>
         val source = s
           .map { case (_, data) => Json.toJson(data) }
@@ -129,6 +131,7 @@ class UserController(system: ActorSystem,
           body = HttpEntity.Streamed(source, None, Some("application/json"))
         )
       }
+      .mapError { ApiErrors.toHttpResult }
 
   }
 

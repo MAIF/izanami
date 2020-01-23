@@ -64,6 +64,7 @@ object WebhookService {
 
   def create(id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
     for {
+      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
       _        <- IO.when(data.clientId =!= id)(IO.fail(IdMustBeTheSame(data.clientId, id).toErrors))
       created  <- WebhookDataStore.create(id, WebhookInstances.format.writes(data))
       webhook  <- jsResultToError(created.validate[Webhook])
@@ -73,7 +74,8 @@ object WebhookService {
 
   def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
     for {
-      mayBeHook <- getById(oldId).refineToOrDie[IzanamiErrors]
+      _         <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
+      mayBeHook <- getById(oldId)
       oldValue  <- ZIO.fromOption(mayBeHook).mapError(_ => DataShouldExists(oldId).toErrors)
       updated   <- WebhookDataStore.update(oldId, id, WebhookInstances.format.writes(data))
       hook      <- jsResultToError(updated.validate[Webhook])
@@ -83,6 +85,7 @@ object WebhookService {
 
   def delete(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Webhook] =
     for {
+      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
       deleted  <- WebhookDataStore.delete(id)
       hook     <- jsResultToError(deleted.validate[Webhook])
       authInfo <- AuthInfo.authInfo
@@ -92,13 +95,15 @@ object WebhookService {
   def deleteAll(patterns: Seq[String]): ZIO[WebhookContext, IzanamiErrors, Unit] =
     WebhookDataStore.deleteAll(patterns)
 
-  def getById(id: WebhookKey): RIO[WebhookContext, Option[Webhook]] =
+  def getById(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Option[Webhook]] =
     for {
-      mayBeHook  <- WebhookDataStore.getById(id)
+      _          <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
+      mayBeHook  <- WebhookDataStore.getById(id).refineToOrDie[IzanamiErrors]
       parsedHook = mayBeHook.flatMap(_.validate[Webhook].asOpt)
     } yield parsedHook
 
   def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[WebhookContext, PagingResult[Webhook]] =
+    // TODO queries
     WebhookDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))

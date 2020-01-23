@@ -8,7 +8,17 @@ import domains.events.{EventStore, EventStoreContext}
 import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureInstances.isActive
 import domains.script.{GlobalScriptContext, RunnableScriptContext, Script, ScriptCacheModule}
-import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
+import domains.{
+  AkkaModule,
+  AuthInfo,
+  AuthInfoModule,
+  AuthorizedPatterns,
+  ImportData,
+  ImportResult,
+  ImportStrategy,
+  Key,
+  PatternRights
+}
 import libs.logs.LoggerModule
 import play.api.libs.json._
 import domains.errors.{IzanamiErrors, _}
@@ -145,6 +155,7 @@ object FeatureService {
 
   def create(id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
     for {
+      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
       _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
       created  <- FeatureDataStore.create(id, format.writes(data))
       feature  <- jsResultToError(created.validate[Feature])
@@ -155,7 +166,8 @@ object FeatureService {
 
   def update(oldId: FeatureKey, id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
     for {
-      mayBeFeature <- getById(oldId).refineToOrDie[IzanamiErrors]
+      _            <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
+      mayBeFeature <- getById(oldId)
       oldValue     <- ZIO.fromOption(mayBeFeature).mapError(_ => DataShouldExists(oldId).toErrors)
       updated      <- FeatureDataStore.update(oldId, id, format.writes(data))
       feature      <- jsResultToError(updated.validate[Feature])
@@ -166,6 +178,7 @@ object FeatureService {
 
   def delete(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Feature] =
     for {
+      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
       deleted  <- FeatureDataStore.delete(id)
       feature  <- jsResultToError(deleted.validate[Feature])
       authInfo <- AuthInfo.authInfo
@@ -174,17 +187,19 @@ object FeatureService {
     } yield feature
 
   def deleteAll(query: Query): ZIO[FeatureContext, IzanamiErrors, Unit] =
-    FeatureDataStore.deleteAll(query) <* MetricsService.incFeatureCreated(query.toString())
+    // TODO deletes
+    FeatureDataStore.deleteAll(query) <* MetricsService.incFeatureDeleted(query.toString())
 
-  def getById(id: FeatureKey): RIO[FeatureContext, Option[Feature]] =
+  def getById(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Option[Feature]] =
     for {
-      mayBeConfig  <- FeatureDataStore.getById(id)
+      _            <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
+      mayBeConfig  <- FeatureDataStore.getById(id).refineToOrDie[IzanamiErrors]
       parsedConfig = mayBeConfig.flatMap(_.validate[Feature].asOpt)
     } yield parsedConfig
 
   def getByIdActive(context: JsObject, id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Option[(Feature, Boolean)]] =
     for {
-      mayBeFeature <- getById(id).refineToOrDie[IzanamiErrors]
+      mayBeFeature <- getById(id)
       result <- mayBeFeature
                  .traverse { f =>
                    isActive(f, context)
@@ -198,6 +213,7 @@ object FeatureService {
     } yield result
 
   def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[FeatureContext, PagingResult[Feature]] =
+    // TODO queries
     FeatureDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
@@ -208,6 +224,7 @@ object FeatureService {
       page: Int,
       nbElementPerPage: Int
   ): ZIO[FeatureContext, IzanamiErrors, PagingResult[(Feature, Boolean)]] =
+    // TODO queries
     for {
       pages <- findByQuery(query, page, nbElementPerPage).refineToOrDie[IzanamiErrors]
       pagesWithActive <- pages.results.toList
@@ -223,6 +240,7 @@ object FeatureService {
     } yield DefaultPagingResult(pagesWithActive, pages.page, pages.pageSize, pages.count)
 
   def findByQuery(query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature), NotUsed]] =
+    // TODO queries
     FeatureDataStore.findByQuery(query).map { s =>
       s.map {
         case (k, v) => (k, v.validate[Feature].get)
@@ -230,6 +248,7 @@ object FeatureService {
     }
 
   def findAllByQuery(query: Query): RIO[FeatureContext, List[(FeatureKey, Feature)]] =
+    // TODO queries
     FeatureDataStore
       .findByQuery(query)
       .map { s =>
@@ -248,6 +267,7 @@ object FeatureService {
 
   def findByQueryActive(context: JsObject,
                         query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
+    // TODO queries
     for {
       runtime <- ZIO.runtime[FeatureContext]
       res <- ZIO.accessM[FeatureContext] { _ =>
@@ -277,9 +297,11 @@ object FeatureService {
     } yield res
 
   def count(query: Query): RIO[FeatureContext, Long] =
+    // TODO queries
     FeatureDataStore.count(query)
 
   def getFeatureTree(query: Query, flat: Boolean, context: JsObject): RIO[FeatureContext, Source[JsValue, NotUsed]] =
+    // TODO queries
     for {
       s    <- findByQuery(query)
       flow <- tree(flat)(context)
@@ -290,6 +312,8 @@ object FeatureService {
     import cats.implicits._
     import IzanamiErrors._
     for {
+      _        <- AuthorizedPatterns.isAllowed(from, PatternRights.R)
+      _        <- AuthorizedPatterns.isAllowed(to, PatternRights.C)
       _        <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
       values   <- findAllByQuery(Query.oneOf(from.key, (from / "*").key)).refineToOrDie[IzanamiErrors]
       features <- values.parTraverse { case (_, v) => copyOne(from, to, v, default) }.mapError(_.reduce)
@@ -338,6 +362,7 @@ object FeatureService {
   private def tree(
       flatRepr: Boolean
   )(context: JsObject): RIO[FeatureContext, Flow[Feature, JsValue, NotUsed]] =
+    // TODO queries
     ZIO.accessM[FeatureContext] { _ =>
       if (flatRepr) Feature.flat(context)
       else Feature.toGraph(context)

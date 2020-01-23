@@ -445,7 +445,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All))
 
   "FeatureService" must {
 
@@ -894,7 +894,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       new InMemoryJsonDataStore("script", TrieMap.empty[GlobalScriptKey, JsValue])
     override val eventStore: EventStore                                    = new TestEventStore()
     override def withAuthInfo(authInfo: Option[AuthInfo]): IsActiveContext = this
-    override def authInfo: Option[AuthInfo]                                = None
+    override def authInfo: Option[AuthInfo]                                = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
     override val environment: Environment                                  = fakeEnv
     override val ec: ExecutionContext                                      = actorSystem.dispatcher
     override val javaWsClient: play.libs.ws.WSClient                       = jWsClient

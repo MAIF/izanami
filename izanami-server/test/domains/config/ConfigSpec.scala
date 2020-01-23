@@ -36,7 +36,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All))
 
   "ConfigService" must {
 

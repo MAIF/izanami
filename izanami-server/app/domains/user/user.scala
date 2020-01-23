@@ -165,12 +165,15 @@ object UserService {
     }
 
   def createIfNotExists(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
-    getById(id).refineToOrDie[IzanamiErrors].flatMap {
+    getById(id).flatMap {
       case Some(_) => IO.succeed(data)
       case None    => create(id, data)
     }
 
   def create(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
+    AuthInfo.isAdmin() *> createWithoutPermission(id, data)
+
+  def createWithoutPermission(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     for {
       _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
       user     <- ZIO.fromEither(handlePassword(data))
@@ -181,9 +184,13 @@ object UserService {
     } yield user
 
   def update(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
+    AuthInfo.isAdmin() *> updateWithoutPermission(oldId, id, data)
+
+  def updateWithoutPermission(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     // format: off
     for {
-      mayBeUser   <- getById(oldId).refineToOrDie[IzanamiErrors]
+      mayBeUser   <- getById(oldId)
+      mayBeUser   <- getById(oldId)
       oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId).toErrors)
       toUpdate    = User.updateUser(data, oldValue)
       updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
@@ -196,6 +203,7 @@ object UserService {
   def delete(id: UserKey): ZIO[UserContext, IzanamiErrors, User] =
     // format: off
     for {
+      _         <- AuthInfo.isAdmin()
       deleted   <- UserDataStore.delete(id)
       user      <- jsResultToError(deleted.validate[User])
       authInfo  <- AuthInfo.authInfo
@@ -204,21 +212,28 @@ object UserService {
     // format: on
 
   def deleteAll(patterns: Seq[String]): ZIO[UserContext, IzanamiErrors, Unit] =
-    UserDataStore.deleteAll(patterns)
+    AuthInfo.isAdmin() *> UserDataStore.deleteAll(patterns)
 
-  def getById(id: UserKey): RIO[UserContext, Option[User]] =
+  def getByIdWithoutPermissions(id: UserKey): RIO[UserContext, Option[User]] =
     UserDataStore.getById(id).map(_.flatMap(_.validate[User].asOpt))
 
-  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[UserContext, PagingResult[User]] =
-    UserDataStore
+  def getById(id: UserKey): ZIO[UserContext, IzanamiErrors, Option[User]] =
+    AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).refineToOrDie[IzanamiErrors]
+
+  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): ZIO[UserContext, IzanamiErrors, PagingResult[User]] =
+    AuthInfo.isAdmin() *> UserDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
+      .refineToOrDie[IzanamiErrors]
 
-  def findByQuery(query: Query): RIO[UserContext, Source[(Key, User), NotUsed]] =
-    UserDataStore.findByQuery(query).map(_.readsKV[User])
+  def findByQuery(query: Query): ZIO[UserContext, IzanamiErrors, Source[(Key, User), NotUsed]] =
+    AuthInfo.isAdmin() *> UserDataStore.findByQuery(query).map(_.readsKV[User]).refineToOrDie[IzanamiErrors]
 
-  def count(query: Query): RIO[UserContext, Long] =
+  def countWithoutPermissions(query: Query): RIO[UserContext, Long] =
     UserDataStore.count(query)
+
+  def count(query: Query): ZIO[UserContext, IzanamiErrors, Long] =
+    AuthInfo.isAdmin() *> countWithoutPermissions(query).refineToOrDie[IzanamiErrors]
 
   def importData(
       strategy: ImportStrategy = ImportStrategy.Keep
