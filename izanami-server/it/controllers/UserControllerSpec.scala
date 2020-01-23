@@ -33,12 +33,14 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       )
 
       /* Create */
-      val user = Json.obj("id" -> key,
-                          "name"              -> "toto",
-                          "email"             -> key,
-                          "admin"             -> true,
-                          "authorizedPattern" -> "*",
-                          "type"              -> "Izanami")
+      val user = Json.obj(
+        "id"                -> key,
+        "name"              -> "toto",
+        "email"             -> key,
+        "admin"             -> true,
+        "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+        "type"              -> "Izanami"
+      )
       ws.url(s"$rootPath/api/users")
         .post(user ++ Json.obj("password" -> "password"))
         .futureValue must beAStatus(201)
@@ -54,12 +56,14 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       /* Update */
       val userUpdated =
-        Json.obj("id"                -> key,
-                 "name"              -> "toto deux",
-                 "email"             -> key,
-                 "admin"             -> true,
-                 "authorizedPattern" -> "*",
-                 "type"              -> "Izanami")
+        Json.obj(
+          "id"                -> key,
+          "name"              -> "toto deux",
+          "email"             -> key,
+          "admin"             -> true,
+          "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+          "type"              -> "Izanami"
+        )
       ws.url(s"$rootPath/api/users/$key")
         .put(userUpdated ++ Json.obj("password" -> "password"))
         .futureValue must beAStatus(200)
@@ -100,12 +104,14 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       val key  = "toto1@maif.fr"
       val key2 = "toto2@maif.fr"
       /* Create */
-      val user = Json.obj("id" -> key,
-                          "name"              -> "toto",
-                          "email"             -> key,
-                          "admin"             -> true,
-                          "authorizedPattern" -> "*",
-                          "type"              -> "Izanami")
+      val user = Json.obj(
+        "id"                -> key,
+        "name"              -> "toto",
+        "email"             -> key,
+        "admin"             -> true,
+        "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+        "type"              -> "Izanami"
+      )
       ws.url(s"$rootPath/api/users")
         .post(user ++ Json.obj("password" -> "password"))
         .futureValue must beAStatus(201)
@@ -115,12 +121,14 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       /* Update */
       val userUpdated =
-        Json.obj("id"                -> key2,
-                 "name"              -> "toto deux",
-                 "email"             -> key,
-                 "admin"             -> true,
-                 "authorizedPattern" -> "*",
-                 "type"              -> "Izanami")
+        Json.obj(
+          "id"                -> key2,
+          "name"              -> "toto deux",
+          "email"             -> key,
+          "admin"             -> true,
+          "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+          "type"              -> "Izanami"
+        )
       ws.url(s"$rootPath/api/users/$key")
         .put(userUpdated ++ Json.obj("password" -> "password"))
         .futureValue must beAStatus(200)
