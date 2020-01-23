@@ -34,7 +34,14 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
 
       /* Create */
       val apikey =
-        Json.obj("name" -> key, "clientId" -> key, "clientSecret" -> "clientSecret", "authorizedPattern" -> "*")
+        Json.obj(
+          "name"         -> key,
+          "clientId"     -> key,
+          "clientSecret" -> "clientSecret",
+          "authorizedPattern" -> Json.arr(
+            Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))
+          )
+        )
       ws.url(s"$rootPath/api/apikeys").post(apikey).futureValue must beAStatus(201)
 
       /* Verify */
@@ -48,10 +55,14 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
 
       /* Update */
       val apikeyUpdated =
-        Json.obj("name"              -> key,
-                 "clientId"          -> key,
-                 "clientSecret"      -> "clientSecret1",
-                 "authorizedPattern" -> "monclubfacile:*")
+        Json.obj(
+          "name"         -> key,
+          "clientId"     -> key,
+          "clientSecret" -> "clientSecret1",
+          "authorizedPattern" -> Json.arr(
+            Json.obj("pattern" -> "monclubfacile:*", "rights" -> Json.arr("C", "R", "U", "D"))
+          )
+        )
       ws.url(s"$rootPath/api/apikeys/$key")
         .put(apikeyUpdated)
         .futureValue must beAStatus(200)
@@ -95,7 +106,14 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
 
       /* Create */
       val apikey =
-        Json.obj("name" -> key, "clientId" -> key, "clientSecret" -> "clientSecret", "authorizedPattern" -> "*")
+        Json.obj(
+          "name"         -> key,
+          "clientId"     -> key,
+          "clientSecret" -> "clientSecret",
+          "authorizedPattern" -> Json.arr(
+            Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))
+          )
+        )
       ws.url(s"$rootPath/api/apikeys").post(apikey).futureValue must beAStatus(201)
 
       /* Verify */
@@ -103,10 +121,14 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
 
       /* Update */
       val apikeyUpdated =
-        Json.obj("name"              -> key2,
-                 "clientId"          -> key2,
-                 "clientSecret"      -> "clientSecret1",
-                 "authorizedPattern" -> "monclubfacile:*")
+        Json.obj(
+          "name"         -> key2,
+          "clientId"     -> key2,
+          "clientSecret" -> "clientSecret1",
+          "authorizedPattern" -> Json.arr(
+            Json.obj("pattern" -> "monclubfacile:*", "rights" -> Json.arr("C", "R", "U", "D"))
+          )
+        )
       ws.url(s"$rootPath/api/apikeys/$key")
         .put(apikeyUpdated)
         .futureValue must beAStatus(200)
