@@ -4,6 +4,7 @@ import cats.implicits._
 import cats.data.NonEmptyList
 import domains.Key.buildRegexPattern
 import domains.errors.{IzanamiErrors, Unauthorized}
+import libs.logs.LoggerModule
 import play.api.libs.json.Reads.pattern
 import zio.ZIO
 
@@ -211,17 +212,24 @@ object AuthorizedPatterns {
   def isAllowed(key: Key, patternRight: PatternRights, patterns: AuthorizedPatterns): Boolean =
     isAllowed(key.key, patternRight, patterns)
 
-  def isAllowed(key: String, patternRight: PatternRights): ZIO[AuthInfoModule[_], IzanamiErrors, Unit] =
-    ZIO.accessM[AuthInfoModule[_]] { auth =>
-      ZIO.when(!auth.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
-        ZIO.fail(IzanamiErrors(Unauthorized(Key(key))))
+  def isAllowed(key: String,
+                patternRight: PatternRights): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
+    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
+      ZIO.when(!ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
+        println(s"${ctx.authInfo} is allowed to access $key with $patternRight")
+        ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
+          IzanamiErrors(Unauthorized(Key(key)))
+        )
       }
     }
 
-  def isAllowed(key: Key, patternRight: PatternRights): ZIO[AuthInfoModule[_], IzanamiErrors, Unit] =
-    ZIO.accessM[AuthInfoModule[_]] { auth =>
-      ZIO.when(!auth.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
-        ZIO.fail(IzanamiErrors(Unauthorized(key)))
+  def isAllowed(key: Key, patternRight: PatternRights): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
+    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
+      ZIO.when(!ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
+        println(s"${ctx.authInfo} is allowed to access $key with $patternRight")
+        ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
+          IzanamiErrors(Unauthorized(key))
+        )
       }
     }
 

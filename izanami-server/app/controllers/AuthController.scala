@@ -33,7 +33,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
     val auth: Auth = req.body.as[Auth]
 
     UserService
-      .getById(Key(auth.userId))
+      .getByIdWithoutPermissions(Key(auth.userId))
       .mapError(_ => InternalServerError(""))
       .flatMap {
         case Some(user: User) =>
@@ -50,7 +50,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
           }
         case None =>
           UserService
-            .count(Query.oneOf("*"))
+            .countWithoutPermissions(Query.oneOf("*"))
             .map {
               case count
                   if count === 0 && auth.userId === _env.izanamiConfig.user.initialize.userId && auth.password === _env.izanamiConfig.user.initialize.password => {

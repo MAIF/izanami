@@ -102,7 +102,6 @@ class ConfigController(system: ActorSystem,
     import ConfigInstances._
     val key = Key(id)
     for {
-      _           <- Key.isAllowed(key, PatternRights.R, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
       config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
     } yield Ok(Json.toJson(config))
@@ -112,10 +111,7 @@ class ConfigController(system: ActorSystem,
     import ConfigInstances._
     for {
       config <- jsResultToHttpResponse(ctx.request.body.validate[Config])
-      _ <- Key.isAllowed(config.id, PatternRights.U, ctx.auth)(
-            Forbidden(ApiErrors.error("error.forbidden").toJson)
-          )
-      _ <- ConfigService.update(Key(id), config.id, config).mapError { ApiErrors.toHttpResult }
+      _      <- ConfigService.update(Key(id), config.id, config).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(config))
   }
 
@@ -125,11 +121,8 @@ class ConfigController(system: ActorSystem,
     for {
       mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
       current     <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
-      _ <- Key.isAllowed(current.id, PatternRights.U, ctx.auth)(
-            Forbidden(ApiErrors.error("error.forbidden").toJson)
-          )
-      updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
-      _       <- ConfigService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
+      updated     <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
+      _           <- ConfigService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
   }
 
@@ -139,10 +132,7 @@ class ConfigController(system: ActorSystem,
     for {
       mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
       config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
-      _ <- Key.isAllowed(config.id, PatternRights.D, ctx.auth)(
-            Forbidden(ApiErrors.error("error.forbidden").toJson)
-          )
-      _ <- ConfigService.delete(key).mapError { ApiErrors.toHttpResult }
+      _           <- ConfigService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(config))
   }
 

@@ -36,7 +36,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.fromString("pattern")))
+  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All, true))
 
   implicit val runtime = new DefaultRuntime {}
 
@@ -52,7 +52,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
       created mustBe Right(ragnard.copy(password = Sha.hexSha512("ragnar123456")))
 
-      run(context)(UserService.getById(key).refineToOrDie[IzanamiErrors].option).flatten mustBe Some(
+      run(context)(UserService.getById(key).option).flatten mustBe Some(
         ragnard.copy(password = Sha.hexSha512("ragnar123456"))
       )
 
@@ -60,7 +60,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val updated: Either[IzanamiErrors, User] = run(context)(UserService.update(key, key, toUpdate).either)
       updated mustBe Right(toUpdate.copy(password = Sha.hexSha512("ragnar1234")))
 
-      run(context)(UserService.getById(key).refineToOrDie[IzanamiErrors].option).flatten mustBe Some(
+      run(context)(UserService.getById(key).option).flatten mustBe Some(
         toUpdate.copy(password = Sha.hexSha512("ragnar1234"))
       )
     }
@@ -79,6 +79,23 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "password"          -> "ragnar123456",
         "admin"             -> false,
         "authorizedPattern" -> "*"
+      )
+
+      val read = Json.fromJson(json)(UserInstances.format)
+      read must be(JsSuccess(user))
+    }
+
+    "read IzanamiUser new version" in {
+      val user =
+        IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
+      val json = Json.obj(
+        "type"               -> "Izanami",
+        "id"                 -> "user1",
+        "name"               -> "Ragnard",
+        "email"              -> "ragnard@gmail.com",
+        "password"           -> "ragnar123456",
+        "admin"              -> false,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
       val read = Json.fromJson(json)(UserInstances.format)
@@ -105,13 +122,13 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val user =
         IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
-        "type"              -> "Izanami",
-        "password"          -> "ragnar123456",
-        "id"                -> "user1",
-        "name"              -> "Ragnard",
-        "email"             -> "ragnard@gmail.com",
-        "admin"             -> false,
-        "authorizedPattern" -> "*"
+        "type"               -> "Izanami",
+        "password"           -> "ragnar123456",
+        "id"                 -> "user1",
+        "name"               -> "Ragnard",
+        "email"              -> "ragnard@gmail.com",
+        "admin"              -> false,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
       val written: JsValue = Json.toJson(user)(UserInstances.format)
@@ -122,12 +139,12 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val user =
         IzanamiUser("user1", "Ragnard", "ragnard@gmail.com", "ragnar123456", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
-        "type"              -> "Izanami",
-        "id"                -> "user1",
-        "name"              -> "Ragnard",
-        "email"             -> "ragnard@gmail.com",
-        "admin"             -> false,
-        "authorizedPattern" -> "*"
+        "type"               -> "Izanami",
+        "id"                 -> "user1",
+        "name"               -> "Ragnard",
+        "email"              -> "ragnard@gmail.com",
+        "admin"              -> false,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
       val written: JsValue = Json.toJson(user)(UserNoPasswordInstances.format)
@@ -149,15 +166,30 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       read must be(JsSuccess(user))
     }
 
+    "read OauthUser new version" in {
+      val user = OauthUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val json = Json.obj(
+        "type"               -> "OAuth",
+        "id"                 -> "user1",
+        "name"               -> "Ragnard",
+        "email"              -> "ragnard@gmail.com",
+        "admin"              -> false,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
+      )
+
+      val read = Json.fromJson(json)(UserInstances.format)
+      read must be(JsSuccess(user))
+    }
+
     "write OauthUser" in {
       val user = OauthUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
-        "type"              -> "OAuth",
-        "id"                -> "user1",
-        "name"              -> "Ragnard",
-        "email"             -> "ragnard@gmail.com",
-        "admin"             -> false,
-        "authorizedPattern" -> "*"
+        "type"               -> "OAuth",
+        "id"                 -> "user1",
+        "name"               -> "Ragnard",
+        "email"              -> "ragnard@gmail.com",
+        "admin"              -> false,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
       val written: JsValue = Json.toJson(user)(UserInstances.format)
@@ -179,15 +211,30 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       read must be(JsSuccess(user))
     }
 
+    "read OtoroshiUser new version" in {
+      val user = OtoroshiUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val json = Json.obj(
+        "type"               -> "Otoroshi",
+        "id"                 -> "user1",
+        "name"               -> "Ragnard",
+        "email"              -> "ragnard@gmail.com",
+        "admin"              -> false,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
+      )
+
+      val read = Json.fromJson(json)(UserInstances.format)
+      read must be(JsSuccess(user))
+    }
+
     "write OtoroshihUser" in {
       val user = OtoroshiUser("user1", "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
-        "type"              -> "Otoroshi",
-        "id"                -> "user1",
-        "name"              -> "Ragnard",
-        "email"             -> "ragnard@gmail.com",
-        "admin"             -> false,
-        "authorizedPattern" -> "*"
+        "type"               -> "Otoroshi",
+        "id"                 -> "user1",
+        "name"               -> "Ragnard",
+        "email"              -> "ragnard@gmail.com",
+        "admin"              -> false,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
       val written: JsValue = Json.toJson(user)(UserInstances.format)
@@ -478,7 +525,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         new InMemoryJsonDataStore("users", store)
       override def eventStore: EventStore                                = new TestEventStore(events)
       override def withAuthInfo(authInfo: Option[AuthInfo]): UserContext = this
-      override def authInfo: Option[AuthInfo]                            = None
+      override def authInfo: Option[AuthInfo]                            = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
     }
 
 }

@@ -36,7 +36,7 @@ import scala.util.matching.Regex
 import store.{EmptyPattern, JsonDataStore, Pattern, StringPattern}
 import store.memorywithdb.InMemoryWithDbStore
 import errors._
-import zio.{RIO, Task, ZIO}
+import zio.{IO, RIO, Task, ZIO}
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.internal.Executor
@@ -339,6 +339,15 @@ object AuthInfo {
       })
     }
   )
+
+  def isAdmin(): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
+    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
+      IO.when(!ctx.authInfo.exists(_.admin)) {
+        println(s"${ctx.authInfo} is not admin")
+        ctx.logger.debug(s"${ctx.authInfo} is not admin") *>
+        ZIO.fail(IzanamiErrors(Unauthorized(Key("admin"))))
+      }
+    }
 }
 
 trait Jsoneable {

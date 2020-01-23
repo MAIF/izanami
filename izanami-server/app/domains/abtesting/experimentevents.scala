@@ -211,8 +211,8 @@ object ExperimentVariantEventService {
   ): zio.RIO[ExperimentVariantEventModule, Source[ExperimentVariantEvent, NotUsed]] =
     ZIO.accessM(_.experimentVariantEventService.listAll(patterns))
 
-  def check(): zio.RIO[ExperimentVariantEventModule, Unit] =
-    ZIO.accessM(_.experimentVariantEventService.check())
+  def check(): zio.ZIO[ExperimentVariantEventModule, IzanamiErrors, Unit] =
+    ZIO.accessM(_.experimentVariantEventService.check().refineToOrDie[IzanamiErrors])
 
   def start: zio.RIO[ExperimentVariantEventModule, Unit] =
     ZIO.accessM(_.experimentVariantEventService.start)

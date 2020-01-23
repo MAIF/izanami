@@ -25,9 +25,28 @@ object UserInstances {
 
   private[user] val reads: Reads[User] = {
     import domains.AuthorizedPatterns._
-    val readOtoroshiUser = Json.reads[OtoroshiUser]
-    val readIzanamiUser  = Json.reads[IzanamiUser]
-    val readOauthUser    = Json.reads[OauthUser]
+    import play.api.libs.json._
+    import play.api.libs.functional.syntax._
+    val commonReads = (
+      (__ \ "id").read[String] and
+      (__ \ "name").read[String] and
+      (__ \ "email").read[String] and
+      (__ \ "admin").read[Boolean] and
+      (__ \ "authorizedPatterns").read[AuthorizedPatterns].orElse((__ \ "authorizedPattern").read[AuthorizedPatterns])
+    )
+
+    val readOtoroshiUser = commonReads(OtoroshiUser.apply _)
+    val readOauthUser    = commonReads(OauthUser.apply _)
+
+    val readIzanamiUser = (
+      (__ \ "id").read[String] and
+      (__ \ "name").read[String] and
+      (__ \ "email").read[String] and
+      (__ \ "password").read[String] and
+      (__ \ "admin").read[Boolean] and
+      (__ \ "authorizedPatterns").read[AuthorizedPatterns].orElse((__ \ "authorizedPattern").read[AuthorizedPatterns])
+    )(IzanamiUser.apply _)
+
     (__ \ "type").readNullable[String].flatMap {
       case Some(UserType.Otoroshi) => readOtoroshiUser.asInstanceOf[Reads[User]]
       case Some(UserType.Oauth)    => readOauthUser.asInstanceOf[Reads[User]]

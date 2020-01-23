@@ -61,7 +61,6 @@ class GlobalScriptController(
     val body = ctx.request.body
     for {
       script <- jsResultToHttpResponse(body.validate[GlobalScript])
-      _      <- isScriptAllowed(ctx, PatternRights.C, script)
       _      <- GlobalScriptService.create(script.id, script).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(script))
   }
@@ -82,7 +81,6 @@ class GlobalScriptController(
       val body = ctx.request.body
       for {
         script <- jsResultToHttpResponse(body.validate[GlobalScript])
-        _      <- isScriptAllowed(ctx, PatternRights.U, script)
         _      <- GlobalScriptService.update(Key(id), script.id, script).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(script))
     }
@@ -94,15 +92,11 @@ class GlobalScriptController(
       for {
         mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
         current     <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
-        _           <- isScriptAllowed(ctx, PatternRights.U, current)
         body        = ctx.request.body
         updated     <- jsResultToHttpResponse(Patch.patch(body, current))
         _           <- GlobalScriptService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
       } yield Ok(Json.toJson(updated))
     }
-
-  private def isScriptAllowed(ctx: SecuredAuthContext[_], r: PatternRights, current: GlobalScript): IO[Result, Unit] =
-    Key.isAllowed(current.id, r, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[GlobalScriptContext] { ctx =>
     import GlobalScriptInstances._
@@ -110,7 +104,6 @@ class GlobalScriptController(
     for {
       mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       script      <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
-      _           <- isScriptAllowed(ctx, PatternRights.U, script)
       _           <- GlobalScriptService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(script))
   }

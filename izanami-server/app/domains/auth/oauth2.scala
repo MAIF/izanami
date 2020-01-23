@@ -46,10 +46,10 @@ object Oauth2Service {
                                  effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
     if (authConfig.izanamiManagedUser) {
       val id = Key(effectiveUser.id)
-      UserService.getById(id).refineToOrDie[IzanamiErrors].flatMap {
-        case None => UserService.create(id, effectiveUser)
+      UserService.getByIdWithoutPermissions(id).refineToOrDie[IzanamiErrors].flatMap {
+        case None => UserService.createWithoutPermission(id, effectiveUser)
         case Some(u: OauthUser) =>
-          UserService.update(id, id, u.copy(name = effectiveUser.name, email = effectiveUser.email))
+          UserService.updateWithoutPermission(id, id, u.copy(name = effectiveUser.name, email = effectiveUser.email))
         case _ => ZIO.succeed(effectiveUser)
       }
     } else {
@@ -59,7 +59,7 @@ object Oauth2Service {
   def enrichWithDb(authConfig: Oauth2Config, effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
     if (authConfig.izanamiManagedUser) {
       UserService
-        .getById(Key(effectiveUser.id))
+        .getByIdWithoutPermissions(Key(effectiveUser.id))
         .refineToOrDie[IzanamiErrors]
         .map {
           _.map { userFromDb =>

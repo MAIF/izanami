@@ -214,30 +214,34 @@ class WebHookActor(wSClient: WSClient, webhook: Webhook, config: WebhookConfig, 
     queue = Set.empty[IzanamiEvent]
     IzanamiLogger.debug(s"Sending events to ${webhook.callbackUrl} : $json")
     try {
-      runtime.unsafeRunToFuture(WebhookService.getById(id)).onComplete {
-        case Success(Some(w)) if !w.isBanned =>
-          wSClient
-            .url(webhook.callbackUrl)
-            .withHttpHeaders(effectivesHeaders: _*)
-            .withRequestTimeout(1.second)
-            .post(json)
-            .map { resp =>
-              if (resp.status != 200) {
-                IzanamiLogger.error(s"Error sending to webhook $callbackUrl : ${resp.body}")
-                handleErrors(id)
-              }
-              Done
-            }
-            .recover {
-              case e =>
-                IzanamiLogger.error(s"Error sending to webhook $callbackUrl", e)
-                handleErrors(id)
+      runtime
+        .unsafeRunToFuture(
+          WebhookService.getById(id).mapError(e => new RuntimeException(e.toString))
+        )
+        .onComplete {
+          case Success(Some(w)) if !w.isBanned =>
+            wSClient
+              .url(webhook.callbackUrl)
+              .withHttpHeaders(effectivesHeaders: _*)
+              .withRequestTimeout(1.second)
+              .post(json)
+              .map { resp =>
+                if (resp.status != 200) {
+                  IzanamiLogger.error(s"Error sending to webhook $callbackUrl : ${resp.body}")
+                  handleErrors(id)
+                }
                 Done
-            }
-        case Success(_) =>
-          context.stop(self)
-        case _ =>
-      }
+              }
+              .recover {
+                case e =>
+                  IzanamiLogger.error(s"Error sending to webhook $callbackUrl", e)
+                  handleErrors(id)
+                  Done
+              }
+          case Success(_) =>
+            context.stop(self)
+          case _ =>
+        }
 
     } catch {
       case e: Throwable =>

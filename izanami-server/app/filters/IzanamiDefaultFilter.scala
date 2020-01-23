@@ -112,7 +112,7 @@ class IzanamiDefaultFilter[F[_]: Effect](env: Env,
       runtime
         .unsafeRunToFuture(
           ApikeyService
-            .getById(Key(clientId))
+            .getByIdWithoutPermissions(Key(clientId))
         )
         .map { mayBeKey =>
           mayBeKey

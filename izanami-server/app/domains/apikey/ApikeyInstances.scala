@@ -14,7 +14,9 @@ object ApikeyInstances {
       (__ \ "clientId").read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
       (__ \ "name").read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
       (__ \ "clientSecret").read[String](pattern("^[@0-9\\p{L} .'-]+$".r)) and
-      (__ \ "authorizedPattern").read[AuthorizedPatterns](AuthorizedPatterns.reads) and
+      (__ \ "authorizedPattern")
+        .read[AuthorizedPatterns](AuthorizedPatterns.reads)
+        .orElse((__ \ "authorizedPatterns").read[AuthorizedPatterns](AuthorizedPatterns.reads)) and
       (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
     )(Apikey.apply _)
   }

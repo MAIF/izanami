@@ -782,7 +782,7 @@ object EventStore {
              lastEventId: Option[Long] = None): RIO[EventStoreContext, Source[IzanamiEvent, NotUsed]] =
     ZIO.access(_.eventStore.events(domains, patterns, lastEventId))
 
-  def check(): RIO[EventStoreContext, Unit] =
-    ZIO.accessM(_.eventStore.check())
+  def check(): ZIO[EventStoreContext, IzanamiErrors, Unit] =
+    ZIO.accessM(_.eventStore.check().refineToOrDie[IzanamiErrors])
 
 }

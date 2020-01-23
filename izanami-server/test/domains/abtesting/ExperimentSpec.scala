@@ -6,8 +6,9 @@ import java.time.temporal.{ChronoField, ChronoUnit}
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
-import domains.{errors, AuthInfo, Key}
+import domains.{errors, AuthInfo, AuthorizedPatterns, Key}
 import domains.abtesting.impl.ExperimentVariantEventInMemoryService
+import domains.apikey.Apikey
 import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated
 import libs.logs.{Logger, ProdLogger}
@@ -698,7 +699,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
           ZIO.succeed(PlatformLive.Global.executor)
       }
       override def withAuthInfo(authInfo: Option[AuthInfo]): ExperimentContext = this
-      override def authInfo: Option[AuthInfo]                                  = None
+      override def authInfo: Option[AuthInfo]                                  = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
     }
 
   def expEventsService(

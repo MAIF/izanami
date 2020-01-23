@@ -52,6 +52,7 @@ object ApikeyService {
 
   def create(id: ApikeyKey, data: Apikey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
     for {
+      _        <- AuthInfo.isAdmin()
       _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
       created  <- ApiKeyDataStore.create(id, Json.toJson(data))
       apikey   <- jsResultToError(created.validate[Apikey])
@@ -61,7 +62,8 @@ object ApikeyService {
 
   def update(oldId: ApikeyKey, id: ApikeyKey, data: Apikey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
     for {
-      mayBeOld <- getById(oldId).refineToOrDie[IzanamiErrors]
+      _        <- AuthInfo.isAdmin()
+      mayBeOld <- getById(oldId)
       oldValue <- ZIO.fromOption(mayBeOld).mapError(_ => DataShouldExists(oldId).toErrors)
       updated  <- ApiKeyDataStore.update(oldId, id, Json.toJson(data))
       apikey   <- jsResultToError(updated.validate[Apikey])
@@ -71,6 +73,7 @@ object ApikeyService {
 
   def delete(id: ApikeyKey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
     for {
+      _          <- AuthInfo.isAdmin()
       deleted    <- ApiKeyDataStore.delete(id)
       experiment <- jsResultToError(deleted.validate[Apikey])
       authInfo   <- AuthInfo.authInfo
@@ -78,21 +81,33 @@ object ApikeyService {
     } yield experiment
 
   def deleteAll(patterns: Seq[String]): ZIO[ApiKeyContext, IzanamiErrors, Unit] =
-    ApiKeyDataStore.deleteAll(patterns)
+    AuthInfo.isAdmin() *> ApiKeyDataStore.deleteAll(patterns)
 
-  def getById(id: ApikeyKey): RIO[ApiKeyContext, Option[Apikey]] =
-    ApiKeyDataStore.getById(id).map(_.flatMap(_.validate[Apikey].asOpt))
-
-  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ApiKeyContext, PagingResult[Apikey]] =
+  def getByIdWithoutPermissions(id: ApikeyKey): RIO[ApiKeyContext, Option[Apikey]] =
     ApiKeyDataStore
+      .getById(id)
+      .map(_.flatMap(_.validate[Apikey].asOpt))
+
+  def getById(id: ApikeyKey): ZIO[ApiKeyContext, IzanamiErrors, Option[Apikey]] =
+    AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).refineToOrDie[IzanamiErrors]
+
+  def findByQuery(query: Query,
+                  page: Int,
+                  nbElementPerPage: Int): ZIO[ApiKeyContext, IzanamiErrors, PagingResult[Apikey]] =
+    AuthInfo
+      .isAdmin() *> ApiKeyDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
+      .refineToOrDie[IzanamiErrors]
 
-  def findByQuery(query: Query): RIO[ApiKeyContext, Source[(Key, Apikey), NotUsed]] =
-    ApiKeyDataStore.findByQuery(query).map(_.readsKV[Apikey])
+  def findByQuery(query: Query): ZIO[ApiKeyContext, IzanamiErrors, Source[(Key, Apikey), NotUsed]] =
+    AuthInfo.isAdmin() *> ApiKeyDataStore.findByQuery(query).map(_.readsKV[Apikey]).refineToOrDie[IzanamiErrors]
 
-  def count(query: Query): RIO[ApiKeyContext, Long] =
+  def countWithoutPermissions(query: Query): RIO[ApiKeyContext, Long] =
     ApiKeyDataStore.count(query)
+
+  def count(query: Query): ZIO[ApiKeyContext, IzanamiErrors, Long] =
+    AuthInfo.isAdmin() *> countWithoutPermissions(query).refineToOrDie[IzanamiErrors]
 
   def importData(
       strategy: ImportStrategy = ImportStrategy.Keep

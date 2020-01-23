@@ -76,7 +76,7 @@ object GlobalScriptFeatureInstances {
           context: JsObject
       ): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
         for {
-          mayBeScript <- GlobalScriptService.getById(Key(feature.ref)).refineToOrDie[IzanamiErrors]
+          mayBeScript <- GlobalScriptService.getById(Key(feature.ref))
           script      <- ZIO.fromOption(mayBeScript).mapError(_ => IzanamiErrors(ValidationError.error("script.not.found")))
           exec <- script.source
                    .run(context)
