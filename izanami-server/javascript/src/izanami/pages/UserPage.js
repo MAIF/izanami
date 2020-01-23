@@ -44,8 +44,8 @@ export class UserPage extends Component {
       type: "bool",
       props: { label: "is admin", placeholder: "Is admin?" }
     },
-    authorizedPattern: {
-      type: "string",
+    authorizedPatterns: {
+      type: "authorizedPatterns",
       props: {
         label: "User authorized pattern",
         placeholder: "The User authorized pattern"
@@ -79,11 +79,11 @@ export class UserPage extends Component {
       title: "Authorized pattern",
       notFilterable: true,
       style: { textAlign: "center" },
-      content: item => item.authorizedPattern
+      content: item => item.authorizedPatterns.map(({pattern,rights}) => `${pattern}/${rights}`)
     }
   ];
 
-  formFlow = ["id", "name", "email", "password", "admin", "authorizedPattern"];
+  formFlow = ["id", "name", "email", "password", "admin", "authorizedPatterns"];
 
   fetchItems = args => {
     const { search = [], page, pageSize } = args;
@@ -125,7 +125,7 @@ export class UserPage extends Component {
               email: "john.doe@maif.fr",
               password: "",
               admin: true,
-              authorizedPattern: "*"
+              authorizedPattern: [{pattern:"*", rights:["C", "R", "U", "D"]}]
             })}
             parentProps={this.props}
             user={this.props.user}
