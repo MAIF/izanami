@@ -2,7 +2,6 @@ package domains
 
 import cats.implicits._
 import cats.data.NonEmptyList
-import domains.Key.buildRegexPattern
 import domains.errors.{IzanamiErrors, Unauthorized}
 import libs.logs.LoggerModule
 import play.api.libs.json.Reads.pattern

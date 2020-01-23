@@ -129,7 +129,14 @@ publishArtifact in (Compile, packageDoc) := false
 parallelExecution in Test := false
 
 swaggerDomainNameSpaces := Seq(
-  "domains",
+  "domains.abtesting",
+  "domains.apikey",
+  "domains.config",
+  "domains.events",
+  "domains.feature",
+  "domains.script",
+  "domains.user",
+  "domains.webhook",
   "controllers.dto.abtesting",
   "controllers.dto.apikeys",
   "controllers.dto.config",
