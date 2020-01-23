@@ -216,7 +216,7 @@ class WebHookActor(wSClient: WSClient, webhook: Webhook, config: WebhookConfig, 
     try {
       runtime
         .unsafeRunToFuture(
-          WebhookService.getById(id).mapError(e => new RuntimeException(e.toString))
+          WebhookService.getByIdWithoutPermissions(id)
         )
         .onComplete {
           case Success(Some(w)) if !w.isBanned =>
