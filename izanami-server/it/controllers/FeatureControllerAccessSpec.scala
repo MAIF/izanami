@@ -31,7 +31,7 @@ abstract class FeatureControllerWildcardAccessSpec(name: String, configurationSp
                 email = "ragnar.lodbrok@gmail.com",
                 admin = false,
                 password = "",
-                authorizedPattern = AuthorizedPattern("a:key2:*"))
+                authorizedPatterns = AuthorizedPatterns.fromString("a:key2:*"))
 
   s"$name FeatureControllerWildcardAccessSpec" should {
 
@@ -84,7 +84,7 @@ class FeatureControllerStrictAccessSpec(name: String, configurationSpec: Configu
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
                 password = "",
-                authorizedPattern = AuthorizedPattern("a:key"))
+                authorizedPatterns = AuthorizedPatterns.fromString("a:key"))
 
   s"$name FeatureControllerStrictAccessSpec" should {
 
