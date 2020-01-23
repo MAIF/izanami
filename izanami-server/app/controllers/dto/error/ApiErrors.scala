@@ -58,7 +58,7 @@ object ApiErrors {
 
   def toHttpResult(errors: IzanamiErrors): Result =
     errors.toList match {
-      case Unauthorized(id) :: _ => Results.Unauthorized(Json.toJson(error("error.data.unauthorized", id.key)))
+      case Unauthorized(id) :: _ => Results.Forbidden(Json.toJson(error("error.data.unauthorized", id.key)))
       case _                     => Results.BadRequest(Json.toJson(fromErrors(errors.toList)))
     }
 
