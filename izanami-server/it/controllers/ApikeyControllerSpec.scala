@@ -38,6 +38,7 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
           "name"         -> key,
           "clientId"     -> key,
           "clientSecret" -> "clientSecret",
+          "admin"        -> false,
           "authorizedPatterns" -> Json.arr(
             Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))
           )
@@ -59,6 +60,7 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
           "name"         -> key,
           "clientId"     -> key,
           "clientSecret" -> "clientSecret1",
+          "admin"        -> false,
           "authorizedPatterns" -> Json.arr(
             Json.obj("pattern" -> "monclubfacile:*", "rights" -> Json.arr("C", "R", "U", "D"))
           )
@@ -110,6 +112,7 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
           "name"         -> key,
           "clientId"     -> key,
           "clientSecret" -> "clientSecret",
+          "admin"        -> false,
           "authorizedPatterns" -> Json.arr(
             Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))
           )
@@ -125,6 +128,7 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
           "name"         -> key2,
           "clientId"     -> key2,
           "clientSecret" -> "clientSecret1",
+          "admin"        -> false,
           "authorizedPatterns" -> Json.arr(
             Json.obj("pattern" -> "monclubfacile:*", "rights" -> Json.arr("C", "R", "U", "D"))
           )
