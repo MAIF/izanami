@@ -34,13 +34,13 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       /* Create */
       val user = Json.obj(
-        "type"              -> "Izanami",
-        "id"                -> key,
-        "name"              -> "toto",
-        "email"             -> key,
-        "admin"             -> true,
-        "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
-        "type"              -> "Izanami"
+        "type"               -> "Izanami",
+        "id"                 -> key,
+        "name"               -> "toto",
+        "email"              -> key,
+        "admin"              -> true,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+        "type"               -> "Izanami"
       )
       ws.url(s"$rootPath/api/users")
         .post(user ++ Json.obj("password" -> "password"))
@@ -58,13 +58,13 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       /* Update */
       val userUpdated =
         Json.obj(
-          "type"              -> "Izanami",
-          "id"                -> key,
-          "name"              -> "toto deux",
-          "email"             -> key,
-          "admin"             -> true,
-          "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
-          "type"              -> "Izanami"
+          "type"               -> "Izanami",
+          "id"                 -> key,
+          "name"               -> "toto deux",
+          "email"              -> key,
+          "admin"              -> true,
+          "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+          "type"               -> "Izanami"
         )
       ws.url(s"$rootPath/api/users/$key")
         .put(userUpdated ++ Json.obj("password" -> "password"))
@@ -107,13 +107,13 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       val key2 = "toto2@maif.fr"
       /* Create */
       val user = Json.obj(
-        "type"              -> "Izanami",
-        "id"                -> key,
-        "name"              -> "toto",
-        "email"             -> key,
-        "admin"             -> true,
-        "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
-        "type"              -> "Izanami"
+        "type"               -> "Izanami",
+        "id"                 -> key,
+        "name"               -> "toto",
+        "email"              -> key,
+        "admin"              -> true,
+        "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+        "type"               -> "Izanami"
       )
       ws.url(s"$rootPath/api/users")
         .post(user ++ Json.obj("password" -> "password"))
@@ -125,13 +125,13 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       /* Update */
       val userUpdated =
         Json.obj(
-          "type"              -> "Izanami",
-          "id"                -> key2,
-          "name"              -> "toto deux",
-          "email"             -> key,
-          "admin"             -> true,
-          "authorizedPattern" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
-          "type"              -> "Izanami"
+          "type"               -> "Izanami",
+          "id"                 -> key2,
+          "name"               -> "toto deux",
+          "email"              -> key,
+          "admin"              -> true,
+          "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
+          "type"               -> "Izanami"
         )
       ws.url(s"$rootPath/api/users/$key")
         .put(userUpdated ++ Json.obj("password" -> "password"))
