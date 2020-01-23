@@ -101,7 +101,6 @@ class ExperimentController(system: ActorSystem,
       import ExperimentInstances._
       val key = Key(id)
       for {
-        _          <- Key.isAllowed(key, PatternRights.R, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
         mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
         experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))

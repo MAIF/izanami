@@ -54,7 +54,6 @@ class WebhookController(system: ActorSystem,
     val body = ctx.request.body
     for {
       webhook <- jsResultToHttpResponse(body.validate[Webhook])
-      _       <- isWebhookAllowed(webhook, PatternRights.C, ctx)
       _       <- WebhookService.create(webhook.clientId, webhook).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(webhook))
 
@@ -64,7 +63,6 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      _       <- Key.isAllowed(key, PatternRights.R, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
     } yield Ok(Json.toJson(webhook))
@@ -75,7 +73,6 @@ class WebhookController(system: ActorSystem,
     val body = ctx.request.body
     for {
       webhook <- jsResultToHttpResponse(body.validate[Webhook])
-      _       <- isWebhookAllowed(webhook, PatternRights.U, ctx)
       _       <- WebhookService.update(Key(id), webhook.clientId, webhook).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(webhook))
   }
@@ -86,7 +83,6 @@ class WebhookController(system: ActorSystem,
     for {
       mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- isWebhookAllowed(webhook, PatternRights.U, ctx)
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, webhook))
       _       <- WebhookService.update(key, webhook.clientId, updated).mapError { ApiErrors.toHttpResult }
@@ -99,7 +95,6 @@ class WebhookController(system: ActorSystem,
     for {
       mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- isWebhookAllowed(webhook, PatternRights.D, ctx)
       _       <- WebhookService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(webhook))
   }
@@ -144,8 +139,4 @@ class WebhookController(system: ActorSystem,
   def upload(strStrategy: String) = AuthAction.asyncTask[WebhookContext](Import.ndJson) { ctx =>
     ImportData.importHttp(strStrategy, ctx.body, WebhookService.importData)
   }
-
-  private def isWebhookAllowed(webhook: Webhook, r: PatternRights, ctx: SecuredAuthContext[_]): zio.IO[Result, Unit] =
-    Key.isAllowed(webhook.clientId, r, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
-
 }

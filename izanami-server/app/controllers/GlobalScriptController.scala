@@ -69,7 +69,6 @@ class GlobalScriptController(
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      _            <- Key.isAllowed(key, PatternRights.R, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       mayBeScript  <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
       globalScript <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
     } yield Ok(Json.toJson(globalScript))

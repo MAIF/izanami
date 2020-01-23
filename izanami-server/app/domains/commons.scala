@@ -512,22 +512,6 @@ object Key {
   private[domains] def buildRegex(pattern: String): Regex =
     buildRegexPattern(pattern).r
 
-  def isAllowed(key: Key, rights: PatternRights)(mayBeAuth: Option[AuthInfo]): Boolean =
-    mayBeAuth.exists { auth =>
-      AuthorizedPatterns.isAllowed(key, rights, auth.authorizedPatterns)
-    }
-
-  def isAllowed[R](key: Key, rights: PatternRights, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
-    isAllowed(key, rights)(auth) match {
-      case true  => zio.IO.succeed(())
-      case false => zio.ZIO.fail(ifNotAllowed)
-    }
-
-  def isAllowed(patternToCheck: String, rights: PatternRights)(mayBeAuth: Option[AuthInfo]): Boolean =
-    mayBeAuth.exists { auth =>
-      AuthorizedPatterns.isAllowed(patternToCheck, rights, auth.authorizedPatterns)
-    }
-
   val reads: Reads[Key] =
     __.read[String](pattern("(([\\w@\\.0-9\\-]+)(:?))+".r)).map(Key.apply)
   val writes: Writes[Key] = Writes[Key] { k =>
