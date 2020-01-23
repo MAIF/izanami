@@ -34,6 +34,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       /* Create */
       val user = Json.obj(
+        "type"              -> "Izanami",
         "id"                -> key,
         "name"              -> "toto",
         "email"             -> key,
@@ -57,6 +58,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       /* Update */
       val userUpdated =
         Json.obj(
+          "type"              -> "Izanami",
           "id"                -> key,
           "name"              -> "toto deux",
           "email"             -> key,
@@ -105,6 +107,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       val key2 = "toto2@maif.fr"
       /* Create */
       val user = Json.obj(
+        "type"              -> "Izanami",
         "id"                -> key,
         "name"              -> "toto",
         "email"             -> key,
@@ -122,6 +125,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       /* Update */
       val userUpdated =
         Json.obj(
+          "type"              -> "Izanami",
           "id"                -> key2,
           "name"              -> "toto deux",
           "email"             -> key,
