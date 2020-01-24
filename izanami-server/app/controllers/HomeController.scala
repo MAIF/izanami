@@ -12,11 +12,11 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
 
   private val maybeOauth2Config: Option[Oauth2Config] = _env.izanamiConfig.oauth2.filter(_.enabled)
 
-  private lazy val enabledUserManagement: Boolean =
+  private lazy val userManagementMode: String =
     (_env.izanamiConfig.filter, maybeOauth2Config) match {
-      case (_, Some(c))        => c.izanamiManagedUser
-      case (_: env.Default, _) => true
-      case _                   => false
+      case (_, Some(c)) if c.izanamiManagedUser => "OAuth"
+      case (_: env.Default, _)                  => "Izanami"
+      case _                                    => "None"
     }
   private lazy val enabledApikeyManagement: Boolean = _env.izanamiConfig.filter match {
     case _: env.Default => true
@@ -42,7 +42,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
                    baseURL,
                    logoutUrl,
                    confirmationDialog,
-                   enabledUserManagement,
+                   userManagementMode,
                    enabledApikeyManagement,
                    toJson(ctx.auth),
                    version)
@@ -62,7 +62,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
                            baseURL,
                            logoutUrl,
                            confirmationDialog,
-                           enabledUserManagement,
+                           userManagementMode,
                            enabledApikeyManagement,
                            toJson(ctx.auth),
                            version)

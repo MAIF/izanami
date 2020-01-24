@@ -29,7 +29,6 @@ class GlobalScriptController(
 
   implicit val materializer = ActorMaterializer()(system)
 
-  // TODO abilitations lists
   def list(pattern: String, name_only: Option[Boolean], page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncTask[GlobalScriptContext](parse.empty) { ctx =>
       import GlobalScriptInstances._

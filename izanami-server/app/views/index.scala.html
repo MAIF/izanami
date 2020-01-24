@@ -1,6 +1,6 @@
 @import play.api.libs.json.{JsValue, Json}
 
-@(_env: env.Env, baseURL: String, logout: String, confirmationDialog: Boolean, enabledUserManagement: Boolean, enabledApikeyManagement: Boolean, user: JsValue, version: String)
+@(_env: env.Env, baseURL: String, logout: String, confirmationDialog: Boolean, userManagementMode: String, enabledApikeyManagement: Boolean, user: JsValue, version: String)
 
 <!DOCTYPE html>
 <html>
@@ -24,7 +24,7 @@
     <div id="app"></div>
     <script type="application/javascript">
         window.__contextPath = '@baseURL';
-        Izanami.init(document.getElementById("app"), '@logout', @confirmationDialog, @enabledUserManagement, @enabledApikeyManagement, JSON.parse('@Html(Json.stringify(user))'));
+        Izanami.init(document.getElementById("app"), '@logout', @confirmationDialog, '@userManagementMode', @enabledApikeyManagement, JSON.parse('@Html(Json.stringify(user))'));
     </script>
     <script>'Version: @version'</script>
   </body>

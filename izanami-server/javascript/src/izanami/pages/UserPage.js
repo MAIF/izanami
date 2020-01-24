@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
 import {Table, TextInput} from "../inputs";
 import isEqual from "lodash/isEqual";
+import {AuthorizedPatterns} from "../inputs/AuthorizedPatterns";
 
 
 class StringOrDisabled extends Component {
@@ -79,7 +80,7 @@ export class UserPage extends Component {
       title: "Authorized pattern",
       notFilterable: true,
       style: { textAlign: "center" },
-      content: item => item.authorizedPatterns.map(({pattern,rights}) => `${pattern}/${rights}`)
+      content: item => <AuthorizedPatterns value={item.authorizedPatterns}/>
     }
   ];
 
@@ -115,6 +116,7 @@ export class UserPage extends Component {
   }
 
   render() {
+    console.log("Props", this.props);
     return (
       <div className="col-md-12">
         <div className="row">
@@ -148,6 +150,7 @@ export class UserPage extends Component {
               { title: "Upload - ignore if exists", link: "/api/users.ndjson?strategy=Keep" }
             ]}
             showActions={true}
+            disableAddButton={this.props.userManagementMode === "OAuth"}
             showLink={false}
             eventNames={{
               created: "USER_CREATED",

@@ -25,7 +25,6 @@ class WebhookController(system: ActorSystem,
 
   implicit val materializer = ActorMaterializer()(system)
 
-  // TODO abilitations for lists
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncTask[WebhookContext](parse.empty) { ctx =>
       import WebhookInstances._

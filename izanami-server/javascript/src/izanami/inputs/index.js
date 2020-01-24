@@ -20,5 +20,6 @@ export * from "./FieldError";
 export * from "./AsyncSelectInput";
 export * from "./MultiSearch";
 export * from "./OptionalField";
+export * from "./AuthorizedPatternsInput"
 export * from "./AuthorizedPatterns"
 //export * from './popover';

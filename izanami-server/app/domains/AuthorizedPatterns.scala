@@ -2,11 +2,14 @@ package domains
 
 import cats.implicits._
 import cats.data.NonEmptyList
+import cats.data.NonEmptySet
+import cats.kernel.Order
 import domains.errors.{IzanamiErrors, Unauthorized}
 import libs.logs.LoggerModule
 import play.api.libs.json.Reads.pattern
 import zio.ZIO
 
+import scala.collection.{immutable, SortedSet}
 import scala.util.matching.Regex
 
 trait PatternRight
@@ -18,9 +21,18 @@ object PatternRight {
   case object Update extends PatternRight with Product with Serializable
   case object Delete extends PatternRight with Product with Serializable
 
+  val C: PatternRight = Read
+  val R: PatternRight = Create
+  val U: PatternRight = Update
+  val D: PatternRight = Delete
+
+  private val order = List(Create, Read, Update, Delete)
+
+  private def index(p: PatternRight): Int = order.indexOf(p)
+
   def stringValue(r: PatternRight): String = r match {
-    case Read   => "R"
     case Create => "C"
+    case Read   => "R"
     case Update => "U"
     case Delete => "D"
   }
@@ -49,16 +61,16 @@ object PatternRight {
   }
 
   implicit val eq: cats.Eq[PatternRight] = cats.Eq.fromUniversalEquals
+
+  implicit val ord: Order[PatternRight] = Order.from { (p1, p2) =>
+    index(p1) - index(p2)
+  }
 }
 
-case class PatternRights(rights: NonEmptyList[PatternRight]) {
-  override def equals(obj: Any): Boolean = obj match {
-    case r: PatternRights => r.rights.toList == this.rights.toList
-    case _                => false
-  }
+abstract case class PatternRights private[PatternRights] (rights: NonEmptySet[PatternRight]) {
 
   def ++(p: PatternRights): PatternRights =
-    PatternRights(rights ++ p.rights.toList)
+    PatternRights.fromNES(rights ++ p.rights)
 
   def isAllowed(patternRight: PatternRights): Boolean =
     patternRight.rights.map(r => rights.contains_(r)).reduceLeft(_ && _)
@@ -69,17 +81,23 @@ object PatternRights {
   import play.api.libs.json.Reads._
   import PatternRight._
 
-  val C: PatternRights    = PatternRights(NonEmptyList.of(Create))
-  val R: PatternRights    = PatternRights(NonEmptyList.of(Read))
-  val U: PatternRights    = PatternRights(NonEmptyList.of(Update))
-  val D: PatternRights    = PatternRights(NonEmptyList.of(Delete))
-  val W: PatternRights    = PatternRights(NonEmptyList.of(Create, Update, Delete))
-  val CRUD: PatternRights = PatternRights(NonEmptyList.of(Create, Read, Update, Delete))
+  val C: PatternRights    = PatternRights(Read, Create)
+  val R: PatternRights    = PatternRights(Read)
+  val U: PatternRights    = PatternRights(Read, Update)
+  val D: PatternRights    = PatternRights(Read, Delete)
+  val CRUD: PatternRights = PatternRights(Create, Read, Update, Delete)
 
-  def apply(p: PatternRight, other: PatternRight*): PatternRights = PatternRights(NonEmptyList.of(p, other: _*))
+  def fromNES(rights: NonEmptySet[PatternRight]): PatternRights = new PatternRights(rights.add(Read)) {}
 
-  def fromList(l: List[PatternRight]): PatternRights =
-    NonEmptyList.fromList(l).map(PatternRights.apply).getOrElse(PatternRights.CRUD)
+  def apply(other: PatternRight*): PatternRights =
+    /*_*/ fromNES(NonEmptySet.of(Read, other: _*) /*_*/ )
+
+  def fromList(l: List[PatternRight]): PatternRights = {
+    val value: immutable.SortedSet[PatternRight] = immutable.SortedSet.from(l)
+    /*_*/
+    NonEmptySet.fromSet(value).map(PatternRights.fromNES _).getOrElse(PatternRights.CRUD)
+    /*_*/
+  }
 
   val reads: Reads[PatternRights] = __.read[List[PatternRight]].map(l => fromList(l))
 
@@ -94,7 +112,7 @@ object PatternRights {
     val option: Option[List[PatternRight]] = str.split("").toList.traverse {
       PatternRight.fromString
     }
-    option.flatMap(NonEmptyList.fromList).map(PatternRights.apply).getOrElse(PatternRights.CRUD)
+    option.map(fromList).getOrElse(PatternRights.CRUD)
   }
 
 }
@@ -120,6 +138,9 @@ object AuthorizedPattern {
   import PatternRights._
   import play.api.libs.json._
   import play.api.libs.functional.syntax._
+
+  def of(pattern: String, other: PatternRight*): AuthorizedPattern =
+    AuthorizedPattern(pattern, PatternRights(other: _*))
 
   private def buildRegexPattern(pattern: String): String =
     if (pattern.isEmpty) "$^"
@@ -171,6 +192,10 @@ case class AuthorizedPatterns(patterns: AuthorizedPattern*)
 object AuthorizedPatterns {
   import play.api.libs.json._
 
+  def of(t: (String, PatternRights)*): AuthorizedPatterns = AuthorizedPatterns(
+    t.map { case (p, r) => AuthorizedPattern(p, r) }: _*
+  )
+
   def parse(str: String): Option[AuthorizedPatterns] = {
     val mayBePatterns: Option[List[AuthorizedPattern]] =
       str.split(",").toList.map { AuthorizedPattern.fromString }.sequence
@@ -216,7 +241,7 @@ object AuthorizedPatterns {
     ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
       ZIO.when(!ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
         ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
-          IzanamiErrors(Unauthorized(Key(key)))
+          IzanamiErrors(Unauthorized(Some(Key(key))))
         )
       }
     }
@@ -225,7 +250,7 @@ object AuthorizedPatterns {
     ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
       ZIO.when(!ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
         ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
-          IzanamiErrors(Unauthorized(key))
+          IzanamiErrors(Unauthorized(Some(key)))
         )
       }
     }

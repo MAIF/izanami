@@ -48,7 +48,7 @@ class AuthInfoSpec extends IzanamiSpec {
 
       val r                                = Runtime(authModule, PlatformLive.Default)
       val res: Either[IzanamiErrors, Unit] = r.unsafeRun(AuthInfo.isAdmin().either)
-      res must be(Left(NonEmptyList.of(Unauthorized(Key("admin")))))
+      res must be(Left(NonEmptyList.of(Unauthorized(None))))
     }
   }
 }

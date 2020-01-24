@@ -66,7 +66,6 @@ object User {
        (user \ authConfig.authorizedPatternField)
          .asOpt[String]
          .map(s => AuthorizedPatterns.fromString(s))
-         // TODO : revoir la config
          .getOrElse(AuthorizedPatterns.fromString(authConfig.defaultPatterns))
      ))
       .parMapN(OauthUser.apply)
