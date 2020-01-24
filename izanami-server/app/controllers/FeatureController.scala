@@ -32,7 +32,6 @@ class FeatureController(system: ActorSystem,
 
   implicit lazy val mat: Materializer = ActorMaterializer()(system)
 
-  // TODO abilitations for lists
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncZio[FeatureContext](parse.empty) { ctx =>
       import FeatureInstances._

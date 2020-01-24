@@ -74,6 +74,7 @@ export class Table extends Component {
     rowNavigation: false,
     pageSize: 20,
     firstSort: null,
+    disableAddButton: false,
     convertItem: e => e,
     compareItem: (a, b) => isEqual(a, b)
   };
@@ -743,7 +744,7 @@ export class Table extends Component {
                   <span className="glyphicon glyphicon-refresh" />
                 </button>
 
-                {this.props.showActions && (
+                {this.props.showActions && !this.props.disableAddButton && (
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -783,7 +784,7 @@ export class Table extends Component {
                             </a>
                           </li>
                         ))}
-                      {this.props.uploadLinks &&
+                      {this.props.uploadLinks && !this.props.disableAddButton &&
                         this.props.uploadLinks.map(({ title, link }, i) => (
                           <li key={`upload-${i}`}>
                             <a

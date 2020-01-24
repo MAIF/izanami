@@ -56,7 +56,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     import ApikeyInstances._
     val key = Key(id)
     for {
-      mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
+      mayBe  <- ApikeyService.getById(key).mapError { ApiErrors.toHttpResult }
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
     } yield Ok(Json.toJson(apikey))
   }
@@ -77,7 +77,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     val key = Key(id)
     // format: off
     for {
-      mayBe   <- ApikeyService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- ApikeyService.getById(key).mapError { ApiErrors.toHttpResult }
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
       _ <- ApikeyService.update(key, Key(current.clientId), updated).mapError { ApiErrors.toHttpResult }
@@ -90,7 +90,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
 
     val key = Key(id)
     for {
-      mayBe  <- ApikeyService.getById(key).mapError(_ => InternalServerError)
+      mayBe  <- ApikeyService.getById(key).mapError { ApiErrors.toHttpResult }
       apikey <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _      <- ApikeyService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(apikey))

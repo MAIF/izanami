@@ -344,7 +344,7 @@ object AuthInfo {
     ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
       IO.when(!ctx.authInfo.exists(_.admin)) {
         ctx.logger.debug(s"${ctx.authInfo} is not admin") *>
-        ZIO.fail(IzanamiErrors(Unauthorized(Key("admin"))))
+        ZIO.fail(IzanamiErrors(Unauthorized(None)))
       }
     }
 }

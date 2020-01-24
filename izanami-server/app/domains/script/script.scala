@@ -145,7 +145,6 @@ object GlobalScriptService {
     // format: on
 
   def deleteAll(query: Query): ZIO[GlobalScriptContext, IzanamiErrors, Unit] =
-    // TODO deletes
     GlobalScriptDataStore.deleteAll(query)
 
   def getById(id: GlobalScriptKey): ZIO[GlobalScriptContext, IzanamiErrors, Option[GlobalScript]] =
@@ -158,13 +157,11 @@ object GlobalScriptService {
   def findByQuery(query: Query,
                   page: Int = 1,
                   nbElementPerPage: Int = 15): RIO[GlobalScriptContext, PagingResult[GlobalScript]] =
-    // TODO queries
     GlobalScriptDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
   def findByQuery(query: Query): RIO[GlobalScriptContext, Source[(GlobalScriptKey, GlobalScript), NotUsed]] =
-    // TODO queries
     GlobalScriptDataStore.findByQuery(query).map { s =>
       s.map {
         case (k, v) => (k, v.validate[GlobalScript].get)
@@ -172,7 +169,6 @@ object GlobalScriptService {
     }
 
   def count(query: Query): RIO[GlobalScriptContext, Long] =
-    // TODO
     GlobalScriptDataStore.count(query)
 
   def importData(

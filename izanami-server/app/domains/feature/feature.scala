@@ -187,7 +187,6 @@ object FeatureService {
     } yield feature
 
   def deleteAll(query: Query): ZIO[FeatureContext, IzanamiErrors, Unit] =
-    // TODO deletes
     FeatureDataStore.deleteAll(query) <* MetricsService.incFeatureDeleted(query.toString())
 
   def getById(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Option[Feature]] =
@@ -213,7 +212,6 @@ object FeatureService {
     } yield result
 
   def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[FeatureContext, PagingResult[Feature]] =
-    // TODO queries
     FeatureDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
@@ -224,7 +222,6 @@ object FeatureService {
       page: Int,
       nbElementPerPage: Int
   ): ZIO[FeatureContext, IzanamiErrors, PagingResult[(Feature, Boolean)]] =
-    // TODO queries
     for {
       pages <- findByQuery(query, page, nbElementPerPage).refineToOrDie[IzanamiErrors]
       pagesWithActive <- pages.results.toList
@@ -240,7 +237,6 @@ object FeatureService {
     } yield DefaultPagingResult(pagesWithActive, pages.page, pages.pageSize, pages.count)
 
   def findByQuery(query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature), NotUsed]] =
-    // TODO queries
     FeatureDataStore.findByQuery(query).map { s =>
       s.map {
         case (k, v) => (k, v.validate[Feature].get)
@@ -248,7 +244,6 @@ object FeatureService {
     }
 
   def findAllByQuery(query: Query): RIO[FeatureContext, List[(FeatureKey, Feature)]] =
-    // TODO queries
     FeatureDataStore
       .findByQuery(query)
       .map { s =>
@@ -267,7 +262,6 @@ object FeatureService {
 
   def findByQueryActive(context: JsObject,
                         query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
-    // TODO queries
     for {
       runtime <- ZIO.runtime[FeatureContext]
       res <- ZIO.accessM[FeatureContext] { _ =>
@@ -297,11 +291,9 @@ object FeatureService {
     } yield res
 
   def count(query: Query): RIO[FeatureContext, Long] =
-    // TODO queries
     FeatureDataStore.count(query)
 
   def getFeatureTree(query: Query, flat: Boolean, context: JsObject): RIO[FeatureContext, Source[JsValue, NotUsed]] =
-    // TODO queries
     for {
       s    <- findByQuery(query)
       flow <- tree(flat)(context)
@@ -362,7 +354,6 @@ object FeatureService {
   private def tree(
       flatRepr: Boolean
   )(context: JsObject): RIO[FeatureContext, Flow[Feature, JsValue, NotUsed]] =
-    // TODO queries
     ZIO.accessM[FeatureContext] { _ =>
       if (flatRepr) Feature.flat(context)
       else Feature.toGraph(context)

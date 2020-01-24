@@ -88,7 +88,6 @@ object ConfigService {
     // format: on
 
   def deleteAll(query: Query): ZIO[ConfigContext, IzanamiErrors, Unit] =
-    // TODO deletes
     ConfigDataStore.deleteAll(query)
 
   def getById(id: ConfigKey): ZIO[ConfigContext, IzanamiErrors, Option[Config]] =

@@ -52,7 +52,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
 
     "stringValue" in {
       PatternRights.stringValue(PatternRights.CRUD) must be("CRUD")
-      PatternRights.stringValue(PatternRights.C) must be("C")
+      PatternRights.stringValue(PatternRights.C) must be("CR")
     }
 
     "json reads" in {
@@ -101,14 +101,14 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
     }
   }
 
-  "AuthorizedPatterns" must {
+  "AuthorizedPatternsInput" must {
     "fromString" in {
       AuthorizedPatterns.fromString("*$$$R") must be(AuthorizedPatterns(AuthorizedPattern("*", PatternRights.R)))
       AuthorizedPatterns.fromString("*$$$R,test$$$CRUD,test2$$$UD") must be(
         AuthorizedPatterns(
-          AuthorizedPattern("*", PatternRights.R),
+          AuthorizedPattern.of("*", PatternRight.Read),
           AuthorizedPattern("test", PatternRights.CRUD),
-          AuthorizedPattern("test2", PatternRights.U ++ PatternRights.D)
+          AuthorizedPattern.of("test2", PatternRight.Update, PatternRight.Delete)
         )
       )
       AuthorizedPatterns.fromString("abcdefg") must be(
@@ -122,9 +122,9 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       AuthorizedPatterns.stringValue(
         AuthorizedPatterns(
           AuthorizedPattern("*", PatternRights.CRUD),
-          AuthorizedPattern("test", PatternRights.C),
+          AuthorizedPattern.of("test", PatternRight.Create),
         )
-      ) must be("*$$$CRUD,test$$$C")
+      ) must be("*$$$CRUD,test$$$CR")
     }
 
     "json reads" in {
@@ -134,9 +134,9 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       AuthorizedPatterns.format.reads(JsString("*$$$R,test$$$CRUD,test2$$$UD")) must be(
         JsSuccess(
           AuthorizedPatterns(
-            AuthorizedPattern("*", PatternRights.R),
+            AuthorizedPattern.of("*", PatternRight.Read),
             AuthorizedPattern("test", PatternRights.CRUD),
-            AuthorizedPattern("test2", PatternRights.U ++ PatternRights.D)
+            AuthorizedPattern.of("test2", PatternRight.Update, PatternRight.Delete)
           )
         )
       )
@@ -153,7 +153,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
         Json.arr(
           Json.obj("pattern" -> "*", "rights"     -> Json.arr("R")),
           Json.obj("pattern" -> "test", "rights"  -> Json.arr("C", "R", "U", "D")),
-          Json.obj("pattern" -> "test2", "rights" -> Json.arr("U", "D"))
+          Json.obj("pattern" -> "test2", "rights" -> Json.arr("R", "U", "D"))
         )
       )
     }
@@ -162,7 +162,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
 
       val authorizedPatterns = AuthorizedPatterns(
         AuthorizedPattern("path1:*", PatternRights.R),
-        AuthorizedPattern("path2", PatternRights.W),
+        AuthorizedPattern("path2", PatternRights.CRUD),
         AuthorizedPattern("path3", PatternRights.CRUD),
         AuthorizedPattern("path4", PatternRights.U ++ PatternRights.D)
       )
@@ -170,13 +170,10 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       AuthorizedPatterns.isAllowed("path1:path2:path3", PatternRights.R, authorizedPatterns) must be(true)
       AuthorizedPatterns.isAllowed("path1:path2:path3", PatternRights.C, authorizedPatterns) must be(false)
 
-      AuthorizedPatterns.isAllowed("path2", PatternRights.W, authorizedPatterns) must be(true)
-      AuthorizedPatterns.isAllowed("path2", PatternRights.CRUD, authorizedPatterns) must be(false)
-      AuthorizedPatterns.isAllowed("path2:path3", PatternRights.W, authorizedPatterns) must be(false)
+      AuthorizedPatterns.isAllowed("path2", PatternRights.CRUD, authorizedPatterns) must be(true)
+      AuthorizedPatterns.isAllowed("path2:path3", PatternRights.CRUD, authorizedPatterns) must be(false)
 
-      AuthorizedPatterns.isAllowed("path3", PatternRights.W, authorizedPatterns) must be(true)
-
-      AuthorizedPatterns.isAllowed("path4", PatternRights.R, authorizedPatterns) must be(false)
+      AuthorizedPatterns.isAllowed("path4", PatternRights.C, authorizedPatterns) must be(false)
     }
 
     "check is allowed" in {
@@ -212,7 +209,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       val r = Runtime(authModule, PlatformLive.Default)
       val res: Either[IzanamiErrors, Unit] =
         r.unsafeRun(AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either)
-      res must be(Left(NonEmptyList.of(Unauthorized(Key("test")))))
+      res must be(Left(NonEmptyList.of(Unauthorized(Some(Key("test"))))))
     }
   }
 }

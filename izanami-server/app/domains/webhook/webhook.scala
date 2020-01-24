@@ -105,7 +105,6 @@ object WebhookService {
     AuthorizedPatterns.isAllowed(id, PatternRights.R) *> getByIdWithoutPermissions(id).refineToOrDie[IzanamiErrors]
 
   def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[WebhookContext, PagingResult[Webhook]] =
-    // TODO queries
     WebhookDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))

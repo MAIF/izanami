@@ -234,7 +234,6 @@ object ExperimentService {
     // format: on
 
   def deleteAll(q: Query): ZIO[ExperimentContext, IzanamiErrors, Unit] =
-    // TODO deletes
     ExperimentDataStore.deleteAll(q)
 
   def getById(id: ExperimentKey): ZIO[ExperimentContext, IzanamiErrors, Option[Experiment]] =
@@ -244,13 +243,11 @@ object ExperimentService {
       .map(_.flatMap(_.validate[Experiment].asOpt))
 
   def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ExperimentContext, PagingResult[Experiment]] =
-    // TODO queries
     ExperimentDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
 
   def findByQuery(query: Query): RIO[ExperimentContext, Source[(Key, Experiment), NotUsed]] =
-    // TODO queries
     ExperimentDataStore
       .findByQuery(query)
       .map {

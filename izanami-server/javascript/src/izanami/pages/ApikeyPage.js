@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
-import { Table } from "../inputs";
+import {AuthorizedPatterns, Table} from "../inputs";
 import faker from "faker";
 
 export class ApikeyPage extends Component {
@@ -17,10 +17,10 @@ export class ApikeyPage extends Component {
       type: "string",
       props: { label: "Client Secret", placeholder: "The Client Secret" }
     },
-    authorizedPattern: {
-      type: "string",
+    authorizedPatterns: {
+      type: "authorizedPatterns",
       props: {
-        label: "Authorized pattern",
+        label: "Authorized patterns",
         placeholder: "The Authorized pattern"
       }
     }
@@ -43,13 +43,13 @@ export class ApikeyPage extends Component {
       content: item => item.clientSecret
     },
     {
-      title: "Authorized pattern",
+      title: "Authorized patterns",
       notFilterable: true,
-      content: item => item.authorizedPattern
+      content: item => <AuthorizedPatterns value={item.authorizedPatterns} />
     }
   ];
 
-  formFlow = ["name", "clientId", "clientSecret", "authorizedPattern"];
+  formFlow = ["name", "clientId", "clientSecret", "authorizedPatterns"];
 
   fetchItems = args => {
     const { search = [], page, pageSize } = args;
@@ -89,7 +89,7 @@ export class ApikeyPage extends Component {
               name: "Apikey 1",
               clientId: faker.random.alphaNumeric(16),
               clientSecret: faker.random.alphaNumeric(64),
-              authorizedPattern: "*"
+              authorizedPatterns: [{pattern:"*", rights:["C", "R", "U", "D"]}]
             })}
             parentProps={this.props}
             user={this.props.user}

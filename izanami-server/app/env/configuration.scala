@@ -194,7 +194,6 @@ case class ApikeyConfig(db: DbDomainConfig, initialize: InitializeApiKey) {
     for {
       id     <- initialize.clientId
       secret <- initialize.clientSecret
-      // TODO revoir la config
     } yield domains.apikey.Apikey(id, "", secret, AuthorizedPatterns.fromString(initialize.authorizedPatterns), true)
 }
 case class PatchConfig(db: DbDomainConfig)

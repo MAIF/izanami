@@ -6,7 +6,7 @@ import java.time.temporal.{ChronoField, ChronoUnit}
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
-import domains.{errors, AuthInfo, AuthorizedPatterns, Key}
+import domains.{errors, AuthInfo, AuthorizedPatterns, Key, PatternRights}
 import domains.abtesting.impl.ExperimentVariantEventInMemoryService
 import domains.apikey.Apikey
 import domains.events.{EventStore, Events}
@@ -14,7 +14,7 @@ import domains.events.Events.ExperimentCreated
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
-import domains.errors.{IzanamiErrors, ValidationError}
+import domains.errors.{IdMustBeTheSame, IzanamiErrors, Unauthorized, ValidationError}
 import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
@@ -25,7 +25,6 @@ import zio.{DefaultRuntime, RIO, ZIO}
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Random
-import domains.errors.IdMustBeTheSame
 
 class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
   import ExperimentInstances._
@@ -371,6 +370,18 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       Experiment.validate(experiment) mustBe Left(ValidationError.error("error.campaign.date.invalid").toErrors)
     }
 
+    "read a experiment is forbidden" in {
+      val store  = TrieMap.empty[Key, JsValue]
+      val events = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context =
+        fakeExperimentContext(store, events, authorizedPatterns = AuthorizedPatterns.of("this" -> PatternRights.C))
+
+      val value: Either[IzanamiErrors, Option[Experiment]] =
+        runSync(context, ExperimentService.getById(Key("test")).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+
+    }
+
     "create a experiment" in {
       val store   = TrieMap.empty[Key, JsValue]
       val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
@@ -402,6 +413,36 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       events must have size 1
       events.head mustBe a[ExperimentCreated]
       events.head.asInstanceOf[ExperimentCreated].experiment mustBe experiment
+    }
+
+    "create a experiment is forbidden" in {
+      val store  = TrieMap.empty[Key, JsValue]
+      val events = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context =
+        fakeExperimentContext(store, events, authorizedPatterns = AuthorizedPatterns.of("*" -> PatternRights.R))
+
+      val experiment = Experiment(
+        id = Key("test"),
+        name = "name",
+        description = Some("desc"),
+        enabled = true,
+        variants = NonEmptyList.of(
+          Variant(id = "A",
+                  name = "name A",
+                  description = Some("desc A"),
+                  traffic = Traffic(0.4),
+                  currentPopulation = Some(5)),
+          Variant(id = "B",
+                  name = "name B",
+                  description = Some("desc A"),
+                  traffic = Traffic(0.6),
+                  currentPopulation = Some(6))
+        )
+      )
+      val value: Either[IzanamiErrors, Experiment] =
+        runSync(context, ExperimentService.create(experiment.id, experiment).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+
     }
 
     "reject an invalid experiment during creation" in {
@@ -465,6 +506,48 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
 
       store.get(experiment.id) mustBe None
       events must have size 0
+    }
+
+    "update a experiment is forbidden" in {
+      val store  = TrieMap.empty[Key, JsValue]
+      val events = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context =
+        fakeExperimentContext(store, events, authorizedPatterns = AuthorizedPatterns.of("*" -> PatternRights.R))
+
+      val experiment = Experiment(
+        id = Key("test"),
+        name = "name",
+        description = Some("desc"),
+        enabled = true,
+        variants = NonEmptyList.of(
+          Variant(id = "A",
+                  name = "name A",
+                  description = Some("desc A"),
+                  traffic = Traffic(0.4),
+                  currentPopulation = Some(5)),
+          Variant(id = "B",
+                  name = "name B",
+                  description = Some("desc A"),
+                  traffic = Traffic(0.6),
+                  currentPopulation = Some(6))
+        )
+      )
+      val value: Either[IzanamiErrors, Experiment] =
+        runSync(context, ExperimentService.update(experiment.id, experiment.id, experiment).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+
+    }
+
+    "delete a experiment is forbidden" in {
+      val store  = TrieMap.empty[Key, JsValue]
+      val events = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val context =
+        fakeExperimentContext(store, events, authorizedPatterns = AuthorizedPatterns.of("*" -> PatternRights.R))
+
+      val value: Either[IzanamiErrors, Experiment] =
+        runSync(context, ExperimentService.delete(Key("test")).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+
     }
 
     "Affect variant" in {
@@ -685,7 +768,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
   def fakeExperimentContext(
       store: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue],
       events: mutable.ArrayBuffer[Events.IzanamiEvent],
-      expVariantEventService: ExperimentVariantEventService = expEventsService()
+      expVariantEventService: ExperimentVariantEventService = expEventsService(),
+      authorizedPatterns: AuthorizedPatterns = AuthorizedPatterns.All
   ): ExperimentContext =
     new ExperimentContext {
       override def experimentVariantEventService: ExperimentVariantEventService = expVariantEventService
@@ -699,7 +783,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
           ZIO.succeed(PlatformLive.Global.executor)
       }
       override def withAuthInfo(authInfo: Option[AuthInfo]): ExperimentContext = this
-      override def authInfo: Option[AuthInfo]                                  = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
+      override def authInfo: Option[AuthInfo]                                  = Some(Apikey("1", "key", "secret", authorizedPatterns, true))
     }
 
   def expEventsService(
