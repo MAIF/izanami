@@ -1,12 +1,12 @@
 package domains.user
 
-import domains.{AuthorizedPatterns, Key}
+import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
 import domains.events.EventStore
 import libs.crypto.Sha
 import libs.logs.{Logger, ProdLogger}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import play.api.libs.json.{JsResult, JsSuccess, JsValue, Json}
-import domains.errors.IzanamiErrors
+import play.api.libs.json.{JsSuccess, JsValue, Json}
+import domains.errors.{DataShouldExists, IdMustBeTheSame, IzanamiErrors, Unauthorized, ValidationError}
 import store.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
@@ -14,7 +14,6 @@ import zio.{DefaultRuntime, Task}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import domains.AuthInfo
 import org.scalatest.BeforeAndAfterAll
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -22,11 +21,8 @@ import akka.testkit.TestKit
 import domains.apikey.Apikey
 import domains.events.Events
 import domains.events.Events._
-import domains.errors.IdMustBeTheSame
-import domains.errors.DataShouldExists
 import akka.stream.scaladsl.{Sink, Source}
-import domains.ImportResult
-import domains.errors.ValidationError
+import cats.data.NonEmptyList
 
 class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -37,6 +33,9 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
   val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All, true))
+
+  def authInfo(patterns: AuthorizedPatterns = AuthorizedPatterns.All, admin: Boolean = false) =
+    Some(Apikey("1", "name", "****", patterns, admin = admin))
 
   implicit val runtime = new DefaultRuntime {}
 
@@ -284,6 +283,17 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       }
     }
 
+    "create forbidden" in {
+      val id   = Key("test")
+      val user = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val ctx =
+        TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(UserService.create(id, user).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "create id not equal" in {
       val id  = Key("test")
       val ctx = TestUserContext()
@@ -413,6 +423,17 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       }
     }
 
+    "update forbidden" in {
+      val id   = Key("test")
+      val user = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val ctx =
+        TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(UserService.update(id, id, user).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "delete" in {
       val id  = Key("test")
       val ctx = TestUserContext()
@@ -434,6 +455,17 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
           oldValue must be(expectedUser)
           auth must be(authInfo)
       }
+    }
+
+    "delete forbidden" in {
+      val id   = Key("test")
+      val user = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val ctx =
+        TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(UserService.delete(id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "delete empty data" in {

@@ -7,12 +7,10 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
 import domains.apikey.Apikey
-import domains.AuthInfo
-import domains.AuthorizedPatterns
+import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore
-import domains.Key
 import domains.script._
 import domains.script.GlobalScript.GlobalScriptKey
 import domains.script.Script.ScriptCache
@@ -28,7 +26,7 @@ import scala.util.Random
 import store.JsonDataStore
 import store._
 import store.memory.InMemoryJsonDataStore
-import domains.errors.{DataShouldExists, IdMustBeTheSame, InvalidCopyKey, IzanamiErrors, ValidationError}
+import domains.errors.{DataShouldExists, IdMustBeTheSame, InvalidCopyKey, IzanamiErrors, Unauthorized, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import zio.{DefaultRuntime, Task}
@@ -38,7 +36,6 @@ import zio.RIO
 import zio.ZIO
 import org.scalatest.BeforeAndAfterAll
 import akka.testkit.TestKit
-import domains.ImportResult
 import play.api.Environment
 
 import scala.concurrent.ExecutionContext
@@ -447,6 +444,9 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All))
 
+  def authInfo(patterns: AuthorizedPatterns = AuthorizedPatterns.All, admin: Boolean = false) =
+    Some(Apikey("1", "name", "****", patterns, admin = admin))
+
   "FeatureService" must {
 
     "create" in {
@@ -464,6 +464,17 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           k must be(feature)
           auth must be(authInfo)
       }
+    }
+
+    "create forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+      val feature = DefaultFeature(id, true, None)
+
+      val value = run(ctx)(FeatureService.create(id, feature).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
@@ -509,6 +520,17 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       }
     }
 
+    "update forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+      val feature = DefaultFeature(id, true, None)
+
+      val value = run(ctx)(FeatureService.update(id, id, feature).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "update changing id" in {
       val id      = Key("test")
       val newId   = Key("test2")
@@ -520,7 +542,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
         updated <- FeatureService.update(id, newId, feature)
       } yield updated
 
-      val updated = run(ctx)(test)
+      run(ctx)(test)
       ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
       ctx.featureDataStore.inMemoryStore.contains(newId) must be(true)
       ctx.events must have size 2
@@ -562,6 +584,21 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           ))
           auth must be(authInfo)
       }
+    }
+
+    "copy node forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("test" -> PatternRights.R)))
+
+      val value = run(ctx)(FeatureService.copyNode(Key("my:awesome"), Key("my:awesome:other"), false).either)
+      value mustBe Left(
+        NonEmptyList.of(
+          Unauthorized(Some(Key("my:awesome"))),
+          Unauthorized(Some(Key("my:awesome:other")))
+        )
+      )
+      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "copy existing node" in {
@@ -627,6 +664,16 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           oldValue must be(feature)
           auth must be(authInfo)
       }
+    }
+
+    "delete forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+
+      val value = run(ctx)(FeatureService.delete(id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "delete empty data" in {
@@ -705,6 +752,26 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
               isActive must be(false)
           }
       }
+    }
+
+    "get by id forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
+
+      val value = run(ctx)(FeatureService.getById(id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
+    "get by id active forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
+
+      val value = run(ctx)(FeatureService.getByIdActive(Json.obj(), id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "find stream when not active" in {

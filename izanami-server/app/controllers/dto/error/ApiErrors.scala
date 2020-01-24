@@ -56,12 +56,16 @@ object ApiErrors {
       case Unauthorized(id)        => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
     }
 
-  def toHttpResult(errors: IzanamiErrors): Result =
-    errors.toList match {
-      case Unauthorized(id) :: _ =>
-        Results.Forbidden(Json.toJson(error("error.data.unauthorized", id.map(_.key).toSeq: _*)))
-      case _ => Results.BadRequest(Json.toJson(fromErrors(errors.toList)))
+  def toHttpResult(errors: IzanamiErrors): Result = {
+    val forbiddens: List[Unauthorized] = errors.toList.collect { case u: Unauthorized => u }
+    if (forbiddens.isEmpty) {
+      Results.BadRequest(Json.toJson(fromErrors(errors.toList)))
+    } else {
+      Results.Forbidden(Json.toJson(forbiddens.foldMap {
+        case Unauthorized(id) => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+      }))
     }
+  }
 
   def error(message: String, args: String*): ApiErrors =
     ApiErrors(List(ApiError(message, args.toList)), Map.empty)

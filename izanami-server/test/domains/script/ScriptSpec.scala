@@ -27,22 +27,21 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import domains.events.EventStore
 import test.TestEventStore
-import domains.AuthInfo
+import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
 import store.memory.InMemoryJsonDataStore
+
 import scala.collection.mutable
 import domains.events.Events
 import domains.events.Events._
-import domains.Key
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
+import cats.data.NonEmptyList
 import domains.apikey.Apikey
-import domains.AuthorizedPatterns
 import test.IzanamiSpec
-import domains.ImportResult
-import domains.errors.ValidationError
-import domains.errors.DataShouldExists
-import domains.errors.IdMustBeTheSame
+import domains.errors.{DataShouldExists, IdMustBeTheSame, Unauthorized, ValidationError}
+import domains.feature.{DefaultFeature, FeatureService}
 import play.api.Environment
+
 import scala.concurrent.ExecutionContext
 import play.libs.ws.WSClient
 import play.api.inject.ApplicationLifecycle
@@ -128,12 +127,15 @@ class ScriptSpec
 
   val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All))
 
+  def authInfo(patterns: AuthorizedPatterns = AuthorizedPatterns.All, admin: Boolean = false) =
+    Some(Apikey("1", "name", "****", patterns, admin = admin))
+
   "ScriptService" must {
 
     "create" in {
       val id           = Key("test")
-      val ctx          = TestGlobalScriptContext()
       val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+      val ctx          = TestGlobalScriptContext()
 
       val created = run(ctx)(GlobalScriptService.create(id, globalScript))
       created must be(globalScript)
@@ -145,6 +147,17 @@ class ScriptSpec
           k must be(globalScript)
           auth must be(authInfo)
       }
+    }
+
+    "create forbidden" in {
+      val id           = Key("test")
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+      val ctx =
+        TestGlobalScriptContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(GlobalScriptService.create(id, globalScript).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
@@ -190,6 +203,17 @@ class ScriptSpec
       }
     }
 
+    "update forbidden" in {
+      val id           = Key("test")
+      val globalScript = GlobalScript(id, "name", "description", JavascriptScript(script))
+      val ctx =
+        TestGlobalScriptContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(GlobalScriptService.update(id, id, globalScript).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "update changing id" in {
       val id           = Key("test")
       val newId        = Key("test2")
@@ -233,6 +257,16 @@ class ScriptSpec
           oldValue must be(globalScript)
           auth must be(authInfo)
       }
+    }
+
+    "delete forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestGlobalScriptContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(GlobalScriptService.delete(id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.globalScriptDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "delete empty data" in {
