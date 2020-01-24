@@ -37,6 +37,7 @@ object Oauth2Service {
       (user, _)     = t
       _             <- logger.debug(s"User from token $user")
       effectiveUser <- ZIO.fromEither(User.fromOAuth(user, authConfig))
+      _             <- logger.debug(s"User mapped from token $user")
       _             <- createOrUpdateUserIfNeeded(authConfig, effectiveUser)
       endUser       <- enrichWithDb(authConfig, effectiveUser)
       _             <- logger.info(s"Oauth user logged with $endUser")

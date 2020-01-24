@@ -21,3 +21,4 @@ e2e
 .metals
 .bloop
 settings.json
+keycloak_postgres_data
