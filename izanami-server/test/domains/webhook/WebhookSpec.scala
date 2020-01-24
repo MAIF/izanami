@@ -11,9 +11,9 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import org.scalatest.BeforeAndAfterAll
 import domains.apikey.Apikey
-import domains.{AuthorizedPatterns, Key}
+import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
+
 import scala.collection.mutable
-import domains.AuthInfo
 import store.memory.InMemoryJsonDataStore
 import libs.logs.ProdLogger
 import libs.logs.Logger
@@ -21,11 +21,10 @@ import domains.events.EventStore
 import test.TestEventStore
 import domains.events.Events
 import domains.events.Events._
-import domains.errors.{DataShouldExists, IdMustBeTheSame}
+import domains.errors.{DataShouldExists, IdMustBeTheSame, Unauthorized, ValidationError}
 import zio._
 import akka.stream.scaladsl.{Sink, Source}
-import domains.ImportResult
-import domains.errors.ValidationError
+import cats.data.NonEmptyList
 
 class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -36,6 +35,9 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
   val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All))
+
+  def authInfo(patterns: AuthorizedPatterns = AuthorizedPatterns.All, admin: Boolean = false) =
+    Some(Apikey("1", "name", "****", patterns, admin = admin))
 
   "Webhook" should {
 
@@ -77,6 +79,17 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           k must be(webhook)
           auth must be(authInfo)
       }
+    }
+
+    "create forbidden" in {
+      val id      = Key("test")
+      val webhook = Webhook(id, "http://localhost:8080")
+      val ctx =
+        TestWebhookContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(WebhookService.create(id, webhook).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
@@ -122,6 +135,17 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       }
     }
 
+    "update forbidden" in {
+      val id      = Key("test")
+      val webhook = Webhook(id, "http://localhost:8080")
+      val ctx =
+        TestWebhookContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(WebhookService.update(id, id, webhook).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "update changing id" in {
       val id      = Key("test")
       val newId   = Key("test2")
@@ -156,7 +180,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
         deleted <- WebhookService.delete(id)
       } yield deleted
 
-      val deleted = run(ctx)(test)
+      run(ctx)(test)
       ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
       ctx.events must have size 2
       inside(ctx.events.last) {
@@ -167,10 +191,19 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       }
     }
 
+    "delete forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestWebhookContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val value = run(ctx)(WebhookService.delete(id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "delete empty data" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id  = Key("test")
+      val ctx = TestWebhookContext()
 
       val deleted = run(ctx)(WebhookService.delete(id).either)
       deleted must be(Left(DataShouldExists(id).toErrors))
@@ -194,9 +227,8 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "import data invalid format" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id  = Key("test")
+      val ctx = TestWebhookContext()
 
       val res = run(ctx)(WebhookService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
