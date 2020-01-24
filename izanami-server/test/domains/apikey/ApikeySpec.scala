@@ -13,7 +13,7 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.collection.mutable
 import store.memory.InMemoryJsonDataStore
-import domains.errors.{DataShouldExists, IdMustBeTheSame, ValidationError}
+import domains.errors.{DataShouldExists, IdMustBeTheSame, Unauthorized, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import akka.stream.scaladsl.Source
@@ -21,6 +21,7 @@ import akka.stream.scaladsl.Sink
 import play.api.libs.json.{JsSuccess, Json}
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import cats.data.NonEmptyList
 import zio.Task
 import domains.ImportResult
 
@@ -32,6 +33,9 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
   import domains.errors.IzanamiErrors._
 
   val authInfo = Some(Apikey("1", "name", "****", AuthorizedPatterns.All, true))
+
+  def authInfo(patterns: AuthorizedPatterns = AuthorizedPatterns.All, admin: Boolean = false) =
+    Some(Apikey("1", "name", "****", patterns, admin = admin))
 
   "Api key serder" must {
     "reads json" in {
@@ -93,6 +97,16 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       }
     }
 
+    "create forbidden" in {
+      val id     = Key("clientId")
+      val ctx    = TestApikeyContext(authInfo = authInfo(admin = false))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+
+      val value = run(ctx)(ApikeyService.create(id, apikey).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "create id not equal" in {
       val id     = Key("test")
       val ctx    = TestApikeyContext()
@@ -134,6 +148,17 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
           newValue must be(apikey)
           auth must be(authInfo)
       }
+    }
+
+    "update forbidden" in {
+      val id     = Key("clientId")
+      val ctx    = TestApikeyContext(authInfo = authInfo(admin = false))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+
+      val value = run(ctx)(ApikeyService.update(id, id, apikey).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
+
     }
 
     "update changing id" in {
@@ -179,6 +204,17 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
           oldValue must be(apikey)
           auth must be(authInfo)
       }
+    }
+
+    "delete forbidden" in {
+      val id     = Key("clientId")
+      val ctx    = TestApikeyContext(authInfo = authInfo(admin = false))
+      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+
+      val value = run(ctx)(ApikeyService.delete(id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
+
     }
 
     "delete empty data" in {
