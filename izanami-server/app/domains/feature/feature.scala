@@ -304,8 +304,7 @@ object FeatureService {
     import cats.implicits._
     import IzanamiErrors._
     for {
-      _        <- AuthorizedPatterns.isAllowed(from, PatternRights.R)
-      _        <- AuthorizedPatterns.isAllowed(to, PatternRights.C)
+      _        <- AuthorizedPatterns.isAllowed(from -> PatternRights.R, to -> PatternRights.C)
       _        <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
       values   <- findAllByQuery(Query.oneOf(from.key, (from / "*").key)).refineToOrDie[IzanamiErrors]
       features <- values.parTraverse { case (_, v) => copyOne(from, to, v, default) }.mapError(_.reduce)

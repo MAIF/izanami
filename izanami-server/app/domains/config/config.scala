@@ -55,7 +55,7 @@ object ConfigService {
 
   def create(id: ConfigKey, data: Config): ZIO[ConfigContext, IzanamiErrors, Config] =
     for {
-      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
+      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
       _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
       created  <- ConfigDataStore.create(id, ConfigInstances.format.writes(data))
       apikey   <- fromJsResult(created.validate[Config]) { handleJsError }

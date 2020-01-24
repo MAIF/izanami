@@ -211,5 +211,38 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
         r.unsafeRun(AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either)
       res must be(Left(NonEmptyList.of(Unauthorized(Some(Key("test"))))))
     }
+
+    "combine check is not allowed" in {
+      import IzanamiErrors._
+      import cats.implicits._
+      import zio.interop.catz._
+      val authModule = new AuthInfoModule[String] with LoggerModule {
+        override def authInfo: Option[AuthInfo] =
+          Some(
+            OauthUser("1",
+                      "john.doe",
+                      "john.doe@gmail.fr",
+                      true,
+                      AuthorizedPatterns(AuthorizedPattern("other", PatternRights.R)))
+          )
+        override def withAuthInfo(user: Option[AuthInfo]): String = ???
+        override def logger: Logger                               = new ProdLogger
+      }
+
+      val r = Runtime(authModule, PlatformLive.Default)
+
+      val combined: ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
+        AuthorizedPatterns.isAllowed(Key("test1") -> PatternRights.U, Key("test2") -> PatternRights.U)
+
+      val res: Either[IzanamiErrors, Unit] = r.unsafeRun(combined.either)
+      res must be(
+        Left(
+          NonEmptyList.of(
+            Unauthorized(Some(Key("test1"))),
+            Unauthorized(Some(Key("test2")))
+          )
+        )
+      )
+    }
   }
 }

@@ -255,4 +255,21 @@ object AuthorizedPatterns {
       }
     }
 
+  def isAllowed(patterns: (Key, PatternRights)*): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] = {
+    import cats.implicits._
+    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
+      ZIO.effectSuspendTotal {
+        val value: Either[IzanamiErrors, List[Unit]] = patterns.toList.parTraverse {
+          case (k, r) =>
+            Either.cond(
+              ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(k, r, p)),
+              (),
+              IzanamiErrors(Unauthorized(Some(k)))
+            )
+        }
+        ZIO.fromEither(value).unit
+      }
+    }
+  }
+
 }
