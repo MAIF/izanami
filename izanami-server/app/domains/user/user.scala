@@ -188,8 +188,7 @@ object UserService {
   def updateWithoutPermission(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     // format: off
     for {
-      mayBeUser   <- getById(oldId)
-      mayBeUser   <- getById(oldId)
+      mayBeUser   <- getByIdWithoutPermissions(oldId).refineToOrDie[IzanamiErrors]
       oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId).toErrors)
       toUpdate    = User.updateUser(data, oldValue)
       updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
