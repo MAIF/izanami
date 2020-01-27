@@ -19,7 +19,7 @@ import domains.webhook.{WebhookDataStore, WebhookService}
 import metrics.MetricsService
 import libs.database.Drivers
 import env._
-import filters.{IzanamiDefaultFilter, OtoroshiFilter}
+import filters.{IzanamiDefaultFilter, ZioOtoroshiFilter}
 import handlers.ErrorHandler
 import patches.Patchs
 import play.api.ApplicationLoader.Context
@@ -147,7 +147,7 @@ package object modules {
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) =>
         IzanamiLogger.info("Using otoroshi filter")
-        Seq(new OtoroshiFilter[Task](_env, config))
+        Seq(new ZioOtoroshiFilter(_env.environment.mode, config))
       case env.Default(config) =>
         IzanamiLogger.info("Using default filter")
         Seq(new IzanamiDefaultFilter[Task](_env, izanamiConfig, config, izanamiConfig.apikey))
