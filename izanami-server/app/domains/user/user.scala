@@ -28,7 +28,7 @@ trait User extends AuthInfo {
 case class IzanamiUser(id: String,
                        name: String,
                        email: String,
-                       password: String,
+                       password: Option[String],
                        admin: Boolean,
                        authorizedPatterns: AuthorizedPatterns)
     extends User
@@ -74,10 +74,13 @@ object User {
     (newUser, oldUser) match {
       case (newUser: IzanamiUser, oldUser: IzanamiUser) =>
         import cats.implicits._
-        if (newUser.password === oldUser.password) {
-          newUser
-        } else {
-          newUser.copy(password = Sha.hexSha512(newUser.password))
+        (newUser.password, oldUser.password) match {
+          case (Some(password), Some(oldPassword)) if password === oldPassword =>
+            newUser
+          case (Some(password), _) =>
+            newUser.copy(password = Some(Sha.hexSha512(password)))
+          case (None, _) =>
+            newUser.copy(password = oldUser.password)
         }
       case _ => newUser
     }
@@ -160,7 +163,7 @@ object UserService {
     user match {
       case u: OauthUser    => Right(u)
       case u: OtoroshiUser => Right(u)
-      case u: IzanamiUser  => Right(u.copy(password = Sha.hexSha512(u.password)))
+      case u: IzanamiUser  => Right(u.password.map(p => u.copy(password = Some(Sha.hexSha512(p)))).getOrElse(u))
     }
 
   def createIfNotExists(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =

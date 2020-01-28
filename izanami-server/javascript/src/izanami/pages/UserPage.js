@@ -122,12 +122,13 @@ export class UserPage extends Component {
         <div className="row">
           <Table
             defaultValue={() => ({
+              type: "Izanami",
               id: "john.doe@maif.fr",
               name: "John Doe",
               email: "john.doe@maif.fr",
-              password: "",
+              password: undefined,
               admin: true,
-              authorizedPattern: [{pattern:"*", rights:["C", "R", "U", "D"]}]
+              authorizedPatterns: [{pattern:"*", rights:["C", "R", "U", "D"]}]
             })}
             parentProps={this.props}
             user={this.props.user}

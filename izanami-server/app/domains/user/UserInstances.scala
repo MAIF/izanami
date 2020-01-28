@@ -42,7 +42,7 @@ object UserInstances {
       (__ \ "id").read[String] and
       (__ \ "name").read[String] and
       (__ \ "email").read[String] and
-      (__ \ "password").read[String] and
+      (__ \ "password").readNullable[String] and
       (__ \ "admin").read[Boolean] and
       (__ \ "authorizedPatterns").read[AuthorizedPatterns].orElse((__ \ "authorizedPattern").read[AuthorizedPatterns])
     )(IzanamiUser.apply _)

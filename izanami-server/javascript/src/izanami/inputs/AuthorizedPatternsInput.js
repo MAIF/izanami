@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import {KeyInput} from "./KeyInput";
 import * as IzanamiServices from "../services";
+import PropTypes from "prop-types";
 
 class Right extends Component {
 
@@ -73,16 +74,21 @@ class AuthorizedPattern extends Component {
 
 
 export class AuthorizedPatternsInput extends Component {
+
+    static propTypes = {
+        value: PropTypes.array.isRequired
+    };
+
     state = {
         values: []
     };
 
     componentDidMount() {
-        this.setState({ values: this.props.value });
+        this.setState({ values: this.props.value || [] });
     }
 
     componentWillReceiveProps(nextProps) {
-        this.setState({ values: nextProps.value });
+        this.setState({ values: nextProps.value || [] });
     }
 
     changeValue = (value, index) => {
@@ -123,6 +129,7 @@ export class AuthorizedPatternsInput extends Component {
     };
 
     render() {
+        console.log("Values", this.state.values);
         return (
             <div>
                 {this.state.values.length === 0 && (
@@ -145,7 +152,7 @@ export class AuthorizedPatternsInput extends Component {
                         </div>
                     </div>
                 )}
-                {this.state.values.map((value, idx) => (
+                {this.state.values && this.state.values.map((value, idx) => (
                     <div className="form-group" key={`obj-${idx}`}>
                         {idx === 0 && (
                             <label className="col-sm-2 control-label">
