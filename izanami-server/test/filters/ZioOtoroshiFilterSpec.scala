@@ -31,6 +31,7 @@ class ZioOtoroshiFilterSpec extends IzanamiSpec {
                                             "Otoroshi-State-Resp")
 
   "ZioOtoroshiFilter" must {
+
     "Test or dev mode" in {
       val filter         = new ZioOtoroshiFilter(Mode.Dev, config)
       val result: Result = r.unsafeRun(filter.filter(h => Task(Results.Ok("Done")))(FakeRequest()))
