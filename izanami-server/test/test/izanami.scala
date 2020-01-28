@@ -81,7 +81,7 @@ trait OneAppPerTestWithMyComponents extends OneAppPerTestWithComponents with Sca
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
+                password = None,
                 authorizedPatterns = AuthorizedPatterns.fromString("*"))
 
   def izanamiComponents =
@@ -99,7 +99,7 @@ trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with S
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
+                password = None,
                 authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
@@ -117,7 +117,7 @@ trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents wi
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
+                password = None,
                 authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
@@ -137,7 +137,7 @@ trait OneServerPerSuiteWithMyComponents
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
+                password = None,
                 authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =

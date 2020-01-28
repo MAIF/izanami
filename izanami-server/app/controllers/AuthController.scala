@@ -39,7 +39,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
         case Some(user: User) =>
           ZIO.succeed {
             user match {
-              case IzanamiUser(_, _, _, password, _, _) if password === Sha.hexSha512(auth.password) =>
+              case IzanamiUser(_, _, _, Some(password), _, _) if password === Sha.hexSha512(auth.password) =>
                 val token: String = User.buildToken(user, _config.issuer, algorithm)
 
                 Ok(Json.toJson(user).as[JsObject] - "password")
@@ -58,7 +58,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
                 val user: User = IzanamiUser(id = userId,
                                              name = userId,
                                              email = s"$userId@admin.fr",
-                                             password = "",
+                                             password = None,
                                              admin = true,
                                              authorizedPatterns = AuthorizedPatterns.All)
 

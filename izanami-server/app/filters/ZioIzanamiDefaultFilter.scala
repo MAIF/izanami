@@ -196,7 +196,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
                   name = "Ragnard",
                   email = "ragnard@viking.com",
                   admin = false,
-                  password = "NA",
+                  password = None,
                   authorizedPatterns = AuthorizedPatterns.All)
     )
     for {
