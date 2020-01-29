@@ -15,11 +15,10 @@ import domains.events.impl.KafkaSettings
 import env.MetricsConfig
 import io.prometheus.client.dropwizard.DropwizardExports
 import io.prometheus.client.exporter.common.TextFormat
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.{Callback, Producer, ProducerRecord, RecordMetadata}
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsObject, Json}
 import zio.Task
-
 import zio.RIO
 import domains._
 import zio.ZIO
@@ -27,15 +26,13 @@ import libs.logs.Logger
 import libs.logs.LoggerModule
 import zio.duration.Duration
 import zio.clock.Clock
-import org.apache.kafka.clients.producer.Callback
-import org.apache.kafka.clients.producer.RecordMetadata
 import zio.Cause.Fail
 import zio.Cause.Die
 import zio.Fiber
 import domains.config.ConfigContext
 import domains.feature.FeatureContext
 import domains.script.GlobalScriptContext
-import domains.apikey.ApiKeyContext
+import domains.apikey.{ApiKeyContext, ApikeyService}
 import domains.user.UserContext
 import domains.webhook.WebhookContext
 import domains.abtesting.ExperimentContext
@@ -49,6 +46,7 @@ import domains.webhook.WebhookService
 import domains.abtesting.ExperimentService
 import io.prometheus.client.CollectorRegistry
 import java.{util => ju}
+
 import io.prometheus.client.Counter
 import zio.UIO
 
@@ -187,37 +185,41 @@ object MetricsService {
         producer         = producerSettings.createKafkaProducer
         _                <- Logger.info("Enabling kafka metrics reporter")
         fiber <- (this.metrics flatMap { (metrics: Metrics) =>
-                  val message = metrics.defaultFormat(metricsConfig.kafka.format)
-                  Task
-                    .effectAsync[Unit] { cb =>
-                      producer.send(
-                        new ProducerRecord[String, String](metricsConfig.kafka.topic, message),
-                        new Callback {
-                          override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit =
-                            if (exception != null) {
-                              cb(ZIO.fail(exception))
-                            } else {
-                              cb(ZIO.unit)
-                            }
-                        }
-                      )
-                    }
-                    .onError {
-                      case Fail(exception) =>
-                        Logger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
-                                     exception)
-                      case Die(exception) =>
-                        Logger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
-                                     exception)
-                      case _ => ZIO.unit
-                    }
-                    .unit
+                  sendToKafka(producer, metricsConfig, metrics)
                 }).delay(Duration.fromScala(metricsConfig.kafka.pushInterval)).forever.fork
       } yield fiber
       res.foldM(_ => Task.unit.fork, Task.succeed _)
     } else {
       Task.unit.fork
     }
+
+  private def sendToKafka(producer: Producer[String, String],
+                          metricsConfig: MetricsConfig,
+                          metrics: Metrics): ZIO[LoggerModule, Throwable, Unit] = {
+    val message = metrics.defaultFormat(metricsConfig.kafka.format)
+    Task
+      .effectAsync[Unit] { cb =>
+        producer.send(
+          new ProducerRecord[String, String](metricsConfig.kafka.topic, message),
+          new Callback {
+            override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit =
+              if (exception != null) {
+                cb(ZIO.fail(exception))
+              } else {
+                cb(ZIO.unit)
+              }
+          }
+        )
+      }
+      .onError {
+        case Fail(exception) =>
+          Logger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message", exception)
+        case Die(exception) =>
+          Logger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message", exception)
+        case _ => ZIO.unit
+      }
+      .unit
+  }
 
   private def startMetricsElastic(metricsConfig: MetricsConfig,
                                   context: MetricsContext): RIO[MetricsContext, Fiber[Throwable, Unit]] =
@@ -290,7 +292,8 @@ object MetricsService {
           countAndStore(count, FeatureService.count(Query.oneOf("*")), "feature", metricRegistry) <&>
           countAndStore(count, ExperimentService.count(Query.oneOf("*")), "experiment", metricRegistry) <&>
           countAndStore(count, GlobalScriptService.count(Query.oneOf("*")), "globalScript", metricRegistry) <&>
-          countAndStore(count, UserService.count(Query.oneOf("*")), "user", metricRegistry) <&>
+          countAndStore(count, UserService.countWithoutPermissions(Query.oneOf("*")), "user", metricRegistry) <&>
+          countAndStore(count, ApikeyService.countWithoutPermissions(Query.oneOf("*")), "user", metricRegistry) <&>
           countAndStore(count, WebhookService.count(Query.oneOf("*")), "webhook", metricRegistry))
     } yield
       Metrics(context.metricRegistry,

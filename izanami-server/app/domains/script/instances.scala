@@ -440,10 +440,6 @@ class KHttpClient(wSClient: play.api.libs.ws.WSClient, promise: (ZIO[Any, Throwa
 
 object GlobalScriptInstances {
 
-  implicit val isAllowed: IsAllowed[GlobalScript] = new IsAllowed[GlobalScript] {
-    override def isAllowed(value: GlobalScript)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.id)(auth)
-  }
-
   implicit val format = {
     import ScriptInstances._
     Json.format[GlobalScript]

@@ -24,6 +24,20 @@ function handleResponse(r) {
     .catch(e => ({ status: r.status, body: {}, error: e }));
 }
 
+export function search({query, filters = {}}) {
+  const filtersQuery = Object.keys(filters)
+      .map(k => `${k}=${filters[k]}`)
+      .join("&");
+  return fetch(`/api/_search?patterns=${query}*&${filtersQuery}`, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      Accept: "application/json"
+    }
+  })
+      .then(r => r.json());
+}
+
 export function fetchLogin(user) {
   return fetch(`${window.__contextPath}/api/login`, {
     method: "POST",

@@ -1,6 +1,6 @@
 package controllers
 
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.user.{IzanamiUser, User}
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
@@ -26,12 +26,14 @@ abstract class FeatureControllerWildcardAccessSpec(name: String, configurationSp
   private lazy val rootPath = s"http://localhost:$port"
 
   override def user: IzanamiUser =
-    IzanamiUser(id = "id",
-                name = "Ragnar Lodbrok",
-                email = "ragnar.lodbrok@gmail.com",
-                admin = false,
-                password = "",
-                authorizedPattern = AuthorizedPattern("a:key2:*"))
+    IzanamiUser(
+      id = "id",
+      name = "Ragnar Lodbrok",
+      email = "ragnar.lodbrok@gmail.com",
+      admin = false,
+      password = None,
+      authorizedPatterns = AuthorizedPatterns.fromString("a:key2:*")
+    )
 
   s"$name FeatureControllerWildcardAccessSpec" should {
 
@@ -83,8 +85,8 @@ class FeatureControllerStrictAccessSpec(name: String, configurationSpec: Configu
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
-                authorizedPattern = AuthorizedPattern("a:key"))
+                password = None,
+                authorizedPatterns = AuthorizedPatterns.fromString("a:key"))
 
   s"$name FeatureControllerStrictAccessSpec" should {
 

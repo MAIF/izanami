@@ -181,7 +181,6 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     for {
       feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
-      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       _       <- FeatureService.create(feature.id, feature).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(feature))
   }
@@ -190,8 +189,7 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     val key = Key(id)
     for {
-      _            <- Key.isAllowed(key, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
-      mayBeFeature <- FeatureService.getById(key).mapError(_ => InternalServerError)
+      mayBeFeature <- FeatureService.getById(key).mapError { ApiErrors.toHttpResult }
       feature      <- ZIO.fromOption(mayBeFeature).mapError(_ => NotFound)
     } yield Ok(Json.toJson(feature))
   }
@@ -209,7 +207,6 @@ class FeatureController(system: ActorSystem,
     val key = Key(id)
     for {
       context   <- jsResultToHttpResponse(contextJson.validate[JsObject])
-      _         <- Key.isAllowed(key, user)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       mayBePair <- FeatureService.getByIdActive(context, key).mapError { ApiErrors.toHttpResult }
       pair      <- ZIO.fromOption(mayBePair).mapError(_ => NotFound)
     } yield Ok(Json.obj("active" -> (pair._2 && pair._1.enabled)))
@@ -219,7 +216,6 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     for {
       feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
-      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       _       <- FeatureService.update(Key(id), feature.id, feature).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(feature))
   }
@@ -228,9 +224,8 @@ class FeatureController(system: ActorSystem,
     import FeatureInstances._
     val key = Key(id)
     for {
-      mayBe   <- FeatureService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- FeatureService.getById(key).mapError { ApiErrors.toHttpResult }
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- IsAllowed[Feature].isAllowed(current, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
       _       <- FeatureService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
@@ -239,9 +234,8 @@ class FeatureController(system: ActorSystem,
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[FeatureContext] { ctx =>
     val key = Key(id)
     for {
-      mayBe   <- FeatureService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- FeatureService.getById(key).mapError { ApiErrors.toHttpResult }
       feature <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- IsAllowed[Feature].isAllowed(feature, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       _       <- FeatureService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(FeatureInstances.format.writes(feature))
   }
@@ -267,8 +261,6 @@ class FeatureController(system: ActorSystem,
     import controllers.dto.feature.CopyNodeResponse
     for {
       request <- jsResultToHttpResponse(ctx.request.body.validate[CopyRequest])
-      _       <- Key.isAllowed(request.from, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
-      _       <- Key.isAllowed(request.to, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
       f       <- FeatureService.copyNode(request.from, request.to, request.default).mapError { ApiErrors.toHttpResult }
     } yield {
       Ok(Json.toJson(CopyNodeResponse(f)))

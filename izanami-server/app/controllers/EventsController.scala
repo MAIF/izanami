@@ -56,6 +56,7 @@ class EventsController(system: ActorSystem,
 
   val keepAlive = Flow[IzanamiEvent].keepAlive(30.seconds, () => KeepAliveEvent())
 
+  // TODO abilitations
   private def events[T <: IzanamiEvent](domains: Seq[String], patterns: String) =
     AuthAction.asyncTask[EventStoreContext] { ctx =>
       val allPatterns: Seq[String] = ctx.authorizedPatterns ++ patterns

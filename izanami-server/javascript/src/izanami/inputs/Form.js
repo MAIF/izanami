@@ -10,9 +10,8 @@ import {
   NumberInput,
   LabelInput,
   CodeInput,
-  KeyInput,
   FieldError,
-  JsonInput
+  JsonInput, AuthorizedPatternsInput, KeyInputForm
 } from ".";
 
 import isFunction from "lodash/isFunction";
@@ -219,7 +218,7 @@ export class Form extends Component {
               error={fieldOnError}
               errorMessage={errorReport}
             >
-              <KeyInput
+              <KeyInputForm
                 disabled={disabled}
                 copyButton={true}
                 value={this.getValue(name, "")}
@@ -227,6 +226,20 @@ export class Form extends Component {
                 onChange={v => this.changeValue(name, v)}
               />
             </FieldError>
+          );
+        } else if (type === "authorizedPatterns") {
+          return (<FieldError
+              key={name}
+              error={fieldOnError}
+              errorMessage={errorReport}
+          >
+            <AuthorizedPatternsInput
+                disabled={disabled}
+                value={this.getValue(name, {})}
+                {...props}
+                onChange={v => this.changeValue(name, v)}
+            />
+          </FieldError>
           );
         } else if (isFunction(type)) {
           return (

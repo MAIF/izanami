@@ -190,6 +190,8 @@ Here, you can find the settings to configure the security filter.
 | `izanami.oauth2.adminField`               | `OAUTH2_ADMIN_FIELD`                  | the path in the token to access the user admin field (a boolean, false if empty) |
 | `izanami.oauth2.authorizedPatternField`   | `OAUTH2_AUTHORIZED_PATTERN_FIELD`     | the path in the token to access the user authorizedPatternField field |
 | `izanami.oauth2.defaultPatterns`          | `OAUTH2_DEFAULT_PATTERN`              | the default patterns if authorizedPatternField is missing |
+| `izanami.oauth2.izanamiManagedUser`       | `OAUTH2_IZANAMI_MANAGED_USERS`        | true to manage Oauth users in Izanami |
+| `izanami.oauth2.admins`                   | `OAUTH2_ADMINS_1` to `OAUTH2_ADMINS_5` | ids of users that are admin |
 | `izanami.oauth2.jwtVerifier.enabled`      | `OAUTH2_JWT_VERIFIER_ENABLED`         | Enable jwt verification |
 | `izanami.oauth2.jwtVerifier.type`         | `OAUTH2_JWT_VERIFIER_TYPE`            | One of `hs`, `es`, `rsa`, `jwks` |
 | `izanami.oauth2.jwtVerifier.size`         | `OAUTH2_JWT_VERIFIER_RSA_SIZE`        | Size of rsa `256`, `384`, `512`s |

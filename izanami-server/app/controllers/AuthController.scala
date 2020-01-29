@@ -1,7 +1,7 @@
 package controllers
 
 import com.auth0.jwt.algorithms.Algorithm
-import domains.{AuthorizedPattern, Key}
+import domains.{AuthorizedPatterns, Key}
 import domains.user.{IzanamiUser, User, UserContext, UserService}
 import env.{DefaultFilter, Env}
 import libs.crypto.Sha
@@ -33,13 +33,13 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
     val auth: Auth = req.body.as[Auth]
 
     UserService
-      .getById(Key(auth.userId))
+      .getByIdWithoutPermissions(Key(auth.userId))
       .mapError(_ => InternalServerError(""))
       .flatMap {
         case Some(user: User) =>
           ZIO.succeed {
             user match {
-              case IzanamiUser(_, _, _, password, _, _) if password === Sha.hexSha512(auth.password) =>
+              case IzanamiUser(_, _, _, Some(password), _, _) if password === Sha.hexSha512(auth.password) =>
                 val token: String = User.buildToken(user, _config.issuer, algorithm)
 
                 Ok(Json.toJson(user).as[JsObject] - "password")
@@ -50,7 +50,7 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
           }
         case None =>
           UserService
-            .count(Query.oneOf("*"))
+            .countWithoutPermissions(Query.oneOf("*"))
             .map {
               case count
                   if count === 0 && auth.userId === _env.izanamiConfig.user.initialize.userId && auth.password === _env.izanamiConfig.user.initialize.password => {
@@ -58,9 +58,9 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[Us
                 val user: User = IzanamiUser(id = userId,
                                              name = userId,
                                              email = s"$userId@admin.fr",
-                                             password = "",
+                                             password = None,
                                              admin = true,
-                                             authorizedPattern = AuthorizedPattern("*"))
+                                             authorizedPatterns = AuthorizedPatterns.All)
 
                 val token: String = User.buildToken(user, _config.issuer, algorithm)
 
