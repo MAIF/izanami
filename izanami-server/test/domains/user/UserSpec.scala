@@ -631,9 +631,8 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
   def userContext(store: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue],
                   events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty): UserContext =
     new UserContext {
-      override def logger: Logger = new ProdLogger
-      override def userDataStore: JsonDataStore =
-        new InMemoryJsonDataStore("users", store)
+      override def logger: Logger                                        = new ProdLogger
+      override def userDataStore: JsonDataStore                          = new InMemoryJsonDataStore("users", store)
       override def eventStore: EventStore                                = new TestEventStore(events)
       override def withAuthInfo(authInfo: Option[AuthInfo]): UserContext = this
       override def authInfo: Option[AuthInfo]                            = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
