@@ -55,7 +55,7 @@ class UserController(system: ActorSystem,
     import UserNoPasswordInstances._
     val key = Key(id)
     for {
-      mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
+      mayBeUser <- UserService.getById(key).mapError { ApiErrors.toHttpResult }
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
     } yield Ok(Json.toJson(user))
   }
@@ -75,7 +75,7 @@ class UserController(system: ActorSystem,
     val key = Key(id)
     for {
       _         <- isUserAllowed(ctx)
-      mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
+      mayBeUser <- UserService.getById(key).mapError { ApiErrors.toHttpResult }
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
       updated   <- jsResultToHttpResponse(Patch.patch(ctx.request.body, user))
       _         <- UserService.update(key, Key(user.id), updated).mapError { ApiErrors.toHttpResult }
@@ -87,7 +87,7 @@ class UserController(system: ActorSystem,
     val key = Key(id)
     for {
       _         <- isUserAllowed(ctx)
-      mayBeUser <- UserService.getById(key).mapError(_ => InternalServerError)
+      mayBeUser <- UserService.getById(key).mapError { ApiErrors.toHttpResult }
       user      <- ZIO.fromOption(mayBeUser).mapError(_ => NotFound)
       _         <- UserService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(UserNoPasswordInstances.format.writes(user))

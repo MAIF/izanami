@@ -101,7 +101,7 @@ class ExperimentController(system: ActorSystem,
       import ExperimentInstances._
       val key = Key(id)
       for {
-        mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
+        mayBe      <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
         experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))
     }
@@ -119,7 +119,7 @@ class ExperimentController(system: ActorSystem,
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe   <- ExperimentService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, current))
@@ -131,7 +131,7 @@ class ExperimentController(system: ActorSystem,
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
+      mayBe      <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
       experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _          <- ExperimentService.delete(key).mapError { ApiErrors.toHttpResult }
       _ <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError {

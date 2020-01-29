@@ -68,7 +68,7 @@ class GlobalScriptController(
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      mayBeScript  <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
+      mayBeScript  <- GlobalScriptService.getById(key).mapError { ApiErrors.toHttpResult }
       globalScript <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
     } yield Ok(Json.toJson(globalScript))
   }
@@ -88,7 +88,7 @@ class GlobalScriptController(
       import GlobalScriptInstances._
       val key = Key(id)
       for {
-        mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
+        mayBeScript <- GlobalScriptService.getById(key).mapError { ApiErrors.toHttpResult }
         current     <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
         body        = ctx.request.body
         updated     <- jsResultToHttpResponse(Patch.patch(body, current))
@@ -100,7 +100,7 @@ class GlobalScriptController(
     import GlobalScriptInstances._
     val key = Key(id)
     for {
-      mayBeScript <- GlobalScriptService.getById(key).mapError(_ => InternalServerError)
+      mayBeScript <- GlobalScriptService.getById(key).mapError { ApiErrors.toHttpResult }
       script      <- ZIO.fromOption(mayBeScript).mapError(_ => NotFound)
       _           <- GlobalScriptService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(script))

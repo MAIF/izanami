@@ -102,7 +102,7 @@ class ConfigController(system: ActorSystem,
     import ConfigInstances._
     val key = Key(id)
     for {
-      mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
+      mayBeConfig <- ConfigService.getById(key).mapError { ApiErrors.toHttpResult }
       config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
     } yield Ok(Json.toJson(config))
   }
@@ -119,7 +119,7 @@ class ConfigController(system: ActorSystem,
     import ConfigInstances._
     val key = Key(id)
     for {
-      mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
+      mayBeConfig <- ConfigService.getById(key).mapError { ApiErrors.toHttpResult }
       current     <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
       updated     <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
       _           <- ConfigService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
@@ -130,7 +130,7 @@ class ConfigController(system: ActorSystem,
     import ConfigInstances._
     val key = Key(id)
     for {
-      mayBeConfig <- ConfigService.getById(key).mapError(_ => InternalServerError)
+      mayBeConfig <- ConfigService.getById(key).mapError { ApiErrors.toHttpResult }
       config      <- ZIO.fromOption(mayBeConfig).mapError(_ => NotFound)
       _           <- ConfigService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(config))

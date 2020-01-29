@@ -1,7 +1,6 @@
 package domains
 
 import cats.implicits._
-import cats.data.NonEmptyList
 import cats.data.NonEmptySet
 import cats.kernel.Order
 import domains.errors.{IzanamiErrors, Unauthorized}
@@ -9,7 +8,7 @@ import libs.logs.LoggerModule
 import play.api.libs.json.Reads.pattern
 import zio.ZIO
 
-import scala.collection.{immutable, SortedSet}
+import scala.collection.immutable
 import scala.util.matching.Regex
 
 trait PatternRight

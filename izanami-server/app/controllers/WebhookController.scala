@@ -62,7 +62,7 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError { ApiErrors.toHttpResult }
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
     } yield Ok(Json.toJson(webhook))
   }
@@ -80,7 +80,7 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError { ApiErrors.toHttpResult }
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, webhook))
@@ -92,7 +92,7 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError { ApiErrors.toHttpResult }
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       _       <- WebhookService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(webhook))
