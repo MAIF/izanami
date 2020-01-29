@@ -173,7 +173,7 @@ object UserService {
     }
 
   def create(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
-    AuthInfo.isAdmin() *> createWithoutPermission(id, data)
+    AuthorizedPatterns.isAdminAllowed(id, PatternRights.C) *> createWithoutPermission(id, data)
 
   def createWithoutPermission(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     for {
@@ -186,7 +186,7 @@ object UserService {
     } yield user
 
   def update(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
-    AuthInfo.isAdmin() *> updateWithoutPermission(oldId, id, data)
+    AuthorizedPatterns.isAdminAllowed(id, PatternRights.U) *> updateWithoutPermission(oldId, id, data)
 
   def updateWithoutPermission(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     // format: off
@@ -204,7 +204,7 @@ object UserService {
   def delete(id: UserKey): ZIO[UserContext, IzanamiErrors, User] =
     // format: off
     for {
-      _         <- AuthInfo.isAdmin()
+      _         <- AuthorizedPatterns.isAdminAllowed(id, PatternRights.D)
       deleted   <- UserDataStore.delete(id)
       user      <- jsResultToError(deleted.validate[User])
       authInfo  <- AuthInfo.authInfo
