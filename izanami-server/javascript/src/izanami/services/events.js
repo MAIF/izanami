@@ -2,6 +2,8 @@ let callback = [];
 
 let eventSource;
 
+let timeout = 1000;
+
 const IzanamiEvents = {
   start() {
     if (!!window.EventSource) {
@@ -11,6 +13,7 @@ const IzanamiEvents = {
         "open",
         e => {
           console.log("SSE opened");
+          timeout = 1000;
         },
         false
       );
@@ -18,8 +21,11 @@ const IzanamiEvents = {
         "error",
         e => {
           console.error("SSE error", e);
-          IzanamiEvents.stop()
-          IzanamiEvents.start()
+          IzanamiEvents.stop();
+          setTimeout(() => {
+            IzanamiEvents.start();
+            timeout = timeout * 2;
+          }, timeout);
         },
         false
       );
