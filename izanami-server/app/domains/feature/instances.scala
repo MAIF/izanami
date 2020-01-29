@@ -76,7 +76,7 @@ object GlobalScriptFeatureInstances {
           context: JsObject
       ): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
         for {
-          mayBeScript <- GlobalScriptService.getById(Key(feature.ref)).refineToOrDie[IzanamiErrors]
+          mayBeScript <- GlobalScriptService.getById(Key(feature.ref))
           script      <- ZIO.fromOption(mayBeScript).mapError(_ => IzanamiErrors(ValidationError.error("script.not.found")))
           exec <- script.source
                    .run(context)
@@ -294,10 +294,6 @@ object FeatureInstances {
   import FeatureType._
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
-
-  implicit val isAllowed: IsAllowed[Feature] = new IsAllowed[Feature] {
-    override def isAllowed(value: Feature)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value.id)(auth)
-  }
 
   type IsActiveIO[A] = zio.ZIO[IsActiveContext, IzanamiErrors, A]
 

@@ -1,12 +1,10 @@
 package domains.config
 
 import domains.apikey.Apikey
-import domains.AuthInfo
-import domains.AuthorizedPattern
+import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRight, PatternRights}
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore
-import domains.Key
 import libs.logs.Logger
 import libs.logs.ProdLogger
 import org.scalatest.concurrent.IntegrationPatience
@@ -15,7 +13,7 @@ import play.api.libs.json.Json
 
 import scala.collection.mutable
 import store.memory.InMemoryJsonDataStore
-import domains.errors.{DataShouldExists, IdMustBeTheSame, ValidationError}
+import domains.errors.{DataShouldExists, IdMustBeTheSame, Unauthorized, ValidationError}
 import test.IzanamiSpec
 import test.TestEventStore
 import akka.actor.ActorSystem
@@ -25,9 +23,16 @@ import akka.testkit.TestKit
 import zio.Task
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
-import domains.ImportResult
+import cats.data.NonEmptyList
+
+object FakeAuth {
+  def authInfo(patterns: AuthorizedPatterns = AuthorizedPatterns.All, admin: Boolean = false) =
+    Some(Apikey("1", "name", "****", patterns, admin = admin))
+
+}
 
 class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
+  import FakeAuth._
 
   implicit val system = ActorSystem("test")
   implicit val mat    = ActorMaterializer()
@@ -35,8 +40,6 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
   import domains.errors.IzanamiErrors._
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
-
-  val authInfo = Some(Apikey("1", "name", "****", AuthorizedPattern("pattern")))
 
   "ConfigService" must {
 
@@ -53,8 +56,19 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
         case ConfigCreated(i, k, _, _, auth) =>
           i must be(id)
           k must be(config)
-          auth must be(authInfo)
+          auth must be(authInfo())
       }
+    }
+
+    "create forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestConfigContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+      val config = Config(id, Json.obj("key" -> "value"))
+
+      val value = run(ctx)(ConfigService.create(id, config).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.configDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
@@ -96,8 +110,19 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
           i must be(id)
           oldValue must be(config)
           newValue must be(config)
-          auth must be(authInfo)
+          auth must be(authInfo())
       }
+    }
+
+    "update forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestConfigContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+      val config = Config(id, Json.obj("key" -> "value"))
+
+      val value = run(ctx)(ConfigService.update(id, id, config).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.configDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "update changing id" in {
@@ -120,7 +145,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
           i must be(newId)
           oldValue must be(config)
           newValue must be(config)
-          auth must be(authInfo)
+          auth must be(authInfo())
       }
     }
 
@@ -141,14 +166,23 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
         case ConfigDeleted(i, oldValue, _, _, auth) =>
           i must be(id)
           oldValue must be(config)
-          auth must be(authInfo)
+          auth must be(authInfo())
       }
     }
 
+    "delete forbidden" in {
+      val id = Key("test")
+      val ctx =
+        TestConfigContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+
+      val value = run(ctx)(ConfigService.delete(id).either)
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
+      ctx.configDataStore.inMemoryStore.contains(id) must be(false)
+    }
+
     "delete empty data" in {
-      val id     = Key("test")
-      val ctx    = TestConfigContext()
-      val config = Config(id, Json.obj("key" -> "value"))
+      val id  = Key("test")
+      val ctx = TestConfigContext()
 
       val deleted = run(ctx)(ConfigService.delete(id).either)
       deleted must be(Left(DataShouldExists(id).toErrors))
@@ -218,7 +252,7 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
                                user: Option[AuthInfo] = None,
                                configDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("config-test"),
                                logger: Logger = new ProdLogger,
-                               authInfo: Option[AuthInfo] = authInfo)
+                               authInfo: Option[AuthInfo] = FakeAuth.authInfo())
       extends ConfigContext {
     override def eventStore: EventStore                              = new TestEventStore(events)
     override def withAuthInfo(user: Option[AuthInfo]): ConfigContext = this.copy(user = user)

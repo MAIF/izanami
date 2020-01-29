@@ -1,11 +1,26 @@
-version: '2'
+version: '3'
+
 services:
-  keycloak:
+  keycloak_postgres:
+    image: postgres
+    volumes:
+      - ./keycloak_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+  izanami_keycloak:
     image: jboss/keycloak
     ports:
       - 8980:8080
     environment:
-      DB_VENDOR: h2
+      DB_VENDOR: POSTGRES
+      DB_ADDR: keycloak_postgres
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_SCHEMA: public
+      DB_PASSWORD: password
       KEYCLOAK_USER: izanami
       KEYCLOAK_PASSWORD: izanami
-      KEYCLOAK_IMPORT:
+    depends_on:
+      - keycloak_postgres

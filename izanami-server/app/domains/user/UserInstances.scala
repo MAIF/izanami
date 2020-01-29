@@ -1,6 +1,6 @@
 package domains.user
 
-import domains.{AuthInfo, AuthorizedPattern, IsAllowed, Key}
+import domains.{AuthInfo, AuthorizedPatterns, IsAllowed, Key}
 import play.api.libs.json._
 
 object UserNoPasswordInstances {
@@ -23,14 +23,30 @@ object UserInstances {
   import play.api.libs.json._
   import play.api.libs.json.Reads.{email, pattern}
 
-  implicit val isAllowed: IsAllowed[User] = new IsAllowed[User] {
-    override def isAllowed(value: User)(auth: Option[AuthInfo]): Boolean = Key.isAllowed(value._authorizedPattern)(auth)
-  }
   private[user] val reads: Reads[User] = {
-    import domains.AuthorizedPattern._
-    val readOtoroshiUser = Json.reads[OtoroshiUser]
-    val readIzanamiUser  = Json.reads[IzanamiUser]
-    val readOauthUser    = Json.reads[OauthUser]
+    import domains.AuthorizedPatterns._
+    import play.api.libs.json._
+    import play.api.libs.functional.syntax._
+    val commonReads = (
+      (__ \ "id").read[String] and
+      (__ \ "name").read[String] and
+      (__ \ "email").read[String] and
+      (__ \ "admin").read[Boolean] and
+      (__ \ "authorizedPatterns").read[AuthorizedPatterns].orElse((__ \ "authorizedPattern").read[AuthorizedPatterns])
+    )
+
+    val readOtoroshiUser = commonReads(OtoroshiUser.apply _)
+    val readOauthUser    = commonReads(OauthUser.apply _)
+
+    val readIzanamiUser = (
+      (__ \ "id").read[String] and
+      (__ \ "name").read[String] and
+      (__ \ "email").read[String] and
+      (__ \ "password").readNullable[String] and
+      (__ \ "admin").read[Boolean] and
+      (__ \ "authorizedPatterns").read[AuthorizedPatterns].orElse((__ \ "authorizedPattern").read[AuthorizedPatterns])
+    )(IzanamiUser.apply _)
+
     (__ \ "type").readNullable[String].flatMap {
       case Some(UserType.Otoroshi) => readOtoroshiUser.asInstanceOf[Reads[User]]
       case Some(UserType.Oauth)    => readOauthUser.asInstanceOf[Reads[User]]
@@ -40,7 +56,7 @@ object UserInstances {
   }
 
   private[user] val writes: OWrites[User] = {
-    import domains.AuthorizedPattern._
+    import domains.AuthorizedPatterns._
     val writeOtoroshiUser = Json.writes[OtoroshiUser]
     val writeIzanamiUser  = Json.writes[IzanamiUser]
     val writeOauthUser    = Json.writes[OauthUser]

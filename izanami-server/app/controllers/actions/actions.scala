@@ -1,9 +1,9 @@
 package controllers.actions
 
 import akka.http.scaladsl.util.FastFuture
-import domains.AuthInfo
+import domains.{AuthInfo, AuthorizedPattern}
 import env.Env
-import filters.{FilterAttrs}
+import filters.FilterAttrs
 import libs.logs.IzanamiLogger
 import play.api.mvc.Results._
 import play.api.mvc._
@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 case class AuthContext[A](request: Request[A], auth: Option[AuthInfo]) extends WrappedRequest[A](request) {
   def authorizedPatterns: Seq[String] =
-    auth.toList.flatMap(_._authorizedPattern.split(","))
+    auth.toList.flatMap(_.authorizedPatterns.patterns.map(_.pattern))
 }
 
 case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extends WrappedRequest[A](request) {
@@ -20,7 +20,9 @@ case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extend
   val auth: Option[AuthInfo] = Some(authInfo)
 
   def authorizedPatterns: Seq[String] =
-    authInfo._authorizedPattern.split(",").toIndexedSeq
+    authInfo.authorizedPatterns.patterns.map(_.pattern)
+
+  def admin: Boolean = authInfo.admin
 }
 
 class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(

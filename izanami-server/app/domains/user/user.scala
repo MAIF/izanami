@@ -22,23 +22,21 @@ import scala.util.Try
 trait User extends AuthInfo {
   def email: String
   def admin: Boolean
-  def authorizedPattern: AuthorizedPattern
   override def mayBeEmail: Option[String] = Some(email)
-  override def _authorizedPattern: String = authorizedPattern.pattern
 }
 
 case class IzanamiUser(id: String,
                        name: String,
                        email: String,
-                       password: String,
+                       password: Option[String],
                        admin: Boolean,
-                       authorizedPattern: AuthorizedPattern)
+                       authorizedPatterns: AuthorizedPatterns)
     extends User
 
-case class OauthUser(id: String, name: String, email: String, admin: Boolean, authorizedPattern: AuthorizedPattern)
+case class OauthUser(id: String, name: String, email: String, admin: Boolean, authorizedPatterns: AuthorizedPatterns)
     extends User
 
-case class OtoroshiUser(id: String, name: String, email: String, admin: Boolean, authorizedPattern: AuthorizedPattern)
+case class OtoroshiUser(id: String, name: String, email: String, admin: Boolean, authorizedPatterns: AuthorizedPatterns)
     extends User
 
 object User {
@@ -52,7 +50,7 @@ object User {
       .withClaim("name", user.name)
       .withClaim("user_id", user.id)
       .withClaim("email", user.email)
-      .withClaim("izanami_authorized_patterns", user._authorizedPattern) // FIXME à voir si on doit mettre une liste???
+      .withClaim("izanami_authorized_patterns", AuthorizedPatterns.stringify(user.authorizedPatterns)) // FIXME à voir si on doit mettre une liste???
       .withClaim("izanami_admin", user.admin.toString)
       .sign(algorithm)
 
@@ -67,8 +65,8 @@ object User {
      Right(
        (user \ authConfig.authorizedPatternField)
          .asOpt[String]
-         .map(s => AuthorizedPattern(s))
-         .getOrElse(AuthorizedPattern(authConfig.defaultPatterns))
+         .map(s => AuthorizedPatterns.fromString(s))
+         .getOrElse(AuthorizedPatterns.fromString(authConfig.defaultPatterns))
      ))
       .parMapN(OauthUser.apply)
   }
@@ -76,10 +74,13 @@ object User {
     (newUser, oldUser) match {
       case (newUser: IzanamiUser, oldUser: IzanamiUser) =>
         import cats.implicits._
-        if (newUser.password === oldUser.password) {
-          newUser
-        } else {
-          newUser.copy(password = Sha.hexSha512(newUser.password))
+        (newUser.password, oldUser.password) match {
+          case (Some(password), Some(oldPassword)) if password === oldPassword =>
+            newUser
+          case (Some(password), _) =>
+            newUser.copy(password = Some(Sha.hexSha512(password)))
+          case (None, _) =>
+            newUser.copy(password = oldUser.password)
         }
       case _ => newUser
     }
@@ -105,7 +106,7 @@ object User {
                 name = name,
                 email = email,
                 admin = isAdmin,
-                authorizedPattern = AuthorizedPattern(patterns))
+                authorizedPatterns = AuthorizedPatterns.fromString(patterns))
   }
 
   def fromOtoroshiJwtToken(jwt: DecodedJWT): Option[User] = {
@@ -129,7 +130,7 @@ object User {
                    name = name,
                    email = email,
                    admin = isAdmin,
-                   authorizedPattern = AuthorizedPattern(patterns))
+                   authorizedPatterns = AuthorizedPatterns.fromString(patterns))
   }
 
 }
@@ -162,16 +163,19 @@ object UserService {
     user match {
       case u: OauthUser    => Right(u)
       case u: OtoroshiUser => Right(u)
-      case u: IzanamiUser  => Right(u.copy(password = Sha.hexSha512(u.password)))
+      case u: IzanamiUser  => Right(u.password.map(p => u.copy(password = Some(Sha.hexSha512(p)))).getOrElse(u))
     }
 
   def createIfNotExists(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
-    getById(id).refineToOrDie[IzanamiErrors].flatMap {
+    getById(id).flatMap {
       case Some(_) => IO.succeed(data)
       case None    => create(id, data)
     }
 
   def create(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
+    AuthorizedPatterns.isAdminAllowed(id, PatternRights.C) *> createWithoutPermission(id, data)
+
+  def createWithoutPermission(id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     for {
       _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
       user     <- ZIO.fromEither(handlePassword(data))
@@ -182,9 +186,12 @@ object UserService {
     } yield user
 
   def update(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
+    AuthorizedPatterns.isAdminAllowed(id, PatternRights.U) *> updateWithoutPermission(oldId, id, data)
+
+  def updateWithoutPermission(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
     // format: off
     for {
-      mayBeUser   <- getById(oldId).refineToOrDie[IzanamiErrors]
+      mayBeUser   <- getByIdWithoutPermissions(oldId).refineToOrDie[IzanamiErrors]
       oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId).toErrors)
       toUpdate    = User.updateUser(data, oldValue)
       updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
@@ -197,6 +204,7 @@ object UserService {
   def delete(id: UserKey): ZIO[UserContext, IzanamiErrors, User] =
     // format: off
     for {
+      _         <- AuthorizedPatterns.isAdminAllowed(id, PatternRights.D)
       deleted   <- UserDataStore.delete(id)
       user      <- jsResultToError(deleted.validate[User])
       authInfo  <- AuthInfo.authInfo
@@ -205,21 +213,28 @@ object UserService {
     // format: on
 
   def deleteAll(patterns: Seq[String]): ZIO[UserContext, IzanamiErrors, Unit] =
-    UserDataStore.deleteAll(patterns)
+    AuthInfo.isAdmin() *> UserDataStore.deleteAll(patterns)
 
-  def getById(id: UserKey): RIO[UserContext, Option[User]] =
+  def getByIdWithoutPermissions(id: UserKey): RIO[UserContext, Option[User]] =
     UserDataStore.getById(id).map(_.flatMap(_.validate[User].asOpt))
 
-  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[UserContext, PagingResult[User]] =
-    UserDataStore
+  def getById(id: UserKey): ZIO[UserContext, IzanamiErrors, Option[User]] =
+    AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).refineToOrDie[IzanamiErrors]
+
+  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): ZIO[UserContext, IzanamiErrors, PagingResult[User]] =
+    AuthInfo.isAdmin() *> UserDataStore
       .findByQuery(query, page, nbElementPerPage)
       .map(jsons => JsonPagingResult(jsons))
+      .refineToOrDie[IzanamiErrors]
 
-  def findByQuery(query: Query): RIO[UserContext, Source[(Key, User), NotUsed]] =
-    UserDataStore.findByQuery(query).map(_.readsKV[User])
+  def findByQuery(query: Query): ZIO[UserContext, IzanamiErrors, Source[(Key, User), NotUsed]] =
+    AuthInfo.isAdmin() *> UserDataStore.findByQuery(query).map(_.readsKV[User]).refineToOrDie[IzanamiErrors]
 
-  def count(query: Query): RIO[UserContext, Long] =
+  def countWithoutPermissions(query: Query): RIO[UserContext, Long] =
     UserDataStore.count(query)
+
+  def count(query: Query): ZIO[UserContext, IzanamiErrors, Long] =
+    AuthInfo.isAdmin() *> countWithoutPermissions(query).refineToOrDie[IzanamiErrors]
 
   def importData(
       strategy: ImportStrategy = ImportStrategy.Keep

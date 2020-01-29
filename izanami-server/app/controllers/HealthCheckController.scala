@@ -1,6 +1,7 @@
 package controllers
 
 import controllers.actions.AuthContext
+import controllers.dto.error.ApiErrors
 import domains.GlobalContext
 import play.api.libs.json.Json
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
@@ -19,7 +20,7 @@ class HealthCheckController(
     Healthcheck
       .check()
       .map(_ => Ok(Json.obj()))
-      .mapError(_ => InternalServerError)
+      .mapError { ApiErrors.toHttpResult }
   }
 
 }

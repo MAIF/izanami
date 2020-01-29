@@ -2,7 +2,7 @@ package test
 
 import akka.http.scaladsl.util.FastFuture
 import controllers.actions.{AuthContext, SecuredAuthContext}
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import domains.user.{IzanamiUser, User}
 import modules.IzanamiComponentsInstances
 import org.scalactic.Prettifier
@@ -81,8 +81,8 @@ trait OneAppPerTestWithMyComponents extends OneAppPerTestWithComponents with Sca
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                password = None,
+                authorizedPatterns = AuthorizedPatterns.fromString("*"))
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -99,8 +99,8 @@ trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with S
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                password = None,
+                authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -117,8 +117,8 @@ trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents wi
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                password = None,
+                authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -137,8 +137,8 @@ trait OneServerPerSuiteWithMyComponents
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
-                password = "",
-                authorizedPattern = AuthorizedPattern("*"))
+                password = None,
+                authorizedPatterns = AuthorizedPatterns.All)
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)

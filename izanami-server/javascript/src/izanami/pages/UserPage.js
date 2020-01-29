@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
 import {Table, TextInput} from "../inputs";
 import isEqual from "lodash/isEqual";
+import {AuthorizedPatterns} from "../inputs/AuthorizedPatterns";
 
 
 class StringOrDisabled extends Component {
@@ -44,8 +45,8 @@ export class UserPage extends Component {
       type: "bool",
       props: { label: "is admin", placeholder: "Is admin?" }
     },
-    authorizedPattern: {
-      type: "string",
+    authorizedPatterns: {
+      type: "authorizedPatterns",
       props: {
         label: "User authorized pattern",
         placeholder: "The User authorized pattern"
@@ -79,11 +80,11 @@ export class UserPage extends Component {
       title: "Authorized pattern",
       notFilterable: true,
       style: { textAlign: "center" },
-      content: item => item.authorizedPattern
+      content: item => <AuthorizedPatterns value={item.authorizedPatterns}/>
     }
   ];
 
-  formFlow = ["id", "name", "email", "password", "admin", "authorizedPattern"];
+  formFlow = ["id", "name", "email", "password", "admin", "authorizedPatterns"];
 
   fetchItems = args => {
     const { search = [], page, pageSize } = args;
@@ -115,17 +116,19 @@ export class UserPage extends Component {
   }
 
   render() {
+    console.log("Props", this.props);
     return (
       <div className="col-md-12">
         <div className="row">
           <Table
             defaultValue={() => ({
+              type: "Izanami",
               id: "john.doe@maif.fr",
               name: "John Doe",
               email: "john.doe@maif.fr",
-              password: "",
+              password: undefined,
               admin: true,
-              authorizedPattern: "*"
+              authorizedPatterns: [{pattern:"*", rights:["C", "R", "U", "D"]}]
             })}
             parentProps={this.props}
             user={this.props.user}
@@ -148,6 +151,7 @@ export class UserPage extends Component {
               { title: "Upload - ignore if exists", link: "/api/users.ndjson?strategy=Keep" }
             ]}
             showActions={true}
+            disableAddButton={this.props.userManagementMode === "OAuth"}
             showLink={false}
             eventNames={{
               created: "USER_CREATED",

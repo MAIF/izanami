@@ -37,6 +37,7 @@ object Oauth2Service {
       (user, _)     = t
       _             <- logger.debug(s"User from token $user")
       effectiveUser <- ZIO.fromEither(User.fromOAuth(user, authConfig))
+      _             <- logger.debug(s"User mapped from token $user")
       _             <- createOrUpdateUserIfNeeded(authConfig, effectiveUser)
       endUser       <- enrichWithDb(authConfig, effectiveUser)
       _             <- logger.info(s"Oauth user logged with $endUser")
@@ -46,10 +47,10 @@ object Oauth2Service {
                                  effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
     if (authConfig.izanamiManagedUser) {
       val id = Key(effectiveUser.id)
-      UserService.getById(id).refineToOrDie[IzanamiErrors].flatMap {
-        case None => UserService.create(id, effectiveUser)
+      UserService.getByIdWithoutPermissions(id).refineToOrDie[IzanamiErrors].flatMap {
+        case None => UserService.createWithoutPermission(id, effectiveUser)
         case Some(u: OauthUser) =>
-          UserService.update(id, id, u.copy(name = effectiveUser.name, email = effectiveUser.email))
+          UserService.updateWithoutPermission(id, id, u.copy(name = effectiveUser.name, email = effectiveUser.email))
         case _ => ZIO.succeed(effectiveUser)
       }
     } else {
@@ -59,13 +60,13 @@ object Oauth2Service {
   def enrichWithDb(authConfig: Oauth2Config, effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
     if (authConfig.izanamiManagedUser) {
       UserService
-        .getById(Key(effectiveUser.id))
+        .getByIdWithoutPermissions(Key(effectiveUser.id))
         .refineToOrDie[IzanamiErrors]
         .map {
           _.map { userFromDb =>
             effectiveUser.copy(
               admin = userFromDb.admin || adminInConfig(authConfig, effectiveUser.name),
-              authorizedPattern = userFromDb.authorizedPattern
+              authorizedPatterns = userFromDb.authorizedPatterns
             )
           }.getOrElse(effectiveUser)
         }

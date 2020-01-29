@@ -4,9 +4,8 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-
 import domains.webhook.{Webhook, WebhookContext, WebhookInstances, WebhookService}
-import domains.{Import, ImportData, IsAllowed, Key}
+import domains.{Import, ImportData, IsAllowed, Key, PatternRights}
 import libs.patch.Patch
 import play.api.http.HttpEntity
 import play.api.libs.json.{JsValue, Json}
@@ -54,7 +53,6 @@ class WebhookController(system: ActorSystem,
     val body = ctx.request.body
     for {
       webhook <- jsResultToHttpResponse(body.validate[Webhook])
-      _       <- isWebhookAllowed(webhook, ctx)
       _       <- WebhookService.create(webhook.clientId, webhook).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(webhook))
 
@@ -64,8 +62,7 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      _       <- Key.isAllowed(key, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
-      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError { ApiErrors.toHttpResult }
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
     } yield Ok(Json.toJson(webhook))
   }
@@ -75,7 +72,6 @@ class WebhookController(system: ActorSystem,
     val body = ctx.request.body
     for {
       webhook <- jsResultToHttpResponse(body.validate[Webhook])
-      _       <- isWebhookAllowed(webhook, ctx)
       _       <- WebhookService.update(Key(id), webhook.clientId, webhook).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(webhook))
   }
@@ -84,9 +80,8 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError { ApiErrors.toHttpResult }
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- isWebhookAllowed(webhook, ctx)
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, webhook))
       _       <- WebhookService.update(key, webhook.clientId, updated).mapError { ApiErrors.toHttpResult }
@@ -97,9 +92,8 @@ class WebhookController(system: ActorSystem,
     import WebhookInstances._
     val key = Key(id)
     for {
-      mayBe   <- WebhookService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- WebhookService.getById(key).mapError { ApiErrors.toHttpResult }
       webhook <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- isWebhookAllowed(webhook, ctx)
       _       <- WebhookService.delete(key).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(webhook))
   }
@@ -144,9 +138,4 @@ class WebhookController(system: ActorSystem,
   def upload(strStrategy: String) = AuthAction.asyncTask[WebhookContext](Import.ndJson) { ctx =>
     ImportData.importHttp(strStrategy, ctx.body, WebhookService.importData)
   }
-
-  private def isWebhookAllowed(webhook: Webhook,
-                               ctx: SecuredAuthContext[_])(implicit A: IsAllowed[Webhook]): zio.IO[Result, Unit] =
-    IsAllowed[Webhook].isAllowed(webhook, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
-
 }

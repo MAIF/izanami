@@ -11,6 +11,7 @@ import domains.errors.{
   InvalidCopyKey,
   IzanamiError,
   IzanamiErrors,
+  Unauthorized,
   ValidationError
 }
 
@@ -52,10 +53,19 @@ object ApiErrors {
         error("error.id.not.the.same", fromObject.key, inParam.key)
       case DataShouldExists(id)    => error("error.data.missing", id.key)
       case DataShouldNotExists(id) => error("error.data.exists", id.key)
+      case Unauthorized(id)        => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
     }
 
-  def toHttpResult(error: IzanamiErrors): Result =
-    Results.BadRequest(Json.toJson(fromErrors(error.toList)))
+  def toHttpResult(errors: IzanamiErrors): Result = {
+    val forbiddens: List[Unauthorized] = errors.toList.collect { case u: Unauthorized => u }
+    if (forbiddens.isEmpty) {
+      Results.BadRequest(Json.toJson(fromErrors(errors.toList)))
+    } else {
+      Results.Forbidden(Json.toJson(forbiddens.foldMap {
+        case Unauthorized(id) => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+      }))
+    }
+  }
 
   def error(message: String, args: String*): ApiErrors =
     ApiErrors(List(ApiError(message, args.toList)), Map.empty)

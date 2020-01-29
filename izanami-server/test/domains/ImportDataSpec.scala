@@ -43,7 +43,7 @@ class ImportDataSpec extends IzanamiSpec {
         ImportData
           .importData[LoggerModule, String, Viking](ImportStrategy.Replace,
                                                     _.id,
-                                                    key => Task(datas.get(key)),
+                                                    key => Task(datas.get(key)).refineToOrDie[IzanamiErrors],
                                                     insert,
                                                     insert)
       )

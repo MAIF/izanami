@@ -7,11 +7,21 @@ import akka.NotUsed
 import cats.data.NonEmptyList
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.{EventStore, EventStoreContext}
-import domains.{AkkaModule, AuthInfo, AuthInfoModule, ImportData, ImportResult, ImportStrategy, Key}
+import domains.{
+  AkkaModule,
+  AuthInfo,
+  AuthInfoModule,
+  AuthorizedPatterns,
+  ImportData,
+  ImportResult,
+  ImportStrategy,
+  Key,
+  PatternRights
+}
 import libs.logs.LoggerModule
 import play.api.libs.json._
 import domains.errors.{IzanamiErrors, ValidatedResult, ValidationError}
-import store.{_}
+import store._
 import cats.implicits._
 import cats.data.Validated._
 import libs.ziohelper.JsResults.jsResultToError
@@ -170,6 +180,7 @@ object ExperimentService {
     import ExperimentInstances._
     // format: off
     for {
+      _           <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
       _           <- ZIO.fromEither(Experiment.validate(data))
       created     <- ExperimentDataStore.create(id, Json.toJson(data))
       experiment  <- jsResultToError(created.validate[Experiment])
@@ -184,9 +195,10 @@ object ExperimentService {
              data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
     // format: off
     for {
+      _           <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
       _           <- ZIO.fromEither(Experiment.validate(data))
       _           <- ZIO.when(oldId =!= id)(ZIO.fail(IdMustBeTheSame(oldId, id).toErrors))      
-      mayBe       <- getById(oldId).refineToOrDie[IzanamiErrors]
+      mayBe       <- getById(oldId)
       oldValue    <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
       _           <- ZIO.when(Experiment.isTrafficChanged(oldValue, data)) {
                        ExperimentVariantEventService.deleteEventsForExperiment(oldValue)
@@ -213,6 +225,7 @@ object ExperimentService {
   def delete(id: ExperimentKey): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
     // format: off
     for {
+      _           <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
       deleted     <- ExperimentDataStore.delete(id)
       experiment  <- jsResultToError(deleted.validate[Experiment])
       authInfo    <- AuthInfo.authInfo
@@ -223,8 +236,11 @@ object ExperimentService {
   def deleteAll(q: Query): ZIO[ExperimentContext, IzanamiErrors, Unit] =
     ExperimentDataStore.deleteAll(q)
 
-  def getById(id: ExperimentKey): RIO[ExperimentContext, Option[Experiment]] =
-    ExperimentDataStore.getById(id).map(_.flatMap(_.validate[Experiment].asOpt))
+  def getById(id: ExperimentKey): ZIO[ExperimentContext, IzanamiErrors, Option[Experiment]] =
+    AuthorizedPatterns.isAllowed(id, PatternRights.R) *> ExperimentDataStore
+      .getById(id)
+      .refineToOrDie[IzanamiErrors]
+      .map(_.flatMap(_.validate[Experiment].asOpt))
 
   def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ExperimentContext, PagingResult[Experiment]] =
     ExperimentDataStore
@@ -277,7 +293,7 @@ object ExperimentService {
     // format: off
     for {
 
-      mayBeExp    <- getById(experimentKey).refineToOrDie[IzanamiErrors]
+      mayBeExp    <- getById(experimentKey)
       experiment  <- ZIO.fromOption(mayBeExp).mapError(_ => ValidationError.error("error.experiment.missing").toErrors)
 
       variant <- experiment.campaign match {
@@ -325,10 +341,9 @@ object ExperimentService {
                         }
                         .runWith(Sink.head)
                     }
-
+                    .refineToOrDie[IzanamiErrors]
                 }
               }
-              .refineToOrDie[IzanamiErrors]
     } yield res
 
 }

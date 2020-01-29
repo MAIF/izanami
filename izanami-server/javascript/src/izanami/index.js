@@ -30,6 +30,7 @@ import "../styles/main.scss";
 import { MultiSearch } from "./inputs";
 import { DynamicTitle } from "./components/DynamicTitle";
 import { IzanamiEvents } from "./services/events";
+import * as IzanamiServices from "./services";
 import Cookies from "js-cookie";
 const pictos = {
   configurations: "fas fa-wrench",
@@ -51,6 +52,7 @@ export class LoggedApp extends Component {
         setTitle={t => DynamicTitle.setContent(t)}
         getTitle={() => DynamicTitle.getContent()}
         user={this.props.user}
+        userManagementMode={this.props.userManagementMode}
         confirmationDialog={this.props.confirmationDialog}
         setSidebarContent={c => DynamicSidebar.setContent(c)}
         {...newProps}
@@ -71,17 +73,7 @@ export class LoggedApp extends Component {
   }
 
   searchServicesOptions = ({ query, filters }) => {
-    const filtersQuery = Object.keys(filters)
-      .map(k => `${k}=${filters[k]}`)
-      .join("&");
-    return fetch(`/api/_search?patterns=${query}*&${filtersQuery}`, {
-      method: "GET",
-      credentials: "include",
-      headers: {
-        Accept: "application/json"
-      }
-    })
-      .then(r => r.json())
+    return IzanamiServices.search({query, filters})
       .then(results => {
         return results.map(v => ({
           label: `${v.id}`,
@@ -112,7 +104,7 @@ export class LoggedApp extends Component {
     const className = part => (part === pathname ? "active" : "inactive");
 
     const userManagementEnabled =
-      this.props.enabledUserManagement &&
+      (this.props.userManagementMode !== "None") &&
       this.props.user &&
       this.props.user.admin;
 

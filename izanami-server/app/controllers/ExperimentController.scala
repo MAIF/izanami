@@ -5,12 +5,11 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-
 import controllers.dto.importresult.ImportResultDto
 import controllers.dto.abtesting.ExperimentListResult
 import controllers.dto.meta.Metadata
 import domains.abtesting.Experiment.ExperimentKey
-import domains.{Import, ImportData, IsAllowed, Key, Node}
+import domains.{Import, ImportData, IsAllowed, Key, Node, PatternRights}
 import domains.abtesting._
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
@@ -93,7 +92,6 @@ class ExperimentController(system: ActorSystem,
     val body = ctx.request.body
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
-      _          <- isExperimentAllowed(experiment, ctx)
       _          <- ExperimentService.create(experiment.id, experiment).mapError { ApiErrors.toHttpResult }
     } yield Created(Json.toJson(experiment))
   }
@@ -103,8 +101,7 @@ class ExperimentController(system: ActorSystem,
       import ExperimentInstances._
       val key = Key(id)
       for {
-        _          <- Key.isAllowed(key, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
-        mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
+        mayBe      <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
         experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))
     }
@@ -114,7 +111,6 @@ class ExperimentController(system: ActorSystem,
     val body = ctx.request.body
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
-      _          <- isExperimentAllowed(experiment, ctx)
       _          <- ExperimentService.update(Key(id), experiment.id, experiment).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(experiment))
   }
@@ -123,9 +119,8 @@ class ExperimentController(system: ActorSystem,
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe   <- ExperimentService.getById(key).mapError(_ => InternalServerError)
+      mayBe   <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- isExperimentAllowed(current, ctx)
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, current))
       _       <- ExperimentService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
@@ -136,9 +131,8 @@ class ExperimentController(system: ActorSystem,
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe      <- ExperimentService.getById(key).mapError(_ => InternalServerError)
+      mayBe      <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
       experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _          <- isExperimentAllowed(experiment, ctx)
       _          <- ExperimentService.delete(key).mapError { ApiErrors.toHttpResult }
       _ <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError {
             ApiErrors.toHttpResult
@@ -316,9 +310,5 @@ class ExperimentController(system: ActorSystem,
             )
     } yield res
   }
-
-  private def isExperimentAllowed(experiment: Experiment,
-                                  ctx: SecuredAuthContext[_])(implicit A: IsAllowed[Experiment]): zio.IO[Result, Unit] =
-    IsAllowed[Experiment].isAllowed(experiment, ctx.auth)(Forbidden(ApiErrors.error("error.forbidden").toJson))
 
 }

@@ -4,7 +4,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.nio.file.{Path, Paths}
 
 import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
-import domains.AuthorizedPattern
+import domains.AuthorizedPatterns
 import play.api.Configuration
 import play.api.libs.ws.WSProxyServer
 import pureconfig._
@@ -194,7 +194,7 @@ case class ApikeyConfig(db: DbDomainConfig, initialize: InitializeApiKey) {
     for {
       id     <- initialize.clientId
       secret <- initialize.clientSecret
-    } yield domains.apikey.Apikey(id, "", secret, AuthorizedPattern(initialize.authorizedPatterns))
+    } yield domains.apikey.Apikey(id, "", secret, AuthorizedPatterns.fromString(initialize.authorizedPatterns), true)
 }
 case class PatchConfig(db: DbDomainConfig)
 
