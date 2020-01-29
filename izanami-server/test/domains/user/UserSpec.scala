@@ -325,7 +325,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(UserService.create(id, user).either)
-      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(id))))
       ctx.userDataStore.inMemoryStore.contains(id) must be(false)
     }
 
@@ -490,7 +490,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(UserService.update(id, id, user).either)
-      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(id))))
       ctx.userDataStore.inMemoryStore.contains(id) must be(false)
     }
 
@@ -523,13 +523,12 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "delete forbidden" in {
-      val id   = Key("test")
-      val user = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val id = Key("test")
       val ctx =
         TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(UserService.delete(id).either)
-      value mustBe Left(NonEmptyList.of(Unauthorized(None)))
+      value mustBe Left(NonEmptyList.of(Unauthorized(Some(id))))
       ctx.userDataStore.inMemoryStore.contains(id) must be(false)
     }
 
