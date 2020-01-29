@@ -254,6 +254,19 @@ object AuthorizedPatterns {
       }
     }
 
+  def isAdminAllowed(key: Key,
+                     patternRight: PatternRights): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
+    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
+      ZIO.when(
+        !ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p)) && !ctx.authInfo
+          .exists(_.admin)
+      ) {
+        ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
+          IzanamiErrors(Unauthorized(Some(key)))
+        )
+      }
+    }
+
   def isAllowed(patterns: (Key, PatternRights)*): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] = {
     import cats.implicits._
     ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
