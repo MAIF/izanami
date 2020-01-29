@@ -21,36 +21,74 @@ docker-compose -f docker-compose.oauth.yml up
 
 Go to `http://localhost:8980` and log with `izanami` / `izanami`.  
  
-## Define scope 
+## Managing abilitations in Izanami 
 
+### Create an Izanami client 
+
+Create a new open id connect client and name it izanami. Set the root url to the url of your server. 
+
+![Izanami client](../img/tutorial/oauth/client_izanami_1.png) 
+
+In the settings, fill the field with the various urls of izanami. 
+
+![Izanami client](../img/tutorial/oauth/client_izanami_2_settings.png)
+
+Next step create some users.
+
+### Create users 
+
+We will create two users : 
+ * one admin user 
+ * one user with restricted access
+ 
+In the users menu, add a new user 
+
+![Users](../img/tutorial/oauth/users_all.png)
+ 
+![Users](../img/tutorial/oauth/users_admin_1.png)
+
+### Manage users in Izanami
+
+After the first login action, the user will be created in Izanami. You can now manage his rights. 
+
+![Users](../img/users/all.png)
+
+and then edit the user 
+
+![Users](../img/users/update_oauth_user.png)
+
+
+ 
+## Managing abilitations in keycloak 
+
+### Define scope 
 You first need to define new scopes for 
  * `authorizedPatterns` : the pattern applied on keys that the user is able to use 
  * `admin` : a boolean to define id the user will be admin
 
-### Define a new scope for authorized patterns field
-
+#### Define a new scope for authorized patterns field
 
 ![Pattern scope](../img/tutorial/oauth/client_scope_patterns_1.png)
  
- ### Define a mapper for authorized patterns field
+#### Define a mapper for authorized patterns field
 
 Define a mapper for the `authorizedPatterns` field with a mapper type `UserAttribute` and the name of the attribute and the name in the claim. 
 Here the name will be `authorizedPatterns` and the type in json will be a `string`.
 
 ![Pattern scope mapper](../img/tutorial/oauth/client_scope_patterns_2_mapper.png) 
 
-### Define a new scope for the admin field
+#### Define a new scope for the admin field
 
 ![Admin scope](../img/tutorial/oauth/client_scope_admin_1.png) 
 
-### Define a mapper for the admin field
+#### Define a mapper for the admin field
 
 Define a mapper for the `admin` field with a mapper type `UserAttribute` and the name of the attribute and the name in the claim. 
 Here the name will be `admin` and the type in json will be a `boolean`.
 
 ![Admin scope mapper](../img/tutorial/oauth/client_scope_admin_2_mapper.png) 
 
-## Create an Izanami client 
+### Create an Izanami client 
 
 Create a new open id connect client and name it izanami. Set the root url to the url of your server. 
 
@@ -66,7 +104,7 @@ In the client scope panel, add the two scopes created previously.
 
 Next step create some users.
 
-## Create users 
+### Create users 
 
 We will create two users : 
  * one admin user 
@@ -76,7 +114,7 @@ In the users menu, add a new user
 
 ![Users](../img/tutorial/oauth/users_all.png)
 
-### Admin user 
+#### Admin user 
 
 Create an admin user 
 
@@ -87,7 +125,7 @@ In the attributes panel, add two attributes
 ![Users](../img/tutorial/oauth/users_admin_2_attributes.png)
 
 
-### Random user 
+#### Random user 
 
 Create an simple user 
 
@@ -124,6 +162,7 @@ Assuming that keycloak was started on `8980` port you can set the following conf
     adminField = "admin"
     authorizedPatternField = "authorizedPatterns"
     defaultPatterns = ""
+    izanamiManagedUser = true
   }
 ```
 
@@ -150,6 +189,7 @@ OAUTH2_EMAIL_FIELD="email"
 OAUTH2_ADMIN_FIELD="admin"
 OAUTH2_AUTHORIZED_PATTERN_FIELD="authorizedPatterns"
 OAUTH2_DEFAULT_PATTERN=""
+OAUTH2_IZANAMI_MANAGED_USERS=true
 ```
     
 Now if you hit the `http://localhost:9000` izanami homepage, you're redirected to the keycloak login page : 
