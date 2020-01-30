@@ -8,14 +8,14 @@ import {BooleanInput} from "./BooleanInput";
 const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
   return (
-      <div className="btn-group btn-breadcrumb" style={{marginTop:'10px'}}>
-        {values.map((part, i) => (
-            <div className="key-value-value-big" key={`key-value-${props.value}-${i}`}>
-              <span>{part}</span>
-              {i < values.length - 1 && <i className="fas fa-caret-right" />}
-            </div>
-        ))}
-      </div>
+        <div className="btn-group btn-breadcrumb" style={{marginTop:'10px'}}>
+          {values.map((part, i) => (
+              <div className="key-value-value-big" key={`key-value-${props.value}-${i}`}>
+                <span>{part}</span>
+                {i < values.length - 1 && <i className="fas fa-caret-right" />}
+              </div>
+          ))}
+        </div>
   );
 };
 
@@ -42,16 +42,25 @@ class CopyNodeWindow extends Component {
                 From
               </label>
               <div className="col-sm-10">
-                <Key value={this.props.nodekey || ''} />
+                <div className="keypicker-control">
+                  <Key value={this.props.nodekey || ''} />
+                </div>
               </div>
             </div>
-            <KeyInput label={'To'} autoFocus={true} search={this.props.searchKeys} value={''} onChange={key => this.setState({key})} />
+           <div className="form-group">
+              <label htmlFor={`input-From`} className="col-sm-2 control-label">
+              To
+              </label>
+              <div className="col-sm-10">
+                <KeyInput label={'To'} autoFocus={true} search={this.props.searchKeys} value={''} onChange={key => this.setState({key})} />
+              </div>
+            </div>
             <BooleanInput label={'Active'}
                           value={this.state.defaultValue}
                           onChange={defaultValue => this.setState({defaultValue})} />
             <div className="form-group">
               <div className="col-sm-12">
-                <div className="btn-group pull-right">
+                <div className="form-buttons pull-right">
                   <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
                   <button type="button" className="btn btn-primary"
                           onClick={_ => this.clone()}>
@@ -174,7 +183,7 @@ class Node extends Component {
                       onMouseOut={_ => this.setState({ openCopy: false})}
                       type="button"
                       className="btn btn-sm btn-success"
-                      title="Open on table view">
+                      title="Duplicate">
 
                     <Popover isOpen={this.state.openCopy}
                              preferPlace={'below'}
