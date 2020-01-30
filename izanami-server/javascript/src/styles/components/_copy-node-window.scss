@@ -1,9 +1,9 @@
 .copy-node-window {
-  border: 1px solid $colorBleue;
+  border: 1px solid $fondNavbar;
   border-radius: 4px;
-  background-color: $fondNavbar;
+  background-color:$fondBody;
   min-width: 400px;
-  margin-left: 50px;
+  margin-left: 150px;
   padding: 10px;
 }
 
@@ -20,5 +20,5 @@
 }
 
 .Popover-tipShape {
-  fill: $colorBleue
+  fill: $fondNavbar
 }
