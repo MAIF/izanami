@@ -23,7 +23,7 @@ import {
   UserPage,
   WebHooksPage
 } from "./pages";
-import { popover } from "./inputs/popover";
+//import { popover } from "./inputs/popover";
 import queryString from "query-string";
 import isEmpty from "lodash/isEmpty";
 import "../styles/main.scss";
@@ -223,10 +223,10 @@ export class LoggedApp extends Component {
                 {...popover({
                   options: {
                     title:
-                      '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
+                      '<span><strong>Create a user</strong></span><button type="button" class="close cancel float-right" >&times;</button>',
                     html: "true",
                     content:
-                      '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary pull-right click" href="/users/add">Create user</a>',
+                      '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary float-right click" href="/users/add">Create user</a>',
                     container: "body"
                   },
                   state: "show",
@@ -240,17 +240,16 @@ export class LoggedApp extends Component {
 
         <div className="container-fluid">
           <div className="row">
-            <div className="analytics-viewer-bottom-container">
-              <div className="col-sm-2 sidebar" id="sidebar">
+              <div className="col-sm-3 col-lg-2 sidebar" id="sidebar">
                 <div className="sidebar-container">
                   <div className="sidebar-content">
-                    <ul className="nav nav-sidebar">
+                    <ul className="nav nav-sidebar flex-column">
                       <li className={className("/")}>
-                        <Link to="/">
-                          <h3 style={{ marginTop: 0, marginLeft: -25 }}>
+                        <h3>
+                         <Link to="/">
                             <i className="fas fa-tachometer-alt" /> Home
-                          </h3>
-                        </Link>
+                         </Link>
+                        </h3>
                       </li>
                       <li className={className("/features")}>
                         <Link to="/features" style={{ cursor: "pointer" }}>
@@ -336,9 +335,9 @@ export class LoggedApp extends Component {
                   </div>
                 </div>
               </div>
-              <div className="col-sm-10 col-sm-offset-2 main">
+              <div className="col-sm-9 offset-sm-3 col-lg-10 offset-lg-2 main">
                 <div className="row">
-                  <div className="izanami-container">
+                  <div className="col-12 izanami-container">
                     <DynamicTitle />
                     <div className="row">
                       <Switch>
@@ -519,7 +518,6 @@ export class LoggedApp extends Component {
                   </div>
                 </div>
               </div>
-            </div>
           </div>
         </div>
       </div>

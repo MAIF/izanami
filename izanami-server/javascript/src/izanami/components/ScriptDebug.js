@@ -15,7 +15,7 @@ const Logs = props => {
     <div className={`col-sm-${size}`}>
       <h5>
         {props.title}{" "}
-        <button className="btn btn-xs btn-primary" type="button" onClick={func}>
+        <button className="btn btn-sm btn-primary" type="button" onClick={func}>
           <i className={`fas fa-${icon}`} />
         </button>
       </h5>
@@ -107,7 +107,7 @@ export class ScriptDebug extends Component {
               <div class="btn-group">
                 <button
                   type="button"
-                  className="btn btn-success btn-large"
+                  className="btn btn-success btn-sm"
                   onClick={this.runDebug}
                 >
                   <span>Run </span>
@@ -134,7 +134,7 @@ export class ScriptDebug extends Component {
             </div>
           </div>
         </div>
-        <div className="row">
+        <div className="row mt-2">
           <Logs
             title="Logs"
             size={this.state.logsExpanded}

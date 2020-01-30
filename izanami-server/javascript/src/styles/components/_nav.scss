@@ -41,12 +41,15 @@
 
 .nav > li > a {
   transition-duration: 1s;
+  padding: 5px 10px 5px 36px;
+  position: relative;
+  display: block;
 
   &:focus,
   &:hover {
     background-color: $fondGrisclairSurvolMenu;
     color: #fff;
-    border-color: $primaryColor;
+    //border-color: $primaryColor;
   }
 }
 

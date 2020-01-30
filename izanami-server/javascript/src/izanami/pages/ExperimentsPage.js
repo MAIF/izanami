@@ -30,7 +30,7 @@ class Variant extends Component {
       <div className="col-xs-12 col-sm-4">
         <div className="panel variant-panel">
           <div className="panel-heading variant-panel">
-            <h3 className="panel-title pull-left">Traffic</h3>
+            <h3 className="panel-title float-left">Traffic</h3>
             <span className="input-group-btn">
               <button
                 type="button"
@@ -40,7 +40,7 @@ class Variant extends Component {
                 disabled={!this.props.deletable}
                 onClick={e => this.props.remove()}
               >
-                <i className="glyphicon glyphicon-trash" />
+                <i className="fas fa-trash-alt" />
               </button>
             </span>
           </div>
@@ -205,7 +205,7 @@ class Variants extends Component {
         <hr />
         {isUpdate && (
           <div className="row">
-            <div className="col-sm-10 col-sm-offset-2">
+            <div className="col-sm-10 offset-sm-2">
               <div className="alert alert-warning">
                 <i className="fas fa-exclamation-triangle" /> Be careful,
                 changing traffic information will drop all the datas already
@@ -214,38 +214,37 @@ class Variants extends Component {
             </div>
           </div>
         )}
-        <div className="row">
-          <div className="form-group">
-            <label
-              htmlFor="input-Name"
-              className="col-sm-2 control-label slider-label"
+
+      <div className="form-group row">
+        <label
+          htmlFor="input-Name"
+          className="col-sm-2 col-form-label slider-label"
+        >
+          Traffic allocation
+        </label>
+        <div className="col-sm-8">
+          <div>
+            <ReactSlider
+              className="horizontal-slider"
+              withBars={true}
+              defaultValue={trafficStack.map(i => i.percent)}
+              value={trafficStack.map(i => i.percent)}
+              onChange={this.updateTraffic}
+              orientation="horizontal"
+              min={0}
+              max={100}
             >
-              Traffic allocation
-            </label>
-            <div className="col-sm-8">
-              <div>
-                <ReactSlider
-                  className="horizontal-slider"
-                  withBars={true}
-                  defaultValue={trafficStack.map(i => i.percent)}
-                  value={trafficStack.map(i => i.percent)}
-                  onChange={this.updateTraffic}
-                  orientation="horizontal"
-                  min={0}
-                  max={100}
-                >
-                  {trafficStack.map((t, i) => (
-                    <div key={`trafic-slider-${t}-${i}`}>
-                      {`${t.id ? `${t.id}: ` : ""} ${t.traffic} %`}
-                    </div>
-                  ))}
-                </ReactSlider>
-              </div>
-            </div>
+              {trafficStack.map((t, i) => (
+                <div key={`trafic-slider-${t}-${i}`}>
+                  {`${t.id ? `${t.id}: ` : ""} ${t.traffic} %`}
+                </div>
+              ))}
+            </ReactSlider>
           </div>
         </div>
+      </div>
         <div className="row">
-          <div className="col-sm-offset-2 col-sm-4 col-md-2">
+          <div className="offset-sm-2 col-sm-4 col-md-2">
             <button
               type="button"
               className="btn btn-sm btn-block btn-primary btn-addTraffic"
@@ -263,13 +262,13 @@ class Variants extends Component {
                 ]);
               }}
             >
-              <i className="glyphicon glyphicon-plus-sign" /> Add traffic
+                <i className="fas fa-plus-circle" /> Add traffic
               segment
             </button>
           </div>
         </div>
         <div className="row">
-          <div className="col-sm-offset-2 col-sm-10">
+          <div className="offset-sm-2 col-sm-10">
             <div className="row">
               {variants.map((v, i) => (
                 <Variant
@@ -713,7 +712,7 @@ export class ExperimentsPage extends Component {
                 className="btn btn-primary"
                 onClick={e => this.showResults(e, this.state.item)}
               >
-                <i className="glyphicon glyphicon-refresh" /> Reload
+                <i className="fas fa-sync" /> Reload
               </button>
               <button
                 type="button"

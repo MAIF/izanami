@@ -37,8 +37,8 @@ class CopyNodeWindow extends Component {
         <div onMouseOut={_ => this.props.close() }
              className={'copy-node-window'} onClick={_ => false}>
           <form className="form-horizontal" style={this.props.style}>
-            <div className="form-group">
-              <label htmlFor={`input-From`} className="col-sm-2 control-label">
+            <div className="form-group row">
+              <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
                 From
               </label>
               <div className="col-sm-10">
@@ -60,7 +60,7 @@ class CopyNodeWindow extends Component {
                           onChange={defaultValue => this.setState({defaultValue})} />
             <div className="form-group">
               <div className="col-sm-12">
-                <div className="form-buttons pull-right">
+                <div className="btn-group float-right">
                   <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
                   <button type="button" className="btn btn-primary"
                           onClick={_ => this.clone()}>
@@ -235,7 +235,7 @@ class Node extends Component {
                             className="btn btn-sm btn-danger"
                             title="Delete this Configuration"
                         >
-                          <i className="glyphicon glyphicon-trash" />
+                                <i className="fas fa-trash-alt" />
                         </button>
                       </div>
                   )}

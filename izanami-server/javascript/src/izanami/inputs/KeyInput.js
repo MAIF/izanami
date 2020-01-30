@@ -57,22 +57,6 @@ const keys = {
   enter: 13
 };
 
-export class KeyInputForm extends Component {
-  render() {
-    return <div className="form-group">
-      <label
-          htmlFor={`input-${this.props.label}`}
-          className="col-sm-2 control-label"
-      >
-        {this.props.label}
-      </label>
-      <div className="col-sm-10">
-        <KeyInput {...this.props} />
-      </div>
-    </div>
-  }
-}
-
 export class KeyInput extends Component {
   state = {
     key: this.props.value,
@@ -267,7 +251,14 @@ export class KeyInput extends Component {
   render() {
     const autoFocus = this.props.autoFocus || (this.state.segments.length === 0);
     return (
-
+      <div className="form-group">
+        <label
+          htmlFor={`input-${this.props.label}`}
+          className="col-sm-2 control-label"
+        >
+          {this.props.label}
+        </label>
+        <div className="col-sm-10">
           <div
             className="keypicker keypicker--multi"
             ref={ref => (this.wrapper = ref)}
@@ -327,9 +318,10 @@ export class KeyInput extends Component {
               {this.props.copyButton && <span>
                 <button
                   type="button"
-                  className="btn btn-small btn-success"
+                  className="btn btn-sm btn-success"
                   title="copy"
                   onClick={this.copyToClipboard}
+                  style={{marginTop:'2px'}}
                 >
                   <i className="far fa-copy" />
                 </button>

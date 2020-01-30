@@ -10,6 +10,7 @@ body {
 a,
 a:hover {
   color: $primaryColor;
+  text-decoration: none;
 }
 
 .main {
@@ -36,6 +37,9 @@ a:hover {
 h3,
 h4 {
   color: $primaryColor;
+}
+hr {
+  border-top: 1px solid #eee;
 }
 @mixin h3fixed {
   position: fixed;

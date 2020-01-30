@@ -56,10 +56,10 @@ export class ArrayInput extends Component {
     return (
       <div>
         {values.length === 0 && (
-          <div className="form-group">
+          <div className="form-group row">
             <label
               htmlFor={`input-${this.props.label}`}
-              className="col-sm-2 control-label"
+              className="col-sm-2 col-form-label"
             >
               {this.props.label}
             </label>
@@ -67,23 +67,23 @@ export class ArrayInput extends Component {
               <button
                 disabled={this.props.disabled}
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 onClick={this.addFirst}
               >
-                <i className="glyphicon glyphicon-plus-sign" />{" "}
+                    <i className="fas fa-plus-circle" />" "}
               </button>
             </div>
           </div>
         )}
         {values.map((value, idx) => (
-          <div className="form-group" key={idx}>
+          <div className="form-group row" key={idx}>
             {idx === 0 && (
-              <label className="col-sm-2 control-label">
+              <label className="col-sm-2 col-form-label">
                 {this.props.label}
               </label>
             )}
             {idx > 0 && (
-              <label className="col-sm-2 control-label">&nbsp;</label>
+              <label className="col-sm-2 col-form-label">&nbsp;</label>
             )}
             <div className="col-sm-10">
               <div className="input-group">
@@ -119,16 +119,16 @@ export class ArrayInput extends Component {
                     className="btn btn-danger"
                     onClick={e => this.remove(e, idx)}
                   >
-                    <i className="glyphicon glyphicon-trash" />
+                    <i className="fas fa-trash-alt" />
                   </button>
                   {idx === values.length - 1 && (
                     <button
                       disabled={this.props.disabled}
                       type="button"
-                      className="btn btn-primary"
+                      className="btn btn-primary btn-sm"
                       onClick={this.addNext}
                     >
-                      <i className="glyphicon glyphicon-plus-sign" />{" "}
+                          <i className="fas fa-plus-circle" />{" "}
                     </button>
                   )}
                 </span>
