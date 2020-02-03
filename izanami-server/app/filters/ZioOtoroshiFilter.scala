@@ -5,7 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.{JWT, JWTVerifier}
 import domains.user.User
 import env.OtoroshiFilterConfig
-import libs.logs.LoggerModule
+import libs.logs.{Logger, LoggerModule}
 import play.api.Mode
 import play.api.libs.json.Json
 import play.api.mvc.{RequestHeader, Result, Results}
@@ -21,6 +21,8 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
     .withIssuer(config.issuer)
     .acceptLeeway(5000)
     .build()
+
+  private val getLogger: ZIO[LoggerModule, Nothing, Logger] = Logger("filter")
 
   override def filter(
       nextFilter: RequestHeader => Task[Result]
@@ -92,14 +94,16 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
     val maybeState: Option[String] = requestHeader.headers.get(config.headerGatewayState)
 
     val res: ZIO[LoggerModule, Result, Result] = for {
-      ctx <- ZIO.environment[LoggerModule]
+      ctx    <- ZIO.environment[LoggerModule]
+      logger <- getLogger
       decoded <- ZIO(verifier.verify(claim)).mapError { _ =>
                   Results
                     .Unauthorized(Json.obj("error" -> "Claim error !!!"))
                     .withHeaders(config.headerGatewayStateResp -> maybeState.getOrElse("--"))
                 }
       maybeUser   = User.fromOtoroshiJwtToken(decoded)
-      result      <- nextFilter(requestHeader).refineToOrDie[Result]
+      _           <- logger.debug(s"Decoded user $maybeUser")
+      result      <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, maybeUser)).refineToOrDie[Result]
       requestTime = System.currentTimeMillis - startTime
       _ <- ZIO.when(maybeUser.isEmpty) {
             ctx.logger.debug(
