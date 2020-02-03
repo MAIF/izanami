@@ -89,12 +89,11 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
   private def filterProdWithClaim(claim: String, nextFilter: RequestHeader => Task[Result])(
       requestHeader: RequestHeader
   ): ZIO[LoggerModule, Throwable, Result] = {
+    import scala.jdk.CollectionConverters._
     val startTime: Long            = System.currentTimeMillis
     val maybeReqId: Option[String] = requestHeader.headers.get(config.headerRequestId)
     val maybeState: Option[String] = requestHeader.headers.get(config.headerGatewayState)
-
     val res: ZIO[LoggerModule, Result, Result] = for {
-      ctx    <- ZIO.environment[LoggerModule]
       logger <- getLogger
       decoded <- ZIO(verifier.verify(claim)).mapError { _ =>
                   Results
@@ -102,16 +101,14 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
                     .withHeaders(config.headerGatewayStateResp -> maybeState.getOrElse("--"))
                 }
       maybeUser   = User.fromOtoroshiJwtToken(decoded)
-      _           <- logger.debug(s"Decoded user $maybeUser")
+      _           <- ZIO.when(maybeUser.isEmpty) { logger.debug(s"Decoded user is empty for ${decoded.getClaims.asScala}") }
       result      <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, maybeUser)).refineToOrDie[Result]
       requestTime = System.currentTimeMillis - startTime
-      _ <- ZIO.when(maybeUser.isEmpty) {
-            ctx.logger.debug(
-              s"Request from Gateway with id : ${maybeReqId.getOrElse("")} => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
-                .map(h => s"""   "${h._1}": "${h._2}"\n""")
-                .mkString(",")} took ${requestTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
-            )
-          }
+      _ <- logger.debug(
+            s"Request from Gateway with id : ${maybeReqId.getOrElse("")} => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+              .map(h => s"""   "${h._1}": "${h._2}"\n""")
+              .mkString(",")} took ${requestTime} ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+          )
     } yield
       result.withHeaders(
         config.headerGatewayStateResp -> maybeState.getOrElse("--")
