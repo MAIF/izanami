@@ -51,23 +51,19 @@ class AuthorizedPattern extends Component {
 
     render() {
         return (
-            <div className="form-group">
-                <div className="col-sm-8">
-                    <KeyInput
-                        value={this.props.value.pattern}
-                        search={this.searchKey}
-                        onChange={e => this.changeKey(e)}
-                    />
+            <>
+                <KeyInput
+                    value={this.props.value.pattern}
+                    search={this.searchKey}
+                    onChange={e => this.changeKey(e)}
+                />
+                <div className="input-group-btn" role="group" style={{paddingLeft:'10px'}}>
+                    <Right letter={"C"} selected={this.props.value.rights.includes("C")} onChange={v => this.set("C", v)}/>
+                    <Right letter={"R"} selected={true} disabled={true} />
+                    <Right letter={"U"} selected={this.props.value.rights.includes("U")} onChange={v => this.set("U", v)}/>
+                    <Right letter={"D"} selected={this.props.value.rights.includes("D")} onChange={v => this.set("D", v)}/>
                 </div>
-                <div className="col-sm-4">
-                    <div className="btn-group" role="group" >
-                        <Right letter={"C"} selected={this.props.value.rights.includes("C")} onChange={v => this.set("C", v)}/>
-                        <Right letter={"R"} selected={true} disabled={true} />
-                        <Right letter={"U"} selected={this.props.value.rights.includes("U")} onChange={v => this.set("U", v)}/>
-                        <Right letter={"D"} selected={this.props.value.rights.includes("D")} onChange={v => this.set("D", v)}/>
-                    </div>
-                </div>
-            </div>
+            </>
         );
     }
 }
