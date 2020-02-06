@@ -304,7 +304,8 @@ export class KeyInput extends Component {
                         key={`value-${i}`}
                         onDoubleClick={this.setEditedIndex(i, part)}
                       >
-                        <span>{part}</span>
+                        { part==="*" &&  <span style={{ fontSize: "24px" }}>{part}</span>}
+                        { part!=="*" &&  <span>{part}</span>}
                         <i className="fas fa-caret-right" />
                       </span>
                     );
