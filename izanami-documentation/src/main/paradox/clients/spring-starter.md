@@ -1,5 +1,15 @@
 # Spring starter 
 
+## Dependencies 
+
+
+@@dependency[sbt,Maven,Gradle] {
+  group=fr.maif
+  artifact=izanami-spring
+  version=$version$
+}
+
+
 ## Configuration 
 
 ### Settings 
