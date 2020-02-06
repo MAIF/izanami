@@ -113,7 +113,7 @@ object User {
     import scala.jdk.CollectionConverters._
     val claims = jwt.getClaims.asScala
     for {
-      name   <- claims.get("name").map(_.asString())
+      name   <- claims.get("name").map(_.asString()).orElse(claims.get("aud").map(_.asString()))
       userId = claims.get("user_id").map(_.asString()).orElse(claims.get("sub").map(_.asString())).getOrElse("NA")
       email  = claims.get("email").map(_.asString()).getOrElse("NA")
       patterns = claims
