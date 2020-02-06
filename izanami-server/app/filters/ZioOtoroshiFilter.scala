@@ -100,8 +100,12 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
                     .Unauthorized(Json.obj("error" -> "Claim error !!!"))
                     .withHeaders(config.headerGatewayStateResp -> maybeState.getOrElse("--"))
                 }
-      maybeUser   = User.fromOtoroshiJwtToken(decoded)
-      _           <- ZIO.when(maybeUser.isEmpty) { logger.debug(s"Decoded user is empty for ${decoded.getClaims.asScala}") }
+      maybeUser = User.fromOtoroshiJwtToken(decoded)
+      _ <- ZIO.when(maybeUser.isEmpty) {
+            logger.debug(
+              s"Decoded user is empty for ${decoded.getClaims.asScala.map { case (k, v) => (k, v.asString()) }}"
+            )
+          }
       result      <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, maybeUser)).refineToOrDie[Result]
       requestTime = System.currentTimeMillis - startTime
       _ <- logger.debug(
