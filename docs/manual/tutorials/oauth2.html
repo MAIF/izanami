@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.6.1*
+1.7.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.6.1*
+1.7.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -212,17 +212,27 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="toc ">
 <ul>
   <li><a href="../tutorials/oauth2.html#running-keycloak" class="header">Running keycloak</a></li>
-  <li><a href="../tutorials/oauth2.html#define-scope" class="header">Define scope</a>
+  <li><a href="../tutorials/oauth2.html#managing-abilitations-in-izanami" class="header">Managing abilitations in Izanami</a>
   <ul>
-    <li><a href="../tutorials/oauth2.html#define-a-new-scope-for-authorized-patterns-field" class="header">Define a new scope for authorized patterns field</a></li>
-    <li><a href="../tutorials/oauth2.html#define-a-new-scope-for-the-admin-field" class="header">Define a new scope for the admin field</a></li>
-    <li><a href="../tutorials/oauth2.html#define-a-mapper-for-the-admin-field" class="header">Define a mapper for the admin field</a></li>
+    <li><a href="../tutorials/oauth2.html#create-an-izanami-client" class="header">Create an Izanami client</a></li>
+    <li><a href="../tutorials/oauth2.html#create-users" class="header">Create users</a></li>
+    <li><a href="../tutorials/oauth2.html#manage-users-in-izanami" class="header">Manage users in Izanami</a></li>
   </ul></li>
-  <li><a href="../tutorials/oauth2.html#create-an-izanami-client" class="header">Create an Izanami client</a></li>
-  <li><a href="../tutorials/oauth2.html#create-users" class="header">Create users</a>
+  <li><a href="../tutorials/oauth2.html#managing-abilitations-in-keycloak" class="header">Managing abilitations in keycloak</a>
   <ul>
-    <li><a href="../tutorials/oauth2.html#admin-user" class="header">Admin user</a></li>
-    <li><a href="../tutorials/oauth2.html#random-user" class="header">Random user</a></li>
+    <li><a href="../tutorials/oauth2.html#define-scope" class="header">Define scope</a>
+    <ul>
+      <li><a href="../tutorials/oauth2.html#define-a-new-scope-for-authorized-patterns-field" class="header">Define a new scope for authorized patterns field</a></li>
+      <li><a href="../tutorials/oauth2.html#define-a-mapper-for-authorized-patterns-field" class="header">Define a mapper for authorized patterns field</a></li>
+      <li><a href="../tutorials/oauth2.html#define-a-new-scope-for-the-admin-field" class="header">Define a new scope for the admin field</a></li>
+      <li><a href="../tutorials/oauth2.html#define-a-mapper-for-the-admin-field" class="header">Define a mapper for the admin field</a></li>
+    </ul></li>
+    <li><a href="../tutorials/oauth2.html#create-an-izanami-client" class="header">Create an Izanami client</a></li>
+    <li><a href="../tutorials/oauth2.html#create-users" class="header">Create users</a>
+    <ul>
+      <li><a href="../tutorials/oauth2.html#admin-user" class="header">Admin user</a></li>
+      <li><a href="../tutorials/oauth2.html#random-user" class="header">Random user</a></li>
+    </ul></li>
   </ul></li>
   <li><a href="../tutorials/oauth2.html#configure-izanami" class="header">Configure izanami</a></li>
 </ul>
@@ -234,19 +244,37 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <pre><code>docker-compose -f docker-compose.oauth.yml up 
 </code></pre>
 <p>Go to <code>http://localhost:8980</code> and log with <code>izanami</code> / <code>izanami</code>. </p>
-<h2><a href="#define-scope" name="define-scope" class="anchor"><span class="anchor-link"></span></a>Define scope</h2>
+<h2><a href="#managing-abilitations-in-izanami" name="managing-abilitations-in-izanami" class="anchor"><span class="anchor-link"></span></a>Managing abilitations in Izanami</h2>
+<h3><a href="#create-an-izanami-client" name="create-an-izanami-client" class="anchor"><span class="anchor-link"></span></a>Create an Izanami client</h3>
+<p>Create a new open id connect client and name it izanami. Set the root url to the url of your server. </p>
+<p><img src="../img/tutorial/oauth/client_izanami_1.png" alt="Izanami client" /> </p>
+<p>In the settings, fill the field with the various urls of izanami. </p>
+<p><img src="../img/tutorial/oauth/client_izanami_2_settings.png" alt="Izanami client" /></p>
+<p>Next step create some users.</p>
+<h3><a href="#create-users" name="create-users" class="anchor"><span class="anchor-link"></span></a>Create users</h3>
+<p>We will create two users :  * one admin user  * one user with restricted access</p>
+<p>In the users menu, add a new user </p>
+<p><img src="../img/tutorial/oauth/users_all.png" alt="Users" /></p>
+<p><img src="../img/tutorial/oauth/users_admin_1.png" alt="Users" /></p>
+<h3><a href="#manage-users-in-izanami" name="manage-users-in-izanami" class="anchor"><span class="anchor-link"></span></a>Manage users in Izanami</h3>
+<p>After the first login action, the user will be created in Izanami. You can now manage his rights. </p>
+<p><img src="../img/users/all.png" alt="Users" /></p>
+<p>and then edit the user </p>
+<p><img src="../img/users/update_oauth_user.png" alt="Users" /></p>
+<h2><a href="#managing-abilitations-in-keycloak" name="managing-abilitations-in-keycloak" class="anchor"><span class="anchor-link"></span></a>Managing abilitations in keycloak</h2>
+<h3><a href="#define-scope" name="define-scope" class="anchor"><span class="anchor-link"></span></a>Define scope</h3>
 <p>You first need to define new scopes for  * <code>authorizedPatterns</code> : the pattern applied on keys that the user is able to use  * <code>admin</code> : a boolean to define id the user will be admin</p>
-<h3><a href="#define-a-new-scope-for-authorized-patterns-field" name="define-a-new-scope-for-authorized-patterns-field" class="anchor"><span class="anchor-link"></span></a>Define a new scope for authorized patterns field</h3>
+<h4><a href="#define-a-new-scope-for-authorized-patterns-field" name="define-a-new-scope-for-authorized-patterns-field" class="anchor"><span class="anchor-link"></span></a>Define a new scope for authorized patterns field</h4>
 <p><img src="../img/tutorial/oauth/client_scope_patterns_1.png" alt="Pattern scope" /></p>
-<p>### Define a mapper for authorized patterns field</p>
+<h4><a href="#define-a-mapper-for-authorized-patterns-field" name="define-a-mapper-for-authorized-patterns-field" class="anchor"><span class="anchor-link"></span></a>Define a mapper for authorized patterns field</h4>
 <p>Define a mapper for the <code>authorizedPatterns</code> field with a mapper type <code>UserAttribute</code> and the name of the attribute and the name in the claim. Here the name will be <code>authorizedPatterns</code> and the type in json will be a <code>string</code>.</p>
 <p><img src="../img/tutorial/oauth/client_scope_patterns_2_mapper.png" alt="Pattern scope mapper" /> </p>
-<h3><a href="#define-a-new-scope-for-the-admin-field" name="define-a-new-scope-for-the-admin-field" class="anchor"><span class="anchor-link"></span></a>Define a new scope for the admin field</h3>
+<h4><a href="#define-a-new-scope-for-the-admin-field" name="define-a-new-scope-for-the-admin-field" class="anchor"><span class="anchor-link"></span></a>Define a new scope for the admin field</h4>
 <p><img src="../img/tutorial/oauth/client_scope_admin_1.png" alt="Admin scope" /> </p>
-<h3><a href="#define-a-mapper-for-the-admin-field" name="define-a-mapper-for-the-admin-field" class="anchor"><span class="anchor-link"></span></a>Define a mapper for the admin field</h3>
+<h4><a href="#define-a-mapper-for-the-admin-field" name="define-a-mapper-for-the-admin-field" class="anchor"><span class="anchor-link"></span></a>Define a mapper for the admin field</h4>
 <p>Define a mapper for the <code>admin</code> field with a mapper type <code>UserAttribute</code> and the name of the attribute and the name in the claim. Here the name will be <code>admin</code> and the type in json will be a <code>boolean</code>.</p>
 <p><img src="../img/tutorial/oauth/client_scope_admin_2_mapper.png" alt="Admin scope mapper" /> </p>
-<h2><a href="#create-an-izanami-client" name="create-an-izanami-client" class="anchor"><span class="anchor-link"></span></a>Create an Izanami client</h2>
+<h3><a href="#create-an-izanami-client" name="create-an-izanami-client" class="anchor"><span class="anchor-link"></span></a>Create an Izanami client</h3>
 <p>Create a new open id connect client and name it izanami. Set the root url to the url of your server. </p>
 <p><img src="../img/tutorial/oauth/client_izanami_1.png" alt="Izanami client" /> </p>
 <p>In the settings, fill the field with the various urls of izanami. </p>
@@ -254,16 +282,16 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <p>In the client scope panel, add the two scopes created previously. </p>
 <p><img src="../img/tutorial/oauth/izanami_client_3_scope.png" alt="Izanami client" /> </p>
 <p>Next step create some users.</p>
-<h2><a href="#create-users" name="create-users" class="anchor"><span class="anchor-link"></span></a>Create users</h2>
+<h3><a href="#create-users" name="create-users" class="anchor"><span class="anchor-link"></span></a>Create users</h3>
 <p>We will create two users :  * one admin user  * one user with restricted access</p>
 <p>In the users menu, add a new user </p>
 <p><img src="../img/tutorial/oauth/users_all.png" alt="Users" /></p>
-<h3><a href="#admin-user" name="admin-user" class="anchor"><span class="anchor-link"></span></a>Admin user</h3>
+<h4><a href="#admin-user" name="admin-user" class="anchor"><span class="anchor-link"></span></a>Admin user</h4>
 <p>Create an admin user </p>
 <p><img src="../img/tutorial/oauth/users_admin_1.png" alt="Users" /></p>
 <p>In the attributes panel, add two attributes </p>
 <p><img src="../img/tutorial/oauth/users_admin_2_attributes.png" alt="Users" /></p>
-<h3><a href="#random-user" name="random-user" class="anchor"><span class="anchor-link"></span></a>Random user</h3>
+<h4><a href="#random-user" name="random-user" class="anchor"><span class="anchor-link"></span></a>Random user</h4>
 <p>Create an simple user </p>
 <p><img src="../img/tutorial/oauth/users_admin_1.png" alt="Users" /></p>
 <p>In the attributes panel, add the restriction pattern </p>
@@ -291,6 +319,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     adminField = &quot;admin&quot;
     authorizedPatternField = &quot;authorizedPatterns&quot;
     defaultPatterns = &quot;&quot;
+    izanamiManagedUser = true
   }
 </code></pre>
 <p>Or with environment variables : </p>
@@ -314,6 +343,7 @@ OAUTH2_EMAIL_FIELD=&quot;email&quot;
 OAUTH2_ADMIN_FIELD=&quot;admin&quot;
 OAUTH2_AUTHORIZED_PATTERN_FIELD=&quot;authorizedPatterns&quot;
 OAUTH2_DEFAULT_PATTERN=&quot;&quot;
+OAUTH2_IZANAMI_MANAGED_USERS=true
 </code></pre>
 <p>Now if you hit the <code>http://localhost:9000</code> izanami homepage, you&rsquo;re redirected to the keycloak login page : </p>
 <p><img src="../img/tutorial/oauth/izanami_login_admin.png" alt="Admin login" /></p>
@@ -343,9 +373,8 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
   <li><a href="../tutorials/oauth2.html#oauth2-with-keycloak" class="header">Oauth2 with keycloak</a>
   <ul>
     <li><a href="../tutorials/oauth2.html#running-keycloak" class="header">Running keycloak</a></li>
-    <li><a href="../tutorials/oauth2.html#define-scope" class="header">Define scope</a></li>
-    <li><a href="../tutorials/oauth2.html#create-an-izanami-client" class="header">Create an Izanami client</a></li>
-    <li><a href="../tutorials/oauth2.html#create-users" class="header">Create users</a></li>
+    <li><a href="../tutorials/oauth2.html#managing-abilitations-in-izanami" class="header">Managing abilitations in Izanami</a></li>
+    <li><a href="../tutorials/oauth2.html#managing-abilitations-in-keycloak" class="header">Managing abilitations in keycloak</a></li>
     <li><a href="../tutorials/oauth2.html#configure-izanami" class="header">Configure izanami</a></li>
   </ul></li>
 </ul>
@@ -389,7 +418,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 
 <!--
 <div class="copyright">
-<span class="text">&copy; 2019</span>
+<span class="text">&copy; 2020</span>
 <a href="https://www.example.com" class="logo">logo</a>
 </div>
 -->
