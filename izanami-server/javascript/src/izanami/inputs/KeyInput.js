@@ -339,6 +339,8 @@ export class KeyInput extends Component {
               </div>
             )}
           </div>
+        </div>
+      </div>
     );
   }
 }
