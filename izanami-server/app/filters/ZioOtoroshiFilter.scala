@@ -107,7 +107,7 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
       _ <- logger.debug(
             s"Request from Gateway with id : ${maybeReqId.getOrElse("")} => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
               .map(h => s"""   "${h._1}": "${h._2}"\n""")
-              .mkString(",")} took ${requestTime} ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+              .mkString(",")} took ${requestTime} ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}, auth $maybeUser"
           )
     } yield
       result.withHeaders(
