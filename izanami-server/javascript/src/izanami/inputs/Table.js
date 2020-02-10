@@ -592,6 +592,24 @@ export class Table extends Component {
     this.setState({ defaultFiltered, table: true });
   };
 
+  isAllowed = (letter) => {
+    if (this.state.currentItem) {
+      const k = this.props.extractKey(this.state.currentItem);
+      return this.props.user.authorizedPatterns.map( ({pattern, rights}) => {
+        return rights.includes(letter) && RegExp(`${pattern.replace("*", ".*")}`).test(k);
+      }).reduce((acc, elt) => acc || elt, false);
+    }
+    return true;
+  };
+
+  isDeleteAllowed = () => {
+    return this.isAllowed("D");
+  };
+
+  isUpdateAllowed = () => {
+    return this.isAllowed("U");
+  };
+
   render() {
     const columns = this.props.columns.map(c => ({
       Header: c.title,
@@ -914,14 +932,14 @@ export class Table extends Component {
               </div>
             )}
             <div className="form-buttons pull-right updateConfig">
-              <button
+              {this.isDeleteAllowed() && <button
                 type="button"
                 className="btn btn-danger"
                 title="Delete current item"
                 onClick={e => this.setState({ confirmDelete: true })}
               >
                 <i className="glyphicon glyphicon-trash" /> Delete
-              </button>
+              </button>}
               <button
                 type="button"
                 className="btn btn-danger"
@@ -929,14 +947,14 @@ export class Table extends Component {
               >
                 Cancel
               </button>
-              <button
+              {this.isUpdateAllowed() && <button
                 type="button"
                 className="btn btn-success"
                 onClick={this.updateItem}
               >
                 <i className="glyphicon glyphicon-hdd" /> Update{" "}
                 {this.props.itemName}
-              </button>
+              </button>}
               <SweetModal
                 type="confirm"
                 confirm={e => this.deleteItem(e, this.state.currentItem)}

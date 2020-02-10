@@ -252,7 +252,7 @@ export class Form extends Component {
                 ...props,
                 disabled,
                 key: name,
-                value: this.getValue(name, {}),
+                value: this.getValue(name ),
                 onChange: v => this.changeValue(name, v),
                 source: this.props.value
               })}
