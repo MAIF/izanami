@@ -19,6 +19,7 @@ import {
 import {TimePicker} from "../components/TimePicker"
 import * as ScriptsTemplate from "../helpers/ScriptTemplates";
 import { JsLogo, KotlinLogo, ScalaLogo } from "../components/Logos";
+import * as Abilitations from "../helpers/Abilitations";
 
 const DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
 const DATE_FORMAT2 = "YYYY-MM-DD HH:mm:ss";
@@ -365,25 +366,32 @@ export class FeaturesPage extends Component {
     }
   };
 
-  renderIsActive = item => (
-    <SimpleBooleanInput
-      value={item.enabled}
-      onChange={(v, input) => {
-        let confirmRes = true;
-        if (this.props.confirmationDialog) {
-          confirmRes = window.confirm("Are you sure you want to toggle " + item.id);
-        }
+  renderIsActive = item => {
+    const allowed = Abilitations.isUpdateAllowed(this.props.user, item.id);
+    return (<SimpleBooleanInput
+              disabled={!allowed}
+              value={item.enabled}
+              onChange={(v, input) => {
+                let confirmRes = true;
+                if (this.props.confirmationDialog) {
+                  confirmRes = window.confirm("Are you sure you want to toggle " + item.id);
+                }
 
-        if (confirmRes == true) {
-          IzanamiServices.fetchFeature(item.id).then(feature => {
-            IzanamiServices.updateFeature(item.id, { ...feature, enabled: v });
-          });
-        } else {
-          input.setState({ enabled: !v });
-        }
-      }}
-    />
-  );
+                if (confirmRes === true) {
+                  IzanamiServices.fetchFeature(item.id).then(feature => {
+                    IzanamiServices.updateFeature(item.id, { ...feature, enabled: v })
+                        .then(res => {
+                          if (res.status === 403) {
+                            input.setState({ enabled: !v });
+                          }
+                        });
+                  });
+                } else {
+                  input.setState({ enabled: !v });
+                }
+              }}
+            />)
+  };
 
   columns = [
     {

@@ -125,7 +125,6 @@ export class AuthorizedPatternsInput extends Component {
     };
 
     render() {
-        console.log("Values", this.state.values);
         return (
             <div>
                 {this.state.values.length === 0 && (

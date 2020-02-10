@@ -55,7 +55,8 @@ const translateObject = {
       exists: "The data with id {0} already exist",
       missing: "Data is missing"
     },
-    forbidden: "Forbidden action : Invalid authorized pattern"
+    forbidden: "Forbidden action : Invalid authorized pattern",
+    forbiddenaction: "You're not allowed to perform this action",
   },
   auth: {
     invalid: {
