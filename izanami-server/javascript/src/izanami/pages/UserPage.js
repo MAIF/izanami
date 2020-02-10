@@ -126,7 +126,7 @@ export class UserPage extends Component {
               id: "john.doe@maif.fr",
               name: "John Doe",
               email: "john.doe@maif.fr",
-              password: undefined,
+              password: null,
               admin: true,
               authorizedPatterns: [{pattern:"*", rights:["C", "R", "U", "D"]}]
             })}
