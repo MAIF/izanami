@@ -9,6 +9,7 @@ import { Tree } from "./Tree";
 import * as TreeHelper from "../helpers/TreeData";
 import Cookies from "js-cookie";
 import * as Persistence from "../helpers/persistence";
+import * as Abilitations from "../helpers/Abilitations"
 
 import ReactTable from "react-table";
 
@@ -391,24 +392,37 @@ export class Table extends Component {
   deleteItem = (e, item, i) => {
     if (e && e.preventDefault) e.preventDefault();
     //if (confirm('Are you sure you want to delete that item ?')) {
-    this.props.deleteItem(item).then(__ => {
-      const items = this.state.items.filter(i => !isEqual(i, item));
-      this.setState({
-        items,
-        showEditForm: false,
-        showAddForm: false,
-        confirmDelete: false,
-        confirmDeleteTable: false,
-        toDelete: null
-      });
-      this.props.parentProps.setTitle(this.props.defaultTitle);
-      this.props.backToUrl
-        ? window.history.pushState(
-            {},
-            "",
-            `${window.__contextPath}/${this.props.backToUrl}`
-          )
-        : window.history.back();
+    this.props.deleteItem(item).then(res => {
+      if (res.status === 403) {
+        this.setState({
+          items: this.state.items,
+          showEditForm: false,
+          showAddForm: false,
+          confirmDelete: false,
+          confirmDeleteTable: false,
+          toDelete: null,
+          error: true,
+          errorList: [{message: `error.forbiddenaction`}]
+        });
+      } else {
+        const items = this.state.items.filter(i => !isEqual(i, item));
+        this.setState({
+          items,
+          showEditForm: false,
+          showAddForm: false,
+          confirmDelete: false,
+          confirmDeleteTable: false,
+          toDelete: null
+        });
+        this.props.parentProps.setTitle(this.props.defaultTitle);
+        this.props.backToUrl
+          ? window.history.pushState(
+              {},
+              "",
+              `${window.__contextPath}/${this.props.backToUrl}`
+            )
+          : window.history.back();
+      }
     });
     //}
   };
@@ -422,7 +436,12 @@ export class Table extends Component {
     this.props
       .createItem(this.state.currentItem)
       .then(res => {
-        if (res.status === 201) {
+        if (res.status === 403) {
+          this.setState({
+            error: true,
+            errorList: [{message: `error.forbiddenaction`}]
+          });
+        } else if (res.status === 201) {
           this.setState({
             currentItem: null,
             currentItemOriginal: null,
@@ -442,7 +461,7 @@ export class Table extends Component {
         }
       })
       .then(res => {
-        if (res.error) {
+        if (res && res.error) {
           this.setState({
             error: true,
             errorList: this.buildErrorList(res.errorList)
@@ -480,7 +499,12 @@ export class Table extends Component {
     this.props
       .updateItem(currentItem, currentItemOriginal)
       .then(res => {
-        if (res.status === 200) {
+        if (res.status === 403) {
+          this.setState({
+            error: true,
+            errorList: [{message: `error.forbiddenaction`}]
+          });
+        } else if (res.status === 200) {
           return res.json().then(elt => ({
             data: elt,
             error: false
@@ -495,7 +519,7 @@ export class Table extends Component {
         }
       })
       .then(res => {
-        if (res.error) {
+        if (res && res.error) {
           this.setState({
             error: true,
             errorList: this.buildErrorList(res.errorList)
@@ -592,22 +616,21 @@ export class Table extends Component {
     this.setState({ defaultFiltered, table: true });
   };
 
-  isAllowed = (letter) => {
-    if (this.state.currentItem) {
-      const k = this.props.extractKey(this.state.currentItem);
-      return this.props.user.authorizedPatterns.map( ({pattern, rights}) => {
-        return rights.includes(letter) && RegExp(`${pattern.replace("*", ".*")}`).test(k);
-      }).reduce((acc, elt) => acc || elt, false);
+  isAllowed = (item, letter) => {
+    if (item) {
+      const k = this.props.extractKey(item);
+      return Abilitations.isAllowed(this.props.user, k, letter);
+
     }
     return true;
   };
 
-  isDeleteAllowed = () => {
-    return this.isAllowed("D");
+  isDeleteAllowed = (item) => {
+    return this.isAllowed(item, "D");
   };
 
-  isUpdateAllowed = () => {
-    return this.isAllowed("U");
+  isUpdateAllowed = (item) => {
+    return this.isAllowed(item, "U");
   };
 
   render() {
@@ -658,7 +681,7 @@ export class Table extends Component {
         accessor: (item, ___, index) => (
           <div style={{ width: 140, textAlign: "right" }}>
             <div className="displayGroupBtn">
-              <button
+             <button
                 type="button"
                 className="btn btn-sm btn-success"
                 {...createTooltip(
@@ -684,7 +707,7 @@ export class Table extends Component {
                   <i className="glyphicon glyphicon-link" />
                 </button>
               )}
-              <button
+              {this.isDeleteAllowed(item) && <button
                 type="button"
                 className="btn btn-sm btn-danger"
                 {...createTooltip(
@@ -697,7 +720,7 @@ export class Table extends Component {
                 }
               >
                 <i className="glyphicon glyphicon-trash" />
-              </button>
+              </button>}
             </div>
           </div>
         )
@@ -932,7 +955,7 @@ export class Table extends Component {
               </div>
             )}
             <div className="form-buttons pull-right updateConfig">
-              {this.isDeleteAllowed() && <button
+              {this.isDeleteAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-danger"
                 title="Delete current item"
@@ -947,7 +970,7 @@ export class Table extends Component {
               >
                 Cancel
               </button>
-              {this.isUpdateAllowed() && <button
+              {this.isUpdateAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-success"
                 onClick={this.updateItem}

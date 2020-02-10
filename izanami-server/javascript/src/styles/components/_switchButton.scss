@@ -6,19 +6,32 @@
   display: flex;
   cursor: pointer;
 }
-
+.content-switch-button-disabled {
+  @include content-switch;
+  background-color: $grisTexte;
+  border: 1px solid $grisTexte;
+  justify-content: flex-end;
+}
 .content-switch-button-on {
   @include content-switch;
   background-color: $colorRose;
   border: 1px solid $colorRose;
   justify-content: flex-end;
 }
-
+.content-switch-button-on.disabled {
+  background-color: $grisTexte;
+  border: 1px solid $grisTexte;
+}
 .content-switch-button-off {
   @include content-switch;
   background-color: white;
   border: 1px solid rgb(223, 223, 223);
   justify-content: flex-start;
+}
+
+.content-switch-button-off.disabled {
+  background-color: $grisTexte;
+  border: 1px solid $grisTexte;
 }
 
 .switch-button-on {
