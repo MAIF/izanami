@@ -116,7 +116,6 @@ export class UserPage extends Component {
   }
 
   render() {
-    console.log("Props", this.props);
     return (
       <div className="col-md-12">
         <div className="row">
