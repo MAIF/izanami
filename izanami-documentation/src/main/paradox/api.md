@@ -96,3 +96,9 @@ Go to the @ref[experiments API doc](experiments/api.md)
 ## Api keys API
 
 * TODO
+
+## Where can I find an OpenApi ?
+
+Go see the [open api](../swagger/swagger-ui.html)
+
+Once you have an instance running (see @ref[Quickstart](quickstart.md)), you can find the swagger doc at `http://localhost:9000/docs/swagger-ui/index.html?url=/assets/swagger.json`.
