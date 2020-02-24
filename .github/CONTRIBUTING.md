@@ -68,7 +68,8 @@ You must add the dependency and its licence in https://github.com/MAIF/izanami/b
 if you add features to Izanami, don't forget to modify the user manual, the swagger file and the clients too
 
 * https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox
-* https://github.com/MAIF/izanami/blob/master/izanami-server/app/controllers/SwaggerController.scala
+* https://github.com/MAIF/izanami/blob/master/izanami-server/conf/swagger.yml
+* https://github.com/MAIF/izanami/blob/master/izanami-server/conf/routes
 * https://github.com/MAIF/izanami/blob/master/izanami-clients/jvm
 * https://github.com/MAIF/izanami/blob/master/izanami-clients/node
 * https://github.com/MAIF/izanami/blob/master/izanami-clients/react
@@ -77,13 +78,13 @@ if you add features to Izanami, don't forget to modify the user manual, the swag
 to build the documentation, run the following command at the root of the repository
 
 ```sh
-sbt 'izanami-documentation/generateDoc' 
+sbt 'izanami-documentation/generateDoc' 'izanami-server/generateDoc'
 ```
 
 To get the documentation generated on each change 
 
 ```sh
-sbt '~izanami-documentation/generateDoc' 
+sbt '~izanami-documentation/generateDoc' '~izanami-server/generateDoc'
 ```
 
 ## Source style
