@@ -221,3 +221,14 @@ dockerUsername := Some("maif")
 dockerEntrypoint := Seq("/opt/docker/bin/start.sh")
 
 dockerUpdateLatest := true
+
+lazy val generateDoc = taskKey[Unit]("Copy api doc")
+
+generateDoc := {
+  val p = project
+  (swagger in Compile).value
+  val swaggerFile = target.value / "swagger" / "swagger.json"
+  val targetDoc  = p.base.getParentFile / "docs"/ "swagger" / "swagger.json"
+  IO.delete(targetDoc)
+  IO.copyDirectory(swaggerFile, targetDoc)
+}
