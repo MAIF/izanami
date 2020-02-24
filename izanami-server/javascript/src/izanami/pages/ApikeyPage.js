@@ -17,6 +17,10 @@ export class ApikeyPage extends Component {
       type: "string",
       props: { label: "Client Secret", placeholder: "The Client Secret" }
     },
+    admin: {
+      type: "bool",
+      props: { label: "is admin", placeholder: "Is admin?" }
+    },
     authorizedPatterns: {
       type: "authorizedPatterns",
       props: {
@@ -49,7 +53,7 @@ export class ApikeyPage extends Component {
     }
   ];
 
-  formFlow = ["name", "clientId", "clientSecret", "authorizedPatterns"];
+  formFlow = ["name", "clientId", "clientSecret", "admin", "authorizedPatterns"];
 
   fetchItems = args => {
     const { search = [], page, pageSize } = args;
