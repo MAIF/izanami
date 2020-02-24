@@ -11,7 +11,17 @@ export class ApikeyPage extends Component {
     },
     clientId: {
       type: "string",
-      props: { label: "Client Id", placeholder: "The Client Id" }
+      props: { 
+        label: "Client Id", 
+        placeholder: "The Client Id",
+        search(pattern) {
+          return IzanamiServices.fetchApikeys({
+            page: 1,
+            pageSize: 20,
+            search: pattern
+          }).then(({ results }) => results.map(({ id }) => id));
+        }
+      }
     },
     clientSecret: {
       type: "string",
@@ -40,7 +50,7 @@ export class ApikeyPage extends Component {
 
   columns = [
     { title: "Name", notFilterable: true, content: item => item.name },
-    { title: "Client id", notFilterable: true, content: item => item.clientId },
+    { title: "Client id", content: item => item.clientId },
     {
       title: "Client secret",
       notFilterable: true,
