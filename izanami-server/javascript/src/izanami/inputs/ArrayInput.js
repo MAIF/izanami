@@ -63,7 +63,7 @@ export class ArrayInput extends Component {
             >
               {this.props.label}
             </label>
-            <div className="col-sm-10">
+            <div className="col-sm-10 d-flex align-items-center">
               <button
                 disabled={this.props.disabled}
                 type="button"
@@ -112,7 +112,7 @@ export class ArrayInput extends Component {
                     }
                   />
                 )}
-                <span className="input-group-btn">
+                <span className="input-group-append">
                   <button
                     disabled={this.props.disabled}
                     type="button"

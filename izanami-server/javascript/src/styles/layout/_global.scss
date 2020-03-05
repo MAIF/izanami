@@ -74,7 +74,7 @@ hr {
     font-size: 16px;
     top: 4px;
   }
-  @media only screen and (max-width: $screen-sm) {
+  @media only screen and (max-width: 1002px) {
     margin-top: 66px;
   }
 }
@@ -90,4 +90,13 @@ hr {
 .logo_izanami_dashboard {
   margin-top: 30px;
   width: 240px;
+}
+
+.panel-danger {
+  border-color: #ebccd1;
+  > .panel-heading {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+  }
 }

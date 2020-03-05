@@ -641,7 +641,7 @@ export class ExperimentsPage extends Component {
         )}
         {this.state.results && (
           <div className="row">
-            <form className="form-horizontal">
+            <form className="form-horizontal col-12">
               <h4>Winner</h4>
               {this.state.results.winner && (
                 <p>
@@ -706,7 +706,7 @@ export class ExperimentsPage extends Component {
               <XAxis dataKey="name" tick={{ fill: "#b5b3b3" }} />
               <YAxis tick={{ fill: "#b5b3b3" }} />
             </AreaChart>
-            <div className="modal-footer">
+            <div className="modal-footer col-12 mt-2">
               <button
                 type="button"
                 className="btn btn-primary"

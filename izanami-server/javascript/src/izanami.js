@@ -8,7 +8,7 @@ import $ from "jquery";
 import 'bootstrap/dist/css/bootstrap.css';
 import "react-table/react-table.css";
 
-import 'bootstrap';
+import 'bootstrap/dist/js/bootstrap';
 
 if (!window.Symbol) {
   window.Symbol = Symbol;

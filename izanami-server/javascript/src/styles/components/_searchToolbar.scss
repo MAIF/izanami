@@ -16,10 +16,12 @@
 }
 
 .search-input {
-  @media screen and  (min-width: 768px){
-  width: 400px !important;
+  @media screen and  (min-width: 480px) {
+    width: 400px !important;
   }
+  width: 330px !important;
 }
+
 .navbar-form .has-feedback .form-control-feedback{
   top:4px;
   cursor: pointer;

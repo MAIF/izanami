@@ -90,7 +90,7 @@ export class ObjectInput extends Component {
             >
               {this.props.label}
             </label>
-            <div className="col-sm-10">
+            <div className="col-sm-10 d-flex align-items-center">
               <button
                 disabled={this.props.disabled}
                 type="button"
@@ -118,7 +118,6 @@ export class ObjectInput extends Component {
                   disabled={this.props.disabled}
                   type="text"
                   className="form-control"
-                  style={{ width: "50%" }}
                   placeholder={this.props.placeholderKey}
                   value={value[0]}
                   onChange={e => this.changeKey(e, value[0], idx)}
@@ -127,12 +126,11 @@ export class ObjectInput extends Component {
                   disabled={this.props.disabled}
                   type="text"
                   className="form-control"
-                  style={{ width: "50%" }}
                   placeholder={this.props.placeholderValue}
                   value={value[1]}
                   onChange={e => this.changeValue(e, value[0], idx)}
                 />
-                <span className="input-group-btn">
+                <span className="input-group-prepend">
                   <button
                     disabled={this.props.disabled}
                     type="button"

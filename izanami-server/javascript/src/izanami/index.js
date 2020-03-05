@@ -85,8 +85,8 @@ export class LoggedApp extends Component {
 
   lineRenderer = option => {
     return (
-      <label style={{ cursor: "pointer" }}>
-        <i className={pictos[option.type]} /> {option.label}
+      <label style={{ cursor: "pointer" }} className="justify-content-start">
+        <i className={`mr-2 ${pictos[option.type]}`} /> {option.label}
       </label>
     );
   };
@@ -119,35 +119,37 @@ export class LoggedApp extends Component {
 
     return (
       <div className="container-fluid">
-        <nav className="navbar navbar-expand-md fixed-top p-0">
-          <a className="navbar-header navbar-brand col-12 col-sm-3 col-lg-2 d-flex flex-column justify-content-center align-items-center" href="/">
-            <button
-              type="button"
-              className="navbar-toggler menu"
-              data-toggle="collapse"
-              data-target="#sidebar"
-              aria-expanded="false"
-              aria-controls="sidebar"
-            >
-              <span className="sr-only">Toggle sidebar</span>
-              <span>Menu</span>
-            </button>
-            <span>イザナミ</span> Izanami
-           </a>
+        <nav className="navbar navbar-expand-lg fixed-top p-0">
+          <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex ">
+              <a className="navbar-brand"  href="/">
+                <div className="d-flex flex-column justify-content-center align-items-center"><span>イザナミ</span> Izanami</div>
+              </a>
+              <button
+                  type="button"
+                  className="navbar-toggler menu"
+                  data-toggle="collapse"
+                  data-target="#sidebar"
+                  aria-expanded="false"
+                  aria-controls="sidebar"
+              >
+                <span className="sr-only">Toggle sidebar</span>
+                <span>Menu</span>
+              </button>
+           </div>
 
-      <form className="form-inline ml-2">
+      <form className="form-inline ml-4 p-2 p-lg-0">
           {selected && (
           <div
-      className="form-group"
-      style={{ marginRight: 10, display: "inline" }}
-  >
-  <span
-      title="Current line"
-      className="label label-success"
-      style={{ fontSize: 20, cursor: "pointer" }}
-  >
-      {selected}
-  </span>
+              className="form-group"
+              style={{ marginRight: 10, display: "inline" }}
+          >
+          <span
+              title="Current line"
+              className="label label-success"
+              style={{ fontSize: 20, cursor: "pointer" }}
+          >
+              {selected}
+          </span>
       </div>
   )}
   <div>
@@ -240,7 +242,7 @@ export class LoggedApp extends Component {
 
         <div className="container-fluid">
           <div className="row">
-              <div className="col-sm-3 col-lg-2 sidebar" id="sidebar">
+              <div className="col-lg-2 sidebar" id="sidebar">
                 <div className="sidebar-container">
                   <div className="sidebar-content">
                     <ul className="nav nav-sidebar flex-column">
@@ -298,7 +300,7 @@ export class LoggedApp extends Component {
                         </Link>
                       </li>
                     </ul>
-                    <ul className="nav nav-sidebar">
+                    <ul className="nav nav-sidebar  flex-column">
                       <li className={className("/")}>
                         <h3 style={{ marginTop: 0 }}>
                           <i className="fas fa-tachometer-alt" /> Explore
@@ -335,7 +337,7 @@ export class LoggedApp extends Component {
                   </div>
                 </div>
               </div>
-              <div className="col-sm-9 offset-sm-3 col-lg-10 offset-lg-2 main">
+              <div className="col-lg-10 offset-lg-2 main">
                 <div className="row">
                   <div className="col-12 izanami-container">
                     <DynamicTitle />

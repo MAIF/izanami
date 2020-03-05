@@ -41,10 +41,8 @@ class CopyNodeWindow extends Component {
               <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
                 From
               </label>
-              <div className="col-sm-10">
-                <div className="keypicker-control">
-                  <Key value={this.props.nodekey || ''} />
-                </div>
+              <div className="col-sm-10 d-flex align-items-center">
+                <Key value={this.props.nodekey || ''} />
               </div>
             </div>
            <div className="form-group">
@@ -163,7 +161,7 @@ class Node extends Component {
             <div
                 className="btn-group btn-breadcrumb breadcrumb-info"
             >
-              <div className="key-value-value">
+              <div className="key-value-value d-flex align-items-center">
                 <span onClick={this.toggleChildOrEdit(id, this.props.node)}>{this.props.node.text}</span>
                 <div className={`btn-group btn-group-xs btn-submenu`}
                      style={styleDisplay}
@@ -173,7 +171,7 @@ class Node extends Component {
                   <Link
                       to={link}
                       type="button"
-                      className={`btn btn-primary`}
+                      className={`btn btn-sm btn-primary`}
                       onMouseOver={ _ => this.setState({openCopy:false})}
                       title="Add childnote"
                   >
@@ -200,7 +198,7 @@ class Node extends Component {
                                                open={_ => this.setState({openCopy:true})}
                                />
                              } >
-                      <i className="glyphicon glyphicon-duplicate" />
+                      <i className="fas fa-copy"></i>
                     </Popover>
                   </button>}
                   <button
@@ -210,7 +208,7 @@ class Node extends Component {
                       className="btn btn-sm btn-success"
                       title="Open on table view"
                   >
-                    <i className="glyphicon glyphicon-th-list" />
+                    <i className="fas fa-list"></i>
                   </button>
 
                   {this.props.node.value && (
@@ -222,7 +220,7 @@ class Node extends Component {
                             className="btn btn-sm btn-success"
                             title="Edit this Configuration"
                         >
-                          <i className="glyphicon glyphicon-pencil" />
+                          <i className="fas fa-pencil-alt"></i>
                         </button>
                       </div>
                   )}

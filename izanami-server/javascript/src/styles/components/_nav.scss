@@ -66,3 +66,33 @@
     color: #fff;
   }
 }
+
+.navbar-brand, .menu, a.navbar-brand:hover {
+  color:#fff;
+}
+
+.navbar-brand{
+  font-size: 1rem;
+  margin-right: 0rem;
+}
+
+.navbar-toggler {
+  font-size: 1rem;
+  border-color: #fff;
+  height: 30px;
+  margin-top: 10px;
+}
+
+.form-inline .form-group {
+
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex: 0 0 auto;
+  flex: 0 0 auto;
+  -ms-flex-flow: row wrap;
+  flex-flow: row wrap;
+  -ms-flex-align: center;
+  align-items: center;
+  margin-bottom: 0;
+
+}
