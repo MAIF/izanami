@@ -345,7 +345,6 @@ trait FeatureClient {
   /**
    * Create a feature
    * @param feature the feature to create
-   * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
   def createFeature(feature: Feature): Future[Feature] =
@@ -355,7 +354,6 @@ trait FeatureClient {
    * Update a feature
    * @param id the previous id of the feature
    * @param feature the feature to update
-   * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
   def updateFeature(id: String, feature: Feature): Future[Feature] =
