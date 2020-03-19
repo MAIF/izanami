@@ -691,7 +691,7 @@ export class Table extends Component {
                 )}
                 onClick={e => this.showEditForm(e, item)}
               >
-                  <i class="fas fa-pencil-alt" />
+                  <i className="fas fa-pencil-alt" />
               </button>
               {this.props.showLink && (
                 <button
@@ -704,7 +704,7 @@ export class Table extends Component {
                   )}
                   onClick={e => this.gotoItem(e, item)}
                 >
-                  <i class="fas fa-link" />
+                  <i className="fas fa-link" />
                 </button>
               )}
               {this.isDeleteAllowed(item) && <button
@@ -779,7 +779,7 @@ export class Table extends Component {
                   {...createTooltip("Reload the current table")}
                   onClick={this.update}
                 >
-                      <i class="fas fa-sync-alt" />
+                      <i className="fas fa-sync-alt" />
                 </button>
 
                 {this.props.showActions && !this.props.disableAddButton && (
@@ -932,7 +932,7 @@ export class Table extends Component {
                 className="btn btn-success"
                 onClick={this.createItem}
               >
-                    <i class="fas fa-hdd" /> Create{" "}
+                    <i className="fas fa-hdd" /> Create{" "}
                 {this.props.itemName}
               </button>
             </div>
