@@ -23,7 +23,7 @@ import {
   UserPage,
   WebHooksPage
 } from "./pages";
-//import { popover } from "./inputs/popover";
+import { popover } from "./inputs/popover";
 import queryString from "query-string";
 import isEmpty from "lodash/isEmpty";
 import "../styles/main.scss";
