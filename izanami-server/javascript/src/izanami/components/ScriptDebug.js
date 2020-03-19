@@ -104,7 +104,7 @@ export class ScriptDebug extends Component {
         <div className="row">
           <div className="col-sm-12">
             <div className="debug-button-res">
-              <div class="btn-group">
+              <div className="btn-group">
                 <button
                   type="button"
                   className="btn btn-success btn-sm"
