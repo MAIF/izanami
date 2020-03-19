@@ -328,8 +328,10 @@ export class Tree extends Component {
         <form className="form-horizontal">
           <div className="form-group">
             <div className="input-group dark-input">
-              <span className="input-group-addon back-intermediate-color">
-                <span className="back-color glyphicon glyphicon-search" />
+              <span className="input-group-prepend back-intermediate-color">
+                <span className="input-group-text">
+                  <i className="back-color fas fa-search"></i>
+                </span>
               </span>
               <input
                 id={`input-search`}

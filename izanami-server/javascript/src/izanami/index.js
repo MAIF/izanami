@@ -203,7 +203,7 @@ export class LoggedApp extends Component {
                   <li className="dropdown-item">
                     <a href={this.props.logout} className="link-logout">
                       {this.props.user ? this.props.user.email : ""}&nbsp;
-                      <span className="glyphicon glyphicon-off" />
+                        <i className="fas fa-power-off"></i>
                     </a>
                   </li>
                 </ul>

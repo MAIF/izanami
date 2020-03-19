@@ -36,12 +36,15 @@ label {
 }
 
 .dark-input {
-  .glyphicon {
+  .fas, .far {
     color: $colorGris;
   }
-  .input-group-addon {
+  .input-group-prepend, .input-group-text {
     background-color: $fondNavbar;
     box-shadow: inset 0px 1px 0 rgba(0,0,0,.075);
+  }
+  .input-group-text {
+    border:none;
   }
   input {
     border-left:none !important;
