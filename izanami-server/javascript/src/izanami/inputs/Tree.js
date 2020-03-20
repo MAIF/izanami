@@ -81,9 +81,11 @@ class Node extends Component {
   state = {
   };
 
-  search = e => {
-    this.setState({ search: e.target.value });
-    this.props.onSearchChange(e.target.value);
+  search = id => {
+    if (id) {
+      this.setState({ search: id });
+      this.props.onSearchChange && this.props.onSearchChange(id);
+    }
   };
 
   toggleChilds(e) {
@@ -259,6 +261,7 @@ class Node extends Component {
                         removeAction={this.props.removeAction}
                         editAction={this.props.editAction}
                         itemLink={this.props.itemLink}
+                        onSearchChange={this.props.onSearchChange}
                   />)
                 }
               </ul>
@@ -344,6 +347,7 @@ export class Tree extends Component {
                         copyNodeWindow={this.props.copyNodeWindow}
                         copyNodes={this.props.copyNodes}
                         searchKeys={this.props.searchKeys}
+                        onSearchChange={this.props.onSearchChange}
                   />
                 )}
             </ul>

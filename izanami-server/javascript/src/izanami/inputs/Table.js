@@ -886,9 +886,9 @@ export class Table extends Component {
                   itemLink={this.props.itemLink}
                   initialSearch={this.props.parentProps.location.query.search}
                   search={this.search}
-                  onSearchChange={text =>
-                    this.update({ filtered: [{ id: "key", value: text }] })
-                  }
+                  onSearchChange={ text => {
+                    this.setState({ table: !this.state.table }, () => this.update({ filtered: [{ id: "key", value: text }] }));
+                  }}
                   editAction={(e, item) => this.showEditForm(e, item)}
                   removeAction={(e, item) =>
                     this.setState({ confirmDeleteTable: true, toDelete: item })
