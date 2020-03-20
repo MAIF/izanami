@@ -3,6 +3,7 @@ package izanami.scaladsl
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.event.Logging
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import akka.stream._
@@ -101,6 +102,18 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
                                s)
     }
   }
+
+  /**
+   * Check if izanami server is available
+   * @return true if ok and false if not
+   */
+  def healthCheck(): Future[Boolean] =
+    client
+      .fetch("/api/_health")
+      .map {
+        case (StatusCodes.OK, _) => true
+        case (_, _)              => false
+      }(izanamiDispatcher.ec)
 
   /**
    *
@@ -332,7 +345,6 @@ trait FeatureClient {
   /**
    * Create a feature
    * @param feature the feature to create
-   * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
   def createFeature(feature: Feature): Future[Feature] =
@@ -342,7 +354,6 @@ trait FeatureClient {
    * Update a feature
    * @param id the previous id of the feature
    * @param feature the feature to update
-   * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
   def updateFeature(id: String, feature: Feature): Future[Feature] =

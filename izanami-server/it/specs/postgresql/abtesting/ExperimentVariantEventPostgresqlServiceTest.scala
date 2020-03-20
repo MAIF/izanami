@@ -19,7 +19,7 @@ class ExperimentVariantEventPostgresqlServiceTest
 
   private val pgConfig = PostgresqlConfig(
     "org.postgresql.Driver",
-    "jdbc:postgresql://localhost:5556/izanami",
+    "jdbc:postgresql://localhost:5555/izanami",
     "izanami",
     "izanami",
     32,

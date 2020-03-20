@@ -217,6 +217,16 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
     new ExperimentsClient(underlyingClient.experimentClient(strategy, fallback))
 
   /**
+   * Check if izanami server is available
+   * @return true if ok and false if not
+   */
+  def healthCheck(): Future[Boolean] = {
+    import Vavr._
+    import underlyingClient.izanamiDispatcher.ec
+    underlyingClient.healthCheck().toJava
+  }
+
+  /**
    * Create a proxy to expose a part of the api of the server from your app.
    *
    * {{{
