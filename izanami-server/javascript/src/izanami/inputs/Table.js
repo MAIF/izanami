@@ -884,10 +884,14 @@ export class Table extends Component {
                   copyNodes={this.props.copyNodes}
                   searchKeys={this.props.searchKeys}
                   itemLink={this.props.itemLink}
-                  initialSearch={this.props.parentProps.location.query.search}
                   search={this.search}
                   onSearchChange={ text => {
-                    this.setState({ table: !this.state.table }, () => this.update({ filtered: [{ id: "key", value: text }] }));
+                    this.update({ filtered: [{ id: "key", value: text }] });
+                  }}
+                  openOnTable={id => {
+                    this.setState(
+                        { table: !this.state.table },
+                        () => this.update({ filtered: [{ id: "key", value: id }] }));
                   }}
                   editAction={(e, item) => this.showEditForm(e, item)}
                   removeAction={(e, item) =>
