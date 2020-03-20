@@ -81,12 +81,12 @@ class Node extends Component {
   state = {
   };
 
-  search = id => {
+  openOnTable = id => {
     if (id) {
-      this.setState({ search: id });
-      this.props.onSearchChange && this.props.onSearchChange(id);
+      this.props.openOnTable && this.props.openOnTable(id);
     }
   };
+
 
   toggleChilds(e) {
     if (e.childNodes) {
@@ -204,7 +204,7 @@ class Node extends Component {
                     </Popover>
                   </button>}
                   <button
-                      onClick={_ => this.search(this.props.node.id)}
+                      onClick={_ => this.openOnTable(this.props.node.id)}
                       onMouseOver={ _ => this.setState({openCopy:false}) }
                       type="button"
                       className="btn btn-sm btn-success"
@@ -262,6 +262,7 @@ class Node extends Component {
                         editAction={this.props.editAction}
                         itemLink={this.props.itemLink}
                         onSearchChange={this.props.onSearchChange}
+                        openOnTable={this.props.openOnTable}
                   />)
                 }
               </ul>
@@ -277,6 +278,7 @@ export class Tree extends Component {
     datas: PropTypes.array.isRequired,
     renderValue: PropTypes.func.isRequired,
     onSearchChange: PropTypes.func.isRequired,
+    openOnTable: PropTypes.func.isRequired,
     initialSearch: PropTypes.string,
     itemLink: PropTypes.func,
     search: PropTypes.func,
@@ -289,6 +291,14 @@ export class Tree extends Component {
 
   state = {
     nodes: []
+  };
+
+
+  search = e => {
+    if (e && e.target) {
+      this.setState({ search: e.target.value });
+      this.props.onSearchChange && this.props.onSearchChange(e.target.value);
+    }
   };
 
   componentDidMount() {
@@ -348,6 +358,7 @@ export class Tree extends Component {
                         copyNodes={this.props.copyNodes}
                         searchKeys={this.props.searchKeys}
                         onSearchChange={this.props.onSearchChange}
+                        openOnTable={this.props.openOnTable}
                   />
                 )}
             </ul>
