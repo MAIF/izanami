@@ -27,9 +27,9 @@ services:
     ports:
       - "8001:8000"
   postgres_test:
-    image: postgres
+    image: postgres:11.2
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./install_extensions.sh:/docker-entrypoint-initdb.d/install_extensions.sh
     ports:
-      - 5556:5432
+      - 5555:5432

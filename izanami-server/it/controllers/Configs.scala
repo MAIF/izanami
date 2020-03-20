@@ -289,7 +289,7 @@ object Configs {
                       |
                       |izanami.mode= "test"
                       |izanami.config.db.type=$${izanami.db.default}
-                      |izanami.db.postgresql.url="jdbc:postgresql://localhost:5556/izanami"
+                      |izanami.db.postgresql.url="jdbc:postgresql://localhost:5555/izanami"
                       |izanami.config.db.type=$${izanami.db.default}
                       |izanami.config.db.conf.namespace="izanami$id:config"
                       |izanami.features.db.type=$${izanami.db.default}

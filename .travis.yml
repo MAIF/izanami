@@ -132,6 +132,7 @@ stages:
 
 after_failure:
   - docker-compose logs cassandra
+  - docker-compose logs postgres_test
 
 env:
   global:
