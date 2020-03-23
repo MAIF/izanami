@@ -24,6 +24,8 @@ import zio.{RIO, Task, ZIO}
 
 import scala.reflect.ClassTag
 import domains.errors.{DataShouldExists, IdMustBeTheSame}
+import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
+import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
 
 sealed trait Script
 final case class JavascriptScript(script: String) extends Script
@@ -61,7 +63,15 @@ trait ScriptCacheModule {
 
 case class ScriptLogs(logs: Seq[String] = Seq.empty)
 
-trait RunnableScriptContext extends ScriptCacheModule with Blocking with LoggerModule with PlayModule
+trait RunnableScriptContext extends ScriptCacheModule with Blocking with LoggerModule with PlayModule {
+  lazy val scriptEngineManager = new ScriptEngineManager(environment.classLoader)
+  lazy val javascriptScriptEngine: ScriptEngine with Invocable =
+    scriptEngineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable]
+  lazy val scalaScriptEngine: Option[ScriptEngine with Invocable] = Option(
+    scriptEngineManager.getEngineByName("scala").asInstanceOf[ScriptEngine with Invocable]
+  )
+  lazy val kotlinScriptEngine: ScriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
+}
 
 trait RunnableScript[S] {
   def run(script: S, context: JsObject): RIO[RunnableScriptContext, ScriptExecution]
