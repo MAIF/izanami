@@ -9,9 +9,6 @@ import play.api.libs.ws.JsonBodyWritables._
 import scala.util.Random
 import org.scalatest.BeforeAndAfterAll
 
-
-
-
 abstract class FeatureControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with IzanamiMatchers
@@ -19,7 +16,7 @@ abstract class FeatureControllerSpec(name: String, configurationSpec: Configurat
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration) =
-    configuration ++ configurationSpec
+    configuration withFallback configurationSpec
   private lazy val ws = izanamiComponents.wsClient
 
   private lazy val rootPath = s"http://localhost:$port"

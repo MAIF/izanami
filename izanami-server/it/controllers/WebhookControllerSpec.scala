@@ -25,12 +25,11 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
-  private lazy val ws                    = izanamiComponents.wsClient
-  private implicit lazy val system       = izanamiComponents.actorSystem
-  private implicit lazy val materializer = ActorMaterializer()
+  private lazy val ws              = izanamiComponents.wsClient
+  private implicit lazy val system = izanamiComponents.actorSystem
 
   override def getConfiguration(configuration: Configuration) =
-    configuration ++ configurationSpec ++ Configuration(
+    configuration withFallback configurationSpec withFallback Configuration(
       ConfigFactory
         .parseString(
           """

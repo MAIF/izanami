@@ -27,7 +27,6 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
   implicit val system: ActorSystem =
     ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val mat: Materializer    = ActorMaterializer()
   private val context = new DataStoreContext {
     override def eventStore: EventStore                                     = new TestEventStore()
     override def logger: Logger                                             = new ProdLogger

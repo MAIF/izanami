@@ -14,19 +14,24 @@ import scala.concurrent.Await
 import scala.util.Random
 import domains.abtesting.impl.ExperimentVariantEventMongoService
 
-
-class ExperimentVariantEventMongoServiceTest extends AbstractExperimentServiceTest("Mongo") with BeforeAndAfter with BeforeAndAfterAll {
+class ExperimentVariantEventMongoServiceTest
+    extends AbstractExperimentServiceTest("Mongo")
+    with BeforeAndAfter
+    with BeforeAndAfterAll {
 
   import zio.interop.catz._
 
   val mongoApi = new DefaultReactiveMongoApi(
-    MongoConnection.parseURI("mongodb://localhost:27017").get,
-    s"dbtest-${Random.nextInt(50)}", false, Configuration.empty,
+    Await.result(MongoConnection.fromString("mongodb://localhost:27017"), 5.seconds),
+    s"dbtest-${Random.nextInt(50)}",
+    false,
+    Configuration.empty,
     new FakeApplicationLifecycle()
   )
-  
+
   override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventMongoService(
-      DbDomainConfig(Mongo, DbDomainConfigDetails(name, None), None), mongoApi
+    DbDomainConfig(Mongo, DbDomainConfigDetails(name, None), None),
+    mongoApi
   )
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
@@ -40,8 +45,7 @@ class ExperimentVariantEventMongoServiceTest extends AbstractExperimentServiceTe
     deleteAllData
   }
 
-  private def deleteAllData = {
-    Await.result(mongoApi.database.flatMap { _.drop()}, 30.seconds)
-  }
+  private def deleteAllData =
+    Await.result(mongoApi.database.flatMap { _.drop() }, 30.seconds)
 
 }

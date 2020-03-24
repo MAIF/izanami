@@ -271,7 +271,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |}
         """.stripMargin)
 
-      FeatureInstances.writes.writes(DefaultFeature(Key("id"), true, None)) must be(json)
+      FeatureInstances.format.writes(DefaultFeature(Key("id"), true, None)) must be(json)
     }
 
     "Serialize GlobalScriptFeature" in {
@@ -284,7 +284,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |}
         """.stripMargin)
 
-      FeatureInstances.writes.writes(GlobalScriptFeature(Key("id"), true, None, "ref")) must be(json)
+      FeatureInstances.format.writes(GlobalScriptFeature(Key("id"), true, None, "ref")) must be(json)
     }
 
     "Serialize ScriptFeature" in {
@@ -296,7 +296,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "parameters": { "type": "javascript", "script": "script" }
           |}
         """.stripMargin)
-      FeatureInstances.writes.writes(ScriptFeature(Key("id"), true, None, JavascriptScript("script"))) must be(json)
+      FeatureInstances.format.writes(ScriptFeature(Key("id"), true, None, JavascriptScript("script"))) must be(json)
     }
 
     "Serialize ReleaseDateFeature" in {
@@ -309,7 +309,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "parameters": { "releaseDate": "01/01/2017 12:12:12" }
           |}
         """.stripMargin)
-      FeatureInstances.writes.writes(
+      FeatureInstances.format.writes(
         ReleaseDateFeature(Key("id"), true, None, LocalDateTime.of(2017, 1, 1, 12, 12, 12))
       ) must be(json)
     }
@@ -327,7 +327,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   }
           |}
         """.stripMargin)
-      FeatureInstances.writes.writes(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(
+      FeatureInstances.format.writes(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(
         json
       )
     }
