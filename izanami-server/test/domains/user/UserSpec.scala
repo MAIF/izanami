@@ -27,7 +27,6 @@ import cats.data.NonEmptyList
 class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
   implicit val system = ActorSystem("test")
-  implicit val mat    = ActorMaterializer()
   import IzanamiErrors._
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
@@ -155,7 +154,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
-      val written: JsValue = Json.toJson(user)(UserInstances.format)
+      val written: JsValue = UserInstances.format.writes(user)
       written must be(json)
     }
 
@@ -176,7 +175,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
-      val written: JsValue = Json.toJson(user)(UserNoPasswordInstances.format)
+      val written: JsValue = UserInstances.format.writes(user)
       written must be(json)
     }
 
@@ -191,7 +190,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "authorizedPattern" -> "*"
       )
 
-      val read = Json.fromJson(json)(UserInstances.format)
+      val read = UserInstances.format.reads(json)
       read must be(JsSuccess(user))
     }
 
@@ -206,7 +205,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
-      val read = Json.fromJson(json)(UserInstances.format)
+      val read = UserInstances.format.reads(json)
       read must be(JsSuccess(user))
     }
 
@@ -221,7 +220,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
-      val written: JsValue = Json.toJson(user)(UserInstances.format)
+      val written: JsValue = UserInstances.format.writes(user)
       written must be(json)
     }
 
@@ -266,7 +265,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
-      val written: JsValue = Json.toJson(user)(UserInstances.format)
+      val written: JsValue = UserInstances.format.writes(user)
       written must be(json)
     }
 

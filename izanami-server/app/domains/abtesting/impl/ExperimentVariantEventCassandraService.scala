@@ -43,7 +43,6 @@ class ExperimentVariantEventCassandraService(session: Session, config: DbDomainC
   import cats.implicits._
   import domains.events.Events._
 
-  ActorMaterializer()
   implicit private val sess = session
 
   //Events table

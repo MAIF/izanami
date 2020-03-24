@@ -18,15 +18,13 @@ import store.Query
 import controllers.dto.error.ApiErrors
 import zio.{IO, Runtime, ZIO}
 
-class UserController(system: ActorSystem,
-                     AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                     val cc: ControllerComponents)(implicit R: Runtime[UserContext])
-    extends AbstractController(cc) {
+class UserController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    R: Runtime[UserContext]
+) extends AbstractController(cc) {
 
   import system.dispatcher
   import libs.http._
-
-  implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
     AuthAction.asyncZio[UserContext] { ctx =>

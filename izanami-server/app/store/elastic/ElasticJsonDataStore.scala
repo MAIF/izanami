@@ -46,8 +46,6 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
   import store.elastic.ElasticJsonDataStore.EsDocument._
   import IzanamiErrors._
 
-  private implicit val mat: Materializer = ActorMaterializer()
-
   private val esIndex = dbDomainConfig.conf.namespace.replaceAll(":", "_")
   private val esType  = "type"
 

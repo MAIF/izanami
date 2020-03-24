@@ -50,14 +50,13 @@ import scala.concurrent.duration._
 
 class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
-  implicit val sys          = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val sys = ActorSystem("test")
 
   private val env = new ApiKeyContext with MetricsContext with Clock.Live {
     override def logger: Logger                 = new ProdLogger
     override def metricRegistry: MetricRegistry = new MetricRegistry()
     override implicit def system: ActorSystem   = sys
-    override implicit def mat: Materializer     = materializer
+    override implicit def mat: Materializer     = Materializer(sys)
     override def authInfo: Option[AuthInfo]     = None
     override def apikeyDataStore: JsonDataStore = new JsonDataStore {
       override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue]             = ???

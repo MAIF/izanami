@@ -15,15 +15,13 @@ import libs.ziohelper.JsResults.jsResultToHttpResponse
 import store.Query
 import zio.{Runtime, ZIO}
 
-class WebhookController(system: ActorSystem,
-                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                        cc: ControllerComponents)(implicit R: Runtime[WebhookContext])
-    extends AbstractController(cc) {
+class WebhookController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    R: Runtime[WebhookContext]
+) extends AbstractController(cc) {
 
   import libs.http._
   import system.dispatcher
-
-  implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncTask[WebhookContext](parse.empty) { ctx =>

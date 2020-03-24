@@ -14,15 +14,12 @@ import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerCo
 import store.Query
 import zio.{Runtime, ZIO}
 
-class SearchController(
-    system: ActorSystem,
-    AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-    cc: ControllerComponents
-)(implicit R: Runtime[GlobalContext])
-    extends AbstractController(cc) {
+class SearchController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    R: Runtime[GlobalContext]
+) extends AbstractController(cc) {
 
   import libs.http._
-  implicit val mat = ActorMaterializer()(system)
 
   def search(pattern: String, features: Boolean, configs: Boolean, experiments: Boolean, scripts: Boolean) =
     AuthAction.asyncTask[GlobalContext] { ctx =>

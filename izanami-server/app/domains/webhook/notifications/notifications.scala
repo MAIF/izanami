@@ -3,7 +3,16 @@ package domains.webhook.notifications
 import java.util.Base64
 
 import akka.Done
-import akka.actor.{Actor, Cancellable, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy, Terminated}
+import akka.actor.{
+  Actor,
+  ActorSystem,
+  Cancellable,
+  OneForOneStrategy,
+  PoisonPill,
+  Props,
+  SupervisorStrategy,
+  Terminated
+}
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.Sink
 import domains.Domain
@@ -37,7 +46,8 @@ class WebHooksActor(wSClient: WSClient, config: WebhookConfig, runtime: Runtime[
   import akka.actor.SupervisorStrategy._
   import context.dispatcher
 
-  private implicit val mat: Materializer = ActorMaterializer()(context.system)
+  private implicit val s: ActorSystem  = context.system
+  private implicit val m: Materializer = Materializer(context.system)
 
   private var scheduler: Option[Cancellable] = None
 
@@ -69,7 +79,7 @@ class WebHooksActor(wSClient: WSClient, config: WebhookConfig, runtime: Runtime[
   override def preStart(): Unit = {
     scheduler = Some(
       context.system.scheduler
-        .schedule(5.minutes, 5.minutes, self, RefreshWebhook)
+        .scheduleAtFixedRate(5.minutes, 5.minutes, self, RefreshWebhook)
     )
     setUpWebHooks().foreach { _ =>
       runtime.unsafeRunToFuture(
@@ -274,7 +284,7 @@ class WebHookActor(wSClient: WSClient, webhook: Webhook, config: WebhookConfig, 
     context.system.eventStream.subscribe(self, classOf[IzanamiEvent])
     scheduler = Some(
       context.system.scheduler
-        .schedule(config.events.within, config.events.within, self, SendEvents)
+        .scheduleAtFixedRate(config.events.within, config.events.within, self, SendEvents)
     )
     reset = Some(
       context.system.scheduler

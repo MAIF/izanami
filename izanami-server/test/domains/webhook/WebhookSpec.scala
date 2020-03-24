@@ -29,7 +29,6 @@ import cats.data.NonEmptyList
 class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
   implicit val system = ActorSystem("test")
-  implicit val mat    = ActorMaterializer()
   import domains.errors.IzanamiErrors._
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)

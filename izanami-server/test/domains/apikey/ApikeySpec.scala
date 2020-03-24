@@ -28,7 +28,6 @@ import domains.ImportResult
 class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
 
   implicit val system = ActorSystem("test")
-  implicit val mat    = ActorMaterializer()
 
   import domains.errors.IzanamiErrors._
 

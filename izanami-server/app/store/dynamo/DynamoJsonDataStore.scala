@@ -45,7 +45,6 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
   import IzanamiErrors._
 
   actorSystem.dispatcher
-  private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
   override def start: RIO[DataStoreContext, Unit] =
     Logger.info(s"Load store Dynamo for namespace $storeName")

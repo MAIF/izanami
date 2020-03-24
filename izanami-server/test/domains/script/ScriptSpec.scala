@@ -58,7 +58,6 @@ class ScriptSpec
     with BeforeAndAfterAll {
 
   implicit val system           = ActorSystem("test")
-  implicit val mat              = ActorMaterializer()
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
   import domains.errors.IzanamiErrors._

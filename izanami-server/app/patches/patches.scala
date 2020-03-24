@@ -56,7 +56,6 @@ class Patchs(izanamiConfig: IzanamiConfig, mayBeJsonStore: Option[JsonDataStore]
 ) {
 
   import Patchs._
-  implicit val materializer = ActorMaterializer()
 
   val key = Key("last:patch")
 

@@ -17,7 +17,6 @@ import zio.internal.PlatformLive
 class ZioOtoroshiFilterSpec extends IzanamiSpec {
 
   implicit val system = ActorSystem("test")
-  implicit val mat    = ActorMaterializer()
 
   val env = new LoggerModule {
     override def logger: Logger = new ProdLogger

@@ -41,8 +41,6 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
   import cats.implicits._
   import ExperimentVariantEventInstances._
 
-  implicit val materializer: Materializer = ActorMaterializer()
-
   val experimentseventsNamespace: String = namespace
 
   val client: RedisWrapper = maybeRedis.get
@@ -159,7 +157,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
           4,
           key =>
             Source
-              .fromFuture(interval(key))
+              .future(interval(key))
               .flatMapConcat(
                 interval =>
                   findEvents(key)

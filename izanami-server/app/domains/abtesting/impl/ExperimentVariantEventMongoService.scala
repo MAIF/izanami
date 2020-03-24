@@ -4,7 +4,6 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.NotUsed
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
@@ -19,7 +18,7 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.ReadPreference
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.play.json._
+import reactivemongo.play.json.compat._
 import reactivemongo.play.json.collection.JSONCollection
 import domains.errors.IzanamiErrors
 import zio.{RIO, Task, ZIO}
@@ -57,18 +56,13 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
 ) extends ExperimentVariantEventService {
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
-  private implicit val mat: ActorMaterializer = ActorMaterializer()
 
   private val collectionName = namespace.replaceAll(":", "_")
 
-  private val indexesDefinition: Seq[Index] = Seq(
-    Index(Seq("id"           -> IndexType.Ascending), unique = true),
-    Index(Seq("experimentId" -> IndexType.Ascending), unique = false),
-    Index(Seq("variantId"    -> IndexType.Ascending), unique = false)
-  )
-
-  Seq(
-    Index(Seq("id" -> IndexType.Ascending), unique = true)
+  private val indexesDefinition: Seq[Index.Default] = Seq(
+    MongoUtils.createIndex(Seq("id"           -> IndexType.Ascending), unique = true),
+    MongoUtils.createIndex(Seq("experimentId" -> IndexType.Ascending), unique = false),
+    MongoUtils.createIndex(Seq("variantId"    -> IndexType.Ascending), unique = false)
   )
 
   override def start: RIO[ExperimentVariantEventServiceModule, Unit] =
@@ -130,7 +124,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
           .flatMapMerge(
             4, { v =>
               Source
-                .fromFuture(firstEvent(experiment.id.key, v.id))
+                .future(firstEvent(experiment.id.key, v.id))
                 .flatMapConcat { mayBeEvent =>
                   val interval = mayBeEvent
                     .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
@@ -147,7 +141,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
   private def findEvents(experimentId: String,
                          variant: Variant)(implicit ec: ExecutionContext): Source[ExperimentVariantEvent, NotUsed] =
     Source
-      .fromFutureSource(
+      .futureSource(
         mongoApi.database.map { collection =>
           collection
             .collection[JSONCollection](collectionName)
@@ -177,7 +171,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
   ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
     Task {
       Source
-        .fromFuture(mongoApi.database)
+        .future(mongoApi.database)
         .map(_.collection[JSONCollection](collectionName))
         .flatMapConcat(
           _.find(Json.obj(), projection = Option.empty[JsObject])

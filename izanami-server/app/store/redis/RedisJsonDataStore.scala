@@ -39,8 +39,6 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   import cats.implicits._
   import IzanamiErrors._
 
-  private implicit val mat = ActorMaterializer()(system)
-
   override def start: RIO[DataStoreContext, Unit] = Logger.info(s"Load store Redis for namespace $name")
 
   private def buildKey(key: Key) = Key.Empty / name / key

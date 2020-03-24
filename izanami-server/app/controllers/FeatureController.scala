@@ -20,17 +20,15 @@ import store.Query
 import controllers.dto.error.ApiErrors
 import zio.{Runtime, ZIO}
 
-class FeatureController(system: ActorSystem,
-                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                        cc: ControllerComponents)(implicit runtime: Runtime[FeatureContext])
-    extends AbstractController(cc) {
+class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    runtime: Runtime[FeatureContext]
+) extends AbstractController(cc) {
 
   import system.dispatcher
   import libs.http._
   import FeatureInstances._
   import play.api.libs.json._
-
-  implicit lazy val mat: Materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, active: Boolean, render: String): Action[Unit] =
     AuthAction.asyncZio[FeatureContext](parse.empty) { ctx =>

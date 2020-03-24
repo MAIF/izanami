@@ -48,8 +48,6 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
   import elastic.codec.PlayJson._
   import ExperimentVariantEventInstances._
 
-  private implicit val mat = ActorMaterializer()
-
   private val esIndex        = dbDomainConfig.conf.namespace.replaceAll(":", "_")
   private val esType         = "type"
   private val displayedIndex = s"${esIndex}_counter_displayed"
@@ -412,7 +410,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
 
     ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
       val events: Source[Seq[ExperimentResultEvent], NotUsed] = Source
-        .fromFuture(runtime.unsafeRunToFuture(calcInterval(experimentId)))
+        .future(runtime.unsafeRunToFuture(calcInterval(experimentId)))
         .mapAsync(1) { interval =>
           val query = aggRequest(experimentId, variantId, interval)
           IzanamiLogger.debug(s"Querying ${Json.prettyPrint(query)}")
@@ -447,10 +445,10 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
         }
 
       val won: Source[Long, NotUsed] =
-        Source.fromFuture(runtime.unsafeRunToFuture(getWon(experimentId, variantId)))
+        Source.future(runtime.unsafeRunToFuture(getWon(experimentId, variantId)))
       val displayed: Source[Long, NotUsed] =
-        Source.fromFuture(runtime.unsafeRunToFuture(getDisplayed(experimentId, variantId)))
-      val users = Source.fromFuture(countUsers(experimentId, variantId))
+        Source.future(runtime.unsafeRunToFuture(getDisplayed(experimentId, variantId)))
+      val users = Source.future(countUsers(experimentId, variantId))
 
       events.zip(won).zip(displayed).zip(users).map {
         case (((e, w), d), u) =>
@@ -474,8 +472,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       .runtime[ExperimentVariantEventServiceModule]
       .map { runtime =>
         Source(experiment.variants.toList)
-          .flatMapMerge(4,
-                        v => Source.fromFutureSource(runtime.unsafeRunToFuture(getVariantResult(experiment.id.key, v))))
+          .flatMapMerge(4, v => Source.futureSource(runtime.unsafeRunToFuture(getVariantResult(experiment.id.key, v))))
       }
 
   override def listAll(
