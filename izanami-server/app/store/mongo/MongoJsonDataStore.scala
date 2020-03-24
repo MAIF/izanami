@@ -4,7 +4,6 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
-import akka.stream.{ActorMaterializer, Materializer}
 import cats.implicits._
 import domains.Key
 import env.DbDomainConfig
@@ -14,7 +13,7 @@ import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.akkastream._
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{Cursor, QueryOpts, ReadConcern, ReadPreference, WriteConcern}
-import reactivemongo.play.json._
+import reactivemongo.play.json.compat._
 import reactivemongo.play.json.collection.JSONCollection
 import domains.errors.IzanamiErrors
 import store._
@@ -44,9 +43,10 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
   private val collectionName = namespace.replaceAll(":", "_")
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
-  private implicit val mat: Materializer      = ActorMaterializer()
 
-  private val indexesDefinition: Seq[Index] = Seq(Index(Seq("id" -> IndexType.Ascending), unique = true))
+  private val indexesDefinition: Seq[Index.Default] = Seq(
+    MongoUtils.createIndex(Seq("id" -> IndexType.Ascending), unique = true)
+  )
 
   private def initIndexes()(implicit ec: ExecutionContext): Future[Unit] =
     MongoUtils.initIndexes(collectionName, indexesDefinition)
@@ -138,9 +138,8 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     storeCollectionT.flatMap(getByIdRaw(id)(_))
 
   override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] = {
-    val from    = (page - 1) * nbElementPerPage
-    val options = QueryOpts(skipN = from, batchSizeN = nbElementPerPage, flagsN = 0)
-    val query   = buildMongoQuery(q)
+    val from  = (page - 1) * nbElementPerPage
+    val query = buildMongoQuery(q)
     Logger.debug(
       s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage (from $from, batchSizeN $nbElementPerPage)"
     ) *>
@@ -148,7 +147,8 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
       val findResult: Task[Seq[MongoDoc]] = IO.fromFuture { implicit ec =>
         collection
           .find(query, projection = Option.empty[JsObject])
-          .options(options)
+          .batchSize(nbElementPerPage)
+          .skip(from)
           .cursor[MongoDoc](ReadPreference.primary)
           .collect[Seq](maxDocs = nbElementPerPage, Cursor.FailOnError[Seq[MongoDoc]]())
       }
@@ -167,7 +167,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     Logger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream") *>
     Task.fromFuture(
       implicit ec =>
-        FastFuture.successful(Source.fromFuture(storeCollection).flatMapConcat {
+        FastFuture.successful(Source.future(storeCollection).flatMapConcat {
           _.find(query, projection = Option.empty[JsObject])
             .cursor[MongoDoc](ReadPreference.primary)
             .documentSource()

@@ -22,7 +22,6 @@ object DynamoClient {
   def dynamoClient(mayBeConfig: Option[DynamoConfig])(implicit actorSystem: ActorSystem): Option[AlpakkaClient] =
     mayBeConfig.map { config =>
       IzanamiLogger.info(s"Initializing Dynamo cluster for $config")
-      implicit val mat: Materializer    = ActorMaterializer()(actorSystem)
       implicit val ec: ExecutionContext = actorSystem.dispatcher
 
       val credentials = for {

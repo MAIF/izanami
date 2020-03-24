@@ -16,8 +16,6 @@ import scala.util.Try
 
 class BasicEventStore(implicit system: ActorSystem) extends EventStore {
 
-  private implicit val mat: Materializer = ActorMaterializer()
-
   logger.info("Starting default event store")
 
   private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)

@@ -1,7 +1,7 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import controllers.dto.apikeys.ApikeyListResult
@@ -24,8 +24,6 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
 
   import libs.http._
   import system.dispatcher
-
-  implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15): Action[AnyContent] =
     AuthAction.asyncZio[ApiKeyContext] { ctx =>

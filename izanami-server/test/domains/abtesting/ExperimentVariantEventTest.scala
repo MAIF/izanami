@@ -15,8 +15,7 @@ class ExperimentVariantEventTest extends IzanamiSpec with ScalaFutures with Inte
   "ExperimentVariantEvent" must {
     "aggregate event" in {
 
-      implicit val system: ActorSystem        = ActorSystem()
-      implicit val materializer: Materializer = ActorMaterializer()
+      implicit val system: ActorSystem = ActorSystem()
 
       val variantId = "vId"
       val variant   = Variant(variantId, "None", None, Traffic(0), None)

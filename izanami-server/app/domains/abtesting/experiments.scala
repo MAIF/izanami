@@ -332,7 +332,7 @@ object ExperimentService {
                       Source(mayBeExp.toList)
                         .flatMapConcat { experiment =>
                           Source
-                            .fromFutureSource(runtime.unsafeRunToFuture {
+                            .futureSource(runtime.unsafeRunToFuture {
                               ExperimentVariantEventService.findVariantResult(experiment)
                             })
                             .fold(Seq.empty[VariantResult])(_ :+ _)

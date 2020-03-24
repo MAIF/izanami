@@ -53,7 +53,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   implicit val runtime     = new DefaultRuntime {}
   implicit val actorSystem = ActorSystem()
-  implicit val mat         = ActorMaterializer()
 
   import IzanamiErrors._
 
@@ -264,7 +263,6 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "Feature Serialisation" should {
 
     "Serialize DefaultFeature" in {
-      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -273,11 +271,10 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |}
         """.stripMargin)
 
-      Json.toJson(DefaultFeature(Key("id"), true, None)) must be(json)
+      FeatureInstances.writes.writes(DefaultFeature(Key("id"), true, None)) must be(json)
     }
 
     "Serialize GlobalScriptFeature" in {
-      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -287,11 +284,10 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |}
         """.stripMargin)
 
-      Json.toJson(GlobalScriptFeature(Key("id"), true, None, "ref")) must be(json)
+      FeatureInstances.writes.writes(GlobalScriptFeature(Key("id"), true, None, "ref")) must be(json)
     }
 
     "Serialize ScriptFeature" in {
-      import FeatureInstances._
       val json = Json.parse("""
           |{
           |   "id": "id",
@@ -300,11 +296,10 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "parameters": { "type": "javascript", "script": "script" }
           |}
         """.stripMargin)
-      Json.toJson(ScriptFeature(Key("id"), true, None, JavascriptScript("script"))) must be(json)
+      FeatureInstances.writes.writes(ScriptFeature(Key("id"), true, None, JavascriptScript("script"))) must be(json)
     }
 
     "Serialize ReleaseDateFeature" in {
-      import FeatureInstances._
       val json =
         Json.parse("""
           |{
@@ -314,11 +309,12 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   "parameters": { "releaseDate": "01/01/2017 12:12:12" }
           |}
         """.stripMargin)
-      Json.toJson(ReleaseDateFeature(Key("id"), true, None, LocalDateTime.of(2017, 1, 1, 12, 12, 12))) must be(json)
+      FeatureInstances.writes.writes(
+        ReleaseDateFeature(Key("id"), true, None, LocalDateTime.of(2017, 1, 1, 12, 12, 12))
+      ) must be(json)
     }
 
     "Serialize HourRangeFeature" in {
-      import FeatureInstances._
       val json =
         Json.parse("""
           |{
@@ -331,7 +327,9 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           |   }
           |}
         """.stripMargin)
-      Json.toJson(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(json)
+      FeatureInstances.writes.writes(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(
+        json
+      )
     }
   }
 
@@ -920,7 +918,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     override val applicationLifecycle: play.api.inject.ApplicationLifecycle = FakeApplicationLifecycle()
     override val configuration: play.api.Configuration                      = Configuration.load(fakeEnv)
     override val executionContext: scala.concurrent.ExecutionContext        = actorSystem.dispatcher
-    override val materializer: akka.stream.Materializer                     = mat
+    override val materializer: akka.stream.Materializer                     = Materializer(actorSystem)
   }
 
   val wsClient  = fakeAhcComponent.wsClient
@@ -936,7 +934,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       authInfo: Option[AuthInfo] = authInfo,
       blocking: Blocking.Service[Any] = blockingInstance,
       system: ActorSystem = actorSystem,
-      mat: Materializer = mat
+      mat: Materializer = Materializer(actorSystem)
   ) extends FeatureContext {
     override def eventStore: EventStore                               = new TestEventStore(events)
     override def withAuthInfo(user: Option[AuthInfo]): FeatureContext = this.copy(user = user)

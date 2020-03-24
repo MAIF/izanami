@@ -35,7 +35,6 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
     globalConfig.getString("cluster.system-name")
   implicit private val s =
     ActorSystem(actorSystemName, globalConfig.getConfig("cluster"))
-  implicit private val mat = ActorMaterializer()
 
   logger.info(s"Creating distributed event store")
 

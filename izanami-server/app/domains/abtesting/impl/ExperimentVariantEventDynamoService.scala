@@ -44,7 +44,6 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
   import ExperimentVariantEventInstances._
 
   actorSystem.dispatcher
-  private implicit val mat: ActorMaterializer = ActorMaterializer()(actorSystem)
 
   override def create(
       id: ExperimentVariantEventKey,

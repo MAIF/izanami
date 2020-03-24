@@ -105,7 +105,7 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainCo
         .flatMapMerge(
           4, { v =>
             Source
-              .fromFuture(runtime.unsafeRunToFuture(firstEvent(experiment.id.key, v.id)))
+              .future(runtime.unsafeRunToFuture(firstEvent(experiment.id.key, v.id)))
               .flatMapConcat { mayBeEvent =>
                 val interval = mayBeEvent
                   .map(e => ExperimentVariantEvent.calcInterval(e.date, LocalDateTime.now()))
