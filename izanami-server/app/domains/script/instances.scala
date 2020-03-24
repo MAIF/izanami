@@ -1,13 +1,26 @@
 package domains.script
+import java.io.File
+import java.nio.file.{Files, Path, Paths}
+import java.util
 import java.util.function.BiConsumer
+import java.util.stream.Collectors
 
 import akka.Done
 import com.fasterxml.jackson.databind.node.ObjectNode
 import domains.PlayModule
 import domains.script.Script.ScriptCache
 import domains.{AuthInfo, IsAllowed, Key}
+import javax.script
 import javax.script._
-import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
+import kotlin.reflect.KClass
+import kotlin.script.experimental.jvm.util.JvmClasspathUtilKt
+import org.jetbrains.kotlin.script.jsr223.{
+  KotlinJsr223JvmDaemonCompileScriptEngine,
+  KotlinJsr223JvmDaemonLocalEvalScriptEngineFactory,
+  KotlinJsr223JvmLocalScriptEngine,
+  KotlinJsr223JvmLocalScriptEngineFactory,
+  KotlinStandardJsr223ScriptTemplate
+}
 import libs.logs.IzanamiLogger
 import play.api.Mode.Prod
 import play.api.cache.AsyncCacheApi
@@ -23,6 +36,9 @@ import scala.util.hashing.MurmurHash3
 import scala.util.{Failure, Success, Try}
 import libs.logs.Logger
 import libs.logs.LoggerModule
+import org.jetbrains.kotlin.cli.common.repl.{KotlinJsr223JvmScriptEngineFactoryBase, ScriptArgsWithTypes}
+import org.jetbrains.kotlin.script.util.ContextKt
+import play.api.Environment
 import zio.blocking.Blocking
 
 case class ScalaConsole(logs: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty) {
@@ -126,6 +142,50 @@ object ScriptInstances {
       }
   }
 
+//  class CustomScriptEngine(environment: Environment) extends KotlinJsr223JvmScriptEngineFactoryBase {
+//
+//    val _underlying = new KotlinJsr223JvmLocalScriptEngineFactory()
+//
+//    override def getScriptEngine: script.ScriptEngine = {
+//      import scala.jdk.CollectionConverters._
+//      val jarDirectory = Paths.get("lib").toAbsolutePath
+//
+//      if (jarDirectory.toFile.exists()) {
+//
+//        val files = jarDirectory
+//          .toFile()
+//          .listFiles()
+//          .toList
+//          .filter { _.getName().endsWith(".jar") }
+//
+////        System.setProperty("kotlin.compiler.classpath", files.mkString(":"))
+////
+////        val tpl                 = new KotlinJsr223JvmDaemonLocalEvalScriptEngineFactory()
+//        val jars: Array[String] = Array("org.jetbrains.kotlin.kotlin-script-util-1.3.70.jar")
+//
+//        val scriptClasspath: List[File] = Option(
+//          JvmClasspathUtilKt
+//            .scriptCompilationClasspathFromContextOrNull(jars, environment.classLoader, true, true)
+//        ).toList.flatMap(_.asScala).filterNot(_.getName.contains("kotlin-stdlib-jdk7"))
+//
+//        val classpath = scriptClasspath
+//
+//        new KotlinJsr223JvmLocalScriptEngine(
+//          this,
+//          classpath.asJava,
+//          classOf[KotlinStandardJsr223ScriptTemplate].getName, { (ctx: ScriptContext, types: Array[KClass[_]]) =>
+//            val bindings = ctx.getBindings(ScriptContext.ENGINE_SCOPE)
+//            new ScriptArgsWithTypes(Array(bindings), Option(types).getOrElse(Array.empty[KClass[_]]))
+//          },
+//          Array.empty[kotlin.reflect.KClass[_]]
+//        )
+////        tpl.getScriptEngine
+//      } else {
+//        _underlying.getScriptEngine
+//      }
+//    }
+//  }
+
   private def executeKotlinScript(script: KotlinScript,
                                   context: JsObject): RIO[RunnableScriptContext, ScriptExecution] = {
 
@@ -163,11 +223,15 @@ object ScriptInstances {
 
     val id = MurmurHash3.stringHash(finalScript).toString
 
-    val buildScript: RIO[LoggerModule, KotlinFeatureScript] =
+    import scala.jdk.CollectionConverters._
+    val buildScript: RIO[RunnableScriptContext, KotlinFeatureScript] =
       for {
-        scriptEngine <- Task(new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine)
+        ctx          <- ZIO.environment[RunnableScriptContext]
+        scriptEngine = ctx.kotlinScriptEngine
         _            <- Logger.debug(s"Compiling script ... ")
-        script       <- Task(scriptEngine.eval(finalScript).asInstanceOf[KotlinFeatureScript])
+        tmpScript    <- Task(scriptEngine.eval(finalScript))
+        _            <- Logger.debug(s"Cast script ... ")
+        script       = tmpScript.asInstanceOf[KotlinFeatureScript]
       } yield script
 
     def run(featureScript: KotlinFeatureScript): RIO[LoggerModule with PlayModule, ScriptExecution] = {
@@ -249,26 +313,26 @@ object ScriptInstances {
 
     val id = MurmurHash3.stringHash(finalScript).toString
 
-    val buildScript: RIO[LoggerModule with PlayModule, FeatureScript] =
-      ZIO.accessM[LoggerModule with PlayModule] { env =>
+    val buildScript: RIO[RunnableScriptContext, FeatureScript] =
+      ZIO.accessM[RunnableScriptContext] { env =>
         env.environment.mode match {
           case Prod =>
             for {
-              engineManager <- Task(new ScriptEngineManager(env.environment.classLoader))
               _ <- Logger.debug(
-                    s"Looking for scala engine in ${engineManager.getEngineFactories.asScala.map(_.getEngineName).mkString(",")}"
+                    s"Looking for scala engine in ${env.scriptEngineManager.getEngineFactories.asScala.map(_.getEngineName).mkString(",")}"
                   )
-              scriptEngine <- Task(engineManager.getEngineByName("scala"))
-              engine       = scriptEngine.asInstanceOf[ScriptEngine with Invocable]
-              _            <- Logger.debug("Compilation is done !")
-              script       <- Task(engine.eval(finalScript).asInstanceOf[FeatureScript])
-              _            <- Logger.debug("Compiling script ...")
+              engine <- ZIO
+                         .fromOption(env.scalaScriptEngine)
+                         .mapError(_ => new IllegalArgumentException("Scala scripts not supported in dev mode"))
+              _      <- Logger.debug("Compilation is done !")
+              script <- Task(engine.eval(finalScript).asInstanceOf[FeatureScript])
+              _      <- Logger.debug("Compiling script ...")
             } yield script
           case _ => ZIO.fail(new IllegalArgumentException("Scala scripts not supported in dev mode"))
         }
       }
 
-    def run(featureScript: FeatureScript): RIO[LoggerModule with PlayModule, ScriptExecution] = {
+    def run(featureScript: FeatureScript): RIO[RunnableScriptContext, ScriptExecution] = {
       val scalaConsole = ScalaConsole()
       ZIO.accessM { env =>
         Task
@@ -318,14 +382,14 @@ object ScriptInstances {
                                       context: JsObject): zio.RIO[RunnableScriptContext, ScriptExecution] = {
     import zio._
 
-    val exec: RIO[LoggerModule with Blocking with PlayModule, ScriptExecution] =
+    val exec: RIO[RunnableScriptContext, ScriptExecution] =
       for {
-        _             <- Logger.debug(s"Creating console")
-        console       = JsConsole()
-        engineManager <- Task(new ScriptEngineManager)
-        engine        <- Task(engineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable])
-        _             = engine.getContext.setAttribute("console", console, ScriptContext.ENGINE_SCOPE)
-        env           <- RIO.environment[LoggerModule with Blocking with PlayModule]
+        env     <- ZIO.environment[RunnableScriptContext]
+        _       <- Logger.debug(s"Creating console")
+        console = JsConsole()
+        engine  = env.javascriptScriptEngine
+        _       = engine.getContext.setAttribute("console", console, ScriptContext.ENGINE_SCOPE)
+        env     <- RIO.environment[LoggerModule with Blocking with PlayModule]
         script <- Task
                    .effectAsync[Boolean] { cb =>
                      implicit val ec = env.ec

@@ -6,7 +6,7 @@ packageName in Universal := "izanami"
 
 name in Universal := "izanami"
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.13.0"
 
 lazy val ITest = config("it") extend Test
 
@@ -20,7 +20,7 @@ lazy val `izanami-server` = (project in file("."))
 val akkaVersion     = "2.5.23"
 val alpakkaVersion  = "1.1.2"
 val metricsVersion  = "4.0.2"
-val kotlinVersion   = "1.3.0"
+val kotlinVersion   = "1.3.70"
 val doobieVersion   = "0.8.4"
 val akkaHttpVersion = "10.1.8"
 val silencerVersion = "1.4.4"
@@ -38,52 +38,55 @@ libraryDependencies ++= Seq(
   jdbc,
   javaWs,
   ehcache,
-  "de.svenkubiak"            % "jBCrypt"                        % "0.4.1", //  ISC/BSD
-  "com.auth0"                % "java-jwt"                       % "3.3.0", // MIT license
-  "com.nimbusds"             % "nimbus-jose-jwt"                % "8.0",
-  "org.gnieh"                %% "diffson-play-json"             % "4.0.0", //
-  "com.softwaremill.macwire" %% "macros"                        % "2.3.3" % "provided", // Apache 2.0
-  "org.scala-lang.modules"   %% "scala-collection-compat"       % "2.1.2",
-  "com.typesafe.akka"        %% "akka-actor"                    % akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-slf4j"                    % akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream"                   % akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-actor-typed"              % akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-cluster"                  % akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-cluster-tools"            % akkaVersion, // Apache 2.0
-  "dev.zio"                  %% "zio"                           % "1.0.0-RC16",
-  "dev.zio"                  %% "zio-interop-cats"              % "2.0.0.0-RC7",
-  "org.reactivemongo"        %% "reactivemongo-akkastream"      % "0.18.8",
-  "org.reactivemongo"        %% "play2-reactivemongo"           % "0.18.8-play27",
-  "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"  % alpakkaVersion, // Apache 2.0
-  "io.lettuce"               % "lettuce-core"                   % "5.0.4.RELEASE", // Apache 2.0
-  "org.iq80.leveldb"         % "leveldb"                        % "0.10", // Apache 2.0
-  "org.typelevel"            %% "cats-core"                     % "2.0.0", // MIT license
-  "org.typelevel"            %% "cats-effect"                   % "2.0.0", // MIT license
-  "org.tpolecat"             %% "doobie-core"                   % doobieVersion,
-  "org.tpolecat"             %% "doobie-hikari"                 % doobieVersion,
-  "org.tpolecat"             %% "doobie-postgres"               % doobieVersion,
-  "com.github.krasserm"      %% "streamz-converter"             % "0.11-RC1",
-  "com.chuusai"              %% "shapeless"                     % "2.3.3", // Apache 2.0
-  "com.github.pureconfig"    %% "pureconfig"                    % "0.12.1", // Apache 2.0
-  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra" % alpakkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream-kafka"             % "1.0.4", // Apache 2.0
-  "com.adelegue"             %% "elastic-scala-http"            % "0.0.14", // Apache 2.0
-  "com.datastax.cassandra"   % "cassandra-driver-core"          % "3.7.1", // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-core"                   % metricsVersion, // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-jvm"                    % metricsVersion, // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-jmx"                    % metricsVersion, // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-json"                   % metricsVersion, // Apache 2.0
-  "io.prometheus"            % "simpleclient_common"            % "0.5.0", // Apache 2.0
-  "io.prometheus"            % "simpleclient_dropwizard"        % "0.5.0", // Apache 2.0
-  "org.scala-lang"           % "scala-compiler"                 % scalaVersion.value,
-  "org.scala-lang"           % "scala-library"                  % scalaVersion.value,
-  "org.jetbrains.kotlin"     % "kotlin-script-runtime"          % kotlinVersion,
-  "org.jetbrains.kotlin"     % "kotlin-script-util"             % kotlinVersion,
-  "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"     % kotlinVersion,
-  "org.webjars"              % "swagger-ui"                     % "3.24.3",
-  "com.typesafe.akka"        %% "akka-http"                     % akkaHttpVersion % "it,test", // Apache 2.0
-  "com.typesafe.akka"        %% "akka-testkit"                  % akkaVersion % "it,test", // Apache 2.0
-  "de.heikoseeberger"        %% "akka-http-play-json"           % "1.29.1" % "it,test" excludeAll ExclusionRule(
+  "de.svenkubiak"            % "jBCrypt"                              % "0.4.1", //  ISC/BSD
+  "com.auth0"                % "java-jwt"                             % "3.3.0", // MIT license
+  "com.nimbusds"             % "nimbus-jose-jwt"                      % "8.0",
+  "org.gnieh"                %% "diffson-play-json"                   % "4.0.0", //
+  "com.softwaremill.macwire" %% "macros"                              % "2.3.3" % "provided", // Apache 2.0
+  "org.scala-lang.modules"   %% "scala-collection-compat"             % "2.1.2",
+  "com.typesafe.akka"        %% "akka-actor"                          % akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-slf4j"                          % akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-stream"                         % akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-actor-typed"                    % akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-cluster"                        % akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-cluster-tools"                  % akkaVersion, // Apache 2.0
+  "dev.zio"                  %% "zio"                                 % "1.0.0-RC16",
+  "dev.zio"                  %% "zio-interop-cats"                    % "2.0.0.0-RC7",
+  "org.reactivemongo"        %% "reactivemongo-akkastream"            % "0.18.8",
+  "org.reactivemongo"        %% "play2-reactivemongo"                 % "0.18.8-play27",
+  "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"        % alpakkaVersion, // Apache 2.0
+  "io.lettuce"               % "lettuce-core"                         % "5.0.4.RELEASE", // Apache 2.0
+  "org.iq80.leveldb"         % "leveldb"                              % "0.10", // Apache 2.0
+  "org.typelevel"            %% "cats-core"                           % "2.0.0", // MIT license
+  "org.typelevel"            %% "cats-effect"                         % "2.0.0", // MIT license
+  "org.tpolecat"             %% "doobie-core"                         % doobieVersion,
+  "org.tpolecat"             %% "doobie-hikari"                       % doobieVersion,
+  "org.tpolecat"             %% "doobie-postgres"                     % doobieVersion,
+  "com.github.krasserm"      %% "streamz-converter"                   % "0.11-RC1",
+  "com.chuusai"              %% "shapeless"                           % "2.3.3", // Apache 2.0
+  "com.github.pureconfig"    %% "pureconfig"                          % "0.12.1", // Apache 2.0
+  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra"       % alpakkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-stream-kafka"                   % "1.0.4", // Apache 2.0
+  "com.adelegue"             %% "elastic-scala-http"                  % "0.0.14", // Apache 2.0
+  "com.datastax.cassandra"   % "cassandra-driver-core"                % "3.7.1", // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-core"                         % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-jvm"                          % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-jmx"                          % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics"    % "metrics-json"                         % metricsVersion, // Apache 2.0
+  "io.prometheus"            % "simpleclient_common"                  % "0.5.0", // Apache 2.0
+  "io.prometheus"            % "simpleclient_dropwizard"              % "0.5.0", // Apache 2.0
+  "org.scala-lang"           % "scala-compiler"                       % scalaVersion.value,
+  "org.scala-lang"           % "scala-library"                        % scalaVersion.value,
+  "net.java.dev.jna"         % "jna"                                  % "5.5.0",
+  "org.jetbrains.kotlin"     % "kotlin-stdlib-jdk8"                   % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-script-runtime"                % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-script-util"                   % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"           % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-scripting-compiler-embeddable" % kotlinVersion,
+  "org.webjars"              % "swagger-ui"                           % "3.24.3",
+  "com.typesafe.akka"        %% "akka-http"                           % akkaHttpVersion % "it,test", // Apache 2.0
+  "com.typesafe.akka"        %% "akka-testkit"                        % akkaVersion % "it,test", // Apache 2.0
+  "de.heikoseeberger"        %% "akka-http-play-json"                 % "1.29.1" % "it,test" excludeAll ExclusionRule(
     "com.typesafe.play",
     "play-json"
   ), // Apache 2.0
@@ -228,7 +231,7 @@ generateDoc := {
   val p = project
   (swagger in Compile).value
   val swaggerFile = target.value / "swagger" / "swagger.json"
-  val targetDoc  = p.base.getParentFile / "docs"/ "swagger" / "swagger.json"
+  val targetDoc   = p.base.getParentFile / "docs" / "swagger" / "swagger.json"
   IO.delete(targetDoc)
   IO.copyDirectory(swaggerFile, targetDoc)
 }
