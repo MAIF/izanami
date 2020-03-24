@@ -175,7 +175,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
-      val written: JsValue = UserInstances.format.writes(user)
+      val written: JsValue = UserNoPasswordInstances.format.writes(user)
       written must be(json)
     }
 
