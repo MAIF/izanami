@@ -9,7 +9,6 @@ import play.api.libs.ws.JsonBodyWritables._
 import scala.util.Random
 import org.scalatest.BeforeAndAfterAll
 
-
 abstract class GlobalScriptControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
     with IzanamiMatchers
@@ -17,7 +16,7 @@ abstract class GlobalScriptControllerSpec(name: String, configurationSpec: Confi
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration) =
-    configuration ++ configurationSpec
+    configuration withFallback configurationSpec
 
   private lazy val ws = izanamiComponents.wsClient
 

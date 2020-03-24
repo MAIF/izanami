@@ -331,7 +331,7 @@ object FeatureInstances {
   (__ \ "enabled").write[Boolean] and
   (__ \ "description").writeNullable[String]
 
-  val reads: Reads[Feature] = Reads[Feature] {
+  private val reads: Reads[Feature] = Reads[Feature] {
     case o if (o \ "activationStrategy").asOpt[String].contains(NO_STRATEGY) =>
       DefaultFeatureInstances.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(RELEASE_DATE) =>
@@ -350,7 +350,7 @@ object FeatureInstances {
       JsError("invalid json")
   }
 
-  val writes: Writes[Feature] = Writes[Feature] {
+  private val writes: Writes[Feature] = Writes[Feature] {
     case s: DefaultFeature      => Json.toJson(s)(DefaultFeatureInstances.format)
     case s: ReleaseDateFeature  => Json.toJson(s)(ReleaseDateFeatureInstances.format)
     case s: DateRangeFeature    => Json.toJson(s)(DateRangeFeatureInstances.format)

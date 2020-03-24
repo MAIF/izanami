@@ -19,18 +19,20 @@ import scala.concurrent.{Await, Future}
 import scala.util.Random
 import org.scalatest.BeforeAndAfterAll
 
-abstract class ExperimentControllerSpec(name: String, configurationSpec: Configuration, strict: Boolean = false, parallelism: Int = 20)
+abstract class ExperimentControllerSpec(name: String,
+                                        configurationSpec: Configuration,
+                                        strict: Boolean = false,
+                                        parallelism: Int = 20)
     extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration): Configuration =
-    configuration ++ configurationSpec
+    configuration withFallback configurationSpec
 
-  private lazy val ws                    = izanamiComponents.wsClient
-  private implicit lazy val system       = izanamiComponents.actorSystem
-  private implicit lazy val materializer = ActorMaterializer()
+  private lazy val ws              = izanamiComponents.wsClient
+  private implicit lazy val system = izanamiComponents.actorSystem
 
   private lazy val rootPath = s"http://localhost:$port"
 

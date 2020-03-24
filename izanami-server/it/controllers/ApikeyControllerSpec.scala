@@ -16,7 +16,7 @@ abstract class ApikeyControllerSpec(name: String, configurationSpec: Configurati
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration) =
-    configuration ++ configurationSpec
+    configuration.withFallback(configurationSpec)
 
   private lazy val ws       = izanamiComponents.wsClient
   private lazy val rootPath = s"http://localhost:$port"
