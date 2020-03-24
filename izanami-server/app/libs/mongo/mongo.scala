@@ -24,7 +24,9 @@ object MongoUtils {
           }
           created.flatMap { _ =>
             IzanamiLogger.info(s"Creating indices for $collectionName")
-            Future.sequence(indexesDefinition.map(collection.indexesManager.ensure))
+            Future.traverse(indexesDefinition) { index =>
+              collection.indexesManager.ensure(index)
+            }
           }
         }
         .map { _ =>
