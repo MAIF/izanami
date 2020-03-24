@@ -99,19 +99,19 @@ jobs:
         - JS_BUILD=true
       script: sh ./scripts/publish-npm.sh
 
-    - stage: publish 
-      name: "Compile and publish cli client on osx if needed"
-      env: 
-        - RUST_BUILD=true PATH=$PATH:$HOME/.cargo/bin
-      script: sh ./scripts/build-rust.sh      
-      os: osx
-
-    - stage: publish 
-      name: "Compile and publish cli client on linux if needed"
-      env: 
-        - RUST_BUILD=true PATH=$PATH:$HOME/.cargo/bin
-      script: sh ./scripts/build-rust.sh
-      os: linux
+#    - stage: publish
+#      name: "Compile and publish cli client on osx if needed"
+#      env:
+#        - RUST_BUILD=true PATH=$PATH:$HOME/.cargo/bin
+#      script: sh ./scripts/build-rust.sh
+#      os: osx
+#
+#    - stage: publish
+#      name: "Compile and publish cli client on linux if needed"
+#      env:
+#        - RUST_BUILD=true PATH=$PATH:$HOME/.cargo/bin
+#      script: sh ./scripts/build-rust.sh
+#      os: linux
 
 stages:
   # runs on master commits and PRs
