@@ -17,12 +17,12 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-val akkaVersion     = "2.5.23"
+val akkaVersion     = "2.6.3"
 val alpakkaVersion  = "1.1.2"
 val metricsVersion  = "4.0.2"
 val kotlinVersion   = "1.3.70"
 val doobieVersion   = "0.8.4"
-val akkaHttpVersion = "10.1.8"
+val akkaHttpVersion = "10.1.11"
 val silencerVersion = "1.4.4"
 
 resolvers ++= Seq(
@@ -52,8 +52,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"        %% "akka-cluster-tools"                  % akkaVersion, // Apache 2.0
   "dev.zio"                  %% "zio"                                 % "1.0.0-RC16",
   "dev.zio"                  %% "zio-interop-cats"                    % "2.0.0.0-RC7",
-  "org.reactivemongo"        %% "reactivemongo-akkastream"            % "0.18.8",
-  "org.reactivemongo"        %% "play2-reactivemongo"                 % "0.18.8-play27",
+  "org.reactivemongo"        %% "reactivemongo-akkastream"            % "0.20.3",
+  "org.reactivemongo"        %% "play2-reactivemongo"                 % "0.20.3-play28",
   "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"        % alpakkaVersion, // Apache 2.0
   "io.lettuce"               % "lettuce-core"                         % "5.0.4.RELEASE", // Apache 2.0
   "org.iq80.leveldb"         % "leveldb"                              % "0.10", // Apache 2.0
@@ -66,7 +66,7 @@ libraryDependencies ++= Seq(
   "com.chuusai"              %% "shapeless"                           % "2.3.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                          % "0.12.1", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra"       % alpakkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream-kafka"                   % "1.0.4", // Apache 2.0
+  "com.typesafe.akka"        %% "akka-stream-kafka"                   % "2.0.0", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"                  % "0.0.14", // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"                % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                         % metricsVersion, // Apache 2.0
