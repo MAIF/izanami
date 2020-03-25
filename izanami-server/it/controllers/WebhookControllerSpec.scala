@@ -29,7 +29,7 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
   private implicit lazy val system = izanamiComponents.actorSystem
 
   override def getConfiguration(configuration: Configuration) =
-    configuration withFallback configurationSpec withFallback Configuration(
+    Configuration(
       ConfigFactory
         .parseString(
           """
@@ -38,7 +38,7 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
         """.stripMargin
         )
         .resolve()
-    )
+    ) withFallback configurationSpec withFallback configuration
 
   private lazy val rootPath = s"http://localhost:$port"
 
