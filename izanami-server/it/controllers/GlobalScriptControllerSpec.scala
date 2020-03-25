@@ -16,7 +16,7 @@ abstract class GlobalScriptControllerSpec(name: String, configurationSpec: Confi
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration) =
-    configuration withFallback configurationSpec
+    configurationSpec withFallback configuration
 
   private lazy val ws = izanamiComponents.wsClient
 

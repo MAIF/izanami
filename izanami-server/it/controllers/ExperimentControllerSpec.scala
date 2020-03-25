@@ -29,7 +29,7 @@ abstract class ExperimentControllerSpec(name: String,
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration): Configuration =
-    configuration withFallback configurationSpec
+    configurationSpec withFallback configuration
 
   private lazy val ws              = izanamiComponents.wsClient
   private implicit lazy val system = izanamiComponents.actorSystem

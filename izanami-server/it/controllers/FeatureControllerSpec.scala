@@ -16,7 +16,8 @@ abstract class FeatureControllerSpec(name: String, configurationSpec: Configurat
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration) =
-    configuration withFallback configurationSpec
+    configurationSpec withFallback configuration
+
   private lazy val ws = izanamiComponents.wsClient
 
   private lazy val rootPath = s"http://localhost:$port"
