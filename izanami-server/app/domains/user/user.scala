@@ -146,11 +146,9 @@ package object user {
 
   object UserDataStore {
 
-    trait Service {
-      def userDataStore: JsonDataStore.Service
-    }
+    type Service = JsonDataStore.Service
 
-    object > extends JsonDataStoreHelper[UserDataStore]
+    object > extends JsonDataStoreHelper[UserDataStore with DataStoreContext]
   }
 
   type UserContext = UserDataStore with ZLogger with EventStore with AuthInfoModule

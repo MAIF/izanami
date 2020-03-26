@@ -39,11 +39,9 @@ package object webhook {
   type WebhookDataStore = zio.Has[WebhookDataStore.Service]
 
   object WebhookDataStore {
-    trait Service {
-      def webhookDataStore: JsonDataStore.Service
-    }
+    type Service = JsonDataStore.Service
 
-    object > extends JsonDataStoreHelper[WebhookDataStore]
+    object > extends JsonDataStoreHelper[WebhookDataStore with DataStoreContext]
   }
 
   type WebhookContext = WebhookDataStore with ZLogger with EventStore with AuthInfoModule

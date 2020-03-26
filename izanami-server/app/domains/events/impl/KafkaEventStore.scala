@@ -6,6 +6,7 @@ import akka.kafka.{ConsumerSettings, ManualSubscription, Subscriptions}
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
 import domains.Domain.Domain
+import domains.configuration.AuthInfoModule
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.{KafkaConfig, KafkaEventsConfig}
@@ -91,7 +92,7 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
   import scala.jdk.CollectionConverters._
   import system.dispatcher
 
-  override def start: RIO[EventStoreContext, Unit] =
+  override def start: RIO[ZLogger with AuthInfoModule, Unit] =
     ZLogger.info(s"Initializing kafka event store $clusterConfig")
 
   private lazy val producerSettings =

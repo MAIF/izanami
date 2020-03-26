@@ -132,11 +132,9 @@ package object feature {
 
   object FeatureDataStore {
 
-    trait Service {
-      def featureDataStore: JsonDataStore.Service
-    }
+    type Service = JsonDataStore.Service
 
-    object > extends JsonDataStoreHelper[FeatureDataStore]
+    object > extends JsonDataStoreHelper[FeatureDataStore with DataStoreContext]
   }
 
   type FeatureContext = FeatureDataStore

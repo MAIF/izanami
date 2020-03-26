@@ -150,11 +150,9 @@ package object abtesting {
   type ExperimentDataStore = zio.Has[ExperimentDataStore.Service]
 
   object ExperimentDataStore {
-    trait Service {
-      def experimentDataStore: JsonDataStore.Service
-    }
+    type Service = JsonDataStore.Service
 
-    object > extends JsonDataStoreHelper[ExperimentDataStore]
+    object > extends JsonDataStoreHelper[ExperimentDataStore with DataStoreContext]
   }
 
   type ExperimentContext = AkkaModule

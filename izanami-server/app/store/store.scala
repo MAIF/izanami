@@ -157,39 +157,41 @@ package object datastore {
   trait JsonDataStoreHelper[R <: zio.Has[JsonDataStore.Service] with DataStoreContext] {
     import zio._
 
+    def getStore: URIO[R, JsonDataStore.Service] = ZIO.access(_.get)
+
     def create(id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-      ZIO.accessM[R](_.get.create(id, data))
+      getStore.flatMap(_.create(id, data))
 
     def update(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-      ZIO.accessM[R](_.get.update(oldId, id, data))
+      getStore.flatMap(_.update(oldId, id, data))
 
     def upsert(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-      ZIO.accessM[R](_.get.upsert(oldId, id, data))
+      getStore.flatMap(_.upsert(oldId, id, data))
 
     def delete(id: Key): ZIO[R, IzanamiErrors, JsValue] =
-      ZIO.accessM[R](_.get.delete(id))
+      getStore.flatMap(_.delete(id))
 
     def deleteAll(query: Query): ZIO[R, IzanamiErrors, Unit] =
-      ZIO.accessM[R](_.get.deleteAll(query))
+      getStore.flatMap(_.deleteAll(query))
 
     def deleteAll(patterns: Seq[String]): ZIO[R, IzanamiErrors, Unit] =
       deleteAll(Query.oneOf(patterns))
 
     def getById(id: Key): RIO[R, Option[JsValue]] =
-      ZIO.accessM[R](_.get.getById(id))
+      getStore.flatMap(_.getById(id))
 
     def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[R, PagingResult[JsValue]] =
-      ZIO.accessM[R](_.get.findByQuery(query, page, nbElementPerPage))
+      getStore.flatMap(_.findByQuery(query, page, nbElementPerPage))
 
     def findByQuery(query: Query): RIO[R, Source[(Key, JsValue), NotUsed]] =
-      ZIO.accessM[R](_.get.findByQuery(query))
+      getStore.flatMap(_.findByQuery(query))
 
     def count(query: Query): RIO[R, Long] =
-      ZIO.accessM[R](_.get.count(query))
+      getStore.flatMap(_.count(query))
 
-    def start: RIO[R, Unit] = ZIO.accessM[R](_.get.start)
+    def start: RIO[R, Unit] = getStore.flatMap(_.start)
 
-    def close: RIO[R, Unit] = ZIO.accessM[R](_.get.close)
+    def close: RIO[R, Unit] = getStore.flatMap(_.close)
   }
 
   type JsonDataStore = zio.Has[JsonDataStore.Service]

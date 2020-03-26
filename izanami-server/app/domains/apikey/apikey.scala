@@ -33,9 +33,9 @@ package object apikey {
 
   object ApikeyDataStore {
 
-    trait Service extends JsonDataStore.Service
+    type Service = JsonDataStore.Service
 
-    object > extends JsonDataStoreHelper[ApikeyDataStore]
+    object > extends JsonDataStoreHelper[ApikeyDataStore with DataStoreContext]
   }
 
   type ApiKeyContext = ZLogger with ApikeyDataStore with EventStore with AuthInfoModule

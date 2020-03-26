@@ -2,6 +2,7 @@ package domains
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
+import domains.apikey.ApikeyDataStore
 import domains.config.Config.ConfigKey
 import domains.events.EventStore
 import domains.events.Events.{ConfigCreated, ConfigDeleted, ConfigUpdated}
@@ -26,10 +27,9 @@ package object config {
   type ConfigDataStore = zio.Has[ConfigDataStore.Service]
 
   object ConfigDataStore {
-    trait Service {
-      def configDataStore: JsonDataStore.Service
-    }
-    object > extends JsonDataStoreHelper[ConfigDataStore]
+    type Service = JsonDataStore.Service
+
+    object > extends JsonDataStoreHelper[ConfigDataStore with DataStoreContext]
   }
 
   type ConfigContext = ZLogger with ConfigDataStore with EventStore with AuthInfoModule

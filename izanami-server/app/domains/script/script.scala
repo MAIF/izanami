@@ -109,11 +109,9 @@ package object script {
   type GlobalScriptDataStore = zio.Has[GlobalScriptDataStore.Service]
 
   object GlobalScriptDataStore {
-    trait Service {
-      def globalScriptDataStore: JsonDataStore.Service
-    }
+    type Service = JsonDataStore.Service
 
-    object > extends JsonDataStoreHelper[GlobalScriptDataStore]
+    object > extends JsonDataStoreHelper[GlobalScriptDataStore with DataStoreContext]
   }
 
   type GlobalScriptContext = ZLogger
