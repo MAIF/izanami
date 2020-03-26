@@ -13,12 +13,13 @@ import libs.streams.Flows
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.IzanamiErrors
 import store._
+import store.datastore._
 import io.lettuce.core._
 import io.lettuce.core.api.async.RedisAsyncCommands
 
 import scala.compat.java8.FutureConverters._
 import scala.jdk.CollectionConverters._
-import libs.logs.Logger
+import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
 
@@ -32,14 +33,15 @@ object RedisJsonDataStore {
   }
 }
 
-class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: ActorSystem) extends JsonDataStore {
+class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: ActorSystem)
+    extends JsonDataStore.Service {
 
   import zio._
   import system.dispatcher
   import cats.implicits._
   import IzanamiErrors._
 
-  override def start: RIO[DataStoreContext, Unit] = Logger.info(s"Load store Redis for namespace $name")
+  override def start: RIO[DataStoreContext, Unit] = ZLogger.info(s"Load store Redis for namespace $name")
 
   private def buildKey(key: Key) = Key.Empty / name / key
 
@@ -107,7 +109,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
 
   override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     getByKeyId(id)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .flatMap {
         case Some(_) =>
           IO.fail(DataShouldNotExists(id).toErrors)
@@ -115,27 +117,29 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
         case None =>
           zioFromCs(command().set(buildKey(id).key, Json.stringify(data)))
             .map(_ => data)
-            .refineToOrDie[IzanamiErrors]
+            .refineOrDie[IzanamiErrors](PartialFunction.empty)
       }
 
   private def rawUpdate(id: Key, data: JsValue) =
-    zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).refineToOrDie[IzanamiErrors]
+    zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).refineOrDie[IzanamiErrors](PartialFunction.empty)
 
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     for {
-      mayBe <- getByKeyId(oldId: Key).refineToOrDie[IzanamiErrors]
+      mayBe <- getByKeyId(oldId: Key).refineOrDie[IzanamiErrors](PartialFunction.empty)
       _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
-      _     <- IO.when(oldId =!= id)(zioFromCs(command().del(buildKey(oldId).key)).refineToOrDie[IzanamiErrors])
-      _     <- if (oldId === id) rawUpdate(id, data) else create(id, data)
+      _ <- IO.when(oldId =!= id)(
+            zioFromCs(command().del(buildKey(oldId).key)).refineOrDie[IzanamiErrors](PartialFunction.empty)
+          )
+      _ <- if (oldId === id) rawUpdate(id, data) else create(id, data)
     } yield data
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
     getByKeyId(id)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .flatMap {
         case Some(value) =>
           zioFromCs(command().del(buildKey(id).key))
-            .refineToOrDie[IzanamiErrors]
+            .refineOrDie[IzanamiErrors](PartialFunction.empty)
             .map(_ => value)
         case None =>
           IO.fail(DataShouldExists(id).toErrors)
@@ -158,7 +162,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
                 .runWith(Sink.ignore)
         )
       )
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .unit
 
   override def getById(id: Key): Task[Option[JsValue]] =

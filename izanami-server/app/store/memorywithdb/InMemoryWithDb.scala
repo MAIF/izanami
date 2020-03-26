@@ -21,6 +21,7 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import domains.errors.IzanamiErrors
 import store._
+import store.datastore._
 import store.memory.BaseInMemoryJsonDataStore
 
 import scala.concurrent.duration.DurationDouble
@@ -36,7 +37,7 @@ object InMemoryWithDbStore {
   def apply(
       dbConfig: InMemoryWithDbConfig,
       dbDomainConfig: DbDomainConfig,
-      underlyingDataStore: JsonDataStore,
+      underlyingDataStore: JsonDataStore.Service,
       eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
       applicationLifecycle: ApplicationLifecycle
   )(implicit system: ActorSystem): InMemoryWithDbStore = {
@@ -98,12 +99,12 @@ object InMemoryWithDbStore {
 class InMemoryWithDbStore(
     dbConfig: InMemoryWithDbConfig,
     name: String,
-    underlyingDataStore: JsonDataStore,
+    underlyingDataStore: JsonDataStore.Service,
     eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
     applicationLifecycle: ApplicationLifecycle
 )(implicit system: ActorSystem)
     extends BaseInMemoryJsonDataStore()
-    with JsonDataStore {
+    with JsonDataStore.Service {
 
   import zio._
   import system.dispatcher

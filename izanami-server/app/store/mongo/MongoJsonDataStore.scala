@@ -17,9 +17,10 @@ import reactivemongo.play.json.compat._
 import reactivemongo.play.json.collection.JSONCollection
 import domains.errors.IzanamiErrors
 import store._
+import store.datastore._
 
 import scala.concurrent.{ExecutionContext, Future}
-import libs.logs.Logger
+import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
 
@@ -35,7 +36,7 @@ object MongoJsonDataStore {
 }
 
 class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit actorSystem: ActorSystem)
-    extends JsonDataStore {
+    extends JsonDataStore.Service {
 
   import zio._
   import IzanamiErrors._
@@ -52,7 +53,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     MongoUtils.initIndexes(collectionName, indexesDefinition)
 
   override def start: RIO[DataStoreContext, Unit] =
-    Logger.debug(s"Initializing mongo collection $collectionName") *>
+    ZLogger.debug(s"Initializing mongo collection $collectionName") *>
     Task.fromFuture { implicit ec =>
       initIndexes()
     }
@@ -62,13 +63,14 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
   private def storeCollectionT: Task[JSONCollection] = Task.fromFuture { implicit ec =>
     mongoApi.database.map(_.collection[JSONCollection](collectionName))
   }
-  private def storeCollectionIO: IO[IzanamiErrors, JSONCollection] = storeCollectionT.refineToOrDie[IzanamiErrors]
+  private def storeCollectionIO: IO[IzanamiErrors, JSONCollection] =
+    storeCollectionT.refineOrDie[IzanamiErrors](PartialFunction.empty)
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     for {
-      _     <- Logger.debug(s"Creating $id => $data")
+      _     <- ZLogger.debug(s"Creating $id => $data")
       coll  <- storeCollectionIO
-      mayBe <- getByIdRaw(id)(coll).refineToOrDie[IzanamiErrors]
+      mayBe <- getByIdRaw(id)(coll).refineOrDie[IzanamiErrors](PartialFunction.empty)
       _     <- IO.fromOption(mayBe).flip.mapError(_ => DataShouldNotExists(id).toErrors)
       res <- IO
               .fromFuture { implicit ec =>
@@ -79,13 +81,13 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
                     data
                   }
               }
-              .refineToOrDie[IzanamiErrors]
+              .refineOrDie[IzanamiErrors](PartialFunction.empty)
     } yield res
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     storeCollectionIO.flatMap { implicit coll =>
       for {
-        mayBe <- getByIdRaw(oldId).refineToOrDie[IzanamiErrors]
+        mayBe <- getByIdRaw(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
         _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- ZIO.when(oldId =!= id)(deleteRaw(oldId))
         _     <- if (oldId === id) updateRaw(id, data) else createRaw(id, data)
@@ -94,7 +96,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
 
   override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     storeCollectionIO.flatMap { implicit collection: JSONCollection =>
-      getByIdRaw(id).refineToOrDie[IzanamiErrors].flatMap {
+      getByIdRaw(id).refineOrDie[IzanamiErrors](PartialFunction.empty).flatMap {
         case Some(data) => deleteRaw(id).map(_ => data)
         case None       => IO.fail(DataShouldExists(id).toErrors)
       }
@@ -104,7 +106,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     IO.fromFuture { implicit ec =>
         collection.delete.one(Json.obj("id" -> id.key))
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .map(_ => ())
 
   private def updateRaw(id: Key, data: JsValue)(
@@ -113,7 +115,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     IO.fromFuture { implicit ec =>
         collection.update.one(Json.obj("id" -> id.key), MongoDoc(id, data), upsert = true)
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .map(_ => data)
 
   private def createRaw(id: Key, data: JsValue)(
@@ -122,11 +124,11 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     IO.fromFuture { implicit ec =>
         collection.insert.one(MongoDoc(id, data))
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .map(_ => data)
 
   private def getByIdRaw(id: Key)(implicit collection: JSONCollection): RIO[DataStoreContext, Option[JsValue]] =
-    Logger.debug(s"Mongo query $collectionName findById ${id.key}") *>
+    ZLogger.debug(s"Mongo query $collectionName findById ${id.key}") *>
     IO.fromFuture { implicit ec =>
         collection
           .find(Json.obj("id" -> id.key), projection = Option.empty[JsObject])
@@ -140,7 +142,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
   override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] = {
     val from  = (page - 1) * nbElementPerPage
     val query = buildMongoQuery(q)
-    Logger.debug(
+    ZLogger.debug(
       s"Mongo query $collectionName find ${Json.stringify(query)}, page = $page, pageSize = $nbElementPerPage (from $from, batchSizeN $nbElementPerPage)"
     ) *>
     storeCollectionT.flatMap { implicit collection =>
@@ -164,7 +166,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
 
   override def findByQuery(q: Query): RIO[DataStoreContext, Source[(Key, JsValue), NotUsed]] = {
     val query = buildMongoQuery(q)
-    Logger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream") *>
+    ZLogger.debug(s"Mongo query $collectionName find ${Json.stringify(query)} as stream") *>
     Task.fromFuture(
       implicit ec =>
         FastFuture.successful(Source.future(storeCollection).flatMapConcat {
@@ -178,7 +180,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
 
   private def countRaw(query: Query)(implicit collection: JSONCollection): RIO[DataStoreContext, Long] = {
     val q = buildMongoQuery(query)
-    Logger.debug(s"Mongo query $collectionName count ${Json.stringify(q)}") *>
+    ZLogger.debug(s"Mongo query $collectionName count ${Json.stringify(q)}") *>
     IO.fromFuture { implicit ec =>
       collection
         .count(
@@ -200,7 +202,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
               deleteBuilder.many(List(toDelete))
             }
           }
-          .refineToOrDie[IzanamiErrors]
+          .refineOrDie[IzanamiErrors](PartialFunction.empty)
           .map(_ => ())
       }
 

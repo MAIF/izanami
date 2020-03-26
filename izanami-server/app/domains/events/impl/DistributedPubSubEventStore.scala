@@ -27,7 +27,7 @@ import scala.util.Try
 class DistributedPubSubEventStore(globalConfig: TsConfig,
                                   config: DistributedEventsConfig,
                                   lifecycle: ApplicationLifecycle)
-    extends EventStore {
+    extends EventStore.Service {
 
   logger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}")
 

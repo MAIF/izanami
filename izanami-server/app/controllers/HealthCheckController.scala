@@ -2,7 +2,7 @@ package controllers
 
 import controllers.actions.AuthContext
 import controllers.dto.error.ApiErrors
-import domains.GlobalContext
+import domains.configuration.GlobalContext
 import play.api.libs.json.Json
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import store.Healthcheck

@@ -8,7 +8,7 @@ import domains.abtesting.ExperimentService
 import domains.config.ConfigService
 import domains.feature.FeatureService
 import domains.script.GlobalScriptService
-import domains.GlobalContext
+import domains.configuration.GlobalContext
 import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import store.Query

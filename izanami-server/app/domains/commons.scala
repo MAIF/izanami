@@ -11,18 +11,19 @@ import cats.kernel.Eq
 import cats.kernel.Monoid
 import com.codahale.metrics.MetricRegistry
 import domains.PatternRight.{Create, Delete, Read, Update}
-import domains.abtesting.{ExperimentContext, ExperimentVariantEventService}
-import domains.apikey.ApiKeyContext
-import domains.config.ConfigContext
+import domains.abtesting.{ExperimentContext, ExperimentDataStore}
+import domains.abtesting.events.ExperimentVariantEventService
+import domains.apikey.{ApiKeyContext, ApikeyDataStore}
+import domains.config.{ConfigContext, ConfigDataStore}
+import domains.configuration.AuthInfoModule
 import domains.events.EventStore
-import domains.feature.FeatureContext
-import domains.script.GlobalScriptContext
-import domains.script.Script.ScriptCache
-import domains.user.UserContext
-import domains.webhook.WebhookContext
+import domains.feature.{FeatureContext, FeatureDataStore}
+import domains.script.{GlobalScriptContext, GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
+import domains.user.UserDataStore
+import domains.webhook.{WebhookContext, WebhookDataStore}
 import env.{DbDomainConfig, IzanamiConfig}
 import libs.database.Drivers
-import libs.logs.{IzanamiLogger, Logger, LoggerModule, ProdLogger}
+import libs.logs.{IzanamiLogger, ProdLogger, ZLogger}
 import play.api.Environment
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
@@ -33,202 +34,259 @@ import play.api.mvc.BodyParser
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 import scala.util.matching.Regex
-import store.{EmptyPattern, JsonDataStore, Pattern, StringPattern}
+import store.{EmptyPattern, Pattern, StringPattern}
 import store.memorywithdb.InMemoryWithDbStore
 import errors._
-import zio.{IO, RIO, Task, ZIO}
+import zio.{IO, RIO, Task, UIO, URIO, ZIO}
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.internal.Executor
-import metrics.MetricsContext
+import metrics.{MetricsContext, MetricsModule}
 
-trait AkkaModule {
-  implicit def system: ActorSystem
-  implicit def mat: Materializer
-}
+object configuration {
 
-trait AuthInfoModule[+R] {
-  def authInfo: Option[AuthInfo]
-  def withAuthInfo(user: Option[AuthInfo]): R
-}
+  type AkkaModule = zio.Has[AkkaModule.Service]
 
-trait PlayModule {
-  def environment: Environment
-  def wSClient: play.api.libs.ws.WSClient
-  def javaWsClient: play.libs.ws.WSClient
-  def ec: ExecutionContext
-  def applicationLifecycle: ApplicationLifecycle
-}
-
-trait IzanamiConfigModule {
-  def izanamiConfig: IzanamiConfig
-}
-
-trait DriversModule {
-  def drivers: Drivers
-}
-
-trait OAuthModule extends PlayModule with UserContext with LoggerModule with AuthInfoModule[OAuthModule]
-
-trait GlobalContext
-    extends AkkaModule
-    with LoggerModule
-    with DriversModule
-    with IzanamiConfigModule
-    with MetricsContext
-    with ConfigContext
-    with FeatureContext
-    with GlobalScriptContext
-    with ApiKeyContext
-    with UserContext
-    with WebhookContext
-    with ExperimentContext
-    with OAuthModule
-    with AuthInfoModule[GlobalContext]
-    with Clock.Live
-
-case class ProdGlobalContext(
-    system: ActorSystem,
-    mat: Materializer,
-    izanamiConfig: IzanamiConfig,
-    environment: Environment,
-    wSClient: play.api.libs.ws.WSClient,
-    javaWsClient: play.libs.ws.WSClient,
-    ec: ExecutionContext,
-    applicationLifecycle: ApplicationLifecycle,
-    logger: Logger,
-    metricRegistry: MetricRegistry,
-    drivers: Drivers,
-    eventStore: EventStore,
-    globalScriptDataStore: JsonDataStore,
-    configDataStore: JsonDataStore,
-    featureDataStore: JsonDataStore,
-    userDataStore: JsonDataStore,
-    apikeyDataStore: JsonDataStore,
-    webhookDataStore: JsonDataStore,
-    experimentDataStore: JsonDataStore,
-    experimentVariantEventService: ExperimentVariantEventService,
-    getScriptCache: () => ScriptCache,
-    blocking: Blocking.Service[Any],
-    override val clock: Clock.Service[Any],
-    override val authInfo: Option[AuthInfo]
-) extends GlobalContext {
-  override def scriptCache = getScriptCache()
-  override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
-    this.copy(authInfo = authInfo)
-}
-
-object GlobalContext {
-
-  def apply(izanamiConfiguration: IzanamiConfig,
-            zioEventStore: EventStore,
-            actorSystem: ActorSystem,
-            materializer: Materializer,
-            env: Environment,
-            client: play.api.libs.ws.WSClient,
-            javaClient: play.libs.ws.WSClient,
-            execCtx: ExecutionContext,
-            registry: MetricRegistry,
-            d: Drivers,
-            playScriptCache: => ScriptCache,
-            lifecycle: ApplicationLifecycle): GlobalContext = new GlobalContext {
-
-    override implicit val system: ActorSystem               = actorSystem
-    override implicit val mat: Materializer                 = materializer
-    override val izanamiConfig: IzanamiConfig               = izanamiConfiguration
-    override val environment: Environment                   = env
-    override val wSClient: play.api.libs.ws.WSClient        = client
-    override val javaWsClient: play.libs.ws.WSClient        = javaClient
-    override val ec: ExecutionContext                       = execCtx
-    override def applicationLifecycle: ApplicationLifecycle = lifecycle
-    override val logger: Logger                             = new ProdLogger()
-    override val eventStore: EventStore                     = zioEventStore
-    override val metricRegistry: MetricRegistry             = registry
-    override val drivers: Drivers                           = d
-
-    override val globalScriptDataStore: JsonDataStore = {
-      val conf              = izanamiConfig.globalScript.db
-      lazy val eventAdapter = InMemoryWithDbStore.globalScriptEventAdapter
-      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+  object AkkaModule {
+    trait Service {
+      implicit def system: ActorSystem
+      implicit def mat: Materializer
     }
 
-    override val configDataStore: JsonDataStore = {
-      val conf              = izanamiConfig.config.db
-      lazy val eventAdapter = InMemoryWithDbStore.configEventAdapter
-      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-    }
-
-    override val featureDataStore: JsonDataStore = {
-      val conf              = izanamiConfig.features.db
-      lazy val eventAdapter = InMemoryWithDbStore.featureEventAdapter
-      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-    }
-
-    override val userDataStore: JsonDataStore = {
-      val conf              = izanamiConfig.user.db
-      lazy val eventAdapter = InMemoryWithDbStore.userEventAdapter
-      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-    }
-
-    override val apikeyDataStore: JsonDataStore = {
-      val conf              = izanamiConfig.apikey.db
-      lazy val eventAdapter = InMemoryWithDbStore.apikeyEventAdapter
-      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-    }
-
-    override val webhookDataStore: JsonDataStore = {
-      lazy val conf         = izanamiConfig.webhook.db
-      lazy val eventAdapter = InMemoryWithDbStore.webhookEventAdapter
-      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-    }
-
-    override val experimentDataStore: JsonDataStore = {
-      val conf              = izanamiConfig.experiment.db
-      lazy val eventAdapter = InMemoryWithDbStore.experimentEventAdapter
-      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-    }
-
-    override val experimentVariantEventService: ExperimentVariantEventService =
-      ExperimentVariantEventService(izanamiConfig, drivers, applicationLifecycle)
-
-    override def scriptCache: ScriptCache = playScriptCache
-
-    override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
-      def blockingExecutor: ZIO[Any, Nothing, Executor] =
-        ZIO.succeed(Executor.fromExecutionContext(20)(actorSystem.dispatchers.lookup("izanami.blocking-dispatcher")))
-    }
-
-    override def authInfo: Option[AuthInfo] = None
-
-    override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
-      ProdGlobalContext(
-        system,
-        mat,
-        izanamiConfig,
-        environment,
-        wSClient,
-        javaWsClient,
-        ec,
-        applicationLifecycle,
-        logger,
-        metricRegistry,
-        drivers,
-        eventStore,
-        globalScriptDataStore,
-        configDataStore,
-        featureDataStore,
-        userDataStore,
-        apikeyDataStore,
-        webhookDataStore,
-        experimentDataStore,
-        experimentVariantEventService,
-        () => scriptCache,
-        blocking,
-        clock,
-        authInfo
-      )
+    def mat: URIO[AkkaModule, Materializer]   = ZIO.access[AkkaModule](_.get.mat)
+    def system: URIO[AkkaModule, ActorSystem] = ZIO.access[AkkaModule](_.get.system)
   }
+
+  type AuthInfoModule = zio.Has[AuthInfoModule.Service]
+
+  object AuthInfoModule {
+    trait Service {
+      def authInfo: Option[AuthInfo]
+    }
+
+    def authInfo: URIO[AuthInfoModule, Option[AuthInfo]] = ZIO.access[AuthInfoModule](_.get.authInfo)
+  }
+
+  type PlayModule = zio.Has[PlayModule.Service]
+
+  object PlayModule {
+    trait Service {
+      def environment: Environment
+      def wSClient: play.api.libs.ws.WSClient
+      def javaWsClient: play.libs.ws.WSClient
+      def ec: ExecutionContext
+      def applicationLifecycle: ApplicationLifecycle
+    }
+
+    def environment          = ZIO.access[PlayModule](_.get.environment)
+    def wSClient             = ZIO.access[PlayModule](_.get.wSClient)
+    def javaWsClient         = ZIO.access[PlayModule](_.get.javaWsClient)
+    def ec                   = ZIO.access[PlayModule](_.get.ec)
+    def applicationLifecycle = ZIO.access[PlayModule](_.get.applicationLifecycle)
+  }
+
+  type IzanamiConfigModule = zio.Has[IzanamiConfigModule.Service]
+
+  object IzanamiConfigModule {
+    trait Service {
+      def izanamiConfig: IzanamiConfig
+    }
+
+    def izanamiConfig: URIO[IzanamiConfigModule, IzanamiConfig] = ZIO.access[IzanamiConfigModule](_.get.izanamiConfig)
+  }
+
+  type DriversModule = zio.Has[DriversModule.Service]
+
+  object DriversModule {
+    trait Service {
+      def drivers: Drivers
+    }
+    def drivers = ZIO.access[DriversModule](_.get.drivers)
+  }
+
+  type GlobalContext =
+    AkkaModule
+      with PlayModule
+      with DriversModule
+      with IzanamiConfigModule
+      with MetricsModule
+      with AuthInfoModule
+      with ZLogger
+      with ConfigDataStore
+      with FeatureDataStore
+      with UserDataStore
+      with EventStore
+      with GlobalScriptDataStore
+      with ScriptCache
+      with RunnableScriptModule
+      with ApikeyDataStore
+      with WebhookDataStore
+      with ExperimentDataStore
+      with ExperimentVariantEventService
+      with Clock
+      with Blocking
 }
+
+//
+//trait GlobalContext
+//    extends AkkaModule
+//    with ZLogger
+//    with DriversModule
+//    with IzanamiConfigModule
+//    with MetricsContext
+//    with ConfigContext
+//    with FeatureContext
+//    with GlobalScriptContext
+//    with ApiKeyContext
+//    with UserContext
+//    with WebhookContext
+//    with ExperimentContext
+//    with OAuthModule
+//    with AuthInfoModule[GlobalContext]
+//    with Clock.Live
+//
+//case class ProdGlobalContext(
+//    system: ActorSystem,
+//    mat: Materializer,
+//    izanamiConfig: IzanamiConfig,
+//    environment: Environment,
+//    wSClient: play.api.libs.ws.WSClient,
+//    javaWsClient: play.libs.ws.WSClient,
+//    ec: ExecutionContext,
+//    applicationLifecycle: ApplicationLifecycle,
+//    logger: Logger,
+//    metricRegistry: MetricRegistry,
+//    drivers: Drivers,
+//    eventStore: EventStore,
+//    globalScriptDataStore: JsonDataStore,
+//    configDataStore: JsonDataStore,
+//    featureDataStore: JsonDataStore,
+//    userDataStore: JsonDataStore,
+//    apikeyDataStore: JsonDataStore,
+//    webhookDataStore: JsonDataStore,
+//    experimentDataStore: JsonDataStore,
+//    experimentVariantEventService: ExperimentVariantEventService,
+//    getScriptCache: () => ScriptCache,
+//    blocking: Blocking.Service[Any],
+//    override val clock: Clock.Service[Any],
+//    override val authInfo: Option[AuthInfo]
+//) extends GlobalContext {
+//  override def scriptCache = getScriptCache()
+//  override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
+//    this.copy(authInfo = authInfo)
+//}
+//
+//object GlobalContext {
+//
+//  def apply(izanamiConfiguration: IzanamiConfig,
+//            zioEventStore: EventStore,
+//            actorSystem: ActorSystem,
+//            materializer: Materializer,
+//            env: Environment,
+//            client: play.api.libs.ws.WSClient,
+//            javaClient: play.libs.ws.WSClient,
+//            execCtx: ExecutionContext,
+//            registry: MetricRegistry,
+//            d: Drivers,
+//            playScriptCache: => ScriptCache,
+//            lifecycle: ApplicationLifecycle): GlobalContext = new GlobalContext {
+//
+//    override implicit val system: ActorSystem               = actorSystem
+//    override implicit val mat: Materializer                 = materializer
+//    override val izanamiConfig: IzanamiConfig               = izanamiConfiguration
+//    override val environment: Environment                   = env
+//    override val wSClient: play.api.libs.ws.WSClient        = client
+//    override val javaWsClient: play.libs.ws.WSClient        = javaClient
+//    override val ec: ExecutionContext                       = execCtx
+//    override def applicationLifecycle: ApplicationLifecycle = lifecycle
+//    override val logger: Logger                             = new ProdLogger()
+//    override val eventStore: EventStore                     = zioEventStore
+//    override val metricRegistry: MetricRegistry             = registry
+//    override val drivers: Drivers                           = d
+//
+//    override val globalScriptDataStore: JsonDataStore = {
+//      val conf              = izanamiConfig.globalScript.db
+//      lazy val eventAdapter = InMemoryWithDbStore.globalScriptEventAdapter
+//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+//    }
+//
+//    override val configDataStore: JsonDataStore = {
+//      val conf              = izanamiConfig.config.db
+//      lazy val eventAdapter = InMemoryWithDbStore.configEventAdapter
+//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+//    }
+//
+//    override val featureDataStore: JsonDataStore = {
+//      val conf              = izanamiConfig.features.db
+//      lazy val eventAdapter = InMemoryWithDbStore.featureEventAdapter
+//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+//    }
+//
+//    override val userDataStore: JsonDataStore = {
+//      val conf              = izanamiConfig.user.db
+//      lazy val eventAdapter = InMemoryWithDbStore.userEventAdapter
+//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+//    }
+//
+//    override val apikeyDataStore: JsonDataStore = {
+//      val conf              = izanamiConfig.apikey.db
+//      lazy val eventAdapter = InMemoryWithDbStore.apikeyEventAdapter
+//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+//    }
+//
+//    override val webhookDataStore: JsonDataStore = {
+//      lazy val conf         = izanamiConfig.webhook.db
+//      lazy val eventAdapter = InMemoryWithDbStore.webhookEventAdapter
+//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+//    }
+//
+//    override val experimentDataStore: JsonDataStore = {
+//      val conf              = izanamiConfig.experiment.db
+//      lazy val eventAdapter = InMemoryWithDbStore.experimentEventAdapter
+//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
+//    }
+//
+//    override val experimentVariantEventService: ExperimentVariantEventService =
+//      ExperimentVariantEventService(izanamiConfig, drivers, applicationLifecycle)
+//
+//    override def scriptCache: ScriptCache = playScriptCache
+//
+//    override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
+//      def blockingExecutor: ZIO[Any, Nothing, Executor] =
+//        ZIO.succeed(Executor.fromExecutionContext(20)(actorSystem.dispatchers.lookup("izanami.blocking-dispatcher")))
+//    }
+//
+//    override def authInfo: Option[AuthInfo] = None
+//
+//    override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
+//      ProdGlobalContext(
+//        system,
+//        mat,
+//        izanamiConfig,
+//        environment,
+//        wSClient,
+//        javaWsClient,
+//        ec,
+//        applicationLifecycle,
+//        logger,
+//        metricRegistry,
+//        drivers,
+//        eventStore,
+//        globalScriptDataStore,
+//        configDataStore,
+//        featureDataStore,
+//        userDataStore,
+//        apikeyDataStore,
+//        webhookDataStore,
+//        experimentDataStore,
+//        experimentVariantEventService,
+//        () => scriptCache,
+//        blocking,
+//        clock,
+//        authInfo
+//      )
+//  }
+//}
 
 object Import {
   import akka.stream.scaladsl.{Flow, Framing}
@@ -241,7 +299,7 @@ object Import {
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
     }
 
-  def importFile[Ctx <: LoggerModule](
+  def importFile[Ctx <: ZLogger](
       db: DbDomainConfig,
       process: RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]]
   )(implicit materializer: Materializer): RIO[Ctx, Unit] =
@@ -249,7 +307,7 @@ object Import {
       import zio.interop.catz._
       import cats.implicits._
       db.`import`.traverse { p =>
-        Logger.info(s"Importing file $p for namespace ${db.conf.namespace}") *>
+        ZLogger.info(s"Importing file $p for namespace ${db.conf.namespace}") *>
         Task.fromFuture { implicit ec =>
           val res = FileIO.fromPath(p).via(toJson).via(proc).runWith(Sink.head)
           res.onComplete {
@@ -303,7 +361,7 @@ trait AuthInfo {
 }
 
 object AuthInfo {
-  def authInfo: zio.URIO[AuthInfoModule[_], Option[AuthInfo]] = ZIO.access[AuthInfoModule[_]](_.authInfo)
+  def authInfo: zio.URIO[AuthInfoModule, Option[AuthInfo]] = ZIO.access[AuthInfoModule](_.get.authInfo)
 
   import AuthorizedPatterns._
   import play.api.libs.json._
@@ -340,13 +398,15 @@ object AuthInfo {
     }
   )
 
-  def isAdmin(): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
-    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
-      IO.when(!ctx.authInfo.exists(_.admin)) {
-        ctx.logger.debug(s"${ctx.authInfo} is not admin") *>
-        ZIO.fail(IzanamiErrors(Unauthorized(None)))
-      }
-    }
+  def isAdmin(): ZIO[ZLogger with AuthInfoModule, IzanamiErrors, Unit] =
+    for {
+      authInfo <- AuthInfo.authInfo
+      res <- IO.when(!authInfo.exists(_.admin)) {
+              ZLogger.debug(s"${authInfo} is not admin") *>
+              IO.fail(IzanamiErrors(Unauthorized(None)))
+            }
+    } yield res
+
 }
 
 trait Jsoneable {

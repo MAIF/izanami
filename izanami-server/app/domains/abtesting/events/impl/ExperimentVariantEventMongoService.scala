@@ -1,32 +1,32 @@
-package domains.abtesting.impl
+package domains.abtesting.events.impl
 
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
-import akka.actor.ActorSystem
 import akka.NotUsed
+import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
-import reactivemongo.akkastream._
+import domains.AuthInfo
 import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting._
+import domains.abtesting.events.{ExperimentVariantEventInstances, ExperimentVariantEventKeyInstances, _}
+import domains.errors.IzanamiErrors
 import domains.events.EventStore
-import domains.events.Events.ExperimentVariantEventCreated
+import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import env.DbDomainConfig
+import libs.logs.ZLogger
 import libs.mongo.MongoUtils
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
+import reactivemongo.akkastream._
 import reactivemongo.api.ReadPreference
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.play.json.compat._
 import reactivemongo.play.json.collection.JSONCollection
-import domains.errors.IzanamiErrors
+import reactivemongo.play.json.compat._
 import zio.{RIO, Task, ZIO}
 
 import scala.concurrent.{ExecutionContext, Future}
-import libs.logs.Logger
-import domains.AuthInfo
-import domains.events.Events.ExperimentVariantEventsDeleted
 
 case class Counter(id: String, value: Long)
 object Counter {
@@ -53,7 +53,7 @@ object ExperimentVariantEventMongoService {
 
 class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMongoApi)(
     implicit system: ActorSystem
-) extends ExperimentVariantEventService {
+) extends ExperimentVariantEventService.Service {
 
   private implicit val mapi: ReactiveMongoApi = mongoApi
 
@@ -65,8 +65,8 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
     MongoUtils.createIndex(Seq("variantId"    -> IndexType.Ascending), unique = false)
   )
 
-  override def start: RIO[ExperimentVariantEventServiceModule, Unit] =
-    Logger.debug(s"Initializing mongo collection $collectionName") *>
+  override def start: RIO[ExperimentVariantEventServiceContext, Unit] =
+    ZLogger.debug(s"Initializing mongo collection $collectionName") *>
     Task.fromFuture { implicit ec =>
       Future.sequence(
         Seq(
@@ -78,7 +78,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] =
     for {
       result   <- insert(id, data) // add event
       authInfo <- AuthInfo.authInfo
@@ -88,7 +88,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
   private def insert(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] =
     ZIO
       .fromFuture { implicit ec =>
         mongoApi.database
@@ -97,12 +97,12 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
               .one(ExperimentVariantEventDocument(id, id.experimentId, id.variantId, data))
           )
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .map(_ => data)
 
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] =
     ZIO
       .fromFuture { implicit ec =>
         mongoApi.database
@@ -111,13 +111,13 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
           )
       }
       .unit
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
+      .refineOrDie[IzanamiErrors](PartialFunction.empty) <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 
   override def findVariantResult(
       experiment: Experiment
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] =
     Task.fromFuture { implicit ec =>
       FastFuture.successful(
         Source(experiment.variants.toList)
@@ -168,7 +168,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
 
   override def listAll(
       patterns: Seq[String]
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
     Task {
       Source
         .future(mongoApi.database)

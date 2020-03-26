@@ -37,8 +37,7 @@ object DefaultFeatureInstances {
   implicit val format: Format[DefaultFeature] = Format(reads, writes)
 
   def isActive: IsActive[DefaultFeature] = new IsActive[DefaultFeature] {
-    override def isActive(feature: DefaultFeature,
-                          context: JsObject): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] =
+    override def isActive(feature: DefaultFeature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
       ZIO.succeed(feature.enabled)
   }
 }
@@ -84,7 +83,7 @@ object GlobalScriptFeatureInstances {
                      case ScriptExecutionSuccess(result, _) => result
                      case _                                 => false
                    }
-                   .refineToOrDie[IzanamiErrors]
+                   .refineOrDie[IzanamiErrors](PartialFunction.empty)
         } yield exec
     }
 }
@@ -121,7 +120,7 @@ object ScriptFeatureInstances {
           case ScriptExecutionSuccess(result, _) => result
           case _                                 => false
         }
-        .refineToOrDie[IzanamiErrors]
+        .refineOrDie[IzanamiErrors](PartialFunction.empty)
   }
 }
 
@@ -202,7 +201,7 @@ object ReleaseDateFeatureInstances {
     override def isActive(
         feature: ReleaseDateFeature,
         context: JsObject
-    ): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] = {
+    ): ZIO[IsActiveContext, IzanamiErrors, Boolean] = {
       val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
       ZIO.succeed(now.isAfter(feature.date))
     }
@@ -231,8 +230,7 @@ object PercentageFeatureInstances {
   implicit val format: Format[PercentageFeature] = Format(reads, writes)
 
   def isActive: IsActive[PercentageFeature] = new IsActive[PercentageFeature] {
-    override def isActive(feature: PercentageFeature,
-                          context: JsObject): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] =
+    override def isActive(feature: PercentageFeature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
       ((context \ "id").asOpt[String], feature.enabled) match {
         case (Some(theId), true) =>
           val hash: Int = Math.abs(MurmurHash3.stringHash(theId))
@@ -283,7 +281,7 @@ object HourRangeFeatureInstances {
     override def isActive(
         feature: HourRangeFeature,
         context: JsObject
-    ): ZIO[ScriptCacheModule with GlobalScriptContext, IzanamiErrors, Boolean] = {
+    ): ZIO[IsActiveContext, IzanamiErrors, Boolean] = {
       val now = LocalTime.now()
       ZIO.succeed(now.isAfter(feature.startAt) && now.isBefore(feature.endAt))
     }

@@ -3,7 +3,7 @@ package controllers
 import akka.util.ByteString
 import com.auth0.jwt.algorithms.Algorithm
 import controllers.dto.error.ApiErrors
-import domains.OAuthModule
+import domains.auth.OAuthModule
 import domains.auth.Oauth2Service
 import domains.user.User
 import env.{Env, Oauth2Config}

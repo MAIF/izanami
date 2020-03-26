@@ -14,7 +14,7 @@ import zio.{IO, Task}
 
 import scala.util.Try
 
-class BasicEventStore(implicit system: ActorSystem) extends EventStore {
+class BasicEventStore(implicit system: ActorSystem) extends EventStore.Service {
 
   logger.info("Starting default event store")
 
@@ -26,7 +26,7 @@ class BasicEventStore(implicit system: ActorSystem) extends EventStore {
     Task {
       system.eventStream.publish(event)
       Done
-    }.refineToOrDie[IzanamiErrors]
+    }.refineOrDie[IzanamiErrors](PartialFunction.empty)
 
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],

@@ -3,7 +3,6 @@ package store.cassandra
 import java.util.concurrent.Executor
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
@@ -16,13 +15,14 @@ import libs.streams.Flows
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.IzanamiErrors
-import store.{DataStoreContext, _}
+import store._
+import store.datastore._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import libs.logs.Logger
-import store.DataStore.DataStoreIO
+import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import store.datastore.DataStore.DataStoreIO
 
 object CassandraJsonDataStore {
   def apply(session: Session, cassandraConfig: CassandraConfig, config: DbDomainConfig)(
@@ -33,7 +33,7 @@ object CassandraJsonDataStore {
 
 class CassandraJsonDataStore(namespace: String, keyspace: String, session: Session)(
     implicit actorSystem: ActorSystem
-) extends JsonDataStore {
+) extends JsonDataStore.Service {
 
   IzanamiLogger.info(s"Load store Cassandra for namespace $namespace")
 
@@ -46,7 +46,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   implicit private val _session: Session = session
 
   override def start: RIO[DataStoreContext, Unit] =
-    Logger.info(s"Creating table $keyspace.$namespaceFormatted if not exists") *>
+    ZLogger.info(s"Creating table $keyspace.$namespaceFormatted if not exists") *>
     Task(
       session.execute(s"""
                          | CREATE TABLE IF NOT EXISTS $keyspace.$namespaceFormatted (
@@ -72,7 +72,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     getByIdRaw(id)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .flatMap {
         case Some(_) =>
           ZIO.fail(DataShouldNotExists(id).toErrors)
@@ -89,13 +89,13 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
       .map { _ =>
         data
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     if (oldId.key === id.key) {
       getByIdRaw(id)
-        .refineToOrDie[IzanamiErrors]
+        .refineOrDie[IzanamiErrors](PartialFunction.empty)
         .flatMap {
           case Some(_) => updateRaw(id: Key, data)
           case None    => ZIO.fail(DataShouldExists(id).toErrors)
@@ -113,12 +113,12 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     val args = Seq(Json.stringify(data), namespaceFormatted, id.key)
     executeWithSessionT(query, args: _*)
       .map(_ => data)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
   }
 
   override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     getByIdRaw(id)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .flatMap {
         case Some(d) => deleteRaw(id).map(_ => d)
         case None    => IO.fail(DataShouldExists(id).toErrors)
@@ -132,7 +132,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
       query,
       args: _*
     ).map(_ => ())
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
   }
 
   override def getById(id: Key): RIO[DataStoreContext, Option[JsValue]] =
@@ -142,7 +142,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     val query =
       s"SELECT value FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? "
     val args = Seq(namespaceFormatted, id.key)
-    Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}") *>
+    ZLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")}") *>
     executeWithSessionT(
       query = query,
       args = args: _*
@@ -222,7 +222,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
                     .runFold(0)((acc, _) => acc + 1)
                     .map(_ => ())
                 }
-                .refineToOrDie[IzanamiErrors]
+                .refineOrDie[IzanamiErrors](PartialFunction.empty)
       } yield res
     }
 
@@ -248,10 +248,10 @@ object Cassandra {
 
   def executeWithSessionT(query: String, args: Any*)(implicit session: Session): DataStoreIO[ResultSet] =
     if (args.isEmpty) {
-      Logger.debug(s"Running query $query ") *>
+      ZLogger.debug(s"Running query $query ") *>
       zio.Task.fromFuture(implicit ec => session.executeAsync(query).toFuture)
     } else {
-      Logger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ") *>
+      ZLogger.debug(s"Running query $query with args ${args.mkString("[", ",", "]")} ") *>
       zio.Task.fromFuture(
         implicit ec =>
           session

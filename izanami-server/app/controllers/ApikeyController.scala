@@ -1,7 +1,6 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import controllers.dto.apikeys.ApikeyListResult
@@ -134,7 +133,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
   }
 
   def upload(strStrategy: String) = AuthAction.asyncZio[ApiKeyContext](Import.ndJson) { ctx =>
-    ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData).refineToOrDie[Result]
+    ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData).refineOrDie[Result](PartialFunction.empty)
   }
 
 }

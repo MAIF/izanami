@@ -5,18 +5,18 @@ import elastic.implicits._
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
 import cats.implicits._
 import domains.Key
 import elastic.api.{Bulk, BulkOpDetail, BulkOpType, Elastic, EsException, GetResponse}
 import env.{DbDomainConfig, ElasticConfig}
 import libs.logs.IzanamiLogger
-import libs.logs.Logger
+import libs.logs.ZLogger
 import play.api.libs.json._
 
 import scala.concurrent.ExecutionContext
 import store._
+import store.datastore._
 import store.elastic.ElasticJsonDataStore.EsDocument
 import domains.errors.{DataShouldExists, DataShouldNotExists, IzanamiErrors}
 
@@ -40,7 +40,7 @@ object ElasticJsonDataStore {
 
 class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
     implicit actorSystem: ActorSystem
-) extends JsonDataStore {
+) extends JsonDataStore.Service {
 
   import zio._
   import store.elastic.ElasticJsonDataStore.EsDocument._
@@ -68,7 +68,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
     """.stripMargin
 
   override def start: RIO[DataStoreContext, Unit] =
-    Logger.info(s"Initializing index $esIndex with type $esType") *>
+    ZLogger.info(s"Initializing index $esIndex with type $esType") *>
     Task.fromFuture { implicit ec =>
       elastic.verifyIndex(esIndex).flatMap {
         case true =>
@@ -105,19 +105,19 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
     if (oldId === id) {
       // format: off
       for {
-        mayBe <- getById(id).refineToOrDie[IzanamiErrors]
+        mayBe <- getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
         _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- IO.fromFuture { implicit ec => index.index[EsDocument](EsDocument(id, data),
                                                                         id = Some(id.key),
                                                                         refresh = elasticConfig.automaticRefresh)
                   }
                   .map { _ => data }
-                  .refineToOrDie[IzanamiErrors]
+                  .refineOrDie[IzanamiErrors](PartialFunction.empty)
       } yield data
       // format: on
     } else {
       for {
-        mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
+        mayBe <- getById(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
         _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- delete(oldId)
         _     <- create(id, data)
@@ -126,11 +126,11 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
     for {
-      mayBe <- getById(id).refineToOrDie[IzanamiErrors]
+      mayBe <- getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
       value <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(id).toErrors)
       _ <- IO
             .fromFuture(implicit ec => index.delete(id.key, refresh = elasticConfig.automaticRefresh))
-            .refineToOrDie[IzanamiErrors]
+            .refineOrDie[IzanamiErrors](PartialFunction.empty)
     } yield value
 
   override def getById(id: Key): Task[Option[JsValue]] = {
@@ -185,7 +185,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
       "from" -> (page - 1) * nbElementPerPage,
       "size" -> nbElementPerPage
     )
-    Logger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}") *>
+    ZLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}") *>
     Task
       .fromFuture { implicit ec =>
         index.search(query)
@@ -231,7 +231,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
           IO.succeed(())
         }
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
 
   override def count(q: Query): Task[Long] = {
     val query = buildSearchQuery(q) ++ Json.obj(

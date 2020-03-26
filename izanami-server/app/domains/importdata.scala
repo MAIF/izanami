@@ -3,10 +3,9 @@ package domains
 import akka.NotUsed
 import akka.stream.{scaladsl, Materializer}
 import akka.stream.scaladsl.{Flow, Source}
-
 import controllers.dto.importresult.ImportResultDto
 import controllers.dto.error.ApiErrors
-import libs.logs.{IzanamiLogger, Logger, LoggerModule}
+import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Reads}
 import play.api.mvc.Results
 import errors.{IzanamiErrors, ValidationError}
@@ -34,7 +33,7 @@ object ImportData {
   import zio._
   import zio.interop.catz._
 
-  def importData[Ctx <: LoggerModule, Key, Data](
+  def importData[Ctx <: ZLogger, Key, Data](
       strategy: ImportStrategy,
       key: Data => Key,
       get: Key => ZIO[Ctx, IzanamiErrors, Option[Data]],
@@ -47,7 +46,7 @@ object ImportData {
       case ImportStrategy.Replace =>
         (key, data) =>
           for {
-            _ <- Logger.debug(s"Replacing $key with $data")
+            _ <- ZLogger.debug(s"Replacing $key with $data")
             mayBeData <- get(key).catchAll { _ =>
                           ZIO.succeed(None)
                         }
@@ -60,7 +59,7 @@ object ImportData {
       case ImportStrategy.Keep =>
         (key, data) =>
           for {
-            _ <- Logger.debug(s"Inserting $key with $data")
+            _ <- ZLogger.debug(s"Inserting $key with $data")
             mayBeData <- get(key).catchAll { _ =>
                           ZIO.succeed(None)
                         }
@@ -84,7 +83,7 @@ object ImportData {
     }
   }
 
-  def importDataFlow[Ctx <: LoggerModule, Key, Data](
+  def importDataFlow[Ctx <: ZLogger, Key, Data](
       strategy: ImportStrategy,
       key: Data => Key,
       get: Key => ZIO[Ctx, IzanamiErrors, Option[Data]],
@@ -97,7 +96,7 @@ object ImportData {
         .map { Flow.fromGraph }
     }
 
-  def importHttp[Ctx <: LoggerModule](
+  def importHttp[Ctx <: ZLogger](
       strStrategy: String,
       body: Source[(String, JsValue), _],
       importFunction: ImportStrategy => RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]]

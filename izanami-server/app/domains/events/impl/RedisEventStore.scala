@@ -19,7 +19,7 @@ import zio.{IO, Task}
 
 import scala.util.Failure
 
-class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore {
+class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore.Service {
 
   import EventLogger._
   import system.dispatcher
@@ -83,7 +83,7 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
             }
           }
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
   }
 
   override def events(domains: Seq[Domain],

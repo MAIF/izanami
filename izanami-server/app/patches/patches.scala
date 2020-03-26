@@ -4,10 +4,11 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import domains.{GlobalContext, Key}
+import domains.configuration.GlobalContext
+import domains.Key
 import libs.logs.IzanamiLogger
 import play.api.libs.json.Json
-import store.JsonDataStore
+import store.datastore.JsonDataStore
 import zio.{Task, ZIO}
 
 import scala.util.{Failure, Success}
@@ -39,10 +40,10 @@ object Patchs {
     import com.softwaremill.macwire._
     lazy val conf: DbDomainConfig = izanamiConfig.patch.db
     lazy val eventAdapter         = Flow[IzanamiEvent].mapConcat(_ => List.empty[CacheEvent])
-    lazy val jsonStore: JsonDataStore =
+    lazy val jsonStore: JsonDataStore.Service =
       JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-    lazy val jsonStoreOpt: Option[JsonDataStore] = Some(jsonStore)
-    lazy val configsPatch: ConfigsPatch          = wire[ConfigsPatch]
+    lazy val jsonStoreOpt: Option[JsonDataStore.Service] = Some(jsonStore)
+    lazy val configsPatch: ConfigsPatch                  = wire[ConfigsPatch]
 
     lazy val allPatchs: Map[Int, PatchInstance] = Map(1 -> configsPatch)
 
@@ -51,7 +52,9 @@ object Patchs {
 
 }
 
-class Patchs(izanamiConfig: IzanamiConfig, mayBeJsonStore: Option[JsonDataStore], allpatches: Map[Int, PatchInstance])(
+class Patchs(izanamiConfig: IzanamiConfig,
+             mayBeJsonStore: Option[JsonDataStore.Service],
+             allpatches: Map[Int, PatchInstance])(
     implicit val system: ActorSystem
 ) {
 

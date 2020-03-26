@@ -1,25 +1,25 @@
-package domains.abtesting.impl
+package domains.abtesting.events.impl
+
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import cats.implicits._
+import domains.AuthInfo
 import domains.abtesting._
+import domains.abtesting.events.{ExperimentVariantEventInstances, _}
+import domains.errors.IzanamiErrors
 import domains.events.EventStore
+import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
+import doobie.implicits._
 import doobie.util.fragment.Fragment
 import env.DbDomainConfig
-import domains.errors.IzanamiErrors
-import store.postgresql.{PgData, PostgresqlClient}
-import cats.implicits._
-import doobie.implicits._
 import fs2.Stream
-import libs.logs.IzanamiLogger
+import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.libs.json.JsValue
+import store.postgresql.{PgData, PostgresqlClient}
 import zio.{RIO, Task, ZIO}
-import libs.logs.Logger
-import domains.AuthInfo
-import domains.events.Events.ExperimentVariantEventCreated
-import domains.events.Events.ExperimentVariantEventsDeleted
 
 object ExperimentVariantEventPostgresqlService {
   def apply(
@@ -30,15 +30,15 @@ object ExperimentVariantEventPostgresqlService {
 }
 
 class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainConfig: DbDomainConfig)
-    extends ExperimentVariantEventService {
+    extends ExperimentVariantEventService.Service {
 
-  import zio.interop.catz._
   import PgData._
+  import zio.interop.catz._
   private val xa            = client.transactor
   private val tableName     = domainConfig.conf.namespace.replaceAll(":", "_")
   private val fragTableName = Fragment.const(tableName)
 
-  override def start: RIO[ExperimentVariantEventServiceModule, Unit] = {
+  override def start: RIO[ExperimentVariantEventServiceContext, Unit] = {
     val createTableScript = (sql"create table if not exists " ++ fragTableName ++ sql""" (
          id varchar(500) primary key,
          created timestamp not null default now(),
@@ -56,10 +56,10 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainCo
     val createdScript = (sql"CREATE INDEX IF NOT EXISTS " ++
     Fragment.const(s"${tableName}_created_idx ") ++ fr" ON " ++ fragTableName ++ fr" (created)")
 
-    Logger.debug(s"Applying script $createTableScript") *>
-    Logger.debug(s"Applying script $experimentIdScript") *>
-    Logger.debug(s"Applying script $variantIdScript") *>
-    Logger.debug(s"Applying script $createdScript") *>
+    ZLogger.debug(s"Applying script $createTableScript") *>
+    ZLogger.debug(s"Applying script $experimentIdScript") *>
+    ZLogger.debug(s"Applying script $variantIdScript") *>
+    ZLogger.debug(s"Applying script $createdScript") *>
     (createTableScript.update.run *>
     experimentIdScript.update.run *>
     variantIdScript.update.run *>
@@ -71,11 +71,11 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainCo
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] = {
     val json = ExperimentVariantEventInstances.format.writes(data)
     (sql"insert into " ++ fragTableName ++ fr" (id, experiment_id, variant_id, payload) values (${id.key}, ${id.experimentId},  ${id.variantId}, $json)").update.run
       .transact(xa)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .map { _ =>
         data
       } <* (AuthInfo.authInfo flatMap (
@@ -87,18 +87,18 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainCo
   }
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] =
     (sql"delete from " ++ fragTableName ++ fr" where experiment_id = ${experiment.id}").update.run
       .transact(xa)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .unit <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 
   override def findVariantResult(
       experiment: Experiment
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { implicit runtime =>
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceContext].map { implicit runtime =>
       import streamz.converter._
       import zio.interop.catz._
       Source(experiment.variants.toList)
@@ -160,8 +160,8 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainCo
 
   override def listAll(
       patterns: Seq[String]
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { implicit runtime =>
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceContext].map { implicit runtime =>
       import streamz.converter._
       import zio.interop.catz._
       Source.fromGraph(

@@ -11,7 +11,7 @@ import env.DynamoConfig
 import libs.logs.IzanamiLogger
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.services.dynamodbv2.model._
-import domains.abtesting.impl.ExperimentVariantEventDynamoService
+import domains.abtesting.events.impl.ExperimentVariantEventDynamoService
 
 import scala.concurrent.duration.DurationDouble
 import scala.concurrent.{Await, ExecutionContext, Future}

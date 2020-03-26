@@ -3,11 +3,11 @@ package specs.dynamo.abtesting
 import cats.effect.IO
 import akka.stream.alpakka.dynamodb.{DynamoClient => AlpakkaClient}
 import com.typesafe.config.{Config, ConfigFactory}
+import domains.abtesting.events.impl.ExperimentVariantEventDynamoService
 import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
 import domains.events.impl.BasicEventStore
 import env.DynamoConfig
 import store.dynamo.DynamoClient
-import domains.abtesting.impl.ExperimentVariantEventDynamoService
 
 class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceTest("DynamoDb") {
 

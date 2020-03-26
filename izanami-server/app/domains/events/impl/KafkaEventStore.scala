@@ -23,7 +23,7 @@ import domains.errors.IzanamiErrors
 import zio.{IO, Task}
 
 import scala.collection.mutable
-import libs.logs.Logger
+import libs.logs.ZLogger
 import zio.RIO
 import domains.events.EventStoreContext
 
@@ -86,13 +86,13 @@ object KafkaSettings {
 }
 
 class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsConfig: KafkaEventsConfig)
-    extends EventStore {
+    extends EventStore.Service {
 
   import scala.jdk.CollectionConverters._
   import system.dispatcher
 
   override def start: RIO[EventStoreContext, Unit] =
-    Logger.info(s"Initializing kafka event store $clusterConfig")
+    ZLogger.info(s"Initializing kafka event store $clusterConfig")
 
   private lazy val producerSettings =
     KafkaSettings.producerSettings(system, clusterConfig)
@@ -120,7 +120,7 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
             cb(IO.fail(e))
         }
       }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
   }
 
   override def events(domains: Seq[Domain],

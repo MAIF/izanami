@@ -467,10 +467,10 @@ class ScriptSpec
        |}
          """.stripMargin
 
-  private def runScript[T](t: RIO[RunnableScriptContext, T]): T =
+  private def runScript[T](t: RIO[RunnableScriptModule, T]): T =
     runtime.unsafeRun(ZIO.provide(runnableScriptContext)(t))
 
-  private def runnableScriptContext: RunnableScriptContext = new RunnableScriptContext {
+  private def runnableScriptContext: RunnableScriptModule = new RunnableScriptModule {
     override val blocking: Blocking.Service[Any]            = blockingInstance
     override def scriptCache: ScriptCache                   = fakeCache
     override def logger: Logger                             = new ProdLogger

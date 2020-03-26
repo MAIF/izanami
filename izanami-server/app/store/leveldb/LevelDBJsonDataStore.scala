@@ -3,7 +3,6 @@ package store.leveldb
 import java.io.File
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import akka.NotUsed
@@ -12,12 +11,13 @@ import env.{DbDomainConfig, LevelDbConfig}
 import libs.streams.Flows
 import org.iq80.leveldb._
 import org.iq80.leveldb.impl.Iq80DBFactory._
-import libs.logs.{IzanamiLogger, Logger}
+import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.IzanamiErrors
 import store._
-import zio.blocking.Blocking.Live
+import store.datastore._
+import zio.blocking.Blocking
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
@@ -46,7 +46,7 @@ object LevelDBJsonDataStore {
 }
 private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle: ApplicationLifecycle)(
     implicit system: ActorSystem
-) extends JsonDataStore {
+) extends JsonDataStore.Service {
 
   import zio._
   import zio.interop.catz._
@@ -67,7 +67,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   }
 
   override def start: RIO[DataStoreContext, Unit] =
-    Logger.info(s"Load store LevelDB for path $dbPath")
+    ZLogger.info(s"Load store LevelDB for path $dbPath")
 
   private implicit val ec: ExecutionContext =
     system.dispatchers.lookup("izanami.level-db-dispatcher")
@@ -75,7 +75,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   private def buildKey(key: Key) = Key.Empty / key
 
   private def toAsync[T](a: => T): Task[T] =
-    ZIO.provide(Live)(blocking.blocking(ZIO(a)))
+    ZIO.provide(Blocking.live)(blocking.blocking(ZIO(a)))
 
   private def getByStringId(key: String): Task[Option[JsValue]] = toAsync {
     val bytesValue          = client.get(bytes(key))
@@ -135,7 +135,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
 
   override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     getById(id)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .flatMap {
         case Some(_) =>
           IO.fail(DataShouldNotExists(id).toErrors)
@@ -143,12 +143,12 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
           toAsync {
             client.put(bytes(id.key), bytes(Json.stringify(data)))
             data
-          }.refineToOrDie[IzanamiErrors]
+          }.refineOrDie[IzanamiErrors](PartialFunction.empty)
       }
 
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     toAsync { Try(client.get(bytes(oldId.key))).toOption.flatMap(s => Option(asString(s))) }
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .flatMap {
         case Some(_) =>
           client.delete(bytes(oldId.key))
@@ -160,13 +160,13 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
     getById(id)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
       .flatMap {
         case Some(value) =>
           toAsync {
             client.delete(bytes(id.key))
             value
-          }.refineToOrDie[IzanamiErrors]
+          }.refineOrDie[IzanamiErrors](PartialFunction.empty)
         case None =>
           IO.fail(DataShouldExists(id).toErrors)
       }
@@ -227,7 +227,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
                     ()
                   }
               }
-              .refineToOrDie[IzanamiErrors]
+              .refineOrDie[IzanamiErrors](PartialFunction.empty)
     } yield res
 
   override def count(query: Query): Task[Long] =

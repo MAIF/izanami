@@ -7,9 +7,10 @@ import env.DbDomainConfig
 import play.api.libs.json.JsValue
 import domains.errors.{IzanamiErrors, Result}
 import store._
+import store.datastore._
 
 import scala.collection.concurrent.TrieMap
-import libs.logs.Logger
+import libs.logs.ZLogger
 import libs.logs.IzanamiLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
@@ -23,11 +24,11 @@ object InMemoryJsonDataStore {
 }
 class InMemoryJsonDataStore(name: String, inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue])
     extends BaseInMemoryJsonDataStore(inMemoryStore)
-    with JsonDataStore {
+    with JsonDataStore.Service {
 
   import zio._
 
-  override def start: RIO[DataStoreContext, Unit] = Logger.info(s"Load store InMemory for namespace $name")
+  override def start: RIO[DataStoreContext, Unit] = ZLogger.info(s"Load store InMemory for namespace $name")
 
   override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     IO.fromEither(createSync(id, data))

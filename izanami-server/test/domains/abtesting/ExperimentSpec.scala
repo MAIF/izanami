@@ -6,8 +6,8 @@ import java.time.temporal.{ChronoField, ChronoUnit}
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
+import domains.abtesting.events.impl.ExperimentVariantEventInMemoryService
 import domains.{errors, AuthInfo, AuthorizedPatterns, Key, PatternRights}
-import domains.abtesting.impl.ExperimentVariantEventInMemoryService
 import domains.apikey.Apikey
 import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated

@@ -1,22 +1,23 @@
-package domains.abtesting.impl
+package domains.abtesting.events.impl
 
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
-import akka.{Done, NotUsed}
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.scaladsl.Source
+import akka.{Done, NotUsed}
+import domains.AuthInfo
 import domains.abtesting._
-import env.DbDomainConfig
+import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
+import domains.abtesting.events._
+import domains.abtesting.events.impl.ExperimentDataStoreActor._
 import domains.errors.IzanamiErrors
-import ExperimentDataStoreActor._
-import domains.abtesting.ExperimentVariantEvent.eventAggregation
 import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
+import env.DbDomainConfig
 import zio.{RIO, Task, ZIO}
 
 import scala.concurrent.Future
-import domains.AuthInfo
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    IN MEMORY     ////////////////////////////////////
@@ -31,7 +32,7 @@ object ExperimentVariantEventInMemoryService {
 
 class ExperimentVariantEventInMemoryService(namespace: String)(
     implicit actorSystem: ActorSystem
-) extends ExperimentVariantEventService {
+) extends ExperimentVariantEventService.Service {
 
   import actorSystem.dispatcher
   import akka.pattern._
@@ -48,12 +49,12 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] =
     ZIO
       .fromFuture { _ =>
         (store ? AddEvent(id.experimentId.key, id.variantId, data)).mapTo[ExperimentVariantEvent]
       }
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
+      .refineOrDie[IzanamiErrors](PartialFunction.empty) <* (AuthInfo.authInfo flatMap (
         authInfo =>
           EventStore.publish(
             ExperimentVariantEventCreated(id, data, authInfo = authInfo)
@@ -62,20 +63,20 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
 
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] =
     ZIO
       .fromFuture { _ =>
         (store ? DeleteEvents(experiment.id.key)).mapTo[Done]
       }
       .unit
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
+      .refineOrDie[IzanamiErrors](PartialFunction.empty) <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 
   override def findVariantResult(
       experiment: Experiment
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { _ =>
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceContext].map { _ =>
       Source
         .future(
           experiment.variants.toList
@@ -102,7 +103,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
 
   override def listAll(
       patterns: Seq[String]
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
     Task(
       Source
         .future((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])

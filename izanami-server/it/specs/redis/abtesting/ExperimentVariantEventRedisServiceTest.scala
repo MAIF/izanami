@@ -2,6 +2,7 @@ package specs.redis.abtesting
 
 import java.time.Duration
 
+import domains.abtesting.events.impl.ExperimentVariantEventRedisService
 import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
 import env.{DbDomainConfig, DbDomainConfigDetails, Master}
 import org.scalactic.source.Position
@@ -10,7 +11,6 @@ import store.redis.RedisClientBuilder
 import test.FakeApplicationLifecycle
 
 import scala.jdk.CollectionConverters._
-import domains.abtesting.impl.ExperimentVariantEventRedisService
 
 class ExperimentVariantEventRedisServiceTest
     extends AbstractExperimentServiceTest("Postgresql")

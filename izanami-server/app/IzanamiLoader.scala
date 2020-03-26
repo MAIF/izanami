@@ -1,19 +1,20 @@
 import akka.actor.ActorSystem
 import libs.logs.IzanamiLogger
-import zio.{Runtime, Task}
+import zio.{Runtime, Task, ZIO}
 import zio.interop.catz._
 import com.codahale.metrics.MetricRegistry
 import com.softwaremill.macwire._
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
 import domains.config.{ConfigDataStore, ConfigService}
-import domains.{GlobalContext, Import}
-import domains.abtesting.{ExperimentVariantEventService, _}
-import domains.apikey.{ApiKeyDataStore, ApikeyService}
+import domains.Import
+import domains.configuration.GlobalContext
+import domains.abtesting._
+import domains.abtesting.events.{ExperimentVariantEventService, _}
+import domains.apikey.{ApikeyDataStore, ApikeyService}
 import domains.events._
 import domains.feature.{FeatureDataStore, FeatureService}
-import domains.script.Script.ScriptCache
-import domains.script.{GlobalScriptDataStore, GlobalScriptService, PlayScriptCache}
+import domains.script.{CacheService, GlobalScriptDataStore, GlobalScriptService, PlayScriptCache, ScriptCache}
 import domains.user.{UserDataStore, UserService}
 import domains.webhook.{WebhookDataStore, WebhookService}
 import metrics.MetricsService
@@ -32,7 +33,7 @@ import play.api.routing.Router
 import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 import router.Routes
-import zio.internal.PlatformLive
+import zio.internal.Platform
 
 class IzanamiLoader extends ApplicationLoader {
 
@@ -80,51 +81,54 @@ package object modules {
     lazy val drivers: Drivers               = Drivers(izanamiConfig, configuration, applicationLifecycle)
     lazy val metricRegistry: MetricRegistry = wire[MetricRegistry]
 
-    implicit lazy val playScriptCache: ScriptCache = new PlayScriptCache(defaultCacheApi)
+    implicit lazy val playScriptCache: CacheService[String] = new PlayScriptCache(defaultCacheApi)
 
     /* Event store */
-    lazy val zioEventStore: EventStore =
+    lazy val zioEventStore: EventStore.Service =
       EventStore(izanamiConfig, drivers, configuration, applicationLifecycle)
 
-    val globalContext: GlobalContext = GlobalContext(
-      izanamiConfig,
-      zioEventStore,
-      actorSystem,
-      materializer,
-      environment,
-      wsClient,
-      jwClient,
-      system.dispatcher,
-      metricRegistry,
-      drivers,
-      playScriptCache,
-      applicationLifecycle
-    )
+    val globalContext: GlobalContext = ???
+//    GlobalContext(
+//      izanamiConfig,
+//      zioEventStore,
+//      actorSystem,
+//      materializer,
+//      environment,
+//      wsClient,
+//      jwClient,
+//      system.dispatcher,
+//      metricRegistry,
+//      drivers,
+//      playScriptCache,
+//      applicationLifecycle
+//    )
 
-    implicit val runtime: Runtime[GlobalContext] = Runtime(globalContext, PlatformLive.Default)
+    implicit val runtime: Runtime[GlobalContext] = Runtime(globalContext, Platform.default)
     val patchs                                   = Patchs(izanamiConfig, drivers, applicationLifecycle)
+
     // Start stores
-    runtime.unsafeRun(
-      GlobalScriptDataStore.start
-      *> ConfigDataStore.start *> FeatureDataStore.start
-      *> UserDataStore.start *> ApiKeyDataStore.start
-      *> WebhookDataStore.start *> ExperimentDataStore.start
-      *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook)
-      *> MetricsService.start
-      // Import files
-      *> Import.importFile(izanamiConfig.globalScript.db, GlobalScriptService.importData())
-      *> Import.importFile(izanamiConfig.config.db, ConfigService.importData())
-      *> Import.importFile(izanamiConfig.features.db, FeatureService.importData())
-      *> Import.importFile(izanamiConfig.apikey.db, ApikeyService.importData())
-      *> Import.importFile(izanamiConfig.user.db, UserService.importData())
-      *> Import.importFile(izanamiConfig.webhook.db, WebhookService.importData())
-      *> Import.importFile(izanamiConfig.experiment.db, ExperimentService.importData())
-      *> Import.importFile(izanamiConfig.experimentEvent.db, ExperimentVariantEventService.importData)
-      *> patchs.run().ignore
-    )
+    val initIzanami: ZIO[GlobalContext, Throwable, Unit] = (GlobalScriptDataStore.start
+    *> ConfigDataStore.start *> FeatureDataStore.start
+    *> UserDataStore.start *> ApikeyDataStore.start
+    *> WebhookDataStore.start *> ExperimentDataStore.start
+    *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook)
+    *> MetricsService.start
+    // Import files
+    *> Import.importFile(izanamiConfig.globalScript.db, GlobalScriptService.importData())
+    *> Import.importFile(izanamiConfig.config.db, ConfigService.importData())
+    *> Import.importFile(izanamiConfig.features.db, FeatureService.importData())
+    *> Import.importFile(izanamiConfig.apikey.db, ApikeyService.importData())
+    *> Import.importFile(izanamiConfig.user.db, UserService.importData())
+    *> Import.importFile(izanamiConfig.webhook.db, WebhookService.importData())
+    *> Import.importFile(izanamiConfig.experiment.db, ExperimentService.importData())
+    *> Import.importFile(izanamiConfig.experimentEvent.db, ExperimentVariantEventService.importData())
+    *> patchs.run().ignore)
+
+    runtime.unsafeRun(initIzanami)
 
     applicationLifecycle.addStopHook { () =>
-      Future(globalContext.prometheusRegistry.clear())
+      // FIXME
+      Future(()) //globalContext.prometheusRegistry.clear())
     }
 
     lazy val homeController: HomeController                 = wire[HomeController]

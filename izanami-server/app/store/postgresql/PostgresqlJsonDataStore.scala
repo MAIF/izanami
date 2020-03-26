@@ -6,6 +6,7 @@ import domains.{errors, Key}
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.{IzanamiErrors, Result}
 import store.{Query, _}
+import store.datastore._
 import cats.free.Free
 import cats.implicits._
 import doobie._
@@ -15,7 +16,7 @@ import doobie.Fragments._
 import fs2.Stream
 import env.DbDomainConfig
 import org.postgresql.util.PGobject
-import libs.logs.{IzanamiLogger, Logger}
+import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
 
@@ -51,7 +52,7 @@ object PostgresqlJsonDataStore {
     new PostgresqlJsonDataStore(client, domainConfig.conf.namespace)
 }
 
-class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) extends JsonDataStore {
+class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) extends JsonDataStore.Service {
 
   private val xa                = client.transactor
   private val tableName: String = namespace.replaceAll(":", "_")
@@ -72,11 +73,11 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
        CREATE INDEX IF NOT EXISTS trgm_idx_""" ++ fragTableName ++ fr""" ON """ ++ fragTableName ++ fr"""  USING gin (id gin_trgm_ops)"""
 
   override def start: RIO[DataStoreContext, Unit] =
-    Logger.debug(s"Applying script $dbScript") *>
+    ZLogger.debug(s"Applying script $dbScript") *>
     (for {
       _ <- dbScript.update.run.transact(xa).unit
       _ <- createIndex.update.run.transact(xa).unit.catchAll { e =>
-            IzanamiLogger.error(s"Error creating search index to $tableName, you should add the extension pg_tgrm", e)
+            ZLogger.error(s"Error creating search index to $tableName, you should add the extension pg_tgrm", e) *>
             ZIO.unit
           }
     } yield ())
@@ -101,7 +102,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
 
     val value: IO[IzanamiErrors, Result[JsValue]] = result
       .transact(xa)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
     value.absolve
   }
 
@@ -133,7 +134,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
 
     val value: IO[IzanamiErrors, Result[JsValue]] = result
       .transact(xa)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
     value.absolve
   }
 
@@ -153,7 +154,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
 
     val value: IO[IzanamiErrors, Result[JsValue]] = result
       .transact(xa)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
     value.absolve
   }
 
@@ -196,7 +197,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
     val q = sql"delete from " ++ fragTableName ++ whereAnd(queryClause(query))
     val value: IO[IzanamiErrors, Int] = q.update.run
       .transact(xa)
-      .refineToOrDie[IzanamiErrors]
+      .refineOrDie[IzanamiErrors](PartialFunction.empty)
     value.unit
   }
 

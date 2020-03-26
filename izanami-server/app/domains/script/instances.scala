@@ -7,8 +7,8 @@ import java.util.stream.Collectors
 
 import akka.Done
 import com.fasterxml.jackson.databind.node.ObjectNode
-import domains.PlayModule
-import domains.script.Script.ScriptCache
+import domains.configuration.PlayModule
+import domains.script.ScriptCache
 import domains.{AuthInfo, IsAllowed, Key}
 import javax.script
 import javax.script._
@@ -34,8 +34,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 import scala.util.hashing.MurmurHash3
 import scala.util.{Failure, Success, Try}
-import libs.logs.Logger
-import libs.logs.LoggerModule
+import libs.logs.ZLogger
 import org.jetbrains.kotlin.cli.common.repl.{KotlinJsr223JvmScriptEngineFactoryBase, ScriptArgsWithTypes}
 import org.jetbrains.kotlin.script.util.ContextKt
 import play.api.Environment
@@ -131,13 +130,13 @@ object ScriptInstances {
     override def run(script: Script, context: JsObject): zio.RIO[RunnableScriptContext, ScriptExecution] =
       script match {
         case s: ScalaScript =>
-          Logger.debug(s"Executing scala script $s") *>
+          ZLogger.debug(s"Executing scala script $s") *>
           executeScalaScript(s, context)
         case s: JavascriptScript =>
-          Logger.debug(s"Executing javascript script $s") *>
+          ZLogger.debug(s"Executing javascript script $s") *>
           executeJavascriptScript(s, context)
         case s: KotlinScript =>
-          Logger.debug(s"Executing kotlin script $s") *>
+          ZLogger.debug(s"Executing kotlin script $s") *>
           executeKotlinScript(s, context)
       }
   }
@@ -226,59 +225,61 @@ object ScriptInstances {
     import scala.jdk.CollectionConverters._
     val buildScript: RIO[RunnableScriptContext, KotlinFeatureScript] =
       for {
-        ctx          <- ZIO.environment[RunnableScriptContext]
-        scriptEngine = ctx.kotlinScriptEngine
-        _            <- Logger.debug(s"Compiling script ... ")
+        scriptEngine <- RunnableScriptModule.kotlinScriptEngine
+        _            <- ZLogger.debug(s"Compiling script ... ")
         tmpScript    <- Task(scriptEngine.eval(finalScript))
-        _            <- Logger.debug(s"Cast script ... ")
+        _            <- ZLogger.debug(s"Cast script ... ")
         script       = tmpScript.asInstanceOf[KotlinFeatureScript]
       } yield script
 
-    def run(featureScript: KotlinFeatureScript): RIO[LoggerModule with PlayModule, ScriptExecution] = {
+    def run(featureScript: KotlinFeatureScript): RIO[RunnableScriptContext, ScriptExecution] = {
       val console = ScalaConsole()
-      ZIO
-        .accessM[PlayModule] { env =>
-          Task
-            .effectAsync[Boolean] { cb =>
-              implicit val ec = env.ec
-              Try {
-                new KHttpClient(env.wSClient, cb)
-                val ctx = context.as[ObjectNode]
-                featureScript.run(
-                  (p1: AnyRef) => console.println(p1),
-                  ctx,
-                  () => cb(ZIO.succeed(true)),
-                  () => cb(ZIO.succeed(false)),
-                  env.javaWsClient
-                )
-              } recover {
-                case e => cb(ZIO.fail(e))
-              }
-            }
-        }
-        .map { b =>
-          ScriptExecutionSuccess(b, console.scriptLogs.logs).asInstanceOf[ScriptExecution]
-        }
-        .catchSome {
-          case e: Exception =>
-            Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e) *>
-            ZIO.succeed(ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e))
-        }
+      for {
+        wSClient     <- PlayModule.wSClient
+        javaWsClient <- PlayModule.javaWsClient
+        envEc        <- PlayModule.ec
+        scriptRun <- Task
+                      .effectAsync[Boolean] { cb =>
+                        implicit val ec = envEc
+                        Try {
+                          new KHttpClient(wSClient, cb)
+                          val ctx = context.as[ObjectNode]
+                          featureScript.run(
+                            (p1: AnyRef) => console.println(p1),
+                            ctx,
+                            () => cb(ZIO.succeed(true)),
+                            () => cb(ZIO.succeed(false)),
+                            javaWsClient
+                          )
+                        } recover {
+                          case e => cb(ZIO.fail(e))
+                        }
+                      }
+                      .map { b =>
+                        ScriptExecutionSuccess(b, console.scriptLogs.logs).asInstanceOf[ScriptExecution]
+                      }
+                      .catchSome {
+                        case e: Exception =>
+                          ZLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e) *>
+                          ZIO.succeed(ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e))
+                      }
+      } yield scriptRun
     }
+
     blocking.blocking {
       (
         for {
-          mayBeScript <- ZIO.accessM[ScriptCacheModule](_.scriptCache.get[KotlinFeatureScript](id))
-          _           <- Logger.debug(s"Cache for script ? : $mayBeScript")
-          script      <- mayBeScript.fold(blocking.blocking(buildScript))(ZIO.succeed)
-          _           <- Logger.debug(s"Updating cache for id $id and script $script")
-          _           <- ZIO.accessM[ScriptCacheModule](_.scriptCache.set(id, script))
-          _           <- Logger.debug(s"Running kotlin script")
+          mayBeScript <- ScriptCache.get[KotlinFeatureScript](id)
+          _           <- ZLogger.debug(s"Cache for script ? : $mayBeScript")
+          script      <- mayBeScript.fold(blocking.blocking(buildScript))(s => ZIO(s))
+          _           <- ZLogger.debug(s"Updating cache for id $id and script $script")
+          _           <- ScriptCache.set(id, script)
+          _           <- ZLogger.debug(s"Running kotlin script")
           r           <- blocking.blocking(run(script))
         } yield r
       ).catchSome {
         case e: Exception =>
-          Logger.error(s"Error executing script", e) *>
+          ZLogger.error(s"Error executing script", e) *>
           ZIO.succeed(ScriptExecutionFailure.fromThrowable(Seq.empty, e))
       }
     }
@@ -314,65 +315,71 @@ object ScriptInstances {
     val id = MurmurHash3.stringHash(finalScript).toString
 
     val buildScript: RIO[RunnableScriptContext, FeatureScript] =
-      ZIO.accessM[RunnableScriptContext] { env =>
-        env.environment.mode match {
-          case Prod =>
-            for {
-              _ <- Logger.debug(
-                    s"Looking for scala engine in ${env.scriptEngineManager.getEngineFactories.asScala.map(_.getEngineName).mkString(",")}"
-                  )
-              engine <- ZIO
-                         .fromOption(env.scalaScriptEngine)
-                         .mapError(_ => new IllegalArgumentException("Scala scripts not supported in dev mode"))
-              _      <- Logger.debug("Compilation is done !")
-              script <- Task(engine.eval(finalScript).asInstanceOf[FeatureScript])
-              _      <- Logger.debug("Compiling script ...")
-            } yield script
-          case _ => ZIO.fail(new IllegalArgumentException("Scala scripts not supported in dev mode"))
-        }
-      }
+      for {
+        environment         <- PlayModule.environment
+        scriptEngineManager <- RunnableScriptModule.scriptEngineManager
+        scalaScriptEngine   <- RunnableScriptModule.scalaScriptEngine
+        res <- environment.mode match {
+                case Prod =>
+                  for {
+                    _ <- ZLogger.debug(
+                          s"Looking for scala engine in ${scriptEngineManager.getEngineFactories.asScala.map(_.getEngineName).mkString(",")}"
+                        )
+                    engine <- ZIO
+                               .fromOption(scalaScriptEngine)
+                               .mapError(_ => new IllegalArgumentException("Scala scripts not supported in dev mode"))
+                    _      <- ZLogger.debug("Compilation is done !")
+                    script <- Task(engine.eval(finalScript).asInstanceOf[FeatureScript])
+                    _      <- ZLogger.debug("Compiling script ...")
+                  } yield script
+                case _ => ZIO.fail(new IllegalArgumentException("Scala scripts not supported in dev mode"))
+              }
+      } yield res
 
     def run(featureScript: FeatureScript): RIO[RunnableScriptContext, ScriptExecution] = {
       val scalaConsole = ScalaConsole()
-      ZIO.accessM { env =>
-        Task
-          .effectAsync[Boolean] { cb =>
-            implicit val ec = env.ec
-            Try {
-              featureScript.run(scalaConsole.println,
-                                context,
-                                () => cb(ZIO.succeed(true)),
-                                () => cb(ZIO.succeed(false)),
-                                env.wSClient)
-            } recover {
-              case e => cb(ZIO.fail(e))
-            }
-          }
-          .map { b =>
-            ScriptExecutionSuccess(b, scalaConsole.scriptLogs.logs).asInstanceOf[ScriptExecution]
-          }
-          .catchSome {
-            case e: Exception =>
-              Logger.error(s"Error executing script, console = ${scalaConsole.scriptLogs.logs}", e) *>
-              ZIO.succeed(ScriptExecutionFailure.fromThrowable(scalaConsole.scriptLogs.logs, e))
-          }
-      }
+      (PlayModule.ec <*> PlayModule.wSClient)
+        .flatMap {
+          case (envEc, wSClient) =>
+            Task
+              .effectAsync[Boolean] { cb =>
+                implicit val ec = envEc
+                Try {
+                  featureScript.run(scalaConsole.println,
+                                    context,
+                                    () => cb(ZIO.succeed(true)),
+                                    () => cb(ZIO.succeed(false)),
+                                    wSClient)
+                } recover {
+                  case e => cb(ZIO.fail(e))
+                }
+              }
+        }
+        .map { b =>
+          ScriptExecutionSuccess(b, scalaConsole.scriptLogs.logs).asInstanceOf[ScriptExecution]
+        }
+        .catchSome {
+          case e: Exception =>
+            ZLogger.error(s"Error executing script, console = ${scalaConsole.scriptLogs.logs}", e) *>
+            ZIO.succeed(ScriptExecutionFailure.fromThrowable(scalaConsole.scriptLogs.logs, e))
+        }
+
     }
 
     blocking.blocking {
       (
         for {
-          mayBeScript <- ZIO.accessM[ScriptCacheModule](_.scriptCache.get[FeatureScript](id))
-          _           <- Logger.debug(s"Cache for script ? : $mayBeScript")
-          script      <- mayBeScript.fold(blocking.blocking(buildScript))(ZIO.succeed)
-          _           <- Logger.debug(s"Updating cache for id $id and script $script")
-          _           <- ZIO.accessM[ScriptCacheModule](_.scriptCache.set(id, script))
-          _           <- Logger.debug(s"Running scala script")
+          mayBeScript <- ScriptCache.get[FeatureScript](id)
+          _           <- ZLogger.debug(s"Cache for script ? : $mayBeScript")
+          script      <- mayBeScript.fold(blocking.blocking(buildScript))(s => ZIO(s))
+          _           <- ZLogger.debug(s"Updating cache for id $id and script $script")
+          _           <- ScriptCache.set(id, script)
+          _           <- ZLogger.debug(s"Running scala script")
           r           <- blocking.blocking(run(script))
         } yield r
       ).catchSome {
         case e: Exception =>
-          Logger.error(s"Error executing script", e) *>
+          ZLogger.error(s"Error executing script", e) *>
           ZIO.succeed(ScriptExecutionFailure.fromThrowable(Seq.empty, e))
       }
     }
@@ -384,22 +391,22 @@ object ScriptInstances {
 
     val exec: RIO[RunnableScriptContext, ScriptExecution] =
       for {
-        env     <- ZIO.environment[RunnableScriptContext]
-        _       <- Logger.debug(s"Creating console")
-        console = JsConsole()
-        engine  = env.javascriptScriptEngine
-        _       = engine.getContext.setAttribute("console", console, ScriptContext.ENGINE_SCOPE)
-        env     <- RIO.environment[LoggerModule with Blocking with PlayModule]
+        _        <- ZLogger.debug(s"Creating console")
+        console  = JsConsole()
+        engine   <- RunnableScriptModule.javascriptScriptEngine
+        _        = engine.getContext.setAttribute("console", console, ScriptContext.ENGINE_SCOPE)
+        envEc    <- PlayModule.ec
+        wSClient <- PlayModule.wSClient
         script <- Task
                    .effectAsync[Boolean] { cb =>
-                     implicit val ec = env.ec
+                     implicit val ec = envEc
                      Try {
                        engine.eval(script.script)
                        val enabled                                   = () => cb(ZIO.succeed(true))
                        val disabled                                  = () => cb(ZIO.succeed(false))
                        val contextMap: java.util.Map[String, AnyRef] = jsObjectToMap(context)
 
-                       engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(env.wSClient, cb))
+                       engine.invokeFunction("enabled", contextMap, enabled, disabled, new HttpClient(wSClient, cb))
                      } recover {
                        case e => cb(ZIO.fail(e))
                      }
@@ -409,7 +416,7 @@ object ScriptInstances {
                    }
                    .catchSome {
                      case e: Exception =>
-                       Logger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e) *>
+                       ZLogger.error(s"Error executing script, console = ${console.scriptLogs.logs}", e) *>
                        ZIO.succeed(ScriptExecutionFailure.fromThrowable(console.scriptLogs.logs, e))
                    }
       } yield script
@@ -437,7 +444,7 @@ object ScriptInstances {
 
 }
 
-class PlayScriptCache(api: AsyncCacheApi) extends ScriptCache {
+class PlayScriptCache(api: AsyncCacheApi) extends CacheService[String] {
 
   override def get[T: ClassTag](id: String): Task[Option[T]] =
     Task.fromFuture(_ => api.get[T](id))

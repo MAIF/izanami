@@ -1,13 +1,13 @@
 package specs.postgresql.abtesting
 
 import cats.effect.{ContextShift, IO}
+import domains.abtesting.events.impl.ExperimentVariantEventPostgresqlService
 import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
 import env.{DbDomainConfig, DbDomainConfigDetails, PostgresqlConfig}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.postgresql.PostgresqlClient
 import test.FakeApplicationLifecycle
 import zio.Task
-import domains.abtesting.impl.ExperimentVariantEventPostgresqlService
 
 class ExperimentVariantEventPostgresqlServiceTest
     extends AbstractExperimentServiceTest("Postgresql")

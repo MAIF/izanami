@@ -1,5 +1,6 @@
 package specs.mongo.abtesting
 
+import domains.abtesting.events.impl.ExperimentVariantEventMongoService
 import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
 import env.{DbDomainConfig, DbDomainConfigDetails, Mongo}
 import org.scalactic.source.Position
@@ -12,7 +13,6 @@ import test.FakeApplicationLifecycle
 import scala.concurrent.duration.DurationLong
 import scala.concurrent.Await
 import scala.util.Random
-import domains.abtesting.impl.ExperimentVariantEventMongoService
 
 class ExperimentVariantEventMongoServiceTest
     extends AbstractExperimentServiceTest("Mongo")

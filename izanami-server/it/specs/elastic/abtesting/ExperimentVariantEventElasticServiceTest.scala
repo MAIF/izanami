@@ -1,5 +1,6 @@
 package specs.elastic.abtesting
 
+import domains.abtesting.events.impl.ExperimentVariantEventElasticService
 import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
 import elastic.api.Elastic
 import env.{DbDomainConfig, DbDomainConfigDetails, ElasticConfig}
@@ -7,7 +8,6 @@ import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import play.api.libs.json.JsValue
 import store.elastic.ElasticClient
-import domains.abtesting.impl.ExperimentVariantEventElasticService
 
 class ExperimentVariantEventElasticServiceTest
     extends AbstractExperimentServiceTest("Elastic")
