@@ -10,7 +10,7 @@ import libs.logs.ZLogger
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import store._
-import store.datastore._
+import store.datastore.{JsonDataStoreHelper, _}
 import zio.{IO, RIO, URIO, ZIO}
 
 package object apikey {
@@ -31,15 +31,11 @@ package object apikey {
 
   type ApikeyDataStore = zio.Has[ApikeyDataStore.Service]
 
-  object ApikeyDataStore extends JsonDataStoreHelper[ApikeyDataStore] {
+  object ApikeyDataStore {
 
-    trait Service {
-      def apikeyDataStore: JsonDataStore.Service
-    }
+    trait Service extends JsonDataStore.Service
 
-    override def getStore: URIO[ApikeyDataStore, JsonDataStore.Service] =
-      ZIO.access[ApikeyDataStore](_.get.apikeyDataStore)
-
+    object > extends JsonDataStoreHelper[ApikeyDataStore]
   }
 
   type ApiKeyContext = ZLogger with ApikeyDataStore with EventStore with AuthInfoModule
@@ -58,7 +54,7 @@ package object apikey {
       for {
         _        <- AuthInfo.isAdmin()
         _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
-        created  <- ApikeyDataStore.create(id, Json.toJson(data))
+        created  <- ApikeyDataStore.>.create(id, Json.toJson(data))
         apikey   <- jsResultToError(created.validate[Apikey])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(ApikeyCreated(id, apikey, authInfo = authInfo))
@@ -69,7 +65,7 @@ package object apikey {
         _        <- AuthInfo.isAdmin()
         mayBeOld <- getById(oldId)
         oldValue <- ZIO.fromOption(mayBeOld).mapError(_ => DataShouldExists(oldId).toErrors)
-        updated  <- ApikeyDataStore.update(oldId, id, Json.toJson(data))
+        updated  <- ApikeyDataStore.>.update(oldId, id, Json.toJson(data))
         apikey   <- jsResultToError(updated.validate[Apikey])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(ApikeyUpdated(id, oldValue, apikey, authInfo = authInfo))
@@ -78,18 +74,17 @@ package object apikey {
     def delete(id: ApikeyKey): ZIO[ApiKeyContext, IzanamiErrors, Apikey] =
       for {
         _          <- AuthInfo.isAdmin()
-        deleted    <- ApikeyDataStore.delete(id)
+        deleted    <- ApikeyDataStore.>.delete(id)
         experiment <- jsResultToError(deleted.validate[Apikey])
         authInfo   <- AuthInfo.authInfo
         _          <- EventStore.publish(ApikeyDeleted(id, experiment, authInfo = authInfo))
       } yield experiment
 
     def deleteAll(patterns: Seq[String]): ZIO[ApiKeyContext, IzanamiErrors, Unit] =
-      AuthInfo.isAdmin() *> ApikeyDataStore.deleteAll(patterns)
+      AuthInfo.isAdmin() *> ApikeyDataStore.>.deleteAll(patterns)
 
     def getByIdWithoutPermissions(id: ApikeyKey): RIO[ApiKeyContext, Option[Apikey]] =
-      ApikeyDataStore
-        .getById(id)
+      ApikeyDataStore.>.getById(id)
         .map(_.flatMap(_.validate[Apikey].asOpt))
 
     def getById(id: ApikeyKey): ZIO[ApiKeyContext, IzanamiErrors, Option[Apikey]] =
@@ -99,19 +94,17 @@ package object apikey {
                     page: Int,
                     nbElementPerPage: Int): ZIO[ApiKeyContext, IzanamiErrors, PagingResult[Apikey]] =
       AuthInfo
-        .isAdmin() *> ApikeyDataStore
-        .findByQuery(query, page, nbElementPerPage)
+        .isAdmin() *> ApikeyDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
         .refineOrDie[IzanamiErrors](PartialFunction.empty)
 
     def findByQuery(query: Query): ZIO[ApiKeyContext, IzanamiErrors, Source[(Key, Apikey), NotUsed]] =
-      AuthInfo.isAdmin() *> ApikeyDataStore
-        .findByQuery(query)
+      AuthInfo.isAdmin() *> ApikeyDataStore.>.findByQuery(query)
         .map(_.readsKV[Apikey])
         .refineOrDie[IzanamiErrors](PartialFunction.empty)
 
     def countWithoutPermissions(query: Query): RIO[ApiKeyContext, Long] =
-      ApikeyDataStore.count(query)
+      ApikeyDataStore.>.count(query)
 
     def count(query: Query): ZIO[ApiKeyContext, IzanamiErrors, Long] =
       AuthInfo.isAdmin() *> countWithoutPermissions(query).refineOrDie[IzanamiErrors](PartialFunction.empty)

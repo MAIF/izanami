@@ -12,7 +12,7 @@ import libs.logs.ZLogger
 import play.api.libs.json._
 import domains.errors.{IzanamiErrors, ValidatedResult, ValidationError}
 import store._
-import store.datastore._
+import store.datastore.{JsonDataStoreHelper, _}
 import cats.implicits._
 import cats.data.Validated._
 import domains.abtesting.events.ExperimentVariantEventService
@@ -149,14 +149,12 @@ package object abtesting {
 
   type ExperimentDataStore = zio.Has[ExperimentDataStore.Service]
 
-  object ExperimentDataStore extends JsonDataStoreHelper[ExperimentDataStore] {
+  object ExperimentDataStore {
     trait Service {
       def experimentDataStore: JsonDataStore.Service
     }
 
-    override def getStore: URIO[ExperimentDataStore, JsonDataStore.Service] =
-      ZIO.access[ExperimentDataStore](_.get.experimentDataStore)
-
+    object > extends JsonDataStoreHelper[ExperimentDataStore]
   }
 
   type ExperimentContext = AkkaModule
@@ -181,7 +179,7 @@ package object abtesting {
       for {
         _           <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
         _           <- ZIO.fromEither(Experiment.validate(data))
-        created     <- ExperimentDataStore.create(id, Json.toJson(data))
+        created     <- ExperimentDataStore.>.create(id, Json.toJson(data))
         experiment  <- jsResultToError(created.validate[Experiment])
         authInfo    <- AuthInfo.authInfo
         _           <- EventStore.publish(ExperimentCreated(id, experiment, authInfo = authInfo))
@@ -213,7 +211,7 @@ package object abtesting {
       import ExperimentInstances._
       // format: off
       for {
-        updated     <- ExperimentDataStore.update(oldId, id, Json.toJson(data))
+        updated     <- ExperimentDataStore.>.update(oldId, id, Json.toJson(data))
         experiment  <- jsResultToError(updated.validate[Experiment])
         authInfo    <- AuthInfo.authInfo
         _           <- EventStore.publish(ExperimentUpdated(id, oldValue, experiment, authInfo = authInfo))
@@ -225,7 +223,7 @@ package object abtesting {
       // format: off
       for {
         _           <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
-        deleted     <- ExperimentDataStore.delete(id)
+        deleted     <- ExperimentDataStore.>.delete(id)
         experiment  <- jsResultToError(deleted.validate[Experiment])
         authInfo    <- AuthInfo.authInfo
         _           <- EventStore.publish(ExperimentDeleted(id, experiment, authInfo = authInfo))
@@ -233,22 +231,19 @@ package object abtesting {
       // format: on
 
     def deleteAll(q: Query): ZIO[ExperimentContext, IzanamiErrors, Unit] =
-      ExperimentDataStore.deleteAll(q)
+      ExperimentDataStore.>.deleteAll(q)
 
     def getById(id: ExperimentKey): ZIO[ExperimentContext, IzanamiErrors, Option[Experiment]] =
-      AuthorizedPatterns.isAllowed(id, PatternRights.R) *> ExperimentDataStore
-        .getById(id)
+      AuthorizedPatterns.isAllowed(id, PatternRights.R) *> ExperimentDataStore.>.getById(id)
         .refineOrDie[IzanamiErrors](PartialFunction.empty)
         .map(_.flatMap(_.validate[Experiment].asOpt))
 
     def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ExperimentContext, PagingResult[Experiment]] =
-      ExperimentDataStore
-        .findByQuery(query, page, nbElementPerPage)
+      ExperimentDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
 
     def findByQuery(query: Query): RIO[ExperimentContext, Source[(Key, Experiment), NotUsed]] =
-      ExperimentDataStore
-        .findByQuery(query)
+      ExperimentDataStore.>.findByQuery(query)
         .map {
           _.map {
             case (k, v) => (k, v.validate[Experiment].get)
@@ -256,7 +251,7 @@ package object abtesting {
         }
 
     def count(query: Query): RIO[ExperimentContext, Long] =
-      ExperimentDataStore.count(query)
+      ExperimentDataStore.>.count(query)
 
     def importData(
         strategy: ImportStrategy = ImportStrategy.Keep

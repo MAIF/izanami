@@ -108,14 +108,12 @@ package object script {
 
   type GlobalScriptDataStore = zio.Has[GlobalScriptDataStore.Service]
 
-  object GlobalScriptDataStore extends JsonDataStoreHelper[GlobalScriptDataStore] {
+  object GlobalScriptDataStore {
     trait Service {
       def globalScriptDataStore: JsonDataStore.Service
     }
 
-    override def getStore: URIO[GlobalScriptDataStore, JsonDataStore.Service] =
-      ZIO.access[GlobalScriptDataStore](_.get.globalScriptDataStore)
-
+    object > extends JsonDataStoreHelper[GlobalScriptDataStore]
   }
 
   type GlobalScriptContext = ZLogger
@@ -141,7 +139,7 @@ package object script {
       for {
         _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
         _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
-        created  <- GlobalScriptDataStore.create(id, GlobalScriptInstances.format.writes(data))
+        created  <- GlobalScriptDataStore.>.create(id, GlobalScriptInstances.format.writes(data))
         apikey   <- jsResultToError(created.validate[GlobalScript])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(GlobalScriptCreated(id, apikey, authInfo = authInfo))
@@ -155,7 +153,7 @@ package object script {
         _           <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
         mayBeScript <- getById(oldId)
         oldValue    <- ZIO.fromOption(mayBeScript).mapError(_ => DataShouldExists(oldId).toErrors)
-        updated     <- GlobalScriptDataStore.update(oldId, id, GlobalScriptInstances.format.writes(data))
+        updated     <- GlobalScriptDataStore.>.update(oldId, id, GlobalScriptInstances.format.writes(data))
         apikey      <- jsResultToError(updated.validate[GlobalScript])
         authInfo    <- AuthInfo.authInfo
         _           <- EventStore.publish(GlobalScriptUpdated(id, oldValue, apikey, authInfo = authInfo))
@@ -166,7 +164,7 @@ package object script {
       // format: off
       for {
         _         <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
-        deleted   <- GlobalScriptDataStore.delete(id)
+        deleted   <- GlobalScriptDataStore.>.delete(id)
         apikey    <- jsResultToError(deleted.validate[GlobalScript])
         authInfo  <- AuthInfo.authInfo
         _         <- EventStore.publish(GlobalScriptDeleted(id, apikey, authInfo = authInfo))
@@ -174,31 +172,30 @@ package object script {
       // format: on
 
     def deleteAll(query: Query): ZIO[GlobalScriptContext, IzanamiErrors, Unit] =
-      GlobalScriptDataStore.deleteAll(query)
+      GlobalScriptDataStore.>.deleteAll(query)
 
     def getById(id: GlobalScriptKey): ZIO[GlobalScriptContext, IzanamiErrors, Option[GlobalScript]] =
       for {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
-        mayBeScript  <- GlobalScriptDataStore.getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBeScript  <- GlobalScriptDataStore.>.getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
         parsedScript = mayBeScript.flatMap(_.validate[GlobalScript].asOpt)
       } yield parsedScript
 
     def findByQuery(query: Query,
                     page: Int = 1,
                     nbElementPerPage: Int = 15): RIO[GlobalScriptContext, PagingResult[GlobalScript]] =
-      GlobalScriptDataStore
-        .findByQuery(query, page, nbElementPerPage)
+      GlobalScriptDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
 
     def findByQuery(query: Query): RIO[GlobalScriptContext, Source[(GlobalScriptKey, GlobalScript), NotUsed]] =
-      GlobalScriptDataStore.findByQuery(query).map { s =>
+      GlobalScriptDataStore.>.findByQuery(query).map { s =>
         s.map {
           case (k, v) => (k, v.validate[GlobalScript].get)
         }
       }
 
     def count(query: Query): RIO[GlobalScriptContext, Long] =
-      GlobalScriptDataStore.count(query)
+      GlobalScriptDataStore.>.count(query)
 
     def importData(
         strategy: ImportStrategy = ImportStrategy.Keep

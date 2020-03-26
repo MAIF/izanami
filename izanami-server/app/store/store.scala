@@ -6,8 +6,9 @@ import akka.NotUsed
 import cats.Semigroup
 import cats.data.{NonEmptyList, Validated}
 import cats.kernel.Monoid
-import domains.events.{EventStore}
+import domains.events.EventStore
 import domains.Key
+import domains.configuration.AuthInfoModule
 import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
@@ -94,7 +95,7 @@ object Query {
 
 package object datastore {
 
-  type DataStoreContext = ZLogger with EventStore
+  type DataStoreContext = ZLogger with EventStore with AuthInfoModule
 
   object DataStore {
     type DataStoreIO[A] = zio.RIO[DataStoreContext, A]
@@ -153,44 +154,42 @@ package object datastore {
     def close: RIO[DataStoreContext, Unit] = Task.succeed(())
   }
 
-  trait JsonDataStoreHelper[R] {
+  trait JsonDataStoreHelper[R <: zio.Has[JsonDataStore.Service] with DataStoreContext] {
     import zio._
 
-    def getStore: URIO[R, JsonDataStore.Service]
-
     def create(id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-      getStore.flatMap(_.create(id, data))
+      ZIO.accessM[R](_.get.create(id, data))
 
     def update(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-      getStore.flatMap(_.update(oldId, id, data))
+      ZIO.accessM[R](_.get.update(oldId, id, data))
 
     def upsert(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-      getStore.flatMap(_.upsert(oldId, id, data))
+      ZIO.accessM[R](_.get.upsert(oldId, id, data))
 
     def delete(id: Key): ZIO[R, IzanamiErrors, JsValue] =
-      getStore.flatMap(_.delete(id))
+      ZIO.accessM[R](_.get.delete(id))
 
     def deleteAll(query: Query): ZIO[R, IzanamiErrors, Unit] =
-      getStore.flatMap(_.deleteAll(query))
+      ZIO.accessM[R](_.get.deleteAll(query))
 
     def deleteAll(patterns: Seq[String]): ZIO[R, IzanamiErrors, Unit] =
       deleteAll(Query.oneOf(patterns))
 
     def getById(id: Key): RIO[R, Option[JsValue]] =
-      getStore.flatMap(_.getById(id))
+      ZIO.accessM[R](_.get.getById(id))
 
     def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[R, PagingResult[JsValue]] =
-      getStore.flatMap(_.findByQuery(query, page, nbElementPerPage))
+      ZIO.accessM[R](_.get.findByQuery(query, page, nbElementPerPage))
 
     def findByQuery(query: Query): RIO[R, Source[(Key, JsValue), NotUsed]] =
-      getStore.flatMap(_.findByQuery(query))
+      ZIO.accessM[R](_.get.findByQuery(query))
 
     def count(query: Query): RIO[R, Long] =
-      getStore.flatMap(_.count(query))
+      ZIO.accessM[R](_.get.count(query))
 
-    def start: RIO[R, Unit] = getStore.flatMap(_.start)
+    def start: RIO[R, Unit] = ZIO.accessM[R](_.get.start)
 
-    def close: RIO[R, Unit] = getStore.flatMap(_.close)
+    def close: RIO[R, Unit] = ZIO.accessM[R](_.get.close)
   }
 
   type JsonDataStore = zio.Has[JsonDataStore.Service]

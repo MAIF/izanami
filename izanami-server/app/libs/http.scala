@@ -1,7 +1,7 @@
 package libs
 import zio._
 import play.api.mvc._
-import domains.AuthInfoModule
+import domains.configuration.AuthInfoModule
 import cats.implicits._
 import controllers.actions.{AuthContext, SecuredAuthContext}
 
@@ -9,7 +9,7 @@ object http {
 
   implicit class ActionBuilderOps[+R[_], B](ab: ActionBuilder[R, B]) {
 
-    case class AsyncTaskBuilder[Ctx <: AuthInfoModule[Ctx]](dummy: Boolean = false) {
+    case class AsyncTaskBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
 
       def apply(cb: R[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -22,7 +22,7 @@ object http {
         }
     }
 
-    case class AsyncZioBuilder[Ctx <: AuthInfoModule[Ctx]](dummy: Boolean = false) {
+    case class AsyncZioBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
 
       def apply(cb: R[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -35,18 +35,18 @@ object http {
         }
     }
 
-    def asyncTask[Ctx <: AuthInfoModule[Ctx]] = AsyncTaskBuilder[Ctx]()
+    def asyncTask[Ctx <: AuthInfoModule] = AsyncTaskBuilder[Ctx]()
 
-    def asyncZio[Ctx <: AuthInfoModule[Ctx]] = AsyncZioBuilder[Ctx]()
+    def asyncZio[Ctx <: AuthInfoModule] = AsyncZioBuilder[Ctx]()
   }
 
   implicit class SecuredActionBuilderOps[B](ab: ActionBuilder[SecuredAuthContext, B]) {
 
-    case class AsyncTaskBuilder[Ctx <: AuthInfoModule[Ctx]](dummy: Boolean = false) {
+    case class AsyncTaskBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
 
       def apply(cb: SecuredAuthContext[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
-          r.map { _.withAuthInfo(c.auth) }
+          r // FIXME .map { _.withAuthInfo(c.auth) }
             .unsafeRunToFuture(cb(c))
         }
 
@@ -54,16 +54,16 @@ object http {
           bp: BodyParser[A]
       )(cb: SecuredAuthContext[A] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r.map { _.withAuthInfo(c.auth) }
+          r // FIXME .map { _.withAuthInfo(c.auth) }
             .unsafeRunToFuture(cb(c))
         }
     }
 
-    case class AsyncZioBuilder[Ctx <: AuthInfoModule[Ctx]](dummy: Boolean = false) {
+    case class AsyncZioBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
 
       def apply(cb: SecuredAuthContext[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
-          r.map { _.withAuthInfo(c.auth) }
+          r // FIXME .map { _.withAuthInfo(c.auth) }
             .unsafeRunToFuture(cb(c).either.map(_.merge))
         }
 
@@ -71,51 +71,55 @@ object http {
           bp: BodyParser[A]
       )(cb: SecuredAuthContext[A] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r.map { _.withAuthInfo(c.auth) }
+          r // FIXME .map { _.withAuthInfo(c.auth) }
             .unsafeRunToFuture(cb(c).either.map(_.merge))
         }
     }
 
-    def asyncTask[Ctx <: AuthInfoModule[Ctx]] = AsyncTaskBuilder[Ctx]()
+    def asyncTask[Ctx <: AuthInfoModule] = AsyncTaskBuilder[Ctx]()
 
-    def asyncZio[Ctx <: AuthInfoModule[Ctx]] = AsyncZioBuilder[Ctx]()
+    def asyncZio[Ctx <: AuthInfoModule] = AsyncZioBuilder[Ctx]()
   }
 
   implicit class AuthContextBuilderOps[B](ab: ActionBuilder[AuthContext, B]) {
 
-    case class AsyncTaskBuilder[Ctx <: AuthInfoModule[Ctx]](dummy: Boolean = false) {
+    case class AsyncTaskBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
 
       def apply(cb: AuthContext[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
-          r.map { _.withAuthInfo(c.auth) }.unsafeRunToFuture(cb(c))
+          r //FIXME .map { _.withAuthInfo(c.auth) }
+            .unsafeRunToFuture(cb(c))
         }
 
       def apply[A](
           bp: BodyParser[A]
       )(cb: AuthContext[A] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r.map { _.withAuthInfo(c.auth) }.unsafeRunToFuture(cb(c))
+          r //FIXME .map { _.withAuthInfo(c.auth) }
+            .unsafeRunToFuture(cb(c))
         }
     }
 
-    case class AsyncZioBuilder[Ctx <: AuthInfoModule[Ctx]](dummy: Boolean = false) {
+    case class AsyncZioBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
 
       def apply(cb: AuthContext[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
-          r.map { _.withAuthInfo(c.auth) }.unsafeRunToFuture(cb(c).either.map(_.merge))
+          r // FIXME .map { _.withAuthInfo(c.auth) }
+            .unsafeRunToFuture(cb(c).either.map(_.merge))
         }
 
       def apply[A](
           bp: BodyParser[A]
       )(cb: AuthContext[A] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r.map { _.withAuthInfo(c.auth) }.unsafeRunToFuture(cb(c).either.map(_.merge))
+          r // FIXME .map { _.withAuthInfo(c.auth) }
+            .unsafeRunToFuture(cb(c).either.map(_.merge))
         }
     }
 
-    def asyncTask[Ctx <: AuthInfoModule[Ctx]] = AsyncTaskBuilder[Ctx]()
+    def asyncTask[Ctx <: AuthInfoModule] = AsyncTaskBuilder[Ctx]()
 
-    def asyncZio[Ctx <: AuthInfoModule[Ctx]] = AsyncZioBuilder[Ctx]()
+    def asyncZio[Ctx <: AuthInfoModule] = AsyncZioBuilder[Ctx]()
   }
 
   implicit class RequestHeaderOps(rh: RequestHeader) {

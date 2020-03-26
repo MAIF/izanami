@@ -107,11 +107,13 @@ package object modules {
     val patchs                                   = Patchs(izanamiConfig, drivers, applicationLifecycle)
 
     // Start stores
-    val initIzanami: ZIO[GlobalContext, Throwable, Unit] = (GlobalScriptDataStore.start
-    *> ConfigDataStore.start *> FeatureDataStore.start
-    *> UserDataStore.start *> ApikeyDataStore.start
-    *> WebhookDataStore.start *> ExperimentDataStore.start
-    *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook)
+    val globalScriptStart: ZIO[GlobalContext, Throwable, Unit] = GlobalScriptDataStore.>.start
+
+    val initIzanami: ZIO[GlobalContext, Throwable, Unit] = (globalScriptStart
+    *> ConfigDataStore.>.start *> FeatureDataStore.>.start
+    *> UserDataStore.>.start *> ApikeyDataStore.>.start
+    *> WebhookDataStore.>.start *> ExperimentDataStore.>.start
+    *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook).unit
     *> MetricsService.start
     // Import files
     *> Import.importFile(izanamiConfig.globalScript.db, GlobalScriptService.importData())

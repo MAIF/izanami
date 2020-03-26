@@ -75,7 +75,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   private def buildKey(key: Key) = Key.Empty / key
 
   private def toAsync[T](a: => T): Task[T] =
-    ZIO.provide(Blocking.live)(blocking.blocking(ZIO(a)))
+    blocking.blocking(ZIO(a)).provideLayer(Blocking.live)
 
   private def getByStringId(key: String): Task[Option[JsValue]] = toAsync {
     val bytesValue          = client.get(bytes(key))

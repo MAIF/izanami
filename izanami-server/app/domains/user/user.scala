@@ -144,13 +144,13 @@ package object user {
 
   type UserDataStore = zio.Has[UserDataStore.Service]
 
-  object UserDataStore extends JsonDataStoreHelper[UserDataStore] {
+  object UserDataStore {
 
     trait Service {
       def userDataStore: JsonDataStore.Service
     }
 
-    override def accessStore: UserDataStore => JsonDataStore.Service = _.get.userDataStore
+    object > extends JsonDataStoreHelper[UserDataStore]
   }
 
   type UserContext = UserDataStore with ZLogger with EventStore with AuthInfoModule
@@ -184,7 +184,7 @@ package object user {
       for {
         _        <- IO.when(Key(data.id) =!= id)(IO.fail(IdMustBeTheSame(Key(data.id), id).toErrors))
         user     <- ZIO.fromEither(handlePassword(data))
-        created  <- UserDataStore.create(id, UserInstances.format.writes(user))
+        created  <- UserDataStore.>.create(id, UserInstances.format.writes(user))
         user     <- jsResultToError(created.validate[User])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(UserCreated(id, user, authInfo = authInfo))
@@ -199,7 +199,7 @@ package object user {
         mayBeUser   <- getByIdWithoutPermissions(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
         oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId).toErrors)
         toUpdate    = User.updateUser(data, oldValue)
-        updated     <- UserDataStore.update(oldId, id, UserInstances.format.writes(toUpdate))
+        updated     <- UserDataStore.>.update(oldId, id, UserInstances.format.writes(toUpdate))
         user        <- jsResultToError(updated.validate[User])
         authInfo    <- AuthInfo.authInfo
         _           <- EventStore.publish(UserUpdated(id, oldValue, user, authInfo = authInfo))
@@ -210,7 +210,7 @@ package object user {
       // format: off
       for {
         _         <- AuthorizedPatterns.isAdminAllowed(id, PatternRights.D)
-        deleted   <- UserDataStore.delete(id)
+        deleted   <- UserDataStore.>.delete(id)
         user      <- jsResultToError(deleted.validate[User])
         authInfo  <- AuthInfo.authInfo
         _         <- EventStore.publish(UserDeleted(id, user, authInfo = authInfo))
@@ -218,10 +218,10 @@ package object user {
       // format: on
 
     def deleteAll(patterns: Seq[String]): ZIO[UserContext, IzanamiErrors, Unit] =
-      AuthInfo.isAdmin() *> UserDataStore.deleteAll(patterns)
+      AuthInfo.isAdmin() *> UserDataStore.>.deleteAll(patterns)
 
     def getByIdWithoutPermissions(id: UserKey): RIO[UserContext, Option[User]] =
-      UserDataStore.getById(id).map(_.flatMap(_.validate[User].asOpt))
+      UserDataStore.>.getById(id).map(_.flatMap(_.validate[User].asOpt))
 
     def getById(id: UserKey): ZIO[UserContext, IzanamiErrors, Option[User]] =
       AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
@@ -229,19 +229,17 @@ package object user {
     def findByQuery(query: Query,
                     page: Int,
                     nbElementPerPage: Int): ZIO[UserContext, IzanamiErrors, PagingResult[User]] =
-      AuthInfo.isAdmin() *> UserDataStore
-        .findByQuery(query, page, nbElementPerPage)
+      AuthInfo.isAdmin() *> UserDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
         .refineOrDie[IzanamiErrors](PartialFunction.empty)
 
     def findByQuery(query: Query): ZIO[UserContext, IzanamiErrors, Source[(Key, User), NotUsed]] =
-      AuthInfo.isAdmin() *> UserDataStore
-        .findByQuery(query)
+      AuthInfo.isAdmin() *> UserDataStore.>.findByQuery(query)
         .map(_.readsKV[User])
         .refineOrDie[IzanamiErrors](PartialFunction.empty)
 
     def countWithoutPermissions(query: Query): RIO[UserContext, Long] =
-      UserDataStore.count(query)
+      UserDataStore.>.count(query)
 
     def count(query: Query): ZIO[UserContext, IzanamiErrors, Long] =
       AuthInfo.isAdmin() *> countWithoutPermissions(query).refineOrDie[IzanamiErrors](PartialFunction.empty)

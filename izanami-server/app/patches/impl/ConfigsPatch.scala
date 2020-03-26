@@ -3,8 +3,8 @@ package patches.impl
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
-import akka.stream.{ActorMaterializer, Materializer}
-import domains.{GlobalContext, errors}
+import domains.errors
+import domains.configuration.GlobalContext
 import domains.config.Config.ConfigKey
 import domains.config.{Config, ConfigContext, ConfigService}
 import domains.events.Events.IzanamiEvent
@@ -15,7 +15,8 @@ import libs.logs.IzanamiLogger
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
 import domains.errors.ValidationError
-import store.{JsonDataStore, Query}
+import store.Query
+import store.datastore.JsonDataStore
 import store.memorywithdb.CacheEvent
 import zio.{RIO, Task, ZIO}
 

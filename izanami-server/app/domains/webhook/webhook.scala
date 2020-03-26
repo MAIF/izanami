@@ -38,13 +38,12 @@ package object webhook {
 
   type WebhookDataStore = zio.Has[WebhookDataStore.Service]
 
-  object WebhookDataStore extends JsonDataStoreHelper[WebhookDataStore] {
+  object WebhookDataStore {
     trait Service {
       def webhookDataStore: JsonDataStore.Service
     }
 
-    override def getStore: URIO[WebhookDataStore, JsonDataStore.Service] =
-      ZIO.access[WebhookDataStore](_.get.webhookDataStore)
+    object > extends JsonDataStoreHelper[WebhookDataStore]
   }
 
   type WebhookContext = WebhookDataStore with ZLogger with EventStore with AuthInfoModule
@@ -70,7 +69,7 @@ package object webhook {
       for {
         _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
         _        <- IO.when(data.clientId =!= id)(IO.fail(IdMustBeTheSame(data.clientId, id).toErrors))
-        created  <- WebhookDataStore.create(id, WebhookInstances.format.writes(data))
+        created  <- WebhookDataStore.>.create(id, WebhookInstances.format.writes(data))
         webhook  <- jsResultToError(created.validate[Webhook])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(WebhookCreated(id, webhook, authInfo = authInfo))
@@ -81,7 +80,7 @@ package object webhook {
         _         <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
         mayBeHook <- getById(oldId)
         oldValue  <- ZIO.fromOption(mayBeHook).mapError(_ => DataShouldExists(oldId).toErrors)
-        updated   <- WebhookDataStore.update(oldId, id, WebhookInstances.format.writes(data))
+        updated   <- WebhookDataStore.>.update(oldId, id, WebhookInstances.format.writes(data))
         hook      <- jsResultToError(updated.validate[Webhook])
         authInfo  <- AuthInfo.authInfo
         _         <- EventStore.publish(WebhookUpdated(id, oldValue, hook, authInfo = authInfo))
@@ -90,18 +89,18 @@ package object webhook {
     def delete(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Webhook] =
       for {
         _        <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
-        deleted  <- WebhookDataStore.delete(id)
+        deleted  <- WebhookDataStore.>.delete(id)
         hook     <- jsResultToError(deleted.validate[Webhook])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(WebhookDeleted(id, hook, authInfo = authInfo))
       } yield hook
 
     def deleteAll(patterns: Seq[String]): ZIO[WebhookContext, IzanamiErrors, Unit] =
-      WebhookDataStore.deleteAll(patterns)
+      WebhookDataStore.>.deleteAll(patterns)
 
     def getByIdWithoutPermissions(id: WebhookKey): RIO[WebhookContext, Option[Webhook]] =
       for {
-        mayBeHook  <- WebhookDataStore.getById(id)
+        mayBeHook  <- WebhookDataStore.>.getById(id)
         parsedHook = mayBeHook.flatMap(_.validate[Webhook].asOpt)
       } yield parsedHook
 
@@ -110,15 +109,14 @@ package object webhook {
         .refineOrDie[IzanamiErrors](PartialFunction.empty)
 
     def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[WebhookContext, PagingResult[Webhook]] =
-      WebhookDataStore
-        .findByQuery(query, page, nbElementPerPage)
+      WebhookDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
 
     def findByQuery(query: Query): RIO[WebhookContext, Source[(Key, Webhook), NotUsed]] =
-      WebhookDataStore.findByQuery(query).map(_.readsKV[Webhook])
+      WebhookDataStore.>.findByQuery(query).map(_.readsKV[Webhook])
 
     def count(query: Query): RIO[WebhookContext, Long] =
-      WebhookDataStore.count(query)
+      WebhookDataStore.>.count(query)
 
     def importData(
         strategy: ImportStrategy = ImportStrategy.Keep

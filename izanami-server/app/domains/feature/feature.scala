@@ -130,14 +130,13 @@ package object feature {
 
   type FeatureDataStore = zio.Has[FeatureDataStore.Service]
 
-  object FeatureDataStore extends JsonDataStoreHelper[FeatureDataStore] {
+  object FeatureDataStore {
 
     trait Service {
       def featureDataStore: JsonDataStore.Service
     }
 
-    override def getStore: URIO[FeatureDataStore, JsonDataStore.Service] =
-      ZIO.access[FeatureDataStore](_.get.featureDataStore)
+    object > extends JsonDataStoreHelper[FeatureDataStore]
   }
 
   type FeatureContext = FeatureDataStore
@@ -164,7 +163,7 @@ package object feature {
       for {
         _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
         _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
-        created  <- FeatureDataStore.create(id, format.writes(data))
+        created  <- FeatureDataStore.>.create(id, format.writes(data))
         feature  <- jsResultToError(created.validate[Feature])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(FeatureCreated(id, feature, authInfo = authInfo))
@@ -176,7 +175,7 @@ package object feature {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
         mayBeFeature <- getById(oldId)
         oldValue     <- ZIO.fromOption(mayBeFeature).mapError(_ => DataShouldExists(oldId).toErrors)
-        updated      <- FeatureDataStore.update(oldId, id, format.writes(data))
+        updated      <- FeatureDataStore.>.update(oldId, id, format.writes(data))
         feature      <- jsResultToError(updated.validate[Feature])
         authInfo     <- AuthInfo.authInfo
         _            <- EventStore.publish(FeatureUpdated(id, oldValue, feature, authInfo = authInfo))
@@ -186,7 +185,7 @@ package object feature {
     def delete(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Feature] =
       for {
         _        <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
-        deleted  <- FeatureDataStore.delete(id)
+        deleted  <- FeatureDataStore.>.delete(id)
         feature  <- jsResultToError(deleted.validate[Feature])
         authInfo <- AuthInfo.authInfo
         _        <- EventStore.publish(FeatureDeleted(id, feature, authInfo = authInfo))
@@ -194,12 +193,12 @@ package object feature {
       } yield feature
 
     def deleteAll(query: Query): ZIO[FeatureContext, IzanamiErrors, Unit] =
-      FeatureDataStore.deleteAll(query) <* MetricsService.incFeatureDeleted(query.toString())
+      FeatureDataStore.>.deleteAll(query) <* MetricsService.incFeatureDeleted(query.toString())
 
     def getById(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Option[Feature]] =
       for {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
-        mayBeConfig  <- FeatureDataStore.getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBeConfig  <- FeatureDataStore.>.getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
         parsedConfig = mayBeConfig.flatMap(_.validate[Feature].asOpt)
       } yield parsedConfig
 
@@ -220,8 +219,7 @@ package object feature {
       } yield result
 
     def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[FeatureContext, PagingResult[Feature]] =
-      FeatureDataStore
-        .findByQuery(query, page, nbElementPerPage)
+      FeatureDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
 
     def findByQueryActive(
@@ -245,15 +243,14 @@ package object feature {
       } yield DefaultPagingResult(pagesWithActive, pages.page, pages.pageSize, pages.count)
 
     def findByQuery(query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature), NotUsed]] =
-      FeatureDataStore.findByQuery(query).map { s =>
+      FeatureDataStore.>.findByQuery(query).map { s =>
         s.map {
           case (k, v) => (k, v.validate[Feature].get)
         }
       }
 
     def findAllByQuery(query: Query): RIO[FeatureContext, List[(FeatureKey, Feature)]] =
-      FeatureDataStore
-        .findByQuery(query)
+      FeatureDataStore.>.findByQuery(query)
         .map { s =>
           s.map {
             case (k, v) => (k, v.validate[Feature].get)
@@ -273,33 +270,33 @@ package object feature {
       for {
         runtime <- ZIO.runtime[FeatureContext]
         res <- ZIO.accessM[FeatureContext] { _ =>
-                val value: RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] = FeatureDataStore
-                  .findByQuery(query)
-                  .map { source =>
-                    source
-                      .map {
-                        case (k, v) => (k, v.validate[Feature].get)
-                      }
-                      .mapAsyncUnordered(4) {
-                        case (k, f) =>
-                          val testIfisActive: RIO[IsActiveContext, (FeatureKey, Feature, Boolean)] =
-                            isActive(f, context)
-                              .map { active =>
-                                (k, f, active)
-                              }
-                              .either
-                              .map {
-                                _.getOrElse((k, f, false))
-                              }
-                          runtime.unsafeRunToFuture(testIfisActive)
-                      }
-                  }
+                val value: RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
+                  FeatureDataStore.>.findByQuery(query)
+                    .map { source =>
+                      source
+                        .map {
+                          case (k, v) => (k, v.validate[Feature].get)
+                        }
+                        .mapAsyncUnordered(4) {
+                          case (k, f) =>
+                            val testIfisActive: RIO[IsActiveContext, (FeatureKey, Feature, Boolean)] =
+                              isActive(f, context)
+                                .map { active =>
+                                  (k, f, active)
+                                }
+                                .either
+                                .map {
+                                  _.getOrElse((k, f, false))
+                                }
+                            runtime.unsafeRunToFuture(testIfisActive)
+                        }
+                    }
                 value
               }
       } yield res
 
     def count(query: Query): RIO[FeatureContext, Long] =
-      FeatureDataStore.count(query)
+      FeatureDataStore.>.count(query)
 
     def getFeatureTree(query: Query, flat: Boolean, context: JsObject): RIO[FeatureContext, Source[JsValue, NotUsed]] =
       for {

@@ -401,7 +401,7 @@ object AuthInfo {
   def isAdmin(): ZIO[ZLogger with AuthInfoModule, IzanamiErrors, Unit] =
     for {
       authInfo <- AuthInfo.authInfo
-      res <- IO.when(!authInfo.exists(_.admin)) {
+      res <- ZIO.when(!authInfo.exists(_.admin)) {
               ZLogger.debug(s"${authInfo} is not admin") *>
               IO.fail(IzanamiErrors(Unauthorized(None)))
             }
