@@ -5,6 +5,7 @@ import akka.stream.scaladsl.{Flow, Source}
 import domains.auth.AuthInfo
 import domains.apikey.ApikeyDataStore
 import domains.config.Config.ConfigKey
+import domains.config.ConfigDataStore
 import domains.events.EventStore
 import domains.events.Events.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import domains.configuration._
@@ -15,7 +16,10 @@ import store._
 import store.datastore._
 import domains.errors.DataShouldExists
 import domains.errors.IdMustBeTheSame
-import zio.{Has, URIO, ZIO}
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers
+import store.memorywithdb.InMemoryWithDbStore
+import zio.{Has, URIO, ZIO, ZLayer}
 
 package object config {
 
@@ -28,9 +32,21 @@ package object config {
   type ConfigDataStore = zio.Has[ConfigDataStore.Service]
 
   object ConfigDataStore {
-    type Service = JsonDataStore.Service
+    trait Service {
+      def configDataStore: JsonDataStore.Service
+    }
 
-    object > extends JsonDataStoreHelper[ConfigDataStore with DataStoreContext]
+    case class ConfigDataStoreProd(configDataStore: JsonDataStore.Service) extends Service
+
+    object > extends JsonDataStoreHelper[ConfigDataStore with DataStoreContext] {
+      override def getStore: URIO[ConfigDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access[ConfigDataStore with DataStoreContext](_.get[ConfigDataStore.Service].configDataStore)
+    }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ConfigDataStore] =
+      JsonDataStore
+        .live(c => c.config.db, InMemoryWithDbStore.configEventAdapter)
+        .map(s => Has(ConfigDataStoreProd(s.get)))
   }
 
   type ConfigContext = ZLogger with ConfigDataStore with EventStore with AuthInfo

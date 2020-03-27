@@ -27,6 +27,7 @@ import env._
 import filters.PrometheusMetricsHolder.prometheursRequestCounter
 import io.prometheus.client.{Counter, Histogram}
 import libs.database.Drivers
+import libs.http.HttpContext
 import libs.logs.ZLogger
 import play.api.libs.json._
 import play.api.mvc._
@@ -74,7 +75,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
                               metricsConfig: MetricsConfig,
                               config: DefaultFilter,
                               apikeyConfig: ApikeyConfig)(
-    implicit runtime: Runtime[ApiKeyContext with MetricsContext],
+    implicit runtime: HttpContext[ApiKeyContext with MetricsContext],
     override val mat: Materializer
 ) extends ZioFilter[ApiKeyContext with MetricsContext] {
 

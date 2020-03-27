@@ -15,8 +15,14 @@ import play.api.libs.json._
 import store._
 import store.datastore._
 import domains.auth.AuthInfo
+import domains.configuration.{AkkaModule, PlayModule}
+import domains.user.UserDataStore
 import env.Oauth2Config
+import env.configuration.IzanamiConfigModule
 import errors.IzanamiErrors
+import libs.database.Drivers
+import store.memorywithdb.InMemoryWithDbStore
+import zio.{Has, URIO, ZIO, ZLayer}
 
 import scala.util.Try
 
@@ -146,9 +152,23 @@ package object user {
 
   object UserDataStore {
 
-    type Service = JsonDataStore.Service
+    trait Service {
+      def userDataStore: JsonDataStore.Service
+    }
 
-    object > extends JsonDataStoreHelper[UserDataStore with DataStoreContext]
+    case class UserDataStoreProd(userDataStore: JsonDataStore.Service) extends Service
+
+    object > extends JsonDataStoreHelper[UserDataStore with DataStoreContext] {
+      override def getStore: URIO[UserDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access[UserDataStore with DataStoreContext](
+          _.get[UserDataStore.Service].userDataStore
+        )
+    }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, UserDataStore] =
+      JsonDataStore
+        .live(c => c.user.db, InMemoryWithDbStore.userEventAdapter)
+        .map(s => Has(UserDataStoreProd(s.get)))
   }
 
   type UserContext = UserDataStore with ZLogger with EventStore with AuthInfo

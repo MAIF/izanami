@@ -7,7 +7,7 @@ import akka.NotUsed
 import cats.data.NonEmptyList
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
-import domains.configuration.AkkaModule
+import domains.configuration.{AkkaModule, PlayModule}
 import domains.auth.AuthInfo
 import libs.logs.ZLogger
 import play.api.libs.json._
@@ -18,9 +18,12 @@ import cats.implicits._
 import cats.data.Validated._
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.script.GlobalScriptDataStore
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers
 import libs.ziohelper.JsResults.jsResultToError
+import store.memorywithdb.InMemoryWithDbStore
 import zio.blocking.Blocking
-import zio.{RIO, URIO, ZIO}
+import zio.{Has, RIO, URIO, ZIO, ZLayer}
 
 import scala.util.hashing.MurmurHash3
 
@@ -151,9 +154,21 @@ package object abtesting {
   type ExperimentDataStore = zio.Has[ExperimentDataStore.Service]
 
   object ExperimentDataStore {
-    type Service = JsonDataStore.Service
+    trait Service {
+      def experimentDataStore: JsonDataStore.Service
+    }
 
-    object > extends JsonDataStoreHelper[ExperimentDataStore with DataStoreContext]
+    case class ExperimentDataStoreProd(experimentDataStore: JsonDataStore.Service) extends Service
+
+    object > extends JsonDataStoreHelper[ExperimentDataStore with DataStoreContext] {
+      override def getStore: URIO[ExperimentDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access[ExperimentDataStore with DataStoreContext](_.get[ExperimentDataStore.Service].experimentDataStore)
+    }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ExperimentDataStore] =
+      JsonDataStore
+        .live(c => c.experiment.db, InMemoryWithDbStore.experimentEventAdapter)
+        .map(s => Has(ExperimentDataStoreProd(s.get)))
   }
 
   type ExperimentContext = AkkaModule

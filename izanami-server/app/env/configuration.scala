@@ -5,11 +5,12 @@ import java.nio.file.{Path, Paths}
 
 import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
 import domains.AuthorizedPatterns
+import domains.configuration.PlayModule
 import play.api.Configuration
 import play.api.libs.ws.WSProxyServer
 import pureconfig._
 import pureconfig.error.ConfigReaderFailures
-import zio.{URIO, ZIO, ZLayer, ZManaged}
+import zio.{Managed, URIO, ZIO, ZLayer, ZManaged}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
@@ -55,10 +56,16 @@ package object configuration {
       def izanamiConfig: IzanamiConfig
     }
 
-    def izanamiConfig: URIO[IzanamiConfigModule, IzanamiConfig] = ZIO.access[IzanamiConfigModule](_.get.izanamiConfig)
-  }
+    case class IzanamiConfigModuleProd(izanamiConfig: IzanamiConfig) extends Service
 
-  def live(configuration: Configuration) = ZLayer(ZManaged.fromEither(IzanamiConfig.fromConfig(configuration)))
+    def izanamiConfig: URIO[IzanamiConfigModule, IzanamiConfig] = ZIO.access[IzanamiConfigModule](_.get.izanamiConfig)
+
+    val live: ZLayer[PlayModule, Nothing, IzanamiConfigModule] = ZLayer.fromFunction { mix =>
+      val configuration: Configuration = mix.get.configuration
+      val izanamiConfig                = IzanamiConfig.fromConfig(configuration)
+      IzanamiConfigModuleProd(izanamiConfig)
+    }
+  }
 }
 
 object IzanamiConfig {
@@ -101,11 +108,11 @@ object IzanamiConfig {
       addr => s"${addr.getHostString}:${addr.getPort}"
     )
 
-  def fromConfig(configuration: Configuration): Either[ConfigReaderFailures, IzanamiConfig] =
+  def fromConfig(configuration: Configuration): IzanamiConfig =
     ConfigSource
       .fromConfig(configuration.underlying)
       .at("izanami")
-      .load[IzanamiConfig]
+      .loadOrThrow[IzanamiConfig]
 
 }
 

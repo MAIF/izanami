@@ -5,33 +5,49 @@ import domains.auth.AuthInfo
 import cats.implicits._
 import controllers.actions.{AuthContext, SecuredAuthContext}
 
-object http {
+import scala.concurrent.Future
+
+package object http {
+
+  type HttpContext[A] = ZLayer[ZEnv, Throwable, A]
 
   implicit class ActionBuilderOps[+R[_], B](ab: ActionBuilder[R, B]) {
 
     case class AsyncTaskBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
-      def apply(cb: R[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
+      def apply(cb: R[B] => RIO[Ctx, Result])(implicit r: HttpContext[Ctx]): Action[B] =
         ab.async { c =>
-          r.unsafeRunToFuture(cb(c))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).provideLayer(r)
+          val future: Future[Result]              = Runtime.default.unsafeRunToFuture(value)
+          future
         }
 
-      def apply[A](bp: BodyParser[A])(cb: R[A] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[A] =
+      def apply[A](
+          bp: BodyParser[A]
+      )(cb: R[A] => RIO[Ctx, Result])(implicit r: HttpContext[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r.unsafeRunToFuture(cb(c))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).provideLayer(r)
+          val future: Future[Result]              = Runtime.default.unsafeRunToFuture(value)
+          future
         }
     }
 
     case class AsyncZioBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
-      def apply(cb: R[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
+      def apply(cb: R[B] => ZIO[Ctx, Result, Result])(implicit r: HttpContext[Ctx]): Action[B] =
         ab.async { c =>
-          r.unsafeRunToFuture(cb(c).either.map(_.merge))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).either.map(_.merge).provideLayer(r)
+          val future: Future[Result]              = Runtime.default.unsafeRunToFuture(value)
+          future
         }
 
-      def apply[A](bp: BodyParser[A])(cb: R[A] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[A] =
+      def apply[A](
+          bp: BodyParser[A]
+      )(cb: R[A] => ZIO[Ctx, Result, Result])(implicit r: HttpContext[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r.unsafeRunToFuture(cb(c).either.map(_.merge))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).either.map(_.merge).provideLayer(r)
+          val future: Future[Result]              = Runtime.default.unsafeRunToFuture(value)
+          future
         }
     }
 
@@ -44,35 +60,53 @@ object http {
 
     case class AsyncTaskBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
-      def apply(cb: SecuredAuthContext[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
+      def apply(cb: SecuredAuthContext[B] => RIO[Ctx, Result])(implicit r: HttpContext[Ctx]): Action[B] =
         ab.async { c =>
-          r // FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+            c.auth
+          })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
 
       def apply[A](
           bp: BodyParser[A]
-      )(cb: SecuredAuthContext[A] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[A] =
+      )(cb: SecuredAuthContext[A] => RIO[Ctx, Result])(implicit r: HttpContext[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r // FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+            c.auth
+          })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
     }
 
     case class AsyncZioBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
-      def apply(cb: SecuredAuthContext[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
+      def apply(
+          cb: SecuredAuthContext[B] => ZIO[Ctx, Result, Result]
+      )(implicit r: HttpContext[Ctx]): Action[B] =
         ab.async { c =>
-          r // FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c).either.map(_.merge))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).either
+            .map(_.merge)
+            .provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+              c.auth
+            })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
 
       def apply[A](
           bp: BodyParser[A]
-      )(cb: SecuredAuthContext[A] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[A] =
+      )(cb: SecuredAuthContext[A] => ZIO[Ctx, Result, Result])(implicit r: HttpContext[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r // FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c).either.map(_.merge))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).either
+            .map(_.merge)
+            .provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+              c.auth
+            })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
     }
 
@@ -85,35 +119,51 @@ object http {
 
     case class AsyncTaskBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
-      def apply(cb: AuthContext[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
+      def apply(cb: AuthContext[B] => RIO[Ctx, Result])(implicit r: HttpContext[Ctx]): Action[B] =
         ab.async { c =>
-          r //FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+            c.auth
+          })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
 
       def apply[A](
           bp: BodyParser[A]
-      )(cb: AuthContext[A] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[A] =
+      )(cb: AuthContext[A] => RIO[Ctx, Result])(implicit r: HttpContext[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r //FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+            c.auth
+          })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
     }
 
     case class AsyncZioBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
-      def apply(cb: AuthContext[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
+      def apply(cb: AuthContext[B] => ZIO[Ctx, Result, Result])(implicit r: HttpContext[Ctx]): Action[B] =
         ab.async { c =>
-          r // FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c).either.map(_.merge))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).either
+            .map(_.merge)
+            .provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+              c.auth
+            })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
 
       def apply[A](
           bp: BodyParser[A]
-      )(cb: AuthContext[A] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[A] =
+      )(cb: AuthContext[A] => ZIO[Ctx, Result, Result])(implicit r: HttpContext[Ctx]): Action[A] =
         ab.async[A](bp) { c =>
-          r // FIXME .map { _.withAuthInfo(c.auth) }
-            .unsafeRunToFuture(cb(c).either.map(_.merge))
+          val value: ZIO[ZEnv, Throwable, Result] = cb(c).either
+            .map(_.merge)
+            .provideLayer(r.update[Option[AuthInfo.Service]] { _ =>
+              c.auth
+            })
+          val future: Future[Result] = Runtime.default.unsafeRunToFuture(value)
+          future
         }
     }
 

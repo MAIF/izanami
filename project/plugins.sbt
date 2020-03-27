@@ -36,4 +36,4 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.7")
 
 //addSbtPlugin("com.sohoffice" %% "sbt-descriptive-play-swagger" % "0.7.5")
-addSbtPlugin("com.iheart" % "sbt-play-swagger" % "0.9.0-PLAY2.7")
+//addSbtPlugin("com.iheart" % "sbt-play-swagger" % "0.9.0-PLAY2.7")

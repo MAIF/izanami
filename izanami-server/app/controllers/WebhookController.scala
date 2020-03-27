@@ -14,10 +14,11 @@ import controllers.dto.error.ApiErrors
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import store.Query
 import zio.{Runtime, ZIO}
+import libs.http.HttpContext
 
 class WebhookController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
     implicit system: ActorSystem,
-    R: Runtime[WebhookContext]
+    R: HttpContext[WebhookContext]
 ) extends AbstractController(cc) {
 
   import libs.http._

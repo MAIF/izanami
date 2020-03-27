@@ -10,15 +10,20 @@ import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
 import domains._
 import domains.auth.AuthInfo
+import domains.configuration.{AkkaModule, PlayModule}
+import domains.user.UserDataStore
 import domains.webhook.notifications.WebHooksActor
 import env.WebhookConfig
+import env.configuration.IzanamiConfigModule
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
 import errors.IzanamiErrors
+import libs.database.Drivers
 import libs.logs.ZLogger
 import store._
 import store.datastore._
+import store.memorywithdb.InMemoryWithDbStore
 import zio._
 
 package object webhook {
@@ -39,9 +44,21 @@ package object webhook {
   type WebhookDataStore = zio.Has[WebhookDataStore.Service]
 
   object WebhookDataStore {
-    type Service = JsonDataStore.Service
+    trait Service {
+      def webhookDataStore: JsonDataStore.Service
+    }
 
-    object > extends JsonDataStoreHelper[WebhookDataStore with DataStoreContext]
+    case class WebhookDataStoreProd(webhookDataStore: JsonDataStore.Service) extends Service
+
+    object > extends JsonDataStoreHelper[WebhookDataStore with DataStoreContext] {
+      override def getStore: URIO[WebhookDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access(_.get[WebhookDataStore.Service].webhookDataStore)
+    }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, WebhookDataStore] =
+      JsonDataStore
+        .live(c => c.webhook.db, InMemoryWithDbStore.webhookEventAdapter)
+        .map(s => Has(WebhookDataStoreProd(s.get)))
   }
 
   type WebhookContext = WebhookDataStore with ZLogger with EventStore with AuthInfo

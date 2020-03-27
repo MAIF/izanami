@@ -17,7 +17,7 @@ import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{AnyContent, Request}
-import zio.{IO, ZIO}
+import zio.{Has, IO, Layer, ZIO, ZLayer}
 import org.apache.commons.codec.binary.{Base64 => ApacheBase64}
 
 import scala.concurrent.duration.DurationDouble
@@ -39,11 +39,13 @@ package object auth {
 
     def authInfo: zio.URIO[AuthInfo, Option[AuthInfo.Service]] = ZIO.access[AuthInfo](_.get)
 
+    val empty: Layer[Nothing, AuthInfo] = ZLayer.succeed(None)
+
     import AuthorizedPatterns._
     import play.api.libs.json._
     import play.api.libs.functional.syntax._
 
-    implicit val format = Format(
+    implicit val format: Format[Service] = Format(
       {
         (
           (__ \ "id").read[String] and

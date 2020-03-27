@@ -8,6 +8,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import domains.abtesting.Experiment.ExperimentKey
+import domains.abtesting.events.ExperimentVariantEventService
 import domains.abtesting.events.impl.{
   ExperimentVariantEventCassandraService,
   ExperimentVariantEventDynamoService,
@@ -20,16 +21,18 @@ import domains.abtesting.events.impl.{
 }
 import domains.abtesting.{Experiment, ExperimentResultEvent, Variant, VariantResult}
 import domains.auth.AuthInfo
+import domains.configuration.{AkkaModule, PlayModule}
 import domains.errors.{ErrorMessage, IzanamiErrors}
 import domains.events.EventStore
 import domains.{ImportResult, Key}
 import env._
+import env.configuration.IzanamiConfigModule
 import libs.IdGenerator
 import libs.database.Drivers
 import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsError, JsSuccess, JsValue}
-import zio.ZIO
+import zio.{ZIO, ZLayer}
 import zio.blocking.Blocking
 
 import scala.collection.immutable.HashSet
@@ -260,6 +263,17 @@ package object events {
 
     def importData(): zio.RIO[ExperimentVariantEventServiceModule, Flow[(String, JsValue), ImportResult, NotUsed]] =
       ZIO.accessM[ExperimentVariantEventServiceModule](_.get.importData)
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule,
+                     Nothing,
+                     ExperimentVariantEventService] =
+      ZLayer.fromFunction { mix =>
+        implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
+        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+        val drivers: Drivers.Service          = mix.get[Drivers.Service]
+        ExperimentVariantEventService(izanamiConfig, drivers, playModule.applicationLifecycle)
+      }
 
     def apply(izanamiConfig: IzanamiConfig, drivers: Drivers.Service, applicationLifecycle: ApplicationLifecycle)(
         implicit s: ActorSystem

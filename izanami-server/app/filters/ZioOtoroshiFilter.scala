@@ -5,13 +5,14 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.{JWT, JWTVerifier}
 import domains.user.User
 import env.OtoroshiFilterConfig
+import libs.http.HttpContext
 import libs.logs.ZLogger
 import play.api.Mode
 import play.api.libs.json.Json
 import play.api.mvc.{RequestHeader, Result, Results}
-import zio.{Runtime, Task, ZIO}
+import zio.{Runtime, Task, ZEnv, ZIO, ZLayer}
 
-class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r: Runtime[ZLogger],
+class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r: HttpContext[ZLogger],
                                                                  override val mat: Materializer)
     extends ZioFilter[ZLogger] {
 

@@ -39,13 +39,14 @@ package object database {
 
     def drivers: URIO[Drivers, Drivers.Service] = ZIO.access[Drivers](_.get)
 
-    def live(drivers: Drivers.Service): ULayer[Drivers] = ZLayer.succeed(drivers)
+    //def live(drivers: Drivers.Service): ULayer[Drivers] = ZLayer.succeed(drivers)
 
-    val live2: ZLayer[AkkaModule with PlayModule with IzanamiConfigModule, Nothing, Drivers] = ZLayer.fromFunction {
+    val live: ZLayer[AkkaModule with PlayModule with IzanamiConfigModule, Nothing, Drivers] = ZLayer.fromFunction {
       mix =>
         val playModule: PlayModule.Service                   = mix.get[PlayModule.Service]
         val izanamiConfigModule: IzanamiConfigModule.Service = mix.get[IzanamiConfigModule.Service]
         implicit val actorSystem: ActorSystem                = mix.get[AkkaModule.Service].system
+        // FIXME split in sublayer
         Drivers(izanamiConfigModule.izanamiConfig, playModule.configuration, playModule.applicationLifecycle)
     }
 

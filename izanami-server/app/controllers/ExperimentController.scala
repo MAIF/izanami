@@ -19,11 +19,12 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
 import controllers.dto.error.ApiErrors
-import zio.{Runtime, Task, ZIO}
+import zio.{Task, ZIO}
+import libs.http.HttpContext
 
 class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
     implicit system: ActorSystem,
-    runtime: Runtime[ExperimentContext]
+    runtime: HttpContext[ExperimentContext]
 ) extends AbstractController(cc) {
 
   import system.dispatcher

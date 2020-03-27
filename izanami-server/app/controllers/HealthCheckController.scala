@@ -6,12 +6,12 @@ import domains.configuration.GlobalContext
 import play.api.libs.json.Json
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import store.Healthcheck
-import zio.Runtime
+import libs.http.HttpContext
 
 class HealthCheckController(
     AuthAction: ActionBuilder[AuthContext, AnyContent],
     cc: ControllerComponents
-)(implicit R: Runtime[GlobalContext])
+)(implicit R: HttpContext[GlobalContext])
     extends AbstractController(cc) {
 
   import libs.http._

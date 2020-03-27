@@ -16,11 +16,15 @@ import play.api.libs.json._
 import domains.errors.{IzanamiErrors, _}
 import store._
 import store.datastore._
-import zio.{RIO, URIO, ZIO}
+import zio.{Has, RIO, URIO, ZIO, ZLayer}
 import java.time.LocalTime
 
 import cats.data.NonEmptyList
+import domains.feature.FeatureDataStore
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers
 import metrics.MetricsService
+import store.memorywithdb.InMemoryWithDbStore
 import zio.blocking.Blocking
 
 package object feature {
@@ -133,9 +137,21 @@ package object feature {
 
   object FeatureDataStore {
 
-    type Service = JsonDataStore.Service
+    trait Service {
+      def featureDataStore: JsonDataStore.Service
+    }
 
-    object > extends JsonDataStoreHelper[FeatureDataStore with DataStoreContext]
+    case class FeatureDataStoreProd(featureDataStore: JsonDataStore.Service) extends Service
+
+    object > extends JsonDataStoreHelper[FeatureDataStore with DataStoreContext] {
+      override def getStore: URIO[FeatureDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access[FeatureDataStore with DataStoreContext](_.get[FeatureDataStore.Service].featureDataStore)
+    }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, FeatureDataStore] =
+      JsonDataStore
+        .live(c => c.features.db, InMemoryWithDbStore.featureEventAdapter)
+        .map(s => Has(FeatureDataStoreProd(s.get)))
   }
 
   type FeatureContext = FeatureDataStore

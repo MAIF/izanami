@@ -9,6 +9,7 @@ import cats.kernel.Monoid
 import domains.events.EventStore
 import domains.Key
 import domains.auth.AuthInfo
+import domains.configuration.{AkkaModule, PlayModule}
 import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
@@ -17,6 +18,7 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.mvc.Results
 import domains.errors.IzanamiErrors
+import env.configuration.IzanamiConfigModule
 import store.cassandra.CassandraJsonDataStore
 import store.elastic.ElasticJsonDataStore
 import store.leveldb.LevelDBJsonDataStore
@@ -26,6 +28,9 @@ import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
 import store.dynamo.DynamoJsonDataStore
 import store.postgresql.PostgresqlJsonDataStore
+import zio.{Has, ZLayer}
+
+import scala.reflect.ClassTag
 
 trait PagingResult[Data] {
   def results: Seq[Data]
@@ -154,10 +159,10 @@ package object datastore {
     def close: RIO[DataStoreContext, Unit] = Task.succeed(())
   }
 
-  trait JsonDataStoreHelper[R <: zio.Has[JsonDataStore.Service] with DataStoreContext] {
+  trait JsonDataStoreHelper[R <: DataStoreContext] {
     import zio._
 
-    def getStore: URIO[R, JsonDataStore.Service] = ZIO.access(_.get)
+    def getStore: URIO[R, JsonDataStore.Service]
 
     def create(id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
       getStore.flatMap(_.create(id, data))
@@ -200,6 +205,18 @@ package object datastore {
 
     trait Service extends DataStore[Key, JsValue]
 
+    def live(
+        getConf: IzanamiConfig => DbDomainConfig,
+        eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
+    ): ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, JsonDataStore] =
+      ZLayer.fromFunction { mix =>
+        implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
+        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+        val drivers: Drivers.Service          = mix.get[Drivers.Service]
+        JsonDataStore(drivers, izanamiConfig, getConf(izanamiConfig), eventAdapter, playModule.applicationLifecycle)
+      }
+
     def apply(
         drivers: Drivers.Service,
         izanamiConfig: IzanamiConfig,
@@ -231,7 +248,7 @@ package object datastore {
         dbType: DbType,
         applicationLifecycle: ApplicationLifecycle
     )(implicit actorSystem: ActorSystem): JsonDataStore.Service = {
-      IzanamiLogger.info(s"Initializing store for $dbType")
+      IzanamiLogger.info(s"Initializing store ${conf.conf.namespace} for $dbType")
       dbType match {
         case InMemory => InMemoryJsonDataStore(conf)
         case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf)

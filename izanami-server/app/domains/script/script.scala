@@ -2,7 +2,7 @@ package domains
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import domains.configuration.PlayModule
+import domains.configuration.{AkkaModule, PlayModule}
 import domains.auth.AuthInfo
 import domains.events.EventStore
 import libs.logs.ZLogger
@@ -10,11 +10,16 @@ import play.api.libs.json._
 import domains.errors.IzanamiErrors
 import store._
 import store.datastore._
-import zio.{RIO, Task, URIO, ZIO}
+import zio.{Has, RIO, Task, URIO, ZIO, ZLayer}
 
 import scala.reflect.ClassTag
 import domains.errors.{DataShouldExists, IdMustBeTheSame}
+import domains.script.GlobalScriptDataStore
+import env.configuration.IzanamiConfigModule
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
+import libs.database.Drivers
+import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
+import store.memorywithdb.InMemoryWithDbStore
 import zio.blocking.Blocking
 
 package object script {
@@ -46,6 +51,13 @@ package object script {
       def scriptCache: CacheService[String]
     }
 
+    val live: ZLayer[PlayModule, Nothing, ScriptCache] = ZLayer.fromFunction { mix =>
+      val cache = new PlayScriptCache(mix.get.defaultCacheApi)
+      new Service {
+        override def scriptCache: CacheService[String] = cache
+      }
+    }
+
     def apply[F[_]](implicit s: ScriptCache): ScriptCache = s
 
     def get[T: ClassTag](id: String): ZIO[ScriptCache, Throwable, Option[T]] =
@@ -67,6 +79,12 @@ package object script {
       def kotlinScriptEngine: ScriptEngine
     }
 
+    case class RunnableScriptModuleProd(scriptEngineManager: ScriptEngineManager,
+                                        javascriptScriptEngine: ScriptEngine with Invocable,
+                                        scalaScriptEngine: Option[ScriptEngine with Invocable],
+                                        kotlinScriptEngine: ScriptEngine)
+        extends Service
+
     def scriptEngineManager: URIO[RunnableScriptModule, ScriptEngineManager] =
       ZIO.access[RunnableScriptModule](_.get.scriptEngineManager)
     def javascriptScriptEngine: URIO[RunnableScriptModule, ScriptEngine with Invocable] =
@@ -75,6 +93,17 @@ package object script {
       ZIO.access[RunnableScriptModule](_.get.scalaScriptEngine)
     def kotlinScriptEngine: URIO[RunnableScriptModule, ScriptEngine] =
       ZIO.access[RunnableScriptModule](_.get.kotlinScriptEngine)
+
+    val live: ZLayer[PlayModule, Nothing, RunnableScriptModule] = ZLayer.fromFunction { mix =>
+      val scriptEngineManager = new ScriptEngineManager(mix.get.environment.classLoader)
+      val javascriptScriptEngine =
+        scriptEngineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable]
+      val scalaScriptEngine: Option[ScriptEngine with Invocable] = Option(
+        scriptEngineManager.getEngineByName("scala").asInstanceOf[ScriptEngine with Invocable]
+      )
+      lazy val kotlinScriptEngine: ScriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
+      RunnableScriptModuleProd(scriptEngineManager, javascriptScriptEngine, scalaScriptEngine, kotlinScriptEngine)
+    }
   }
 
 //  trait RunnableScriptContext extends ScriptCacheModule with Blocking with ZLogger with PlayModule {
@@ -110,9 +139,23 @@ package object script {
   type GlobalScriptDataStore = zio.Has[GlobalScriptDataStore.Service]
 
   object GlobalScriptDataStore {
-    type Service = JsonDataStore.Service
+    trait Service {
+      def globalScriptDataStore: JsonDataStore.Service
+    }
 
-    object > extends JsonDataStoreHelper[GlobalScriptDataStore with DataStoreContext]
+    case class GlobalScriptDataStoreProd(globalScriptDataStore: JsonDataStore.Service) extends Service
+
+    object > extends JsonDataStoreHelper[GlobalScriptDataStore with DataStoreContext] {
+      override def getStore: URIO[GlobalScriptDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access[GlobalScriptDataStore with DataStoreContext](
+          _.get[GlobalScriptDataStore.Service].globalScriptDataStore
+        )
+    }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, GlobalScriptDataStore] =
+      JsonDataStore
+        .live(c => c.globalScript.db, InMemoryWithDbStore.globalScriptEventAdapter)
+        .map(s => Has(GlobalScriptDataStoreProd(s.get)))
   }
 
   type GlobalScriptContext = ZLogger

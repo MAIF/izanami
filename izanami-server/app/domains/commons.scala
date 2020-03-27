@@ -14,6 +14,8 @@ import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyDataStore
 import domains.config.ConfigDataStore
 import domains.auth.AuthInfo
+import domains.configuration.AkkaModule.AkkaModuleProd
+import domains.configuration.PlayModule.PlayModuleProd
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
@@ -33,10 +35,13 @@ import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 import store.{EmptyPattern, Pattern, StringPattern}
 import errors._
-import zio.{Has, IO, Layer, RIO, Task, ULayer, URIO, ZIO, ZLayer}
+import libs.http.HttpContext
+import zio.{Has, IO, Layer, RIO, Runtime, Task, ULayer, URIO, ZEnv, ZIO, ZLayer}
 import zio.blocking.Blocking
 import zio.clock.Clock
 import metrics.MetricsModule
+import patches.Patchs
+import play.api.cache.AsyncCacheApi
 import play.api.libs.ws.WSClient
 import play.libs.ws
 
@@ -53,15 +58,16 @@ object configuration {
     def mat: URIO[AkkaModule, Materializer]   = ZIO.access[AkkaModule](_.get.mat)
     def system: URIO[AkkaModule, ActorSystem] = ZIO.access[AkkaModule](_.get.system)
 
-    case class AkkaModuleImpl(system: ActorSystem, mat: Materializer) extends Service
+    case class AkkaModuleProd(system: ActorSystem, mat: Materializer) extends Service
 
-    def live(system: ActorSystem, mat: Materializer): ULayer[AkkaModule] = ZLayer.succeed(AkkaModuleImpl(system, mat))
+    def live(akkaModule: AkkaModuleProd): ULayer[AkkaModule] = ZLayer.succeed(akkaModule)
   }
 
   type PlayModule = zio.Has[PlayModule.Service]
 
   object PlayModule {
     trait Service {
+      def defaultCacheApi: AsyncCacheApi
       def configuration: Configuration
       def environment: Environment
       def wSClient: play.api.libs.ws.WSClient
@@ -71,6 +77,7 @@ object configuration {
     }
 
     case class PlayModuleProd(
+        defaultCacheApi: AsyncCacheApi,
         configuration: Configuration,
         environment: Environment,
         wSClient: play.api.libs.ws.WSClient,
@@ -97,19 +104,84 @@ object configuration {
       with MetricsModule
       with AuthInfo
       with ZLogger
-      with ConfigDataStore
-      with FeatureDataStore
-      with UserDataStore
-      with EventStore
-      with GlobalScriptDataStore
-      with ScriptCache
-      with RunnableScriptModule
-      with ApikeyDataStore
-      with WebhookDataStore
+      with Has[Patchs]
       with ExperimentDataStore
       with ExperimentVariantEventService
+      with ApikeyDataStore
+      with ConfigDataStore
+      with FeatureDataStore
+      with GlobalScriptDataStore
+      with UserDataStore
+      with WebhookDataStore
+      with EventStore
+      with ScriptCache
+      with RunnableScriptModule
       with Clock
       with Blocking
+
+  object GlobalContext {
+    def live(akkaModule: AkkaModuleProd, playModule: PlayModuleProd): HttpContext[GlobalContext] = {
+      val base: ZLayer[ZEnv, Throwable, Clock with Blocking with AkkaModule with PlayModule] =
+      (Clock.live ++ Blocking.live ++ AkkaModule.live(akkaModule) ++ PlayModule.live(playModule))
+
+      val configAndScript: ZLayer[PlayModule,
+                                  Throwable,
+                                  IzanamiConfigModule with ScriptCache with RunnableScriptModule with MetricsModule] =
+      IzanamiConfigModule.live ++ ScriptCache.live ++ RunnableScriptModule.live ++ MetricsModule.live
+
+      val baseWithConfigAndScript: ZLayer[
+        ZEnv,
+        Throwable,
+        Clock with Blocking with AkkaModule with PlayModule with IzanamiConfigModule with ScriptCache with RunnableScriptModule with MetricsModule
+      ] =
+      base ++ (base >>> configAndScript)
+
+      val baseWithConfigAndScriptAndDrivers: ZLayer[
+        ZEnv,
+        Throwable,
+        Clock with Blocking with AkkaModule with PlayModule with IzanamiConfigModule with ScriptCache with Drivers with RunnableScriptModule with MetricsModule
+      ] = baseWithConfigAndScript ++
+      (baseWithConfigAndScript >>> Drivers.live)
+
+      val stores: ZLayer[
+        ZEnv,
+        Throwable,
+        Has[Patchs] with EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
+      ] =
+      baseWithConfigAndScriptAndDrivers >>> (
+        Patchs.live ++
+        EventStore.live ++
+        ExperimentVariantEventService.live ++
+        ExperimentDataStore.live ++
+        ApikeyDataStore.live ++
+        ConfigDataStore.live ++
+        FeatureDataStore.live ++
+        GlobalScriptDataStore.live ++
+        UserDataStore.live ++
+        WebhookDataStore.live
+      )
+
+      baseWithConfigAndScriptAndDrivers ++
+      AuthInfo.empty ++
+      ZLogger.live ++
+      stores
+    }
+
+    def buildContext(akkaModule: AkkaModuleProd, playModule: PlayModuleProd): HttpContext[GlobalContext] = {
+
+      val builtContext: GlobalContext = Runtime.default.unsafeRun(
+        GlobalContext
+          .live(akkaModule, playModule)
+          .build
+          .use { c =>
+            Task(c)
+          }
+      )
+
+      ZLayer.succeed(builtContext).map(_.get)
+
+    }
+  }
 }
 
 //

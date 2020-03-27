@@ -13,10 +13,11 @@ import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
 import store.Query
 import zio.{Runtime, ZIO}
+import libs.http.HttpContext
 
 class SearchController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
     implicit system: ActorSystem,
-    R: Runtime[GlobalContext]
+    R: HttpContext[GlobalContext]
 ) extends AbstractController(cc) {
 
   import libs.http._

@@ -31,10 +31,12 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.Logger
 import domains.errors.IzanamiErrors
-import zio.{RIO, Task, ZIO}
+import zio.{RIO, Task, ZIO, ZLayer}
 import libs.logs.ZLogger
 import domains.auth.AuthInfo
 import domains.auth.AuthInfo
+import domains.configuration.{AkkaModule, PlayModule}
+import env.configuration.IzanamiConfigModule
 
 package object events {
 
@@ -764,6 +766,15 @@ package object events {
 
       def start: RIO[ZLogger with AuthInfo, Unit] = Task.succeed(())
     }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, EventStore] =
+      ZLayer.fromFunction { mix =>
+        implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
+        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+        val drivers: Drivers.Service          = mix.get[Drivers.Service]
+        EventStore(izanamiConfig, drivers, playModule.configuration, playModule.applicationLifecycle)
+      }
 
     def apply(izanamiConfig: IzanamiConfig,
               drivers: Drivers.Service,

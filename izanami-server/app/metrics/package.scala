@@ -7,7 +7,10 @@ import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.webhook.WebhookDataStore
 import libs.database.Drivers
+import zio.{ULayer, URIO, ZLayer}
 import zio.blocking.Blocking
+
+import scala.concurrent.Future
 
 package object metrics {
 
@@ -71,9 +74,22 @@ package object metrics {
       val prometheusRegistry: CollectorRegistry = CollectorRegistry.defaultRegistry
       val prometheus: DropwizardExports         = new DropwizardExports(metricRegistry)
     }
-    val metricRegistry     = ZIO.access[MetricsModule](_.get.metricRegistry)
-    val prometheusRegistry = ZIO.access[MetricsModule](_.get.prometheusRegistry)
-    val prometheus         = ZIO.access[MetricsModule](_.get.prometheus)
+
+    case class MetricsModuleProd(metricRegistry: MetricRegistry) extends Service
+
+    val live: ZLayer[PlayModule, Nothing, MetricsModule] = ZLayer.fromFunction { mix =>
+      val moduleProd               = MetricsModuleProd(new MetricRegistry)
+      val play: PlayModule.Service = mix.get
+      implicit val ec              = play.ec
+      play.applicationLifecycle.addStopHook { () =>
+        Future(moduleProd.prometheusRegistry.clear())
+      }
+      moduleProd
+    }
+
+    val metricRegistry: URIO[MetricsModule, MetricRegistry]        = ZIO.access[MetricsModule](_.get.metricRegistry)
+    val prometheusRegistry: URIO[MetricsModule, CollectorRegistry] = ZIO.access[MetricsModule](_.get.prometheusRegistry)
+    val prometheus: URIO[MetricsModule, DropwizardExports]         = ZIO.access[MetricsModule](_.get.prometheus)
   }
 
   type MetricsContext = AkkaModule

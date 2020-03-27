@@ -4,18 +4,20 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import domains.configuration.GlobalContext
+import domains.configuration.{AkkaModule, GlobalContext, PlayModule}
 import domains.Key
 import libs.logs.IzanamiLogger
 import play.api.libs.json.Json
 import store.datastore.JsonDataStore
-import zio.{Task, ZIO}
+import zio.{Has, Task, ZIO, ZLayer}
 
 import scala.util.{Failure, Success}
 import env.IzanamiConfig
 import env.DbDomainConfig
 import akka.stream.scaladsl.Flow
+import domains.abtesting.events.ExperimentVariantEventServiceModule
 import domains.events.Events.IzanamiEvent
+import env.configuration.IzanamiConfigModule
 import libs.database.Drivers
 import play.api.inject.ApplicationLifecycle
 import store.memorywithdb.CacheEvent
@@ -33,6 +35,17 @@ object Patchs {
   object Patch {
     implicit val format = Json.format[Patch]
   }
+
+  def start: zio.RIO[GlobalContext, Unit] = ZIO.accessM(_.get[Patchs].run().ignore)
+
+  val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, Has[Patchs]] =
+    ZLayer.fromFunction { mix =>
+      implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val drivers: Drivers.Service          = mix.get[Drivers.Service]
+      Patchs(izanamiConfig, drivers, playModule.applicationLifecycle)
+    }
 
   def apply(izanamiConfig: IzanamiConfig, drivers: Drivers.Service, applicationLifecycle: ApplicationLifecycle)(
       implicit system: ActorSystem

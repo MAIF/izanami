@@ -8,6 +8,7 @@ import controllers.dto.error.ApiErrors
 import controllers.dto.meta.Metadata
 import domains.apikey.{ApiKeyContext, Apikey, ApikeyInstances, ApikeyService}
 import domains.{Import, ImportData, IsAllowed, Key, PatternRights}
+import libs.http.HttpContext
 import libs.patch.Patch
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
@@ -18,7 +19,7 @@ import zio.{Runtime, ZIO}
 
 class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
     implicit system: ActorSystem,
-    runtime: Runtime[ApiKeyContext]
+    runtime: HttpContext[ApiKeyContext]
 ) extends AbstractController(cc) {
 
   import libs.http._

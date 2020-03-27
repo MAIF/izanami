@@ -19,11 +19,12 @@ import play.api.http.HttpEntity
 import play.api.mvc._
 import store.Query
 import controllers.dto.error.ApiErrors
-import zio.{Runtime, ZIO}
+import zio.{ZIO}
+import libs.http.HttpContext
 
 class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
     implicit system: ActorSystem,
-    runtime: Runtime[FeatureContext]
+    runtime: HttpContext[FeatureContext]
 ) extends AbstractController(cc) {
 
   import system.dispatcher

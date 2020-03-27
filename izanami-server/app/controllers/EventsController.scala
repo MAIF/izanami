@@ -8,7 +8,7 @@ import play.api.libs.EventSource
 import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNameExtractor}
 import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
-import zio.Runtime
+import libs.http.HttpContext
 import akka.stream.scaladsl.Flow
 import scala.util.Success
 import scala.util.Failure
@@ -21,7 +21,7 @@ import domains.Key
 
 class EventsController(system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       cc: ControllerComponents)(implicit r: Runtime[EventStoreContext])
+                       cc: ControllerComponents)(implicit r: HttpContext[EventStoreContext])
     extends AbstractController(cc) {
 
   import libs.http._

@@ -1,6 +1,6 @@
 package libs
 import play.api.{MarkerContext, Logger => PlayLogger}
-import zio.{UIO, URIO, ZIO}
+import zio.{UIO, ULayer, URIO, ZIO, ZLayer}
 
 package object logs {
 
@@ -36,6 +36,8 @@ package object logs {
       ZIO.accessM(_.get.error(message))
     def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): URIO[ZLogger, Unit] =
       ZIO.accessM(_.get.error(message, error))
+
+    val live: ULayer[ZLogger] = ZLayer.succeed(new ProdLogger)
   }
 
   class ProdLogger(val logger: PlayLogger = PlayLogger("izanami")) extends ZLogger.Service {

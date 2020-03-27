@@ -10,9 +10,10 @@ import env.{Env, Oauth2Config}
 import play.api.libs.json.Json
 import play.api.mvc.{AbstractController, ControllerComponents, Cookie}
 import zio.{Runtime, ZIO}
+import libs.http.HttpContext
 
 class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: ControllerComponents)(
-    implicit R: Runtime[OAuthModule]
+    implicit R: HttpContext[OAuthModule]
 ) extends AbstractController(cc) {
 
   import libs.http._

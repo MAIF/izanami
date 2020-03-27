@@ -6,12 +6,16 @@ import domains.AuthorizedPatterns
 import domains.events.{EventStore, EventStoreContext}
 import domains._
 import domains.auth.AuthInfo
+import domains.configuration.{AkkaModule, PlayModule}
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers
 import libs.logs.ZLogger
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import store._
 import store.datastore.{JsonDataStoreHelper, _}
-import zio.{IO, RIO, URIO, ZIO}
+import store.memorywithdb.InMemoryWithDbStore
+import zio.{Has, IO, RIO, URIO, ZIO, ZLayer}
 
 package object apikey {
 
@@ -33,9 +37,21 @@ package object apikey {
 
   object ApikeyDataStore {
 
-    type Service = JsonDataStore.Service
+    trait Service {
+      def apikeyDataStore: JsonDataStore.Service
+    }
 
-    object > extends JsonDataStoreHelper[ApikeyDataStore with DataStoreContext]
+    case class ApikeyDataStoreProd(apikeyDataStore: JsonDataStore.Service) extends Service
+
+    object > extends JsonDataStoreHelper[ApikeyDataStore with DataStoreContext] {
+      override def getStore: URIO[ApikeyDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access[ApikeyDataStore with DataStoreContext](_.get[ApikeyDataStore.Service].apikeyDataStore)
+    }
+
+    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ApikeyDataStore] =
+      JsonDataStore
+        .live(c => c.apikey.db, InMemoryWithDbStore.apikeyEventAdapter)
+        .map(s => Has(ApikeyDataStoreProd(s.get)))
   }
 
   type ApiKeyContext = ZLogger with ApikeyDataStore with EventStore with AuthInfo
