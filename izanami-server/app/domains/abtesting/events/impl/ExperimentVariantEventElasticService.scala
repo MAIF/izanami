@@ -8,7 +8,8 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Sink, Source}
 import akka.{Done, NotUsed}
-import domains.{AuthInfo, Key}
+import domains.auth.AuthInfo
+import domains.Key
 import domains.abtesting._
 import domains.abtesting.events._
 import domains.errors.IzanamiErrors
@@ -186,18 +187,14 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
   }
 
   private def incrAndGetDisplayed(experimentId: String, variantId: String): IO[IzanamiErrors, Long] =
-    incrDisplayed(experimentId, variantId)
-      .flatMap { _ =>
-        getDisplayed(experimentId, variantId)
-      }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    incrDisplayed(experimentId, variantId).flatMap { _ =>
+      getDisplayed(experimentId, variantId)
+    }.orDie
 
   private def incrAndGetWon(experimentId: String, variantId: String): IO[IzanamiErrors, Long] =
-    incrWon(experimentId, variantId)
-      .flatMap { _ =>
-        getWon(experimentId, variantId)
-      }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    incrWon(experimentId, variantId).flatMap { _ =>
+      getWon(experimentId, variantId)
+    }.orDie
 
   override def create(
       id: ExperimentVariantEventKey,
@@ -207,8 +204,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       case e: ExperimentVariantDisplayed =>
         for {
           displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
-          won <- getWon(id.experimentId.key, id.variantId)
-                  .refineOrDie[IzanamiErrors](PartialFunction.empty) // get won counter
+          won       <- getWon(id.experimentId.key, id.variantId).orDie // get won counter
           transformation = if (displayed != 0) (won * 100.0) / displayed
           else 0.0
           toSave   = e.copy(transformation = transformation)
@@ -218,9 +214,8 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
         } yield result
       case e: ExperimentVariantWon =>
         for {
-          won <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-          displayed <- getDisplayed(id.experimentId.key, id.variantId)
-                        .refineOrDie[IzanamiErrors](PartialFunction.empty) // get display counter
+          won       <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
+          displayed <- getDisplayed(id.experimentId.key, id.variantId).orDie // get display counter
           transformation = if (displayed != 0) (won * 100.0) / displayed
           else 0.0
           toSave   = e.copy(transformation = transformation)
@@ -242,7 +237,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           )
       }
       .map(_ => data)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
 
   override def deleteEventsForExperiment(
       experiment: Experiment
@@ -285,7 +280,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           .runWith(Sink.ignore)
       }
       .unit
-      .refineOrDie[IzanamiErrors](PartialFunction.empty) <* (AuthInfo.authInfo flatMap (
+      .orDie <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 

@@ -7,7 +7,8 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
 import domains.apikey.Apikey
-import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.{AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.auth.AuthInfo
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore
@@ -926,23 +927,23 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   case class TestFeatureContext(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-      user: Option[AuthInfo] = None,
+      user: Option[AuthInfo.Service] = None,
       featureDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("Feature-test"),
       globalScriptDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("Feature-test"),
       scriptCache: ScriptCache = fakeCache,
       logger: Logger = new ProdLogger,
-      authInfo: Option[AuthInfo] = authInfo,
+      authInfo: Option[AuthInfo.Service] = authInfo,
       blocking: Blocking.Service[Any] = blockingInstance,
       system: ActorSystem = actorSystem,
       mat: Materializer = Materializer(actorSystem)
   ) extends FeatureContext {
-    override def eventStore: EventStore                               = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo]): FeatureContext = this.copy(user = user)
-    override def environment: Environment                             = fakeEnv
-    override def ec: ExecutionContext                                 = actorSystem.dispatcher
-    override val javaWsClient: play.libs.ws.WSClient                  = jWsClient
-    override val wSClient: play.api.libs.ws.WSClient                  = wsClient
-    override val applicationLifecycle: ApplicationLifecycle           = fakeAhcComponent.applicationLifecycle
+    override def eventStore: EventStore                                       = new TestEventStore(events)
+    override def withAuthInfo(user: Option[AuthInfo.Service]): FeatureContext = this.copy(user = user)
+    override def environment: Environment                                     = fakeEnv
+    override def ec: ExecutionContext                                         = actorSystem.dispatcher
+    override val javaWsClient: play.libs.ws.WSClient                          = jWsClient
+    override val wSClient: play.api.libs.ws.WSClient                          = wsClient
+    override val applicationLifecycle: ApplicationLifecycle                   = fakeAhcComponent.applicationLifecycle
   }
 
   private def runIsActive[T](t: ZIO[IsActiveContext, IzanamiErrors, T]): T =
@@ -957,14 +958,14 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     override val scriptCache: ScriptCache        = fakeCache
     override val globalScriptDataStore: JsonDataStore =
       new InMemoryJsonDataStore("script", TrieMap.empty[GlobalScriptKey, JsValue])
-    override val eventStore: EventStore                                    = new TestEventStore()
-    override def withAuthInfo(authInfo: Option[AuthInfo]): IsActiveContext = this
-    override def authInfo: Option[AuthInfo]                                = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
-    override val environment: Environment                                  = fakeEnv
-    override val ec: ExecutionContext                                      = actorSystem.dispatcher
-    override val javaWsClient: play.libs.ws.WSClient                       = jWsClient
-    override val wSClient: play.api.libs.ws.WSClient                       = wsClient
-    override val applicationLifecycle: ApplicationLifecycle                = fakeAhcComponent.applicationLifecycle
+    override val eventStore: EventStore                                            = new TestEventStore()
+    override def withAuthInfo(authInfo: Option[AuthInfo.Service]): IsActiveContext = this
+    override def authInfo: Option[AuthInfo.Service]                                = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
+    override val environment: Environment                                          = fakeEnv
+    override val ec: ExecutionContext                                              = actorSystem.dispatcher
+    override val javaWsClient: play.libs.ws.WSClient                               = jWsClient
+    override val wSClient: play.api.libs.ws.WSClient                               = wsClient
+    override val applicationLifecycle: ApplicationLifecycle                        = fakeAhcComponent.applicationLifecycle
   }
 
   def fakeCache: ScriptCache = new ScriptCache {

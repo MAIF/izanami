@@ -10,7 +10,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorAttributes
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
 import domains.abtesting.events.impl.ExperimentVariantEventDbStores.BlockingIO
@@ -82,7 +82,7 @@ class ExperimentVariantEventLevelDBService(
     val eventsKey: String = s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}"
     val strEvent          = Json.stringify(ExperimentVariantEventInstances.format.writes(data))
     for {
-      _        <- sadd(eventsKey, strEvent).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      _        <- sadd(eventsKey, strEvent).orDie
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield data
@@ -157,10 +157,10 @@ class ExperimentVariantEventLevelDBService(
     // format: off
     for {
       runtime   <- ZIO.runtime[ExperimentVariantEventServiceContext]
-      eventsKey <- keysT(s"$experimentseventsNamespace:${experiment.id.key}:*").refineOrDie[IzanamiErrors](PartialFunction.empty)
+      eventsKey <- keysT(s"$experimentseventsNamespace:${experiment.id.key}:*").orDie
       _         <- {  implicit val r = runtime
                       import zio.interop.catz._
-                      eventsKey.toList.traverse(key => del(key)).refineOrDie[IzanamiErrors](PartialFunction.empty) // remove events list
+                      eventsKey.toList.traverse(key => del(key)).orDie // remove events list
                    }
       authInfo  <- AuthInfo.authInfo
       _         <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))

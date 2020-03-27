@@ -10,11 +10,13 @@ import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.Timer
 import com.codahale.metrics.json.MetricsModule
 import com.google.common.base.Charsets
+import domains.auth.AuthInfo
 import domains.abtesting.ExperimentDataStore
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.{ApiKeyContext, ApikeyDataStore, ApikeyService}
 import domains.config.ConfigDataStore
-import domains.configuration.{AuthInfoModule, DriversModule, IzanamiConfigModule, PlayModule}
+import env.configuration.IzanamiConfigModule
+import domains.configuration.PlayModule
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
@@ -24,6 +26,7 @@ import domains.{AuthorizedPatterns, Key}
 import env._
 import filters.PrometheusMetricsHolder.prometheursRequestCounter
 import io.prometheus.client.{Counter, Histogram}
+import libs.database.Drivers
 import libs.logs.ZLogger
 import play.api.libs.json._
 import play.api.mvc._
@@ -174,10 +177,10 @@ class ZioIzanamiDefaultFilter(env: Mode,
     )
 
   type FilterContext = PlayModule
-    with DriversModule
+    with Drivers
     with IzanamiConfigModule
     with metrics.MetricsModule
-    with AuthInfoModule
+    with AuthInfo
     with ConfigDataStore
     with UserDataStore
     with FeatureDataStore

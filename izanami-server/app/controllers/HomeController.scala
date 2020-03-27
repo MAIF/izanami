@@ -1,7 +1,7 @@
 package controllers
 
 import controllers.actions.AuthContext
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.user.{User, UserNoPasswordInstances}
 import env.{Env, Oauth2Config}
 import play.api.libs.json.{JsObject, JsValue, Json}
@@ -81,7 +81,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
 
   def otherRoutes(anyPath: String) = index()
 
-  private def toJson(auth: Option[AuthInfo]): JsValue = auth match {
+  private def toJson(auth: Option[AuthInfo.Service]): JsValue = auth match {
     case Some(u: User) => UserNoPasswordInstances.format.writes(u).as[JsObject] - "id"
     case _             => Json.obj()
   }

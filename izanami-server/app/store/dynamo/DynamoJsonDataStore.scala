@@ -53,7 +53,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     for {
       _     <- ZLogger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
-      mayBe <- getById(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      mayBe <- getById(oldId).orDie
       _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
       _     <- ZIO.when(oldId =!= id)(delete(oldId))
       _     <- put(id, data, createOnly = oldId =!= id)
@@ -186,18 +186,16 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
     for {
       _       <- ZLogger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $query")
       runtime <- ZIO.runtime[DataStoreContext]
-      source  <- findByQuery(query).refineOrDie[IzanamiErrors](PartialFunction.empty)
-      res <- IO
-              .fromFuture { implicit ec =>
-                source
-                  .mapAsync(10) {
-                    case (id, _) =>
-                      runtime.unsafeRunToFuture(delete(id).either)
-                  }
-                  .runWith(Sink.ignore)
-                  .map(_ => ())
-              }
-              .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      source  <- findByQuery(query).orDie
+      res <- IO.fromFuture { implicit ec =>
+              source
+                .mapAsync(10) {
+                  case (id, _) =>
+                    runtime.unsafeRunToFuture(delete(id).either)
+                }
+                .runWith(Sink.ignore)
+                .map(_ => ())
+            }.orDie
     } yield res
 
   override def count(query: Query): RIO[DataStoreContext, Long] =

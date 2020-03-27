@@ -2,9 +2,11 @@ import domains.abtesting.ExperimentDataStore
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyDataStore
 import domains.configuration.AkkaModule
+import domains.auth.AuthInfo
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.webhook.WebhookDataStore
+import libs.database.Drivers
 import zio.blocking.Blocking
 
 package object metrics {
@@ -20,7 +22,7 @@ package object metrics {
   import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, ThreadStatesGaugeSet}
   import com.codahale.metrics.{ConsoleReporter, MetricRegistry, Slf4jReporter}
   import com.fasterxml.jackson.databind.ObjectMapper
-  import domains.configuration.IzanamiConfigModule
+  import env.configuration.IzanamiConfigModule
   import domains.config.ConfigDataStore
   import domains.events.EventStore
   import domains.events.impl.KafkaSettings
@@ -76,10 +78,10 @@ package object metrics {
 
   type MetricsContext = AkkaModule
     with PlayModule
-    with DriversModule
+    with Drivers
     with IzanamiConfigModule
     with MetricsModule
-    with AuthInfoModule
+    with AuthInfo
     with ApikeyDataStore
     with ConfigDataStore
     with UserDataStore
@@ -251,7 +253,7 @@ package object metrics {
 
         val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
           _       <- ZLogger.info("Enabling kafka metrics reporter")
-          drivers <- DriversModule.drivers
+          drivers <- Drivers.drivers
           client  <- ZIO.fromOption(drivers.elasticClient)
           fiber <- (this.metrics flatMap { (metrics: Metrics) =>
                     val message: String = metrics.jsonExport

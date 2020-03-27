@@ -26,8 +26,8 @@ object Healthcheck {
     ExperimentService.getById(key) *>
     ExperimentVariantEventService.check() *>
     WebhookService.getById(key) *>
-    UserService.getByIdWithoutPermissions(key).refineOrDie[IzanamiErrors](PartialFunction.empty) *>
-    ApikeyService.getByIdWithoutPermissions(key).refineOrDie[IzanamiErrors](PartialFunction.empty) *> ZIO.succeed(()))
+    UserService.getByIdWithoutPermissions(key).orDie *>
+    ApikeyService.getByIdWithoutPermissions(key).orDie *> ZIO.succeed(()))
 
     for {
       ctx    <- ZIO.environment[GlobalContext]

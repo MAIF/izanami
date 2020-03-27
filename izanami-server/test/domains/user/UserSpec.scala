@@ -1,13 +1,14 @@
 package domains.user
 
-import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.auth.AuthInfo
+import domains.{AuthorizedPatterns, ImportResult, Key, PatternRights}
 import domains.events.EventStore
 import libs.crypto.Sha
-import libs.logs.{Logger, ProdLogger}
+import libs.logs.ZLogger
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import domains.errors.{DataShouldExists, IdMustBeTheSame, IzanamiErrors, Unauthorized, ValidationError}
-import store.JsonDataStore
+import store.datastore.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
 import zio.{DefaultRuntime, Task}
@@ -618,23 +619,23 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
   }
 
   case class TestUserContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-                             user: Option[AuthInfo] = None,
+                             user: Option[AuthInfo.Service] = None,
                              userDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("user-test"),
                              logger: Logger = new ProdLogger,
-                             authInfo: Option[AuthInfo] = authInfo)
+                             authInfo: Option[AuthInfo.Service] = authInfo)
       extends UserContext {
-    override def eventStore: EventStore                            = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo]): UserContext = this.copy(user = user)
+    override def eventStore: EventStore                                    = new TestEventStore(events)
+    override def withAuthInfo(user: Option[AuthInfo.Service]): UserContext = this.copy(user = user)
   }
 
   def userContext(store: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue],
                   events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty): UserContext =
     new UserContext {
-      override def logger: Logger                                        = new ProdLogger
-      override def userDataStore: JsonDataStore                          = new InMemoryJsonDataStore("users", store)
-      override def eventStore: EventStore                                = new TestEventStore(events)
-      override def withAuthInfo(authInfo: Option[AuthInfo]): UserContext = this
-      override def authInfo: Option[AuthInfo]                            = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
+      override def logger: Logger                                                = new ProdLogger
+      override def userDataStore: JsonDataStore                                  = new InMemoryJsonDataStore("users", store)
+      override def eventStore: EventStore                                        = new TestEventStore(events)
+      override def withAuthInfo(authInfo: Option[AuthInfo.Service]): UserContext = this
+      override def authInfo: Option[AuthInfo.Service]                            = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
     }
 
 }

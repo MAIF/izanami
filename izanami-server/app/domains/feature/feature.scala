@@ -8,8 +8,9 @@ import domains.events.EventStore
 import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureInstances.isActive
 import domains.script.{GlobalScriptContext, GlobalScriptDataStore, RunnableScriptModule, Script, ScriptCache}
-import domains.configuration.{AkkaModule, AuthInfoModule, PlayModule}
-import domains.{AuthInfo, AuthorizedPatterns, ImportData, ImportResult, ImportStrategy, Key, PatternRights}
+import domains.configuration.{AkkaModule, PlayModule}
+import domains.{AuthorizedPatterns, ImportData, ImportResult, ImportStrategy, Key, PatternRights}
+import domains.auth.AuthInfo
 import libs.logs.ZLogger
 import play.api.libs.json._
 import domains.errors.{IzanamiErrors, _}
@@ -87,7 +88,7 @@ package object feature {
     with EventStore
     with GlobalScriptDataStore
     with RunnableScriptModule
-    with AuthInfoModule
+    with AuthInfo
     with Blocking
     with PlayModule
 
@@ -145,7 +146,7 @@ package object feature {
     with GlobalScriptDataStore
     with ScriptCache
     with RunnableScriptModule
-    with AuthInfoModule
+    with AuthInfo
     with Blocking
 
   object FeatureService {
@@ -196,7 +197,7 @@ package object feature {
     def getById(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Option[Feature]] =
       for {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
-        mayBeConfig  <- FeatureDataStore.>.getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBeConfig  <- FeatureDataStore.>.getById(id).orDie
         parsedConfig = mayBeConfig.flatMap(_.validate[Feature].asOpt)
       } yield parsedConfig
 
@@ -227,7 +228,7 @@ package object feature {
         nbElementPerPage: Int
     ): ZIO[FeatureContext, IzanamiErrors, PagingResult[(Feature, Boolean)]] =
       for {
-        pages <- findByQuery(query, page, nbElementPerPage).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        pages <- findByQuery(query, page, nbElementPerPage).orDie
         pagesWithActive <- pages.results.toList
                             .traverse { f =>
                               isActive(f, context)
@@ -307,10 +308,9 @@ package object feature {
       import cats.implicits._
       import IzanamiErrors._
       for {
-        _ <- AuthorizedPatterns.isAllowed(from -> PatternRights.R, to -> PatternRights.C)
-        _ <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
-        values <- findAllByQuery(Query.oneOf(from.key, (from / "*").key))
-                   .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        _        <- AuthorizedPatterns.isAllowed(from -> PatternRights.R, to -> PatternRights.C)
+        _        <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
+        values   <- findAllByQuery(Query.oneOf(from.key, (from / "*").key)).orDie
         features <- values.parTraverse { case (_, v) => copyOne(from, to, v, default) }.mapError(_.reduce)
       } yield features
     }

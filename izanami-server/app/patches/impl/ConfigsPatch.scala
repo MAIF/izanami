@@ -28,7 +28,7 @@ private[impl] object OldConfig {
 
 class ConfigsPatch(
     izanamiConfig: IzanamiConfig,
-    drivers: Drivers,
+    drivers: Drivers.Service,
     applicationLifecycle: ApplicationLifecycle
 )(implicit system: ActorSystem)
     extends PatchInstance {

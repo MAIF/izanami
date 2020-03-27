@@ -1,5 +1,6 @@
 package domains.config
-import domains.{AuthInfo, IsAllowed, Key}
+import domains.{IsAllowed, Key}
+import domains.auth.AuthInfo
 import play.api.libs.json.Json
 
 object ConfigInstances {

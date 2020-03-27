@@ -34,7 +34,7 @@ object Patchs {
     implicit val format = Json.format[Patch]
   }
 
-  def apply(izanamiConfig: IzanamiConfig, drivers: Drivers, applicationLifecycle: ApplicationLifecycle)(
+  def apply(izanamiConfig: IzanamiConfig, drivers: Drivers.Service, applicationLifecycle: ApplicationLifecycle)(
       implicit system: ActorSystem
   ): Patchs = {
     import com.softwaremill.macwire._

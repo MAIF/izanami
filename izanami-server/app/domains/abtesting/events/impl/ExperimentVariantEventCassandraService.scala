@@ -7,7 +7,7 @@ import akka.actor.ActorSystem
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Source}
 import com.datastax.driver.core.{Row, Session, SimpleStatement}
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
 import domains.abtesting.events.{ExperimentVariantEventInstances, _}
@@ -78,8 +78,7 @@ class ExperimentVariantEventCassandraService(session: Session, config: DbDomainC
       id.namespace,
       id.id,
       Json.stringify(ExperimentVariantEventInstances.format.writes(data))
-    ).map(_ => data)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    ).map(_ => data).orDie
   }
 
   override def create(
@@ -110,7 +109,7 @@ class ExperimentVariantEventCassandraService(session: Session, config: DbDomainC
             )
           }
           .unit
-          .refineOrDie[IzanamiErrors](PartialFunction.empty)
+          .orDie
       }
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))

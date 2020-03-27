@@ -8,7 +8,7 @@ import cats.data.{NonEmptyList, Validated}
 import cats.kernel.Monoid
 import domains.events.EventStore
 import domains.Key
-import domains.configuration.AuthInfoModule
+import domains.auth.AuthInfo
 import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
@@ -95,7 +95,7 @@ object Query {
 
 package object datastore {
 
-  type DataStoreContext = ZLogger with EventStore with AuthInfoModule
+  type DataStoreContext = ZLogger with EventStore with AuthInfo
 
   object DataStore {
     type DataStoreIO[A] = zio.RIO[DataStoreContext, A]
@@ -107,7 +107,7 @@ package object datastore {
 
       def upsert(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data] =
         for {
-          mayBeData <- getById(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
+          mayBeData <- getById(oldId).orDie
           result <- mayBeData match {
                      case Some(_) => update(oldId, id, data)
                      case None    => create(id, data)
@@ -136,7 +136,7 @@ package object datastore {
 
     def upsert(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data] =
       for {
-        mayBeData <- getById(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBeData <- getById(oldId).orDie
         result <- mayBeData match {
                    case Some(_) => update(oldId, id, data)
                    case None    => create(id, data)
@@ -201,7 +201,7 @@ package object datastore {
     trait Service extends DataStore[Key, JsValue]
 
     def apply(
-        drivers: Drivers,
+        drivers: Drivers.Service,
         izanamiConfig: IzanamiConfig,
         conf: DbDomainConfig,
         eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
@@ -225,7 +225,7 @@ package object datastore {
       }
 
     private def storeByType(
-        drivers: Drivers,
+        drivers: Drivers.Service,
         izanamiConfig: IzanamiConfig,
         conf: DbDomainConfig,
         dbType: DbType,

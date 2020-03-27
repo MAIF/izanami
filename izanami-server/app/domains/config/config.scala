@@ -2,6 +2,7 @@ package domains
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
+import domains.auth.AuthInfo
 import domains.apikey.ApikeyDataStore
 import domains.config.Config.ConfigKey
 import domains.events.EventStore
@@ -32,7 +33,7 @@ package object config {
     object > extends JsonDataStoreHelper[ConfigDataStore with DataStoreContext]
   }
 
-  type ConfigContext = ZLogger with ConfigDataStore with EventStore with AuthInfoModule
+  type ConfigContext = ZLogger with ConfigDataStore with EventStore with AuthInfo
 
   object ConfigService {
 
@@ -83,7 +84,7 @@ package object config {
     def getById(id: ConfigKey): ZIO[ConfigContext, IzanamiErrors, Option[Config]] =
       for {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
-        mayBeConfig  <- ConfigDataStore.>.getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBeConfig  <- ConfigDataStore.>.getById(id).orDie
         parsedConfig = mayBeConfig.flatMap(_.validate[Config].asOpt)
       } yield parsedConfig
 

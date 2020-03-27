@@ -1,7 +1,7 @@
 package libs
 import zio._
 import play.api.mvc._
-import domains.configuration.AuthInfoModule
+import domains.auth.AuthInfo
 import cats.implicits._
 import controllers.actions.{AuthContext, SecuredAuthContext}
 
@@ -9,7 +9,7 @@ object http {
 
   implicit class ActionBuilderOps[+R[_], B](ab: ActionBuilder[R, B]) {
 
-    case class AsyncTaskBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
+    case class AsyncTaskBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
       def apply(cb: R[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -22,7 +22,7 @@ object http {
         }
     }
 
-    case class AsyncZioBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
+    case class AsyncZioBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
       def apply(cb: R[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -35,14 +35,14 @@ object http {
         }
     }
 
-    def asyncTask[Ctx <: AuthInfoModule] = AsyncTaskBuilder[Ctx]()
+    def asyncTask[Ctx <: AuthInfo] = AsyncTaskBuilder[Ctx]()
 
-    def asyncZio[Ctx <: AuthInfoModule] = AsyncZioBuilder[Ctx]()
+    def asyncZio[Ctx <: AuthInfo] = AsyncZioBuilder[Ctx]()
   }
 
   implicit class SecuredActionBuilderOps[B](ab: ActionBuilder[SecuredAuthContext, B]) {
 
-    case class AsyncTaskBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
+    case class AsyncTaskBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
       def apply(cb: SecuredAuthContext[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -59,7 +59,7 @@ object http {
         }
     }
 
-    case class AsyncZioBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
+    case class AsyncZioBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
       def apply(cb: SecuredAuthContext[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -76,14 +76,14 @@ object http {
         }
     }
 
-    def asyncTask[Ctx <: AuthInfoModule] = AsyncTaskBuilder[Ctx]()
+    def asyncTask[Ctx <: AuthInfo] = AsyncTaskBuilder[Ctx]()
 
-    def asyncZio[Ctx <: AuthInfoModule] = AsyncZioBuilder[Ctx]()
+    def asyncZio[Ctx <: AuthInfo] = AsyncZioBuilder[Ctx]()
   }
 
   implicit class AuthContextBuilderOps[B](ab: ActionBuilder[AuthContext, B]) {
 
-    case class AsyncTaskBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
+    case class AsyncTaskBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
       def apply(cb: AuthContext[B] => RIO[Ctx, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -100,7 +100,7 @@ object http {
         }
     }
 
-    case class AsyncZioBuilder[Ctx <: AuthInfoModule](dummy: Boolean = false) {
+    case class AsyncZioBuilder[Ctx <: AuthInfo](dummy: Boolean = false) {
 
       def apply(cb: AuthContext[B] => ZIO[Ctx, Result, Result])(implicit r: Runtime[Ctx]): Action[B] =
         ab.async { c =>
@@ -117,9 +117,9 @@ object http {
         }
     }
 
-    def asyncTask[Ctx <: AuthInfoModule] = AsyncTaskBuilder[Ctx]()
+    def asyncTask[Ctx <: AuthInfo] = AsyncTaskBuilder[Ctx]()
 
-    def asyncZio[Ctx <: AuthInfoModule] = AsyncZioBuilder[Ctx]()
+    def asyncZio[Ctx <: AuthInfo] = AsyncZioBuilder[Ctx]()
   }
 
   implicit class RequestHeaderOps(rh: RequestHeader) {

@@ -7,15 +7,16 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
 import domains.abtesting.events.impl.ExperimentVariantEventInMemoryService
-import domains.{errors, AuthInfo, AuthorizedPatterns, Key, PatternRights}
+import domains.{errors, AuthorizedPatterns, Key, PatternRights}
+import domains.auth.AuthInfo
 import domains.apikey.Apikey
 import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated
-import libs.logs.{Logger, ProdLogger}
+import libs.logs.ZLogger
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import domains.errors.{IdMustBeTheSame, IzanamiErrors, Unauthorized, ValidationError}
-import store.JsonDataStore
+import store.datastore.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
@@ -782,8 +783,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         def blockingExecutor: ZIO[Any, Nothing, Executor] =
           ZIO.succeed(PlatformLive.Global.executor)
       }
-      override def withAuthInfo(authInfo: Option[AuthInfo]): ExperimentContext = this
-      override def authInfo: Option[AuthInfo]                                  = Some(Apikey("1", "key", "secret", authorizedPatterns, true))
+      override def withAuthInfo(authInfo: Option[AuthInfo.Service]): ExperimentContext = this
+      override def authInfo: Option[AuthInfo.Service]                                  = Some(Apikey("1", "key", "secret", authorizedPatterns, true))
     }
 
   def expEventsService(

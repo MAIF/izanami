@@ -7,7 +7,8 @@ import akka.NotUsed
 import cats.data.NonEmptyList
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
-import domains.configuration.{AkkaModule, AuthInfoModule}
+import domains.configuration.AkkaModule
+import domains.auth.AuthInfo
 import libs.logs.ZLogger
 import play.api.libs.json._
 import domains.errors.{IzanamiErrors, ValidatedResult, ValidationError}
@@ -160,7 +161,7 @@ package object abtesting {
     with ExperimentDataStore
     with ExperimentVariantEventService
     with EventStore
-    with AuthInfoModule
+    with AuthInfo
     with Blocking
 
   object ExperimentService {
@@ -232,8 +233,7 @@ package object abtesting {
       ExperimentDataStore.>.deleteAll(q)
 
     def getById(id: ExperimentKey): ZIO[ExperimentContext, IzanamiErrors, Option[Experiment]] =
-      AuthorizedPatterns.isAllowed(id, PatternRights.R) *> ExperimentDataStore.>.getById(id)
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      AuthorizedPatterns.isAllowed(id, PatternRights.R) *> ExperimentDataStore.>.getById(id).orDie
         .map(_.flatMap(_.validate[Experiment].asOpt))
 
     def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[ExperimentContext, PagingResult[Experiment]] =
@@ -317,21 +317,19 @@ package object abtesting {
         runtime <- ZIO.runtime[ExperimentContext]
         res <- AkkaModule.system.flatMap { implicit system =>
                 getById(experimentKey).flatMap { mayBeExp =>
-                  ZIO
-                    .fromFuture { _ =>
-                      Source(mayBeExp.toList)
-                        .flatMapConcat { experiment =>
-                          Source
-                            .futureSource(runtime.unsafeRunToFuture {
-                              ExperimentVariantEventService.findVariantResult(experiment)
-                            })
-                            .fold(Seq.empty[VariantResult])(_ :+ _)
-                            .map(variantsResult => ExperimentResult(experiment, variantsResult))
-                            .orElse(Source.single(ExperimentResult(experiment, Seq.empty)))
-                        }
-                        .runWith(Sink.head)
-                    }
-                    .refineOrDie[IzanamiErrors](PartialFunction.empty)
+                  ZIO.fromFuture { _ =>
+                    Source(mayBeExp.toList)
+                      .flatMapConcat { experiment =>
+                        Source
+                          .futureSource(runtime.unsafeRunToFuture {
+                            ExperimentVariantEventService.findVariantResult(experiment)
+                          })
+                          .fold(Seq.empty[VariantResult])(_ :+ _)
+                          .map(variantsResult => ExperimentResult(experiment, variantsResult))
+                          .orElse(Source.single(ExperimentResult(experiment, Seq.empty)))
+                      }
+                      .runWith(Sink.head)
+                  }.orDie
                 }
               }
       } yield res

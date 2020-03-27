@@ -14,7 +14,7 @@ import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import store._
 import store.datastore._
-import domains.configuration.AuthInfoModule
+import domains.auth.AuthInfo
 import env.Oauth2Config
 import errors.IzanamiErrors
 
@@ -22,7 +22,7 @@ import scala.util.Try
 
 package object user {
 
-  trait User extends AuthInfo {
+  trait User extends AuthInfo.Service {
     def email: String
     def admin: Boolean
     override def mayBeEmail: Option[String] = Some(email)
@@ -151,7 +151,7 @@ package object user {
     object > extends JsonDataStoreHelper[UserDataStore with DataStoreContext]
   }
 
-  type UserContext = UserDataStore with ZLogger with EventStore with AuthInfoModule
+  type UserContext = UserDataStore with ZLogger with EventStore with AuthInfo
 
   object UserService {
     import cats.implicits._
@@ -194,7 +194,7 @@ package object user {
     def updateWithoutPermission(oldId: UserKey, id: UserKey, data: User): ZIO[UserContext, IzanamiErrors, User] =
       // format: off
       for {
-        mayBeUser   <- getByIdWithoutPermissions(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBeUser   <- getByIdWithoutPermissions(oldId).orDie
         oldValue    <- ZIO.fromOption(mayBeUser).mapError(_ => DataShouldExists(oldId).toErrors)
         toUpdate    = User.updateUser(data, oldValue)
         updated     <- UserDataStore.>.update(oldId, id, UserInstances.format.writes(toUpdate))
@@ -222,25 +222,25 @@ package object user {
       UserDataStore.>.getById(id).map(_.flatMap(_.validate[User].asOpt))
 
     def getById(id: UserKey): ZIO[UserContext, IzanamiErrors, Option[User]] =
-      AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).orDie
 
     def findByQuery(query: Query,
                     page: Int,
                     nbElementPerPage: Int): ZIO[UserContext, IzanamiErrors, PagingResult[User]] =
       AuthInfo.isAdmin() *> UserDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        .orDie
 
     def findByQuery(query: Query): ZIO[UserContext, IzanamiErrors, Source[(Key, User), NotUsed]] =
       AuthInfo.isAdmin() *> UserDataStore.>.findByQuery(query)
         .map(_.readsKV[User])
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        .orDie
 
     def countWithoutPermissions(query: Query): RIO[UserContext, Long] =
       UserDataStore.>.count(query)
 
     def count(query: Query): ZIO[UserContext, IzanamiErrors, Long] =
-      AuthInfo.isAdmin() *> countWithoutPermissions(query).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      AuthInfo.isAdmin() *> countWithoutPermissions(query).orDie
 
     def importData(
         strategy: ImportStrategy = ImportStrategy.Keep

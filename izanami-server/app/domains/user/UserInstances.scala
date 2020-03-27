@@ -1,6 +1,7 @@
 package domains.user
 
-import domains.{AuthInfo, AuthorizedPatterns, IsAllowed, Key}
+import domains.{AuthorizedPatterns, IsAllowed, Key}
+import domains.auth.AuthInfo
 import play.api.libs.json._
 
 object UserNoPasswordInstances {

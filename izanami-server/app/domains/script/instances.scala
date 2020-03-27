@@ -9,7 +9,8 @@ import akka.Done
 import com.fasterxml.jackson.databind.node.ObjectNode
 import domains.configuration.PlayModule
 import domains.script.ScriptCache
-import domains.{AuthInfo, IsAllowed, Key}
+import domains.{IsAllowed, Key}
+import domains.auth.AuthInfo
 import javax.script
 import javax.script._
 import kotlin.reflect.KClass

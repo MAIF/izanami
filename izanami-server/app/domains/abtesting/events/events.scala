@@ -19,7 +19,7 @@ import domains.abtesting.events.impl.{
   ExperimentVariantEventRedisService
 }
 import domains.abtesting.{Experiment, ExperimentResultEvent, Variant, VariantResult}
-import domains.configuration.AuthInfoModule
+import domains.auth.AuthInfo
 import domains.errors.{ErrorMessage, IzanamiErrors}
 import domains.events.EventStore
 import domains.{ImportResult, Key}
@@ -179,9 +179,9 @@ package object events {
     with ZLogger
     with EventStore
     with Blocking
-    with AuthInfoModule
+    with AuthInfo
 
-  type ExperimentVariantEventServiceContext = ZLogger with EventStore with Blocking with AuthInfoModule
+  type ExperimentVariantEventServiceContext = ZLogger with EventStore with Blocking with AuthInfo
 
   object ExperimentVariantEventService {
 
@@ -253,7 +253,7 @@ package object events {
       ZIO.accessM[ExperimentVariantEventServiceModule](_.get.listAll(patterns))
 
     def check(): zio.ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.check().refineOrDie[IzanamiErrors](PartialFunction.empty))
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.check().orDie)
 
     def start: zio.RIO[ExperimentVariantEventServiceModule, Unit] =
       ZIO.accessM[ExperimentVariantEventServiceModule](_.get.start)
@@ -261,7 +261,7 @@ package object events {
     def importData(): zio.RIO[ExperimentVariantEventServiceModule, Flow[(String, JsValue), ImportResult, NotUsed]] =
       ZIO.accessM[ExperimentVariantEventServiceModule](_.get.importData)
 
-    def apply(izanamiConfig: IzanamiConfig, drivers: Drivers, applicationLifecycle: ApplicationLifecycle)(
+    def apply(izanamiConfig: IzanamiConfig, drivers: Drivers.Service, applicationLifecycle: ApplicationLifecycle)(
         implicit s: ActorSystem
     ): ExperimentVariantEventService.Service = {
       val conf = izanamiConfig.experimentEvent.db

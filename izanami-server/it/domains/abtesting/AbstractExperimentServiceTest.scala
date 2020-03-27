@@ -19,7 +19,7 @@ import scala.util.Random
 import libs.logs.ProdLogger
 import libs.logs.Logger
 import domains.user.User
-import domains.AuthInfo
+import domains.auth.AuthInfo
 
 abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with ScalaFutures with IntegrationPatience {
 
@@ -34,10 +34,10 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
     override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
       def blockingExecutor: ZIO[Any, Nothing, Executor] = ZIO.succeed(PlatformLive.Default.executor)
     }
-    override def eventStore: EventStore                                                        = new TestEventStore()
-    override def logger: Logger                                                                = new ProdLogger
-    override def withAuthInfo(authInfo: Option[AuthInfo]): ExperimentVariantEventServiceModule = this
-    override def authInfo: Option[AuthInfo]                                                    = None
+    override def eventStore: EventStore                                                                = new TestEventStore()
+    override def logger: Logger                                                                        = new ProdLogger
+    override def withAuthInfo(authInfo: Option[AuthInfo.Service]): ExperimentVariantEventServiceModule = this
+    override def authInfo: Option[AuthInfo.Service]                                                    = None
   }
   implicit val runtime: Runtime[ExperimentVariantEventServiceModule] = Runtime(context, PlatformLive.Default)
   private val random                                                 = Random

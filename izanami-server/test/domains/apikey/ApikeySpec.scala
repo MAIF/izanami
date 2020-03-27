@@ -1,6 +1,6 @@
 package domains.apikey
 
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.AuthorizedPatterns
 import domains.events.Events
 import domains.events.Events._
@@ -285,13 +285,13 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
   }
 
   case class TestApikeyContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-                               user: Option[AuthInfo] = None,
+                               user: Option[AuthInfo.Service] = None,
                                apikeyDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("apikey-test"),
                                logger: Logger = new ProdLogger,
-                               authInfo: Option[AuthInfo] = authInfo)
+                               authInfo: Option[AuthInfo.Service] = authInfo)
       extends ApiKeyContext {
-    override def eventStore: EventStore                              = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo]): ApiKeyContext = this.copy(user = user)
+    override def eventStore: EventStore                                      = new TestEventStore(events)
+    override def withAuthInfo(user: Option[AuthInfo.Service]): ApiKeyContext = this.copy(user = user)
   }
 
 }

@@ -9,7 +9,7 @@ import domains.Domain.Domain
 import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
 import domains._
-import domains.configuration.AuthInfoModule
+import domains.auth.AuthInfo
 import domains.webhook.notifications.WebHooksActor
 import env.WebhookConfig
 import libs.ziohelper.JsResults.jsResultToError
@@ -44,7 +44,7 @@ package object webhook {
     object > extends JsonDataStoreHelper[WebhookDataStore with DataStoreContext]
   }
 
-  type WebhookContext = WebhookDataStore with ZLogger with EventStore with AuthInfoModule
+  type WebhookContext = WebhookDataStore with ZLogger with EventStore with AuthInfo
 
   object WebhookService {
 
@@ -103,8 +103,7 @@ package object webhook {
       } yield parsedHook
 
     def getById(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Option[Webhook]] =
-      AuthorizedPatterns.isAllowed(id, PatternRights.R) *> getByIdWithoutPermissions(id)
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      AuthorizedPatterns.isAllowed(id, PatternRights.R) *> getByIdWithoutPermissions(id).orDie
 
     def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[WebhookContext, PagingResult[Webhook]] =
       WebhookDataStore.>.findByQuery(query, page, nbElementPerPage)

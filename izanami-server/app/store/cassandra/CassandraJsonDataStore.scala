@@ -71,8 +71,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     )
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
-    getByIdRaw(id)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    getByIdRaw(id).orDie
       .flatMap {
         case Some(_) =>
           ZIO.fail(DataShouldNotExists(id).toErrors)
@@ -85,17 +84,14 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
       s"INSERT INTO $keyspace.$namespaceFormatted (namespace, id, key, value) values (?, ?, ?, ?) IF NOT EXISTS "
 
     val args = Seq(namespaceFormatted, id.key, id.key, Json.stringify(data))
-    executeWithSessionT(query, args: _*)
-      .map { _ =>
-        data
-      }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    executeWithSessionT(query, args: _*).map { _ =>
+      data
+    }.orDie
   }
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     if (oldId.key === id.key) {
-      getByIdRaw(id)
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      getByIdRaw(id).orDie
         .flatMap {
           case Some(_) => updateRaw(id: Key, data)
           case None    => ZIO.fail(DataShouldExists(id).toErrors)
@@ -113,12 +109,11 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     val args = Seq(Json.stringify(data), namespaceFormatted, id.key)
     executeWithSessionT(query, args: _*)
       .map(_ => data)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
   }
 
   override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
-    getByIdRaw(id)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    getByIdRaw(id).orDie
       .flatMap {
         case Some(d) => deleteRaw(id).map(_ => d)
         case None    => IO.fail(DataShouldExists(id).toErrors)
@@ -131,8 +126,7 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     executeWithSessionT(
       query,
       args: _*
-    ).map(_ => ())
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    ).map(_ => ()).orDie
   }
 
   override def getById(id: Key): RIO[DataStoreContext, Option[JsValue]] =
@@ -200,29 +194,27 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
     } else {
       for {
         runtime <- ZIO.runtime[DataStoreContext]
-        res <- IO
-                .fromFuture { implicit ec =>
-                  val query =
-                    s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
-                  IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
-                  val stmt: Statement =
-                    new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
-                  CassandraSource(stmt)
-                    .map { rs =>
-                      (rs.getString("namespace"), rs.getString("id"))
-                    }
-                    .filter { case (_, k) => Query.keyMatchQuery(Key(k), q) }
-                    .mapAsync(4) {
-                      case (n, id) =>
-                        val query =
-                          s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
-                        Seq(n, id)
-                        runtime.unsafeRunToFuture(executeWithSessionT(query, n, id))
-                    }
-                    .runFold(0)((acc, _) => acc + 1)
-                    .map(_ => ())
-                }
-                .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        res <- IO.fromFuture { implicit ec =>
+                val query =
+                  s"SELECT namespace, id, value FROM $keyspace.$namespaceFormatted WHERE namespace = ? "
+                IzanamiLogger.debug(s"Running query $query with args [$namespaceFormatted]")
+                val stmt: Statement =
+                  new SimpleStatement(query, namespaceFormatted).setFetchSize(200)
+                CassandraSource(stmt)
+                  .map { rs =>
+                    (rs.getString("namespace"), rs.getString("id"))
+                  }
+                  .filter { case (_, k) => Query.keyMatchQuery(Key(k), q) }
+                  .mapAsync(4) {
+                    case (n, id) =>
+                      val query =
+                        s"DELETE FROM $keyspace.$namespaceFormatted WHERE namespace = ? AND id = ? IF EXISTS "
+                      Seq(n, id)
+                      runtime.unsafeRunToFuture(executeWithSessionT(query, n, id))
+                  }
+                  .runFold(0)((acc, _) => acc + 1)
+                  .map(_ => ())
+              }.orDie
       } yield res
     }
 

@@ -11,8 +11,8 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import org.scalatest.BeforeAndAfterAll
 import domains.apikey.Apikey
-import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
-
+import domains.{AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.auth.AuthInfo
 import scala.collection.mutable
 import store.memory.InMemoryJsonDataStore
 import libs.logs.ProdLogger
@@ -268,13 +268,13 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   }
 
   case class TestWebhookContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-                                user: Option[AuthInfo] = None,
+                                user: Option[AuthInfo.Service] = None,
                                 webhookDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("webhook-test"),
                                 logger: Logger = new ProdLogger,
-                                authInfo: Option[AuthInfo] = authInfo)
+                                authInfo: Option[AuthInfo.Service] = authInfo)
       extends WebhookContext {
-    override def eventStore: EventStore                               = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo]): WebhookContext = this.copy(user = user)
+    override def eventStore: EventStore                                       = new TestEventStore(events)
+    override def withAuthInfo(user: Option[AuthInfo.Service]): WebhookContext = this.copy(user = user)
   }
 
 }

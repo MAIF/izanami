@@ -10,12 +10,13 @@ import akka.stream.{ActorMaterializer, Materializer}
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.codahale.metrics.MetricRegistry
-import domains.{AuthInfo, Key}
-import domains.abtesting.ExperimentVariantEventService
+import domains.Key
+import domains.auth.AuthInfo
+import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApiKeyContext
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
-import domains.script.Script.ScriptCache
+import domains.script.Script
 import env.{
   ApiKeyHeaders,
   ApikeyConfig,
@@ -104,7 +105,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
       def blockingExecutor: ZIO[Any, Nothing, Executor] =
         ZIO.succeed(Executor.makeDefault(20))
     }
-    override def drivers: Drivers = ???
+    override def drivers: Drivers.Service = ???
   }
 
   implicit val r: Runtime[ApiKeyContext with MetricsContext] = Runtime(env, PlatformLive.Default)

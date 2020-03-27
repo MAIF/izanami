@@ -83,7 +83,7 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
             }
           }
       }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
   }
 
   override def events(domains: Seq[Domain],

@@ -1,7 +1,8 @@
 package domains.config
 
 import domains.apikey.Apikey
-import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRight, PatternRights}
+import domains.{AuthorizedPatterns, ImportResult, Key, PatternRight, PatternRights}
+import domains.auth.AuthInfo
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore

@@ -5,7 +5,7 @@ import akka.stream.scaladsl.{Flow, Source}
 import domains.AuthorizedPatterns
 import domains.events.{EventStore, EventStoreContext}
 import domains._
-import domains.configuration.AuthInfoModule
+import domains.auth.AuthInfo
 import libs.logs.ZLogger
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
@@ -20,7 +20,7 @@ package object apikey {
                     clientSecret: String,
                     authorizedPatterns: AuthorizedPatterns,
                     admin: Boolean = false)
-      extends AuthInfo {
+      extends AuthInfo.Service {
     override def mayBeEmail: Option[String] = None
     override def id: String                 = clientId
   }
@@ -38,7 +38,7 @@ package object apikey {
     object > extends JsonDataStoreHelper[ApikeyDataStore with DataStoreContext]
   }
 
-  type ApiKeyContext = ZLogger with ApikeyDataStore with EventStore with AuthInfoModule
+  type ApiKeyContext = ZLogger with ApikeyDataStore with EventStore with AuthInfo
 
   object ApikeyService {
 
@@ -88,7 +88,7 @@ package object apikey {
         .map(_.flatMap(_.validate[Apikey].asOpt))
 
     def getById(id: ApikeyKey): ZIO[ApiKeyContext, IzanamiErrors, Option[Apikey]] =
-      AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      AuthInfo.isAdmin() *> getByIdWithoutPermissions(id).orDie
 
     def findByQuery(query: Query,
                     page: Int,
@@ -96,18 +96,18 @@ package object apikey {
       AuthInfo
         .isAdmin() *> ApikeyDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        .orDie
 
     def findByQuery(query: Query): ZIO[ApiKeyContext, IzanamiErrors, Source[(Key, Apikey), NotUsed]] =
       AuthInfo.isAdmin() *> ApikeyDataStore.>.findByQuery(query)
         .map(_.readsKV[Apikey])
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        .orDie
 
     def countWithoutPermissions(query: Query): RIO[ApiKeyContext, Long] =
       ApikeyDataStore.>.count(query)
 
     def count(query: Query): ZIO[ApiKeyContext, IzanamiErrors, Long] =
-      AuthInfo.isAdmin() *> countWithoutPermissions(query).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      AuthInfo.isAdmin() *> countWithoutPermissions(query).orDie
 
     def importData(
         strategy: ImportStrategy = ImportStrategy.Keep

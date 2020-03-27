@@ -102,7 +102,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
 
     val value: IO[IzanamiErrors, Result[JsValue]] = result
       .transact(xa)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
     value.absolve
   }
 
@@ -134,7 +134,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
 
     val value: IO[IzanamiErrors, Result[JsValue]] = result
       .transact(xa)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
     value.absolve
   }
 
@@ -154,7 +154,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
 
     val value: IO[IzanamiErrors, Result[JsValue]] = result
       .transact(xa)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
     value.absolve
   }
 
@@ -197,7 +197,7 @@ class PostgresqlJsonDataStore(client: PostgresqlClient, namespace: String) exten
     val q = sql"delete from " ++ fragTableName ++ whereAnd(queryClause(query))
     val value: IO[IzanamiErrors, Int] = q.update.run
       .transact(xa)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
     value.unit
   }
 

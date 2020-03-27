@@ -5,9 +5,10 @@ import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.Sink
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
-import domains.{errors, AuthInfo, Key}
+import domains.{errors, Key}
+import domains.auth.AuthInfo
 import domains.events.EventStore
-import libs.logs.{Logger, ProdLogger}
+import libs.logs.ZLogger
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.{JsValue, Json}
@@ -28,10 +29,10 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
   implicit val ec: ExecutionContext = system.dispatcher
   private val context = new DataStoreContext {
-    override def eventStore: EventStore                                     = new TestEventStore()
-    override def logger: Logger                                             = new ProdLogger
-    override def withAuthInfo(authInfo: Option[AuthInfo]): DataStoreContext = this
-    override def authInfo: Option[AuthInfo]                                 = None
+    override def eventStore: EventStore                                             = new TestEventStore()
+    override def logger: Logger                                                     = new ProdLogger
+    override def withAuthInfo(authInfo: Option[AuthInfo.Service]): DataStoreContext = this
+    override def authInfo: Option[AuthInfo.Service]                                 = None
   }
   implicit val runtime: Runtime[DataStoreContext] = Runtime(context, PlatformLive.Default)
   private val random                              = Random

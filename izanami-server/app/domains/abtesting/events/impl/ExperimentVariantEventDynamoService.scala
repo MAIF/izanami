@@ -10,7 +10,8 @@ import akka.stream.alpakka.dynamodb._
 import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, _}
-import domains.{AuthInfo, Key}
+import domains.auth.AuthInfo
+import domains.Key
 import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
@@ -79,14 +80,12 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
   }
 
   private def createEvent(request: UpdateItemRequest): IO[IzanamiErrors, UpdateItemResult] =
-    ZIO
-      .fromFuture { _ =>
-        DynamoDb
-          .source(request)
-          .withAttributes(DynamoAttributes.client(client))
-          .runWith(Sink.head)
-      }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    ZIO.fromFuture { _ =>
+      DynamoDb
+        .source(request)
+        .withAttributes(DynamoAttributes.client(client))
+        .runWith(Sink.head)
+    }.orDie
 
   override def deleteEventsForExperiment(
       experiment: Experiment
@@ -115,7 +114,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
           .via(delete)
           .runWith(Sink.ignore)
       }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .unit
 
     for {

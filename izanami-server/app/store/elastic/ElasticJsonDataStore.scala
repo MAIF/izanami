@@ -105,19 +105,19 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
     if (oldId === id) {
       // format: off
       for {
-        mayBe <- getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBe <- getById(id).orDie
         _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- IO.fromFuture { implicit ec => index.index[EsDocument](EsDocument(id, data),
                                                                         id = Some(id.key),
                                                                         refresh = elasticConfig.automaticRefresh)
                   }
                   .map { _ => data }
-                  .refineOrDie[IzanamiErrors](PartialFunction.empty)
+                  .orDie
       } yield data
       // format: on
     } else {
       for {
-        mayBe <- getById(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBe <- getById(oldId).orDie
         _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- delete(oldId)
         _     <- create(id, data)
@@ -126,11 +126,11 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
     for {
-      mayBe <- getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      mayBe <- getById(id).orDie
       value <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(id).toErrors)
       _ <- IO
             .fromFuture(implicit ec => index.delete(id.key, refresh = elasticConfig.automaticRefresh))
-            .refineOrDie[IzanamiErrors](PartialFunction.empty)
+            .orDie
     } yield value
 
   override def getById(id: Key): Task[Option[JsValue]] = {
@@ -231,7 +231,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
           IO.succeed(())
         }
       }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
 
   override def count(q: Query): Task[Long] = {
     val query = buildSearchQuery(q) ++ Json.obj(

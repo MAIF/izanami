@@ -108,8 +108,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   }
 
   override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
-    getByKeyId(id)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    getByKeyId(id).orDie
       .flatMap {
         case Some(_) =>
           IO.fail(DataShouldNotExists(id).toErrors)
@@ -117,29 +116,27 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
         case None =>
           zioFromCs(command().set(buildKey(id).key, Json.stringify(data)))
             .map(_ => data)
-            .refineOrDie[IzanamiErrors](PartialFunction.empty)
+            .orDie
       }
 
   private def rawUpdate(id: Key, data: JsValue) =
-    zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).refineOrDie[IzanamiErrors](PartialFunction.empty)
+    zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).orDie
 
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     for {
-      mayBe <- getByKeyId(oldId: Key).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      mayBe <- getByKeyId(oldId: Key).orDie
       _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
       _ <- IO.when(oldId =!= id)(
-            zioFromCs(command().del(buildKey(oldId).key)).refineOrDie[IzanamiErrors](PartialFunction.empty)
+            zioFromCs(command().del(buildKey(oldId).key)).orDie
           )
       _ <- if (oldId === id) rawUpdate(id, data) else create(id, data)
     } yield data
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
-    getByKeyId(id)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    getByKeyId(id).orDie
       .flatMap {
         case Some(value) =>
-          zioFromCs(command().del(buildKey(id).key))
-            .refineOrDie[IzanamiErrors](PartialFunction.empty)
+          zioFromCs(command().del(buildKey(id).key)).orDie
             .map(_ => value)
         case None =>
           IO.fail(DataShouldExists(id).toErrors)
@@ -162,7 +159,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
                 .runWith(Sink.ignore)
         )
       )
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .unit
 
   override def getById(id: Key): Task[Option[JsValue]] =

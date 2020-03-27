@@ -64,30 +64,28 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     mongoApi.database.map(_.collection[JSONCollection](collectionName))
   }
   private def storeCollectionIO: IO[IzanamiErrors, JSONCollection] =
-    storeCollectionT.refineOrDie[IzanamiErrors](PartialFunction.empty)
+    storeCollectionT.orDie
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     for {
       _     <- ZLogger.debug(s"Creating $id => $data")
       coll  <- storeCollectionIO
-      mayBe <- getByIdRaw(id)(coll).refineOrDie[IzanamiErrors](PartialFunction.empty)
+      mayBe <- getByIdRaw(id)(coll).orDie
       _     <- IO.fromOption(mayBe).flip.mapError(_ => DataShouldNotExists(id).toErrors)
-      res <- IO
-              .fromFuture { implicit ec =>
-                coll
-                  .insert(ordered = false, WriteConcern.Acknowledged)
-                  .one(MongoDoc(id, data))
-                  .map { _ =>
-                    data
-                  }
-              }
-              .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      res <- IO.fromFuture { implicit ec =>
+              coll
+                .insert(ordered = false, WriteConcern.Acknowledged)
+                .one(MongoDoc(id, data))
+                .map { _ =>
+                  data
+                }
+            }.orDie
     } yield res
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     storeCollectionIO.flatMap { implicit coll =>
       for {
-        mayBe <- getByIdRaw(oldId).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBe <- getByIdRaw(oldId).orDie
         _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _     <- ZIO.when(oldId =!= id)(deleteRaw(oldId))
         _     <- if (oldId === id) updateRaw(id, data) else createRaw(id, data)
@@ -96,7 +94,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
 
   override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     storeCollectionIO.flatMap { implicit collection: JSONCollection =>
-      getByIdRaw(id).refineOrDie[IzanamiErrors](PartialFunction.empty).flatMap {
+      getByIdRaw(id).orDie.flatMap {
         case Some(data) => deleteRaw(id).map(_ => data)
         case None       => IO.fail(DataShouldExists(id).toErrors)
       }
@@ -106,7 +104,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     IO.fromFuture { implicit ec =>
         collection.delete.one(Json.obj("id" -> id.key))
       }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .map(_ => ())
 
   private def updateRaw(id: Key, data: JsValue)(
@@ -115,7 +113,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     IO.fromFuture { implicit ec =>
         collection.update.one(Json.obj("id" -> id.key), MongoDoc(id, data), upsert = true)
       }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .map(_ => data)
 
   private def createRaw(id: Key, data: JsValue)(
@@ -124,7 +122,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
     IO.fromFuture { implicit ec =>
         collection.insert.one(MongoDoc(id, data))
       }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .map(_ => data)
 
   private def getByIdRaw(id: Key)(implicit collection: JSONCollection): RIO[DataStoreContext, Option[JsValue]] =
@@ -202,7 +200,7 @@ class MongoJsonDataStore(namespace: String, mongoApi: ReactiveMongoApi)(implicit
               deleteBuilder.many(List(toDelete))
             }
           }
-          .refineOrDie[IzanamiErrors](PartialFunction.empty)
+          .orDie
           .map(_ => ())
       }
 

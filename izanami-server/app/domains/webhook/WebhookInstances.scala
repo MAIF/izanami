@@ -2,7 +2,8 @@ package domains.webhook
 import java.time.LocalDateTime
 
 import domains.webhook.Webhook.WebhookKey
-import domains.{AuthInfo, Domain, IsAllowed, Key}
+import domains.{Domain, IsAllowed, Key}
+import domains.auth.AuthInfo
 
 object WebhookInstances {
 

@@ -178,7 +178,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
 
     "check is allowed" in {
 
-      val authModule = new AuthInfoModule[String] with LoggerModule {
+      val authModule = new AuthInfo[String] with LoggerModule {
         override def authInfo: Option[AuthInfo] =
           Some(OauthUser("1", "john.doe", "john.doe@gmail.fr", true, AuthorizedPatterns.All))
         override def withAuthInfo(user: Option[AuthInfo]): String = ???
@@ -193,7 +193,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
 
     "check is not allowed" in {
 
-      val authModule = new AuthInfoModule[String] with LoggerModule {
+      val authModule = new AuthInfo[String] with LoggerModule {
         override def authInfo: Option[AuthInfo] =
           Some(
             OauthUser("1",
@@ -216,7 +216,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       import IzanamiErrors._
       import cats.implicits._
       import zio.interop.catz._
-      val authModule = new AuthInfoModule[String] with LoggerModule {
+      val authModule = new AuthInfo[String] with LoggerModule {
         override def authInfo: Option[AuthInfo] =
           Some(
             OauthUser("1",
@@ -231,7 +231,7 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
 
       val r = Runtime(authModule, PlatformLive.Default)
 
-      val combined: ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
+      val combined: ZIO[LoggerModule with AuthInfo[_], IzanamiErrors, Unit] =
         AuthorizedPatterns.isAllowed(Key("test1") -> PatternRights.U, Key("test2") -> PatternRights.U)
 
       val res: Either[IzanamiErrors, Unit] = r.unsafeRun(combined.either)

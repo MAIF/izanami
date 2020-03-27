@@ -20,7 +20,7 @@ import zio.Runtime
 
 import scala.concurrent.duration.DurationDouble
 import domains.user.User
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import store.memorywithdb.InMemoryWithDbStore
 
 class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with IntegrationPatience {
@@ -104,10 +104,10 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
   def buildRuntime: Runtime[DataStoreContext] = {
     val module = new DataStoreContext {
-      override def eventStore: EventStore                                     = new BasicEventStore
-      override def logger: Logger                                             = new ProdLogger
-      override def withAuthInfo(authInfo: Option[AuthInfo]): DataStoreContext = this
-      override def authInfo: Option[AuthInfo]                                 = None
+      override def eventStore: EventStore                                             = new BasicEventStore
+      override def logger: Logger                                                     = new ProdLogger
+      override def withAuthInfo(authInfo: Option[AuthInfo.Service]): DataStoreContext = this
+      override def authInfo: Option[AuthInfo.Service]                                 = None
     }
     Runtime(module, PlatformLive.Default)
   }

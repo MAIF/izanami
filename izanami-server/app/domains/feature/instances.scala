@@ -1,7 +1,8 @@
 package domains.feature
 import java.time.{LocalDateTime, ZoneId}
 
-import domains.{AuthInfo, IsAllowed, Key}
+import domains.{IsAllowed, Key}
+import domains.auth.AuthInfo
 import domains.script._
 import domains.errors.{IzanamiErrors, ValidationError}
 import FeatureType._
@@ -83,7 +84,7 @@ object GlobalScriptFeatureInstances {
                      case ScriptExecutionSuccess(result, _) => result
                      case _                                 => false
                    }
-                   .refineOrDie[IzanamiErrors](PartialFunction.empty)
+                   .orDie
         } yield exec
     }
 }
@@ -120,7 +121,7 @@ object ScriptFeatureInstances {
           case ScriptExecutionSuccess(result, _) => result
           case _                                 => false
         }
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        .orDie
   }
 }
 

@@ -56,7 +56,7 @@ package object modules {
 
     IzanamiLogger.info(s"Starting Izanami with java ${System.getProperty("java.version")}")
 
-    lazy val izanamiConfig: IzanamiConfig            = IzanamiConfig(configuration)
+    lazy val izanamiConfig: IzanamiConfig            = IzanamiConfig.fromConfig(configuration).toOption.get
     lazy val mayBeOauth2Config: Option[Oauth2Config] = izanamiConfig.oauth2.filter(_.enabled)
 
     implicit val system: ActorSystem = actorSystem
@@ -78,7 +78,7 @@ package object modules {
     val authAction: ActionBuilder[AuthContext, AnyContent]                       = wire[AuthAction]
     val securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
 
-    lazy val drivers: Drivers               = Drivers(izanamiConfig, configuration, applicationLifecycle)
+    lazy val drivers: Drivers.Service       = Drivers(izanamiConfig, configuration, applicationLifecycle)
     lazy val metricRegistry: MetricRegistry = wire[MetricRegistry]
 
     implicit lazy val playScriptCache: CacheService[String] = new PlayScriptCache(defaultCacheApi)

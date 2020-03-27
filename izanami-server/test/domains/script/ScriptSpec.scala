@@ -27,7 +27,8 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import domains.events.EventStore
 import test.TestEventStore
-import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.{AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.auth.AuthInfo
 import store.memory.InMemoryJsonDataStore
 
 import scala.collection.mutable
@@ -346,20 +347,20 @@ class ScriptSpec
 
   case class TestGlobalScriptContext(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-      user: Option[AuthInfo] = None,
+      user: Option[AuthInfo.Service] = None,
       globalScriptDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("globalScript-test"),
       logger: Logger = new ProdLogger,
-      authInfo: Option[AuthInfo] = authInfo,
+      authInfo: Option[AuthInfo.Service] = authInfo,
       scriptCache: ScriptCache = fakeCache,
       blocking: Blocking.Service[Any] = blockingInstance
   ) extends GlobalScriptContext {
-    override def eventStore: EventStore                                    = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo]): GlobalScriptContext = this.copy(user = user)
-    override def environment: Environment                                  = testComponents.environment
-    override def ec: ExecutionContext                                      = testComponents.actorSystem.dispatcher
-    override def javaWsClient: WSClient                                    = testComponents.wsJavaClient
-    override def wSClient: play.api.libs.ws.WSClient                       = testComponents.wsClient
-    override def applicationLifecycle: ApplicationLifecycle                = testComponents.applicationLifecycle
+    override def eventStore: EventStore                                            = new TestEventStore(events)
+    override def withAuthInfo(user: Option[AuthInfo.Service]): GlobalScriptContext = this.copy(user = user)
+    override def environment: Environment                                          = testComponents.environment
+    override def ec: ExecutionContext                                              = testComponents.actorSystem.dispatcher
+    override def javaWsClient: WSClient                                            = testComponents.wsJavaClient
+    override def wSClient: play.api.libs.ws.WSClient                               = testComponents.wsClient
+    override def applicationLifecycle: ApplicationLifecycle                        = testComponents.applicationLifecycle
   }
 
   case class TestComponent(context: Context)

@@ -2,7 +2,8 @@ package domains
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import domains.configuration.{AuthInfoModule, PlayModule}
+import domains.configuration.PlayModule
+import domains.auth.AuthInfo
 import domains.events.EventStore
 import libs.logs.ZLogger
 import play.api.libs.json._
@@ -120,7 +121,7 @@ package object script {
     with ScriptCache
     with GlobalScriptDataStore
     with RunnableScriptModule
-    with AuthInfoModule
+    with AuthInfo
     with Blocking
 
   object GlobalScriptService {
@@ -175,7 +176,7 @@ package object script {
     def getById(id: GlobalScriptKey): ZIO[GlobalScriptContext, IzanamiErrors, Option[GlobalScript]] =
       for {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.R)
-        mayBeScript  <- GlobalScriptDataStore.>.getById(id).refineOrDie[IzanamiErrors](PartialFunction.empty)
+        mayBeScript  <- GlobalScriptDataStore.>.getById(id).orDie
         parsedScript = mayBeScript.flatMap(_.validate[GlobalScript].asOpt)
       } yield parsedScript
 

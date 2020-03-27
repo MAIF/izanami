@@ -5,29 +5,26 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{FileIO, Sink, Source}
 import akka.util.ByteString
-import cats.data.NonEmptyList
 import cats.implicits._
 import cats.kernel.Eq
 import cats.kernel.Monoid
-import com.codahale.metrics.MetricRegistry
-import domains.PatternRight.{Create, Delete, Read, Update}
-import domains.abtesting.{ExperimentContext, ExperimentDataStore}
+import env.configuration.IzanamiConfigModule
+import domains.abtesting.ExperimentDataStore
 import domains.abtesting.events.ExperimentVariantEventService
-import domains.apikey.{ApiKeyContext, ApikeyDataStore}
-import domains.config.{ConfigContext, ConfigDataStore}
-import domains.configuration.AuthInfoModule
+import domains.apikey.ApikeyDataStore
+import domains.config.ConfigDataStore
+import domains.auth.AuthInfo
 import domains.events.EventStore
-import domains.feature.{FeatureContext, FeatureDataStore}
-import domains.script.{GlobalScriptContext, GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
+import domains.feature.FeatureDataStore
+import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.user.UserDataStore
-import domains.webhook.{WebhookContext, WebhookDataStore}
+import domains.webhook.WebhookDataStore
 import env.{DbDomainConfig, IzanamiConfig}
 import libs.database.Drivers
-import libs.logs.{IzanamiLogger, ProdLogger, ZLogger}
-import play.api.Environment
+import libs.logs.{IzanamiLogger, ZLogger}
+import play.api.{Configuration, Environment}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
-import play.api.libs.json.Reads.pattern
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParser
 
@@ -35,13 +32,13 @@ import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 import store.{EmptyPattern, Pattern, StringPattern}
-import store.memorywithdb.InMemoryWithDbStore
 import errors._
-import zio.{IO, RIO, Task, UIO, URIO, ZIO}
+import zio.{Has, IO, Layer, RIO, Task, ULayer, URIO, ZIO, ZLayer}
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.internal.Executor
-import metrics.{MetricsContext, MetricsModule}
+import metrics.MetricsModule
+import play.api.libs.ws.WSClient
+import play.libs.ws
 
 object configuration {
 
@@ -55,22 +52,17 @@ object configuration {
 
     def mat: URIO[AkkaModule, Materializer]   = ZIO.access[AkkaModule](_.get.mat)
     def system: URIO[AkkaModule, ActorSystem] = ZIO.access[AkkaModule](_.get.system)
-  }
 
-  type AuthInfoModule = zio.Has[AuthInfoModule.Service]
+    case class AkkaModuleImpl(system: ActorSystem, mat: Materializer) extends Service
 
-  object AuthInfoModule {
-    trait Service {
-      def authInfo: Option[AuthInfo]
-    }
-
-    def authInfo: URIO[AuthInfoModule, Option[AuthInfo]] = ZIO.access[AuthInfoModule](_.get.authInfo)
+    def live(system: ActorSystem, mat: Materializer): ULayer[AkkaModule] = ZLayer.succeed(AkkaModuleImpl(system, mat))
   }
 
   type PlayModule = zio.Has[PlayModule.Service]
 
   object PlayModule {
     trait Service {
+      def configuration: Configuration
       def environment: Environment
       def wSClient: play.api.libs.ws.WSClient
       def javaWsClient: play.libs.ws.WSClient
@@ -78,39 +70,32 @@ object configuration {
       def applicationLifecycle: ApplicationLifecycle
     }
 
-    def environment          = ZIO.access[PlayModule](_.get.environment)
-    def wSClient             = ZIO.access[PlayModule](_.get.wSClient)
-    def javaWsClient         = ZIO.access[PlayModule](_.get.javaWsClient)
-    def ec                   = ZIO.access[PlayModule](_.get.ec)
-    def applicationLifecycle = ZIO.access[PlayModule](_.get.applicationLifecycle)
-  }
+    case class PlayModuleProd(
+        configuration: Configuration,
+        environment: Environment,
+        wSClient: play.api.libs.ws.WSClient,
+        javaWsClient: play.libs.ws.WSClient,
+        ec: ExecutionContext,
+        applicationLifecycle: ApplicationLifecycle
+    ) extends Service
 
-  type IzanamiConfigModule = zio.Has[IzanamiConfigModule.Service]
+    def live(playModule: PlayModuleProd): ULayer[PlayModule] = ZLayer.succeed(playModule)
 
-  object IzanamiConfigModule {
-    trait Service {
-      def izanamiConfig: IzanamiConfig
-    }
-
-    def izanamiConfig: URIO[IzanamiConfigModule, IzanamiConfig] = ZIO.access[IzanamiConfigModule](_.get.izanamiConfig)
-  }
-
-  type DriversModule = zio.Has[DriversModule.Service]
-
-  object DriversModule {
-    trait Service {
-      def drivers: Drivers
-    }
-    def drivers = ZIO.access[DriversModule](_.get.drivers)
+    def environment: URIO[PlayModule, Environment]  = ZIO.access[PlayModule](_.get.environment)
+    def wSClient: URIO[PlayModule, WSClient]        = ZIO.access[PlayModule](_.get.wSClient)
+    def javaWsClient: URIO[PlayModule, ws.WSClient] = ZIO.access[PlayModule](_.get.javaWsClient)
+    def ec: URIO[PlayModule, ExecutionContext]      = ZIO.access[PlayModule](_.get.ec)
+    def applicationLifecycle: URIO[PlayModule, ApplicationLifecycle] =
+      ZIO.access[PlayModule](_.get.applicationLifecycle)
   }
 
   type GlobalContext =
     AkkaModule
       with PlayModule
-      with DriversModule
+      with Drivers
       with IzanamiConfigModule
       with MetricsModule
-      with AuthInfoModule
+      with AuthInfo
       with ZLogger
       with ConfigDataStore
       with FeatureDataStore
@@ -131,7 +116,7 @@ object configuration {
 //trait GlobalContext
 //    extends AkkaModule
 //    with ZLogger
-//    with DriversModule
+//    with Drivers
 //    with IzanamiConfigModule
 //    with MetricsContext
 //    with ConfigContext
@@ -142,7 +127,7 @@ object configuration {
 //    with WebhookContext
 //    with ExperimentContext
 //    with OAuthModule
-//    with AuthInfoModule[GlobalContext]
+//    with AuthInfo[GlobalContext]
 //    with Clock.Live
 //
 //case class ProdGlobalContext(
@@ -169,10 +154,10 @@ object configuration {
 //    getScriptCache: () => ScriptCache,
 //    blocking: Blocking.Service[Any],
 //    override val clock: Clock.Service[Any],
-//    override val authInfo: Option[AuthInfo]
+//    override val authInfo: Option[AuthInfo.Service]
 //) extends GlobalContext {
 //  override def scriptCache = getScriptCache()
-//  override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
+//  override def withAuthInfo(authInfo: Option[AuthInfo.Service]): GlobalContext =
 //    this.copy(authInfo = authInfo)
 //}
 //
@@ -256,9 +241,9 @@ object configuration {
 //        ZIO.succeed(Executor.fromExecutionContext(20)(actorSystem.dispatchers.lookup("izanami.blocking-dispatcher")))
 //    }
 //
-//    override def authInfo: Option[AuthInfo] = None
+//    override def authInfo: Option[AuthInfo.Service] = None
 //
-//    override def withAuthInfo(authInfo: Option[AuthInfo]): GlobalContext =
+//    override def withAuthInfo(authInfo: Option[AuthInfo.Service]): GlobalContext =
 //      ProdGlobalContext(
 //        system,
 //        mat,
@@ -349,63 +334,6 @@ object ImportResult {
     case Right(_)     => ImportResult(success = 1)
     case Left(errors) => ImportResult(errors = errors.toList)
   }
-
-}
-
-trait AuthInfo {
-  def authorizedPatterns: AuthorizedPatterns
-  def id: String
-  def name: String
-  def mayBeEmail: Option[String]
-  def admin: Boolean
-}
-
-object AuthInfo {
-  def authInfo: zio.URIO[AuthInfoModule, Option[AuthInfo]] = ZIO.access[AuthInfoModule](_.get.authInfo)
-
-  import AuthorizedPatterns._
-  import play.api.libs.json._
-  import play.api.libs.functional.syntax._
-
-  implicit val format = Format(
-    {
-      (
-        (__ \ "id").read[String] and
-        (__ \ "authorizedPattern").read[AuthorizedPatterns] and
-        (__ \ "name").read[String] and
-        (__ \ "mayBeEmail").readNullable[String] and
-        (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
-      )(
-        (anId: String, aPattern: AuthorizedPatterns, aName: String, anEmail: Option[String], anAdmin: Boolean) =>
-          new AuthInfo {
-            def authorizedPatterns: AuthorizedPatterns = aPattern
-            def id: String                             = anId
-            def name: String                           = aName
-            def mayBeEmail: Option[String]             = anEmail
-            def admin: Boolean                         = anAdmin
-        }
-      )
-    }, {
-      (
-        (__ \ "id").write[String] and
-        (__ \ "authorizedPattern").write[AuthorizedPatterns] and
-        (__ \ "name").write[String] and
-        (__ \ "mayBeEmail").writeNullable[String] and
-        (__ \ "admin").write[Boolean]
-      )(unlift[AuthInfo, (String, AuthorizedPatterns, String, Option[String], Boolean)] { info =>
-        Some((info.id, info.authorizedPatterns, info.name, info.mayBeEmail, info.admin))
-      })
-    }
-  )
-
-  def isAdmin(): ZIO[ZLogger with AuthInfoModule, IzanamiErrors, Unit] =
-    for {
-      authInfo <- AuthInfo.authInfo
-      res <- ZIO.when(!authInfo.exists(_.admin)) {
-              ZLogger.debug(s"${authInfo} is not admin") *>
-              IO.fail(IzanamiErrors(Unauthorized(None)))
-            }
-    } yield res
 
 }
 
@@ -538,9 +466,11 @@ object Node {
 }
 
 trait IsAllowed[T] {
-  def isAllowed(value: T, right: PatternRights)(auth: Option[AuthInfo]): Boolean
+  def isAllowed(value: T, right: PatternRights)(auth: Option[AuthInfo.Service]): Boolean
 
-  def isAllowed[R](value: T, right: PatternRights, auth: Option[AuthInfo])(ifNotAllowed: => R): zio.IO[R, Unit] =
+  def isAllowed[R](value: T, right: PatternRights, auth: Option[AuthInfo.Service])(
+      ifNotAllowed: => R
+  ): zio.IO[R, Unit] =
     isAllowed(value, right)(auth) match {
       case true  => zio.IO.succeed(())
       case false => zio.IO.fail(ifNotAllowed)

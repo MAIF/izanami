@@ -6,7 +6,7 @@ import java.time.temporal.ChronoUnit
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.implicits._
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events.{ExperimentVariantEventInstances, _}
 import domains.errors.IzanamiErrors
@@ -75,7 +75,7 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainCo
     val json = ExperimentVariantEventInstances.format.writes(data)
     (sql"insert into " ++ fragTableName ++ fr" (id, experiment_id, variant_id, payload) values (${id.key}, ${id.experimentId},  ${id.variantId}, $json)").update.run
       .transact(xa)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .map { _ =>
         data
       } <* (AuthInfo.authInfo flatMap (
@@ -90,7 +90,7 @@ class ExperimentVariantEventPostgresqlService(client: PostgresqlClient, domainCo
   ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] =
     (sql"delete from " ++ fragTableName ++ fr" where experiment_id = ${experiment.id}").update.run
       .transact(xa)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .unit <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))

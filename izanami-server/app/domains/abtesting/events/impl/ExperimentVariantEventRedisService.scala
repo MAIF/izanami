@@ -9,7 +9,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.OptionT
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events._
 import domains.errors.IzanamiErrors
@@ -96,7 +96,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
                        Json.stringify(ExperimentVariantEventInstances.format.writes(data))
                      )
                    )
-               }.refineOrDie[IzanamiErrors](PartialFunction.empty)
+               }.orDie
                  .map { _ =>
                    data
                  } // add event
@@ -180,7 +180,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
             .runWith(Sink.ignore)
         }
         .unit
-        .refineOrDie[IzanamiErrors](PartialFunction.empty)
+        .orDie
 
     for {
       r        <- deletes

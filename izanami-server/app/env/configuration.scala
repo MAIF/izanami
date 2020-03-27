@@ -8,8 +8,11 @@ import domains.AuthorizedPatterns
 import play.api.Configuration
 import play.api.libs.ws.WSProxyServer
 import pureconfig._
+import pureconfig.error.ConfigReaderFailures
+import zio.{URIO, ZIO, ZLayer, ZManaged}
 
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 sealed trait DbType
 case object Cassandra      extends DbType with Product with Serializable
@@ -41,6 +44,21 @@ object EventStoreType {
   val inMemory    = "InMemory"
   val distributed = "Distributed"
   val kafka       = "Kafka"
+}
+
+package object configuration {
+
+  type IzanamiConfigModule = zio.Has[IzanamiConfigModule.Service]
+
+  object IzanamiConfigModule {
+    trait Service {
+      def izanamiConfig: IzanamiConfig
+    }
+
+    def izanamiConfig: URIO[IzanamiConfigModule, IzanamiConfig] = ZIO.access[IzanamiConfigModule](_.get.izanamiConfig)
+  }
+
+  def live(configuration: Configuration) = ZLayer(ZManaged.fromEither(IzanamiConfig.fromConfig(configuration)))
 }
 
 object IzanamiConfig {
@@ -83,8 +101,12 @@ object IzanamiConfig {
       addr => s"${addr.getHostString}:${addr.getPort}"
     )
 
-  def apply(configuration: Configuration): IzanamiConfig =
-    ConfigSource.fromConfig(configuration.underlying).at("izanami").loadOrThrow[IzanamiConfig]
+  def fromConfig(configuration: Configuration): Either[ConfigReaderFailures, IzanamiConfig] =
+    ConfigSource
+      .fromConfig(configuration.underlying)
+      .at("izanami")
+      .load[IzanamiConfig]
+
 }
 
 case class IzanamiConfig(

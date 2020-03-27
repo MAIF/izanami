@@ -26,7 +26,7 @@ class BasicEventStore(implicit system: ActorSystem) extends EventStore.Service {
     Task {
       system.eventStream.publish(event)
       Done
-    }.refineOrDie[IzanamiErrors](PartialFunction.empty)
+    }.orDie
 
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],

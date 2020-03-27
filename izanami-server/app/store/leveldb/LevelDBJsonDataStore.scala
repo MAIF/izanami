@@ -134,8 +134,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   }
 
   override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
-    getById(id)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    getById(id).orDie
       .flatMap {
         case Some(_) =>
           IO.fail(DataShouldNotExists(id).toErrors)
@@ -143,12 +142,11 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
           toAsync {
             client.put(bytes(id.key), bytes(Json.stringify(data)))
             data
-          }.refineOrDie[IzanamiErrors](PartialFunction.empty)
+          }.orDie
       }
 
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
-    toAsync { Try(client.get(bytes(oldId.key))).toOption.flatMap(s => Option(asString(s))) }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    toAsync { Try(client.get(bytes(oldId.key))).toOption.flatMap(s => Option(asString(s))) }.orDie
       .flatMap {
         case Some(_) =>
           client.delete(bytes(oldId.key))
@@ -159,14 +157,13 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
       }
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
-    getById(id)
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+    getById(id).orDie
       .flatMap {
         case Some(value) =>
           toAsync {
             client.delete(bytes(id.key))
             value
-          }.refineOrDie[IzanamiErrors](PartialFunction.empty)
+          }.orDie
         case None =>
           IO.fail(DataShouldExists(id).toErrors)
       }
@@ -218,16 +215,14 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   override def deleteAll(query: Query): IO[IzanamiErrors, Unit] =
     for {
       runtime <- ZIO.runtime[Any]
-      res <- Task
-              .fromFuture { implicit ec =>
-                keys(query)
-                  .mapAsync(4)(id => runtime.unsafeRunToFuture(delete(id).either))
-                  .runWith(Sink.ignore)
-                  .map { _ =>
-                    ()
-                  }
-              }
-              .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      res <- Task.fromFuture { implicit ec =>
+              keys(query)
+                .mapAsync(4)(id => runtime.unsafeRunToFuture(delete(id).either))
+                .runWith(Sink.ignore)
+                .map { _ =>
+                  ()
+                }
+            }.orDie
     } yield res
 
   override def count(query: Query): Task[Long] =

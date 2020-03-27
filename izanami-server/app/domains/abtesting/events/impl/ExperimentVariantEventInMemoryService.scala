@@ -6,7 +6,7 @@ import java.time.temporal.ChronoUnit
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
 import domains.abtesting.events._
@@ -50,11 +50,9 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
   ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] =
-    ZIO
-      .fromFuture { _ =>
-        (store ? AddEvent(id.experimentId.key, id.variantId, data)).mapTo[ExperimentVariantEvent]
-      }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty) <* (AuthInfo.authInfo flatMap (
+    ZIO.fromFuture { _ =>
+      (store ? AddEvent(id.experimentId.key, id.variantId, data)).mapTo[ExperimentVariantEvent]
+    }.orDie <* (AuthInfo.authInfo flatMap (
         authInfo =>
           EventStore.publish(
             ExperimentVariantEventCreated(id, data, authInfo = authInfo)
@@ -69,7 +67,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
         (store ? DeleteEvents(experiment.id.key)).mapTo[Done]
       }
       .unit
-      .refineOrDie[IzanamiErrors](PartialFunction.empty) <* (AuthInfo.authInfo flatMap (
+      .orDie <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 

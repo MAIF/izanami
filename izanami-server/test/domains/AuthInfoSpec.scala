@@ -13,7 +13,7 @@ class AuthInfoSpec extends IzanamiSpec {
   "AuthInfo" must {
     "is admin" in {
 
-      val authModule = new AuthInfoModule[String] with LoggerModule {
+      val authModule = new AuthInfo[String] with LoggerModule {
         override def authInfo: Option[AuthInfo] =
           Some(
             OauthUser("1",
@@ -33,7 +33,7 @@ class AuthInfoSpec extends IzanamiSpec {
 
     "is not admin" in {
 
-      val authModule = new AuthInfoModule[String] with LoggerModule {
+      val authModule = new AuthInfo[String] with LoggerModule {
         override def authInfo: Option[AuthInfo] =
           Some(
             OauthUser("1",

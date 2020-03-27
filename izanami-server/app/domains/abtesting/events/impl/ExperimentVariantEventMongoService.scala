@@ -7,7 +7,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting._
 import domains.abtesting.events.{ExperimentVariantEventInstances, ExperimentVariantEventKeyInstances, _}
@@ -97,7 +97,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
               .one(ExperimentVariantEventDocument(id, id.experimentId, id.variantId, data))
           )
       }
-      .refineOrDie[IzanamiErrors](PartialFunction.empty)
+      .orDie
       .map(_ => data)
 
   override def deleteEventsForExperiment(
@@ -111,7 +111,7 @@ class ExperimentVariantEventMongoService(namespace: String, mongoApi: ReactiveMo
           )
       }
       .unit
-      .refineOrDie[IzanamiErrors](PartialFunction.empty) <* (AuthInfo.authInfo flatMap (
+      .orDie <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 

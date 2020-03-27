@@ -9,6 +9,7 @@ import controllers.actions.SecuredAuthContext
 import controllers.dto.feature.CopyRequest
 import controllers.dto.feature.FeatureListResult
 import controllers.dto.meta.Metadata
+import domains.auth.AuthInfo
 import domains.feature.{Feature, FeatureContext, FeatureInstances, FeatureService}
 import domains._
 import domains.feature.Feature.FeatureKey
@@ -201,7 +202,7 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
       checkFeatureWithcontext(id, ctx.auth, ctx.body)
     }
 
-  private def checkFeatureWithcontext(id: String, user: Option[AuthInfo], contextJson: JsValue) = {
+  private def checkFeatureWithcontext(id: String, user: Option[AuthInfo.Service], contextJson: JsValue) = {
     val key = Key(id)
     for {
       context   <- jsResultToHttpResponse(contextJson.validate[JsObject])
