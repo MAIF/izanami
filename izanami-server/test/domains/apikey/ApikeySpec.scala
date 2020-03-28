@@ -2,12 +2,10 @@ package domains.apikey
 
 import domains.auth.AuthInfo
 import domains.AuthorizedPatterns
-import domains.events.Events
+import domains.events.{EventStore, Events}
 import domains.events.Events._
-import domains.events.EventStore
 import domains.Key
-import libs.logs.Logger
-import libs.logs.ProdLogger
+import libs.logs.ZLogger
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
 
@@ -22,7 +20,7 @@ import play.api.libs.json.{JsSuccess, Json}
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import cats.data.NonEmptyList
-import zio.Task
+import zio.{Task, ZLayer}
 import domains.ImportResult
 
 class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience {
@@ -80,15 +78,17 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
   "ApikeyService" must {
 
     "create" in {
-      val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+      val id              = Key("clientId")
+      val events          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx             = testApikeyContext(events = events, apikeyDataStore = apikeyDataStore)
+      val apikey          = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val created = run(ctx)(ApikeyService.create(id, apikey))
       created must be(apikey)
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 1
-      inside(ctx.events.head) {
+      apikeyDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 1
+      inside(events.head) {
         case ApikeyCreated(i, k, _, _, auth) =>
           i must be(id)
           k must be(apikey)
@@ -97,29 +97,33 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     }
 
     "create forbidden" in {
-      val id     = Key("clientId")
-      val ctx    = TestApikeyContext(authInfo = authInfo(admin = false))
+      val id              = Key("clientId")
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx =
+        testApikeyContext(apikeyDataStore = apikeyDataStore, user = authInfo(admin = false))
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val value = run(ctx)(ApikeyService.create(id, apikey).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(None)))
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
+      apikeyDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
-      val id     = Key("test")
-      val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+      val id              = Key("test")
+      val events          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx             = testApikeyContext(events = events, apikeyDataStore = apikeyDataStore)
+      val apikey          = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val created = run(ctx)(ApikeyService.create(id, apikey).either)
       created must be(Left(IdMustBeTheSame(Key("clientId"), id).toErrors))
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      apikeyDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "update if data not exists" in {
       val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
+      val ctx    = testApikeyContext()
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val updated = run(ctx)(ApikeyService.update(id, id, apikey).either)
@@ -127,9 +131,11 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     }
 
     "update" in {
-      val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+      val id              = Key("clientId")
+      val events          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx             = testApikeyContext(events = events, apikeyDataStore = apikeyDataStore)
+      val apikey          = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val test = for {
         _       <- ApikeyService.create(id, apikey)
@@ -138,9 +144,9 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
       val updated = run(ctx)(test)
       updated must be(apikey)
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      apikeyDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 2
+      inside(events.last) {
         case ApikeyUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
           oldValue must be(apikey)
@@ -150,21 +156,24 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     }
 
     "update forbidden" in {
-      val id     = Key("clientId")
-      val ctx    = TestApikeyContext(authInfo = authInfo(admin = false))
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+      val id              = Key("clientId")
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx             = testApikeyContext(apikeyDataStore = apikeyDataStore, user = authInfo(admin = false))
+      val apikey          = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val value = run(ctx)(ApikeyService.update(id, id, apikey).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(None)))
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
+      apikeyDataStore.inMemoryStore.contains(id) must be(false)
 
     }
 
     "update changing id" in {
-      val id     = Key("clientId")
-      val newId  = Key("clientId2")
-      val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+      val id              = Key("clientId")
+      val newId           = Key("clientId2")
+      val events          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx             = testApikeyContext(events = events, apikeyDataStore = apikeyDataStore)
+      val apikey          = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val test = for {
         _       <- ApikeyService.create(id, apikey)
@@ -172,10 +181,10 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       } yield updated
 
       val updated = run(ctx)(test)
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.apikeyDataStore.inMemoryStore.contains(newId) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      apikeyDataStore.inMemoryStore.contains(id) must be(false)
+      apikeyDataStore.inMemoryStore.contains(newId) must be(true)
+      events must have size 2
+      inside(events.last) {
         case ApikeyUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(newId)
           oldValue must be(apikey)
@@ -185,9 +194,11 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     }
 
     "delete" in {
-      val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+      val id              = Key("clientId")
+      val events          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx             = testApikeyContext(events = events, apikeyDataStore = apikeyDataStore)
+      val apikey          = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val test = for {
         _       <- ApikeyService.create(id, apikey)
@@ -195,9 +206,9 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
       } yield deleted
 
       val deleted = run(ctx)(test)
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      apikeyDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 2
+      inside(events.last) {
         case ApikeyDeleted(i, oldValue, _, _, auth) =>
           i must be(id)
           oldValue must be(apikey)
@@ -206,29 +217,32 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
     }
 
     "delete forbidden" in {
-      val id     = Key("clientId")
-      val ctx    = TestApikeyContext(authInfo = authInfo(admin = false))
-      val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
+      val id              = Key("clientId")
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx =
+        testApikeyContext(apikeyDataStore = apikeyDataStore, user = authInfo(admin = false))
 
       val value = run(ctx)(ApikeyService.delete(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(None)))
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
+      apikeyDataStore.inMemoryStore.contains(id) must be(false)
 
     }
 
     "delete empty data" in {
-      val id  = Key("clientId")
-      val ctx = TestApikeyContext()
+      val id              = Key("clientId")
+      val events          = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val apikeyDataStore = new InMemoryJsonDataStore("apikey-test")
+      val ctx             = testApikeyContext(events = events, apikeyDataStore = apikeyDataStore)
 
       val deleted = run(ctx)(ApikeyService.delete(id).either)
       deleted must be(Left(DataShouldExists(id).toErrors))
-      ctx.apikeyDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      apikeyDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "import data" in {
       val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
+      val ctx    = testApikeyContext()
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val res = run(ctx)(ApikeyService.importData().flatMap { flow =>
@@ -243,7 +257,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
     "import data invalid format" in {
       val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
+      val ctx    = testApikeyContext()
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val res = run(ctx)(ApikeyService.importData().flatMap { flow =>
@@ -261,7 +275,7 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
     "import data data exist" in {
       val id     = Key("clientId")
-      val ctx    = TestApikeyContext()
+      val ctx    = testApikeyContext()
       val apikey = Apikey("clientId", "name", "secret", AuthorizedPatterns.All)
 
       val test = for {
@@ -284,14 +298,12 @@ class ApikeySpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
 
   }
 
-  case class TestApikeyContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-                               user: Option[AuthInfo.Service] = None,
-                               apikeyDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("apikey-test"),
-                               logger: Logger = new ProdLogger,
-                               authInfo: Option[AuthInfo.Service] = authInfo)
-      extends ApiKeyContext {
-    override def eventStore: EventStore                                      = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo.Service]): ApiKeyContext = this.copy(user = user)
-  }
+  def testApikeyContext(
+      events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
+      user: Option[AuthInfo.Service] = authInfo,
+      apikeyDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("apikey-test")
+  ): ZLayer[Any, Throwable, ApiKeyContext] =
+    ZLogger.live ++ ApikeyDataStore.value(apikeyDataStore) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
+      .optValue(user)
 
 }

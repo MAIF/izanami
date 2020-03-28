@@ -1,11 +1,10 @@
 package domains
 
 import fs2.Pipe
-import libs.logs.{Logger, LoggerModule, ProdLogger}
+import libs.logs.ZLogger
 import play.api.libs.json.{JsObject, JsValue, Json}
 import errors.IzanamiErrors
 import test.IzanamiSpec
-import zio.internal.PlatformLive
 import zio.{Runtime, Task}
 
 import scala.collection.mutable
@@ -18,9 +17,7 @@ object Viking {
 
 class ImportDataSpec extends IzanamiSpec {
 
-  private val runtime = Runtime(new LoggerModule {
-    override def logger: Logger = new ProdLogger
-  }, PlatformLive.Default)
+  private val runtime = Runtime.default
 
   "Import data" must {
     "replace current data" in {
@@ -37,15 +34,16 @@ class ImportDataSpec extends IzanamiSpec {
         Task {
           datas += (key -> v)
           v
-        }.refineToOrDie[IzanamiErrors]
+        }.orDie
 
       val importPipe: Pipe[Task, (String, JsValue), ImportResult] = runtime.unsafeRun(
         ImportData
-          .importData[LoggerModule, String, Viking](ImportStrategy.Replace,
-                                                    _.id,
-                                                    key => Task(datas.get(key)).refineToOrDie[IzanamiErrors],
-                                                    insert,
-                                                    insert)
+          .importData[ZLogger, String, Viking](ImportStrategy.Replace,
+                                               _.id,
+                                               key => Task(datas.get(key)).orDie,
+                                               insert,
+                                               insert)
+          .provideLayer(ZLogger.live)
       )
 
       val dataStream: Stream[zio.Task, (String, JsObject)] = Stream(

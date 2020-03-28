@@ -10,11 +10,12 @@ import play.api.libs.json._
 import domains.errors.IzanamiErrors
 import store._
 import store.datastore._
-import zio.{Has, RIO, Task, URIO, ZIO, ZLayer}
+import zio.{Has, Layer, RIO, Task, ULayer, URIO, ZIO, ZLayer}
 
 import scala.reflect.ClassTag
 import domains.errors.{DataShouldExists, IdMustBeTheSame}
 import domains.script.GlobalScriptDataStore
+import domains.script.RunnableScriptModule.RunnableScriptModuleProd
 import env.configuration.IzanamiConfigModule
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
 import libs.database.Drivers
@@ -51,6 +52,11 @@ package object script {
       def scriptCache: CacheService[String]
     }
 
+    def value(cache: CacheService[String]): ULayer[ScriptCache] =
+      ZLayer.succeed(new Service {
+        override def scriptCache: CacheService[String] = cache
+      })
+
     val live: ZLayer[PlayModule, Nothing, ScriptCache] = ZLayer.fromFunction { mix =>
       val cache = new PlayScriptCache(mix.get.defaultCacheApi)
       new Service {
@@ -85,6 +91,19 @@ package object script {
                                         kotlinScriptEngine: ScriptEngine)
         extends Service
 
+    object RunnableScriptModuleProd {
+      def apply(classLoader: ClassLoader): RunnableScriptModuleProd = {
+        val scriptEngineManager = new ScriptEngineManager(classLoader)
+        val javascriptScriptEngine =
+          scriptEngineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable]
+        val scalaScriptEngine: Option[ScriptEngine with Invocable] = Option(
+          scriptEngineManager.getEngineByName("scala").asInstanceOf[ScriptEngine with Invocable]
+        )
+        lazy val kotlinScriptEngine: ScriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
+        RunnableScriptModuleProd(scriptEngineManager, javascriptScriptEngine, scalaScriptEngine, kotlinScriptEngine)
+      }
+    }
+
     def scriptEngineManager: URIO[RunnableScriptModule, ScriptEngineManager] =
       ZIO.access[RunnableScriptModule](_.get.scriptEngineManager)
     def javascriptScriptEngine: URIO[RunnableScriptModule, ScriptEngine with Invocable] =
@@ -95,15 +114,10 @@ package object script {
       ZIO.access[RunnableScriptModule](_.get.kotlinScriptEngine)
 
     val live: ZLayer[PlayModule, Nothing, RunnableScriptModule] = ZLayer.fromFunction { mix =>
-      val scriptEngineManager = new ScriptEngineManager(mix.get.environment.classLoader)
-      val javascriptScriptEngine =
-        scriptEngineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable]
-      val scalaScriptEngine: Option[ScriptEngine with Invocable] = Option(
-        scriptEngineManager.getEngineByName("scala").asInstanceOf[ScriptEngine with Invocable]
-      )
-      lazy val kotlinScriptEngine: ScriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
-      RunnableScriptModuleProd(scriptEngineManager, javascriptScriptEngine, scalaScriptEngine, kotlinScriptEngine)
+      RunnableScriptModuleProd(mix.get.environment.classLoader)
     }
+    def value(runnableScriptModule: RunnableScriptModuleProd): ULayer[RunnableScriptModule] =
+      ZLayer.succeed(runnableScriptModule)
   }
 
 //  trait RunnableScriptContext extends ScriptCacheModule with Blocking with ZLogger with PlayModule {
@@ -151,6 +165,9 @@ package object script {
           _.get[GlobalScriptDataStore.Service].globalScriptDataStore
         )
     }
+
+    def value(globalScriptDataStore: JsonDataStore.Service): ZLayer[Any, Nothing, GlobalScriptDataStore] =
+      ZLayer.succeed(GlobalScriptDataStoreProd(globalScriptDataStore))
 
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, GlobalScriptDataStore] =
       JsonDataStore

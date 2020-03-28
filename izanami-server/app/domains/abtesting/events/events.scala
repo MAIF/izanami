@@ -264,6 +264,9 @@ package object events {
     def importData(): zio.RIO[ExperimentVariantEventServiceModule, Flow[(String, JsValue), ImportResult, NotUsed]] =
       ZIO.accessM[ExperimentVariantEventServiceModule](_.get.importData)
 
+    def value(store: ExperimentVariantEventService.Service): ZLayer[Any, Nothing, ExperimentVariantEventService] =
+      ZLayer.succeed(store)
+
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule,
                      Nothing,
                      ExperimentVariantEventService] =

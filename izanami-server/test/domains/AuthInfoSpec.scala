@@ -3,51 +3,36 @@ package domains
 import cats.data.NonEmptyList
 import domains.errors.{IzanamiErrors, Unauthorized}
 import domains.user.OauthUser
-import libs.logs.{Logger, LoggerModule, ProdLogger}
+import libs.logs.ZLogger
 import test.IzanamiSpec
-import zio.Runtime
-import zio.internal.PlatformLive
+import zio.{Layer, Runtime, ZEnv, ZLayer}
+import domains.auth.AuthInfo
 
 class AuthInfoSpec extends IzanamiSpec {
+
+  def testLayer(admin: Boolean = false): Layer[Throwable, AuthInfo] = AuthInfo.value(
+    OauthUser("1",
+              "john.doe",
+              "john.doe@gmail.fr",
+              admin,
+              AuthorizedPatterns(AuthorizedPattern("test", PatternRights.R)))
+  )
 
   "AuthInfo" must {
     "is admin" in {
 
-      val authModule = new AuthInfo[String] with LoggerModule {
-        override def authInfo: Option[AuthInfo] =
-          Some(
-            OauthUser("1",
-                      "john.doe",
-                      "john.doe@gmail.fr",
-                      true,
-                      AuthorizedPatterns(AuthorizedPattern("test", PatternRights.R)))
-          )
-        override def withAuthInfo(user: Option[AuthInfo]): String = ???
-        override def logger: Logger                               = new ProdLogger
-      }
+      val authModule: ZLayer[Any, Throwable, AuthInfo with ZLogger] = (testLayer(true) ++ ZLogger.live)
 
-      val r                                = Runtime(authModule, PlatformLive.Default)
-      val res: Either[IzanamiErrors, Unit] = r.unsafeRun(AuthInfo.isAdmin().either)
+      val res: Either[IzanamiErrors, Unit] =
+        Runtime.default.unsafeRun(AuthInfo.isAdmin().either.provideSomeLayer[ZEnv](authModule))
       res must be(Right(()))
     }
 
     "is not admin" in {
+      val authModule: ZLayer[Any, Throwable, AuthInfo with ZLogger] = (testLayer() ++ ZLogger.live)
 
-      val authModule = new AuthInfo[String] with LoggerModule {
-        override def authInfo: Option[AuthInfo] =
-          Some(
-            OauthUser("1",
-                      "john.doe",
-                      "john.doe@gmail.fr",
-                      false,
-                      AuthorizedPatterns(AuthorizedPattern("test", PatternRights.R)))
-          )
-        override def withAuthInfo(user: Option[AuthInfo]): String = ???
-        override def logger: Logger                               = new ProdLogger
-      }
-
-      val r                                = Runtime(authModule, PlatformLive.Default)
-      val res: Either[IzanamiErrors, Unit] = r.unsafeRun(AuthInfo.isAdmin().either)
+      val res: Either[IzanamiErrors, Unit] =
+        Runtime.default.unsafeRun(AuthInfo.isAdmin().either.provideSomeLayer[ZEnv](authModule))
       res must be(Left(NonEmptyList.of(Unauthorized(None))))
     }
   }

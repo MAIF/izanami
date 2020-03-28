@@ -148,6 +148,9 @@ package object feature {
         ZIO.access[FeatureDataStore with DataStoreContext](_.get[FeatureDataStore.Service].featureDataStore)
     }
 
+    def value(featureDataStore: JsonDataStore.Service): ZLayer[Any, Nothing, FeatureDataStore] =
+      ZLayer.succeed(FeatureDataStoreProd(featureDataStore))
+
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, FeatureDataStore] =
       JsonDataStore
         .live(c => c.features.db, InMemoryWithDbStore.featureEventAdapter)

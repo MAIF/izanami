@@ -7,7 +7,6 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, Json}
 import test.IzanamiSpec
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import org.scalatest.BeforeAndAfterAll
 import domains.apikey.Apikey
@@ -15,8 +14,7 @@ import domains.{AuthorizedPatterns, ImportResult, Key, PatternRights}
 import domains.auth.AuthInfo
 import scala.collection.mutable
 import store.memory.InMemoryJsonDataStore
-import libs.logs.ProdLogger
-import libs.logs.Logger
+import libs.logs.ZLogger
 import domains.events.EventStore
 import test.TestEventStore
 import domains.events.Events
@@ -64,15 +62,17 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "WebhookService" must {
 
     "create" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(id, "http://localhost:8080")
 
       val created = run(ctx)(WebhookService.create(id, webhook))
       created must be(webhook)
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 1
-      inside(ctx.events.head) {
+      webhookDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 1
+      inside(events.head) {
         case WebhookCreated(i, k, _, _, auth) =>
           i must be(id)
           k must be(webhook)
@@ -81,40 +81,48 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "create forbidden" in {
-      val id      = Key("test")
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val webhook          = Webhook(id, "http://localhost:8080")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
       val ctx =
-        TestWebhookContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+        testWebhookContext(events, webhookDataStore, authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(WebhookService.create(id, webhook).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
+      webhookDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(Key("other"), "http://localhost:8080")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(Key("other"), "http://localhost:8080")
 
       val created = run(ctx)(WebhookService.create(id, webhook).either)
       created must be(Left(IdMustBeTheSame(webhook.clientId, id).toErrors))
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      webhookDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "update if data not exists" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(id, "http://localhost:8080")
 
       val updated = run(ctx)(WebhookService.update(id, id, webhook).either)
       updated must be(Left(DataShouldExists(id).toErrors))
     }
 
     "update" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(id, "http://localhost:8080")
 
       val test = for {
         _       <- WebhookService.create(id, webhook)
@@ -123,9 +131,9 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val updated = run(ctx)(test)
       updated must be(webhook)
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      webhookDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 2
+      inside(events.last) {
         case WebhookUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
           oldValue must be(webhook)
@@ -135,21 +143,25 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "update forbidden" in {
-      val id      = Key("test")
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val webhook          = Webhook(id, "http://localhost:8080")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
       val ctx =
-        TestWebhookContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+        testWebhookContext(events, webhookDataStore, authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(WebhookService.update(id, id, webhook).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
+      webhookDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "update changing id" in {
-      val id      = Key("test")
-      val newId   = Key("test2")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val newId            = Key("test2")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(id, "http://localhost:8080")
 
       val test = for {
         _       <- WebhookService.create(id, webhook)
@@ -157,10 +169,10 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield updated
 
       val updated = run(ctx)(test)
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.webhookDataStore.inMemoryStore.contains(newId) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      webhookDataStore.inMemoryStore.contains(id) must be(false)
+      webhookDataStore.inMemoryStore.contains(newId) must be(true)
+      events must have size 2
+      inside(events.last) {
         case WebhookUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(newId)
           oldValue must be(webhook)
@@ -170,9 +182,11 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "delete" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(id, "http://localhost:8080")
 
       val test = for {
         _       <- WebhookService.create(id, webhook)
@@ -180,9 +194,9 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield deleted
 
       run(ctx)(test)
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      webhookDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 2
+      inside(events.last) {
         case WebhookDeleted(i, oldValue, _, _, auth) =>
           i must be(id)
           oldValue must be(webhook)
@@ -191,29 +205,35 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "delete forbidden" in {
-      val id = Key("test")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
       val ctx =
-        TestWebhookContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+        testWebhookContext(events, webhookDataStore, authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(WebhookService.delete(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
+      webhookDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "delete empty data" in {
-      val id  = Key("test")
-      val ctx = TestWebhookContext()
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
 
       val deleted = run(ctx)(WebhookService.delete(id).either)
       deleted must be(Left(DataShouldExists(id).toErrors))
-      ctx.webhookDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      webhookDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "import data" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(id, "http://localhost:8080")
 
       val res = run(ctx)(WebhookService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -227,7 +247,7 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "import data invalid format" in {
       val id  = Key("test")
-      val ctx = TestWebhookContext()
+      val ctx = testWebhookContext()
 
       val res = run(ctx)(WebhookService.importData().flatMap { flow =>
         Task.fromFuture { implicit ec =>
@@ -243,9 +263,11 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "import data data exist" in {
-      val id      = Key("test")
-      val ctx     = TestWebhookContext()
-      val webhook = Webhook(id, "http://localhost:8080")
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val webhookDataStore = new InMemoryJsonDataStore("webhook-test")
+      val ctx              = testWebhookContext(events, webhookDataStore)
+      val webhook          = Webhook(id, "http://localhost:8080")
 
       val test = for {
         _ <- WebhookService.create(id, webhook)
@@ -267,14 +289,10 @@ class WebhookSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   }
 
-  case class TestWebhookContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-                                user: Option[AuthInfo.Service] = None,
-                                webhookDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("webhook-test"),
-                                logger: Logger = new ProdLogger,
-                                authInfo: Option[AuthInfo.Service] = authInfo)
-      extends WebhookContext {
-    override def eventStore: EventStore                                       = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo.Service]): WebhookContext = this.copy(user = user)
-  }
+  def testWebhookContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
+                         webhookDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("webhook-test"),
+                         user: Option[AuthInfo.Service] = authInfo): ZLayer[Any, Throwable, WebhookContext] =
+    ZLogger.live ++ WebhookDataStore.value(webhookDataStore) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
+      .optValue(user)
 
 }

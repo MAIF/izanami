@@ -17,7 +17,7 @@ import store.cassandra.CassandraClient
 import store.elastic.ElasticClient
 import store.postgresql.PostgresqlClient
 import store.redis.{RedisClientBuilder, RedisWrapper}
-import zio.{ULayer, URIO, ZIO, ZLayer}
+import zio.{Has, Layer, ULayer, URIO, ZIO, ZLayer}
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
@@ -49,6 +49,8 @@ package object database {
         // FIXME split in sublayer
         Drivers(izanamiConfigModule.izanamiConfig, playModule.configuration, playModule.applicationLifecycle)
     }
+
+    def value(drivers: Drivers.Service): ULayer[Drivers] = ZLayer.succeed(drivers)
 
     def apply(izanamiConfig: IzanamiConfig, configuration: Configuration, applicationLifecycle: ApplicationLifecycle)(
         implicit system: ActorSystem

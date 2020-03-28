@@ -165,6 +165,9 @@ package object abtesting {
         ZIO.access[ExperimentDataStore with DataStoreContext](_.get[ExperimentDataStore.Service].experimentDataStore)
     }
 
+    def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ExperimentDataStore] =
+      ZLayer.succeed(ExperimentDataStoreProd(store))
+
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ExperimentDataStore] =
       JsonDataStore
         .live(c => c.experiment.db, InMemoryWithDbStore.experimentEventAdapter)

@@ -41,6 +41,9 @@ package object auth {
 
     val empty: Layer[Nothing, AuthInfo] = ZLayer.succeed(None)
 
+    def value(authInfo: AuthInfo.Service): Layer[Nothing, AuthInfo]            = ZLayer.succeed(Some(authInfo))
+    def optValue(authInfo: Option[AuthInfo.Service]): Layer[Nothing, AuthInfo] = ZLayer.succeed(authInfo)
+
     import AuthorizedPatterns._
     import play.api.libs.json._
     import play.api.libs.functional.syntax._

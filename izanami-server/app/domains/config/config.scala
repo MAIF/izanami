@@ -43,6 +43,9 @@ package object config {
         ZIO.access[ConfigDataStore with DataStoreContext](_.get[ConfigDataStore.Service].configDataStore)
     }
 
+    def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ConfigDataStore] =
+      ZLayer.succeed(ConfigDataStoreProd(store))
+
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ConfigDataStore] =
       JsonDataStore
         .live(c => c.config.db, InMemoryWithDbStore.configEventAdapter)

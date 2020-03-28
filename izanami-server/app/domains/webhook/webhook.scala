@@ -22,7 +22,7 @@ import errors.IzanamiErrors
 import libs.database.Drivers
 import libs.logs.ZLogger
 import store._
-import store.datastore._
+import store.datastore.{JsonDataStore, _}
 import store.memorywithdb.InMemoryWithDbStore
 import zio._
 
@@ -54,6 +54,9 @@ package object webhook {
       override def getStore: URIO[WebhookDataStore with DataStoreContext, JsonDataStore.Service] =
         ZIO.access(_.get[WebhookDataStore.Service].webhookDataStore)
     }
+
+    def value(webhookDataStore: JsonDataStore.Service): ULayer[WebhookDataStore] =
+      ZLayer.succeed(WebhookDataStoreProd(webhookDataStore))
 
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, WebhookDataStore] =
       JsonDataStore

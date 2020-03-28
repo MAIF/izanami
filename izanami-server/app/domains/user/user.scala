@@ -22,7 +22,7 @@ import env.configuration.IzanamiConfigModule
 import errors.IzanamiErrors
 import libs.database.Drivers
 import store.memorywithdb.InMemoryWithDbStore
-import zio.{Has, URIO, ZIO, ZLayer}
+import zio.{Has, Layer, ULayer, URIO, ZIO, ZLayer}
 
 import scala.util.Try
 
@@ -164,6 +164,9 @@ package object user {
           _.get[UserDataStore.Service].userDataStore
         )
     }
+
+    def value(userDataStore: JsonDataStore.Service): ULayer[UserDataStore] =
+      ZLayer.succeed(UserDataStoreProd(userDataStore))
 
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, UserDataStore] =
       JsonDataStore

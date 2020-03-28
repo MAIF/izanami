@@ -776,6 +776,8 @@ package object events {
         EventStore(izanamiConfig, drivers, playModule.configuration, playModule.applicationLifecycle)
       }
 
+    def value(store: EventStore.Service): ZLayer[Any, Nothing, EventStore] = ZLayer.succeed(store)
+
     def apply(izanamiConfig: IzanamiConfig,
               drivers: Drivers.Service,
               configuration: play.api.Configuration,

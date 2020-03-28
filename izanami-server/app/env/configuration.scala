@@ -10,7 +10,7 @@ import play.api.Configuration
 import play.api.libs.ws.WSProxyServer
 import pureconfig._
 import pureconfig.error.ConfigReaderFailures
-import zio.{Managed, URIO, ZIO, ZLayer, ZManaged}
+import zio.{Has, Layer, Managed, ULayer, URIO, ZIO, ZLayer, ZManaged}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
@@ -65,6 +65,8 @@ package object configuration {
       val izanamiConfig                = IzanamiConfig.fromConfig(configuration)
       IzanamiConfigModuleProd(izanamiConfig)
     }
+    def value(izanamiConfig: IzanamiConfig): ULayer[IzanamiConfigModule] =
+      ZLayer.succeed(IzanamiConfigModuleProd(izanamiConfig))
   }
 }
 

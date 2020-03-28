@@ -4,24 +4,24 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.{ChronoField, ChronoUnit}
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.Materializer
 import cats.data.NonEmptyList
+import domains.abtesting.events._
 import domains.abtesting.events.impl.ExperimentVariantEventInMemoryService
 import domains.{errors, AuthorizedPatterns, Key, PatternRights}
 import domains.auth.AuthInfo
 import domains.apikey.Apikey
+import domains.configuration.AkkaModule
 import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated
 import libs.logs.ZLogger
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import domains.errors.{IdMustBeTheSame, IzanamiErrors, Unauthorized, ValidationError}
-import store.datastore.JsonDataStore
 import store.memory.InMemoryJsonDataStore
 import test.{IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
-import zio.internal.{Executor, PlatformLive}
-import zio.{DefaultRuntime, RIO, ZIO}
+import zio.{RIO, ZLayer}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -31,7 +31,8 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
   import ExperimentInstances._
 
   implicit val actorSystem: ActorSystem = ActorSystem()
-  implicit val runtime                  = new DefaultRuntime {}
+  implicit val runtime                  = zio.Runtime.default
+
   import IzanamiErrors._
 
   "Experiment" must {
@@ -758,38 +759,31 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     }
   }
 
-  private def variantFor(context: ExperimentContext, id: Key, clientId: String): Variant = {
+  private def variantFor(context: ZLayer[Any, Throwable, ExperimentContext], id: Key, clientId: String): Variant = {
     val r: Either[errors.IzanamiErrors, Variant] = runSync(context, ExperimentService.variantFor(id, clientId).either)
     r.toOption.get
   }
 
-  private def runSync[T](context: ExperimentContext, taskR: RIO[ExperimentContext, T]): T =
-    runtime.unsafeRun(ZIO.provide(context)(taskR))
+  private def runSync[T](context: ZLayer[Any, Throwable, ExperimentContext], taskR: RIO[ExperimentContext, T]): T =
+    runtime.unsafeRun(taskR.provideLayer(context))
 
   def fakeExperimentContext(
       store: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue],
       events: mutable.ArrayBuffer[Events.IzanamiEvent],
-      expVariantEventService: ExperimentVariantEventService = expEventsService(),
+      expVariantEventService: ExperimentVariantEventService.Service = expEventsService(),
       authorizedPatterns: AuthorizedPatterns = AuthorizedPatterns.All
-  ): ExperimentContext =
-    new ExperimentContext {
-      override def experimentVariantEventService: ExperimentVariantEventService = expVariantEventService
-      override def logger: Logger                                               = new ProdLogger
-      override def experimentDataStore: JsonDataStore                           = new InMemoryJsonDataStore("experiment", store)
-      override implicit def system: ActorSystem                                 = actorSystem
-      override implicit def mat: Materializer                                   = Materializer(actorSystem)
-      override def eventStore: EventStore                                       = new TestEventStore(events)
-      override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
-        def blockingExecutor: ZIO[Any, Nothing, Executor] =
-          ZIO.succeed(PlatformLive.Global.executor)
-      }
-      override def withAuthInfo(authInfo: Option[AuthInfo.Service]): ExperimentContext = this
-      override def authInfo: Option[AuthInfo.Service]                                  = Some(Apikey("1", "key", "secret", authorizedPatterns, true))
-    }
+  ): ZLayer[Any, Throwable, ExperimentContext] =
+    AkkaModule.live(AkkaModule.AkkaModuleProd(actorSystem, Materializer(actorSystem))) ++
+    ZLogger.live ++
+    ExperimentVariantEventService.value(expVariantEventService) ++
+    EventStore.value(new TestEventStore(events)) ++
+    ExperimentDataStore.value(new InMemoryJsonDataStore("experiment", store)) ++
+    Blocking.live ++
+    AuthInfo.value(Apikey("1", "key", "secret", authorizedPatterns, true))
 
   def expEventsService(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty
-  ): ExperimentVariantEventService =
+  ): ExperimentVariantEventService.Service =
     new ExperimentVariantEventInMemoryService(
       s"test_${Random.nextInt(1000)}"
     )

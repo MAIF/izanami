@@ -1,13 +1,13 @@
 package domains
 
 import cats.data.NonEmptyList
+import domains.auth.AuthInfo
 import domains.errors.{IzanamiErrors, Unauthorized}
 import domains.user.OauthUser
-import libs.logs.{Logger, LoggerModule, ProdLogger}
+import libs.logs.ZLogger
 import play.api.libs.json.{JsArray, JsError, JsPath, JsString, JsSuccess, Json, JsonValidationError}
 import test.IzanamiSpec
-import zio.internal.PlatformLive
-import zio.{Exit, Runtime, ZIO}
+import zio.{Exit, Layer, Runtime, ZIO, ZLayer}
 
 class AuthorizedPatternsSpec extends IzanamiSpec {
   "PatternRight" must {
@@ -178,37 +178,24 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
 
     "check is allowed" in {
 
-      val authModule = new AuthInfo[String] with LoggerModule {
-        override def authInfo: Option[AuthInfo] =
-          Some(OauthUser("1", "john.doe", "john.doe@gmail.fr", true, AuthorizedPatterns.All))
-        override def withAuthInfo(user: Option[AuthInfo]): String = ???
-        override def logger: Logger                               = new ProdLogger
-      }
+      val authModule: ZLayer[Any, Throwable, AuthInfo with ZLogger] = testLayer() ++ ZLogger.live
 
-      val r = Runtime(authModule, PlatformLive.Default)
       val res: Either[IzanamiErrors, Unit] =
-        r.unsafeRun(AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either)
+        Runtime.default.unsafeRun(
+          AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either.provideLayer(authModule)
+        )
       res must be(Right(()))
     }
 
     "check is not allowed" in {
+      val authModule: ZLayer[Any, Throwable, AuthInfo with ZLogger] = testLayer(
+        p = AuthorizedPatterns(AuthorizedPattern("test", PatternRights.R))
+      ) ++ ZLogger.live
 
-      val authModule = new AuthInfo[String] with LoggerModule {
-        override def authInfo: Option[AuthInfo] =
-          Some(
-            OauthUser("1",
-                      "john.doe",
-                      "john.doe@gmail.fr",
-                      true,
-                      AuthorizedPatterns(AuthorizedPattern("test", PatternRights.R)))
-          )
-        override def withAuthInfo(user: Option[AuthInfo]): String = ???
-        override def logger: Logger                               = new ProdLogger
-      }
-
-      val r = Runtime(authModule, PlatformLive.Default)
       val res: Either[IzanamiErrors, Unit] =
-        r.unsafeRun(AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either)
+        Runtime.default.unsafeRun(
+          AuthorizedPatterns.isAllowed(Key("test"), PatternRights.U).either.provideLayer(authModule)
+        )
       res must be(Left(NonEmptyList.of(Unauthorized(Some(Key("test"))))))
     }
 
@@ -216,25 +203,14 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
       import IzanamiErrors._
       import cats.implicits._
       import zio.interop.catz._
-      val authModule = new AuthInfo[String] with LoggerModule {
-        override def authInfo: Option[AuthInfo] =
-          Some(
-            OauthUser("1",
-                      "john.doe",
-                      "john.doe@gmail.fr",
-                      true,
-                      AuthorizedPatterns(AuthorizedPattern("other", PatternRights.R)))
-          )
-        override def withAuthInfo(user: Option[AuthInfo]): String = ???
-        override def logger: Logger                               = new ProdLogger
-      }
+      val authModule: ZLayer[Any, Throwable, AuthInfo with ZLogger] = testLayer(
+        p = AuthorizedPatterns(AuthorizedPattern("test", PatternRights.R))
+      ) ++ ZLogger.live
 
-      val r = Runtime(authModule, PlatformLive.Default)
-
-      val combined: ZIO[LoggerModule with AuthInfo[_], IzanamiErrors, Unit] =
+      val combined: ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] =
         AuthorizedPatterns.isAllowed(Key("test1") -> PatternRights.U, Key("test2") -> PatternRights.U)
 
-      val res: Either[IzanamiErrors, Unit] = r.unsafeRun(combined.either)
+      val res: Either[IzanamiErrors, Unit] = Runtime.default.unsafeRun(combined.either.provideLayer(authModule))
       res must be(
         Left(
           NonEmptyList.of(
@@ -244,5 +220,9 @@ class AuthorizedPatternsSpec extends IzanamiSpec {
         )
       )
     }
+
+    def testLayer(admin: Boolean = false, p: AuthorizedPatterns = AuthorizedPatterns.All): Layer[Throwable, AuthInfo] =
+      AuthInfo.value(OauthUser("1", "john.doe", "john.doe@gmail.fr", admin, p))
+
   }
 }

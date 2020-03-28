@@ -48,6 +48,9 @@ package object apikey {
         ZIO.access[ApikeyDataStore with DataStoreContext](_.get[ApikeyDataStore.Service].apikeyDataStore)
     }
 
+    def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ApikeyDataStore] =
+      ZLayer.succeed(ApikeyDataStoreProd(store))
+
     val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ApikeyDataStore] =
       JsonDataStore
         .live(c => c.apikey.db, InMemoryWithDbStore.apikeyEventAdapter)
