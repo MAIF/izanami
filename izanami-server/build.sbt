@@ -13,7 +13,7 @@ lazy val ITest = config("it") extend Test
 lazy val `izanami-server` = (project in file("."))
   .configs(ITest)
   .settings(Defaults.itSettings: _*)
-  .enablePlugins(PlayScala, /*SwaggerPlugin,*/ DockerPlugin)
+  .enablePlugins(PlayScala, SwaggerPlugin, DockerPlugin)
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
@@ -132,24 +132,34 @@ publishArtifact in (Compile, packageDoc) := false
 
 parallelExecution in Test := false
 
-//swaggerDomainNameSpaces := Seq(
-//  "domains.abtesting",
-//  "domains.apikey",
-//  "domains.config",
-//  "domains.events",
-//  "domains.feature",
-//  "domains.script",
-//  "domains.user",
-//  "domains.webhook",
-//  "controllers.dto.abtesting",
-//  "controllers.dto.apikeys",
-//  "controllers.dto.config",
-//  "controllers.dto.script",
-//  "controllers.dto.user",
-//  "controllers.dto.meta",
-//  "controllers.dto.importresult"
-//)
-//swaggerV3 := true
+// FIXME swagger
+swaggerDomainNameSpaces := Seq(
+  "domains.abtesting.events.ExperimentVariantEventKey",
+  "domains.abtesting.events.ExperimentVariantEvent",
+  "domains.abtesting.events.ExperimentVariantDisplayed",
+  "domains.abtesting.events.ExperimentVariantWon",
+  "domains.abtesting.Traffic",
+  "domains.abtesting.Variant",
+  "domains.abtesting.Campaign",
+  "domains.abtesting.CurrentCampaign",
+  "domains.abtesting.ClosedCampaign",
+//  "domains.abtesting.Experiment",
+  "domains.apikey",
+  "domains.config",
+  "domains.events",
+  "domains.feature",
+  "domains.script",
+  "domains.user",
+  "domains.webhook",
+  "controllers.dto.abtesting",
+  "controllers.dto.apikeys",
+  "controllers.dto.config",
+  "controllers.dto.script",
+  "controllers.dto.user",
+  "controllers.dto.meta",
+  "controllers.dto.importresult"
+)
+swaggerV3 := true
 
 /// ASSEMBLY CONFIG
 mainClass in assembly := Some("play.core.server.ProdServerStart")
@@ -230,7 +240,7 @@ lazy val generateDoc = taskKey[Unit]("Copy api doc")
 
 generateDoc := {
   val p = project
-  //(swagger in Compile).value
+  (swagger in Compile).value
   val swaggerFile = target.value / "swagger" / "swagger.json"
   val targetDoc   = p.base.getParentFile / "docs" / "swagger" / "swagger.json"
   IO.delete(targetDoc)
