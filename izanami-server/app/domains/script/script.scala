@@ -2,7 +2,7 @@ package domains
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.PlayModule
 import domains.auth.AuthInfo
 import domains.events.EventStore
 import libs.logs.ZLogger
@@ -14,7 +14,7 @@ import zio.{Has, Layer, RIO, Task, ULayer, URIO, ZIO, ZLayer}
 
 import scala.reflect.ClassTag
 import domains.errors.{DataShouldExists, IdMustBeTheSame}
-import domains.script.GlobalScriptDataStore
+import domains.script.{GlobalScriptDataStore, PlayScriptCache}
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
 import env.configuration.IzanamiConfigModule
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
@@ -57,11 +57,12 @@ package object script {
         override def scriptCache: CacheService[String] = cache
       })
 
+    case class PlayScriptCacheProd(scriptCache: CacheService[String]) extends Service
+
     val live: ZLayer[PlayModule, Nothing, ScriptCache] = ZLayer.fromFunction { mix =>
-      val cache = new PlayScriptCache(mix.get.defaultCacheApi)
-      new Service {
-        override def scriptCache: CacheService[String] = cache
-      }
+      val defaultCacheApi = mix.get.defaultCacheApi
+      lazy val cache      = new PlayScriptCache(defaultCacheApi)
+      PlayScriptCacheProd(cache)
     }
 
     def apply[F[_]](implicit s: ScriptCache): ScriptCache = s
@@ -169,7 +170,7 @@ package object script {
     def value(globalScriptDataStore: JsonDataStore.Service): ZLayer[Any, Nothing, GlobalScriptDataStore] =
       ZLayer.succeed(GlobalScriptDataStoreProd(globalScriptDataStore))
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, GlobalScriptDataStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, GlobalScriptDataStore] =
       JsonDataStore
         .live(c => c.globalScript.db, InMemoryWithDbStore.globalScriptEventAdapter)
         .map(s => Has(GlobalScriptDataStoreProd(s.get)))

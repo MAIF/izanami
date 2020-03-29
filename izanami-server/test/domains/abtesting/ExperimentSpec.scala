@@ -11,7 +11,6 @@ import domains.abtesting.events.impl.ExperimentVariantEventInMemoryService
 import domains.{errors, AuthorizedPatterns, Key, PatternRights}
 import domains.auth.AuthInfo
 import domains.apikey.Apikey
-import domains.configuration.AkkaModule
 import domains.events.{EventStore, Events}
 import domains.events.Events.ExperimentCreated
 import libs.logs.ZLogger
@@ -19,7 +18,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import domains.errors.{IdMustBeTheSame, IzanamiErrors, Unauthorized, ValidationError}
 import store.memory.InMemoryJsonDataStore
-import test.{IzanamiSpec, TestEventStore}
+import test.{FakeConfig, IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
 import zio.{RIO, ZLayer}
 
@@ -773,7 +772,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       expVariantEventService: ExperimentVariantEventService.Service = expEventsService(),
       authorizedPatterns: AuthorizedPatterns = AuthorizedPatterns.All
   ): ZLayer[Any, Throwable, ExperimentContext] =
-    AkkaModule.live(AkkaModule.AkkaModuleProd(actorSystem, Materializer(actorSystem))) ++
+    FakeConfig.playModule(actorSystem) ++
     ZLogger.live ++
     ExperimentVariantEventService.value(expVariantEventService) ++
     EventStore.value(new TestEventStore(events)) ++

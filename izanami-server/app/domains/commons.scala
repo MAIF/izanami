@@ -14,7 +14,6 @@ import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyDataStore
 import domains.config.ConfigDataStore
 import domains.auth.AuthInfo
-import domains.configuration.AkkaModule.AkkaModuleProd
 import domains.configuration.PlayModule.PlayModuleProd
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
@@ -36,7 +35,7 @@ import scala.util.matching.Regex
 import store.{EmptyPattern, Pattern, StringPattern}
 import errors._
 import libs.http.HttpContext
-import zio.{Has, IO, Layer, RIO, Runtime, Task, ULayer, URIO, ZEnv, ZIO, ZLayer}
+import zio.{Has, IO, Layer, RIO, Ref, Runtime, Task, ULayer, URIO, ZEnv, ZIO, ZLayer}
 import zio.blocking.Blocking
 import zio.clock.Clock
 import metrics.MetricsModule
@@ -44,29 +43,17 @@ import patches.Patchs
 import play.api.cache.AsyncCacheApi
 import play.api.libs.ws.WSClient
 import play.libs.ws
+import play.libs.ws.ahc.AhcWSClient
+import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 
 object configuration {
-
-  type AkkaModule = zio.Has[AkkaModule.Service]
-
-  object AkkaModule {
-    trait Service {
-      implicit def system: ActorSystem
-      implicit def mat: Materializer
-    }
-
-    def mat: URIO[AkkaModule, Materializer]   = ZIO.access[AkkaModule](_.get.mat)
-    def system: URIO[AkkaModule, ActorSystem] = ZIO.access[AkkaModule](_.get.system)
-
-    case class AkkaModuleProd(system: ActorSystem, mat: Materializer) extends Service
-
-    def live(akkaModule: AkkaModuleProd): ULayer[AkkaModule] = ZLayer.succeed(akkaModule)
-  }
 
   type PlayModule = zio.Has[PlayModule.Service]
 
   object PlayModule {
     trait Service {
+      def system: ActorSystem
+      def mat: Materializer
       def defaultCacheApi: AsyncCacheApi
       def configuration: Configuration
       def environment: Environment
@@ -77,6 +64,8 @@ object configuration {
     }
 
     case class PlayModuleProd(
+        system: ActorSystem,
+        mat: Materializer,
         defaultCacheApi: AsyncCacheApi,
         configuration: Configuration,
         environment: Environment,
@@ -86,8 +75,29 @@ object configuration {
         applicationLifecycle: ApplicationLifecycle
     ) extends Service
 
-    def live(playModule: PlayModuleProd): ULayer[PlayModule] = ZLayer.succeed(playModule)
+    def live(playModuleProd: PlayModuleProd): ULayer[PlayModule] = ZLayer.succeed(playModuleProd)
 
+    def live(system: ActorSystem,
+             mat: Materializer,
+             defaultCacheApi: AsyncCacheApi,
+             configuration: Configuration,
+             environment: Environment,
+             wSClient: play.api.libs.ws.WSClient,
+             ec: ExecutionContext,
+             applicationLifecycle: ApplicationLifecycle): ULayer[PlayModule] = ZLayer.succeed(
+      PlayModuleProd(system,
+                     mat,
+                     defaultCacheApi,
+                     configuration,
+                     environment,
+                     wSClient,
+                     new AhcWSClient(wSClient.underlying[AsyncHttpClient], mat),
+                     ec,
+                     applicationLifecycle)
+    )
+
+    def mat: URIO[PlayModule, Materializer]         = ZIO.access[PlayModule](_.get.mat)
+    def system: URIO[PlayModule, ActorSystem]       = ZIO.access[PlayModule](_.get.system)
     def environment: URIO[PlayModule, Environment]  = ZIO.access[PlayModule](_.get.environment)
     def wSClient: URIO[PlayModule, WSClient]        = ZIO.access[PlayModule](_.get.wSClient)
     def javaWsClient: URIO[PlayModule, ws.WSClient] = ZIO.access[PlayModule](_.get.javaWsClient)
@@ -96,33 +106,41 @@ object configuration {
       ZIO.access[PlayModule](_.get.applicationLifecycle)
   }
 
-  type GlobalContext =
-    AkkaModule
-      with PlayModule
-      with Drivers
-      with IzanamiConfigModule
-      with MetricsModule
-      with AuthInfo
-      with ZLogger
-      with Has[Patchs]
-      with ExperimentDataStore
-      with ExperimentVariantEventService
-      with ApikeyDataStore
-      with ConfigDataStore
-      with FeatureDataStore
-      with GlobalScriptDataStore
-      with UserDataStore
-      with WebhookDataStore
-      with EventStore
-      with ScriptCache
-      with RunnableScriptModule
-      with Clock
-      with Blocking
+  type GlobalContext = PlayModule
+    with Drivers
+    with IzanamiConfigModule
+    with MetricsModule
+    with AuthInfo
+    with ZLogger
+    with Has[Patchs]
+    with ExperimentDataStore
+    with ExperimentVariantEventService
+    with ApikeyDataStore
+    with ConfigDataStore
+    with FeatureDataStore
+    with GlobalScriptDataStore
+    with UserDataStore
+    with WebhookDataStore
+    with EventStore
+    with ScriptCache
+    with RunnableScriptModule
+    with Clock
+    with Blocking
 
   object GlobalContext {
-    def live(akkaModule: AkkaModuleProd, playModule: PlayModuleProd): HttpContext[GlobalContext] = {
-      val base: ZLayer[ZEnv, Throwable, Clock with Blocking with AkkaModule with PlayModule] =
-      (Clock.live ++ Blocking.live ++ AkkaModule.live(akkaModule) ++ PlayModule.live(playModule))
+    def live(system: ActorSystem,
+             mat: Materializer,
+             defaultCacheApi: AsyncCacheApi,
+             configuration: Configuration,
+             environment: Environment,
+             wSClient: play.api.libs.ws.WSClient,
+             ec: ExecutionContext,
+             applicationLifecycle: ApplicationLifecycle): HttpContext[GlobalContext] = {
+
+      val playModule =
+        PlayModule.live(system, mat, defaultCacheApi, configuration, environment, wSClient, ec, applicationLifecycle)
+      val base: ZLayer[ZEnv, Throwable, Clock with Blocking with PlayModule] =
+      (Clock.live ++ Blocking.live ++ playModule)
 
       val configAndScript: ZLayer[PlayModule,
                                   Throwable,
@@ -132,14 +150,14 @@ object configuration {
       val baseWithConfigAndScript: ZLayer[
         ZEnv,
         Throwable,
-        Clock with Blocking with AkkaModule with PlayModule with IzanamiConfigModule with ScriptCache with RunnableScriptModule with MetricsModule
+        Clock with Blocking with PlayModule with IzanamiConfigModule with ScriptCache with RunnableScriptModule with MetricsModule
       ] =
       base ++ (base >>> configAndScript)
 
       val baseWithConfigAndScriptAndDrivers: ZLayer[
         ZEnv,
         Throwable,
-        Clock with Blocking with AkkaModule with PlayModule with IzanamiConfigModule with ScriptCache with Drivers with RunnableScriptModule with MetricsModule
+        Clock with Blocking with PlayModule with IzanamiConfigModule with ScriptCache with Drivers with RunnableScriptModule with MetricsModule
       ] = baseWithConfigAndScript ++
       (baseWithConfigAndScript >>> Drivers.live)
 
@@ -167,11 +185,18 @@ object configuration {
       stores
     }
 
-    def buildContext(akkaModule: AkkaModuleProd, playModule: PlayModuleProd): HttpContext[GlobalContext] = {
+    def buildContext(system: ActorSystem,
+                     mat: Materializer,
+                     defaultCacheApi: AsyncCacheApi,
+                     configuration: Configuration,
+                     environment: Environment,
+                     wSClient: play.api.libs.ws.WSClient,
+                     ec: ExecutionContext,
+                     applicationLifecycle: ApplicationLifecycle): HttpContext[GlobalContext] = {
 
       val builtContext: GlobalContext = Runtime.default.unsafeRun(
         GlobalContext
-          .live(akkaModule, playModule)
+          .live(system, mat, defaultCacheApi, configuration, environment, wSClient, ec, applicationLifecycle)
           .build
           .use { c =>
             Task(c)
@@ -184,167 +209,6 @@ object configuration {
   }
 }
 
-//
-//trait GlobalContext
-//    extends AkkaModule
-//    with ZLogger
-//    with Drivers
-//    with IzanamiConfigModule
-//    with MetricsContext
-//    with ConfigContext
-//    with FeatureContext
-//    with GlobalScriptContext
-//    with ApiKeyContext
-//    with UserContext
-//    with WebhookContext
-//    with ExperimentContext
-//    with OAuthModule
-//    with AuthInfo[GlobalContext]
-//    with Clock.Live
-//
-//case class ProdGlobalContext(
-//    system: ActorSystem,
-//    mat: Materializer,
-//    izanamiConfig: IzanamiConfig,
-//    environment: Environment,
-//    wSClient: play.api.libs.ws.WSClient,
-//    javaWsClient: play.libs.ws.WSClient,
-//    ec: ExecutionContext,
-//    applicationLifecycle: ApplicationLifecycle,
-//    logger: Logger,
-//    metricRegistry: MetricRegistry,
-//    drivers: Drivers,
-//    eventStore: EventStore,
-//    globalScriptDataStore: JsonDataStore,
-//    configDataStore: JsonDataStore,
-//    featureDataStore: JsonDataStore,
-//    userDataStore: JsonDataStore,
-//    apikeyDataStore: JsonDataStore,
-//    webhookDataStore: JsonDataStore,
-//    experimentDataStore: JsonDataStore,
-//    experimentVariantEventService: ExperimentVariantEventService,
-//    getScriptCache: () => ScriptCache,
-//    blocking: Blocking.Service[Any],
-//    override val clock: Clock.Service[Any],
-//    override val authInfo: Option[AuthInfo.Service]
-//) extends GlobalContext {
-//  override def scriptCache = getScriptCache()
-//  override def withAuthInfo(authInfo: Option[AuthInfo.Service]): GlobalContext =
-//    this.copy(authInfo = authInfo)
-//}
-//
-//object GlobalContext {
-//
-//  def apply(izanamiConfiguration: IzanamiConfig,
-//            zioEventStore: EventStore,
-//            actorSystem: ActorSystem,
-//            materializer: Materializer,
-//            env: Environment,
-//            client: play.api.libs.ws.WSClient,
-//            javaClient: play.libs.ws.WSClient,
-//            execCtx: ExecutionContext,
-//            registry: MetricRegistry,
-//            d: Drivers,
-//            playScriptCache: => ScriptCache,
-//            lifecycle: ApplicationLifecycle): GlobalContext = new GlobalContext {
-//
-//    override implicit val system: ActorSystem               = actorSystem
-//    override implicit val mat: Materializer                 = materializer
-//    override val izanamiConfig: IzanamiConfig               = izanamiConfiguration
-//    override val environment: Environment                   = env
-//    override val wSClient: play.api.libs.ws.WSClient        = client
-//    override val javaWsClient: play.libs.ws.WSClient        = javaClient
-//    override val ec: ExecutionContext                       = execCtx
-//    override def applicationLifecycle: ApplicationLifecycle = lifecycle
-//    override val logger: Logger                             = new ProdLogger()
-//    override val eventStore: EventStore                     = zioEventStore
-//    override val metricRegistry: MetricRegistry             = registry
-//    override val drivers: Drivers                           = d
-//
-//    override val globalScriptDataStore: JsonDataStore = {
-//      val conf              = izanamiConfig.globalScript.db
-//      lazy val eventAdapter = InMemoryWithDbStore.globalScriptEventAdapter
-//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-//    }
-//
-//    override val configDataStore: JsonDataStore = {
-//      val conf              = izanamiConfig.config.db
-//      lazy val eventAdapter = InMemoryWithDbStore.configEventAdapter
-//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-//    }
-//
-//    override val featureDataStore: JsonDataStore = {
-//      val conf              = izanamiConfig.features.db
-//      lazy val eventAdapter = InMemoryWithDbStore.featureEventAdapter
-//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-//    }
-//
-//    override val userDataStore: JsonDataStore = {
-//      val conf              = izanamiConfig.user.db
-//      lazy val eventAdapter = InMemoryWithDbStore.userEventAdapter
-//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-//    }
-//
-//    override val apikeyDataStore: JsonDataStore = {
-//      val conf              = izanamiConfig.apikey.db
-//      lazy val eventAdapter = InMemoryWithDbStore.apikeyEventAdapter
-//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-//    }
-//
-//    override val webhookDataStore: JsonDataStore = {
-//      lazy val conf         = izanamiConfig.webhook.db
-//      lazy val eventAdapter = InMemoryWithDbStore.webhookEventAdapter
-//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-//    }
-//
-//    override val experimentDataStore: JsonDataStore = {
-//      val conf              = izanamiConfig.experiment.db
-//      lazy val eventAdapter = InMemoryWithDbStore.experimentEventAdapter
-//      JsonDataStore(drivers, izanamiConfig, conf, eventAdapter, applicationLifecycle)
-//    }
-//
-//    override val experimentVariantEventService: ExperimentVariantEventService =
-//      ExperimentVariantEventService(izanamiConfig, drivers, applicationLifecycle)
-//
-//    override def scriptCache: ScriptCache = playScriptCache
-//
-//    override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
-//      def blockingExecutor: ZIO[Any, Nothing, Executor] =
-//        ZIO.succeed(Executor.fromExecutionContext(20)(actorSystem.dispatchers.lookup("izanami.blocking-dispatcher")))
-//    }
-//
-//    override def authInfo: Option[AuthInfo.Service] = None
-//
-//    override def withAuthInfo(authInfo: Option[AuthInfo.Service]): GlobalContext =
-//      ProdGlobalContext(
-//        system,
-//        mat,
-//        izanamiConfig,
-//        environment,
-//        wSClient,
-//        javaWsClient,
-//        ec,
-//        applicationLifecycle,
-//        logger,
-//        metricRegistry,
-//        drivers,
-//        eventStore,
-//        globalScriptDataStore,
-//        configDataStore,
-//        featureDataStore,
-//        userDataStore,
-//        apikeyDataStore,
-//        webhookDataStore,
-//        experimentDataStore,
-//        experimentVariantEventService,
-//        () => scriptCache,
-//        blocking,
-//        clock,
-//        authInfo
-//      )
-//  }
-//}
-
 object Import {
   import akka.stream.scaladsl.{Flow, Framing}
   val newLineSplit =
@@ -356,31 +220,36 @@ object Import {
       Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
     }
 
-  def importFile[Ctx <: ZLogger](
-      db: DbDomainConfig,
+  def importFile[Ctx <: ZLogger with IzanamiConfigModule](
+      getDb: IzanamiConfig => DbDomainConfig,
       process: RIO[Ctx, Flow[(String, JsValue), ImportResult, NotUsed]]
   )(implicit materializer: Materializer): RIO[Ctx, Unit] =
-    process.flatMap { proc =>
-      import zio.interop.catz._
-      import cats.implicits._
-      db.`import`.traverse { p =>
-        ZLogger.info(s"Importing file $p for namespace ${db.conf.namespace}") *>
-        Task.fromFuture { implicit ec =>
-          val res = FileIO.fromPath(p).via(toJson).via(proc).runWith(Sink.head)
-          res.onComplete {
-            case Success(res) if res.isError =>
-              IzanamiLogger.info(
-                s"Import end with error for file $p and namespace ${db.conf.namespace}: \n ${res.errors}"
-              )
-            case Success(_) =>
-              IzanamiLogger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
-            case Failure(e) =>
-              IzanamiLogger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
+    for {
+      proc          <- process
+      izanamiConfig <- IzanamiConfigModule.izanamiConfig
+      db            = getDb(izanamiConfig)
+      res <- {
+        import zio.interop.catz._
+        import cats.implicits._
+        db.`import`.traverse { p =>
+          ZLogger.info(s"Importing file $p for namespace ${db.conf.namespace}") *>
+          Task.fromFuture { implicit ec =>
+            val res = FileIO.fromPath(p).via(toJson).via(proc).runWith(Sink.head)
+            res.onComplete {
+              case Success(res) if res.isError =>
+                IzanamiLogger.info(
+                  s"Import end with error for file $p and namespace ${db.conf.namespace}: \n ${res.errors}"
+                )
+              case Success(_) =>
+                IzanamiLogger.info(s"Import end with success for file $p and namespace ${db.conf.namespace}")
+              case Failure(e) =>
+                IzanamiLogger.error(s"Import end with error for file $p and namespace ${db.conf.namespace}", e)
+            }
+            res
           }
-          res
-        }
-      }.unit
-    }
+        }.unit
+      }
+    } yield res
 }
 
 case class ImportResult(success: Int = 0, errors: List[IzanamiError] = List.empty) {

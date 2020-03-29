@@ -10,7 +10,7 @@ import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
 import domains._
 import domains.auth.AuthInfo
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.PlayModule
 import domains.user.UserDataStore
 import domains.webhook.notifications.WebHooksActor
 import env.WebhookConfig
@@ -58,7 +58,7 @@ package object webhook {
     def value(webhookDataStore: JsonDataStore.Service): ULayer[WebhookDataStore] =
       ZLayer.succeed(WebhookDataStoreProd(webhookDataStore))
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, WebhookDataStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, WebhookDataStore] =
       JsonDataStore
         .live(c => c.webhook.db, InMemoryWithDbStore.webhookEventAdapter)
         .map(s => Has(WebhookDataStoreProd(s.get)))

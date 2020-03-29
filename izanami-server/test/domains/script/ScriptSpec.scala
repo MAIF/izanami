@@ -35,8 +35,7 @@ import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
 import cats.data.NonEmptyList
 import domains.apikey.Apikey
-import domains.configuration.AkkaModule.AkkaModuleProd
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.{PlayModule}
 import domains.configuration.PlayModule.PlayModuleProd
 import domains.errors.{DataShouldExists, IdMustBeTheSame, Unauthorized, ValidationError}
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
@@ -366,7 +365,6 @@ class ScriptSpec
   ): ZLayer[Any, Throwable, GlobalScriptContext] =
     playModule ++
     ZLogger.live ++
-    AkkaModule.live(AkkaModuleProd(testComponents.actorSystem, Materializer(testComponents.actorSystem))) ++
     Blocking.live ++
     ScriptCache.value(fakeCache) ++
     EventStore.value(new TestEventStore(events)) ++
@@ -449,6 +447,8 @@ class ScriptSpec
   private val environment: Environment = Environment.simple()
   val playModule: ULayer[PlayModule] = PlayModule.live(
     PlayModuleProd(
+      testComponents.actorSystem,
+      Materializer(testComponents.actorSystem),
       null,
       Configuration.empty,
       environment,

@@ -7,7 +7,7 @@ import akka.NotUsed
 import cats.data.NonEmptyList
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.{PlayModule}
 import domains.auth.AuthInfo
 import libs.logs.ZLogger
 import play.api.libs.json._
@@ -168,13 +168,13 @@ package object abtesting {
     def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ExperimentDataStore] =
       ZLayer.succeed(ExperimentDataStoreProd(store))
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ExperimentDataStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, ExperimentDataStore] =
       JsonDataStore
         .live(c => c.experiment.db, InMemoryWithDbStore.experimentEventAdapter)
         .map(s => Has(ExperimentDataStoreProd(s.get)))
   }
 
-  type ExperimentContext = AkkaModule
+  type ExperimentContext = PlayModule
     with ZLogger
     with ExperimentDataStore
     with ExperimentVariantEventService
@@ -333,7 +333,7 @@ package object abtesting {
     ): ZIO[ExperimentContext, IzanamiErrors, ExperimentResult] =
       for {
         runtime <- ZIO.runtime[ExperimentContext]
-        res <- AkkaModule.system.flatMap { implicit system =>
+        res <- PlayModule.system.flatMap { implicit system =>
                 getById(experimentKey).flatMap { mayBeExp =>
                   ZIO.fromFuture { _ =>
                     Source(mayBeExp.toList)

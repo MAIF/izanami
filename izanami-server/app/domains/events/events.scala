@@ -35,7 +35,7 @@ import zio.{RIO, Task, ZIO, ZLayer}
 import libs.logs.ZLogger
 import domains.auth.AuthInfo
 import domains.auth.AuthInfo
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.PlayModule
 import env.configuration.IzanamiConfigModule
 
 package object events {
@@ -767,10 +767,10 @@ package object events {
       def start: RIO[ZLogger with AuthInfo, Unit] = Task.succeed(())
     }
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, EventStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, EventStore] =
       ZLayer.fromFunction { mix =>
-        implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
         val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+        implicit val actorSystem: ActorSystem = playModule.system
         val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
         val drivers: Drivers.Service          = mix.get[Drivers.Service]
         EventStore(izanamiConfig, drivers, playModule.configuration, playModule.applicationLifecycle)

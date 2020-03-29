@@ -6,7 +6,7 @@ import domains.AuthorizedPatterns
 import domains.events.{EventStore, EventStoreContext}
 import domains._
 import domains.auth.AuthInfo
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.{PlayModule}
 import env.configuration.IzanamiConfigModule
 import libs.database.Drivers
 import libs.logs.ZLogger
@@ -51,7 +51,7 @@ package object apikey {
     def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ApikeyDataStore] =
       ZLayer.succeed(ApikeyDataStoreProd(store))
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ApikeyDataStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, ApikeyDataStore] =
       JsonDataStore
         .live(c => c.apikey.db, InMemoryWithDbStore.apikeyEventAdapter)
         .map(s => Has(ApikeyDataStoreProd(s.get)))

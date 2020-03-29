@@ -8,7 +8,7 @@ import domains.events.EventStore
 import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureInstances.isActive
 import domains.script.{GlobalScriptContext, GlobalScriptDataStore, RunnableScriptModule, Script, ScriptCache}
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.PlayModule
 import domains.{AuthorizedPatterns, ImportData, ImportResult, ImportStrategy, Key, PatternRights}
 import domains.auth.AuthInfo
 import libs.logs.ZLogger
@@ -151,14 +151,13 @@ package object feature {
     def value(featureDataStore: JsonDataStore.Service): ZLayer[Any, Nothing, FeatureDataStore] =
       ZLayer.succeed(FeatureDataStoreProd(featureDataStore))
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, FeatureDataStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, FeatureDataStore] =
       JsonDataStore
         .live(c => c.features.db, InMemoryWithDbStore.featureEventAdapter)
         .map(s => Has(FeatureDataStoreProd(s.get)))
   }
 
   type FeatureContext = FeatureDataStore
-    with AkkaModule
     with PlayModule
     with ZLogger
     with EventStore
@@ -275,7 +274,7 @@ package object feature {
           }
         }
         .flatMap { source =>
-          AkkaModule.mat.flatMap { mat =>
+          PlayModule.mat.flatMap { mat =>
             ZIO.fromFuture { _ =>
               source.runWith(Sink.seq)(mat)
             }

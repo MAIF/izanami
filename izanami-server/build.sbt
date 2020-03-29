@@ -142,7 +142,6 @@ swaggerDomainNameSpaces := Seq(
   "domains.abtesting.Campaign",
   "domains.abtesting.CurrentCampaign",
   "domains.abtesting.ClosedCampaign",
-//  "domains.abtesting.Experiment",
   "domains.apikey",
   "domains.config",
   "domains.events",

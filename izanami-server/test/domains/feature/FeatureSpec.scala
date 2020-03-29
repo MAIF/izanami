@@ -26,8 +26,7 @@ import store.datastore.JsonDataStore
 import store._
 import store.memory.InMemoryJsonDataStore
 import domains.errors.{DataShouldExists, IdMustBeTheSame, InvalidCopyKey, IzanamiErrors, Unauthorized, ValidationError}
-import test.IzanamiSpec
-import test.TestEventStore
+import test.{FakeApplicationLifecycle, FakeConfig, IzanamiSpec, TestEventStore}
 import zio.{RIO, Runtime, Task, ULayer, ZIO, ZLayer}
 import zio.blocking.Blocking
 import zio.internal.Executor
@@ -37,15 +36,13 @@ import play.api.Environment
 
 import scala.concurrent.ExecutionContext
 import play.api.libs.ws.ahc.AhcWSComponents
-import test.FakeApplicationLifecycle
 import play.api.Configuration
 import play.api.libs.json.JsArray
 import java.time.LocalTime
 import java.time.Duration
 
 import cats.data.NonEmptyList
-import domains.configuration.{AkkaModule, PlayModule}
-import domains.configuration.AkkaModule.AkkaModuleProd
+import domains.configuration.PlayModule
 import domains.configuration.PlayModule.PlayModuleProd
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
@@ -945,30 +942,9 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
-  val fakeEnv: Environment = Environment.simple()
-
-  val fakeAhcComponent: AhcWSComponents = new AhcWSComponents {
-    override def environment: Environment                                   = fakeEnv
-    override val applicationLifecycle: play.api.inject.ApplicationLifecycle = FakeApplicationLifecycle()
-    override val configuration: play.api.Configuration                      = Configuration.load(fakeEnv)
-    override val executionContext: scala.concurrent.ExecutionContext        = actorSystem.dispatcher
-    override val materializer: akka.stream.Materializer                     = Materializer(actorSystem)
-  }
-
-  val wsClient: WSClient     = fakeAhcComponent.wsClient
-  val jWsClient: ws.WSClient = play.test.WSTestClient.newClient(-1)
-
-  val playModule: ULayer[PlayModule] = PlayModule.live(
-    PlayModuleProd(null,
-                   Configuration.empty,
-                   fakeEnv,
-                   wsClient,
-                   jWsClient,
-                   actorSystem.dispatcher,
-                   FakeApplicationLifecycle())
-  )
-
-  val testScript: RunnableScriptModuleProd = RunnableScriptModuleProd(fakeEnv.classLoader)
+  val env: Environment                     = Environment.simple()
+  val playModule: ULayer[PlayModule]       = FakeConfig.playModule(actorSystem, env)
+  val testScript: RunnableScriptModuleProd = RunnableScriptModuleProd(env.classLoader)
 
   val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = RunnableScriptModule.value(testScript)
 
@@ -979,7 +955,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       globalScriptDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("Feature-test"),
       scriptCache: CacheService[String] = fakeCache,
   ): ZLayer[Any, Throwable, FeatureContext] =
-    playModule ++ ZLogger.live ++ AkkaModule.live(AkkaModuleProd(actorSystem, Materializer(actorSystem))) ++ Blocking.live ++
+    playModule ++ ZLogger.live ++ Blocking.live ++
     ScriptCache.value(scriptCache) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
       .optValue(user) ++ GlobalScriptDataStore.value(globalScriptDataStore) ++ FeatureDataStore.value(featureDataStore) ++
     runnableScriptModule

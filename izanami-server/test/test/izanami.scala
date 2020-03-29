@@ -22,13 +22,17 @@ import domains.Domain.Domain
 import domains.events.Events.IzanamiEvent
 import domains.events.{EventStore, Events}
 import domains.errors.IzanamiErrors
-import zio.{ZIO, ZLayer}
+import zio.{ULayer, ZIO, ZLayer}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.ws.ahc.AhcWSComponents
 import _root_.controllers.AssetsComponents
+import akka.actor.ActorSystem
+import akka.stream.Materializer
+import domains.configuration.PlayModule
+import domains.configuration.PlayModule.PlayModuleProd
 import env.{
   ApiKeyHeaders,
   ApikeyConfig,
@@ -60,10 +64,13 @@ import env.{
   WebhookConfig,
   WebhookEventsConfig
 }
+import play.api.cache.AsyncCacheApi
 import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 import play.api.libs.json.Json
+
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 
 trait IzanamiSpec extends WordSpec with MustMatchers with OptionValues with Inside {
   def run[Ctx <: zio.Has[_], E, A](ctx: ZLayer[Any, Throwable, Ctx])(toRun: ZIO[Ctx, E, A]): A =
@@ -73,6 +80,44 @@ trait IzanamiSpec extends WordSpec with MustMatchers with OptionValues with Insi
 object IzanamiSpecObj extends IzanamiSpec
 
 object FakeConfig {
+
+  case class FakeAhcWSComponents(environment: Environment,
+                                 applicationLifecycle: play.api.inject.ApplicationLifecycle,
+                                 configuration: play.api.Configuration,
+                                 executionContext: scala.concurrent.ExecutionContext,
+                                 materializer: akka.stream.Materializer)
+      extends AhcWSComponents
+
+  def playModule(actorSystem: ActorSystem, environment: Environment = Environment.simple()): ULayer[PlayModule] = {
+    val configuration                                       = Configuration.load(environment)
+    val executionContext: scala.concurrent.ExecutionContext = actorSystem.dispatcher
+    val applicationLifecycle                                = FakeApplicationLifecycle()
+    val materializer: Materializer                          = Materializer(actorSystem)
+    val javaClient                                          = play.test.WSTestClient.newClient(-1)
+    val ahcComponent: AhcWSComponents =
+      FakeAhcWSComponents(environment, applicationLifecycle, configuration, executionContext, materializer)
+    PlayModule.live(
+      PlayModuleProd(
+        actorSystem,
+        materializer,
+        new AsyncCacheApi {
+          override def set(key: String, value: Any, expiration: Duration): Future[Done] = ???
+          override def remove(key: String): Future[Done]                                = ???
+          override def getOrElseUpdate[A](key: String, expiration: Duration)(orElse: => Future[A])(
+              implicit evidence$1: ClassTag[A]
+          ): Future[A]                                                                          = ???
+          override def get[T](key: String)(implicit evidence$2: ClassTag[T]): Future[Option[T]] = ???
+          override def removeAll(): Future[Done]                                                = ???
+        },
+        configuration,
+        environment,
+        ahcComponent.wsClient,
+        javaClient,
+        executionContext,
+        applicationLifecycle
+      )
+    )
+  }
 
   val dbConfig: DbDomainConfig = DbDomainConfig(InMemory, DbDomainConfigDetails("", None), None)
 

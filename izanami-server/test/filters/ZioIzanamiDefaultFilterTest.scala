@@ -19,8 +19,7 @@ import domains.abtesting.events.ExperimentVariantEventService
 import domains.abtesting.events.impl.ExperimentVariantEventInMemoryService
 import domains.apikey.{ApiKeyContext, ApikeyDataStore}
 import domains.config.ConfigDataStore
-import domains.configuration.{AkkaModule, PlayModule}
-import domains.configuration.AkkaModule.AkkaModuleProd
+import domains.configuration.PlayModule
 import domains.configuration.PlayModule.PlayModuleProd
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
@@ -45,28 +44,22 @@ import env.{
 }
 import libs.database.Drivers
 import libs.http.HttpContext
-import libs.logs.{ProdLogger, ZLogger}
+import libs.logs.ZLogger
 import metrics.{MetricsContext, MetricsModule}
-import org.apache.commons.io.Charsets
-import play.api.{Configuration, Environment, Mode}
-import play.api.inject.ApplicationLifecycle
+import play.api.Mode
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Cookie, Result, Results}
 import play.api.test.FakeRequest
 import play.modules.reactivemongo.ReactiveMongoApi
-import store.{PagingResult, Query}
-import store.datastore.{DataStoreContext, JsonDataStore}
 import store.memory.InMemoryJsonDataStore
 import store.postgresql.PostgresqlClient
 import store.redis.RedisWrapper
-import test.{FakeApplicationLifecycle, FakeConfig, IzanamiSpec, TestEventStore}
+import test.{FakeConfig, IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.{RIO, Runtime, Task, ULayer, ZIO, ZLayer}
-import zio.internal.{Executor, Platform}
+import zio.{Runtime, Task, ULayer, ZIO, ZLayer}
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
@@ -74,18 +67,8 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
   implicit val sys = ActorSystem("test")
 
-  val akkaModule: ULayer[AkkaModule] = AkkaModule.live(AkkaModuleProd(sys, Materializer(sys)))
-  val playModule: ULayer[PlayModule] = PlayModule.live(
-    PlayModuleProd(
-      null,
-      Configuration.empty,
-      Environment.simple(),
-      null,
-      null,
-      sys.dispatcher,
-      FakeApplicationLifecycle()
-    )
-  )
+  val playModule: ULayer[PlayModule] = FakeConfig.playModule(sys)
+
   val drivers: ULayer[Drivers] = Drivers.value(new Drivers.Service {
     override def redisClient: Option[RedisWrapper]           = None
     override def cassandraClient: Option[(Cluster, Session)] = None
@@ -99,7 +82,6 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
   implicit val metricsModule: HttpContext[MetricsContext] = {
     val fake = new InMemoryJsonDataStore(name = "fake")
-    akkaModule ++
     playModule ++
     drivers ++
     IzanamiConfigModule.value(FakeConfig.config) ++

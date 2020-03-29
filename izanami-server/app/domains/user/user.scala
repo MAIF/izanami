@@ -15,7 +15,7 @@ import play.api.libs.json._
 import store._
 import store.datastore._
 import domains.auth.AuthInfo
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.PlayModule
 import domains.user.UserDataStore
 import env.Oauth2Config
 import env.configuration.IzanamiConfigModule
@@ -168,7 +168,7 @@ package object user {
     def value(userDataStore: JsonDataStore.Service): ULayer[UserDataStore] =
       ZLayer.succeed(UserDataStoreProd(userDataStore))
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, UserDataStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, UserDataStore] =
       JsonDataStore
         .live(c => c.user.db, InMemoryWithDbStore.userEventAdapter)
         .map(s => Has(UserDataStoreProd(s.get)))

@@ -21,7 +21,7 @@ import domains.abtesting.events.impl.{
 }
 import domains.abtesting.{Experiment, ExperimentResultEvent, Variant, VariantResult}
 import domains.auth.AuthInfo
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.{PlayModule}
 import domains.errors.{ErrorMessage, IzanamiErrors}
 import domains.events.EventStore
 import domains.{ImportResult, Key}
@@ -267,12 +267,10 @@ package object events {
     def value(store: ExperimentVariantEventService.Service): ZLayer[Any, Nothing, ExperimentVariantEventService] =
       ZLayer.succeed(store)
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule,
-                     Nothing,
-                     ExperimentVariantEventService] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, ExperimentVariantEventService] =
       ZLayer.fromFunction { mix =>
-        implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
         val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+        implicit val actorSystem: ActorSystem = playModule.system
         val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
         val drivers: Drivers.Service          = mix.get[Drivers.Service]
         ExperimentVariantEventService(izanamiConfig, drivers, playModule.applicationLifecycle)

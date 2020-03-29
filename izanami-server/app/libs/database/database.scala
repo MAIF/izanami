@@ -3,7 +3,7 @@ package libs
 import akka.actor.ActorSystem
 import akka.stream.alpakka.dynamodb.DynamoClient
 import com.datastax.driver.core.{Cluster, Session}
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.PlayModule
 import elastic.api.Elastic
 import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
@@ -41,13 +41,12 @@ package object database {
 
     //def live(drivers: Drivers.Service): ULayer[Drivers] = ZLayer.succeed(drivers)
 
-    val live: ZLayer[AkkaModule with PlayModule with IzanamiConfigModule, Nothing, Drivers] = ZLayer.fromFunction {
-      mix =>
-        val playModule: PlayModule.Service                   = mix.get[PlayModule.Service]
-        val izanamiConfigModule: IzanamiConfigModule.Service = mix.get[IzanamiConfigModule.Service]
-        implicit val actorSystem: ActorSystem                = mix.get[AkkaModule.Service].system
-        // FIXME split in sublayer
-        Drivers(izanamiConfigModule.izanamiConfig, playModule.configuration, playModule.applicationLifecycle)
+    val live: ZLayer[PlayModule with IzanamiConfigModule, Nothing, Drivers] = ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service                   = mix.get[PlayModule.Service]
+      val izanamiConfigModule: IzanamiConfigModule.Service = mix.get[IzanamiConfigModule.Service]
+      implicit val actorSystem: ActorSystem                = playModule.system
+      // FIXME split in sublayer
+      Drivers(izanamiConfigModule.izanamiConfig, playModule.configuration, playModule.applicationLifecycle)
     }
 
     def value(drivers: Drivers.Service): ULayer[Drivers] = ZLayer.succeed(drivers)

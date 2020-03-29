@@ -18,11 +18,8 @@ object ModeEq {
 case class Env(
     izanamiConfig: IzanamiConfig,
     environment: Environment,
-    actorSystem: ActorSystem,
-    wSClient: WSClient,
-    javaWsClient: play.libs.ws.WSClient,
-    assetsFinder: AssetsFinder,
-    metricRegistry: MetricRegistry
+//    actorSystem: ActorSystem,
+    assetsFinder: AssetsFinder
 ) {
 
   import ModeEq._

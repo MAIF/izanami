@@ -4,7 +4,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import domains.configuration.{AkkaModule, GlobalContext, PlayModule}
+import domains.configuration.{GlobalContext, PlayModule}
 import domains.Key
 import libs.logs.IzanamiLogger
 import play.api.libs.json.Json
@@ -38,10 +38,10 @@ object Patchs {
 
   def start: zio.RIO[GlobalContext, Unit] = ZIO.accessM(_.get[Patchs].run().ignore)
 
-  val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, Has[Patchs]] =
+  val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, Has[Patchs]] =
     ZLayer.fromFunction { mix =>
-      implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
       val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      implicit val actorSystem: ActorSystem = playModule.system
       val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
       val drivers: Drivers.Service          = mix.get[Drivers.Service]
       Patchs(izanamiConfig, drivers, playModule.applicationLifecycle)

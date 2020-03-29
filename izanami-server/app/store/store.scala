@@ -9,7 +9,7 @@ import cats.kernel.Monoid
 import domains.events.EventStore
 import domains.Key
 import domains.auth.AuthInfo
-import domains.configuration.{AkkaModule, PlayModule}
+import domains.configuration.PlayModule
 import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
@@ -208,10 +208,10 @@ package object datastore {
     def live(
         getConf: IzanamiConfig => DbDomainConfig,
         eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
-    ): ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, JsonDataStore] =
+    ): ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, JsonDataStore] =
       ZLayer.fromFunction { mix =>
-        implicit val actorSystem: ActorSystem = mix.get[AkkaModule.Service].system
         val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+        implicit val actorSystem: ActorSystem = playModule.system
         val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
         val drivers: Drivers.Service          = mix.get[Drivers.Service]
         JsonDataStore(drivers, izanamiConfig, getConf(izanamiConfig), eventAdapter, playModule.applicationLifecycle)

@@ -1,7 +1,6 @@
 import domains.abtesting.ExperimentDataStore
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyDataStore
-import domains.configuration.AkkaModule
 import domains.auth.AuthInfo
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
@@ -92,8 +91,7 @@ package object metrics {
     val prometheus: URIO[MetricsModule, DropwizardExports]         = ZIO.access[MetricsModule](_.get.prometheus)
   }
 
-  type MetricsContext = AkkaModule
-    with PlayModule
+  type MetricsContext = PlayModule
     with Drivers
     with IzanamiConfigModule
     with MetricsModule
@@ -220,7 +218,7 @@ package object metrics {
                                   metricRegistry: MetricRegistry): RIO[MetricsContext, Fiber[Throwable, Unit]] =
       if (metricsConfig.kafka.enabled) {
         val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
-          system           <- AkkaModule.system
+          system           <- PlayModule.system
           izanamiConfig    <- IzanamiConfigModule.izanamiConfig
           kafkaConfig      <- ZIO.fromOption(izanamiConfig.db.kafka)
           producerSettings = KafkaSettings.producerSettings(system, kafkaConfig)

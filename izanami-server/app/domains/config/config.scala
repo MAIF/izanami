@@ -46,7 +46,7 @@ package object config {
     def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ConfigDataStore] =
       ZLayer.succeed(ConfigDataStoreProd(store))
 
-    val live: ZLayer[AkkaModule with PlayModule with Drivers with IzanamiConfigModule, Nothing, ConfigDataStore] =
+    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, ConfigDataStore] =
       JsonDataStore
         .live(c => c.config.db, InMemoryWithDbStore.configEventAdapter)
         .map(s => Has(ConfigDataStoreProd(s.get)))
