@@ -4,7 +4,8 @@ import cats.effect.IO
 import akka.stream.alpakka.dynamodb.{DynamoClient => AlpakkaClient}
 import com.typesafe.config.{Config, ConfigFactory}
 import domains.abtesting.events.impl.ExperimentVariantEventDynamoService
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import domains.events.impl.BasicEventStore
 import env.DynamoConfig
 import store.dynamo.DynamoClient
@@ -36,7 +37,7 @@ class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceT
     client
   }
 
-  override def dataStore(name: String): ExperimentVariantEventService = {
+  override def dataStore(name: String): ExperimentVariantEventService.Service = {
     val config = DynamoConfig("othername",
                               name,
                               region,

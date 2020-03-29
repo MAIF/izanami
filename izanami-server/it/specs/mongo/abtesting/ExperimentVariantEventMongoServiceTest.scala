@@ -1,7 +1,8 @@
 package specs.mongo.abtesting
 
 import domains.abtesting.events.impl.ExperimentVariantEventMongoService
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import env.{DbDomainConfig, DbDomainConfigDetails, Mongo}
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -29,7 +30,7 @@ class ExperimentVariantEventMongoServiceTest
     new FakeApplicationLifecycle()
   )
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventMongoService(
+  override def dataStore(name: String): ExperimentVariantEventService.Service = ExperimentVariantEventMongoService(
     DbDomainConfig(Mongo, DbDomainConfigDetails(name, None), None),
     mongoApi
   )

@@ -11,13 +11,13 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 import store.leveldb._
-import store.JsonDataStore
+import store.datastore.JsonDataStore
 
 class LevelDBJsonDataStoreTest extends AbstractJsonDataStoreTest("LevelDb") with BeforeAndAfterAll {
 
   private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle()
 
-  override def dataStore(name: String): JsonDataStore = LevelDBJsonDataStore(
+  override def dataStore(name: String): JsonDataStore.Service = LevelDBJsonDataStore(
     LevelDbConfig(s"./target/leveldb-storetest/data-${Random.nextInt(1000)}"),
     DbDomainConfig(InMemory, DbDomainConfigDetails(name, None), None),
     lifecycle

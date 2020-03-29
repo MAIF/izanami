@@ -3,7 +3,8 @@ package specs.redis.abtesting
 import java.time.Duration
 
 import domains.abtesting.events.impl.ExperimentVariantEventRedisService
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import env.{DbDomainConfig, DbDomainConfigDetails, Master}
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -25,7 +26,7 @@ class ExperimentVariantEventRedisServiceTest
     new FakeApplicationLifecycle()
   )
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventRedisService(
+  override def dataStore(name: String): ExperimentVariantEventService.Service = ExperimentVariantEventRedisService(
     DbDomainConfig(env.Redis, DbDomainConfigDetails(name, None), None),
     redisWrapper
   )

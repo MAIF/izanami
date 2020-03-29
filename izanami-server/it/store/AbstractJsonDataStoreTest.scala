@@ -14,12 +14,12 @@ import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.{DataShouldExists, DataShouldNotExists, ErrorMessage, IzanamiErrors, Result}
 import test.TestEventStore
-import zio.internal.PlatformLive
-import zio.{DefaultRuntime, Runtime}
+import zio.{Runtime, ZLayer}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
 import domains.user.User
+import store.datastore._
 
 abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with ScalaFutures with IntegrationPatience {
 
@@ -28,26 +28,24 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
   implicit val system: ActorSystem =
     ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
   implicit val ec: ExecutionContext = system.dispatcher
-  private val context = new DataStoreContext {
-    override def eventStore: EventStore                                             = new TestEventStore()
-    override def logger: Logger                                                     = new ProdLogger
-    override def withAuthInfo(authInfo: Option[AuthInfo.Service]): DataStoreContext = this
-    override def authInfo: Option[AuthInfo.Service]                                 = None
+
+  private val context: ZLayer[Any, Throwable, DataStoreContext] = {
+    ZLogger.live ++ EventStore.value(new TestEventStore()) ++ AuthInfo.empty
   }
-  implicit val runtime: Runtime[DataStoreContext] = Runtime(context, PlatformLive.Default)
-  private val random                              = Random
+  implicit val runtime = Runtime.default
+  private val random   = Random
   import zio._
   import zio.interop.catz._
 
   implicit class RunOps[T](t: zio.RIO[DataStoreContext, T]) {
-    def unsafeRunSync(): T = runtime.unsafeRun(t)
+    def unsafeRunSync(): T = runtime.unsafeRun(t.provideLayer(context))
   }
 
-  def dataStore(dataStore: String): JsonDataStore
+  def dataStore(dataStore: String): JsonDataStore.Service
 
-  def initAndGetDataStore(name: String): JsonDataStore = {
+  def initAndGetDataStore(name: String): JsonDataStore.Service = {
     val store = dataStore(name)
-    runtime.unsafeRun(store.start)
+    runtime.unsafeRun(store.start.provideLayer(context))
     store
   }
 

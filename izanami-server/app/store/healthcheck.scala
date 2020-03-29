@@ -12,7 +12,7 @@ import domains.feature.FeatureService
 import domains.script.GlobalScriptService
 import domains.user.{OauthUser, UserService}
 import domains.webhook.WebhookService
-import zio.ZIO
+import zio.{Has, ZIO}
 
 object Healthcheck {
 
@@ -30,13 +30,12 @@ object Healthcheck {
     ApikeyService.getByIdWithoutPermissions(key).orDie *> ZIO.succeed(()))
 
     for {
-      ctx    <- ZIO.environment[GlobalContext]
-      newCtx = ctx
-      // FIXME
-//      newCtx = ctx.withAuthInfo(
-//        Some(OauthUser("health", "health", "health", false, AuthorizedPatterns.of("test" -> PatternRights.R)))
-//      )
-    } yield check.provide(newCtx)
+      ctx <- ZIO.environment[GlobalContext]
+      // FIXME test if auth if working for healthcheck
+      newCtx = ctx ++ Has(
+        Some(OauthUser("health", "health", "health", false, AuthorizedPatterns.of("test" -> PatternRights.R)))
+      )
+    } yield check.provide(newCtx).provideSomeLayer
   }
 
 }

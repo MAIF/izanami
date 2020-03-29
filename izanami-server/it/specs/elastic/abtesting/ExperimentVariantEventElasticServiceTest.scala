@@ -1,7 +1,8 @@
 package specs.elastic.abtesting
 
 import domains.abtesting.events.impl.ExperimentVariantEventElasticService
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import elastic.api.Elastic
 import env.{DbDomainConfig, DbDomainConfigDetails, ElasticConfig}
 import org.scalactic.source.Position
@@ -17,7 +18,7 @@ class ExperimentVariantEventElasticServiceTest
   private val config            = ElasticConfig("localhost", 9210, "http", None, None, true)
   val elastic: Elastic[JsValue] = ElasticClient(config, system)
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventElasticService(
+  override def dataStore(name: String): ExperimentVariantEventService.Service = ExperimentVariantEventElasticService(
     elastic,
     config,
     DbDomainConfig(env.Elastic, DbDomainConfigDetails(name, None), None)

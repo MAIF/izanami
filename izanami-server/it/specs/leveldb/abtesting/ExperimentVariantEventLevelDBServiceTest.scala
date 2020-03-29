@@ -3,7 +3,8 @@ package specs.leveldb.abtesting
 import java.io.File
 
 import domains.abtesting.events.impl.ExperimentVariantEventLevelDBService
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import env.{DbDomainConfig, DbDomainConfigDetails, LevelDbConfig}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import test.FakeApplicationLifecycle
@@ -19,7 +20,7 @@ class ExperimentVariantEventLevelDBServiceTest
 
   private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle()
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventLevelDBService(
+  override def dataStore(name: String): ExperimentVariantEventService.Service = ExperimentVariantEventLevelDBService(
     LevelDbConfig(s"./target/leveldb-test/data-${Random.nextInt(1000)}"),
     DbDomainConfig(env.LevelDB, DbDomainConfigDetails(name, None), None),
     lifecycle

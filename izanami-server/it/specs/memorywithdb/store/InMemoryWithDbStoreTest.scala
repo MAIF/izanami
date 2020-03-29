@@ -9,14 +9,14 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.Json
 import store.memory.InMemoryJsonDataStore
-import test.FakeApplicationLifecycle
+import test.{FakeApplicationLifecycle, TestEventStore}
 import cats.syntax.option._
 import domains.events.impl.BasicEventStore
 import domains.events.{EventStore, EventStoreModule}
-import libs.logs.{Logger, ProdLogger}
-import store.DataStoreContext
-import zio.internal.PlatformLive
-import zio.Runtime
+import libs.logs.ZLogger
+import store.datastore.DataStoreContext
+import zio.internal.Platform
+import zio.{Runtime, ZLayer}
 
 import scala.concurrent.duration.DurationDouble
 import domains.user.User
@@ -28,14 +28,12 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
   implicit val actorSystem: ActorSystem = ActorSystem()
 
   implicit class RunOps[T](t: zio.RIO[DataStoreContext, T]) {
-    def unsafeRunSync()(implicit runtime: Runtime[DataStoreContext]): T = runtime.unsafeRun(t)
+    def unsafeRunSync(): T = Runtime.default.unsafeRun(t.provideLayer(context))
   }
 
   "InMemoryWithDbStore" must {
     "update his cache on event" in {
       import domains.feature.FeatureInstances
-
-      implicit val runtime: Runtime[DataStoreContext] = buildRuntime
 
       val name            = "test"
       val underlyingStore = new InMemoryJsonDataStore(name)
@@ -52,7 +50,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
         InMemoryWithDbStore.featureEventAdapter,
         new FakeApplicationLifecycle()
       )
-      runtime.unsafeRun(inMemoryWithDb.start)
+      inMemoryWithDb.start.unsafeRunSync()
       Thread.sleep(500)
 
       val feature1Updated = feature1.copy(enabled = true)
@@ -72,7 +70,6 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
   }
 
   "scheduler should reload cache" in {
-    implicit val runtime: Runtime[DataStoreContext] = buildRuntime
 
     val name            = "test"
     val underlyingStore = new InMemoryJsonDataStore(name)
@@ -89,7 +86,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       InMemoryWithDbStore.featureEventAdapter,
       new FakeApplicationLifecycle()
     )
-    runtime.unsafeRun(inMemoryWithDb.start)
+    inMemoryWithDb.start.unsafeRunSync()
 
     Thread.sleep(500)
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(feature1).some
@@ -102,13 +99,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       .some
   }
 
-  def buildRuntime: Runtime[DataStoreContext] = {
-    val module = new DataStoreContext {
-      override def eventStore: EventStore                                             = new BasicEventStore
-      override def logger: Logger                                                     = new ProdLogger
-      override def withAuthInfo(authInfo: Option[AuthInfo.Service]): DataStoreContext = this
-      override def authInfo: Option[AuthInfo.Service]                                 = None
-    }
-    Runtime(module, PlatformLive.Default)
-  }
+  val context: ZLayer[Any, Throwable, DataStoreContext] =
+  ZLogger.live ++ EventStore.value(new TestEventStore()) ++ AuthInfo.empty
+
 }
