@@ -135,7 +135,6 @@ parallelExecution in Test := false
 // FIXME swagger
 swaggerDomainNameSpaces := Seq(
   "domains.abtesting.events.ExperimentVariantEventKey",
-  "domains.abtesting.events.ExperimentVariantEvent",
   "domains.abtesting.events.ExperimentVariantDisplayed",
   "domains.abtesting.events.ExperimentVariantWon",
   "domains.abtesting.Traffic",
