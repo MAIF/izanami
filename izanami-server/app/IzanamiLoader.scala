@@ -1,27 +1,23 @@
-package loader
 import akka.actor.ActorSystem
-import libs.logs.IzanamiLogger
-import libs.http.HttpContext
-import zio.{Runtime, ZIO}
-import zio.interop.catz._
 import com.softwaremill.macwire._
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
-import domains.config.{ConfigDataStore, ConfigService}
 import domains.Import
-import domains.configuration.GlobalContext
 import domains.abtesting._
-import domains.abtesting.events.{ExperimentVariantEventService, _}
+import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.{ApikeyDataStore, ApikeyService}
-import domains.events._
+import domains.config.{ConfigDataStore, ConfigService}
+import domains.configuration.GlobalContext
 import domains.feature.{FeatureDataStore, FeatureService}
 import domains.script.{GlobalScriptDataStore, GlobalScriptService}
 import domains.user.{UserDataStore, UserService}
 import domains.webhook.{WebhookDataStore, WebhookService}
-import metrics.MetricsService
 import env._
 import filters.{ZioIzanamiDefaultFilter, ZioOtoroshiFilter}
 import handlers.ErrorHandler
+import libs.http.HttpContext
+import libs.logs.IzanamiLogger
+import metrics.MetricsService
 import patches.Patchs
 import play.api.ApplicationLoader.Context
 import play.api._
@@ -32,6 +28,7 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
 import router.Routes
+import zio.{Runtime, ZIO}
 
 import scala.util.Random
 
