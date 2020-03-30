@@ -65,8 +65,10 @@ class ExperimentVariantEventLevelDBService(
   import cats.implicits._
   import domains.events.Events._
 
-  private val db: DB =
-    factory.open(new File(dbPath), new Options().createIfMissing(true))
+  private val db: DB = {
+    val folder = new File(dbPath).getAbsoluteFile
+    factory.open(folder, new Options().createIfMissing(true))
+  }
 
   applicationLifecycle.addStopHook { () =>
     IzanamiLogger.info(s"Closing leveldb for path $dbPath")

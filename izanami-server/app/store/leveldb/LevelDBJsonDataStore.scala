@@ -54,7 +54,8 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   import IzanamiErrors._
 
   private val client: DB = try {
-    factory.open(new File(dbPath), new Options().createIfMissing(true))
+    val folder = new File(dbPath).getAbsoluteFile
+    factory.open(folder, new Options().createIfMissing(true))
   } catch {
     case e: Throwable =>
       IzanamiLogger.error(s"Error opening db for path $dbPath", e)
