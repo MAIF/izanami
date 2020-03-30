@@ -17,13 +17,14 @@ lazy val `izanami-server` = (project in file("."))
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
 
-val akkaVersion     = "2.6.3"
-val alpakkaVersion  = "1.1.2"
-val metricsVersion  = "4.0.2"
-val kotlinVersion   = "1.3.70"
-val doobieVersion   = "0.8.4"
-val akkaHttpVersion = "10.1.11"
-val silencerVersion = "1.4.4"
+val akkaVersion       = "2.6.3"
+val alpakkaVersion    = "1.1.2"
+val metricsVersion    = "4.0.2"
+val kotlinVersion     = "1.3.70"
+val doobieVersion     = "0.8.8"
+val akkaHttpVersion   = "10.1.11"
+val silencerVersion   = "1.4.4"
+val prometheusVersion = "0.8.1"
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
@@ -43,7 +44,7 @@ libraryDependencies ++= Seq(
   "com.nimbusds"             % "nimbus-jose-jwt"                      % "8.0",
   "org.gnieh"                %% "diffson-play-json"                   % "4.0.2", //
   "com.softwaremill.macwire" %% "macros"                              % "2.3.3" % "provided", // Apache 2.0
-  "org.scala-lang.modules"   %% "scala-collection-compat"             % "2.1.2",
+  "org.scala-lang.modules"   %% "scala-collection-compat"             % "2.1.4",
   "com.typesafe.akka"        %% "akka-actor"                          % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-slf4j"                          % akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                         % akkaVersion, // Apache 2.0
@@ -56,8 +57,8 @@ libraryDependencies ++= Seq(
   "org.reactivemongo"        %% "reactivemongo-play-json-compat"      % "0.20.3-play28",
   "org.reactivemongo"        %% "play2-reactivemongo"                 % "0.20.3-play28",
   "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"        % alpakkaVersion, // Apache 2.0
-  "io.lettuce"               % "lettuce-core"                         % "5.0.4.RELEASE", // Apache 2.0
-  "org.iq80.leveldb"         % "leveldb"                              % "0.10", // Apache 2.0
+  "io.lettuce"               % "lettuce-core"                         % "5.2.2.RELEASE", // Apache 2.0
+  "org.iq80.leveldb"         % "leveldb"                              % "0.12", // Apache 2.0
   "org.typelevel"            %% "cats-core"                           % "2.1.1", // MIT license
   "org.typelevel"            %% "cats-effect"                         % "2.1.2", // MIT license
   "org.tpolecat"             %% "doobie-core"                         % doobieVersion,
@@ -65,17 +66,17 @@ libraryDependencies ++= Seq(
   "org.tpolecat"             %% "doobie-postgres"                     % doobieVersion,
   "com.github.krasserm"      %% "streamz-converter"                   % "0.11-RC1",
   "com.chuusai"              %% "shapeless"                           % "2.3.3", // Apache 2.0
-  "com.github.pureconfig"    %% "pureconfig"                          % "0.12.1", // Apache 2.0
+  "com.github.pureconfig"    %% "pureconfig"                          % "0.12.3", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra"       % alpakkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"                   % "2.0.0", // Apache 2.0
-  "com.adelegue"             %% "elastic-scala-http"                  % "0.0.14", // Apache 2.0
+  "com.adelegue"             %% "elastic-scala-http"                  % "0.0.15", // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"                % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                         % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jvm"                          % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jmx"                          % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-json"                         % metricsVersion, // Apache 2.0
-  "io.prometheus"            % "simpleclient_common"                  % "0.5.0", // Apache 2.0
-  "io.prometheus"            % "simpleclient_dropwizard"              % "0.5.0", // Apache 2.0
+  "io.prometheus"            % "simpleclient_common"                  % prometheusVersion, // Apache 2.0
+  "io.prometheus"            % "simpleclient_dropwizard"              % prometheusVersion, // Apache 2.0
   "org.scala-lang"           % "scala-compiler"                       % scalaVersion.value,
   "org.scala-lang"           % "scala-library"                        % scalaVersion.value,
   "net.java.dev.jna"         % "jna"                                  % "5.5.0",
@@ -84,19 +85,18 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"     % "kotlin-script-util"                   % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"           % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-scripting-compiler-embeddable" % kotlinVersion,
-  "org.webjars"              % "swagger-ui"                           % "3.24.3",
+  "org.webjars"              % "swagger-ui"                           % "3.25.0",
   "com.typesafe.akka"        %% "akka-http"                           % akkaHttpVersion % "it,test", // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"                        % akkaVersion % "it,test", // Apache 2.0
-  "de.heikoseeberger"        %% "akka-http-play-json"                 % "1.29.1" % "it,test" excludeAll ExclusionRule(
+  "de.heikoseeberger"        %% "akka-http-play-json"                 % "1.31.0" % "it,test" excludeAll ExclusionRule(
     "com.typesafe.play",
     "play-json"
   ), // Apache 2.0
-  "org.scalatestplus.play"   %% "scalatestplus-play" % "4.0.3"         % "it,test", // Apache 2.0
-  "com.github.kstyrc"        % "embedded-redis"      % "0.6"           % "it,test", // Apache 2.0
-  "org.slf4j"                % "slf4j-api"           % "1.7.25"        % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-api"           % "2.8.2"         % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-core"          % "2.8.2"         % "it,test", // MIT license
-  "com.github.ghik"          % "silencer-lib"        % silencerVersion % Provided cross CrossVersion.full
+  "org.scalatestplus.play"   %% "scalatestplus-play" % "4.0.3"  % "it,test", // Apache 2.0
+  "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
+  "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
+  "org.apache.logging.log4j" % "log4j-api"           % "2.8.2"  % "it,test", // MIT license
+  "org.apache.logging.log4j" % "log4j-core"          % "2.8.2"  % "it,test" // MIT license
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
