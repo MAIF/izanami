@@ -46,7 +46,7 @@ import play.libs.ws
 import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 
-object configuration {
+package object configuration {
 
   type PlayModule = zio.Has[PlayModule.Service]
 
@@ -112,7 +112,7 @@ object configuration {
     with MetricsModule
     with AuthInfo
     with ZLogger
-    with Has[Patchs]
+    with Patchs
     with ExperimentDataStore
     with ExperimentVariantEventService
     with ApikeyDataStore
@@ -163,7 +163,7 @@ object configuration {
       val stores: ZLayer[
         ZEnv,
         Throwable,
-        Has[Patchs] with EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
+        Patchs with EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
       ] =
       baseWithConfigAndScriptAndDrivers >>> (
         Patchs.live ++
