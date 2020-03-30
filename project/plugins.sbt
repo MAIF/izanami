@@ -15,7 +15,7 @@ addSbtPlugin("com.lightbend.paradox" % "sbt-paradox" % "0.4.3") // Apache 2.0
 
 addSbtPlugin("com.adelegue" % "sbt-ditaa" % "0.2") // Apache 2.0
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.6") // Apache 2.0
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10") // Apache 2.0
 
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.9.1") // Apache 2.0
 

@@ -43,6 +43,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       val feature1 = DefaultFeature(key1, false, None)
       underlyingStore.create(key1, FeatureInstances.format.writes(feature1)).either.unsafeRunSync()
 
+      println(s"Creating store")
       val inMemoryWithDb = new InMemoryWithDbStore(
         InMemoryWithDbConfig(db = InMemory, None),
         name,
@@ -60,7 +61,6 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       actorSystem.eventStream.publish(FeatureCreated(key2, feature2, authInfo = None))
 
       Thread.sleep(500)
-
       inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
         .writes(feature1Updated)
         .some
@@ -100,6 +100,6 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
   }
 
   val context: ZLayer[Any, Throwable, DataStoreContext] =
-  ZLogger.live ++ EventStore.value(new TestEventStore()) ++ AuthInfo.empty
+  ZLogger.live ++ EventStore.value(new BasicEventStore) ++ AuthInfo.empty
 
 }

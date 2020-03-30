@@ -139,8 +139,7 @@ object configuration {
 
       val playModule =
         PlayModule.live(system, mat, defaultCacheApi, configuration, environment, wSClient, ec, applicationLifecycle)
-      val base: ZLayer[ZEnv, Throwable, Clock with Blocking with PlayModule] =
-      (Clock.live ++ Blocking.live ++ playModule)
+      val base: ZLayer[ZEnv, Throwable, Clock with Blocking with PlayModule] = Clock.live ++ Blocking.live ++ playModule
 
       val configAndScript: ZLayer[PlayModule,
                                   Throwable,
