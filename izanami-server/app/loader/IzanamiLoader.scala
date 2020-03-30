@@ -1,3 +1,4 @@
+package loader
 import akka.actor.ActorSystem
 import libs.logs.IzanamiLogger
 import libs.http.HttpContext
