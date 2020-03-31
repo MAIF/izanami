@@ -17,7 +17,7 @@ import store.datastore._
 import domains.auth.AuthInfo
 import domains.configuration.PlayModule
 import domains.user.UserDataStore
-import env.Oauth2Config
+import env.{IzanamiConfig, Oauth2Config}
 import env.configuration.IzanamiConfigModule
 import errors.IzanamiErrors
 import libs.database.Drivers
@@ -168,9 +168,9 @@ package object user {
     def value(userDataStore: JsonDataStore.Service): ULayer[UserDataStore] =
       ZLayer.succeed(UserDataStoreProd(userDataStore))
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, UserDataStore] =
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, UserDataStore] =
       JsonDataStore
-        .live(c => c.user.db, InMemoryWithDbStore.userEventAdapter)
+        .live(izanamiConfig, c => c.user.db, InMemoryWithDbStore.userEventAdapter)
         .map(s => Has(UserDataStoreProd(s.get)))
   }
 

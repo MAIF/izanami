@@ -15,16 +15,19 @@ import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
 import domains.abtesting.events.impl.ExperimentVariantEventDbStores.BlockingIO
 import domains.abtesting.events.{ExperimentVariantEventServiceContext, _}
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
+import env.configuration.IzanamiConfigModule
 import env.{DbDomainConfig, LevelDbConfig}
-import libs.logs.IzanamiLogger
+import libs.logs.{IzanamiLogger, ZLogger}
 import org.iq80.leveldb.impl.Iq80DBFactory.{asString, bytes, factory}
 import org.iq80.leveldb.{DB, Options}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
+import store.datastore.DataStoreLayerContext
 import zio.blocking.Blocking
-import zio.{RIO, Task, ZIO}
+import zio.{RIO, Task, UIO, ZIO, ZLayer, ZManaged}
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
@@ -41,39 +44,45 @@ object ExperimentVariantEventDbStores {
 }
 
 object ExperimentVariantEventLevelDBService {
-  def apply(
-      levelDbConfig: LevelDbConfig,
-      configdb: DbDomainConfig,
-      applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
-    val namespace      = configdb.conf.namespace
-    val parentPath     = levelDbConfig.parentPath
-    val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-    ExperimentVariantEventDbStores.stores.getOrElseUpdate(dbPath, {
-      new ExperimentVariantEventLevelDBService(dbPath, applicationLifecycle)
-    })
+
+  val live: ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] = ZLayer.fromFunctionManaged {
+    mix =>
+      implicit val sys: ActorSystem    = mix.get[PlayModule.Service].system
+      val izanamiConfig                = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val configdb: DbDomainConfig     = izanamiConfig.experimentEvent.db
+      val levelDbConfig: LevelDbConfig = izanamiConfig.db.leveldb.get
+      val namespace                    = configdb.conf.namespace
+      val parentPath                   = levelDbConfig.parentPath
+      val dbPath: String               = parentPath + "/" + namespace.replaceAll(":", "_")
+      ZManaged
+        .make(ZLogger.info(s"Opening leveldb for path $dbPath") *> Task {
+          val folder = new File(dbPath).getAbsoluteFile
+          factory.open(folder, new Options().createIfMissing(true))
+        })(db => ZLogger.info(s"Closing leveldb for path $dbPath") *> UIO(db.close()))
+        .provide(mix)
+        .map(db => new ExperimentVariantEventLevelDBService(db))
   }
+//
+//  def apply(
+//      levelDbConfig: LevelDbConfig,
+//      configdb: DbDomainConfig,
+//      applicationLifecycle: ApplicationLifecycle
+//  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
+//    val namespace      = configdb.conf.namespace
+//    val parentPath     = levelDbConfig.parentPath
+//    val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
+//    ExperimentVariantEventDbStores.stores.getOrElseUpdate(dbPath, {
+//      new ExperimentVariantEventLevelDBService(dbPath, applicationLifecycle)
+//    })
+//  }
 }
 
-class ExperimentVariantEventLevelDBService(
-    dbPath: String,
-    applicationLifecycle: ApplicationLifecycle
-)(implicit actorSystem: ActorSystem)
+class ExperimentVariantEventLevelDBService(db: DB)(implicit actorSystem: ActorSystem)
     extends ExperimentVariantEventService.Service {
 
   import actorSystem.dispatcher
   import cats.implicits._
   import domains.events.Events._
-
-  private val db: DB = {
-    val folder = new File(dbPath).getAbsoluteFile
-    factory.open(folder, new Options().createIfMissing(true))
-  }
-
-  applicationLifecycle.addStopHook { () =>
-    IzanamiLogger.info(s"Closing leveldb for path $dbPath")
-    Future(db.close())
-  }
 
   private val experimentseventsNamespace: String = "experimentsevents"
 

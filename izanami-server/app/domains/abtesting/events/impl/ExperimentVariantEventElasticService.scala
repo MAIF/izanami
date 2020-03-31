@@ -12,14 +12,18 @@ import domains.auth.AuthInfo
 import domains.Key
 import domains.abtesting._
 import domains.abtesting.events._
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import elastic.api._
+import env.configuration.IzanamiConfigModule
 import env.{DbDomainConfig, ElasticConfig}
+import libs.database.Drivers.ElasticDriver
 import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.libs.json.{JsObject, JsValue, Json}
-import zio.{IO, RIO, Task, ZIO}
+import store.datastore.DataStoreLayerContext
+import zio.{IO, RIO, Task, ZIO, ZLayer}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -27,6 +31,16 @@ import scala.concurrent.{ExecutionContext, Future}
 ////////////////////////////////////     ELASTIC      ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 object ExperimentVariantEventElasticService {
+
+  val live: ZLayer[ElasticDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val configdb: DbDomainConfig  = izanamiConfig.experimentEvent.db
+      val Some(elasticConfig)       = izanamiConfig.db.elastic
+      val Some(elastic)             = mix.get[Option[Elastic[JsValue]]]
+      ExperimentVariantEventElasticService(elastic, elasticConfig, configdb)
+    }
 
   def apply(
       elastic: Elastic[JsValue],

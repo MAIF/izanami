@@ -92,7 +92,6 @@ package object metrics {
   }
 
   type MetricsContext = PlayModule
-    with Drivers
     with IzanamiConfigModule
     with MetricsModule
     with AuthInfo
@@ -260,41 +259,41 @@ package object metrics {
         }
         .unit
     }
-
-    private def startMetricsElastic(metricsConfig: MetricsConfig): RIO[MetricsContext, Fiber[Throwable, Unit]] =
-      if (metricsConfig.elastic.enabled) {
-        import DateTimeFormatter._
-
-        val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
-          _       <- ZLogger.info("Enabling kafka metrics reporter")
-          drivers <- Drivers.drivers
-          client  <- ZIO.fromOption(drivers.elasticClient)
-          fiber <- (this.metrics flatMap { (metrics: Metrics) =>
-                    val message: String = metrics.jsonExport
-                    val indexName       = new SimpleDateFormat(metricsConfig.elastic.index).format(new Date())
-                    val jsonMessage = Json.parse(message).as[JsObject] ++ Json.obj(
-                      "@timestamp" -> ISO_DATE_TIME.format(LocalDateTime.now())
-                    )
-                    Task
-                      .fromFuture { implicit ec =>
-                        import elastic.implicits._
-                        import elastic.codec.PlayJson._
-                        client.index(indexName / "type").index(jsonMessage)
-                      }
-                      .onError {
-                        case Fail(exception) =>
-                          ZLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
-                        case Die(exception) =>
-                          ZLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
-                        case _ => ZIO.unit
-                      }
-                      .unit
-                  }).delay(Duration.fromScala(metricsConfig.elastic.pushInterval)).forever.fork
-        } yield fiber
-        res.foldM(_ => Task.unit.fork, r => Task(r))
-      } else {
-        Task.unit.fork
-      }
+// FIXME
+//    private def startMetricsElastic(metricsConfig: MetricsConfig): RIO[MetricsContext, Fiber[Throwable, Unit]] =
+//      if (metricsConfig.elastic.enabled) {
+//        import DateTimeFormatter._
+//
+//        val res: ZIO[MetricsContext, Any, Fiber[Throwable, Unit]] = for {
+//          _       <- ZLogger.info("Enabling kafka metrics reporter")
+//          drivers <- Drivers.elasticClientLayer.memoize
+//          client  <- ZIO.fromOption(drivers.elasticClient)
+//          fiber <- (this.metrics flatMap { (metrics: Metrics) =>
+//                    val message: String = metrics.jsonExport
+//                    val indexName       = new SimpleDateFormat(metricsConfig.elastic.index).format(new Date())
+//                    val jsonMessage = Json.parse(message).as[JsObject] ++ Json.obj(
+//                      "@timestamp" -> ISO_DATE_TIME.format(LocalDateTime.now())
+//                    )
+//                    Task
+//                      .fromFuture { implicit ec =>
+//                        import elastic.implicits._
+//                        import elastic.codec.PlayJson._
+//                        client.index(indexName / "type").index(jsonMessage)
+//                      }
+//                      .onError {
+//                        case Fail(exception) =>
+//                          ZLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
+//                        case Die(exception) =>
+//                          ZLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
+//                        case _ => ZIO.unit
+//                      }
+//                      .unit
+//                  }).delay(Duration.fromScala(metricsConfig.elastic.pushInterval)).forever.fork
+//        } yield fiber
+//        res.foldM(_ => Task.unit.fork, r => Task(r))
+//      } else {
+//        Task.unit.fork
+//      }
 
     def start: RIO[MetricsContext, Unit] =
       for {
@@ -312,14 +311,15 @@ package object metrics {
         log                  <- startMetricsLogger(metricsConfig, metricRegistry)
         console              <- startMetricsConsole(metricsConfig, metricRegistry)
         kafkaScheduler       <- startMetricsKafka(metricsConfig, metricRegistry)
-        esScheduler          <- startMetricsElastic(metricsConfig)
+        // FIXME
+//        esScheduler          <- startMetricsElastic(metricsConfig)
       } yield {
         applicationLifecycle.addStopHook { () =>
           runtime.unsafeRunToFuture(
             log.interrupt <&>
             console.interrupt <&>
-            kafkaScheduler.interrupt <&>
-            esScheduler.interrupt
+            kafkaScheduler.interrupt // <&>
+//            esScheduler.interrupt
           )
         }
       }

@@ -1,10 +1,10 @@
 package domains.events.impl
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
 import domains.Domain.Domain
+import domains.configuration.PlayModule
 import domains.events.Events.IzanamiEvent
 import domains.events.{EventLogger, EventStore}
 import env.RedisEventsConfig
@@ -14,12 +14,36 @@ import libs.streams.CacheableQueue
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsError, JsResult, JsSuccess, Json}
 import domains.errors.IzanamiErrors
+import libs.database.Drivers.RedisDriver
 import store.redis.RedisWrapper
-import zio.{IO, Task}
+import zio.{IO, Managed, Task, ZLayer}
 
 import scala.util.Failure
 
-class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: ActorSystem) extends EventStore.Service {
+object RedisEventStore {
+
+  def live(config: RedisEventsConfig): ZLayer[RedisDriver with PlayModule, Throwable, EventStore] =
+    ZLayer.fromFunctionManaged { mix =>
+      val playModule        = mix.get[PlayModule.Service]
+      val Some(redisDriver) = mix.get[Option[RedisWrapper]]
+      create(redisDriver, config, playModule.system)
+    }
+
+  def create(client: RedisWrapper,
+             config: RedisEventsConfig,
+             system: ActorSystem): Managed[Throwable, RedisEventStore] =
+    (client.managedConnection <*>
+    client.connectPubSub).map {
+      case (connection, connectionPubSub) =>
+        new RedisEventStore(connection, connectionPubSub, config, system)
+    }
+}
+
+class RedisEventStore(connection: StatefulRedisConnection[String, String],
+                      connectionPubSub: StatefulRedisPubSubConnection[String, String],
+                      config: RedisEventsConfig,
+                      system: ActorSystem)
+    extends EventStore.Service {
 
   import EventLogger._
   import system.dispatcher
@@ -27,10 +51,6 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
   implicit private val s = system
 
   logger.info(s"Starting redis event store")
-
-  private val connection: StatefulRedisConnection[String, String]             = client.connection
-  private val connectionPubSub: StatefulRedisPubSubConnection[String, String] = client.connectPubSub()
-  connectionPubSub.async()
 
   private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
 

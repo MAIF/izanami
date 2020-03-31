@@ -11,10 +11,13 @@ import domains.auth.AuthInfo
 import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting._
 import domains.abtesting.events.{ExperimentVariantEventInstances, ExperimentVariantEventKeyInstances, _}
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import env.DbDomainConfig
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.MongoDriver
 import libs.logs.ZLogger
 import libs.mongo.MongoUtils
 import play.api.libs.json.{JsObject, JsValue, Json}
@@ -24,7 +27,8 @@ import reactivemongo.api.ReadPreference
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.play.json.collection.JSONCollection
 import reactivemongo.play.json.compat._
-import zio.{RIO, Task, ZIO}
+import store.datastore.DataStoreLayerContext
+import zio.{RIO, Task, ZIO, ZLayer}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -45,6 +49,16 @@ object ExperimentVariantEventDocument {
 }
 
 object ExperimentVariantEventMongoService {
+
+  val live: ZLayer[MongoDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val configdb: DbDomainConfig  = izanamiConfig.experimentEvent.db
+      val Some(mongoApi)            = mix.get[Option[ReactiveMongoApi]]
+      ExperimentVariantEventMongoService(configdb, mongoApi)
+    }
+
   def apply(config: DbDomainConfig, mongoApi: ReactiveMongoApi)(
       implicit system: ActorSystem
   ): ExperimentVariantEventMongoService =

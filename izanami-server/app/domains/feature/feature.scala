@@ -21,6 +21,7 @@ import java.time.LocalTime
 
 import cats.data.NonEmptyList
 import domains.feature.FeatureDataStore
+import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
 import libs.database.Drivers
 import metrics.MetricsService
@@ -151,9 +152,9 @@ package object feature {
     def value(featureDataStore: JsonDataStore.Service): ZLayer[Any, Nothing, FeatureDataStore] =
       ZLayer.succeed(FeatureDataStoreProd(featureDataStore))
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, FeatureDataStore] =
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, FeatureDataStore] =
       JsonDataStore
-        .live(c => c.features.db, InMemoryWithDbStore.featureEventAdapter)
+        .live(izanamiConfig, c => c.features.db, InMemoryWithDbStore.featureEventAdapter)
         .map(s => Has(FeatureDataStoreProd(s.get)))
   }
 

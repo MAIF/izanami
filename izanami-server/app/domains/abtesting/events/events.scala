@@ -21,7 +21,7 @@ import domains.abtesting.events.impl.{
 }
 import domains.abtesting.{Experiment, ExperimentResultEvent, Variant, VariantResult}
 import domains.auth.AuthInfo
-import domains.configuration.{PlayModule}
+import domains.configuration.PlayModule
 import domains.errors.{ErrorMessage, IzanamiErrors}
 import domains.events.EventStore
 import domains.{ImportResult, Key}
@@ -32,7 +32,8 @@ import libs.database.Drivers
 import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsError, JsSuccess, JsValue}
-import zio.{ZIO, ZLayer}
+import store.datastore.{DataStoreContext, DataStoreLayerContext}
+import zio.{Task, ZIO, ZLayer}
 import zio.blocking.Blocking
 
 import scala.collection.immutable.HashSet
@@ -267,31 +268,29 @@ package object events {
     def value(store: ExperimentVariantEventService.Service): ZLayer[Any, Nothing, ExperimentVariantEventService] =
       ZLayer.succeed(store)
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, ExperimentVariantEventService] =
-      ZLayer.fromFunction { mix =>
-        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
-        implicit val actorSystem: ActorSystem = playModule.system
-        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
-        val drivers: Drivers.Service          = mix.get[Drivers.Service]
-        ExperimentVariantEventService(izanamiConfig, drivers, playModule.applicationLifecycle)
-      }
+//    val live: ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+//      ZLayer.fromFunction { mix =>
+//        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+//        implicit val actorSystem: ActorSystem = playModule.system
+//        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+//        val drivers: Drivers.Service          = mix.get[Drivers.Service]
+//        ExperimentVariantEventService(izanamiConfig, drivers, playModule.applicationLifecycle)
+//      }
 
-    def apply(izanamiConfig: IzanamiConfig, drivers: Drivers.Service, applicationLifecycle: ApplicationLifecycle)(
-        implicit s: ActorSystem
-    ): ExperimentVariantEventService.Service = {
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] = {
       val conf = izanamiConfig.experimentEvent.db
       // format: off
   
-        def getExperimentVariantEventStore(dbType: DbType): ExperimentVariantEventService.Service = dbType match {
-          case InMemory  => ExperimentVariantEventInMemoryService(conf)
-          case Redis     => ExperimentVariantEventRedisService(conf, drivers.redisClient)
-          case LevelDB   => ExperimentVariantEventLevelDBService(izanamiConfig.db.leveldb.get, conf, applicationLifecycle)
-          case Cassandra => ExperimentVariantEventCassandraService(drivers.cassandraClient.get._2, conf, izanamiConfig.db.cassandra.get)
-          case Elastic   => ExperimentVariantEventElasticService(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
-          case Mongo    =>  ExperimentVariantEventMongoService(conf, drivers.mongoApi.get)
-          case Dynamo   =>  ExperimentVariantEventDynamoService(izanamiConfig.db.dynamo.get, drivers.dynamoClient.get)
-          case Postgresql   =>  ExperimentVariantEventPostgresqlService(drivers.postgresqlClient.get, conf)
-          case _ => throw new IllegalArgumentException("Unsupported store type ")
+        val getExperimentVariantEventStore: DbType => ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] = {
+          case InMemory  => ExperimentVariantEventInMemoryService.live
+          case Redis     => Drivers.redisClientLayer.passthrough >>> ExperimentVariantEventRedisService.live
+          case LevelDB   => ExperimentVariantEventLevelDBService.live
+          case Cassandra => Drivers.cassandraClientLayer.passthrough >>> ExperimentVariantEventCassandraService.live
+          case Elastic   => Drivers.elasticClientLayer.passthrough >>> ExperimentVariantEventElasticService.live
+          case Mongo    =>  Drivers.mongoApiLayer.passthrough >>> ExperimentVariantEventMongoService.live
+          case Dynamo   =>  Drivers.dynamoClientLayer.passthrough >>> ExperimentVariantEventDynamoService.live
+          case Postgresql   =>  Drivers.postgresqldriverLayer.passthrough >>> ExperimentVariantEventPostgresqlService.live
+          case _ => ZLayer.fromEffect(Task.fail(new IllegalArgumentException("Unsupported store type ")))
         }
         val store = conf.`type` match {
           case InMemoryWithDb => getExperimentVariantEventStore(izanamiConfig.db.inMemoryWithDb.get.db)

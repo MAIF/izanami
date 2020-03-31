@@ -8,8 +8,9 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Sink, Source}
 import cats.implicits._
 import domains.Key
+import domains.configuration.PlayModule
 import elastic.api.{Bulk, BulkOpDetail, BulkOpType, Elastic, EsException, GetResponse}
-import env.{DbDomainConfig, ElasticConfig}
+import env.{DbDomainConfig, ElasticConfig, IzanamiConfig}
 import libs.logs.IzanamiLogger
 import libs.logs.ZLogger
 import play.api.libs.json._
@@ -19,8 +20,22 @@ import store._
 import store.datastore._
 import store.elastic.ElasticJsonDataStore.EsDocument
 import domains.errors.{DataShouldExists, DataShouldNotExists, IzanamiErrors}
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.{DriverLayerContext, ElasticDriver}
+import zio.{Has, ZLayer}
 
 object ElasticJsonDataStore {
+
+  def live(dbDomainConfig: DbDomainConfig): ZLayer[ElasticDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      implicit val actorSystem: ActorSystem = playModule.system
+      val Some(elasticConfig)               = izanamiConfig.db.elastic
+      val Some(elastic)                     = mix.get[Option[Elastic[JsValue]]]
+      new ElasticJsonDataStore(elastic, elasticConfig, dbDomainConfig)
+    }
+
   def apply(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
       implicit actorSystem: ActorSystem
   ): ElasticJsonDataStore =

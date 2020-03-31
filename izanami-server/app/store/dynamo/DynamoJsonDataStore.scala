@@ -10,7 +10,8 @@ import akka.NotUsed
 import cats.implicits._
 import com.amazonaws.services.dynamodbv2.model.{ConditionalCheckFailedException, _}
 import domains.Key
-import env.{DbDomainConfig, DynamoConfig}
+import domains.configuration.PlayModule
+import env.{DbDomainConfig, DynamoConfig, IzanamiConfig}
 import libs.streams.Flows
 import libs.logs.ZLogger
 import play.api.libs.json.JsValue
@@ -23,8 +24,23 @@ import scala.jdk.CollectionConverters._
 import scala.concurrent.Future
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.{DriverLayerContext, DynamoDriver, MongoDriver}
+import zio.{Has, ZLayer}
 
 object DynamoJsonDataStore {
+
+  def live(config: DbDomainConfig): ZLayer[DynamoDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      implicit val actorSystem: ActorSystem = playModule.system
+      val namespace                         = config.conf.namespace
+      val Some(dynamoConfig)                = izanamiConfig.db.dynamo
+      val Some(client)                      = mix.get[Option[AlpakkaClient]]
+      DynamoJsonDataStore(client, dynamoConfig.tableName, namespace)
+    }
+
   def apply(client: AlpakkaClient, dynamoConfig: DynamoConfig, config: DbDomainConfig)(
       implicit system: ActorSystem
   ): DynamoJsonDataStore = {

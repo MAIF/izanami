@@ -4,24 +4,38 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 import akka.NotUsed
+import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import cats.implicits._
 import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events.{ExperimentVariantEventInstances, _}
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import env.DbDomainConfig
+import env.configuration.IzanamiConfigModule
 import fs2.Stream
+import libs.database.Drivers.PostgresDriver
 import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.libs.json.JsValue
+import store.datastore.DataStoreLayerContext
 import store.postgresql.{PgData, PostgresqlClient}
-import zio.{RIO, Task, ZIO}
+import zio.{RIO, Task, ZIO, ZLayer}
 
 object ExperimentVariantEventPostgresqlService {
+
+  val live: ZLayer[PostgresDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val Some(client)              = mix.get[Option[PostgresqlClient]]
+      ExperimentVariantEventPostgresqlService(client, izanamiConfig.experimentEvent.db)
+    }
+
   def apply(
       client: PostgresqlClient,
       domainConfig: DbDomainConfig,

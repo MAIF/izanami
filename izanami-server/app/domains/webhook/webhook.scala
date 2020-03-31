@@ -13,7 +13,7 @@ import domains.auth.AuthInfo
 import domains.configuration.PlayModule
 import domains.user.UserDataStore
 import domains.webhook.notifications.WebHooksActor
-import env.WebhookConfig
+import env.{IzanamiConfig, WebhookConfig}
 import env.configuration.IzanamiConfigModule
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
@@ -58,9 +58,9 @@ package object webhook {
     def value(webhookDataStore: JsonDataStore.Service): ULayer[WebhookDataStore] =
       ZLayer.succeed(WebhookDataStoreProd(webhookDataStore))
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, WebhookDataStore] =
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, WebhookDataStore] =
       JsonDataStore
-        .live(c => c.webhook.db, InMemoryWithDbStore.webhookEventAdapter)
+        .live(izanamiConfig, c => c.webhook.db, InMemoryWithDbStore.webhookEventAdapter)
         .map(s => Has(WebhookDataStoreProd(s.get)))
   }
 

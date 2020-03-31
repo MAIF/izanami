@@ -1,4 +1,5 @@
 import akka.actor.ActorSystem
+import cats.effect.Resource
 import com.softwaremill.macwire._
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
@@ -18,7 +19,6 @@ import handlers.ErrorHandler
 import libs.http.HttpContext
 import libs.logs.IzanamiLogger
 import metrics.MetricsService
-import patches.Patchs
 import play.api.ApplicationLoader.Context
 import play.api._
 import play.api.cache.AsyncCacheApi
@@ -28,7 +28,7 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
 import router.Routes
-import zio.{Runtime, ZIO}
+import zio.{Exit, Reservation, Runtime, URIO, ZIO, ZManaged}
 
 import scala.util.Random
 
@@ -55,7 +55,8 @@ package object modules {
     lazy val izanamiConfig: IzanamiConfig            = IzanamiConfig.fromConfig(configuration)
     lazy val mayBeOauth2Config: Option[Oauth2Config] = izanamiConfig.oauth2.filter(_.enabled)
 
-    implicit val system: ActorSystem = actorSystem
+    implicit val system: ActorSystem        = actorSystem
+    implicit val runtime: Runtime[zio.ZEnv] = Runtime.default
 
     IzanamiLogger.info(s"Configuration: \n$izanamiConfig")
 
@@ -75,17 +76,28 @@ package object modules {
       case _         => cacheApi("izanami")
     }
 
-    implicit val globalContextLayer: HttpContext[GlobalContext] = GlobalContext
-      .buildContext(
-        actorSystem,
-        materializer,
-        izanamiCache,
-        configuration,
-        environment,
-        wsClient,
-        system.dispatcher,
-        applicationLifecycle
-      )
+    private val release: ZManaged[Any, Nothing, HttpContext[GlobalContext]] =
+      GlobalContext
+        .live(actorSystem,
+              materializer,
+              izanamiCache,
+              configuration,
+              environment,
+              wsClient,
+              system.dispatcher,
+              izanamiConfig,
+              applicationLifecycle)
+        .memoize
+
+    private val reservation: Reservation[Any, Nothing, HttpContext[GlobalContext]] =
+      runtime.unsafeRun(release.reserve)
+
+    private implicit val globalContextLayer: HttpContext[GlobalContext] =
+      runtime.unsafeRun(reservation.acquire)
+
+    applicationLifecycle.addStopHook { () =>
+      runtime.unsafeRunToFuture(reservation.release(Exit.succeed(())))
+    }
 
     // Start stores
     val globalScriptStart: ZIO[GlobalContext, Throwable, Unit] = GlobalScriptDataStore.>.start
@@ -103,10 +115,9 @@ package object modules {
     *> Import.importFile(_.user.db, UserService.importData())
     *> Import.importFile(_.webhook.db, WebhookService.importData())
     *> Import.importFile(_.experiment.db, ExperimentService.importData())
-    *> Import.importFile(_.experimentEvent.db, ExperimentVariantEventService.importData())
-    *> Patchs.start)
+    *> Import.importFile(_.experimentEvent.db, ExperimentVariantEventService.importData()))
 
-    Runtime.default.unsafeRun(initIzanami.provideLayer(globalContextLayer))
+    runtime.unsafeRun(initIzanami.provideLayer(globalContextLayer))
 
     lazy val homeController: HomeController                 = wire[HomeController]
     lazy val globalScripController: GlobalScriptController  = wire[GlobalScriptController]

@@ -6,24 +6,39 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSource
 import akka.stream.scaladsl.{Flow, Source}
-import com.datastax.driver.core.{Row, Session, SimpleStatement}
+import com.datastax.driver.core.{Cluster, Row, Session, SimpleStatement}
 import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
 import domains.abtesting.events.{ExperimentVariantEventInstances, _}
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
+import env.configuration.IzanamiConfigModule
 import env.{CassandraConfig, DbDomainConfig}
+import libs.database.Drivers.CassandraDriver
 import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.libs.json._
 import store.cassandra.Cassandra
-import zio.{RIO, Task, ZIO}
+import store.datastore.DataStoreLayerContext
+import zio.{RIO, Task, ZIO, ZLayer}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    CASSANDRA     ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventCassandraService {
+
+  val live: ZLayer[CassandraDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val configdb: DbDomainConfig  = izanamiConfig.experimentEvent.db
+      val Some(cassandraConfig)     = izanamiConfig.db.cassandra
+      val Some((_, session))        = mix.get[Option[(Cluster, Session)]]
+      ExperimentVariantEventCassandraService(session, configdb, cassandraConfig)
+    }
+
   def apply(
       session: Session,
       config: DbDomainConfig,

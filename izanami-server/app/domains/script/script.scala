@@ -16,6 +16,7 @@ import scala.reflect.ClassTag
 import domains.errors.{DataShouldExists, IdMustBeTheSame}
 import domains.script.{GlobalScriptDataStore, PlayScriptCache}
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
+import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
 import libs.database.Drivers
@@ -170,9 +171,9 @@ package object script {
     def value(globalScriptDataStore: JsonDataStore.Service): ZLayer[Any, Nothing, GlobalScriptDataStore] =
       ZLayer.succeed(GlobalScriptDataStoreProd(globalScriptDataStore))
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, GlobalScriptDataStore] =
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, GlobalScriptDataStore] =
       JsonDataStore
-        .live(c => c.globalScript.db, InMemoryWithDbStore.globalScriptEventAdapter)
+        .live(izanamiConfig, c => c.globalScript.db, InMemoryWithDbStore.globalScriptEventAdapter)
         .map(s => Has(GlobalScriptDataStoreProd(s.get)))
   }
 

@@ -12,19 +12,31 @@ import cats.data.OptionT
 import domains.auth.AuthInfo
 import domains.abtesting._
 import domains.abtesting.events._
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import env.DbDomainConfig
+import env.configuration.IzanamiConfigModule
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
+import libs.database.Drivers.RedisDriver
 import play.api.libs.json.Json
+import store.datastore.DataStoreLayerContext
 import store.redis.RedisWrapper
-import zio.{RIO, Task, ZIO}
+import zio.{RIO, Task, ZIO, ZLayer}
 
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 
 object ExperimentVariantEventRedisService {
+
+  val live: ZLayer[RedisDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val configdb: DbDomainConfig  = mix.get[IzanamiConfigModule.Service].izanamiConfig.experimentEvent.db
+      ExperimentVariantEventRedisService(configdb, mix.get[Option[RedisWrapper]])
+    }
+
   def apply(configdb: DbDomainConfig, maybeRedis: Option[RedisWrapper])(
       implicit actorSystem: ActorSystem
   ): ExperimentVariantEventRedisService =

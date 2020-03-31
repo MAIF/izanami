@@ -6,7 +6,8 @@ import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
 import cats.implicits._
 import domains.Key
-import env.DbDomainConfig
+import domains.configuration.PlayModule
+import env.{DbDomainConfig, IzanamiConfig}
 import libs.mongo.MongoUtils
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.modules.reactivemongo.ReactiveMongoApi
@@ -23,6 +24,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.{DriverLayerContext, MongoDriver}
+import zio.{Has, ZLayer}
 
 case class MongoDoc(id: Key, data: JsValue)
 
@@ -31,6 +35,15 @@ object MongoDoc {
 }
 
 object MongoJsonDataStore {
+
+  def live(config: DbDomainConfig): ZLayer[MongoDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      implicit val actorSystem: ActorSystem = playModule.system
+      val Some(mongoApi)                    = mix.get[Option[ReactiveMongoApi]]
+      new MongoJsonDataStore(config.conf.namespace, mongoApi)
+    }
+
   def apply(mongoApi: ReactiveMongoApi, config: DbDomainConfig)(implicit actorSystem: ActorSystem): MongoJsonDataStore =
     new MongoJsonDataStore(config.conf.namespace, mongoApi)
 }

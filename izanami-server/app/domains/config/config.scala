@@ -16,6 +16,7 @@ import store._
 import store.datastore._
 import domains.errors.DataShouldExists
 import domains.errors.IdMustBeTheSame
+import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
 import libs.database.Drivers
 import store.memorywithdb.InMemoryWithDbStore
@@ -46,9 +47,9 @@ package object config {
     def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ConfigDataStore] =
       ZLayer.succeed(ConfigDataStoreProd(store))
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, ConfigDataStore] =
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, ConfigDataStore] =
       JsonDataStore
-        .live(c => c.config.db, InMemoryWithDbStore.configEventAdapter)
+        .live(izanamiConfig, c => c.config.db, InMemoryWithDbStore.configEventAdapter)
         .map(s => Has(ConfigDataStoreProd(s.get)))
   }
 

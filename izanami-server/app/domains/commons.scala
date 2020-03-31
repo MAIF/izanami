@@ -14,14 +14,12 @@ import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyDataStore
 import domains.config.ConfigDataStore
 import domains.auth.AuthInfo
-import domains.configuration.PlayModule.PlayModuleProd
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.user.UserDataStore
 import domains.webhook.WebhookDataStore
 import env.{DbDomainConfig, IzanamiConfig}
-import libs.database.Drivers
 import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.{Configuration, Environment}
 import play.api.inject.ApplicationLifecycle
@@ -35,16 +33,16 @@ import scala.util.matching.Regex
 import store.{EmptyPattern, Pattern, StringPattern}
 import errors._
 import libs.http.HttpContext
-import zio.{Has, IO, Layer, RIO, Ref, Runtime, Task, ULayer, URIO, ZEnv, ZIO, ZLayer}
+import zio.{RIO, Runtime, Task, ULayer, URIO, ZEnv, ZIO, ZLayer}
 import zio.blocking.Blocking
 import zio.clock.Clock
 import metrics.MetricsModule
-import patches.Patchs
 import play.api.cache.AsyncCacheApi
 import play.api.libs.ws.WSClient
 import play.libs.ws
 import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
+import store.datastore.DataStoreLayerContext
 
 package object configuration {
 
@@ -107,12 +105,10 @@ package object configuration {
   }
 
   type GlobalContext = PlayModule
-    with Drivers
     with IzanamiConfigModule
     with MetricsModule
     with AuthInfo
     with ZLogger
-    with Patchs
     with ExperimentDataStore
     with ExperimentVariantEventService
     with ApikeyDataStore
@@ -135,76 +131,66 @@ package object configuration {
              environment: Environment,
              wSClient: play.api.libs.ws.WSClient,
              ec: ExecutionContext,
+             izanamiConfig: IzanamiConfig,
              applicationLifecycle: ApplicationLifecycle): HttpContext[GlobalContext] = {
 
       val playModule =
         PlayModule.live(system, mat, defaultCacheApi, configuration, environment, wSClient, ec, applicationLifecycle)
-      val base: ZLayer[ZEnv, Throwable, Clock with Blocking with PlayModule] = Clock.live ++ Blocking.live ++ playModule
 
-      val configAndScript: ZLayer[PlayModule,
-                                  Throwable,
-                                  IzanamiConfigModule with ScriptCache with RunnableScriptModule with MetricsModule] =
-      IzanamiConfigModule.live ++ ScriptCache.live ++ RunnableScriptModule.live ++ MetricsModule.live
+      val izanamiConfigModule = playModule >>> IzanamiConfigModule.live
 
-      val baseWithConfigAndScript: ZLayer[
-        ZEnv,
-        Throwable,
-        Clock with Blocking with PlayModule with IzanamiConfigModule with ScriptCache with RunnableScriptModule with MetricsModule
-      ] =
-      base ++ (base >>> configAndScript)
+      val configAndScript
+        : ZLayer[ZEnv, Throwable, ScriptCache with RunnableScriptModule with MetricsModule with ZLogger] =
+      playModule >>> (ScriptCache.live ++ RunnableScriptModule.live ++ MetricsModule.live ++ ZLogger.live)
 
-      val baseWithConfigAndScriptAndDrivers: ZLayer[
-        ZEnv,
-        Throwable,
-        Clock with Blocking with PlayModule with IzanamiConfigModule with ScriptCache with Drivers with RunnableScriptModule with MetricsModule
-      ] = baseWithConfigAndScript ++
-      (baseWithConfigAndScript >>> Drivers.live)
+      val dataStoreLayerContext: ZLayer[ZEnv, Throwable, DataStoreLayerContext] =
+      playModule ++ izanamiConfigModule ++ ZLogger.live
 
       val stores: ZLayer[
         ZEnv,
         Throwable,
-        Patchs with EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
+        EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
       ] =
-      baseWithConfigAndScriptAndDrivers >>> (
-        Patchs.live ++
-        EventStore.live ++
-        ExperimentVariantEventService.live ++
-        ExperimentDataStore.live ++
-        ApikeyDataStore.live ++
-        ConfigDataStore.live ++
-        FeatureDataStore.live ++
-        GlobalScriptDataStore.live ++
-        UserDataStore.live ++
-        WebhookDataStore.live
+      dataStoreLayerContext >>> (
+        EventStore.live(izanamiConfig) ++
+        ExperimentDataStore.live(izanamiConfig) ++
+        ExperimentVariantEventService.live(izanamiConfig) ++
+        ApikeyDataStore.live(izanamiConfig) ++
+        ConfigDataStore.live(izanamiConfig) ++
+        FeatureDataStore.live(izanamiConfig) ++
+        GlobalScriptDataStore.live(izanamiConfig) ++
+        UserDataStore.live(izanamiConfig) ++
+        WebhookDataStore.live(izanamiConfig)
       )
 
-      baseWithConfigAndScriptAndDrivers ++
+//      PlayModule
+//      with IzanamiConfigModule
+//      with MetricsModule
+//      with AuthInfo
+//      with ZLogger
+//      with ExperimentDataStore
+//      with ExperimentVariantEventService
+//      with ApikeyDataStore
+//      with ConfigDataStore
+//      with FeatureDataStore
+//      with GlobalScriptDataStore
+//      with UserDataStore
+//      with WebhookDataStore
+//      with EventStore
+//      with ScriptCache
+//      with RunnableScriptModule
+//      with Clock
+//      with Blocking
+
+      playModule ++
+      izanamiConfigModule ++
       AuthInfo.empty ++
       ZLogger.live ++
-      stores
+      stores ++
+      configAndScript ++
+      Clock.live ++ Blocking.live
     }
 
-    def buildContext(system: ActorSystem,
-                     mat: Materializer,
-                     defaultCacheApi: AsyncCacheApi,
-                     configuration: Configuration,
-                     environment: Environment,
-                     wSClient: play.api.libs.ws.WSClient,
-                     ec: ExecutionContext,
-                     applicationLifecycle: ApplicationLifecycle): HttpContext[GlobalContext] = {
-
-      val builtContext: GlobalContext = Runtime.default.unsafeRun(
-        GlobalContext
-          .live(system, mat, defaultCacheApi, configuration, environment, wSClient, ec, applicationLifecycle)
-          .build
-          .use { c =>
-            Task(c)
-          }
-      )
-
-      ZLayer.succeed(builtContext).map(_.get)
-
-    }
   }
 }
 

@@ -178,7 +178,6 @@ class ZioIzanamiDefaultFilter(env: Mode,
     )
 
   type FilterContext = PlayModule
-    with Drivers
     with IzanamiConfigModule
     with metrics.MetricsModule
     with AuthInfo

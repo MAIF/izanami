@@ -31,12 +31,13 @@ import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.Logger
 import domains.errors.IzanamiErrors
-import zio.{RIO, Task, ZIO, ZLayer}
+import zio.{Managed, RIO, Task, ZIO, ZLayer}
 import libs.logs.ZLogger
 import domains.auth.AuthInfo
 import domains.auth.AuthInfo
 import domains.configuration.PlayModule
 import env.configuration.IzanamiConfigModule
+import store.datastore.{DataStoreContext, DataStoreLayerContext}
 
 package object events {
 
@@ -767,27 +768,17 @@ package object events {
       def start: RIO[ZLogger with AuthInfo, Unit] = Task.succeed(())
     }
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, EventStore] =
-      ZLayer.fromFunction { mix =>
-        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
-        implicit val actorSystem: ActorSystem = playModule.system
-        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
-        val drivers: Drivers.Service          = mix.get[Drivers.Service]
-        EventStore(izanamiConfig, drivers, playModule.configuration, playModule.applicationLifecycle)
-      }
-
     def value(store: EventStore.Service): ZLayer[Any, Nothing, EventStore] = ZLayer.succeed(store)
 
-    def apply(izanamiConfig: IzanamiConfig,
-              drivers: Drivers.Service,
-              configuration: play.api.Configuration,
-              applicationLifecycle: ApplicationLifecycle)(implicit actorSystem: ActorSystem): EventStore.Service =
+    def live(
+        izanamiConfig: IzanamiConfig
+    ): ZLayer[DataStoreLayerContext, Throwable, EventStore] =
       izanamiConfig.events match {
-        case InMemoryEvents(_)    => new BasicEventStore
-        case KafkaEvents(c)       => new KafkaEventStore(actorSystem, izanamiConfig.db.kafka.get, c)
-        case RedisEvents(c)       => new RedisEventStore(drivers.redisClient.get, c, actorSystem)
-        case DistributedEvents(c) => new DistributedPubSubEventStore(configuration.underlying, c, applicationLifecycle)
-        case other                => throw new IllegalArgumentException(s"Unknown event store $other")
+        case InMemoryEvents(_)    => BasicEventStore.live
+        case KafkaEvents(c)       => KafkaEventStore.live(c)
+        case RedisEvents(c)       => Drivers.redisClientLayer.passthrough >>> RedisEventStore.live(c)
+        case DistributedEvents(c) => DistributedPubSubEventStore.live(c)
+        case other                => ZLayer.fromEffect(Task.fail(new IllegalArgumentException(s"Unknown event store $other")))
       }
 
     def publish(event: IzanamiEvent): ZIO[EventStoreContext, IzanamiErrors, Done] =

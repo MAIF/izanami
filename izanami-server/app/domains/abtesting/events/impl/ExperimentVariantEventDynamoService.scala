@@ -16,13 +16,17 @@ import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
 import domains.abtesting.events.{ExperimentVariantEventInstances, _}
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
-import env.DynamoConfig
+import env.configuration.IzanamiConfigModule
+import env.{DbDomainConfig, DynamoConfig}
+import libs.database.Drivers.DynamoDriver
 import libs.dynamo.DynamoMapper
 import libs.logs.{IzanamiLogger, ZLogger}
-import zio.{IO, RIO, Task, ZIO}
+import store.datastore.DataStoreLayerContext
+import zio.{IO, RIO, Task, ZIO, ZLayer}
 
 import scala.jdk.CollectionConverters._
 
@@ -30,6 +34,15 @@ object ExperimentVariantEventDynamoService {
 
   val experimentId = "experimentId"
   val variantId    = "variantId"
+
+  val live: ZLayer[DynamoDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val Some(config)              = izanamiConfig.db.dynamo
+      val Some(client)              = mix.get[Option[DynamoClient]]
+      ExperimentVariantEventDynamoService(config, client)
+    }
 
   def apply(config: DynamoConfig, client: DynamoClient)(
       implicit system: ActorSystem

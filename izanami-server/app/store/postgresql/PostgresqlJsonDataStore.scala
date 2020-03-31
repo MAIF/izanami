@@ -19,6 +19,8 @@ import org.postgresql.util.PGobject
 import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import libs.database.Drivers.{DriverLayerContext, PostgresDriver}
+import zio.ZLayer
 
 case class PgData(id: Key, data: JsValue)
 
@@ -47,6 +49,12 @@ object PgData {
 }
 
 object PostgresqlJsonDataStore {
+
+  def live(domainConfig: DbDomainConfig): ZLayer[PostgresDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val Some(client: PostgresqlClient) = mix.get[Option[PostgresqlClient]]
+      new PostgresqlJsonDataStore(client, domainConfig.conf.namespace)
+    }
 
   def apply(client: PostgresqlClient, domainConfig: DbDomainConfig): PostgresqlJsonDataStore =
     new PostgresqlJsonDataStore(client, domainConfig.conf.namespace)

@@ -10,7 +10,8 @@ import cats.implicits._
 import com.datastax.driver.core._
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import domains.Key
-import env.{CassandraConfig, DbDomainConfig}
+import domains.configuration.PlayModule
+import env.{CassandraConfig, DbDomainConfig, IzanamiConfig}
 import libs.streams.Flows
 import libs.logs.IzanamiLogger
 import play.api.libs.json.{JsValue, Json}
@@ -22,9 +23,23 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.{CassandraDriver, DriverLayerContext}
 import store.datastore.DataStore.DataStoreIO
+import zio.{Has, ZLayer}
 
 object CassandraJsonDataStore {
+
+  def live(config: DbDomainConfig): ZLayer[CassandraDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      implicit val actorSystem: ActorSystem = playModule.system
+      val Some(cassandraConfig)             = izanamiConfig.db.cassandra
+      val Some((_, session))                = mix.get[Option[(Cluster, Session)]]
+      new CassandraJsonDataStore(config.conf.namespace, cassandraConfig.keyspace, session)
+    }
+
   def apply(session: Session, cassandraConfig: CassandraConfig, config: DbDomainConfig)(
       implicit actorSystem: ActorSystem
   ): CassandraJsonDataStore =

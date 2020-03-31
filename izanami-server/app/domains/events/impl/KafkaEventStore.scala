@@ -7,6 +7,7 @@ import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
 import domains.Domain.Domain
 import domains.auth.AuthInfo
+import domains.configuration.PlayModule
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.{KafkaConfig, KafkaEventsConfig}
@@ -21,12 +22,13 @@ import scala.util.control.NonFatal
 import domains.events.EventLogger._
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
 import domains.errors.IzanamiErrors
-import zio.{IO, Task}
+import zio.{IO, RIO, Task, ZLayer}
 
 import scala.collection.mutable
 import libs.logs.ZLogger
-import zio.RIO
 import domains.events.EventStoreContext
+import env.configuration.IzanamiConfigModule
+import store.datastore.DataStoreLayerContext
 
 object KafkaSettings {
 
@@ -84,6 +86,15 @@ object KafkaSettings {
 
     s.getOrElse(settings)
   }
+}
+
+object KafkaEventStore {
+  def live(eventsConfig: KafkaEventsConfig): ZLayer[DataStoreLayerContext, Throwable, EventStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule    = mix.get[PlayModule.Service]
+      val izanamiConfig = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      new KafkaEventStore(playModule.system, izanamiConfig.db.kafka.get, eventsConfig)
+    }
 }
 
 class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsConfig: KafkaEventsConfig)

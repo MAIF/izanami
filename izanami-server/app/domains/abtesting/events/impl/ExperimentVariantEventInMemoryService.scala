@@ -11,11 +11,14 @@ import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
 import domains.abtesting.events._
 import domains.abtesting.events.impl.ExperimentDataStoreActor._
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
 import env.DbDomainConfig
-import zio.{RIO, Task, ZIO}
+import env.configuration.IzanamiConfigModule
+import store.datastore.DataStoreLayerContext
+import zio.{RIO, Task, ZIO, ZLayer}
 
 import scala.concurrent.Future
 
@@ -24,6 +27,14 @@ import scala.concurrent.Future
 //////////////////////////////////////////////////////////////////////////////////////////
 
 object ExperimentVariantEventInMemoryService {
+
+  val live: ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      ExperimentVariantEventInMemoryService(izanamiConfig.experimentEvent.db)
+    }
+
   def apply(
       configdb: DbDomainConfig
   )(implicit actorSystem: ActorSystem): ExperimentVariantEventInMemoryService =

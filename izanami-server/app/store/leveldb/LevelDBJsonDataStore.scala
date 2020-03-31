@@ -7,12 +7,12 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import akka.NotUsed
 import domains.Key
-import env.{DbDomainConfig, LevelDbConfig}
+import domains.configuration.PlayModule
+import env.{DbDomainConfig, IzanamiConfig, LevelDbConfig}
 import libs.streams.Flows
 import org.iq80.leveldb._
 import org.iq80.leveldb.impl.Iq80DBFactory._
 import libs.logs.{IzanamiLogger, ZLogger}
-import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.IzanamiErrors
 import store._
@@ -24,6 +24,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.DriverLayerContext
+import zio.{RManaged, Task, UIO, ZLayer, ZManaged}
 
 object DbStores {
   val stores = TrieMap.empty[String, LevelDBJsonDataStore]
@@ -31,20 +34,44 @@ object DbStores {
 
 object LevelDBJsonDataStore {
 
-  def apply(
-      levelDbConfig: LevelDbConfig,
-      config: DbDomainConfig,
-      applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): LevelDBJsonDataStore = {
+  def live(conf: DbDomainConfig): ZLayer[DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunctionManaged { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      implicit val actorSystem: ActorSystem = playModule.system
+      val Some(levelDbConfig)               = izanamiConfig.db.leveldb
+      create(levelDbConfig, conf).provide(mix)
+    }
+
+  def create(levelDbConfig: LevelDbConfig,
+             config: DbDomainConfig)(implicit actorSystem: ActorSystem): RManaged[ZLogger, JsonDataStore.Service] = {
     val namespace      = config.conf.namespace
     val parentPath     = levelDbConfig.parentPath
     val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-    DbStores.stores.getOrElseUpdate(dbPath, {
-      new LevelDBJsonDataStore(dbPath, applicationLifecycle)
-    })
+    ZManaged
+      .make(
+        Task {
+          val folder = new File(dbPath).getAbsoluteFile
+          factory.open(folder, new Options().createIfMissing(true))
+        }.onError(
+          c =>
+            c.failureOption.fold(ZLogger.error(s"Error opening db for path $dbPath"))(
+              e => ZLogger.error(s"Error opening db for path $dbPath", e)
+          )
+        )
+      )(
+        client =>
+          ZLogger.info(s"Cleaning store at $dbPath") *> UIO {
+            client.close()
+        }
+      )
+      .map { client =>
+        new LevelDBJsonDataStore(dbPath, client)
+      }
   }
+
 }
-private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle: ApplicationLifecycle)(
+private[leveldb] class LevelDBJsonDataStore(dbPath: String, client: DB)(
     implicit system: ActorSystem
 ) extends JsonDataStore.Service {
 
@@ -52,20 +79,6 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   import zio.interop.catz._
   import cats.implicits._
   import IzanamiErrors._
-
-  private val client: DB = try {
-    val folder = new File(dbPath).getAbsoluteFile
-    factory.open(folder, new Options().createIfMissing(true))
-  } catch {
-    case e: Throwable =>
-      IzanamiLogger.error(s"Error opening db for path $dbPath", e)
-      throw new RuntimeException(s"Error opening db for path $dbPath", e)
-  }
-
-  applicationLifecycle.addStopHook { () =>
-    IzanamiLogger.info(s"Closing leveldb for path $dbPath")
-    Future(client.close())
-  }
 
   override def start: RIO[DataStoreContext, Unit] =
     ZLogger.info(s"Load store LevelDB for path $dbPath")

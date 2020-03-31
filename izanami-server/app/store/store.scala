@@ -19,6 +19,7 @@ import play.api.libs.json._
 import play.api.mvc.Results
 import domains.errors.IzanamiErrors
 import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.DriverLayerContext
 import store.cassandra.CassandraJsonDataStore
 import store.elastic.ElasticJsonDataStore
 import store.leveldb.LevelDBJsonDataStore
@@ -28,7 +29,7 @@ import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
 import store.dynamo.DynamoJsonDataStore
 import store.postgresql.PostgresqlJsonDataStore
-import zio.{Has, ZLayer}
+import zio.{Has, Managed, RManaged, Task, TaskManaged, ZLayer}
 
 import scala.reflect.ClassTag
 
@@ -201,65 +202,54 @@ package object datastore {
 
   type JsonDataStore = zio.Has[JsonDataStore.Service]
 
+  type DataStoreLayerContext = PlayModule with IzanamiConfigModule with ZLogger
+
   object JsonDataStore {
 
     trait Service extends DataStore[Key, JsValue]
 
     def live(
+        izanamiConfig: IzanamiConfig,
         getConf: IzanamiConfig => DbDomainConfig,
         eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
-    ): ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, JsonDataStore] =
-      ZLayer.fromFunction { mix =>
-        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
-        implicit val actorSystem: ActorSystem = playModule.system
-        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
-        val drivers: Drivers.Service          = mix.get[Drivers.Service]
-        JsonDataStore(drivers, izanamiConfig, getConf(izanamiConfig), eventAdapter, playModule.applicationLifecycle)
-      }
+    ): ZLayer[DataStoreLayerContext, Throwable, JsonDataStore] =
+      JsonDataStore.create(izanamiConfig, getConf(izanamiConfig), eventAdapter)
 
-    def apply(
-        drivers: Drivers.Service,
+    def create(
         izanamiConfig: IzanamiConfig,
         conf: DbDomainConfig,
-        eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-        applicationLifecycle: ApplicationLifecycle
-    )(implicit actorSystem: ActorSystem): JsonDataStore.Service =
+        eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
+    ): ZLayer[DriverLayerContext, Throwable, JsonDataStore] =
       conf.`type` match {
         case InMemoryWithDb =>
           val dbType: DbType = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
-          val jsonDataStore: JsonDataStore.Service =
-            storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
-          IzanamiLogger.info(
-            s"Loading InMemoryWithDbStore for namespace ${conf.conf.namespace} with underlying store ${dbType.getClass.getSimpleName}"
+          storeByType(izanamiConfig, conf, dbType).passthrough >>> InMemoryWithDbStore.live(
+            izanamiConfig.db.inMemoryWithDb.get,
+            conf,
+            eventAdapter
           )
-          InMemoryWithDbStore(izanamiConfig.db.inMemoryWithDb.get,
-                              conf,
-                              jsonDataStore,
-                              eventAdapter,
-                              applicationLifecycle)
         case other =>
-          storeByType(drivers, izanamiConfig, conf, other, applicationLifecycle)
+          storeByType(izanamiConfig, conf, other)
       }
 
+    case class DriverLayerContextData()
+
     private def storeByType(
-        drivers: Drivers.Service,
         izanamiConfig: IzanamiConfig,
         conf: DbDomainConfig,
-        dbType: DbType,
-        applicationLifecycle: ApplicationLifecycle
-    )(implicit actorSystem: ActorSystem): JsonDataStore.Service = {
+        dbType: DbType
+    ): ZLayer[DriverLayerContext, Throwable, JsonDataStore] = {
       IzanamiLogger.info(s"Initializing store ${conf.conf.namespace} for $dbType")
       dbType match {
-        case InMemory => InMemoryJsonDataStore(conf)
-        case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf)
-        case LevelDB  => LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, applicationLifecycle)
-        case Cassandra =>
-          CassandraJsonDataStore(drivers.cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf)
-        case Elastic    => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
-        case Mongo      => MongoJsonDataStore(drivers.mongoApi.get, conf)
-        case Dynamo     => DynamoJsonDataStore(drivers.dynamoClient.get, izanamiConfig.db.dynamo.get, conf)
-        case Postgresql => PostgresqlJsonDataStore(drivers.postgresqlClient.get, conf)
-        case _          => throw new IllegalArgumentException(s"Unsupported store type $dbType")
+        case InMemory   => ZLayer.succeed(InMemoryJsonDataStore(conf))
+        case Redis      => Drivers.redisClientLayer.passthrough >>> RedisJsonDataStore.live(conf)
+        case LevelDB    => LevelDBJsonDataStore.live(conf)
+        case Cassandra  => Drivers.cassandraClientLayer.passthrough >>> CassandraJsonDataStore.live(conf)
+        case Elastic    => Drivers.elasticClientLayer.passthrough >>> ElasticJsonDataStore.live(conf)
+        case Mongo      => Drivers.mongoApiLayer.passthrough >>> MongoJsonDataStore.live(conf)
+        case Dynamo     => Drivers.dynamoClientLayer.passthrough >>> DynamoJsonDataStore.live(conf)
+        case Postgresql => Drivers.postgresqldriverLayer.passthrough >>> PostgresqlJsonDataStore.live(conf)
+        case _          => ZLayer.fromEffect(Task.fail(new IllegalArgumentException(s"Unsupported store type $dbType")))
       }
     }
   }

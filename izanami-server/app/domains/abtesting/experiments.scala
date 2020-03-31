@@ -7,7 +7,7 @@ import akka.NotUsed
 import cats.data.NonEmptyList
 import domains.abtesting.Experiment.ExperimentKey
 import domains.events.EventStore
-import domains.configuration.{PlayModule}
+import domains.configuration.PlayModule
 import domains.auth.AuthInfo
 import libs.logs.ZLogger
 import play.api.libs.json._
@@ -18,6 +18,7 @@ import cats.implicits._
 import cats.data.Validated._
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.script.GlobalScriptDataStore
+import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
 import libs.database.Drivers
 import libs.ziohelper.JsResults.jsResultToError
@@ -168,9 +169,9 @@ package object abtesting {
     def value(store: JsonDataStore.Service): ZLayer[Any, Nothing, ExperimentDataStore] =
       ZLayer.succeed(ExperimentDataStoreProd(store))
 
-    val live: ZLayer[PlayModule with Drivers with IzanamiConfigModule, Nothing, ExperimentDataStore] =
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, ExperimentDataStore] =
       JsonDataStore
-        .live(c => c.experiment.db, InMemoryWithDbStore.experimentEventAdapter)
+        .live(izanamiConfig, c => c.experiment.db, InMemoryWithDbStore.experimentEventAdapter)
         .map(s => Has(ExperimentDataStoreProd(s.get)))
   }
 

@@ -8,7 +8,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
 import domains.Key
-import env.DbDomainConfig
+import domains.configuration.PlayModule
+import env.{DbDomainConfig, IzanamiConfig}
 import libs.streams.Flows
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.IzanamiErrors
@@ -22,8 +23,22 @@ import scala.jdk.CollectionConverters._
 import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers
+import libs.database.Drivers.{DriverLayerContext, RedisDriver}
+import zio.{Has, ZLayer}
 
 object RedisJsonDataStore {
+
+  def live(conf: DbDomainConfig): ZLayer[RedisDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      implicit val actorSystem: ActorSystem = playModule.system
+      val namespace                         = conf.conf.namespace
+      val Some(redisDriver)                 = mix.get[Option[RedisWrapper]]
+      RedisJsonDataStore(redisDriver, namespace)
+    }
+
   def apply(client: RedisWrapper, name: String)(implicit system: ActorSystem): RedisJsonDataStore =
     new RedisJsonDataStore(client, name)
 

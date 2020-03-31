@@ -69,21 +69,11 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
   val playModule: ULayer[PlayModule] = FakeConfig.playModule(sys)
 
-  val drivers: ULayer[Drivers] = Drivers.value(new Drivers.Service {
-    override def redisClient: Option[RedisWrapper]           = None
-    override def cassandraClient: Option[(Cluster, Session)] = None
-    override def elasticClient: Option[Elastic[JsValue]]     = None
-    override def mongoApi: Option[ReactiveMongoApi]          = None
-    override def dynamoClient: Option[DynamoClient]          = None
-    override def postgresqlClient: Option[PostgresqlClient]  = None
-  })
-
   val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = (playModule >>> RunnableScriptModule.live)
 
   implicit val metricsModule: HttpContext[MetricsContext] = {
     val fake = new InMemoryJsonDataStore(name = "fake")
     playModule ++
-    drivers ++
     IzanamiConfigModule.value(FakeConfig.config) ++
     (playModule >>> MetricsModule.live) ++
     AuthInfo.empty ++
