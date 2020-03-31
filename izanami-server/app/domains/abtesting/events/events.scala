@@ -268,15 +268,6 @@ package object events {
     def value(store: ExperimentVariantEventService.Service): ZLayer[Any, Nothing, ExperimentVariantEventService] =
       ZLayer.succeed(store)
 
-//    val live: ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
-//      ZLayer.fromFunction { mix =>
-//        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
-//        implicit val actorSystem: ActorSystem = playModule.system
-//        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
-//        val drivers: Drivers.Service          = mix.get[Drivers.Service]
-//        ExperimentVariantEventService(izanamiConfig, drivers, playModule.applicationLifecycle)
-//      }
-
     def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] = {
       val conf = izanamiConfig.experimentEvent.db
       // format: off

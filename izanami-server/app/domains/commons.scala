@@ -36,7 +36,7 @@ import libs.http.HttpContext
 import zio.{RIO, Runtime, Task, ULayer, URIO, ZEnv, ZIO, ZLayer}
 import zio.blocking.Blocking
 import zio.clock.Clock
-import metrics.MetricsModule
+import metrics.{MetricsModule, MetricsModules}
 import play.api.cache.AsyncCacheApi
 import play.api.libs.ws.WSClient
 import play.libs.ws
@@ -107,6 +107,7 @@ package object configuration {
   type GlobalContext = PlayModule
     with IzanamiConfigModule
     with MetricsModule
+    with MetricsModules
     with AuthInfo
     with ZLogger
     with ExperimentDataStore
@@ -149,9 +150,10 @@ package object configuration {
       val stores: ZLayer[
         ZEnv,
         Throwable,
-        EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
+        MetricsModules with EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
       ] =
       dataStoreLayerContext >>> (
+        MetricsModules.allMetricsModules(izanamiConfig) ++
         EventStore.live(izanamiConfig) ++
         ExperimentDataStore.live(izanamiConfig) ++
         ExperimentVariantEventService.live(izanamiConfig) ++

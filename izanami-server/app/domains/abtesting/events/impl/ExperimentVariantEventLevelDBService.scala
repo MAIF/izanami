@@ -62,19 +62,7 @@ object ExperimentVariantEventLevelDBService {
         .provide(mix)
         .map(db => new ExperimentVariantEventLevelDBService(db))
   }
-//
-//  def apply(
-//      levelDbConfig: LevelDbConfig,
-//      configdb: DbDomainConfig,
-//      applicationLifecycle: ApplicationLifecycle
-//  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
-//    val namespace      = configdb.conf.namespace
-//    val parentPath     = levelDbConfig.parentPath
-//    val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-//    ExperimentVariantEventDbStores.stores.getOrElseUpdate(dbPath, {
-//      new ExperimentVariantEventLevelDBService(dbPath, applicationLifecycle)
-//    })
-//  }
+
 }
 
 class ExperimentVariantEventLevelDBService(db: DB)(implicit actorSystem: ActorSystem)
