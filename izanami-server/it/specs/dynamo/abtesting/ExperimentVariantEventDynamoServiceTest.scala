@@ -8,6 +8,7 @@ import domains.abtesting.AbstractExperimentServiceTest
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.events.impl.BasicEventStore
 import env.DynamoConfig
+import libs.logs.ZLogger
 import store.dynamo.DynamoClient
 
 class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceTest("DynamoDb") {
@@ -33,7 +34,7 @@ class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceT
    """.stripMargin))
 
   def getClient(config: DynamoConfig): AlpakkaClient = {
-    val Some(client) = DynamoClient.dynamoClient(Some(config))
+    val Some(client) = runtime.unsafeRun(DynamoClient.dynamoClient(Some(config)).provideLayer(ZLogger.live))
     client
   }
 

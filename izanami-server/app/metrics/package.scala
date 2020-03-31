@@ -50,12 +50,7 @@ package object metrics {
   import zio.Cause.Fail
   import zio.Cause.Die
   import zio.Fiber
-  import domains.config.ConfigContext
-  import domains.feature.FeatureContext
-  import domains.script.GlobalScriptContext
-  import domains.apikey.{ApiKeyContext, ApikeyService}
-  import domains.webhook.WebhookContext
-  import domains.abtesting.ExperimentContext
+  import domains.apikey.{ApikeyService}
   import domains.config.ConfigService
   import store.Query
   import com.codahale.metrics.Gauge

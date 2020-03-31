@@ -17,11 +17,8 @@ class LevelDBJsonDataStoreTest extends AbstractJsonDataStoreTest("LevelDb") with
 
   private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle()
 
-  override def dataStore(name: String): JsonDataStore.Service = LevelDBJsonDataStore(
-    LevelDbConfig(s"./target/leveldb-storetest/data-${Random.nextInt(1000)}"),
-    DbDomainConfig(InMemory, DbDomainConfigDetails(name, None), None),
-    lifecycle
-  )
+  override def dataStore(name: String): JsonDataStore.Service =
+    LevelDBJsonDataStore(s"./target/leveldb-storetest/data-${Random.nextInt(1000)}")
 
   override protected def afterAll(): Unit = {
     super.afterAll()

@@ -63,6 +63,12 @@ object ExperimentVariantEventLevelDBService {
         .map(db => new ExperimentVariantEventLevelDBService(db))
   }
 
+  def apply(dbPath: String)(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
+    val folder = new File(dbPath).getAbsoluteFile
+    val db     = factory.open(folder, new Options().createIfMissing(true))
+    new ExperimentVariantEventLevelDBService(db)
+  }
+
 }
 
 class ExperimentVariantEventLevelDBService(db: DB)(implicit actorSystem: ActorSystem)

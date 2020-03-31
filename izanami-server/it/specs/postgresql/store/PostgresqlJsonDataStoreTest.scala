@@ -1,6 +1,7 @@
 package specs.postgresql.store
 
 import env.{DbDomainConfig, DbDomainConfigDetails, PostgresqlConfig}
+import libs.logs.ZLogger
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.AbstractJsonDataStoreTest
 import test.FakeApplicationLifecycle
@@ -23,11 +24,17 @@ class PostgresqlJsonDataStoreTest
     None
   )
 
-  private val client: Option[PostgresqlClient] = PostgresqlClient.postgresqlClient(
-    system,
-    new FakeApplicationLifecycle(),
-    Some(pgConfig)
+  val rPgClient: Reservation[ZLogger, Throwable, Option[PostgresqlClient]] = runtime.unsafeRun(
+    PostgresqlClient
+      .postgresqlClient(
+        system,
+        Some(pgConfig)
+      )
+      .reserve
+      .provideLayer(ZLogger.live)
   )
+
+  private val client: Option[PostgresqlClient] = runtime.unsafeRun(rPgClient.acquire.provideLayer(ZLogger.live))
 
   override def dataStore(name: String): PostgresqlJsonDataStore = {
     val store =
@@ -37,6 +44,6 @@ class PostgresqlJsonDataStoreTest
 
   override protected def afterAll(): Unit = {
     super.afterAll()
-    client.get.database.shutdown()
+    runtime.unsafeRun(rPgClient.release(Exit.unit).provideLayer(ZLogger.live))
   }
 }

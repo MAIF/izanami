@@ -20,11 +20,8 @@ class ExperimentVariantEventLevelDBServiceTest
 
   private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle()
 
-  override def dataStore(name: String): ExperimentVariantEventService.Service = ExperimentVariantEventLevelDBService(
-    LevelDbConfig(s"./target/leveldb-test/data-${Random.nextInt(1000)}"),
-    DbDomainConfig(env.LevelDB, DbDomainConfigDetails(name, None), None),
-    lifecycle
-  )
+  override def dataStore(name: String): ExperimentVariantEventService.Service =
+    ExperimentVariantEventLevelDBService(s"./target/leveldb-test/data-${Random.nextInt(1000)}")
 
   override protected def afterAll(): Unit = {
     super.afterAll()

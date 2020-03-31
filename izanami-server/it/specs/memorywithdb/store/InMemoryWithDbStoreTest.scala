@@ -21,7 +21,7 @@ import zio.{Runtime, ZLayer}
 import scala.concurrent.duration.DurationDouble
 import domains.user.User
 import domains.auth.AuthInfo
-import store.memorywithdb.InMemoryWithDbStore
+import store.memorywithdb.{InMemoryWithDbStore, OpenResources}
 
 class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with IntegrationPatience {
 
@@ -49,7 +49,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
         name,
         underlyingStore,
         InMemoryWithDbStore.featureEventAdapter,
-        new FakeApplicationLifecycle()
+        Runtime.default.unsafeRun(zio.Ref.make(Option.empty[OpenResources]))
       )
       inMemoryWithDb.start.unsafeRunSync()
       Thread.sleep(500)
@@ -84,7 +84,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       name,
       underlyingStore,
       InMemoryWithDbStore.featureEventAdapter,
-      new FakeApplicationLifecycle()
+      Runtime.default.unsafeRun(zio.Ref.make(Option.empty[OpenResources]))
     )
     inMemoryWithDb.start.unsafeRunSync()
 
