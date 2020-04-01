@@ -165,25 +165,6 @@ package object configuration {
         WebhookDataStore.live(izanamiConfig)
       )
 
-//      PlayModule
-//      with IzanamiConfigModule
-//      with MetricsModule
-//      with AuthInfo
-//      with ZLogger
-//      with ExperimentDataStore
-//      with ExperimentVariantEventService
-//      with ApikeyDataStore
-//      with ConfigDataStore
-//      with FeatureDataStore
-//      with GlobalScriptDataStore
-//      with UserDataStore
-//      with WebhookDataStore
-//      with EventStore
-//      with ScriptCache
-//      with RunnableScriptModule
-//      with Clock
-//      with Blocking
-
       playModule ++
       izanamiConfigModule ++
       AuthInfo.empty ++

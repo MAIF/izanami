@@ -10,11 +10,12 @@ import env.IzanamiConfig
 import libs.database.Drivers
 import libs.database.Drivers.{DriverLayerContext, ElasticDriver}
 import metrics.MetricsModules.AllMetricsModules
+import play.api.Mode
 import play.api.libs.json.JsValue
-import zio.{Has, Layer, Managed, Ref, ULayer, URIO, ZLayer, ZManaged}
+import zio.{Has, Managed, Ref, URIO, ZLayer}
 import zio.blocking.Blocking
 
-import scala.concurrent.Future
+import scala.util.Random
 
 package object metrics {
 
@@ -248,9 +249,12 @@ package object metrics {
 
       def start: RIO[MetricsContext, Unit] =
         for {
+          env            <- PlayModule.environment
+          mode           = env.mode
           metricRegistry <- MetricsModule.metricRegistry
-          _              = metricRegistry.register("jvm.memory", new MemoryUsageGaugeSet())
-          _              = metricRegistry.register("jvm.thread", new ThreadStatesGaugeSet())
+          prefix         = if (mode == Mode.Test) s"${Random.nextInt(1000)}test" else ""
+          _              = metricRegistry.register(s"$prefix.jvm.memory", new MemoryUsageGaugeSet())
+          _              = metricRegistry.register(s"$prefix.jvm.thread", new ThreadStatesGaugeSet())
           log            <- mayBeLoggerMetricsModule.map(_.run).getOrElse(Task.unit.fork)
           console        <- mayBeConsoleMetricsModule.map(_.run).getOrElse(Task.unit.fork)
           kafkaScheduler <- mayBeKafkaMetricsModule.map(_.run).getOrElse(Task.unit.fork)
