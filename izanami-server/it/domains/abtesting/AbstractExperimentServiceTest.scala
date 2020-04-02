@@ -25,22 +25,22 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
 
   def akkaConfig: Option[Config] = None
 
-  implicit val system: ActorSystem = ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
+  implicit val system: ActorSystem =
+    ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val mat : Materializer = ActorMaterializer()
   import zio.interop.catz._
 
   val context: ExperimentVariantEventServiceModule = new ExperimentVariantEventServiceModule {
     override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
       def blockingExecutor: ZIO[Any, Nothing, Executor] = ZIO.succeed(PlatformLive.Default.executor)
     }
-    override def eventStore: EventStore = new TestEventStore()
-    override def logger: Logger =  new ProdLogger
+    override def eventStore: EventStore                                                        = new TestEventStore()
+    override def logger: Logger                                                                = new ProdLogger
     override def withAuthInfo(authInfo: Option[AuthInfo]): ExperimentVariantEventServiceModule = this
-      override def authInfo: Option[AuthInfo]                        = None
+    override def authInfo: Option[AuthInfo]                                                    = None
   }
   implicit val runtime: Runtime[ExperimentVariantEventServiceModule] = Runtime(context, PlatformLive.Default)
-  private val random = Random
+  private val random                                                 = Random
   import zio._
   import zio.interop.catz._
 
@@ -48,7 +48,7 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
     def unsafeRunSync(): T = runtime.unsafeRun(t)
   }
 
-  def dataStore(name: String) : ExperimentVariantEventService
+  def dataStore(name: String): ExperimentVariantEventService
 
   def initAndGetDataStore(name: String): ExperimentVariantEventService = {
     val store = dataStore(name)
@@ -66,24 +66,38 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
 
       val variantA = Variant("variantA", "name", traffic = Traffic(0.5))
       val variantB = Variant("variantB", "name", traffic = Traffic(0.5))
-      val generatedEvents: List[ExperimentVariantEvent] = (1 to 10).toList.traverse { id =>
-        val experimentKey = Key(s"t1expid:${id % 2}")
-        val keyA = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id1-$id")
-        val keyAw = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id2-$id")
-        val keyB = ExperimentVariantEventKey(experimentKey, "variantB", "clientId", "namespace", s"id3-$id")
-        val eventADisplayed = ExperimentVariantDisplayed(keyA, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
-        val eventBDisplayed = ExperimentVariantDisplayed(keyB, experimentKey, "clientId", variantB, transformation = 0, variantId = "variantB")
-        val eventAWon = ExperimentVariantWon(keyAw, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
+      val generatedEvents: List[ExperimentVariantEvent] = (1 to 10).toList
+        .traverse { id =>
+          val experimentKey = Key(s"t1expid:${id % 2}")
+          val keyA          = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id1-$id")
+          val keyAw         = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id2-$id")
+          val keyB          = ExperimentVariantEventKey(experimentKey, "variantB", "clientId", "namespace", s"id3-$id")
+          val eventADisplayed = ExperimentVariantDisplayed(keyA,
+                                                           experimentKey,
+                                                           "clientId",
+                                                           variantA,
+                                                           transformation = 0,
+                                                           variantId = "variantA")
+          val eventBDisplayed = ExperimentVariantDisplayed(keyB,
+                                                           experimentKey,
+                                                           "clientId",
+                                                           variantB,
+                                                           transformation = 0,
+                                                           variantId = "variantB")
+          val eventAWon =
+            ExperimentVariantWon(keyAw, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
 
-        (ds.create(keyA, eventADisplayed) *>
+          (ds.create(keyA, eventADisplayed) *>
           ds.create(keyAw, eventAWon) *>
           ds.create(keyB, eventBDisplayed) *>
-          ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))
-        ).option
-      }.unsafeRunSync().flatMap(_.toList).flatten
+          ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))).option
+        }
+        .unsafeRunSync()
+        .flatMap(_.toList)
+        .flatten
 
-      val expId = Key(s"t1expid:0")
-      val experiment = Experiment(expId, "Experiment 0", enabled = true, variants = NonEmptyList.of(variantA, variantB))
+      val expId        = Key(s"t1expid:0")
+      val experiment   = Experiment(expId, "Experiment 0", enabled = true, variants = NonEmptyList.of(variantA, variantB))
       val eventsFromDb = ds.listAll().unsafeRunSync().runWith(Sink.seq).futureValue
 
       eventsFromDb.map(_.id) must contain theSameElementsAs generatedEvents.map(_.id)
@@ -94,7 +108,7 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
 
       val expectedEventsAfterDelete = generatedEvents.filter {
         case evt: ExperimentVariantDisplayed => evt.experimentId != expId
-        case evt: ExperimentVariantWon => evt.experimentId != expId
+        case evt: ExperimentVariantWon       => evt.experimentId != expId
       }
 
       eventsFromDbAfterDelete.map(_.id) must contain theSameElementsAs expectedEventsAfterDelete.map(_.id)
@@ -108,23 +122,37 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
 
       val variantA = Variant("variantA", "name", traffic = Traffic(0.5))
       val variantB = Variant("variantB", "name", traffic = Traffic(0.5))
-      (1 to 10).toList.traverse { id =>
-        val experimentKey = Key(s"t2expid:${id % 2}")
-        val keyA = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id1-$id")
-        val keyAw = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id2-$id")
-        val keyB = ExperimentVariantEventKey(experimentKey, "variantB", "clientId", "namespace", s"id3-$id")
-        val eventADisplayed = ExperimentVariantDisplayed(keyA, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
-        val eventAWon = ExperimentVariantWon(keyAw, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
-        val eventBDisplayed = ExperimentVariantDisplayed(keyB, experimentKey, "clientId", variantB, transformation = 0, variantId = "variantB")
+      (1 to 10).toList
+        .traverse { id =>
+          val experimentKey = Key(s"t2expid:${id % 2}")
+          val keyA          = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id1-$id")
+          val keyAw         = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id2-$id")
+          val keyB          = ExperimentVariantEventKey(experimentKey, "variantB", "clientId", "namespace", s"id3-$id")
+          val eventADisplayed = ExperimentVariantDisplayed(keyA,
+                                                           experimentKey,
+                                                           "clientId",
+                                                           variantA,
+                                                           transformation = 0,
+                                                           variantId = "variantA")
+          val eventAWon =
+            ExperimentVariantWon(keyAw, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
+          val eventBDisplayed = ExperimentVariantDisplayed(keyB,
+                                                           experimentKey,
+                                                           "clientId",
+                                                           variantB,
+                                                           transformation = 0,
+                                                           variantId = "variantB")
 
-        (ds.create(keyA, eventADisplayed) *>
+          (ds.create(keyA, eventADisplayed) *>
           ds.create(keyB, eventBDisplayed) *>
           ds.create(keyAw, eventAWon) *>
-          ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))
-        ).option
-      }.unsafeRunSync().flatMap(_.toList).flatten
+          ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))).option
+        }
+        .unsafeRunSync()
+        .flatMap(_.toList)
+        .flatten
 
-      val expId = Key(s"t2expid:0")
+      val expId      = Key(s"t2expid:0")
       val experiment = Experiment(expId, "Experiment 0", enabled = true, variants = NonEmptyList.of(variantA, variantB))
 
       val results = ds.findVariantResult(experiment).unsafeRunSync().runWith(Sink.seq).futureValue

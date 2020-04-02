@@ -32,8 +32,6 @@ class ConfigsPatch(
 )(implicit system: ActorSystem)
     extends PatchInstance {
 
-  implicit val materializer: Materializer = ActorMaterializer()
-
   override def patch(): RIO[GlobalContext, Done] = {
 
     val conf: DbDomainConfig = izanamiConfig.config.db

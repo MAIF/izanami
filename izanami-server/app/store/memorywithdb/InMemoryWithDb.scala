@@ -107,7 +107,6 @@ class InMemoryWithDbStore(
 
   import zio._
   import system.dispatcher
-  private implicit val materializer: Materializer = ActorMaterializer()
 
   override def start: RIO[DataStoreContext, Unit] =
     for {
@@ -115,11 +114,13 @@ class InMemoryWithDbStore(
       fiber   <- init().fork
     } yield {
       val cancellable: Option[Cancellable] = dbConfig.pollingInterval.map { interval =>
-        system.scheduler.schedule(interval, interval) {
-          IzanamiLogger.debug(s"Reloading data from db for $name")
-          runtime.unsafeRunToFuture(loadCacheFromDb.flatMap(s => ZIO.fromFuture(_ => s.runWith(Sink.ignore))))
-          ()
-        }
+        system.scheduler.scheduleWithFixedDelay(interval, interval)(new Runnable {
+          override def run(): Unit = {
+            IzanamiLogger.debug(s"Reloading data from db for $name")
+            runtime.unsafeRunToFuture(loadCacheFromDb.flatMap(s => ZIO.fromFuture(_ => s.runWith(Sink.ignore))))
+            ()
+          }
+        })
       }
       applicationLifecycle.addStopHook(() => {
         runtime.unsafeRun(fiber.interrupt)

@@ -776,7 +776,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       override def logger: Logger                                               = new ProdLogger
       override def experimentDataStore: JsonDataStore                           = new InMemoryJsonDataStore("experiment", store)
       override implicit def system: ActorSystem                                 = actorSystem
-      override implicit def mat: Materializer                                   = ActorMaterializer()(actorSystem)
+      override implicit def mat: Materializer                                   = Materializer(actorSystem)
       override def eventStore: EventStore                                       = new TestEventStore(events)
       override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
         def blockingExecutor: ZIO[Any, Nothing, Executor] =

@@ -17,17 +17,13 @@ import store.Query
 import controllers.dto.error.ApiErrors
 import zio.{IO, Runtime, ZIO}
 
-class GlobalScriptController(
-    system: ActorSystem,
-    AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-    cc: ControllerComponents
-)(implicit R: Runtime[GlobalScriptContext])
-    extends AbstractController(cc) {
+class GlobalScriptController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    R: Runtime[GlobalScriptContext]
+) extends AbstractController(cc) {
 
   import system.dispatcher
   import libs.http._
-
-  implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, name_only: Option[Boolean], page: Int = 1, nbElementPerPage: Int = 15): Action[Unit] =
     AuthAction.asyncTask[GlobalScriptContext](parse.empty) { ctx =>

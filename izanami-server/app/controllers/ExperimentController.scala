@@ -21,15 +21,13 @@ import store.Query
 import controllers.dto.error.ApiErrors
 import zio.{Runtime, Task, ZIO}
 
-class ExperimentController(system: ActorSystem,
-                           AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                           cc: ControllerComponents)(implicit runtime: Runtime[ExperimentContext])
-    extends AbstractController(cc) {
+class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    runtime: Runtime[ExperimentContext]
+) extends AbstractController(cc) {
 
   import system.dispatcher
   import libs.http._
-
-  implicit val materializer = ActorMaterializer()(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncTask[ExperimentContext](parse.empty) { ctx =>
@@ -153,7 +151,7 @@ class ExperimentController(system: ActorSystem,
                   .flatMapMerge(
                     4, { experiment =>
                       val value = ExperimentVariantEventService.deleteEventsForExperiment(experiment).either
-                      Source.fromFuture(
+                      Source.future(
                         runtime.unsafeRunToFuture(value)
                       )
                     }

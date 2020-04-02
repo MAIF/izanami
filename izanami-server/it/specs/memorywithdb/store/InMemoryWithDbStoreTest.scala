@@ -3,7 +3,7 @@ package specs.memorywithdb.store
 import akka.actor.ActorSystem
 import domains.events.Events.{FeatureCreated, FeatureUpdated}
 import domains.Key
-import domains.feature.DefaultFeature
+import domains.feature.{DefaultFeature, FeatureInstances}
 import env.{InMemory, InMemoryWithDbConfig}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
@@ -33,7 +33,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
   "InMemoryWithDbStore" must {
     "update his cache on event" in {
-      import domains.feature.FeatureInstances._
+      import domains.feature.FeatureInstances
 
       implicit val runtime: Runtime[DataStoreContext] = buildRuntime
 
@@ -43,7 +43,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       val key1     = Key("key:1")
       val key2     = Key("key:2")
       val feature1 = DefaultFeature(key1, false, None)
-      underlyingStore.create(key1, Json.toJson(feature1)).either.unsafeRunSync()
+      underlyingStore.create(key1, FeatureInstances.format.writes(feature1)).either.unsafeRunSync()
 
       val inMemoryWithDb = new InMemoryWithDbStore(
         InMemoryWithDbConfig(db = InMemory, None),
@@ -63,14 +63,15 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
       Thread.sleep(500)
 
-      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe Json.toJson(feature1Updated).some
-      inMemoryWithDb.getById(key2).option.unsafeRunSync().flatten mustBe Json.toJson(feature2).some
+      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
+        .writes(feature1Updated)
+        .some
+      inMemoryWithDb.getById(key2).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(feature2).some
 
     }
   }
 
   "scheduler should reload cache" in {
-    import domains.feature.FeatureInstances._
     implicit val runtime: Runtime[DataStoreContext] = buildRuntime
 
     val name            = "test"
@@ -79,7 +80,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     val key1     = Key("key:1")
     val key2     = Key("key:2")
     val feature1 = DefaultFeature(key1, false, None)
-    underlyingStore.create(key1, Json.toJson(feature1)).either.unsafeRunSync()
+    underlyingStore.create(key1, FeatureInstances.format.writes(feature1)).either.unsafeRunSync()
 
     val inMemoryWithDb = new InMemoryWithDbStore(
       InMemoryWithDbConfig(db = InMemory, Some(500.milliseconds)),
@@ -91,21 +92,22 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     runtime.unsafeRun(inMemoryWithDb.start)
 
     Thread.sleep(500)
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe Json.toJson(feature1).some
+    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(feature1).some
     val feature1Updated = feature1.copy(enabled = true)
-    underlyingStore.update(key1, key1, Json.toJson(feature1Updated)).either.unsafeRunSync()
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe Json.toJson(feature1).some
+    underlyingStore.update(key1, key1, FeatureInstances.format.writes(feature1Updated)).either.unsafeRunSync()
+    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(feature1).some
     Thread.sleep(600)
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe Json.toJson(feature1Updated).some
+    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
+      .writes(feature1Updated)
+      .some
   }
-
 
   def buildRuntime: Runtime[DataStoreContext] = {
     val module = new DataStoreContext {
-      override def eventStore: EventStore = new BasicEventStore
-      override def logger: Logger         = new ProdLogger
+      override def eventStore: EventStore                                     = new BasicEventStore
+      override def logger: Logger                                             = new ProdLogger
       override def withAuthInfo(authInfo: Option[AuthInfo]): DataStoreContext = this
-      override def authInfo: Option[AuthInfo]                        = None
+      override def authInfo: Option[AuthInfo]                                 = None
     }
     Runtime(module, PlatformLive.Default)
   }
