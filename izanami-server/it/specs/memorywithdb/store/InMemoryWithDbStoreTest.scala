@@ -43,7 +43,6 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       val feature1 = DefaultFeature(key1, false, None)
       underlyingStore.create(key1, FeatureInstances.format.writes(feature1)).either.unsafeRunSync()
 
-      println(s"Creating store")
       val inMemoryWithDb = new InMemoryWithDbStore(
         InMemoryWithDbConfig(db = InMemory, None),
         name,
@@ -60,7 +59,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       actorSystem.eventStream.publish(FeatureUpdated(key1, feature1, feature1Updated, authInfo = None))
       actorSystem.eventStream.publish(FeatureCreated(key2, feature2, authInfo = None))
 
-      Thread.sleep(500)
+      Thread.sleep(800)
       inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
         .writes(feature1Updated)
         .some
@@ -74,10 +73,10 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     val name            = "test"
     val underlyingStore = new InMemoryJsonDataStore(name)
 
-    val key1     = Key("key:1")
-    val key2     = Key("key:2")
-    val feature1 = DefaultFeature(key1, false, None)
-    underlyingStore.create(key1, FeatureInstances.format.writes(feature1)).either.unsafeRunSync()
+    val key1         = Key("key:1")
+    val feature1     = DefaultFeature(key1, false, None)
+    val feature1Json = FeatureInstances.format.writes(feature1)
+    underlyingStore.create(key1, feature1Json).either.unsafeRunSync() mustBe Right(feature1Json)
 
     val inMemoryWithDb = new InMemoryWithDbStore(
       InMemoryWithDbConfig(db = InMemory, Some(500.milliseconds)),
@@ -89,10 +88,10 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     inMemoryWithDb.start.unsafeRunSync()
 
     Thread.sleep(500)
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(feature1).some
+    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
     val feature1Updated = feature1.copy(enabled = true)
     underlyingStore.update(key1, key1, FeatureInstances.format.writes(feature1Updated)).either.unsafeRunSync()
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(feature1).some
+    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
     Thread.sleep(600)
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
       .writes(feature1Updated)
