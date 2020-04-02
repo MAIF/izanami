@@ -298,12 +298,14 @@ class Variants extends Component {
 const DATE_FORMAT2 = "YYYY-MM-DD HH:mm:ss";
 
 const Campaign = props => {
-  const disabled = !props.value.from;
-  const from = props.value.from
-    ? moment(props.value.from, DATE_FORMAT2)
+  console.log(props);
+  const value = props.value ? props.value : {};
+  const disabled = !value.from;
+  const from = value.from
+    ? moment(value.from, DATE_FORMAT2)
     : moment();
-  const to = props.value.to
-    ? moment(props.value.to, DATE_FORMAT2)
+  const to = value.to
+    ? moment(value.to, DATE_FORMAT2)
     : moment().add(1, "day");
   return (
     <OptionalField
