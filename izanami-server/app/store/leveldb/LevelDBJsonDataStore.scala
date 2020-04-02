@@ -74,7 +74,9 @@ object LevelDBJsonDataStore {
 
   def apply(dbPath: String)(implicit system: ActorSystem): LevelDBJsonDataStore = {
     val folder = new File(dbPath).getAbsoluteFile
-    val db     = factory.open(folder, new Options().createIfMissing(true))
+    val db = DbStores.stores.getOrElseUpdate(dbPath, {
+      factory.open(folder, new Options().createIfMissing(true))
+    })
     new LevelDBJsonDataStore(dbPath, db)
   }
 

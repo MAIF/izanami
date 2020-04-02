@@ -26,6 +26,7 @@ import org.iq80.leveldb.{DB, Options}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
 import store.datastore.DataStoreLayerContext
+import store.leveldb.DbStores
 import zio.blocking.Blocking
 import zio.{RIO, Task, UIO, ZIO, ZLayer, ZManaged}
 
@@ -56,8 +57,10 @@ object ExperimentVariantEventLevelDBService {
       val dbPath: String               = parentPath + "/" + namespace.replaceAll(":", "_")
       ZManaged
         .make(ZLogger.info(s"Opening leveldb for path $dbPath") *> Task {
-          val folder = new File(dbPath).getAbsoluteFile
-          factory.open(folder, new Options().createIfMissing(true))
+          DbStores.stores.getOrElseUpdate(dbPath, {
+            val folder = new File(dbPath).getAbsoluteFile
+            factory.open(folder, new Options().createIfMissing(true))
+          })
         })(db => ZLogger.info(s"Closing leveldb for path $dbPath") *> UIO(db.close()))
         .provide(mix)
         .map(db => new ExperimentVariantEventLevelDBService(db))
@@ -65,7 +68,9 @@ object ExperimentVariantEventLevelDBService {
 
   def apply(dbPath: String)(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
     val folder = new File(dbPath).getAbsoluteFile
-    val db     = factory.open(folder, new Options().createIfMissing(true))
+    val db = DbStores.stores.getOrElseUpdate(dbPath, {
+      factory.open(folder, new Options().createIfMissing(true))
+    })
     new ExperimentVariantEventLevelDBService(db)
   }
 
