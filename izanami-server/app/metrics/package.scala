@@ -249,8 +249,7 @@ package object metrics {
 
       def start: RIO[MetricsContext, Unit] =
         for {
-          env            <- PlayModule.environment
-          mode           = env.mode
+          mode           <- IzanamiConfig.mode
           metricRegistry <- MetricsModule.metricRegistry
           prefix         = if (mode == Mode.Test) s"${Random.nextInt(1000)}test" else ""
           _              = metricRegistry.register(s"$prefix.jvm.memory", new MemoryUsageGaugeSet())

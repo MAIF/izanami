@@ -24,13 +24,7 @@ case class Env(
 
   import ModeEq._
 
-  val env: Mode = izanamiConfig.mode
-    .map {
-      case "dev"  => Mode.Dev
-      case "prod" => Mode.Prod
-      case "test" => Mode.Test
-    }
-    .getOrElse(environment.mode)
+  val env: Mode = IzanamiConfig.mode(izanamiConfig, environment.mode)
 
   def isPlayDevMode = environment.mode === Mode.Dev
 

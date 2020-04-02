@@ -6,7 +6,8 @@ import java.nio.file.{Path, Paths}
 import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
 import domains.AuthorizedPatterns
 import domains.configuration.PlayModule
-import play.api.Configuration
+import env.configuration.IzanamiConfigModule
+import play.api.{Configuration, Environment, Mode}
 import play.api.libs.ws.WSProxyServer
 import pureconfig._
 import pureconfig.error.ConfigReaderFailures
@@ -116,6 +117,20 @@ object IzanamiConfig {
       .at("izanami")
       .loadOrThrow[IzanamiConfig]
 
+  def mode: URIO[PlayModule with IzanamiConfigModule, Mode] =
+    for {
+      environment   <- PlayModule.environment
+      izanamiConfig <- IzanamiConfigModule.izanamiConfig
+    } yield IzanamiConfig.mode(izanamiConfig, environment.mode)
+
+  def mode(izanamiConfig: IzanamiConfig, default: Mode): Mode =
+    izanamiConfig.mode
+      .map {
+        case "dev"  => Mode.Dev
+        case "prod" => Mode.Prod
+        case "test" => Mode.Test
+      }
+      .getOrElse(default)
 }
 
 case class IzanamiConfig(
