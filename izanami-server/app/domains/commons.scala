@@ -138,7 +138,7 @@ package object configuration {
       val playModule =
         PlayModule.live(system, mat, defaultCacheApi, configuration, environment, wSClient, ec, applicationLifecycle)
 
-      val izanamiConfigModule = playModule >>> IzanamiConfigModule.live
+      val izanamiConfigModule = IzanamiConfigModule.value(izanamiConfig)
 
       val configAndScript
         : ZLayer[ZEnv, Throwable, ScriptCache with RunnableScriptModule with MetricsModule with ZLogger] =
