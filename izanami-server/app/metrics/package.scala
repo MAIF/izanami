@@ -252,8 +252,8 @@ package object metrics {
           mode           <- IzanamiConfig.mode
           metricRegistry <- MetricsModule.metricRegistry
           prefix         = if (mode == Mode.Test) s"${Random.nextInt(1000)}test" else ""
-          _              = metricRegistry.register(s"$prefix.jvm.memory", new MemoryUsageGaugeSet())
-          _              = metricRegistry.register(s"$prefix.jvm.thread", new ThreadStatesGaugeSet())
+          _              <- UIO(metricRegistry.register(s"$prefix.jvm.memory", new MemoryUsageGaugeSet()))
+          _              <- UIO(metricRegistry.register(s"$prefix.jvm.thread", new ThreadStatesGaugeSet()))
           log            <- mayBeLoggerMetricsModule.map(_.run).getOrElse(Task.unit.fork)
           console        <- mayBeConsoleMetricsModule.map(_.run).getOrElse(Task.unit.fork)
           kafkaScheduler <- mayBeKafkaMetricsModule.map(_.run).getOrElse(Task.unit.fork)
