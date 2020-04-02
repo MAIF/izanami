@@ -29,7 +29,7 @@ import libs.database.Drivers.DriverLayerContext
 import zio.{RManaged, Task, UIO, ZLayer, ZManaged}
 
 object DbStores {
-  val stores = TrieMap.empty[String, LevelDBJsonDataStore]
+  val stores = TrieMap.empty[String, DB]
 }
 
 object LevelDBJsonDataStore {
@@ -51,8 +51,10 @@ object LevelDBJsonDataStore {
     ZManaged
       .make(
         Task {
-          val folder = new File(dbPath).getAbsoluteFile
-          factory.open(folder, new Options().createIfMissing(true))
+          DbStores.stores.getOrElseUpdate(dbPath, {
+            val folder = new File(dbPath).getAbsoluteFile
+            factory.open(folder, new Options().createIfMissing(true))
+          })
         }.onError(
           c =>
             c.failureOption.fold(ZLogger.error(s"Error opening db for path $dbPath"))(
