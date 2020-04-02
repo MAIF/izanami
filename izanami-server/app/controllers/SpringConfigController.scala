@@ -16,14 +16,11 @@ import play.api.mvc._
 import zio.Runtime
 
 class SpringConfigController(izanamiConfig: IzanamiConfig,
-                             system: ActorSystem,
                              AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                             val cc: ControllerComponents)(implicit R: Runtime[ConfigContext])
+                             val cc: ControllerComponents)(implicit system: ActorSystem, R: Runtime[ConfigContext])
     extends AbstractController(cc) {
 
   import libs.http._
-
-  implicit val materializer = ActorMaterializer()(system)
 
   val digester = MessageDigest.getInstance("SHA-256")
 

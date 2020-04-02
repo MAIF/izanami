@@ -1,11 +1,10 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
-
 import controllers.dto.config.ConfigListResult
 import controllers.dto.meta.Metadata
 import domains._
@@ -20,16 +19,16 @@ import controllers.dto.error.ApiErrors
 import store.Query
 import zio.Runtime
 
-class ConfigController(system: ActorSystem,
-                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       val cc: ControllerComponents)(implicit runtime: Runtime[ConfigContext])
-    extends AbstractController(cc) {
+class ConfigController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
+    implicit system: ActorSystem,
+    runtime: Runtime[ConfigContext]
+) extends AbstractController(cc) {
 
   import libs.http._
   import zio._
   import system.dispatcher
 
-  implicit val materializer = ActorMaterializer()(system)
+  implicit val mat: Materializer = Materializer(system)
 
   def list(pattern: String, page: Int = 1, nbElementPerPage: Int = 15, render: String): Action[Unit] =
     AuthAction.asyncTask[ConfigContext](parse.empty) { ctx =>

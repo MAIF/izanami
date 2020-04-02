@@ -64,8 +64,6 @@ class ExperimentVariantEventLevelDBService(
   import actorSystem.dispatcher
   import domains.events.Events._
 
-  ActorMaterializer()
-
   private val db: DB =
     factory.open(new File(dbPath), new Options().createIfMissing(true))
 
@@ -94,7 +92,7 @@ class ExperimentVariantEventLevelDBService(
   ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
     ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
       Source
-        .fromFuture(
+        .future(
           runtime
             .unsafeRunToFuture(smembers(eventVariantKey))
             .map { res =>
@@ -122,7 +120,7 @@ class ExperimentVariantEventLevelDBService(
         .flatMapMerge(
           4, { k =>
             Source
-              .fromFuture(
+              .future(
                 runtime.unsafeRunToFuture(smembers(k))
               )
               .map { res =>
@@ -186,7 +184,7 @@ class ExperimentVariantEventLevelDBService(
     ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
       Source(keys(s"$experimentseventsNamespace:*").toList)
         .addAttributes(ActorAttributes.dispatcher("izanami.blocking-dispatcher"))
-        .flatMapMerge(4, key => Source.fromFutureSource(runtime.unsafeRunToFuture(findEvents(key))))
+        .flatMapMerge(4, key => Source.futureSource(runtime.unsafeRunToFuture(findEvents(key))))
         .filter(e => e.id.key.matchAllPatterns(patterns: _*))
     }
 

@@ -43,7 +43,6 @@ class CassandraJsonDataStore(namespace: String, keyspace: String, session: Sessi
   import Cassandra._
   import IzanamiErrors._
 
-  implicit private val mat: Materializer = ActorMaterializer()(actorSystem)
   implicit private val _session: Session = session
 
   override def start: RIO[DataStoreContext, Unit] =

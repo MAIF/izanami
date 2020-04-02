@@ -35,7 +35,6 @@ class ConfigSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience 
   import FakeAuth._
 
   implicit val system = ActorSystem("test")
-  implicit val mat    = ActorMaterializer()
 
   import domains.errors.IzanamiErrors._
 

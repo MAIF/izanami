@@ -19,7 +19,7 @@ abstract class FeatureControllerWildcardAccessSpec(name: String, configurationSp
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration) =
-    configuration ++ configurationSpec
+    configurationSpec withFallback configuration
 
   private lazy val ws = izanamiComponents.wsClient
 
@@ -72,7 +72,7 @@ class FeatureControllerStrictAccessSpec(name: String, configurationSpec: Configu
     with IntegrationPatience {
 
   override def getConfiguration(configuration: Configuration) =
-    configuration ++ configurationSpec ++ Configuration.from(
+    configuration withFallback configurationSpec withFallback Configuration.from(
       Map("izanami.features.db.import" -> "./resources/features.ndjson")
     )
 

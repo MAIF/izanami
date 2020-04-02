@@ -24,8 +24,7 @@ class RedisEventStore(client: RedisWrapper, config: RedisEventsConfig, system: A
   import EventLogger._
   import system.dispatcher
 
-  implicit private val s   = system
-  implicit private val mat = ActorMaterializer()
+  implicit private val s = system
 
   logger.info(s"Starting redis event store")
 

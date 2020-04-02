@@ -15,6 +15,8 @@ import store.cassandra.CassandraClient
 import store.elastic.ElasticClient
 import store.postgresql.PostgresqlClient
 import store.redis.{RedisClientBuilder, RedisWrapper}
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
 trait Drivers {
   def redisClient: Option[RedisWrapper]
@@ -50,7 +52,7 @@ object Drivers {
 
       lazy val getMongoApi: Option[ReactiveMongoApi] = izanamiConfig.db.mongo.map { c =>
         val name      = c.name.getOrElse("default")
-        val parsedUri = MongoConnection.parseURI(c.url).get
+        val parsedUri = Await.result(MongoConnection.fromString(c.url), 5.seconds)
         val dbName    = parsedUri.db.orElse(c.database).getOrElse("default")
         IzanamiLogger.info(s"Creating mongo api driver with name:$name, dbName:$dbName, uri:$parsedUri")
         new DefaultReactiveMongoApi(

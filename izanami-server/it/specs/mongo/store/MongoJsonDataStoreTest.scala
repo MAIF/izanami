@@ -14,13 +14,13 @@ import scala.concurrent.Await
 import scala.util.Random
 import store.mongo.MongoJsonDataStore
 
-
-
-class MongoJsonDataStoreTest extends AbstractJsonDataStoreTest("Mongo")  with BeforeAndAfter with BeforeAndAfterAll {
+class MongoJsonDataStoreTest extends AbstractJsonDataStoreTest("Mongo") with BeforeAndAfter with BeforeAndAfterAll {
 
   val mongoApi = new DefaultReactiveMongoApi(
-    MongoConnection.parseURI("mongodb://localhost:27017").get,
-    s"dbtest-${Random.nextInt(50)}", false, Configuration.empty,
+    Await.result(MongoConnection.fromString("mongodb://localhost:27017"), 5.seconds),
+    s"dbtest-${Random.nextInt(50)}",
+    false,
+    Configuration.empty,
     new FakeApplicationLifecycle()
   )
 
@@ -40,8 +40,7 @@ class MongoJsonDataStoreTest extends AbstractJsonDataStoreTest("Mongo")  with Be
     deleteAllData
   }
 
-  private def deleteAllData = {
-    Await.result(mongoApi.database.flatMap { _.drop()}, 30.seconds)
-  }
+  private def deleteAllData =
+    Await.result(mongoApi.database.flatMap { _.drop() }, 30.seconds)
 
 }

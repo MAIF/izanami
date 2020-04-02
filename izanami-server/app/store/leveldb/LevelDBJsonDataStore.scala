@@ -69,8 +69,6 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   override def start: RIO[DataStoreContext, Unit] =
     Logger.info(s"Load store LevelDB for path $dbPath")
 
-  implicit val mat: Materializer = ActorMaterializer()
-
   private implicit val ec: ExecutionContext =
     system.dispatchers.lookup("izanami.level-db-dispatcher")
 
@@ -117,7 +115,7 @@ private[leveldb] class LevelDBJsonDataStore(dbPath: String, applicationLifecycle
   private def getAllKeys(): Source[String, NotUsed] = {
     val iterator = client.iterator()
     Source
-      .fromFuture(Future {
+      .future(Future {
         iterator.seekToFirst()
       })
       .flatMapConcat { _ =>

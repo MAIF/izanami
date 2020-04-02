@@ -77,7 +77,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
   ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
     ZIO.runtime[ExperimentVariantEventServiceModule].map { _ =>
       Source
-        .fromFuture(
+        .future(
           experiment.variants.toList
             .traverse { variant =>
               findEvents(experiment, variant)
@@ -105,7 +105,7 @@ class ExperimentVariantEventInMemoryService(namespace: String)(
   ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
     Task(
       Source
-        .fromFuture((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])
+        .future((store ? GetAll(patterns)).mapTo[Seq[ExperimentVariantEvent]])
         .mapConcat(_.toList)
     )
 
