@@ -38,10 +38,11 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       val name            = "test"
       val underlyingStore = new InMemoryJsonDataStore(name)
 
-      val key1     = Key("key:1")
-      val key2     = Key("key:2")
-      val feature1 = DefaultFeature(key1, false, None)
-      underlyingStore.create(key1, FeatureInstances.format.writes(feature1)).either.unsafeRunSync()
+      val key1         = Key("key:1")
+      val key2         = Key("key:2")
+      val feature1     = DefaultFeature(key1, false, None)
+      val feature1Json = FeatureInstances.format.writes(feature1)
+      underlyingStore.create(key1, feature1Json).either.unsafeRunSync()
 
       val inMemoryWithDb = new InMemoryWithDbStore(
         InMemoryWithDbConfig(db = InMemory, None),
@@ -53,17 +54,17 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       inMemoryWithDb.start.unsafeRunSync()
       Thread.sleep(500)
 
-      val feature1Updated = feature1.copy(enabled = true)
-      val feature2        = DefaultFeature(key2, false, None)
+      val feature1Updated    = feature1.copy(enabled = true)
+      val feature2           = DefaultFeature(key2, false, None)
+      val featureUpdatedJson = FeatureInstances.format.writes(feature1Updated)
+      val feature2Json       = FeatureInstances.format.writes(feature2)
 
       actorSystem.eventStream.publish(FeatureUpdated(key1, feature1, feature1Updated, authInfo = None))
       actorSystem.eventStream.publish(FeatureCreated(key2, feature2, authInfo = None))
 
       Thread.sleep(800)
-      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
-        .writes(feature1Updated)
-        .some
-      inMemoryWithDb.getById(key2).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(feature2).some
+      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe featureUpdatedJson.some
+      inMemoryWithDb.getById(key2).option.unsafeRunSync().flatten mustBe feature2Json.some
 
     }
   }
