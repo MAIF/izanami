@@ -31,7 +31,6 @@ object Healthcheck {
 
     for {
       ctx <- ZIO.environment[GlobalContext]
-      // FIXME test if auth if working for healthcheck
       newCtx = ctx ++ Has(
         Some(OauthUser("health", "health", "health", false, AuthorizedPatterns.of("test" -> PatternRights.R)))
       )
