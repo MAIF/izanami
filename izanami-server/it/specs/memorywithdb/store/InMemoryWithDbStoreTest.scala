@@ -52,7 +52,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
         Runtime.default.unsafeRun(zio.Ref.make(Option.empty[OpenResources]))
       )
       inMemoryWithDb.start.unsafeRunSync()
-      Thread.sleep(500)
+      Thread.sleep(800)
 
       val feature1Updated    = feature1.copy(enabled = true)
       val feature2           = DefaultFeature(key2, false, None)
