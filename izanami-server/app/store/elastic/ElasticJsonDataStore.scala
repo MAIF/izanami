@@ -143,9 +143,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
     for {
       mayBe <- getById(id).orDie
       value <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(id).toErrors)
-      _ <- IO
-            .fromFuture(implicit ec => index.delete(id.key, refresh = elasticConfig.automaticRefresh))
-            .orDie
+      _     <- IO.fromFuture(implicit ec => index.delete(id.key, refresh = elasticConfig.automaticRefresh)).orDie
     } yield value
 
   override def getById(id: Key): Task[Option[JsValue]] = {

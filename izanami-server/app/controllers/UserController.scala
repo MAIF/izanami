@@ -137,7 +137,7 @@ class UserController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], 
   def upload(strStrategy: String) = AuthAction.asyncZio[UserContext](Import.ndJson) { ctx =>
     isUserAllowed(ctx) *> ImportData
       .importHttp(strStrategy, ctx.body, UserService.importData)
-      .refineOrDie[Result](PartialFunction.empty)
+      .orDie
   }
 
   private def isUserAllowed(ctx: SecuredAuthContext[_]): ZIO[UserContext, Result, Unit] =

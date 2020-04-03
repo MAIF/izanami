@@ -201,10 +201,9 @@ class ZioIzanamiDefaultFilter(env: Mode,
                                 claim: String): ZIO[FilterContext, Throwable, Result] = {
     val res = for {
       mayBeUser <- decodeToken(claim)
-      result <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, mayBeUser))
-                 .refineOrDie[Result](PartialFunction.empty)
-      logger <- getLogger
-      _      <- logRequestResult("Request claim with exclusion", requestHeader, startTime, result, logger)
+      result    <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, mayBeUser)).orDie
+      logger    <- getLogger
+      _         <- logRequestResult("Request claim with exclusion", requestHeader, startTime, result, logger)
     } yield result
     res.either.map(_.merge)
   }

@@ -108,10 +108,9 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
                        Json.stringify(ExperimentVariantEventInstances.format.writes(data))
                      )
                    )
-               }.orDie
-                 .map { _ =>
-                   data
-                 } // add event
+               }.orDie.map { _ =>
+                 data
+               } // add event
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield result

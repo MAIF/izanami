@@ -217,25 +217,23 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
     data match {
       case e: ExperimentVariantDisplayed =>
         for {
-          displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
-          won       <- getWon(id.experimentId.key, id.variantId).orDie // get won counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave   = e.copy(transformation = transformation)
-          result   <- saveToEs(id, toSave) // add event
-          authInfo <- AuthInfo.authInfo
-          _        <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
+          displayed      <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
+          won            <- getWon(id.experimentId.key, id.variantId).orDie // get won counter
+          transformation = if (displayed != 0) (won * 100.0) / displayed else 0.0
+          toSave         = e.copy(transformation = transformation)
+          result         <- saveToEs(id, toSave) // add event
+          authInfo       <- AuthInfo.authInfo
+          _              <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
         } yield result
       case e: ExperimentVariantWon =>
         for {
-          won       <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-          displayed <- getDisplayed(id.experimentId.key, id.variantId).orDie // get display counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave   = e.copy(transformation = transformation)
-          result   <- saveToEs(id, toSave) // add event
-          authInfo <- AuthInfo.authInfo
-          _        <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
+          won            <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
+          displayed      <- getDisplayed(id.experimentId.key, id.variantId).orDie // get display counter
+          transformation = if (displayed != 0) (won * 100.0) / displayed else 0.0
+          toSave         = e.copy(transformation = transformation)
+          result         <- saveToEs(id, toSave) // add event
+          authInfo       <- AuthInfo.authInfo
+          _              <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
         } yield result
     }
 

@@ -73,14 +73,12 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     import ApikeyInstances._
 
     val key = Key(id)
-    // format: off
     for {
       mayBe   <- ApikeyService.getById(key).mapError { ApiErrors.toHttpResult }
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
-      _ <- ApikeyService.update(key, Key(current.clientId), updated).mapError { ApiErrors.toHttpResult }
+      _       <- ApikeyService.update(key, Key(current.clientId), updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
-  // format: on
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[ApiKeyContext] { ctx =>
@@ -122,7 +120,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
       .map { s =>
         val source = s
           .map { case (_, data) => Json.toJson(data) }
-          .map(Json.stringify _)
+          .map(Json.stringify)
           .intersperse("", "\n", "\n")
           .map(ByteString.apply)
         Result(
@@ -134,7 +132,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
   }
 
   def upload(strStrategy: String) = AuthAction.asyncZio[ApiKeyContext](Import.ndJson) { ctx =>
-    ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData).refineOrDie[Result](PartialFunction.empty)
+    ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData).orDie
   }
 
 }

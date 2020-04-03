@@ -141,10 +141,8 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
     for {
       mayBe <- getByKeyId(oldId: Key).orDie
       _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
-      _ <- IO.when(oldId =!= id)(
-            zioFromCs(command().del(buildKey(oldId).key)).orDie
-          )
-      _ <- if (oldId === id) rawUpdate(id, data) else create(id, data)
+      _     <- IO.when(oldId =!= id)(zioFromCs(command().del(buildKey(oldId).key)).orDie)
+      _     <- if (oldId === id) rawUpdate(id, data) else create(id, data)
     } yield data
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
