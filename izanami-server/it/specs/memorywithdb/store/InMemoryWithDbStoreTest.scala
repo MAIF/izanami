@@ -7,21 +7,19 @@ import domains.feature.{DefaultFeature, FeatureInstances}
 import env.{InMemory, InMemoryWithDbConfig}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
-import play.api.libs.json.Json
 import store.memory.InMemoryJsonDataStore
-import test.{FakeApplicationLifecycle, TestEventStore}
 import cats.syntax.option._
 import domains.events.impl.BasicEventStore
-import domains.events.{EventStore, EventStoreModule}
+import domains.events.EventStore
 import libs.logs.ZLogger
 import store.datastore.DataStoreContext
-import zio.internal.Platform
 import zio.{Runtime, ZLayer}
 
 import scala.concurrent.duration.DurationDouble
-import domains.user.User
 import domains.auth.AuthInfo
 import store.memorywithdb.{InMemoryWithDbStore, OpenResources}
+
+import scala.collection.concurrent.TrieMap
 
 class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with IntegrationPatience {
 
@@ -35,14 +33,13 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     "update his cache on event" in {
       import domains.feature.FeatureInstances
 
-      val name            = "test"
-      val underlyingStore = new InMemoryJsonDataStore(name)
-
+      val name         = "test"
       val key1         = Key("key:1")
       val key2         = Key("key:2")
       val feature1     = DefaultFeature(key1, false, None)
       val feature1Json = FeatureInstances.format.writes(feature1)
-      underlyingStore.create(key1, feature1Json).either.unsafeRunSync()
+
+      val underlyingStore = new InMemoryJsonDataStore(name, TrieMap(key1 -> feature1Json))
 
       val inMemoryWithDb = new InMemoryWithDbStore(
         InMemoryWithDbConfig(db = InMemory, None),
