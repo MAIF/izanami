@@ -1,34 +1,46 @@
-package domains.abtesting.impl
+package domains.abtesting.events.impl
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
+import akka.{Done, NotUsed}
+import domains.auth.AuthInfo
 import domains.Key
 import domains.abtesting._
-import domains.events.{EventStore}
-import domains.events.Events.ExperimentVariantEventCreated
-import elastic.api._
-import env.{DbDomainConfig, ElasticConfig}
-import libs.logs.IzanamiLogger
-import play.api.libs.json.{JsObject, JsValue, Json}
+import domains.abtesting.events._
+import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
-import zio.{IO, RIO, Task, ZIO}
+import domains.events.EventStore
+import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
+import elastic.api._
+import env.configuration.IzanamiConfigModule
+import env.{DbDomainConfig, ElasticConfig}
+import libs.database.Drivers.ElasticDriver
+import libs.logs.{IzanamiLogger, ZLogger}
+import play.api.libs.json.{JsObject, JsValue, Json}
+import store.datastore.DataStoreLayerContext
+import zio.{IO, RIO, Task, ZIO, ZLayer}
 
 import scala.concurrent.{ExecutionContext, Future}
-import libs.logs.Logger
-import domains.AuthInfo
-import domains.events.Events.ExperimentVariantEventsDeleted
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////     ELASTIC      ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 object ExperimentVariantEventElasticService {
+
+  val live: ZLayer[ElasticDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val configdb: DbDomainConfig  = izanamiConfig.experimentEvent.db
+      val Some(elasticConfig)       = izanamiConfig.db.elastic
+      val Some(elastic)             = mix.get[Option[Elastic[JsValue]]]
+      ExperimentVariantEventElasticService(elastic, elasticConfig, configdb)
+    }
 
   def apply(
       elastic: Elastic[JsValue],
@@ -41,12 +53,12 @@ object ExperimentVariantEventElasticService {
 class ExperimentVariantEventElasticService(client: Elastic[JsValue],
                                            elasticConfig: ElasticConfig,
                                            dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventService {
+    extends ExperimentVariantEventService.Service {
 
   import cats.implicits._
-  import elastic.implicits._
-  import elastic.codec.PlayJson._
   import ExperimentVariantEventInstances._
+  import elastic.codec.PlayJson._
+  import elastic.implicits._
 
   private val esIndex        = dbDomainConfig.conf.namespace.replaceAll(":", "_")
   private val esType         = "type"
@@ -93,8 +105,8 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
                                       |}
     """.stripMargin)
 
-  override def start: RIO[ExperimentVariantEventServiceModule, Unit] =
-    Logger.info(s"Initializing index $esIndex with type $esType") *>
+  override def start: RIO[ExperimentVariantEventServiceContext, Unit] =
+    ZLogger.info(s"Initializing index $esIndex with type $esType") *>
     Task.fromFuture { implicit ec =>
       client.verifyIndex(esIndex).flatMap {
         case true =>
@@ -103,7 +115,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           client.createIndex(esIndex, mapping)
       }
     } *>
-    Logger.info(s"Initializing index $displayedIndex with type type") *>
+    ZLogger.info(s"Initializing index $displayedIndex with type type") *>
     Task.fromFuture { implicit ec =>
       client.verifyIndex(displayedIndex).flatMap {
         case true =>
@@ -112,7 +124,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           client.createIndex(displayedIndex, counter)
       }
     } *>
-    Logger.info(s"Initializing index $wonIndex with type type") *>
+    ZLogger.info(s"Initializing index $wonIndex with type type") *>
     Task.fromFuture { implicit ec =>
       client.verifyIndex(wonIndex).flatMap {
         case true =>
@@ -189,46 +201,39 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
   }
 
   private def incrAndGetDisplayed(experimentId: String, variantId: String): IO[IzanamiErrors, Long] =
-    incrDisplayed(experimentId, variantId)
-      .flatMap { _ =>
-        getDisplayed(experimentId, variantId)
-      }
-      .refineToOrDie[IzanamiErrors]
+    incrDisplayed(experimentId, variantId).flatMap { _ =>
+      getDisplayed(experimentId, variantId)
+    }.orDie
 
   private def incrAndGetWon(experimentId: String, variantId: String): IO[IzanamiErrors, Long] =
-    incrWon(experimentId, variantId)
-      .flatMap { _ =>
-        getWon(experimentId, variantId)
-      }
-      .refineToOrDie[IzanamiErrors]
+    incrWon(experimentId, variantId).flatMap { _ =>
+      getWon(experimentId, variantId)
+    }.orDie
 
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] =
     data match {
       case e: ExperimentVariantDisplayed =>
         for {
-          displayed <- incrAndGetDisplayed(id.experimentId.key, id.variantId)                 // increment display counter
-          won       <- getWon(id.experimentId.key, id.variantId).refineToOrDie[IzanamiErrors] // get won counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave   = e.copy(transformation = transformation)
-          result   <- saveToEs(id, toSave) // add event
-          authInfo <- AuthInfo.authInfo
-          _        <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
+          displayed      <- incrAndGetDisplayed(id.experimentId.key, id.variantId) // increment display counter
+          won            <- getWon(id.experimentId.key, id.variantId).orDie // get won counter
+          transformation = if (displayed != 0) (won * 100.0) / displayed else 0.0
+          toSave         = e.copy(transformation = transformation)
+          result         <- saveToEs(id, toSave) // add event
+          authInfo       <- AuthInfo.authInfo
+          _              <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
         } yield result
       case e: ExperimentVariantWon =>
         for {
-          won <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
-          displayed <- getDisplayed(id.experimentId.key, id.variantId)
-                        .refineToOrDie[IzanamiErrors] // get display counter
-          transformation = if (displayed != 0) (won * 100.0) / displayed
-          else 0.0
-          toSave   = e.copy(transformation = transformation)
-          result   <- saveToEs(id, toSave) // add event
-          authInfo <- AuthInfo.authInfo
-          _        <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
+          won            <- incrAndGetWon(id.experimentId.key, id.variantId) // increment won counter
+          displayed      <- getDisplayed(id.experimentId.key, id.variantId).orDie // get display counter
+          transformation = if (displayed != 0) (won * 100.0) / displayed else 0.0
+          toSave         = e.copy(transformation = transformation)
+          result         <- saveToEs(id, toSave) // add event
+          authInfo       <- AuthInfo.authInfo
+          _              <- EventStore.publish(ExperimentVariantEventCreated(id, e, authInfo = authInfo))
         } yield result
     }
 
@@ -244,11 +249,11 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           )
       }
       .map(_ => data)
-      .refineToOrDie[IzanamiErrors]
+      .orDie
 
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] =
     ZIO
       .fromFuture { implicit ec =>
         Source(experiment.variants.toList)
@@ -287,7 +292,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           .runWith(Sink.ignore)
       }
       .unit
-      .refineToOrDie[IzanamiErrors] <* (AuthInfo.authInfo flatMap (
+      .orDie <* (AuthInfo.authInfo flatMap (
         authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 
@@ -356,14 +361,14 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
     )
 
   private def minOrMaxQuery(experimentId: String,
-                            order: String): RIO[ExperimentVariantEventServiceModule, Option[LocalDateTime]] = {
+                            order: String): RIO[ExperimentVariantEventServiceContext, Option[LocalDateTime]] = {
     val query = Json.obj(
       "size"    -> 1,
       "_source" -> Json.arr("date"),
       "query"   -> Json.obj("term" -> Json.obj("experimentId" -> Json.obj("value" -> experimentId))),
       "sort"    -> Json.arr(Json.obj("date" -> Json.obj("order" -> order)))
     )
-    Logger.debug(s"Querying ${Json.prettyPrint(query)}") *>
+    ZLogger.debug(s"Querying ${Json.prettyPrint(query)}") *>
     ZIO
       .fromFuture { implicit ec =>
         index
@@ -377,10 +382,10 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       }
   }
 
-  private def min(experimentId: String): RIO[ExperimentVariantEventServiceModule, Option[LocalDateTime]] =
+  private def min(experimentId: String): RIO[ExperimentVariantEventServiceContext, Option[LocalDateTime]] =
     minOrMaxQuery(experimentId, "asc")
 
-  private def calcInterval(experimentId: String): RIO[ExperimentVariantEventServiceModule, String] =
+  private def calcInterval(experimentId: String): RIO[ExperimentVariantEventServiceContext, String] =
     min(experimentId).map {
       case Some(min) =>
         val max = LocalDateTime.now()
@@ -403,12 +408,12 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
   private def getVariantResult(
       experimentId: String,
       variant: Variant
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] = {
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] = {
     import actorSystem.dispatcher
 
     val variantId: String = variant.id
 
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
+    ZIO.runtime[ExperimentVariantEventServiceContext].map { runtime =>
       val events: Source[Seq[ExperimentResultEvent], NotUsed] = Source
         .future(runtime.unsafeRunToFuture(calcInterval(experimentId)))
         .mapAsync(1) { interval =>
@@ -467,9 +472,9 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
 
   override def findVariantResult(
       experiment: Experiment
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] =
     ZIO
-      .runtime[ExperimentVariantEventServiceModule]
+      .runtime[ExperimentVariantEventServiceContext]
       .map { runtime =>
         Source(experiment.variants.toList)
           .flatMapMerge(4, v => Source.futureSource(runtime.unsafeRunToFuture(getVariantResult(experiment.id.key, v))))
@@ -477,7 +482,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
 
   override def listAll(
       patterns: Seq[String]
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
     Task.fromFuture(
       implicit ec =>
         FastFuture.successful(

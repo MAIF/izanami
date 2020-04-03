@@ -8,21 +8,37 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
 import domains.Key
-import env.DbDomainConfig
+import domains.configuration.PlayModule
+import env.{DbDomainConfig, IzanamiConfig}
 import libs.streams.Flows
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.IzanamiErrors
 import store._
+import store.datastore._
 import io.lettuce.core._
 import io.lettuce.core.api.async.RedisAsyncCommands
 
 import scala.compat.java8.FutureConverters._
 import scala.jdk.CollectionConverters._
-import libs.logs.Logger
+import libs.logs.ZLogger
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers
+import libs.database.Drivers.{DriverLayerContext, RedisDriver}
+import zio.{Has, ZLayer}
 
 object RedisJsonDataStore {
+
+  def live(conf: DbDomainConfig): ZLayer[RedisDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      implicit val actorSystem: ActorSystem = playModule.system
+      val namespace                         = conf.conf.namespace
+      val Some(redisDriver)                 = mix.get[Option[RedisWrapper]]
+      RedisJsonDataStore(redisDriver, namespace)
+    }
+
   def apply(client: RedisWrapper, name: String)(implicit system: ActorSystem): RedisJsonDataStore =
     new RedisJsonDataStore(client, name)
 
@@ -32,14 +48,15 @@ object RedisJsonDataStore {
   }
 }
 
-class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: ActorSystem) extends JsonDataStore {
+class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: ActorSystem)
+    extends JsonDataStore.Service {
 
   import zio._
   import system.dispatcher
   import cats.implicits._
   import IzanamiErrors._
 
-  override def start: RIO[DataStoreContext, Unit] = Logger.info(s"Load store Redis for namespace $name")
+  override def start: RIO[DataStoreContext, Unit] = ZLogger.info(s"Load store Redis for namespace $name")
 
   private def buildKey(key: Key) = Key.Empty / name / key
 
@@ -106,8 +123,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
   }
 
   override def create(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
-    getByKeyId(id)
-      .refineToOrDie[IzanamiErrors]
+    getByKeyId(id).orDie
       .flatMap {
         case Some(_) =>
           IO.fail(DataShouldNotExists(id).toErrors)
@@ -115,27 +131,25 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
         case None =>
           zioFromCs(command().set(buildKey(id).key, Json.stringify(data)))
             .map(_ => data)
-            .refineToOrDie[IzanamiErrors]
+            .orDie
       }
 
   private def rawUpdate(id: Key, data: JsValue) =
-    zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).refineToOrDie[IzanamiErrors]
+    zioFromCs(command().set(buildKey(id).key, Json.stringify(data))).orDie
 
   override def update(oldId: Key, id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     for {
-      mayBe <- getByKeyId(oldId: Key).refineToOrDie[IzanamiErrors]
+      mayBe <- getByKeyId(oldId: Key).orDie
       _     <- IO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
-      _     <- IO.when(oldId =!= id)(zioFromCs(command().del(buildKey(oldId).key)).refineToOrDie[IzanamiErrors])
+      _     <- IO.when(oldId =!= id)(zioFromCs(command().del(buildKey(oldId).key)).orDie)
       _     <- if (oldId === id) rawUpdate(id, data) else create(id, data)
     } yield data
 
   override def delete(id: Key): IO[IzanamiErrors, JsValue] =
-    getByKeyId(id)
-      .refineToOrDie[IzanamiErrors]
+    getByKeyId(id).orDie
       .flatMap {
         case Some(value) =>
-          zioFromCs(command().del(buildKey(id).key))
-            .refineToOrDie[IzanamiErrors]
+          zioFromCs(command().del(buildKey(id).key)).orDie
             .map(_ => value)
         case None =>
           IO.fail(DataShouldExists(id).toErrors)
@@ -158,7 +172,7 @@ class RedisJsonDataStore(client: RedisWrapper, name: String)(implicit system: Ac
                 .runWith(Sink.ignore)
         )
       )
-      .refineToOrDie[IzanamiErrors]
+      .orDie
       .unit
 
   override def getById(id: Key): Task[Option[JsValue]] =

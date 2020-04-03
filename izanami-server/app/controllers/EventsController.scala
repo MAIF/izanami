@@ -8,7 +8,7 @@ import play.api.libs.EventSource
 import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNameExtractor}
 import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
-import zio.Runtime
+import libs.http.HttpContext
 import akka.stream.scaladsl.Flow
 import scala.util.Success
 import scala.util.Failure
@@ -16,12 +16,12 @@ import libs.logs.IzanamiLogger
 import java.time.LocalDateTime
 import play.api.libs.json.JsValue
 import scala.concurrent.duration.DurationDouble
-import domains.AuthInfo
+import domains.auth.AuthInfo
 import domains.Key
 
 class EventsController(system: ActorSystem,
                        AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       cc: ControllerComponents)(implicit r: Runtime[EventStoreContext])
+                       cc: ControllerComponents)(implicit r: HttpContext[EventStoreContext])
     extends AbstractController(cc) {
 
   import libs.http._
@@ -45,13 +45,13 @@ class EventsController(system: ActorSystem,
   }
 
   case class KeepAliveEvent() extends IzanamiEvent {
-    val _id: Long                  = 0
-    val domain: Domain             = domains.Domain.Unknown
-    val authInfo: Option[AuthInfo] = None
-    val key: Key                   = Key("na")
-    def timestamp: LocalDateTime   = LocalDateTime.now()
-    val `type`: String             = "KEEP_ALIVE"
-    val payload: JsValue           = Json.obj()
+    val _id: Long                          = 0
+    val domain: Domain                     = domains.Domain.Unknown
+    val authInfo: Option[AuthInfo.Service] = None
+    val key: Key                           = Key("na")
+    def timestamp: LocalDateTime           = LocalDateTime.now()
+    val `type`: String                     = "KEEP_ALIVE"
+    val payload: JsValue                   = Json.obj()
   }
 
   val keepAlive = Flow[IzanamiEvent].keepAlive(30.seconds, () => KeepAliveEvent())

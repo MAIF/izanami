@@ -2,33 +2,38 @@ package specs.redis.abtesting
 
 import java.time.Duration
 
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.events.impl.ExperimentVariantEventRedisService
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import env.{DbDomainConfig, DbDomainConfigDetails, Master}
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-import store.redis.RedisClientBuilder
+import store.redis.{RedisClientBuilder, RedisWrapper}
 import test.FakeApplicationLifecycle
+import zio.{Exit, Reservation}
 
 import scala.jdk.CollectionConverters._
-import domains.abtesting.impl.ExperimentVariantEventRedisService
 
 class ExperimentVariantEventRedisServiceTest
-    extends AbstractExperimentServiceTest("Postgresql")
+    extends AbstractExperimentServiceTest("Redis")
     with BeforeAndAfter
     with BeforeAndAfterAll {
 
   import zio.interop.catz._
 
-  val redisWrapper = RedisClientBuilder.redisClient(
-    Some(Master("localhost", 6380, 5)),
-    system,
-    new FakeApplicationLifecycle()
+  val redisWrapper: Reservation[Any, Throwable, Option[RedisWrapper]] = runtime.unsafeRun(
+    RedisClientBuilder
+      .redisClient(
+        Some(Master("localhost", 6380, 5)),
+        system
+      )
+      .reserve
   )
+  private val maybeRedisWrapper: Option[RedisWrapper] = runtime.unsafeRun(redisWrapper.acquire)
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventRedisService(
-    DbDomainConfig(env.Redis, DbDomainConfigDetails(name, None), None),
-    redisWrapper
-  )
+  override def dataStore(name: String): ExperimentVariantEventService.Service =
+    ExperimentVariantEventRedisService(DbDomainConfig(env.Redis, DbDomainConfigDetails(name, None), None),
+                                       maybeRedisWrapper)
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
     super.before(fun)
@@ -39,12 +44,12 @@ class ExperimentVariantEventRedisServiceTest
     super.afterAll()
 
     deleteAllData
-    redisWrapper.get.underlying.shutdown(Duration.ZERO, Duration.ofSeconds(5))
+    runtime.unsafeRun(redisWrapper.release(Exit.unit))
   }
 
   private def deleteAllData =
-    redisWrapper.get.connection
+    maybeRedisWrapper.get.connection
       .sync()
-      .del(redisWrapper.get.connection.sync().keys("*").asScala.toSeq: _*)
+      .del(maybeRedisWrapper.get.connection.sync().keys("*").asScala.toSeq: _*)
 
 }

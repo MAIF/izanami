@@ -3,11 +3,13 @@ package specs.dynamo.abtesting
 import cats.effect.IO
 import akka.stream.alpakka.dynamodb.{DynamoClient => AlpakkaClient}
 import com.typesafe.config.{Config, ConfigFactory}
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.events.impl.ExperimentVariantEventDynamoService
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import domains.events.impl.BasicEventStore
 import env.DynamoConfig
+import libs.logs.ZLogger
 import store.dynamo.DynamoClient
-import domains.abtesting.impl.ExperimentVariantEventDynamoService
 
 class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceTest("DynamoDb") {
 
@@ -32,11 +34,11 @@ class ExperimentVariantEventDynamoServiceTest extends AbstractExperimentServiceT
    """.stripMargin))
 
   def getClient(config: DynamoConfig): AlpakkaClient = {
-    val Some(client) = DynamoClient.dynamoClient(Some(config))
+    val Some(client) = runtime.unsafeRun(DynamoClient.dynamoClient(Some(config)).provideLayer(ZLogger.live))
     client
   }
 
-  override def dataStore(name: String): ExperimentVariantEventService = {
+  override def dataStore(name: String): ExperimentVariantEventService.Service = {
     val config = DynamoConfig("othername",
                               name,
                               region,

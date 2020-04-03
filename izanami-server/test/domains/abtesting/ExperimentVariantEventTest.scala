@@ -4,9 +4,9 @@ import java.time.temporal.ChronoUnit
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import domains.Key
+import domains.abtesting.events._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import test.IzanamiSpec
 

@@ -1,4 +1,4 @@
-package domains.webhook
+package domains
 
 import java.time.LocalDateTime
 
@@ -6,125 +6,146 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
 import domains.Domain.Domain
-import domains.events.{EventStore, EventStoreContext}
+import domains.events.EventStore
 import domains.webhook.Webhook.WebhookKey
 import domains._
+import domains.auth.AuthInfo
+import domains.configuration.PlayModule
+import domains.user.UserDataStore
 import domains.webhook.notifications.WebHooksActor
-import env.WebhookConfig
+import env.{IzanamiConfig, WebhookConfig}
+import env.configuration.IzanamiConfigModule
 import libs.ziohelper.JsResults.jsResultToError
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
 import errors.IzanamiErrors
+import libs.database.Drivers
+import libs.logs.ZLogger
 import store._
+import store.datastore.{JsonDataStore, _}
+import store.memorywithdb.InMemoryWithDbStore
 import zio._
 
-case class Webhook(clientId: WebhookKey,
-                   callbackUrl: String,
-                   domains: Seq[Domain] = Seq.empty[Domain],
-                   patterns: Seq[String] = Seq.empty[String],
-                   types: Seq[String] = Seq.empty[String],
-                   headers: JsObject = Json.obj(),
-                   created: LocalDateTime = LocalDateTime.now(),
-                   isBanned: Boolean = false)
+package object webhook {
 
-object Webhook {
-  type WebhookKey = Key
-}
+  case class Webhook(clientId: WebhookKey,
+                     callbackUrl: String,
+                     domains: Seq[Domain] = Seq.empty[Domain],
+                     patterns: Seq[String] = Seq.empty[String],
+                     types: Seq[String] = Seq.empty[String],
+                     headers: JsObject = Json.obj(),
+                     created: LocalDateTime = LocalDateTime.now(),
+                     isBanned: Boolean = false)
 
-trait WebhookDataStoreModule {
-  def webhookDataStore: JsonDataStore
-}
+  object Webhook {
+    type WebhookKey = Key
+  }
 
-trait WebhookContext
-    extends DataStoreContext
-    with WebhookDataStoreModule
-    with EventStoreContext
-    with AuthInfoModule[WebhookContext]
+  type WebhookDataStore = zio.Has[WebhookDataStore.Service]
 
-object WebhookDataStore extends JsonDataStoreHelper[WebhookContext] {
-  override def accessStore = _.webhookDataStore
-}
+  object WebhookDataStore {
+    trait Service {
+      def webhookDataStore: JsonDataStore.Service
+    }
 
-object WebhookService {
+    case class WebhookDataStoreProd(webhookDataStore: JsonDataStore.Service) extends Service
 
-  import WebhookInstances._
-  import cats.implicits._
-  import libs.streams.syntax._
-  import domains.events.Events._
-  import errors._
-  import IzanamiErrors._
+    object > extends JsonDataStoreHelper[WebhookDataStore with DataStoreContext] {
+      override def getStore: URIO[WebhookDataStore with DataStoreContext, JsonDataStore.Service] =
+        ZIO.access(_.get[WebhookDataStore.Service].webhookDataStore)
+    }
 
-  def startHooks(wsClient: WSClient, config: WebhookConfig)(
-      implicit actorSystem: ActorSystem
-  ): zio.RIO[WebhookContext, ActorRef] =
-    for {
-      r   <- ZIO.runtime[WebhookContext]
-      ref = actorSystem.actorOf(WebHooksActor.props(wsClient, config, r), "webhooks")
-    } yield ref
+    def value(webhookDataStore: JsonDataStore.Service): ULayer[WebhookDataStore] =
+      ZLayer.succeed(WebhookDataStoreProd(webhookDataStore))
 
-  def create(id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
-    for {
-      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
-      _        <- IO.when(data.clientId =!= id)(IO.fail(IdMustBeTheSame(data.clientId, id).toErrors))
-      created  <- WebhookDataStore.create(id, WebhookInstances.format.writes(data))
-      webhook  <- jsResultToError(created.validate[Webhook])
-      authInfo <- AuthInfo.authInfo
-      _        <- EventStore.publish(WebhookCreated(id, webhook, authInfo = authInfo))
-    } yield webhook
+    def live(izanamiConfig: IzanamiConfig): ZLayer[DataStoreLayerContext, Throwable, WebhookDataStore] =
+      JsonDataStore
+        .live(izanamiConfig, c => c.webhook.db, InMemoryWithDbStore.webhookEventAdapter)
+        .map(s => Has(WebhookDataStoreProd(s.get)))
+  }
 
-  def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
-    for {
-      _         <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
-      mayBeHook <- getById(oldId)
-      oldValue  <- ZIO.fromOption(mayBeHook).mapError(_ => DataShouldExists(oldId).toErrors)
-      updated   <- WebhookDataStore.update(oldId, id, WebhookInstances.format.writes(data))
-      hook      <- jsResultToError(updated.validate[Webhook])
-      authInfo  <- AuthInfo.authInfo
-      _         <- EventStore.publish(WebhookUpdated(id, oldValue, hook, authInfo = authInfo))
-    } yield hook
+  type WebhookContext = WebhookDataStore with ZLogger with EventStore with AuthInfo
 
-  def delete(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Webhook] =
-    for {
-      _        <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
-      deleted  <- WebhookDataStore.delete(id)
-      hook     <- jsResultToError(deleted.validate[Webhook])
-      authInfo <- AuthInfo.authInfo
-      _        <- EventStore.publish(WebhookDeleted(id, hook, authInfo = authInfo))
-    } yield hook
+  object WebhookService {
 
-  def deleteAll(patterns: Seq[String]): ZIO[WebhookContext, IzanamiErrors, Unit] =
-    WebhookDataStore.deleteAll(patterns)
+    import WebhookInstances._
+    import cats.implicits._
+    import libs.streams.syntax._
+    import domains.events.Events._
+    import errors._
+    import IzanamiErrors._
 
-  def getByIdWithoutPermissions(id: WebhookKey): RIO[WebhookContext, Option[Webhook]] =
-    for {
-      mayBeHook  <- WebhookDataStore.getById(id)
-      parsedHook = mayBeHook.flatMap(_.validate[Webhook].asOpt)
-    } yield parsedHook
+    def startHooks(wsClient: WSClient, config: WebhookConfig)(
+        implicit actorSystem: ActorSystem
+    ): zio.RIO[WebhookContext, ActorRef] =
+      for {
+        r   <- ZIO.runtime[WebhookContext]
+        ref = actorSystem.actorOf(WebHooksActor.props(wsClient, config, r), "webhooks")
+      } yield ref
 
-  def getById(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Option[Webhook]] =
-    AuthorizedPatterns.isAllowed(id, PatternRights.R) *> getByIdWithoutPermissions(id).refineToOrDie[IzanamiErrors]
+    def create(id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
+      for {
+        _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
+        _        <- IO.when(data.clientId =!= id)(IO.fail(IdMustBeTheSame(data.clientId, id).toErrors))
+        created  <- WebhookDataStore.>.create(id, WebhookInstances.format.writes(data))
+        webhook  <- jsResultToError(created.validate[Webhook])
+        authInfo <- AuthInfo.authInfo
+        _        <- EventStore.publish(WebhookCreated(id, webhook, authInfo = authInfo))
+      } yield webhook
 
-  def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[WebhookContext, PagingResult[Webhook]] =
-    WebhookDataStore
-      .findByQuery(query, page, nbElementPerPage)
-      .map(jsons => JsonPagingResult(jsons))
+    def update(oldId: WebhookKey, id: WebhookKey, data: Webhook): ZIO[WebhookContext, IzanamiErrors, Webhook] =
+      for {
+        _         <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
+        mayBeHook <- getById(oldId)
+        oldValue  <- ZIO.fromOption(mayBeHook).mapError(_ => DataShouldExists(oldId).toErrors)
+        updated   <- WebhookDataStore.>.update(oldId, id, WebhookInstances.format.writes(data))
+        hook      <- jsResultToError(updated.validate[Webhook])
+        authInfo  <- AuthInfo.authInfo
+        _         <- EventStore.publish(WebhookUpdated(id, oldValue, hook, authInfo = authInfo))
+      } yield hook
 
-  def findByQuery(query: Query): RIO[WebhookContext, Source[(Key, Webhook), NotUsed]] =
-    WebhookDataStore.findByQuery(query).map(_.readsKV[Webhook])
+    def delete(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Webhook] =
+      for {
+        _        <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
+        deleted  <- WebhookDataStore.>.delete(id)
+        hook     <- jsResultToError(deleted.validate[Webhook])
+        authInfo <- AuthInfo.authInfo
+        _        <- EventStore.publish(WebhookDeleted(id, hook, authInfo = authInfo))
+      } yield hook
 
-  def count(query: Query): RIO[WebhookContext, Long] =
-    WebhookDataStore.count(query)
+    def deleteAll(patterns: Seq[String]): ZIO[WebhookContext, IzanamiErrors, Unit] =
+      WebhookDataStore.>.deleteAll(patterns)
 
-  def importData(
-      strategy: ImportStrategy = ImportStrategy.Keep
-  ): RIO[WebhookContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
-    ImportData
-      .importDataFlow[WebhookContext, WebhookKey, Webhook](
-        strategy,
-        _.clientId,
-        key => getById(key),
-        (key, data) => create(key, data),
-        (key, data) => update(key, key, data)
-      )(WebhookInstances.format)
+    def getByIdWithoutPermissions(id: WebhookKey): RIO[WebhookContext, Option[Webhook]] =
+      for {
+        mayBeHook  <- WebhookDataStore.>.getById(id)
+        parsedHook = mayBeHook.flatMap(_.validate[Webhook].asOpt)
+      } yield parsedHook
 
+    def getById(id: WebhookKey): ZIO[WebhookContext, IzanamiErrors, Option[Webhook]] =
+      AuthorizedPatterns.isAllowed(id, PatternRights.R) *> getByIdWithoutPermissions(id).orDie
+
+    def findByQuery(query: Query, page: Int, nbElementPerPage: Int): RIO[WebhookContext, PagingResult[Webhook]] =
+      WebhookDataStore.>.findByQuery(query, page, nbElementPerPage)
+        .map(jsons => JsonPagingResult(jsons))
+
+    def findByQuery(query: Query): RIO[WebhookContext, Source[(Key, Webhook), NotUsed]] =
+      WebhookDataStore.>.findByQuery(query).map(_.readsKV[Webhook])
+
+    def count(query: Query): RIO[WebhookContext, Long] =
+      WebhookDataStore.>.count(query)
+
+    def importData(
+        strategy: ImportStrategy = ImportStrategy.Keep
+    ): RIO[WebhookContext, Flow[(String, JsValue), ImportResult, NotUsed]] =
+      ImportData
+        .importDataFlow[WebhookContext, WebhookKey, Webhook](
+          strategy,
+          _.clientId,
+          key => getById(key),
+          (key, data) => create(key, data),
+          (key, data) => update(key, key, data)
+        )(WebhookInstances.format)
+
+  }
 }

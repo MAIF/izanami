@@ -11,30 +11,43 @@ import akka.stream.scaladsl.Source
 import akka.{Done, NotUsed}
 import com.typesafe.config.{Config => TsConfig}
 import domains.Domain.Domain
+import domains.configuration.PlayModule
 import domains.events.EventLogger._
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.DistributedEventsConfig
 import libs.streams.CacheableQueue
-import libs.logs.IzanamiLogger
-import play.api.inject.ApplicationLifecycle
+import libs.logs.ZLogger
 import play.api.libs.json.{JsValue, Json}
 import domains.errors.IzanamiErrors
-import zio.{IO, Task}
+import store.datastore.DataStoreLayerContext
+import zio.{IO, Task, UIO, ZLayer, ZManaged}
 
 import scala.util.Try
 
-class DistributedPubSubEventStore(globalConfig: TsConfig,
-                                  config: DistributedEventsConfig,
-                                  lifecycle: ApplicationLifecycle)
-    extends EventStore {
+object DistributedPubSubEventStore {
+  def live(config: DistributedEventsConfig): ZLayer[DataStoreLayerContext, Throwable, EventStore] =
+    ZLayer.fromFunctionManaged { mix =>
+      val playModule              = mix.get[PlayModule.Service]
+      val globalConfig            = playModule.configuration.underlying
+      val actorSystemName: String = globalConfig.getString("cluster.system-name")
 
-  logger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}")
+      ZManaged
+        .make(
+          ZLogger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}") *> Task(
+            ActorSystem(actorSystemName, globalConfig.getConfig("cluster"))
+          )
+        )(
+          s => Task.fromFuture(_ => s.terminate()).ignore
+        )
+        .map { implicit actorSystem =>
+          new DistributedPubSubEventStore(config)
+        }
+        .provide(mix)
+    }
+}
 
-  private val actorSystemName: String =
-    globalConfig.getString("cluster.system-name")
-  implicit private val s =
-    ActorSystem(actorSystemName, globalConfig.getConfig("cluster"))
+class DistributedPubSubEventStore(config: DistributedEventsConfig)(implicit s: ActorSystem) extends EventStore.Service {
 
   logger.info(s"Creating distributed event store")
 
@@ -64,11 +77,6 @@ class DistributedPubSubEventStore(globalConfig: TsConfig,
 
   override def close(): Task[Unit] = Task {
     actor ! PoisonPill
-  }
-
-  lifecycle.addStopHook { () =>
-    IzanamiLogger.info(s"Stopping actor system $actorSystemName")
-    s.terminate()
   }
 
   override def check(): Task[Unit] = Task.succeed(())

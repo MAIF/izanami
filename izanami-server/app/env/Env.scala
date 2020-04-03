@@ -18,22 +18,13 @@ object ModeEq {
 case class Env(
     izanamiConfig: IzanamiConfig,
     environment: Environment,
-    actorSystem: ActorSystem,
-    wSClient: WSClient,
-    javaWsClient: play.libs.ws.WSClient,
-    assetsFinder: AssetsFinder,
-    metricRegistry: MetricRegistry
+//    actorSystem: ActorSystem,
+    assetsFinder: AssetsFinder
 ) {
 
   import ModeEq._
 
-  val env: Mode = izanamiConfig.mode
-    .map {
-      case "dev"  => Mode.Dev
-      case "prod" => Mode.Prod
-      case "test" => Mode.Test
-    }
-    .getOrElse(environment.mode)
+  val env: Mode = IzanamiConfig.mode(izanamiConfig, environment.mode)
 
   def isPlayDevMode = environment.mode === Mode.Dev
 

@@ -8,19 +8,33 @@ import com.auth0.jwt._
 import com.auth0.jwt.algorithms.Algorithm
 import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.Timer
+import com.codahale.metrics.json.MetricsModule
 import com.google.common.base.Charsets
-import domains.apikey.{ApiKeyContext, ApikeyService}
-import domains.user.{IzanamiUser, User}
+import domains.auth.AuthInfo
+import domains.abtesting.ExperimentDataStore
+import domains.abtesting.events.ExperimentVariantEventService
+import domains.apikey.{ApiKeyContext, ApikeyDataStore, ApikeyService}
+import domains.config.ConfigDataStore
+import env.configuration.IzanamiConfigModule
+import domains.configuration.PlayModule
+import domains.events.EventStore
+import domains.feature.FeatureDataStore
+import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
+import domains.user.{IzanamiUser, User, UserDataStore}
+import domains.webhook.WebhookDataStore
 import domains.{AuthorizedPatterns, Key}
 import env._
 import filters.PrometheusMetricsHolder.prometheursRequestCounter
 import io.prometheus.client.{Counter, Histogram}
-import libs.logs.{Logger, LoggerModule}
+import libs.database.Drivers
+import libs.http.HttpContext
+import libs.logs.ZLogger
 import play.api.libs.json._
 import play.api.mvc._
 import zio.{Cause, RIO, Runtime, Task, UIO, ZIO}
-import metrics.MetricsContext
+import metrics.{MetricsContext, MetricsModule}
 import play.api.Mode
+import zio.clock.Clock
 
 import scala.util.Try
 
@@ -61,7 +75,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
                               metricsConfig: MetricsConfig,
                               config: DefaultFilter,
                               apikeyConfig: ApikeyConfig)(
-    implicit runtime: Runtime[ApiKeyContext with MetricsContext],
+    implicit runtime: HttpContext[ApiKeyContext with MetricsContext],
     override val mat: Materializer
 ) extends ZioFilter[ApiKeyContext with MetricsContext] {
 
@@ -85,6 +99,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
   )(requestHeader: RequestHeader): ZIO[ApiKeyContext with MetricsContext, Throwable, Result] =
     for {
       ctx                <- ZIO.environment[ApiKeyContext with MetricsContext]
+      metricRegistry     <- metrics.MetricsModule.metricRegistry
       logger             <- getLogger
       startTime          <- ZIO(System.currentTimeMillis)
       timerContext       <- startMetrics(requestHeader)
@@ -117,7 +132,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
              }).onError(handleFailure(logger, timerContext, requestHeader))
 
       _ <- logger.debug(s" ${requestHeader.method} ${requestHeader.uri} resp : $resp")
-      _ = ctx.metricRegistry.meter(name("request", resp.header.status.toString, "rate")).mark()
+      _ = metricRegistry.meter(name("request", resp.header.status.toString, "rate")).mark()
       _ <- timerContext.stop
       _ = prometheursRequestCounter.labels(requestHeader.method, requestHeader.path, s"${resp.header.status}").inc()
     } yield resp
@@ -133,7 +148,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
         case user :: password :: Nil => (user, password)
       }
 
-  private def handleFailure(logger: Logger, timerContext: TimerContext, requestHeader: RequestHeader)(
+  private def handleFailure(logger: ZLogger.Service, timerContext: TimerContext, requestHeader: RequestHeader)(
       cause: Cause[Throwable]
   ): ZIO[Any, Nothing, Unit] =
     ZIO.effectTotal(prometheursRequestCounter.labels(requestHeader.method, requestHeader.path, "500").inc()) *>
@@ -155,29 +170,47 @@ class ZioIzanamiDefaultFilter(env: Mode,
                                requestHeader: RequestHeader,
                                startTime: Long,
                                result: Result,
-                               logger: Logger) =
+                               logger: ZLogger.Service) =
     logger.debug(
       s"$desc => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
         .map(h => s"""   "${h._1}": "${h._2}"\n""")
         .mkString(",")} took ${System.currentTimeMillis - startTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
     )
 
+  type FilterContext = PlayModule
+    with IzanamiConfigModule
+    with metrics.MetricsModule
+    with AuthInfo
+    with ConfigDataStore
+    with UserDataStore
+    with FeatureDataStore
+    with GlobalScriptDataStore
+    with ScriptCache
+    with RunnableScriptModule
+    with ApikeyDataStore
+    with WebhookDataStore
+    with ExperimentDataStore
+    with ExperimentVariantEventService
+    with EventStore
+    with ZLogger
+    with Clock
+
   private def decodeTokenFilter(nextFilter: RequestHeader => Task[Result],
                                 requestHeader: RequestHeader,
                                 startTime: Long,
-                                claim: String): ZIO[ApiKeyContext with MetricsContext, Throwable, Result] = {
+                                claim: String): ZIO[FilterContext, Throwable, Result] = {
     val res = for {
       mayBeUser <- decodeToken(claim)
-      result    <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, mayBeUser)).refineToOrDie[Result]
+      result    <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, mayBeUser)).orDie
       logger    <- getLogger
       _         <- logRequestResult("Request claim with exclusion", requestHeader, startTime, result, logger)
     } yield result
     res.either.map(_.merge)
   }
 
-  private val getLogger: ZIO[LoggerModule, Nothing, Logger] = Logger("filter")
+  private val getLogger: ZIO[ZLogger, Nothing, ZLogger.Service] = ZLogger("filter")
 
-  private def decodeToken(claim: String): ZIO[ApiKeyContext with MetricsContext, Result, Option[User]] =
+  private def decodeToken(claim: String): ZIO[FilterContext, Result, Option[User]] =
     for {
       decoded <- ZIO(verifier.verify(claim)).mapError { _ =>
                   Results
@@ -190,7 +223,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
 
   private def devFilter(nextFilter: RequestHeader => Task[Result],
                         requestHeader: RequestHeader,
-                        startTime: Long): ZIO[ApiKeyContext with MetricsContext, Throwable, Result] = {
+                        startTime: Long): ZIO[FilterContext, Throwable, Result] = {
     val devUser = Some(
       IzanamiUser(id = "id",
                   name = "Ragnard",
@@ -210,7 +243,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
                            clientSecret: String,
                            startTime: Long,
                            nextFilter: RequestHeader => Task[Result],
-                           requestHeader: RequestHeader): ZIO[ApiKeyContext with MetricsContext, Throwable, Result] =
+                           requestHeader: RequestHeader): ZIO[FilterContext, Throwable, Result] =
     for {
       logger      <- getLogger
       mayBeKey    <- ApikeyService.getByIdWithoutPermissions(Key(clientId))
@@ -231,20 +264,20 @@ class ZioIzanamiDefaultFilter(env: Mode,
 
     } yield result
 
-  private def startMetrics(requestHeader: RequestHeader): RIO[MetricsContext, TimerContext] =
-    ZIO.environment[MetricsContext].map { env =>
-      env.metricRegistry.meter(name("request", "rate")).mark()
-      env.metricRegistry.meter(name("request", requestHeader.method, "rate")).mark()
+  private def startMetrics(requestHeader: RequestHeader): RIO[FilterContext, TimerContext] =
+    metrics.MetricsModule.metricRegistry.map { metricRegistry =>
+      metricRegistry.meter(name("request", "rate")).mark()
+      metricRegistry.meter(name("request", requestHeader.method, "rate")).mark()
 
       val timerMethod: Option[Timer.Context] = if (metricsConfig.verbose) {
-        env.metricRegistry.meter(name("request", requestHeader.method, requestHeader.path, "rate")).mark()
-        Some(env.metricRegistry.timer(name("request", requestHeader.method, requestHeader.path, "duration")).time())
+        metricRegistry.meter(name("request", requestHeader.method, requestHeader.path, "rate")).mark()
+        Some(metricRegistry.timer(name("request", requestHeader.method, requestHeader.path, "duration")).time())
       } else {
         None
       }
       val timerMethodPath: Timer.Context =
-        env.metricRegistry.timer(name("request", requestHeader.method, "duration")).time()
-      val timer: Timer.Context = env.metricRegistry.timer(name("request", "duration")).time()
+        metricRegistry.timer(name("request", requestHeader.method, "duration")).time()
+      val timer: Timer.Context = metricRegistry.timer(name("request", "duration")).time()
 
       val histoWithLabels =
         PrometheusMetricsHolder.prometheursRequestHisto

@@ -17,10 +17,11 @@ import play.api.mvc._
 import store.Query
 import controllers.dto.error.ApiErrors
 import zio.{IO, Runtime, ZIO}
+import libs.http.HttpContext
 
 class UserController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
     implicit system: ActorSystem,
-    R: Runtime[UserContext]
+    R: HttpContext[UserContext]
 ) extends AbstractController(cc) {
 
   import system.dispatcher
@@ -134,7 +135,9 @@ class UserController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], 
   }
 
   def upload(strStrategy: String) = AuthAction.asyncZio[UserContext](Import.ndJson) { ctx =>
-    isUserAllowed(ctx) *> ImportData.importHttp(strStrategy, ctx.body, UserService.importData).refineToOrDie[Result]
+    isUserAllowed(ctx) *> ImportData
+      .importHttp(strStrategy, ctx.body, UserService.importData)
+      .orDie
   }
 
   private def isUserAllowed(ctx: SecuredAuthContext[_]): ZIO[UserContext, Result, Unit] =

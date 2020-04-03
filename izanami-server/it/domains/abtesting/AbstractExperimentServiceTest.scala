@@ -2,24 +2,21 @@ package domains.abtesting
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
-import akka.stream.{ActorMaterializer, Materializer}
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import domains.Key
 import domains.events.EventStore
+import domains.abtesting.events._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
 import test.TestEventStore
 import zio._
 import zio.blocking.Blocking
-import zio.internal.{Executor, PlatformLive}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
-import libs.logs.ProdLogger
-import libs.logs.Logger
-import domains.user.User
-import domains.AuthInfo
+import libs.logs.ZLogger
+import domains.auth.AuthInfo
 
 abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with ScalaFutures with IntegrationPatience {
 
@@ -30,29 +27,25 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
   implicit val ec: ExecutionContext = system.dispatcher
   import zio.interop.catz._
 
-  val context: ExperimentVariantEventServiceModule = new ExperimentVariantEventServiceModule {
-    override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
-      def blockingExecutor: ZIO[Any, Nothing, Executor] = ZIO.succeed(PlatformLive.Default.executor)
-    }
-    override def eventStore: EventStore                                                        = new TestEventStore()
-    override def logger: Logger                                                                = new ProdLogger
-    override def withAuthInfo(authInfo: Option[AuthInfo]): ExperimentVariantEventServiceModule = this
-    override def authInfo: Option[AuthInfo]                                                    = None
+  val context: ZLayer[Any, Throwable, ExperimentVariantEventServiceContext] = {
+    ZLogger.live ++ Blocking.live ++ EventStore.value(new TestEventStore()) ++ AuthInfo.empty
   }
-  implicit val runtime: Runtime[ExperimentVariantEventServiceModule] = Runtime(context, PlatformLive.Default)
-  private val random                                                 = Random
+
+  implicit val runtime = Runtime.default
+  private val random   = Random
+
   import zio._
   import zio.interop.catz._
 
-  implicit class RunOps[T](t: zio.RIO[ExperimentVariantEventServiceModule, T]) {
-    def unsafeRunSync(): T = runtime.unsafeRun(t)
+  implicit class RunOps[T](t: zio.RIO[ExperimentVariantEventServiceContext, T]) {
+    def unsafeRunSync(): T = runtime.unsafeRun(t.provideLayer(context))
   }
 
-  def dataStore(name: String): ExperimentVariantEventService
+  def dataStore(name: String): ExperimentVariantEventService.Service
 
-  def initAndGetDataStore(name: String): ExperimentVariantEventService = {
+  def initAndGetDataStore(name: String): ExperimentVariantEventService.Service = {
     val store = dataStore(name)
-    runtime.unsafeRun(store.start)
+    runtime.unsafeRun(store.start.provideLayer(context))
     store
   }
 

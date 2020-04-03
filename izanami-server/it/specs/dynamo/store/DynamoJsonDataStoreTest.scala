@@ -8,6 +8,7 @@ import akka.stream.scaladsl.Sink
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.services.dynamodbv2.model.{DeleteTableRequest, ListTablesRequest}
 import env.DynamoConfig
+import libs.logs.ZLogger
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.AbstractJsonDataStoreTest
@@ -39,17 +40,21 @@ class DynamoJsonDataStoreTest extends AbstractJsonDataStoreTest("DynamoDb") with
     """.stripMargin))
 
   def getClient(name: String) = {
-    val Some(client) = DynamoClient.dynamoClient(
-      Some(
-        DynamoConfig(name,
-                     s"events_$name",
-                     region,
-                     host,
-                     port,
-                     tls = false,
-                     accessKey = Some(accessKey),
-                     secretKey = Some(secretKey))
-      )
+    val Some(client) = runtime.unsafeRun(
+      DynamoClient
+        .dynamoClient(
+          Some(
+            DynamoConfig(name,
+                         s"events_$name",
+                         region,
+                         host,
+                         port,
+                         tls = false,
+                         accessKey = Some(accessKey),
+                         secretKey = Some(secretKey))
+          )
+        )
+        .provideLayer(ZLogger.live)
     )
     client
   }

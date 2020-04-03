@@ -5,17 +5,30 @@ import java.util.Base64
 
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.stream.alpakka.dynamodb.DynamoClient
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.codahale.metrics.MetricRegistry
-import domains.{AuthInfo, Key}
-import domains.abtesting.ExperimentVariantEventService
-import domains.apikey.ApiKeyContext
+import com.datastax.driver.core.{Cluster, Session}
+import domains.Key
+import domains.abtesting.ExperimentDataStore
+import domains.auth.AuthInfo
+import domains.abtesting.events.ExperimentVariantEventService
+import domains.abtesting.events.impl.ExperimentVariantEventInMemoryService
+import domains.apikey.{ApiKeyContext, ApikeyDataStore}
+import domains.config.ConfigDataStore
+import domains.configuration.PlayModule
+import domains.configuration.PlayModule.PlayModuleProd
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
-import domains.script.Script.ScriptCache
+import domains.feature.FeatureDataStore
+import domains.script.{CacheService, GlobalScriptDataStore, RunnableScriptModule, Script, ScriptCache}
+import domains.user.UserDataStore
+import domains.webhook.WebhookDataStore
+import elastic.api.Elastic
+import env.configuration.IzanamiConfigModule
 import env.{
   ApiKeyHeaders,
   ApikeyConfig,
@@ -30,84 +43,76 @@ import env.{
   MetricsLogConfig
 }
 import libs.database.Drivers
-import libs.logs.{Logger, ProdLogger}
-import metrics.MetricsContext
-import org.apache.commons.io.Charsets
-import play.api.{Environment, Mode}
-import play.api.inject.ApplicationLifecycle
+import libs.http.HttpContext
+import libs.logs.ZLogger
+import metrics.{MetricsContext, MetricsModule}
+import play.api.Mode
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Cookie, Result, Results}
 import play.api.test.FakeRequest
-import store.{DataStoreContext, JsonDataStore, PagingResult, Query}
-import test.IzanamiSpec
+import play.modules.reactivemongo.ReactiveMongoApi
+import store.memory.InMemoryJsonDataStore
+import store.postgresql.PostgresqlClient
+import store.redis.RedisWrapper
+import test.{FakeConfig, IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.{RIO, Runtime, Task, ZIO}
-import zio.internal.{Executor, PlatformLive}
+import zio.{Runtime, Task, ULayer, ZIO, ZLayer}
 
-import scala.concurrent.ExecutionContext
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 
 class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
   implicit val sys = ActorSystem("test")
 
-  private val env = new ApiKeyContext with MetricsContext with Clock.Live {
-    override def logger: Logger                 = new ProdLogger
-    override def metricRegistry: MetricRegistry = new MetricRegistry()
-    override implicit def system: ActorSystem   = sys
-    override implicit def mat: Materializer     = Materializer(sys)
-    override def authInfo: Option[AuthInfo]     = None
-    override def apikeyDataStore: JsonDataStore = new JsonDataStore {
-      override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue]             = ???
-      override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] = ???
-      override def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, JsValue]                            = ???
-      override def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit]                       = ???
-      override def getById(id: Key): RIO[DataStoreContext, Option[JsValue]] = id.key match {
-        case "id" =>
-          RIO(
-            Some(
-              Json.obj(
-                "clientId"           -> id,
-                "clientSecret"       -> "secret",
-                "name"               -> id,
-                "authorizedPatterns" -> "*",
-                "admin"              -> false
-              )
-            )
+  val playModule: ULayer[PlayModule] = FakeConfig.playModule(sys)
+
+  val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = (playModule >>> RunnableScriptModule.live)
+
+  implicit val metricsModule: HttpContext[MetricsContext] = {
+    val fake = new InMemoryJsonDataStore(name = "fake")
+    playModule ++
+    IzanamiConfigModule.value(FakeConfig.config) ++
+    (playModule >>> MetricsModule.live) ++
+    AuthInfo.empty ++
+    ApikeyDataStore.value(
+      new InMemoryJsonDataStore(
+        name = "apikey",
+        TrieMap(
+          Key("id") -> Json.obj(
+            "clientId"           -> "id",
+            "clientSecret"       -> "secret",
+            "name"               -> "id",
+            "authorizedPatterns" -> "*",
+            "admin"              -> false
           )
-        case _ => ZIO(None)
-      }
-      override def findByQuery(query: Query,
-                               page: Int,
-                               nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]]  = ???
-      override def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, JsValue), NotUsed]] = ???
-      override def count(query: Query): RIO[DataStoreContext, Long]                                  = ???
-    }
-    override def featureDataStore: JsonDataStore                              = ???
-    override def webhookDataStore: JsonDataStore                              = ???
-    override def userDataStore: JsonDataStore                                 = ???
-    override def scriptCache: ScriptCache                                     = ???
-    override def izanamiConfig: IzanamiConfig                                 = ???
-    override def globalScriptDataStore: JsonDataStore                         = ???
-    override def experimentDataStore: JsonDataStore                           = ???
-    override def experimentVariantEventService: ExperimentVariantEventService = ???
-    override def eventStore: EventStore                                       = ???
-    override def configDataStore: JsonDataStore                               = ???
-    override def withAuthInfo(user: Option[AuthInfo]): MetricsContext         = ???
-    override def environment: Environment                                     = ???
-    override def wSClient: play.api.libs.ws.WSClient                          = ???
-    override def javaWsClient: play.libs.ws.WSClient                          = ???
-    override def ec: ExecutionContext                                         = ???
-    override def applicationLifecycle: ApplicationLifecycle                   = ???
-    override val blocking: Blocking.Service[Any] = new Blocking.Service[Any] {
-      def blockingExecutor: ZIO[Any, Nothing, Executor] =
-        ZIO.succeed(Executor.makeDefault(20))
-    }
-    override def drivers: Drivers = ???
+        )
+      )
+    ) ++
+    ConfigDataStore.value(fake) ++
+    UserDataStore.value(fake) ++
+    FeatureDataStore.value(fake) ++
+    GlobalScriptDataStore.value(fake) ++
+    ScriptCache.value(new CacheService[String] {
+      override def get[T: ClassTag](id: String): Task[Option[T]]      = Task.succeed(None)
+      override def set[T: ClassTag](id: String, value: T): Task[Unit] = Task.succeed(())
+    }) ++
+    runnableScriptModule ++
+    WebhookDataStore.value(fake) ++
+    ExperimentDataStore.value(fake) ++
+    ExperimentVariantEventService.value(new ExperimentVariantEventInMemoryService("test")) ++
+    EventStore.value(new TestEventStore()) ++
+    ZLogger.live ++
+    Blocking.live ++
+    Clock.live
   }
 
-  implicit val r: Runtime[ApiKeyContext with MetricsContext] = Runtime(env, PlatformLive.Default)
+  implicit val r = Runtime.default
+
+  def run(z: ZIO[ApiKeyContext with MetricsContext, Throwable, Result]): Result =
+    r.unsafeRun(z.provideLayer(metricsModule))
 
   private val config = DefaultFilter(
     allowedPaths = Seq("/excluded"),
@@ -136,7 +141,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
     "Test or dev mode" in {
       val filter         = new ZioIzanamiDefaultFilter(Mode.Dev, "/", metricsConfig, config, apiKeyConfig)
-      val result: Result = r.unsafeRun(filter.filter(h => Task(Results.Ok("Done")))(FakeRequest()))
+      val result: Result = run(filter.filter(h => Task(Results.Ok("Done")))(FakeRequest()))
 
       val expected = Results.Ok("Done")
 
@@ -151,7 +156,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
         config.apiKeys.headerClientSecret -> "secret"
       )
 
-      val result: Result = r.unsafeRun(
+      val result: Result = run(
         filter.filter(h => Task(Results.Ok(s"Done ${h.attrs(FilterAttrs.Attrs.AuthInfo).map(_.id).getOrElse("")}")))(
           request
         )
@@ -175,7 +180,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
       val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
       val request = FakeRequest().withCookies(Cookie(config.cookieClaim, token))
 
-      val result: Result = r.unsafeRun(
+      val result: Result = run(
         filter.filter(h => Task(Results.Ok(s"Done ${h.attrs(FilterAttrs.Attrs.AuthInfo).map(_.id).getOrElse("")}")))(
           request
         )
@@ -191,7 +196,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
       val filter        = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
       val request       = FakeRequest().withCookies(Cookie(config.cookieClaim, token))
 
-      val result: Result = r.unsafeRun(filter.filter(h => Task(Results.Ok("Done")))(request))
+      val result: Result = run(filter.filter(h => Task(Results.Ok("Done")))(request))
 
       val expected = Results.Unauthorized(Json.obj("error" -> "Claim error !!!"))
 
@@ -206,7 +211,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
           "Authorization" -> s"Basic ${Base64.getEncoder.encodeToString(s"id:secret".getBytes(StandardCharsets.UTF_8))}"
         )
 
-      val result: Result = r.unsafeRun(
+      val result: Result = run(
         filter.filter(h => Task(Results.Ok(s"Done ${h.attrs(FilterAttrs.Attrs.AuthInfo).map(_.id).getOrElse("")}")))(
           request
         )
@@ -225,7 +230,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
         config.apiKeys.headerClientSecret -> "secret2"
       )
 
-      val result: Result = r.unsafeRun(filter.filter(h => Task(Results.Ok("Done")))(request))
+      val result: Result = run(filter.filter(h => Task(Results.Ok("Done")))(request))
 
       val expected = Results.Unauthorized(Json.obj("error" -> "Bad request !!!"))
 
@@ -237,7 +242,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
       val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
       val request = FakeRequest(method = "GET", path = "/excluded")
 
-      val result: Result = r.unsafeRun(
+      val result: Result = run(
         filter.filter(h => Task(Results.Ok(s"Done ${h.attrs(FilterAttrs.Attrs.AuthInfo).map(_.id).getOrElse("")}")))(
           request
         )
@@ -261,7 +266,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
       val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
       val request = FakeRequest(method = "GET", path = "/excluded").withCookies(Cookie(config.cookieClaim, token))
 
-      val result: Result = r.unsafeRun(
+      val result: Result = run(
         filter.filter(h => Task(Results.Ok(s"Done ${h.attrs(FilterAttrs.Attrs.AuthInfo).map(_.id).getOrElse("")}")))(
           request
         )

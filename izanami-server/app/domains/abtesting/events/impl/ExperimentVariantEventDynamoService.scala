@@ -1,36 +1,48 @@
-package domains.abtesting.impl
+package domains.abtesting.events.impl
 
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
-import akka.stream.ActorMaterializer
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.stream.alpakka.dynamodb._
-import akka.stream.alpakka.dynamodb.AwsOp._
-import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
 import akka.NotUsed
-import domains.abtesting._
-import domains.events.EventStore
-import env.DynamoConfig
-import domains.errors.IzanamiErrors
+import akka.actor.ActorSystem
+import akka.stream.alpakka.dynamodb.AwsOp._
+import akka.stream.alpakka.dynamodb._
+import akka.stream.alpakka.dynamodb.scaladsl.DynamoDb
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, _}
+import domains.auth.AuthInfo
 import domains.Key
 import domains.abtesting.Experiment.ExperimentKey
-import domains.abtesting.ExperimentVariantEvent.eventAggregation
+import domains.abtesting._
+import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
+import domains.abtesting.events.{ExperimentVariantEventInstances, _}
+import domains.configuration.PlayModule
+import domains.errors.IzanamiErrors
+import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
+import env.configuration.IzanamiConfigModule
+import env.{DbDomainConfig, DynamoConfig}
+import libs.database.Drivers.DynamoDriver
 import libs.dynamo.DynamoMapper
-import libs.logs.IzanamiLogger
-import zio.{IO, RIO, Task, ZIO}
+import libs.logs.{IzanamiLogger, ZLogger}
+import store.datastore.DataStoreLayerContext
+import zio.{IO, RIO, Task, ZIO, ZLayer}
 
 import scala.jdk.CollectionConverters._
-import libs.logs.Logger
-import domains.AuthInfo
 
 object ExperimentVariantEventDynamoService {
 
   val experimentId = "experimentId"
   val variantId    = "variantId"
+
+  val live: ZLayer[DynamoDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val Some(config)              = izanamiConfig.db.dynamo
+      val Some(client)              = mix.get[Option[DynamoClient]]
+      ExperimentVariantEventDynamoService(config, client)
+    }
 
   def apply(config: DynamoConfig, client: DynamoClient)(
       implicit system: ActorSystem
@@ -40,15 +52,15 @@ object ExperimentVariantEventDynamoService {
 
 class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: String)(
     implicit actorSystem: ActorSystem
-) extends ExperimentVariantEventService {
-  import ExperimentVariantEventInstances._
+) extends ExperimentVariantEventService.Service {
+  import domains.abtesting.events.ExperimentVariantEventInstances._
 
   actorSystem.dispatcher
 
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] = {
 
     val experimentId = id.experimentId.key
     val variantId    = s"${id.experimentId.key}:${id.variantId}"
@@ -72,7 +84,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       )
 
     for {
-      _        <- Logger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
+      _        <- ZLogger.debug(s"Dynamo create on $tableName with id : $id and data : $data")
       res      <- createEvent(request).map(_ => data)
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
@@ -81,18 +93,16 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
   }
 
   private def createEvent(request: UpdateItemRequest): IO[IzanamiErrors, UpdateItemResult] =
-    ZIO
-      .fromFuture { _ =>
-        DynamoDb
-          .source(request)
-          .withAttributes(DynamoAttributes.client(client))
-          .runWith(Sink.head)
-      }
-      .refineToOrDie[IzanamiErrors]
+    ZIO.fromFuture { _ =>
+      DynamoDb
+        .source(request)
+        .withAttributes(DynamoAttributes.client(client))
+        .runWith(Sink.head)
+    }.orDie
 
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] = {
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] = {
 
     val delete = Flow[(ExperimentKey, String)]
       .map {
@@ -117,11 +127,11 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
           .via(delete)
           .runWith(Sink.ignore)
       }
-      .refineToOrDie[IzanamiErrors]
+      .orDie
       .unit
 
     for {
-      _        <- Logger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
+      _        <- ZLogger.debug(s"Dynamo delete events on $tableName with experiment $experiment")
       r        <- deletes
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
@@ -164,8 +174,8 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
 
   override def findVariantResult(
       experiment: Experiment
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
-    Logger.debug(s"Dynamo find variant result on $tableName with experiment $experiment") *>
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] =
+    ZLogger.debug(s"Dynamo find variant result on $tableName with experiment $experiment") *>
     Task(
       findExperimentVariantEvents(experiment)
         .flatMapMerge(
@@ -183,12 +193,12 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
 
   override def listAll(
       patterns: Seq[String]
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] = {
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] = {
 
     val request = new ScanRequest()
       .withTableName(tableName)
 
-    Logger.debug(s"Dynamo listAll on $tableName with patterns $patterns") *>
+    ZLogger.debug(s"Dynamo listAll on $tableName with patterns $patterns") *>
     Task(
       DynamoDb
         .source(request)
@@ -208,7 +218,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
     )
   }
 
-  override def check(): RIO[ExperimentVariantEventServiceModule, Unit] = {
+  override def check(): RIO[ExperimentVariantEventServiceContext, Unit] = {
     val request = new QueryRequest()
       .withTableName(tableName)
       .withKeyConditions(
@@ -220,7 +230,7 @@ class ExperimentVariantEventDynamoService(client: DynamoClient, tableName: Strin
       )
       .withLimit(1)
 
-    Logger.debug(s"Dynamo check on $tableName") *>
+    ZLogger.debug(s"Dynamo check on $tableName") *>
     ZIO.fromFuture { _ =>
       DynamoDb
         .source(request)

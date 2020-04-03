@@ -1,7 +1,6 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
 import controllers.dto.apikeys.ApikeyListResult
@@ -9,6 +8,7 @@ import controllers.dto.error.ApiErrors
 import controllers.dto.meta.Metadata
 import domains.apikey.{ApiKeyContext, Apikey, ApikeyInstances, ApikeyService}
 import domains.{Import, ImportData, IsAllowed, Key, PatternRights}
+import libs.http.HttpContext
 import libs.patch.Patch
 import libs.ziohelper.JsResults.jsResultToHttpResponse
 import play.api.http.HttpEntity
@@ -19,7 +19,7 @@ import zio.{Runtime, ZIO}
 
 class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
     implicit system: ActorSystem,
-    runtime: Runtime[ApiKeyContext]
+    runtime: HttpContext[ApiKeyContext]
 ) extends AbstractController(cc) {
 
   import libs.http._
@@ -73,14 +73,12 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
     import ApikeyInstances._
 
     val key = Key(id)
-    // format: off
     for {
       mayBe   <- ApikeyService.getById(key).mapError { ApiErrors.toHttpResult }
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
-      _ <- ApikeyService.update(key, Key(current.clientId), updated).mapError { ApiErrors.toHttpResult }
+      _       <- ApikeyService.update(key, Key(current.clientId), updated).mapError { ApiErrors.toHttpResult }
     } yield Ok(Json.toJson(updated))
-  // format: on
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[ApiKeyContext] { ctx =>
@@ -122,7 +120,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
       .map { s =>
         val source = s
           .map { case (_, data) => Json.toJson(data) }
-          .map(Json.stringify _)
+          .map(Json.stringify)
           .intersperse("", "\n", "\n")
           .map(ByteString.apply)
         Result(
@@ -134,7 +132,7 @@ class ApikeyController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent]
   }
 
   def upload(strStrategy: String) = AuthAction.asyncZio[ApiKeyContext](Import.ndJson) { ctx =>
-    ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData).refineToOrDie[Result]
+    ImportData.importHttp(strStrategy, ctx.body, ApikeyService.importData).orDie
   }
 
 }

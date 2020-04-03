@@ -6,16 +6,20 @@ import akka.NotUsed
 import cats.Semigroup
 import cats.data.{NonEmptyList, Validated}
 import cats.kernel.Monoid
-import domains.events.EventStoreContext
+import domains.events.EventStore
 import domains.Key
+import domains.auth.AuthInfo
+import domains.configuration.PlayModule
 import domains.events.Events.IzanamiEvent
 import env._
 import libs.database.Drivers
-import libs.logs.{IzanamiLogger, LoggerModule}
+import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json._
 import play.api.mvc.Results
 import domains.errors.IzanamiErrors
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.DriverLayerContext
 import store.cassandra.CassandraJsonDataStore
 import store.elastic.ElasticJsonDataStore
 import store.leveldb.LevelDBJsonDataStore
@@ -25,6 +29,9 @@ import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
 import store.dynamo.DynamoJsonDataStore
 import store.postgresql.PostgresqlJsonDataStore
+import zio.{Has, Managed, RManaged, Task, TaskManaged, ZLayer}
+
+import scala.reflect.ClassTag
 
 trait PagingResult[Data] {
   def results: Seq[Data]
@@ -92,122 +99,158 @@ object Query {
     )
 }
 
-trait DataStoreContext extends LoggerModule with EventStoreContext
+package object datastore {
 
-object DataStore {
-  type DataStoreIO[A] = zio.RIO[DataStoreContext, A]
-}
+  type DataStoreContext = ZLogger with EventStore with AuthInfo
 
-trait DataStore[Key, Data] {
-  import zio._
-  def create(id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
-  def update(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
+  object DataStore {
+    type DataStoreIO[A] = zio.RIO[DataStoreContext, A]
 
-  def upsert(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data] =
-    for {
-      mayBeData <- getById(oldId).refineToOrDie[IzanamiErrors]
-      result <- mayBeData match {
-                 case Some(_) => update(oldId, id, data)
-                 case None    => create(id, data)
-               }
-    } yield result
+    trait Service[Key, Data] {
+      import zio._
+      def create(id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
+      def update(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
 
-  def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, Data]
-  def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit]
-  def deleteAll(patterns: Seq[String]): ZIO[DataStoreContext, IzanamiErrors, Unit] = deleteAll(Query.oneOf(patterns))
-  def getById(id: Key): RIO[DataStoreContext, Option[Data]]
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[DataStoreContext, PagingResult[Data]]
-  def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, Data), NotUsed]]
-  def count(query: Query): RIO[DataStoreContext, Long]
-  def start: RIO[DataStoreContext, Unit] = Task.succeed(())
-  def close: RIO[DataStoreContext, Unit] = Task.succeed(())
-}
+      def upsert(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data] =
+        for {
+          mayBeData <- getById(oldId).orDie
+          result <- mayBeData match {
+                     case Some(_) => update(oldId, id, data)
+                     case None    => create(id, data)
+                   }
+        } yield result
 
-trait JsonDataStore extends DataStore[Key, JsValue]
-
-trait JsonDataStoreHelper[R <: DataStoreContext] {
-  import zio._
-
-  def accessStore: R => JsonDataStore
-
-  def create(id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-    ZIO.accessM[R](accessStore(_).create(id, data))
-
-  def update(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-    ZIO.accessM[R](accessStore(_).update(oldId, id, data))
-
-  def upsert(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
-    ZIO.accessM[R](accessStore(_).upsert(oldId, id, data))
-
-  def delete(id: Key): ZIO[R, IzanamiErrors, JsValue] =
-    ZIO.accessM[R](accessStore(_).delete(id))
-
-  def deleteAll(query: Query): ZIO[R, IzanamiErrors, Unit] =
-    ZIO.accessM(accessStore(_).deleteAll(query))
-
-  def deleteAll(patterns: Seq[String]): ZIO[R, IzanamiErrors, Unit] =
-    deleteAll(Query.oneOf(patterns))
-
-  def getById(id: Key): RIO[R, Option[JsValue]] =
-    ZIO.accessM[R](accessStore(_).getById(id))
-
-  def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[R, PagingResult[JsValue]] =
-    ZIO.accessM[R](accessStore(_).findByQuery(query, page, nbElementPerPage))
-
-  def findByQuery(query: Query): RIO[R, Source[(Key, JsValue), NotUsed]] =
-    ZIO.accessM[R](accessStore(_).findByQuery(query))
-
-  def count(query: Query): RIO[R, Long] =
-    ZIO.accessM[R](accessStore(_).count(query))
-
-  def start: RIO[R, Unit] = ZIO.accessM[R](accessStore(_).start)
-
-  def close: RIO[R, Unit] = ZIO.accessM[R](accessStore(_).close)
-}
-
-object JsonDataStore {
-  def apply(
-      drivers: Drivers,
-      izanamiConfig: IzanamiConfig,
-      conf: DbDomainConfig,
-      eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-      applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): JsonDataStore =
-    conf.`type` match {
-      case InMemoryWithDb =>
-        val dbType: DbType               = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
-        val jsonDataStore: JsonDataStore = storeByType(drivers, izanamiConfig, conf, dbType, applicationLifecycle)
-        IzanamiLogger.info(
-          s"Loading InMemoryWithDbStore for namespace ${conf.conf.namespace} with underlying store ${dbType.getClass.getSimpleName}"
-        )
-        InMemoryWithDbStore(izanamiConfig.db.inMemoryWithDb.get,
-                            conf,
-                            jsonDataStore,
-                            eventAdapter,
-                            applicationLifecycle)
-      case other =>
-        storeByType(drivers, izanamiConfig, conf, other, applicationLifecycle)
+      def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, Data]
+      def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit]
+      def deleteAll(patterns: Seq[String]): ZIO[DataStoreContext, IzanamiErrors, Unit] =
+        deleteAll(Query.oneOf(patterns))
+      def getById(id: Key): RIO[DataStoreContext, Option[Data]]
+      def findByQuery(query: Query,
+                      page: Int = 1,
+                      nbElementPerPage: Int = 15): RIO[DataStoreContext, PagingResult[Data]]
+      def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, Data), NotUsed]]
+      def count(query: Query): RIO[DataStoreContext, Long]
+      def start: RIO[DataStoreContext, Unit] = Task.succeed(())
+      def close: RIO[DataStoreContext, Unit] = Task.succeed(())
     }
+  }
 
-  private def storeByType(
-      drivers: Drivers,
-      izanamiConfig: IzanamiConfig,
-      conf: DbDomainConfig,
-      dbType: DbType,
-      applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): JsonDataStore = {
-    IzanamiLogger.info(s"Initializing store for $dbType")
-    dbType match {
-      case InMemory => InMemoryJsonDataStore(conf)
-      case Redis    => RedisJsonDataStore(drivers.redisClient.get, conf)
-      case LevelDB  => LevelDBJsonDataStore(izanamiConfig.db.leveldb.get, conf, applicationLifecycle)
-      case Cassandra =>
-        CassandraJsonDataStore(drivers.cassandraClient.get._2, izanamiConfig.db.cassandra.get, conf)
-      case Elastic    => ElasticJsonDataStore(drivers.elasticClient.get, izanamiConfig.db.elastic.get, conf)
-      case Mongo      => MongoJsonDataStore(drivers.mongoApi.get, conf)
-      case Dynamo     => DynamoJsonDataStore(drivers.dynamoClient.get, izanamiConfig.db.dynamo.get, conf)
-      case Postgresql => PostgresqlJsonDataStore(drivers.postgresqlClient.get, conf)
-      case _          => throw new IllegalArgumentException(s"Unsupported store type $dbType")
+  trait DataStore[Key, Data] {
+    import zio._
+    def create(id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
+    def update(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data]
+
+    def upsert(oldId: Key, id: Key, data: Data): ZIO[DataStoreContext, IzanamiErrors, Data] =
+      for {
+        mayBeData <- getById(oldId).orDie
+        result <- mayBeData match {
+                   case Some(_) => update(oldId, id, data)
+                   case None    => create(id, data)
+                 }
+      } yield result
+
+    def delete(id: Key): ZIO[DataStoreContext, IzanamiErrors, Data]
+    def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit]
+    def deleteAll(patterns: Seq[String]): ZIO[DataStoreContext, IzanamiErrors, Unit] = deleteAll(Query.oneOf(patterns))
+    def getById(id: Key): RIO[DataStoreContext, Option[Data]]
+    def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[DataStoreContext, PagingResult[Data]]
+    def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, Data), NotUsed]]
+    def count(query: Query): RIO[DataStoreContext, Long]
+    def start: RIO[DataStoreContext, Unit] = Task.succeed(())
+    def close: RIO[DataStoreContext, Unit] = Task.succeed(())
+  }
+
+  trait JsonDataStoreHelper[R <: DataStoreContext] {
+    import zio._
+
+    def getStore: URIO[R, JsonDataStore.Service]
+
+    def create(id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
+      getStore.flatMap(_.create(id, data))
+
+    def update(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
+      getStore.flatMap(_.update(oldId, id, data))
+
+    def upsert(oldId: Key, id: Key, data: JsValue): ZIO[R, IzanamiErrors, JsValue] =
+      getStore.flatMap(_.upsert(oldId, id, data))
+
+    def delete(id: Key): ZIO[R, IzanamiErrors, JsValue] =
+      getStore.flatMap(_.delete(id))
+
+    def deleteAll(query: Query): ZIO[R, IzanamiErrors, Unit] =
+      getStore.flatMap(_.deleteAll(query))
+
+    def deleteAll(patterns: Seq[String]): ZIO[R, IzanamiErrors, Unit] =
+      deleteAll(Query.oneOf(patterns))
+
+    def getById(id: Key): RIO[R, Option[JsValue]] =
+      getStore.flatMap(_.getById(id))
+
+    def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[R, PagingResult[JsValue]] =
+      getStore.flatMap(_.findByQuery(query, page, nbElementPerPage))
+
+    def findByQuery(query: Query): RIO[R, Source[(Key, JsValue), NotUsed]] =
+      getStore.flatMap(_.findByQuery(query))
+
+    def count(query: Query): RIO[R, Long] =
+      getStore.flatMap(_.count(query))
+
+    def start: RIO[R, Unit] = getStore.flatMap(_.start)
+
+    def close: RIO[R, Unit] = getStore.flatMap(_.close)
+  }
+
+  type JsonDataStore = zio.Has[JsonDataStore.Service]
+
+  type DataStoreLayerContext = PlayModule with IzanamiConfigModule with ZLogger
+
+  object JsonDataStore {
+
+    trait Service extends DataStore[Key, JsValue]
+
+    def live(
+        izanamiConfig: IzanamiConfig,
+        getConf: IzanamiConfig => DbDomainConfig,
+        eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
+    ): ZLayer[DataStoreLayerContext, Throwable, JsonDataStore] =
+      JsonDataStore.create(izanamiConfig, getConf(izanamiConfig), eventAdapter)
+
+    def create(
+        izanamiConfig: IzanamiConfig,
+        conf: DbDomainConfig,
+        eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
+    ): ZLayer[DriverLayerContext, Throwable, JsonDataStore] =
+      conf.`type` match {
+        case InMemoryWithDb =>
+          val dbType: DbType = conf.conf.db.map(_.`type`).orElse(izanamiConfig.db.inMemoryWithDb.map(_.db)).get
+          storeByType(izanamiConfig, conf, dbType).passthrough >>> InMemoryWithDbStore.live(
+            izanamiConfig.db.inMemoryWithDb.get,
+            conf,
+            eventAdapter
+          )
+        case other =>
+          storeByType(izanamiConfig, conf, other)
+      }
+
+    case class DriverLayerContextData()
+
+    private def storeByType(
+        izanamiConfig: IzanamiConfig,
+        conf: DbDomainConfig,
+        dbType: DbType
+    ): ZLayer[DriverLayerContext, Throwable, JsonDataStore] = {
+      IzanamiLogger.info(s"Initializing store ${conf.conf.namespace} for $dbType")
+      dbType match {
+        case InMemory   => ZLayer.succeed(InMemoryJsonDataStore(conf))
+        case Redis      => Drivers.redisClientLayer.passthrough >>> RedisJsonDataStore.live(conf)
+        case LevelDB    => LevelDBJsonDataStore.live(conf)
+        case Cassandra  => Drivers.cassandraClientLayer.passthrough >>> CassandraJsonDataStore.live(conf)
+        case Elastic    => Drivers.elasticClientLayer.passthrough >>> ElasticJsonDataStore.live(conf)
+        case Mongo      => Drivers.mongoApiLayer.passthrough >>> MongoJsonDataStore.live(conf)
+        case Dynamo     => Drivers.dynamoClientLayer.passthrough >>> DynamoJsonDataStore.live(conf)
+        case Postgresql => Drivers.postgresqldriverLayer.passthrough >>> PostgresqlJsonDataStore.live(conf)
+        case _          => ZLayer.fromEffect(Task.fail(new IllegalArgumentException(s"Unsupported store type $dbType")))
+      }
     }
   }
 }

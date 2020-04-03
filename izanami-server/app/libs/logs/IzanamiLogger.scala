@@ -1,79 +1,82 @@
-package libs.logs
+package libs
 import play.api.{MarkerContext, Logger => PlayLogger}
-import zio.{UIO, ZIO}
+import zio.{UIO, ULayer, URIO, ZIO, ZLayer}
 
-trait Logger {
-  import zio._
-  def logger(name: String): Logger
+package object logs {
 
-  def debug(message: => String)(implicit mc: MarkerContext): UIO[Unit]
+  type ZLogger = zio.Has[ZLogger.Service]
 
-  def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit]
+  object ZLogger {
 
-  def info(message: => String)(implicit mc: MarkerContext): UIO[Unit]
+    trait Service {
+      import zio._
+      def logger(name: String): ZLogger.Service
 
-  def error(message: => String)(implicit mc: MarkerContext): UIO[Unit]
+      def debug(message: => String)(implicit mc: MarkerContext): UIO[Unit]
 
-  def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit]
-}
+      def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit]
 
-trait LoggerModule {
-  def logger: Logger
-}
+      def info(message: => String)(implicit mc: MarkerContext): UIO[Unit]
 
-object Logger {
+      def error(message: => String)(implicit mc: MarkerContext): UIO[Unit]
 
-  def apply(loggerName: String): ZIO[LoggerModule, Nothing, Logger] =
-    ZIO.access(_.logger.logger(loggerName))
+      def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit]
+    }
 
-  def debug(message: => String)(implicit mc: MarkerContext): ZIO[LoggerModule, Nothing, Unit] =
-    ZIO.accessM(_.logger.debug(message))
-  def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): ZIO[LoggerModule, Nothing, Unit] =
-    ZIO.accessM(_.logger.debug(message, error))
-  def info(message: => String)(implicit mc: MarkerContext): ZIO[LoggerModule, Nothing, Unit] =
-    ZIO.accessM(_.logger.info(message))
-  def error(message: => String)(implicit mc: MarkerContext): ZIO[LoggerModule, Nothing, Unit] =
-    ZIO.accessM(_.logger.error(message))
-  def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): ZIO[LoggerModule, Nothing, Unit] =
-    ZIO.accessM(_.logger.error(message, error))
-}
+    def apply(loggerName: String): URIO[ZLogger, ZLogger.Service] =
+      ZIO.access(_.get.logger(loggerName))
 
-class ProdLogger(val logger: PlayLogger = PlayLogger("izanami")) extends Logger {
+    def debug(message: => String)(implicit mc: MarkerContext): URIO[ZLogger, Unit] =
+      ZIO.accessM(_.get.debug(message))
+    def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): URIO[ZLogger, Unit] =
+      ZIO.accessM(_.get.debug(message, error))
+    def info(message: => String)(implicit mc: MarkerContext): URIO[ZLogger, Unit] =
+      ZIO.accessM(_.get.info(message))
+    def error(message: => String)(implicit mc: MarkerContext): URIO[ZLogger, Unit] =
+      ZIO.accessM(_.get.error(message))
+    def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): URIO[ZLogger, Unit] =
+      ZIO.accessM(_.get.error(message, error))
 
-  override def logger(name: String): Logger = new ProdLogger(PlayLogger(name))
+    val live: ULayer[ZLogger] = ZLayer.succeed(new ProdLogger)
+  }
 
-  def debug(message: => String)(implicit mc: MarkerContext): UIO[Unit] =
-    UIO(logger.debug(message)(mc))
+  class ProdLogger(val logger: PlayLogger = PlayLogger("izanami")) extends ZLogger.Service {
 
-  def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit] =
-    UIO(logger.debug(message, error)(mc))
+    override def logger(name: String): ZLogger.Service = new ProdLogger(PlayLogger(name))
 
-  def info(message: => String)(implicit mc: MarkerContext): UIO[Unit] =
-    UIO(logger.info(message)(mc))
+    def debug(message: => String)(implicit mc: MarkerContext): UIO[Unit] =
+      UIO(logger.debug(message)(mc))
 
-  def error(message: => String)(implicit mc: MarkerContext): UIO[Unit] =
-    UIO(logger.error(message)(mc))
+    def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit] =
+      UIO(logger.debug(message, error)(mc))
 
-  def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit] =
-    UIO(logger.error(message, error)(mc))
-}
+    def info(message: => String)(implicit mc: MarkerContext): UIO[Unit] =
+      UIO(logger.info(message)(mc))
 
-object IzanamiLogger {
+    def error(message: => String)(implicit mc: MarkerContext): UIO[Unit] =
+      UIO(logger.error(message)(mc))
 
-  val logger = PlayLogger("izanami")
+    def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): UIO[Unit] =
+      UIO(logger.error(message, error)(mc))
+  }
 
-  def debug(message: => String)(implicit mc: MarkerContext): Unit =
-    logger.debug(message)(mc)
+  object IzanamiLogger {
 
-  def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): Unit =
-    logger.debug(message, error)(mc)
+    val logger = PlayLogger("izanami")
 
-  def info(message: => String)(implicit mc: MarkerContext): Unit =
-    logger.info(message)(mc)
+    def debug(message: => String)(implicit mc: MarkerContext): Unit =
+      logger.debug(message)(mc)
 
-  def error(message: => String)(implicit mc: MarkerContext): Unit =
-    logger.error(message)(mc)
+    def debug(message: => String, error: => Throwable)(implicit mc: MarkerContext): Unit =
+      logger.debug(message, error)(mc)
 
-  def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): Unit =
-    logger.error(message, error)(mc)
+    def info(message: => String)(implicit mc: MarkerContext): Unit =
+      logger.info(message)(mc)
+
+    def error(message: => String)(implicit mc: MarkerContext): Unit =
+      logger.error(message)(mc)
+
+    def error(message: => String, error: => Throwable)(implicit mc: MarkerContext): Unit =
+      logger.error(message, error)(mc)
+  }
 }

@@ -1,7 +1,6 @@
 package controllers
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import controllers.actions.SecuredAuthContext
@@ -11,6 +10,7 @@ import controllers.dto.meta.Metadata
 import domains.abtesting.Experiment.ExperimentKey
 import domains.{Import, ImportData, IsAllowed, Key, Node, PatternRights}
 import domains.abtesting._
+import domains.abtesting.events._
 import libs.patch.Patch
 import libs.logs.IzanamiLogger
 import libs.ziohelper.JsResults.jsResultToHttpResponse
@@ -19,11 +19,12 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import store.Query
 import controllers.dto.error.ApiErrors
-import zio.{Runtime, Task, ZIO}
+import zio.{Task, ZIO}
+import libs.http.HttpContext
 
 class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
     implicit system: ActorSystem,
-    runtime: Runtime[ExperimentContext]
+    runtime: HttpContext[ExperimentContext]
 ) extends AbstractController(cc) {
 
   import system.dispatcher
@@ -179,7 +180,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
 
   def variantDisplayed(experimentId: String, clientId: String): Action[AnyContent] =
     AuthAction.asyncZio[ExperimentContext] { _ =>
-      import ExperimentVariantEventInstances._
+      import domains.abtesting.events.ExperimentVariantEventInstances._
 
       val experimentKey = Key(experimentId)
       for {
@@ -203,7 +204,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
 
   def variantWon(experimentId: String, clientId: String): Action[AnyContent] =
     AuthAction.asyncZio[ExperimentContext] { _ =>
-      import ExperimentVariantEventInstances._
+      import domains.abtesting.events.ExperimentVariantEventInstances._
       val experimentKey = Key(experimentId)
 
       for {
@@ -271,7 +272,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
   }
 
   def downloadEvents(): Action[AnyContent] = AuthAction.asyncTask[ExperimentContext] { ctx =>
-    import ExperimentVariantEventInstances._
+    import domains.abtesting.events.ExperimentVariantEventInstances._
     ExperimentVariantEventService
       .listAll(ctx.authorizedPatterns)
       .map { s =>
