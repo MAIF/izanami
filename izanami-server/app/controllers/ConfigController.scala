@@ -17,11 +17,11 @@ import play.api.libs.json._
 import play.api.mvc._
 import controllers.dto.error.ApiErrors
 import store.Query
-import zio.Runtime
+import libs.http.HttpContext
 
 class ConfigController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], val cc: ControllerComponents)(
     implicit system: ActorSystem,
-    runtime: Runtime[ConfigContext]
+    runtime: HttpContext[ConfigContext]
 ) extends AbstractController(cc) {
 
   import libs.http._

@@ -1,13 +1,14 @@
 package specs.postgresql.abtesting
 
 import cats.effect.{ContextShift, IO}
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.events.impl.ExperimentVariantEventPostgresqlService
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import env.{DbDomainConfig, DbDomainConfigDetails, PostgresqlConfig}
+import libs.logs.ZLogger
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.postgresql.PostgresqlClient
-import test.FakeApplicationLifecycle
-import zio.Task
-import domains.abtesting.impl.ExperimentVariantEventPostgresqlService
+import zio.{Exit, Reservation}
 
 class ExperimentVariantEventPostgresqlServiceTest
     extends AbstractExperimentServiceTest("Postgresql")
@@ -26,15 +27,25 @@ class ExperimentVariantEventPostgresqlServiceTest
     None
   )
 
-  private def client: Option[PostgresqlClient] = PostgresqlClient.postgresqlClient(
-    system,
-    new FakeApplicationLifecycle(),
-    Some(pgConfig)
+  val rPgClient: Reservation[ZLogger, Throwable, Option[PostgresqlClient]] = runtime.unsafeRun(
+    PostgresqlClient
+      .postgresqlClient(
+        system,
+        Some(pgConfig)
+      )
+      .reserve
+      .provideLayer(ZLogger.live)
   )
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventPostgresqlService(
+  private val client: Option[PostgresqlClient] = runtime.unsafeRun(rPgClient.acquire.provideLayer(ZLogger.live))
+
+  override def dataStore(name: String): ExperimentVariantEventService.Service = ExperimentVariantEventPostgresqlService(
     client.get,
     DbDomainConfig(env.Postgresql, DbDomainConfigDetails(name, None), None)
   )
 
+  override protected def afterAll(): Unit = {
+    super.afterAll()
+    runtime.unsafeRun(rPgClient.release(Exit.unit).provideLayer(ZLogger.live))
+  }
 }

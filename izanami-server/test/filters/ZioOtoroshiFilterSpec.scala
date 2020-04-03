@@ -1,39 +1,39 @@
 package filters
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import com.auth0.jwt.{JWT}
+import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import env.OtoroshiFilterConfig
-import libs.logs.{Logger, LoggerModule, ProdLogger}
+import libs.http.HttpContext
+import libs.logs.ZLogger
 import play.api.Mode
 import play.api.libs.json.Json
 import play.api.mvc.{Result, Results}
 import play.api.test.FakeRequest
 import test.IzanamiSpec
-import zio.{Runtime, Task}
-import zio.internal.PlatformLive
+import zio.{Runtime, Task, ZIO}
 
 class ZioOtoroshiFilterSpec extends IzanamiSpec {
 
   implicit val system = ActorSystem("test")
 
-  val env = new LoggerModule {
-    override def logger: Logger = new ProdLogger
-  }
-  implicit val r: Runtime[LoggerModule] = Runtime(env, PlatformLive.Default)
+  implicit val httpContext: HttpContext[ZLogger] = ZLogger.live
+
+  implicit val r = Runtime.default
   private val config = OtoroshiFilterConfig("key",
                                             "Otoroshi",
                                             "Otoroshi-Claim",
                                             "Otoroshi-Request-Id",
                                             "Otoroshi-State",
                                             "Otoroshi-State-Resp")
+  def run(z: ZIO[ZLogger, Throwable, Result]): Result =
+    r.unsafeRun(z.provideLayer(httpContext))
 
   "ZioOtoroshiFilter" must {
 
     "Test or dev mode" in {
       val filter         = new ZioOtoroshiFilter(Mode.Dev, config)
-      val result: Result = r.unsafeRun(filter.filter(h => Task(Results.Ok("Done")))(FakeRequest()))
+      val result: Result = run(filter.filter(h => Task(Results.Ok("Done")))(FakeRequest()))
 
       val expected = Results
         .Ok("Done")
@@ -57,7 +57,7 @@ class ZioOtoroshiFilterSpec extends IzanamiSpec {
         .sign(algorithm)
       val filter = new ZioOtoroshiFilter(Mode.Prod, config)
 
-      val result: Result = r.unsafeRun(
+      val result: Result = run(
         filter.filter(_ => Task(Results.Ok("Done")))(
           FakeRequest().withHeaders(
             config.headerClaim        -> token,
@@ -88,7 +88,7 @@ class ZioOtoroshiFilterSpec extends IzanamiSpec {
       .sign(algorithm)
     val filter = new ZioOtoroshiFilter(Mode.Prod, config)
 
-    val result: Result = r.unsafeRun(
+    val result: Result = run(
       filter.filter(_ => Task(Results.Ok("Done")))(
         FakeRequest().withHeaders(
           config.headerClaim        -> token,

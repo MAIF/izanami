@@ -2,9 +2,9 @@ package domain
 import test.IzanamiSpec
 import zio._
 
-trait Context extends AuthInfoModule
+trait Context extends AuthInfo
 
-trait AuthInfoModule {
+trait AuthInfo {
   def user: User
 }
 
@@ -14,9 +14,9 @@ trait User {
 }
 
 object User {
-  def makeModule(user: String): UIO[AuthInfoModule] =
+  def makeModule(user: String): UIO[AuthInfo] =
     FiberRef.make(user).map { ref =>
-      new AuthInfoModule {
+      new AuthInfo {
         val user = new User {
           def user[R]: RIO[R, String]                                          = ref.get
           def withUser[R, E, A](user: String)(zio: ZIO[R, E, A]): ZIO[R, E, A] = ref.locally(user)(zio)
@@ -24,7 +24,7 @@ object User {
       }
     }
 
-  def withUser[R <: AuthInfoModule, E, A](user: String)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def withUser[R <: AuthInfo, E, A](user: String)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.accessM[R](_.user.withUser(user)(zio))
 }
 

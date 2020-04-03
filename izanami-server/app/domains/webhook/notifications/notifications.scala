@@ -13,7 +13,7 @@ import akka.actor.{
   SupervisorStrategy,
   Terminated
 }
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import domains.Domain
 import domains.events.Events.{IzanamiEvent, WebhookCreated, WebhookDeleted, WebhookUpdated}

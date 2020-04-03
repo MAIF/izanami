@@ -3,8 +3,10 @@ package domains
 import cats.implicits._
 import cats.data.NonEmptySet
 import cats.kernel.Order
+import domains.abtesting.ExperimentInstances
+import domains.auth.AuthInfo
 import domains.errors.{IzanamiErrors, Unauthorized}
-import libs.logs.LoggerModule
+import libs.logs.ZLogger
 import play.api.libs.json.Reads.pattern
 import zio.ZIO
 
@@ -235,46 +237,44 @@ object AuthorizedPatterns {
   def isAllowed(key: Key, patternRight: PatternRights, patterns: AuthorizedPatterns): Boolean =
     isAllowed(key.key, patternRight, patterns)
 
-  def isAllowed(key: String,
-                patternRight: PatternRights): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
-    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
-      ZIO.when(!ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
-        ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
+  def isAllowed(key: String, patternRight: PatternRights): ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] =
+    AuthInfo.authInfo.flatMap { authInfo =>
+      ZIO.when(!authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
+        ZLogger.debug(s"${authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
           IzanamiErrors(Unauthorized(Some(Key(key))))
         )
       }
     }
 
-  def isAllowed(key: Key, patternRight: PatternRights): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
-    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
-      ZIO.when(!ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
-        ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
+  def isAllowed(key: Key, patternRight: PatternRights): ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] =
+    AuthInfo.authInfo.flatMap { authInfo =>
+      ZIO.when(!authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
+        ZLogger.debug(s"${authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
           IzanamiErrors(Unauthorized(Some(key)))
         )
       }
     }
 
-  def isAdminAllowed(key: Key,
-                     patternRight: PatternRights): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] =
-    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
+  def isAdminAllowed(key: Key, patternRight: PatternRights): ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] =
+    AuthInfo.authInfo.flatMap { authInfo =>
       ZIO.when(
-        !ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p)) && !ctx.authInfo
+        !authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p)) && !authInfo
           .exists(_.admin)
       ) {
-        ctx.logger.debug(s"${ctx.authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
+        ZLogger.debug(s"${authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
           IzanamiErrors(Unauthorized(Some(key)))
         )
       }
     }
 
-  def isAllowed(patterns: (Key, PatternRights)*): ZIO[LoggerModule with AuthInfoModule[_], IzanamiErrors, Unit] = {
+  def isAllowed(patterns: (Key, PatternRights)*): ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] = {
     import cats.implicits._
-    ZIO.accessM[LoggerModule with AuthInfoModule[_]] { ctx =>
+    AuthInfo.authInfo.flatMap { authInfo =>
       ZIO.effectSuspendTotal {
         val value: Either[IzanamiErrors, List[Unit]] = patterns.toList.parTraverse {
           case (k, r) =>
             Either.cond(
-              ctx.authInfo.map(_.authorizedPatterns).exists(p => isAllowed(k, r, p)),
+              authInfo.map(_.authorizedPatterns).exists(p => isAllowed(k, r, p)),
               (),
               IzanamiErrors(Unauthorized(Some(k)))
             )

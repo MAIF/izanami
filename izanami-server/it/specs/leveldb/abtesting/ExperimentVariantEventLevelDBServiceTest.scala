@@ -2,7 +2,9 @@ package specs.leveldb.abtesting
 
 import java.io.File
 
-import domains.abtesting.{AbstractExperimentServiceTest, ExperimentVariantEventService}
+import domains.abtesting.events.impl.ExperimentVariantEventLevelDBService
+import domains.abtesting.AbstractExperimentServiceTest
+import domains.abtesting.events.ExperimentVariantEventService
 import env.{DbDomainConfig, DbDomainConfigDetails, LevelDbConfig}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import test.FakeApplicationLifecycle
@@ -10,17 +12,16 @@ import test.FakeApplicationLifecycle
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 import scala.util.Random
-import domains.abtesting.impl.ExperimentVariantEventLevelDBService
 
-class ExperimentVariantEventLevelDBServiceTest  extends AbstractExperimentServiceTest("LevelDb") with BeforeAndAfter with BeforeAndAfterAll {
+class ExperimentVariantEventLevelDBServiceTest
+    extends AbstractExperimentServiceTest("LevelDb")
+    with BeforeAndAfter
+    with BeforeAndAfterAll {
 
   private val lifecycle: FakeApplicationLifecycle = new FakeApplicationLifecycle()
 
-  override def dataStore(name: String): ExperimentVariantEventService = ExperimentVariantEventLevelDBService(
-    LevelDbConfig(s"./target/leveldb-test/data-${Random.nextInt(1000)}"),
-    DbDomainConfig(env.LevelDB, DbDomainConfigDetails(name, None), None),
-    lifecycle
-  )
+  override def dataStore(name: String): ExperimentVariantEventService.Service =
+    ExperimentVariantEventLevelDBService(s"./target/leveldb-test/data-${Random.nextInt(1000)}")
 
   override protected def afterAll(): Unit = {
     super.afterAll()

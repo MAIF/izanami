@@ -3,9 +3,10 @@ import controllers.actions.AuthContext
 import metrics.{MetricsContext, MetricsService}
 import play.api.mvc._
 import zio._
+import libs.http.HttpContext
 
 class MetricController(AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)(
-    implicit R: Runtime[MetricsContext]
+    implicit R: HttpContext[MetricsContext]
 ) extends AbstractController(cc) {
 
   import libs.http._

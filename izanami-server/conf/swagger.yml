@@ -40,7 +40,39 @@ components:
         from:
           type: string
           description: A string containing a JSON Pointer value.
-
+    domains.abtesting.Experiment:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        campaign:
+          type: object
+          $ref: '#/components/schemas/domains.abtesting.Campaign'
+        variants:
+          type: object
+          $ref: '#/components/schemas/domains.abtesting.Variant'
+    domains.abtesting.ExperimentVariantEvent:
+      properties:
+        id:
+          type: string
+        experimentId:
+          type: ExperimentKey
+        clientId:
+          type: string
+        variant:
+          type: array
+          $ref: '#/components/schemas/domains.abtesting.Variant'
+        date:
+          type: string
+        transformation:
+          type: number
+        variantId:
+          type: string
     domains.feature.Feature:
       properties:
         id:

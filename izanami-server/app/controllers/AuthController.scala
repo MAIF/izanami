@@ -9,6 +9,7 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 import store.Query
 import zio.{Runtime, ZIO}
+import libs.http.HttpContext
 
 case class Auth(userId: String, password: String)
 
@@ -16,7 +17,7 @@ object Auth {
   implicit val format = Json.format[Auth]
 }
 
-class AuthController(_env: Env, cc: ControllerComponents)(implicit R: Runtime[UserContext])
+class AuthController(_env: Env, cc: ControllerComponents)(implicit R: HttpContext[UserContext])
     extends AbstractController(cc) {
 
   import domains.user.UserNoPasswordInstances._

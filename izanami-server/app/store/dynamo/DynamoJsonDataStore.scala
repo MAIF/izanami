@@ -10,20 +10,37 @@ import akka.NotUsed
 import cats.implicits._
 import com.amazonaws.services.dynamodbv2.model.{ConditionalCheckFailedException, _}
 import domains.Key
-import env.{DbDomainConfig, DynamoConfig}
+import domains.configuration.PlayModule
+import env.{DbDomainConfig, DynamoConfig, IzanamiConfig}
 import libs.streams.Flows
-import libs.logs.Logger
+import libs.logs.ZLogger
 import play.api.libs.json.JsValue
 import domains.errors.IzanamiErrors
 import libs.dynamo.DynamoMapper
-import store.{DataStoreContext, DefaultPagingResult, JsonDataStore, PagingResult, Query}
+import store.{DefaultPagingResult, PagingResult, Query}
+import store.datastore.{DataStoreContext, JsonDataStore}
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.Future
 import domains.errors.DataShouldExists
 import domains.errors.DataShouldNotExists
+import env.configuration.IzanamiConfigModule
+import libs.database.Drivers.{DriverLayerContext, DynamoDriver, MongoDriver}
+import zio.{Has, ZLayer}
 
 object DynamoJsonDataStore {
+
+  def live(config: DbDomainConfig): ZLayer[DynamoDriver with DriverLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
+      val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      implicit val actorSystem: ActorSystem = playModule.system
+      val namespace                         = config.conf.namespace
+      val Some(dynamoConfig)                = izanamiConfig.db.dynamo
+      val Some(client)                      = mix.get[Option[AlpakkaClient]]
+      DynamoJsonDataStore(client, dynamoConfig.tableName, namespace)
+    }
+
   def apply(client: AlpakkaClient, dynamoConfig: DynamoConfig, config: DbDomainConfig)(
       implicit system: ActorSystem
   ): DynamoJsonDataStore = {
@@ -39,7 +56,7 @@ object DynamoJsonDataStore {
 
 class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: String)(
     implicit actorSystem: ActorSystem
-) extends JsonDataStore {
+) extends JsonDataStore.Service {
 
   import zio._
   import IzanamiErrors._
@@ -47,19 +64,19 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
   actorSystem.dispatcher
 
   override def start: RIO[DataStoreContext, Unit] =
-    Logger.info(s"Load store Dynamo for namespace $storeName")
+    ZLogger.info(s"Load store Dynamo for namespace $storeName")
 
   override def update(oldId: Key, id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     for {
-      _     <- Logger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
-      mayBe <- getById(oldId).refineToOrDie[IzanamiErrors]
+      _     <- ZLogger.debug(s"Dynamo update on $tableName and store $storeName update with id : $id and data : $data")
+      mayBe <- getById(oldId).orDie
       _     <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
       _     <- ZIO.when(oldId =!= id)(delete(oldId))
       _     <- put(id, data, createOnly = oldId =!= id)
     } yield data
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
-    Logger.debug(s"Dynamo query on $tableName and store $storeName create with id : $id and data : $data") *>
+    ZLogger.debug(s"Dynamo query on $tableName and store $storeName create with id : $id and data : $data") *>
     put(id, data, createOnly = true)
 
   private def put(id: Key, data: JsValue, createOnly: Boolean): ZIO[DataStoreContext, IzanamiErrors, JsValue] = {
@@ -96,7 +113,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
           "store" -> new AttributeValue().withS(storeName)
         ).asJava
       )
-    Logger.debug(s"Dynamo delete on $tableName and store $storeName delete with id : $id") *>
+    ZLogger.debug(s"Dynamo delete on $tableName and store $storeName delete with id : $id") *>
     IO.fromFuture { implicit ec =>
         DynamoDb
           .source(request)
@@ -120,7 +137,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
           "store" -> new AttributeValue().withS(storeName)
         ).asJava
       )
-    Logger.debug(s"Dynamo query on $tableName and store $storeName getById with id : $id") *>
+    ZLogger.debug(s"Dynamo query on $tableName and store $storeName getById with id : $id") *>
     Task.fromFuture { implicit ec =>
       DynamoDb
         .source(request)
@@ -134,7 +151,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
                            page: Int,
                            nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] = {
     val position = (page - 1) * nbElementPerPage
-    Logger.debug(
+    ZLogger.debug(
       s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query, page $page, $nbElementPerPage elements by page"
     ) *>
     Task.fromFuture { implicit ec =>
@@ -156,7 +173,7 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
   }
 
   override def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, JsValue), NotUsed]] =
-    Logger.debug(s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query") *>
+    ZLogger.debug(s"Dynamo query on $tableName and store $storeName findByQuery with patterns : $query") *>
     Task(findKeys(query))
 
   private def findKeys(query: Query): Source[(Key, JsValue), NotUsed] = query match {
@@ -183,24 +200,22 @@ class DynamoJsonDataStore(client: AlpakkaClient, tableName: String, storeName: S
 
   override def deleteAll(query: Query): ZIO[DataStoreContext, IzanamiErrors, Unit] =
     for {
-      _       <- Logger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $query")
+      _       <- ZLogger.debug(s"Dynamo query on $tableName and store $storeName deleteAll with patterns : $query")
       runtime <- ZIO.runtime[DataStoreContext]
-      source  <- findByQuery(query).refineToOrDie[IzanamiErrors]
-      res <- IO
-              .fromFuture { implicit ec =>
-                source
-                  .mapAsync(10) {
-                    case (id, _) =>
-                      runtime.unsafeRunToFuture(delete(id).either)
-                  }
-                  .runWith(Sink.ignore)
-                  .map(_ => ())
-              }
-              .refineToOrDie[IzanamiErrors]
+      source  <- findByQuery(query).orDie
+      res <- IO.fromFuture { implicit ec =>
+              source
+                .mapAsync(10) {
+                  case (id, _) =>
+                    runtime.unsafeRunToFuture(delete(id).either)
+                }
+                .runWith(Sink.ignore)
+                .map(_ => ())
+            }.orDie
     } yield res
 
   override def count(query: Query): RIO[DataStoreContext, Long] =
-    Logger.debug(s"Dynamo query on $tableName and store $storeName count with patterns : $query") *>
+    ZLogger.debug(s"Dynamo query on $tableName and store $storeName count with patterns : $query") *>
     Task.fromFuture(_ => countF(query))
 
   private def countF(query: Query): Future[Long] =

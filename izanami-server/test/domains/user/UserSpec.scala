@@ -1,16 +1,17 @@
 package domains.user
 
-import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.auth.AuthInfo
+import domains.{AuthorizedPatterns, ImportResult, Key, PatternRights}
 import domains.events.EventStore
 import libs.crypto.Sha
-import libs.logs.{Logger, ProdLogger}
+import libs.logs.ZLogger
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 import domains.errors.{DataShouldExists, IdMustBeTheSame, IzanamiErrors, Unauthorized, ValidationError}
-import store.JsonDataStore
+import store.datastore.JsonDataStore
 import store.memory.InMemoryJsonDataStore
-import test.{IzanamiSpec, TestEventStore}
-import zio.{DefaultRuntime, Task}
+import test.{FakeApplicationLifecycle, IzanamiSpec, TestEventStore}
+import zio.{Runtime, Task, ULayer, ZLayer}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -23,6 +24,9 @@ import domains.events.Events
 import domains.events.Events._
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.NonEmptyList
+import domains.configuration.PlayModule
+import domains.configuration.PlayModule.PlayModuleProd
+import play.api.{Configuration, Environment}
 
 class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
@@ -36,12 +40,12 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
   def authInfo(patterns: AuthorizedPatterns = AuthorizedPatterns.All, admin: Boolean = false) =
     Some(Apikey("1", "name", "****", patterns, admin = admin))
 
-  implicit val runtime = new DefaultRuntime {}
+  implicit val runtime = Runtime.default
 
   "User" must {
 
     "Hash password" in {
-      val context = userContext()
+      val context = testUserContext()
 
       val key = Key("user1")
       val ragnard =
@@ -274,8 +278,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
   "UserService" must {
 
     "create IzanamiUser" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -288,9 +294,9 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val created = run(ctx)(UserService.create(id, user))
 
       created must be(expectedUser)
-      ctx.userDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 1
-      inside(ctx.events.head) {
+      userDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 1
+      inside(events.head) {
         case UserCreated(i, k, _, _, auth) =>
           i must be(id)
           k must be(expectedUser)
@@ -299,17 +305,19 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "create OAuthUser" in {
-      val id           = Key("test")
-      val ctx          = TestUserContext()
-      val user         = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
-      val expectedUser = user
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
+      val user          = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val expectedUser  = user
 
       val created = run(ctx)(UserService.create(id, user))
 
       created must be(expectedUser)
-      ctx.userDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 1
-      inside(ctx.events.head) {
+      userDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 1
+      inside(events.head) {
         case UserCreated(i, k, _, _, auth) =>
           i must be(id)
           k must be(expectedUser)
@@ -318,19 +326,23 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "create forbidden" in {
-      val id   = Key("test")
-      val user = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val id            = Key("test")
+      val user          = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
       val ctx =
-        TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+        testUserContext(events, userDataStore, authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(UserService.create(id, user).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(id))))
-      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
+      userDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser("user1",
                     "Ragnard",
@@ -341,13 +353,13 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
       val created = run(ctx)(UserService.create(id, user).either)
       created must be(Left(IdMustBeTheSame(Key(user.id), id).toErrors))
-      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      userDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "update if data not exists" in {
       val id  = Key("test")
-      val ctx = TestUserContext()
+      val ctx = testUserContext()
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -361,8 +373,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "update OAuthUser" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
       val expectedUser = user
@@ -374,9 +388,9 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
       val updated = run(ctx)(test)
       updated must be(expectedUser)
-      ctx.userDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      userDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 2
+      inside(events.last) {
         case UserUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
           oldValue must be(expectedUser)
@@ -386,8 +400,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "update changing password" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -404,9 +420,9 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
       val updated = run(ctx)(test)
       updated must be(expectedUser)
-      ctx.userDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      userDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 2
+      inside(events.last) {
         case UserUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
           oldValue must be(expectedUser)
@@ -416,8 +432,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "update keeping password" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -435,9 +453,9 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
       val updated = run(ctx)(test)
       updated must be(expectedUser)
-      ctx.userDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      userDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 2
+      inside(events.last) {
         case UserUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
           oldValue must be(oldUser)
@@ -452,9 +470,11 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "update changing id" in {
-      val id    = Key("test")
-      val newId = Key("test2")
-      val ctx   = TestUserContext()
+      val id            = Key("test")
+      val newId         = Key("test2")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -470,10 +490,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       } yield updated
 
       val updated = run(ctx)(test)
-      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.userDataStore.inMemoryStore.contains(newId) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      userDataStore.inMemoryStore.contains(id) must be(false)
+      userDataStore.inMemoryStore.contains(newId) must be(true)
+      events must have size 2
+      inside(events.last) {
         case UserUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(newId)
           oldValue must be(expectedUser)
@@ -483,19 +503,23 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "update forbidden" in {
-      val id   = Key("test")
-      val user = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val id            = Key("test")
+      val user          = OauthUser(id.key, "Ragnard", "ragnard@gmail.com", false, AuthorizedPatterns.fromString("*"))
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
       val ctx =
-        TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+        testUserContext(events, userDataStore, authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(UserService.update(id, id, user).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(id))))
-      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
+      userDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "delete" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -511,9 +535,9 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       } yield deleted
 
       val deleted = run(ctx)(test)
-      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      userDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 2
+      inside(events.last) {
         case UserDeleted(i, oldValue, _, _, auth) =>
           i must be(id)
           oldValue must be(expectedUser)
@@ -522,28 +546,34 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "delete forbidden" in {
-      val id = Key("test")
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
       val ctx =
-        TestUserContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+        testUserContext(events, userDataStore, authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
 
       val value = run(ctx)(UserService.delete(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(id))))
-      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
+      userDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "delete empty data" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
 
       val deleted = run(ctx)(UserService.delete(id).either)
       deleted must be(Left(DataShouldExists(id).toErrors))
-      ctx.userDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      userDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "import data" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -563,8 +593,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "import data invalid format" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -587,8 +619,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "import data data exist" in {
-      val id  = Key("test")
-      val ctx = TestUserContext()
+      val id            = Key("test")
+      val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val userDataStore = new InMemoryJsonDataStore("user-test")
+      val ctx           = testUserContext(events, userDataStore)
       val user =
         IzanamiUser(id.key,
                     "Ragnard",
@@ -617,24 +651,10 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
 
   }
 
-  case class TestUserContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-                             user: Option[AuthInfo] = None,
-                             userDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("user-test"),
-                             logger: Logger = new ProdLogger,
-                             authInfo: Option[AuthInfo] = authInfo)
-      extends UserContext {
-    override def eventStore: EventStore                            = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo]): UserContext = this.copy(user = user)
-  }
-
-  def userContext(store: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue],
-                  events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty): UserContext =
-    new UserContext {
-      override def logger: Logger                                        = new ProdLogger
-      override def userDataStore: JsonDataStore                          = new InMemoryJsonDataStore("users", store)
-      override def eventStore: EventStore                                = new TestEventStore(events)
-      override def withAuthInfo(authInfo: Option[AuthInfo]): UserContext = this
-      override def authInfo: Option[AuthInfo]                            = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
-    }
+  def testUserContext(events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
+                      userDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("user-test"),
+                      user: Option[AuthInfo.Service] = authInfo): ZLayer[Any, Throwable, UserContext] =
+    ZLogger.live ++ UserDataStore.value(userDataStore) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
+      .optValue(user)
 
 }

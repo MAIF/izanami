@@ -15,11 +15,12 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 import store.Query
 import controllers.dto.error.ApiErrors
-import zio.{IO, Runtime, ZIO}
+import zio.{ZIO}
+import libs.http.HttpContext
 
 class GlobalScriptController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)(
     implicit system: ActorSystem,
-    R: Runtime[GlobalScriptContext]
+    R: HttpContext[GlobalScriptContext]
 ) extends AbstractController(cc) {
 
   import system.dispatcher

@@ -4,18 +4,17 @@ import java.time.{LocalDateTime, ZoneId}
 import java.time.temporal.ChronoUnit
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import domains.apikey.Apikey
-import domains.{AuthInfo, AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.{AuthorizedPatterns, ImportResult, Key, PatternRights}
+import domains.auth.AuthInfo
 import domains.events.Events
 import domains.events.Events._
 import domains.events.EventStore
-import domains.script._
+import domains.script.{RunnableScriptModule, Script, _}
 import domains.script.GlobalScript.GlobalScriptKey
-import domains.script.Script.ScriptCache
-import libs.logs.Logger
-import libs.logs.ProdLogger
+import libs.logs.ZLogger
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.{JsSuccess, JsValue, Json}
 
@@ -23,35 +22,38 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.util.Random
-import store.JsonDataStore
+import store.datastore.JsonDataStore
 import store._
 import store.memory.InMemoryJsonDataStore
 import domains.errors.{DataShouldExists, IdMustBeTheSame, InvalidCopyKey, IzanamiErrors, Unauthorized, ValidationError}
-import test.IzanamiSpec
-import test.TestEventStore
-import zio.{DefaultRuntime, Task}
+import test.{FakeApplicationLifecycle, FakeConfig, IzanamiSpec, TestEventStore}
+import zio.{RIO, Runtime, Task, ULayer, ZIO, ZLayer}
 import zio.blocking.Blocking
 import zio.internal.Executor
-import zio.RIO
-import zio.ZIO
 import org.scalatest.BeforeAndAfterAll
 import akka.testkit.TestKit
 import play.api.Environment
 
 import scala.concurrent.ExecutionContext
 import play.api.libs.ws.ahc.AhcWSComponents
-import test.FakeApplicationLifecycle
 import play.api.Configuration
 import play.api.libs.json.JsArray
 import java.time.LocalTime
 import java.time.Duration
 
 import cats.data.NonEmptyList
+import domains.configuration.PlayModule
+import domains.configuration.PlayModule.PlayModuleProd
+import domains.script.RunnableScriptModule.RunnableScriptModuleProd
+import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
+import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
 import play.api.inject.ApplicationLifecycle
+import play.api.libs.ws.WSClient
+import play.libs.ws
 
 class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience with BeforeAndAfterAll {
 
-  implicit val runtime     = new DefaultRuntime {}
+  implicit val runtime     = Runtime.default
   implicit val actorSystem = ActorSystem()
 
   import IzanamiErrors._
@@ -448,15 +450,17 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "FeatureService" must {
 
     "create" in {
-      val id      = Key("test")
-      val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true, None)
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature          = DefaultFeature(id, true, None)
 
       val created = run(ctx)(FeatureService.create(id, feature))
       created must be(feature)
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 1
-      inside(ctx.events.head) {
+      featureDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 1
+      inside(events.head) {
         case FeatureCreated(i, k, _, _, auth) =>
           i must be(id)
           k must be(feature)
@@ -466,29 +470,35 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "create forbidden" in {
       val id = Key("test")
-      val ctx =
-        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx = testFeatureContext(featureDataStore = featureDataStore,
+                                   events = events,
+                                   user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
       val feature = DefaultFeature(id, true, None)
 
       val value = run(ctx)(FeatureService.create(id, feature).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+      featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "create id not equal" in {
-      val id      = Key("test")
-      val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true, None)
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature          = DefaultFeature(id, true, None)
 
       val created = run(ctx)(FeatureService.create(Key("other"), feature).either)
       created must be(Left(IdMustBeTheSame(feature.id, Key("other")).toErrors))
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      featureDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "update if data not exists" in {
       val id      = Key("test")
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
       val feature = DefaultFeature(id, true, None)
 
       val updated = run(ctx)(FeatureService.update(id, id, feature).either)
@@ -496,9 +506,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "update" in {
-      val id      = Key("test")
-      val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true, None)
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature          = DefaultFeature(id, true, None)
 
       val test = for {
         _       <- FeatureService.create(id, feature)
@@ -507,9 +519,9 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val updated = run(ctx)(test)
       updated must be(feature)
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      featureDataStore.inMemoryStore.contains(id) must be(true)
+      events must have size 2
+      inside(events.last) {
         case FeatureUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(id)
           oldValue must be(feature)
@@ -519,21 +531,26 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "update forbidden" in {
-      val id = Key("test")
-      val ctx =
-        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx = testFeatureContext(featureDataStore = featureDataStore,
+                                   events = events,
+                                   user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
       val feature = DefaultFeature(id, true, None)
 
       val value = run(ctx)(FeatureService.update(id, id, feature).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+      featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "update changing id" in {
-      val id      = Key("test")
-      val newId   = Key("test2")
-      val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true, None)
+      val id               = Key("test")
+      val newId            = Key("test2")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature          = DefaultFeature(id, true, None)
 
       val test = for {
         _       <- FeatureService.create(id, feature)
@@ -541,10 +558,10 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield updated
 
       run(ctx)(test)
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.featureDataStore.inMemoryStore.contains(newId) must be(true)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      featureDataStore.inMemoryStore.contains(id) must be(false)
+      featureDataStore.inMemoryStore.contains(newId) must be(true)
+      events must have size 2
+      inside(events.last) {
         case FeatureUpdated(i, oldValue, newValue, _, _, auth) =>
           i must be(newId)
           oldValue must be(feature)
@@ -554,13 +571,15 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "copy node" in {
-      val id1       = Key("my:awesome:feature:to:copy1")
-      val id2       = Key("my:awesome:feature:to:copy2")
-      val copiedId1 = Key("my:awesome:other:feature:to:copy1")
-      val copiedId2 = Key("my:awesome:other:feature:to:copy2")
-      val ctx       = TestFeatureContext()
-      val feature1  = DefaultFeature(id1, true, None)
-      val feature2  = DefaultFeature(id2, true, None)
+      val id1              = Key("my:awesome:feature:to:copy1")
+      val id2              = Key("my:awesome:feature:to:copy2")
+      val copiedId1        = Key("my:awesome:other:feature:to:copy1")
+      val copiedId2        = Key("my:awesome:other:feature:to:copy2")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature1         = DefaultFeature(id1, true, None)
+      val feature2         = DefaultFeature(id2, true, None)
 
       val test = for {
         _      <- FeatureService.create(id1, feature1)
@@ -569,12 +588,12 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield copied
 
       run(ctx)(test)
-      ctx.featureDataStore.inMemoryStore.contains(id1) must be(true)
-      ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
-      ctx.featureDataStore.inMemoryStore.contains(copiedId1) must be(true)
-      ctx.featureDataStore.inMemoryStore.contains(copiedId2) must be(true)
+      featureDataStore.inMemoryStore.contains(id1) must be(true)
+      featureDataStore.inMemoryStore.contains(id2) must be(true)
+      featureDataStore.inMemoryStore.contains(copiedId1) must be(true)
+      featureDataStore.inMemoryStore.contains(copiedId2) must be(true)
 
-      inside(ctx.events.last) {
+      inside(events.last) {
         case FeatureCreated(i, newValue, _, _, auth) =>
           i must (be(copiedId2) or be(copiedId1))
           newValue must (be(feature1.copy(id = copiedId1, enabled = false)) or be(
@@ -585,9 +604,12 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "copy node forbidden" in {
-      val id = Key("test")
-      val ctx =
-        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("test" -> PatternRights.R)))
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx = testFeatureContext(featureDataStore = featureDataStore,
+                                   events = events,
+                                   user = authInfo(patterns = AuthorizedPatterns.of("test" -> PatternRights.R)))
 
       val value = run(ctx)(FeatureService.copyNode(Key("my:awesome"), Key("my:awesome:other"), false).either)
       value mustBe Left(
@@ -596,15 +618,17 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
           Unauthorized(Some(Key("my:awesome:other")))
         )
       )
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+      featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "copy existing node" in {
-      val id1      = Key("my:awesome:feature:to:copy1")
-      val id2      = Key("my:awesome:feature:to:copy2")
-      val ctx      = TestFeatureContext()
-      val feature1 = DefaultFeature(id1, true, None)
-      val feature2 = DefaultFeature(id2, true, None)
+      val id1              = Key("my:awesome:feature:to:copy1")
+      val id2              = Key("my:awesome:feature:to:copy2")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature1         = DefaultFeature(id1, true, None)
+      val feature2         = DefaultFeature(id2, true, None)
 
       val test = for {
         _      <- FeatureService.create(id1, feature1)
@@ -613,21 +637,23 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield copied
 
       run(ctx)(test)
-      ctx.featureDataStore.inMemoryStore.contains(id1) must be(true)
-      ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
-      ctx.events.size must be(2)
+      featureDataStore.inMemoryStore.contains(id1) must be(true)
+      featureDataStore.inMemoryStore.contains(id2) must be(true)
+      events.size must be(2)
     }
 
     "invalid key" in {
-      val id1       = Key("my:awesome:feature:to:copy1")
-      val id2       = Key("my:awesome:feature:to:copy2")
-      val copiedId1 = Key("my:awesome:other:feature:to:copy1")
-      val copiedId2 = Key("my:awesome:other:feature:to:copy2")
-      val ctx       = TestFeatureContext()
-      val feature1  = DefaultFeature(id1, true, None)
-      val feature2  = DefaultFeature(id2, true, None)
-      val from      = Key("my:*:awesome")
-      val to        = Key("my:awesome:*:other")
+      val id1              = Key("my:awesome:feature:to:copy1")
+      val id2              = Key("my:awesome:feature:to:copy2")
+      val copiedId1        = Key("my:awesome:other:feature:to:copy1")
+      val copiedId2        = Key("my:awesome:other:feature:to:copy2")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature1         = DefaultFeature(id1, true, None)
+      val feature2         = DefaultFeature(id2, true, None)
+      val from             = Key("my:*:awesome")
+      val to               = Key("my:awesome:*:other")
 
       val test = for {
         _      <- FeatureService.create(id1, feature1)
@@ -637,16 +663,18 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val copied = run(ctx)(test.either)
       copied must be(Left(NonEmptyList.of(InvalidCopyKey(from), InvalidCopyKey(to))))
-      ctx.featureDataStore.inMemoryStore.contains(id1) must be(true)
-      ctx.featureDataStore.inMemoryStore.contains(id2) must be(true)
-      ctx.featureDataStore.inMemoryStore.contains(copiedId1) must be(false)
-      ctx.featureDataStore.inMemoryStore.contains(copiedId2) must be(false)
+      featureDataStore.inMemoryStore.contains(id1) must be(true)
+      featureDataStore.inMemoryStore.contains(id2) must be(true)
+      featureDataStore.inMemoryStore.contains(copiedId1) must be(false)
+      featureDataStore.inMemoryStore.contains(copiedId2) must be(false)
     }
 
     "delete" in {
-      val id      = Key("test")
-      val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true, None)
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature          = DefaultFeature(id, true, None)
 
       val test = for {
         _       <- FeatureService.create(id, feature)
@@ -654,9 +682,9 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       } yield deleted
 
       val deleted = run(ctx)(test)
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 2
-      inside(ctx.events.last) {
+      featureDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 2
+      inside(events.last) {
         case FeatureDeleted(i, oldValue, _, _, auth) =>
           i must be(id)
           oldValue must be(feature)
@@ -665,31 +693,36 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "delete forbidden" in {
-      val id = Key("test")
-      val ctx =
-        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx = testFeatureContext(featureDataStore = featureDataStore,
+                                   events = events,
+                                   user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
 
       val value = run(ctx)(FeatureService.delete(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+      featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "delete empty data" in {
-      val id      = Key("test")
-      val ctx     = TestFeatureContext()
-      val feature = DefaultFeature(id, true, None)
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx              = testFeatureContext(featureDataStore = featureDataStore, events = events)
+      val feature          = DefaultFeature(id, true, None)
 
       val deleted = run(ctx)(FeatureService.delete(id).either)
       deleted must be(Left(DataShouldExists(id).toErrors))
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
-      ctx.events must have size 0
+      featureDataStore.inMemoryStore.contains(id) must be(false)
+      events must have size 0
     }
 
     "get by id when active" in {
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).minus(1, ChronoUnit.HOURS)
       val feature = ReleaseDateFeature(id, true, None, date = date)
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
 
       val test = for {
         _           <- FeatureService.create(id, feature)
@@ -709,7 +742,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
       val feature = ReleaseDateFeature(id, true, None, date = date)
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
 
       val test = for {
         _           <- FeatureService.create(id, feature)
@@ -729,7 +762,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
       val feature = ReleaseDateFeature(id, true, None, date = date)
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
 
       val test = for {
         _           <- FeatureService.create(id, feature)
@@ -753,30 +786,36 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
 
     "get by id forbidden" in {
-      val id = Key("test")
-      val ctx =
-        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx = testFeatureContext(featureDataStore = featureDataStore,
+                                   events = events,
+                                   user = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
 
       val value = run(ctx)(FeatureService.getById(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+      featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "get by id active forbidden" in {
-      val id = Key("test")
-      val ctx =
-        TestFeatureContext(authInfo = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
+      val id               = Key("test")
+      val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
+      val featureDataStore = new InMemoryJsonDataStore("Feature-test")
+      val ctx = testFeatureContext(featureDataStore = featureDataStore,
+                                   events = events,
+                                   user = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
 
       val value = run(ctx)(FeatureService.getByIdActive(Json.obj(), id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
-      ctx.featureDataStore.inMemoryStore.contains(id) must be(false)
+      featureDataStore.inMemoryStore.contains(id) must be(false)
     }
 
     "find stream when not active" in {
       val id      = Key("test")
       val date    = LocalDateTime.now(ZoneId.of("Europe/Paris")).plus(1, ChronoUnit.HOURS)
       val feature = ReleaseDateFeature(id, true, None, date = date)
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
 
       val test = for {
         _      <- FeatureService.create(id, feature)
@@ -800,7 +839,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id2      = Key("test:other")
       val feature2 = DefaultFeature(id2, false, None)
 
-      val ctx = TestFeatureContext()
+      val ctx = testFeatureContext()
 
       val test = for {
         _      <- FeatureService.create(id1, feature1)
@@ -824,7 +863,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id2      = Key("test:other")
       val feature2 = DefaultFeature(id2, false, None)
 
-      val ctx = TestFeatureContext()
+      val ctx = testFeatureContext()
 
       val test = for {
         _      <- FeatureService.create(id1, feature1)
@@ -848,7 +887,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "import data" in {
       val id      = Key("test")
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
       val feature = DefaultFeature(id, true, None)
 
       val res = run(ctx)(FeatureService.importData().flatMap { flow =>
@@ -863,7 +902,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "import data invalid format" in {
       val id      = Key("test")
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
       val feature = DefaultFeature(id, true, None)
 
       val res = run(ctx)(FeatureService.importData().flatMap { flow =>
@@ -881,7 +920,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "import data data exist" in {
       val id      = Key("test")
-      val ctx     = TestFeatureContext()
+      val ctx     = testFeatureContext()
       val feature = DefaultFeature(id, true, None)
 
       val test = for {
@@ -903,71 +942,38 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     }
   }
 
-  val blockingInstance: Blocking.Service[Any] = new Blocking.Service[Any] {
-    def blockingExecutor: ZIO[Any, Nothing, Executor] =
-      ZIO.succeed(
-        Executor
-          .fromExecutionContext(20)(actorSystem.dispatchers.lookup("izanami.blocking-dispatcher"))
-      )
-  }
+  val env: Environment                     = Environment.simple()
+  val playModule: ULayer[PlayModule]       = FakeConfig.playModule(actorSystem, env)
+  val testScript: RunnableScriptModuleProd = RunnableScriptModuleProd(env.classLoader)
 
-  val fakeEnv = Environment.simple()
+  val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = RunnableScriptModule.value(testScript)
 
-  val fakeAhcComponent = new AhcWSComponents {
-    override def environment: Environment                                   = fakeEnv
-    override val applicationLifecycle: play.api.inject.ApplicationLifecycle = FakeApplicationLifecycle()
-    override val configuration: play.api.Configuration                      = Configuration.load(fakeEnv)
-    override val executionContext: scala.concurrent.ExecutionContext        = actorSystem.dispatcher
-    override val materializer: akka.stream.Materializer                     = Materializer(actorSystem)
-  }
-
-  val wsClient  = fakeAhcComponent.wsClient
-  val jWsClient = play.test.WSTestClient.newClient(-1)
-
-  case class TestFeatureContext(
+  def testFeatureContext(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
-      user: Option[AuthInfo] = None,
+      user: Option[AuthInfo.Service] = authInfo,
       featureDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("Feature-test"),
       globalScriptDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("Feature-test"),
-      scriptCache: ScriptCache = fakeCache,
-      logger: Logger = new ProdLogger,
-      authInfo: Option[AuthInfo] = authInfo,
-      blocking: Blocking.Service[Any] = blockingInstance,
-      system: ActorSystem = actorSystem,
-      mat: Materializer = Materializer(actorSystem)
-  ) extends FeatureContext {
-    override def eventStore: EventStore                               = new TestEventStore(events)
-    override def withAuthInfo(user: Option[AuthInfo]): FeatureContext = this.copy(user = user)
-    override def environment: Environment                             = fakeEnv
-    override def ec: ExecutionContext                                 = actorSystem.dispatcher
-    override val javaWsClient: play.libs.ws.WSClient                  = jWsClient
-    override val wSClient: play.api.libs.ws.WSClient                  = wsClient
-    override val applicationLifecycle: ApplicationLifecycle           = fakeAhcComponent.applicationLifecycle
-  }
+      scriptCache: CacheService[String] = fakeCache,
+  ): ZLayer[Any, Throwable, FeatureContext] =
+    playModule ++ ZLogger.live ++ Blocking.live ++
+    ScriptCache.value(scriptCache) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
+      .optValue(user) ++ GlobalScriptDataStore.value(globalScriptDataStore) ++ FeatureDataStore.value(featureDataStore) ++
+    runnableScriptModule
 
   private def runIsActive[T](t: ZIO[IsActiveContext, IzanamiErrors, T]): T =
-    runtime.unsafeRun(ZIO.provide(isActiveContext)(t))
+    runtime.unsafeRun(t.provideLayer(isActiveContext))
 
   private def runIsActiveTask[T](t: RIO[IsActiveContext, T]): T =
-    runtime.unsafeRun(ZIO.provide(isActiveContext)(t))
+    runtime.unsafeRun(t.provideLayer(isActiveContext))
 
-  private def isActiveContext: IsActiveContext = new IsActiveContext {
-    override val blocking: Blocking.Service[Any] = blockingInstance
-    override val logger: Logger                  = new ProdLogger
-    override val scriptCache: ScriptCache        = fakeCache
-    override val globalScriptDataStore: JsonDataStore =
-      new InMemoryJsonDataStore("script", TrieMap.empty[GlobalScriptKey, JsValue])
-    override val eventStore: EventStore                                    = new TestEventStore()
-    override def withAuthInfo(authInfo: Option[AuthInfo]): IsActiveContext = this
-    override def authInfo: Option[AuthInfo]                                = Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))
-    override val environment: Environment                                  = fakeEnv
-    override val ec: ExecutionContext                                      = actorSystem.dispatcher
-    override val javaWsClient: play.libs.ws.WSClient                       = jWsClient
-    override val wSClient: play.api.libs.ws.WSClient                       = wsClient
-    override val applicationLifecycle: ApplicationLifecycle                = fakeAhcComponent.applicationLifecycle
-  }
+  private def isActiveContext: ZLayer[Any, Throwable, IsActiveContext] =
+    playModule ++ ZLogger.live ++ ScriptCache.value(fakeCache) ++ EventStore.value(new TestEventStore()) ++ AuthInfo
+      .optValue(Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))) ++ Blocking.live ++ GlobalScriptDataStore
+      .value(
+        new InMemoryJsonDataStore("script", TrieMap.empty[GlobalScriptKey, JsValue])
+      ) ++ runnableScriptModule
 
-  def fakeCache: ScriptCache = new ScriptCache {
+  def fakeCache: CacheService[String] = new CacheService[String] {
     override def get[T: ClassTag](id: String): Task[Option[T]]      = Task.succeed(None)
     override def set[T: ClassTag](id: String, value: T): Task[Unit] = Task.succeed(())
   }

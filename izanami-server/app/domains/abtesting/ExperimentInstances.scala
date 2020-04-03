@@ -1,7 +1,7 @@
 package domains.abtesting
 import java.time.LocalDateTime
 
-import domains.{AuthInfo, IsAllowed, Key}
+import domains.abtesting.events.ExperimentVariantEventInstances
 import play.api.libs.json._
 import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
@@ -51,6 +51,7 @@ object ExperimentInstances {
   implicit val experimentEq: cats.Eq[Experiment]                          = cats.Eq.fromUniversalEquals
 
   implicit val variantResultFormat: Format[VariantResult] = {
+    import domains.abtesting.events.ExperimentVariantEvent
     implicit val eveFormat: Format[ExperimentVariantEvent] = ExperimentVariantEventInstances.format
     Json.format[VariantResult]
   }

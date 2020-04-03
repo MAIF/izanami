@@ -5,16 +5,25 @@ import akka.stream.scaladsl.{Source, SourceQueueWithComplete}
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.{Done, NotUsed}
 import domains.Domain.Domain
+import domains.configuration.PlayModule
 import domains.events.EventLogger._
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import libs.streams.CacheableQueue
 import domains.errors.IzanamiErrors
-import zio.{IO, Task}
+import store.datastore.DataStoreLayerContext
+import zio.{IO, Task, ZLayer}
 
 import scala.util.Try
 
-class BasicEventStore(implicit system: ActorSystem) extends EventStore {
+object BasicEventStore {
+  val live: ZLayer[DataStoreLayerContext, Throwable, EventStore] = ZLayer.fromFunction { mix =>
+    implicit val system: ActorSystem = mix.get[PlayModule.Service].system
+    new BasicEventStore
+  }
+}
+
+class BasicEventStore(implicit system: ActorSystem) extends EventStore.Service {
 
   logger.info("Starting default event store")
 
@@ -26,7 +35,7 @@ class BasicEventStore(implicit system: ActorSystem) extends EventStore {
     Task {
       system.eventStream.publish(event)
       Done
-    }.refineToOrDie[IzanamiErrors]
+    }.orDie
 
   override def events(domains: Seq[Domain],
                       patterns: Seq[String],

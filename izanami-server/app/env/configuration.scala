@@ -5,11 +5,16 @@ import java.nio.file.{Path, Paths}
 
 import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
 import domains.AuthorizedPatterns
-import play.api.Configuration
+import domains.configuration.PlayModule
+import env.configuration.IzanamiConfigModule
+import play.api.{Configuration, Environment, Mode}
 import play.api.libs.ws.WSProxyServer
 import pureconfig._
+import pureconfig.error.ConfigReaderFailures
+import zio.{Has, Layer, Managed, ULayer, URIO, ZIO, ZLayer, ZManaged}
 
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 sealed trait DbType
 case object Cassandra      extends DbType with Product with Serializable
@@ -41,6 +46,29 @@ object EventStoreType {
   val inMemory    = "InMemory"
   val distributed = "Distributed"
   val kafka       = "Kafka"
+}
+
+package object configuration {
+
+  type IzanamiConfigModule = zio.Has[IzanamiConfigModule.Service]
+
+  object IzanamiConfigModule {
+    trait Service {
+      def izanamiConfig: IzanamiConfig
+    }
+
+    case class IzanamiConfigModuleProd(izanamiConfig: IzanamiConfig) extends Service
+
+    def izanamiConfig: URIO[IzanamiConfigModule, IzanamiConfig] = ZIO.access[IzanamiConfigModule](_.get.izanamiConfig)
+
+    val live: ZLayer[PlayModule, Nothing, IzanamiConfigModule] = ZLayer.fromFunction { mix =>
+      val configuration: Configuration = mix.get.configuration
+      val izanamiConfig                = IzanamiConfig.fromConfig(configuration)
+      IzanamiConfigModuleProd(izanamiConfig)
+    }
+    def value(izanamiConfig: IzanamiConfig): ULayer[IzanamiConfigModule] =
+      ZLayer.succeed(IzanamiConfigModuleProd(izanamiConfig))
+  }
 }
 
 object IzanamiConfig {
@@ -83,8 +111,26 @@ object IzanamiConfig {
       addr => s"${addr.getHostString}:${addr.getPort}"
     )
 
-  def apply(configuration: Configuration): IzanamiConfig =
-    ConfigSource.fromConfig(configuration.underlying).at("izanami").loadOrThrow[IzanamiConfig]
+  def fromConfig(configuration: Configuration): IzanamiConfig =
+    ConfigSource
+      .fromConfig(configuration.underlying)
+      .at("izanami")
+      .loadOrThrow[IzanamiConfig]
+
+  def mode: URIO[PlayModule with IzanamiConfigModule, Mode] =
+    for {
+      environment   <- PlayModule.environment
+      izanamiConfig <- IzanamiConfigModule.izanamiConfig
+    } yield IzanamiConfig.mode(izanamiConfig, environment.mode)
+
+  def mode(izanamiConfig: IzanamiConfig, default: Mode): Mode =
+    izanamiConfig.mode
+      .map {
+        case "dev"  => Mode.Dev
+        case "prod" => Mode.Prod
+        case "test" => Mode.Test
+      }
+      .getOrElse(default)
 }
 
 case class IzanamiConfig(

@@ -6,6 +6,8 @@ import akka.kafka.{ConsumerSettings, ManualSubscription, Subscriptions}
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
 import domains.Domain.Domain
+import domains.auth.AuthInfo
+import domains.configuration.PlayModule
 import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import env.{KafkaConfig, KafkaEventsConfig}
@@ -20,12 +22,13 @@ import scala.util.control.NonFatal
 import domains.events.EventLogger._
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
 import domains.errors.IzanamiErrors
-import zio.{IO, Task}
+import zio.{IO, RIO, Task, ZLayer}
 
 import scala.collection.mutable
-import libs.logs.Logger
-import zio.RIO
+import libs.logs.ZLogger
 import domains.events.EventStoreContext
+import env.configuration.IzanamiConfigModule
+import store.datastore.DataStoreLayerContext
 
 object KafkaSettings {
 
@@ -85,14 +88,23 @@ object KafkaSettings {
   }
 }
 
+object KafkaEventStore {
+  def live(eventsConfig: KafkaEventsConfig): ZLayer[DataStoreLayerContext, Throwable, EventStore] =
+    ZLayer.fromFunction { mix =>
+      val playModule    = mix.get[PlayModule.Service]
+      val izanamiConfig = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      new KafkaEventStore(playModule.system, izanamiConfig.db.kafka.get, eventsConfig)
+    }
+}
+
 class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsConfig: KafkaEventsConfig)
-    extends EventStore {
+    extends EventStore.Service {
 
   import scala.jdk.CollectionConverters._
   import system.dispatcher
 
-  override def start: RIO[EventStoreContext, Unit] =
-    Logger.info(s"Initializing kafka event store $clusterConfig")
+  override def start: RIO[ZLogger with AuthInfo, Unit] =
+    ZLogger.info(s"Initializing kafka event store $clusterConfig")
 
   private lazy val producerSettings =
     KafkaSettings.producerSettings(system, clusterConfig)
@@ -120,7 +132,7 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
             cb(IO.fail(e))
         }
       }
-      .refineToOrDie[IzanamiErrors]
+      .orDie
   }
 
   override def events(domains: Seq[Domain],

@@ -1,4 +1,4 @@
-package domains.abtesting.impl
+package domains.abtesting.events.impl
 
 import java.io.File
 import java.time.LocalDateTime
@@ -7,27 +7,32 @@ import java.util.regex.Pattern
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.{ActorAttributes, ActorMaterializer}
+import akka.stream.ActorAttributes
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import domains.abtesting.ExperimentVariantEvent.eventAggregation
-import domains.abtesting.{ExperimentVariantEventServiceModule, _}
+import domains.auth.AuthInfo
+import domains.abtesting._
+import domains.abtesting.events.ExperimentVariantEvent.eventAggregation
+import domains.abtesting.events.impl.ExperimentVariantEventDbStores.BlockingIO
+import domains.abtesting.events.{ExperimentVariantEventServiceContext, _}
+import domains.configuration.PlayModule
+import domains.errors.IzanamiErrors
 import domains.events.EventStore
+import env.configuration.IzanamiConfigModule
 import env.{DbDomainConfig, LevelDbConfig}
-import org.iq80.leveldb.{DB, Options}
+import libs.logs.{IzanamiLogger, ZLogger}
 import org.iq80.leveldb.impl.Iq80DBFactory.{asString, bytes, factory}
-import libs.logs.IzanamiLogger
+import org.iq80.leveldb.{DB, Options}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.Json
-import domains.errors.IzanamiErrors
+import store.datastore.DataStoreLayerContext
+import store.leveldb.DbStores
 import zio.blocking.Blocking
-import zio.{RIO, Task, ZIO}
+import zio.{RIO, Task, UIO, ZIO, ZLayer, ZManaged}
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 import scala.util.Try
-import scala.collection.concurrent.TrieMap
-import domains.AuthInfo
-import domains.abtesting.impl.ExperimentVariantEventDbStores.BlockingIO
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////    LEVEL DB     ////////////////////////////////////
@@ -40,48 +45,54 @@ object ExperimentVariantEventDbStores {
 }
 
 object ExperimentVariantEventLevelDBService {
-  def apply(
-      levelDbConfig: LevelDbConfig,
-      configdb: DbDomainConfig,
-      applicationLifecycle: ApplicationLifecycle
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
-    val namespace      = configdb.conf.namespace
-    val parentPath     = levelDbConfig.parentPath
-    val dbPath: String = parentPath + "/" + namespace.replaceAll(":", "_")
-    ExperimentVariantEventDbStores.stores.getOrElseUpdate(dbPath, {
-      new ExperimentVariantEventLevelDBService(dbPath, applicationLifecycle)
-    })
+
+  val live: ZLayer[DataStoreLayerContext, Throwable, ExperimentVariantEventService] = ZLayer.fromFunctionManaged {
+    mix =>
+      implicit val sys: ActorSystem    = mix.get[PlayModule.Service].system
+      val izanamiConfig                = mix.get[IzanamiConfigModule.Service].izanamiConfig
+      val configdb: DbDomainConfig     = izanamiConfig.experimentEvent.db
+      val levelDbConfig: LevelDbConfig = izanamiConfig.db.leveldb.get
+      val namespace                    = configdb.conf.namespace
+      val parentPath                   = levelDbConfig.parentPath
+      val dbPath: String               = parentPath + "/" + namespace.replaceAll(":", "_")
+      ZManaged
+        .make(ZLogger.info(s"Opening leveldb for path $dbPath") *> Task {
+          DbStores.stores.getOrElseUpdate(dbPath, {
+            val folder = new File(dbPath).getAbsoluteFile
+            factory.open(folder, new Options().createIfMissing(true))
+          })
+        })(db => ZLogger.info(s"Closing leveldb for path $dbPath") *> UIO(db.close()))
+        .provide(mix)
+        .map(db => new ExperimentVariantEventLevelDBService(db))
   }
+
+  def apply(dbPath: String)(implicit actorSystem: ActorSystem): ExperimentVariantEventLevelDBService = {
+    val folder = new File(dbPath).getAbsoluteFile
+    val db = DbStores.stores.getOrElseUpdate(dbPath, {
+      factory.open(folder, new Options().createIfMissing(true))
+    })
+    new ExperimentVariantEventLevelDBService(db)
+  }
+
 }
 
-class ExperimentVariantEventLevelDBService(
-    dbPath: String,
-    applicationLifecycle: ApplicationLifecycle
-)(implicit actorSystem: ActorSystem)
-    extends ExperimentVariantEventService {
+class ExperimentVariantEventLevelDBService(db: DB)(implicit actorSystem: ActorSystem)
+    extends ExperimentVariantEventService.Service {
 
-  import cats.implicits._
   import actorSystem.dispatcher
+  import cats.implicits._
   import domains.events.Events._
-
-  private val db: DB =
-    factory.open(new File(dbPath), new Options().createIfMissing(true))
-
-  applicationLifecycle.addStopHook { () =>
-    IzanamiLogger.info(s"Closing leveldb for path $dbPath")
-    Future(db.close())
-  }
 
   private val experimentseventsNamespace: String = "experimentsevents"
 
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] = {
     val eventsKey: String = s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}"
     val strEvent          = Json.stringify(ExperimentVariantEventInstances.format.writes(data))
     for {
-      _        <- sadd(eventsKey, strEvent).refineToOrDie[IzanamiErrors]
+      _        <- sadd(eventsKey, strEvent).orDie
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield data
@@ -89,8 +100,8 @@ class ExperimentVariantEventLevelDBService(
 
   private def findEvents(
       eventVariantKey: String
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceContext].map { runtime =>
       Source
         .future(
           runtime
@@ -113,8 +124,8 @@ class ExperimentVariantEventLevelDBService(
 
   override def findVariantResult(
       experiment: Experiment
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceContext].map { runtime =>
       Source(keys(s"$experimentseventsNamespace:${experiment.id.key}:*").toList)
         .addAttributes(ActorAttributes.dispatcher("izanami.blocking-dispatcher"))
         .flatMapMerge(
@@ -152,14 +163,14 @@ class ExperimentVariantEventLevelDBService(
 
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] =
     // format: off
     for {
-      runtime   <- ZIO.runtime[ExperimentVariantEventServiceModule]
-      eventsKey <- keysT(s"$experimentseventsNamespace:${experiment.id.key}:*").refineToOrDie[IzanamiErrors]
+      runtime   <- ZIO.runtime[ExperimentVariantEventServiceContext]
+      eventsKey <- keysT(s"$experimentseventsNamespace:${experiment.id.key}:*").orDie
       _         <- {  implicit val r = runtime
                       import zio.interop.catz._
-                      eventsKey.toList.traverse(key => del(key)).refineToOrDie[IzanamiErrors] // remove events list
+                      eventsKey.toList.traverse(key => del(key)).orDie // remove events list
                    }
       authInfo  <- AuthInfo.authInfo
       _         <- EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
@@ -180,8 +191,8 @@ class ExperimentVariantEventLevelDBService(
 
   override def listAll(
       patterns: Seq[String]
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
-    ZIO.runtime[ExperimentVariantEventServiceModule].map { runtime =>
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
+    ZIO.runtime[ExperimentVariantEventServiceContext].map { runtime =>
       Source(keys(s"$experimentseventsNamespace:*").toList)
         .addAttributes(ActorAttributes.dispatcher("izanami.blocking-dispatcher"))
         .flatMapMerge(4, key => Source.futureSource(runtime.unsafeRunToFuture(findEvents(key))))

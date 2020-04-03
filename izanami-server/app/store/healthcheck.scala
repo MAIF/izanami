@@ -1,7 +1,9 @@
 package store
 
-import domains.{AuthorizedPattern, AuthorizedPatterns, GlobalContext, Key, PatternRights}
-import domains.abtesting.{ExperimentService, ExperimentVariantEventService}
+import domains.{AuthorizedPattern, AuthorizedPatterns, Key, PatternRights}
+import domains.configuration.GlobalContext
+import domains.abtesting.ExperimentService
+import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyService
 import domains.config.ConfigService
 import domains.errors.IzanamiErrors
@@ -10,7 +12,7 @@ import domains.feature.FeatureService
 import domains.script.GlobalScriptService
 import domains.user.{OauthUser, UserService}
 import domains.webhook.WebhookService
-import zio.ZIO
+import zio.{Has, ZIO}
 
 object Healthcheck {
 
@@ -24,15 +26,15 @@ object Healthcheck {
     ExperimentService.getById(key) *>
     ExperimentVariantEventService.check() *>
     WebhookService.getById(key) *>
-    UserService.getByIdWithoutPermissions(key).refineToOrDie[IzanamiErrors] *>
-    ApikeyService.getByIdWithoutPermissions(key).refineToOrDie[IzanamiErrors] *> ZIO.succeed(()))
+    UserService.getByIdWithoutPermissions(key).orDie *>
+    ApikeyService.getByIdWithoutPermissions(key).orDie *> ZIO.succeed(()))
 
     for {
       ctx <- ZIO.environment[GlobalContext]
-      newCtx = ctx.withAuthInfo(
+      newCtx = ctx ++ Has(
         Some(OauthUser("health", "health", "health", false, AuthorizedPatterns.of("test" -> PatternRights.R)))
       )
-    } yield check.provide(newCtx)
+    } yield check.provide(newCtx).provideSomeLayer
   }
 
 }

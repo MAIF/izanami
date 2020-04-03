@@ -13,11 +13,12 @@ import org.apache.commons.codec.binary.Hex
 import libs.logs.IzanamiLogger
 import play.api.libs.json._
 import play.api.mvc._
-import zio.Runtime
+import libs.http.HttpContext
+import libs.http.HttpContext
 
 class SpringConfigController(izanamiConfig: IzanamiConfig,
                              AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                             val cc: ControllerComponents)(implicit system: ActorSystem, R: Runtime[ConfigContext])
+                             val cc: ControllerComponents)(implicit system: ActorSystem, R: HttpContext[ConfigContext])
     extends AbstractController(cc) {
 
   import libs.http._

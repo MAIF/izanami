@@ -80,7 +80,7 @@ jobs:
       jdk: openjdk8
       script: 
       - sh ./scripts/build-javascript.sh
-      - sbt  -Dsbt.color=always -Dsbt.supershell=false -jvm-opts .jvmopts-travis ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;jvm/publishLocal;izanami-spring/publishLocal"
+      - sbt  -Dsbt.color=always -Dsbt.supershell=false -jvm-opts .jvmopts-travis ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;+jvm/publishLocal;izanami-spring/publishLocal"
 
     - stage: publish 
       name: "Build server package and publish it to bintray"

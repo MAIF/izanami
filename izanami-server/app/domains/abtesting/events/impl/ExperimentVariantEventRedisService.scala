@@ -1,4 +1,4 @@
-package domains.abtesting.impl
+package domains.abtesting.events.impl
 
 import java.time.temporal.ChronoUnit
 import java.time.{LocalDateTime, ZoneId}
@@ -7,24 +7,36 @@ import java.util.concurrent.CompletionStage
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Sink, Source}
 import cats.data.OptionT
+import domains.auth.AuthInfo
 import domains.abtesting._
+import domains.abtesting.events._
+import domains.configuration.PlayModule
+import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import env.DbDomainConfig
-import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
+import env.configuration.IzanamiConfigModule
 import io.lettuce.core.api.async.RedisAsyncCommands
+import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
+import libs.database.Drivers.RedisDriver
 import play.api.libs.json.Json
-import domains.errors.IzanamiErrors
+import store.datastore.DataStoreLayerContext
 import store.redis.RedisWrapper
-import zio.{RIO, Task, ZIO}
+import zio.{RIO, Task, ZIO, ZLayer}
 
-import scala.jdk.CollectionConverters._
 import scala.concurrent.Future
-import domains.AuthInfo
+import scala.jdk.CollectionConverters._
 
 object ExperimentVariantEventRedisService {
+
+  val live: ZLayer[RedisDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+    ZLayer.fromFunction { mix =>
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      val configdb: DbDomainConfig  = mix.get[IzanamiConfigModule.Service].izanamiConfig.experimentEvent.db
+      ExperimentVariantEventRedisService(configdb, mix.get[Option[RedisWrapper]])
+    }
+
   def apply(configdb: DbDomainConfig, maybeRedis: Option[RedisWrapper])(
       implicit actorSystem: ActorSystem
   ): ExperimentVariantEventRedisService =
@@ -33,13 +45,13 @@ object ExperimentVariantEventRedisService {
 
 class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[RedisWrapper])(
     implicit actorSystem: ActorSystem
-) extends ExperimentVariantEventService {
+) extends ExperimentVariantEventService.Service {
 
+  import ExperimentVariantEventInstances._
   import actorSystem.dispatcher
+  import cats.implicits._
   import domains.events.Events._
   import libs.effects._
-  import cats.implicits._
-  import ExperimentVariantEventInstances._
 
   val experimentseventsNamespace: String = namespace
 
@@ -83,7 +95,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
   override def create(
       id: ExperimentVariantEventKey,
       data: ExperimentVariantEvent
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] = {
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, ExperimentVariantEvent] = {
     val eventsKey: String =
       s"$experimentseventsNamespace:${id.experimentId.key}:${id.variantId}" // le sorted set des events
     for {
@@ -96,10 +108,9 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
                        Json.stringify(ExperimentVariantEventInstances.format.writes(data))
                      )
                    )
-               }.refineToOrDie[IzanamiErrors]
-                 .map { _ =>
-                   data
-                 } // add event
+               }.orDie.map { _ =>
+                 data
+               } // add event
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield result
@@ -150,7 +161,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
 
   override def findVariantResult(
       experiment: Experiment
-  ): RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
+  ): RIO[ExperimentVariantEventServiceContext, Source[VariantResult, NotUsed]] =
     Task {
       findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
         .flatMapMerge(
@@ -168,7 +179,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
 
   override def deleteEventsForExperiment(
       experiment: Experiment
-  ): ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] = {
+  ): ZIO[ExperimentVariantEventServiceContext, IzanamiErrors, Unit] = {
     val deletes =
       ZIO
         .fromFuture { _ =>
@@ -180,7 +191,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
             .runWith(Sink.ignore)
         }
         .unit
-        .refineToOrDie[IzanamiErrors]
+        .orDie
 
     for {
       r        <- deletes
@@ -191,7 +202,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
 
   override def listAll(
       patterns: Seq[String]
-  ): RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
+  ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
     Task {
       findKeys(s"$experimentseventsNamespace:*")
         .flatMapMerge(4, key => findEvents(key))

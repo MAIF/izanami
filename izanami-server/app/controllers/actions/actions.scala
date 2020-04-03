@@ -1,7 +1,8 @@
 package controllers.actions
 
 import akka.http.scaladsl.util.FastFuture
-import domains.{AuthInfo, AuthorizedPattern}
+import domains.auth.AuthInfo
+import domains.AuthorizedPattern
 import env.Env
 import filters.FilterAttrs
 import libs.logs.IzanamiLogger
@@ -10,14 +11,14 @@ import play.api.mvc._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class AuthContext[A](request: Request[A], auth: Option[AuthInfo]) extends WrappedRequest[A](request) {
+case class AuthContext[A](request: Request[A], auth: Option[AuthInfo.Service]) extends WrappedRequest[A](request) {
   def authorizedPatterns: Seq[String] =
     auth.toList.flatMap(_.authorizedPatterns.patterns.map(_.pattern))
 }
 
-case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo) extends WrappedRequest[A](request) {
+case class SecuredAuthContext[A](request: Request[A], authInfo: AuthInfo.Service) extends WrappedRequest[A](request) {
 
-  val auth: Option[AuthInfo] = Some(authInfo)
+  val auth: Option[AuthInfo.Service] = Some(authInfo)
 
   def authorizedPatterns: Seq[String] =
     authInfo.authorizedPatterns.patterns.map(_.pattern)
@@ -31,7 +32,7 @@ class AuthAction(val env: Env, val parser: BodyParser[AnyContent])(
     with ActionFunction[Request, AuthContext] {
 
   override def invokeBlock[A](request: Request[A], block: AuthContext[A] => Future[Result]): Future[Result] = {
-    val maybeMaybeInfo: Option[Option[AuthInfo]] =
+    val maybeMaybeInfo: Option[Option[AuthInfo.Service]] =
       request.attrs.get(FilterAttrs.Attrs.AuthInfo)
     maybeMaybeInfo.map { auth =>
       AuthContext(request, auth)
@@ -50,7 +51,7 @@ class SecuredAction(val env: Env, val parser: BodyParser[AnyContent])(
     with ActionFunction[Request, SecuredAuthContext] {
 
   override def invokeBlock[A](request: Request[A], block: SecuredAuthContext[A] => Future[Result]): Future[Result] = {
-    val maybeMaybeInfo: Option[Option[AuthInfo]] =
+    val maybeMaybeInfo: Option[Option[AuthInfo.Service]] =
       request.attrs.get(FilterAttrs.Attrs.AuthInfo)
 
     maybeMaybeInfo match {

@@ -9,6 +9,7 @@ import domains.Key
 import domains.abtesting.ExperimentInstances
 import domains.apikey.ApikeyInstances
 import domains.config.ConfigInstances
+import domains.configuration.PlayModule
 import domains.events.EventStore
 import domains.events.Events._
 import domains.feature.FeatureInstances
@@ -16,12 +17,14 @@ import domains.script.GlobalScriptInstances
 import domains.user.UserInstances
 import domains.webhook.WebhookInstances
 import env.{DbDomainConfig, InMemoryWithDbConfig}
-import libs.logs.IzanamiLogger
+import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import domains.errors.IzanamiErrors
 import store._
+import store.datastore._
 import store.memory.BaseInMemoryJsonDataStore
+import zio.{Fiber, Ref, ZLayer}
 
 import scala.concurrent.duration.DurationDouble
 
@@ -33,16 +36,22 @@ case class DeleteAll(patterns: Seq[String])           extends CacheEvent
 
 object InMemoryWithDbStore {
 
-  def apply(
+  def live(
       dbConfig: InMemoryWithDbConfig,
       dbDomainConfig: DbDomainConfig,
-      underlyingDataStore: JsonDataStore,
-      eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-      applicationLifecycle: ApplicationLifecycle
-  )(implicit system: ActorSystem): InMemoryWithDbStore = {
-    val namespace = dbDomainConfig.conf.namespace
-    new InMemoryWithDbStore(dbConfig, namespace, underlyingDataStore, eventAdapter, applicationLifecycle)
-  }
+      eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed]
+  ): ZLayer[JsonDataStore with DataStoreLayerContext, Throwable, JsonDataStore] =
+    ZLayer.fromFunctionM { mix: JsonDataStore with DataStoreLayerContext =>
+      val namespace                 = dbDomainConfig.conf.namespace
+      implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
+      ZLogger
+        .info(
+          s"Loading InMemoryWithDbStore for namespace ${dbDomainConfig.conf.namespace} with underlying store"
+        )
+        .provide(mix) *> Ref.make(Option.empty[OpenResources]).map { r =>
+        new InMemoryWithDbStore(dbConfig, namespace, mix.get[JsonDataStore.Service], eventAdapter, r)
+      }
+    }
 
   lazy val globalScriptEventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed] = Flow[IzanamiEvent].collect {
     case GlobalScriptCreated(id, script, _, _, _) => Create(id, GlobalScriptInstances.format.writes(script))
@@ -95,15 +104,17 @@ object InMemoryWithDbStore {
   }
 }
 
+case class OpenResources(cancellable: Option[Cancellable], fiber: Fiber[Throwable, Done])
+
 class InMemoryWithDbStore(
     dbConfig: InMemoryWithDbConfig,
     name: String,
-    underlyingDataStore: JsonDataStore,
+    underlyingDataStore: JsonDataStore.Service,
     eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-    applicationLifecycle: ApplicationLifecycle
+    toClose: Ref[Option[OpenResources]]
 )(implicit system: ActorSystem)
     extends BaseInMemoryJsonDataStore()
-    with JsonDataStore {
+    with JsonDataStore.Service {
 
   import zio._
   import system.dispatcher
@@ -112,8 +123,7 @@ class InMemoryWithDbStore(
     for {
       runtime <- ZIO.runtime[DataStoreContext]
       fiber   <- init().fork
-    } yield {
-      val cancellable: Option[Cancellable] = dbConfig.pollingInterval.map { interval =>
+      cancellable = dbConfig.pollingInterval.map { interval =>
         system.scheduler.scheduleWithFixedDelay(interval, interval)(new Runnable {
           override def run(): Unit = {
             IzanamiLogger.debug(s"Reloading data from db for $name")
@@ -122,11 +132,17 @@ class InMemoryWithDbStore(
           }
         })
       }
-      applicationLifecycle.addStopHook(() => {
-        runtime.unsafeRun(fiber.interrupt)
-        FastFuture.successful(cancellable.foreach(_.cancel()))
-      })
+      _ <- toClose.set(Some(OpenResources(cancellable, fiber)))
+    } yield {
       ()
+    }
+
+  override def close: RIO[DataStoreContext, Unit] =
+    toClose.get.flatMap {
+      case Some(r) =>
+        r.cancellable.foreach(_.cancel())
+        r.fiber.interrupt.unit
+      case _ => ZIO.unit
     }
 
   def init(): ZIO[DataStoreContext, Throwable, Done] =
