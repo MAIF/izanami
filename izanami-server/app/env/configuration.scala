@@ -207,7 +207,8 @@ case class Oauth2Config(enabled: Boolean,
                         loginUrl: String,
                         logoutUrl: String,
                         clientId: String,
-                        clientSecret: String,
+                        clientSecret: Option[String],
+                        mtls: Option[MtlsConfig],
                         scope: Option[String] = None,
                         claims: String = "email name",
                         accessTokenField: String = "access_token",
@@ -223,7 +224,8 @@ case class Oauth2Config(enabled: Boolean,
                         defaultPatterns: String,
                         izanamiManagedUser: Boolean,
                         admins: Option[Seq[String]] = None)
-
+case class MtlsConfig(enabled: Boolean, config: Option[CertificateConfig])
+case class CertificateConfig(path: String, pass: Option[String])
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)
 case class GlobalScriptConfig(db: DbDomainConfig)

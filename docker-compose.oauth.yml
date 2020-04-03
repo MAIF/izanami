@@ -5,6 +5,8 @@ services:
     image: postgres
     volumes:
       - ./keycloak_postgres_data:/var/lib/postgresql/data
+      - ./keycloak/https:/etc/x509/https
+      - ./keycloak/mtls:/etc/x509/iza-mtls
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
@@ -22,5 +24,6 @@ services:
       DB_PASSWORD: password
       KEYCLOAK_USER: izanami
       KEYCLOAK_PASSWORD: izanami
+      X509_CA_BUNDLE: /etc/x509/iza-mtls/tls-front.crt
     depends_on:
       - keycloak_postgres
