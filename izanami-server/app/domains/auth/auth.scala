@@ -1,15 +1,18 @@
 package domains
 
 import java.io.File
-import java.security.{KeyFactory, KeyStore, PrivateKey, PublicKey}
+import java.security.{KeyFactory, KeyStore, PrivateKey, Provider, PublicKey, SecureRandom}
 import java.security.interfaces.{ECPrivateKey, ECPublicKey, RSAPrivateKey, RSAPublicKey}
 import java.security.spec.{PKCS8EncodedKeySpec, X509EncodedKeySpec}
+import java.util.Collections
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.HttpHeader.ParsingResult
 import akka.http.scaladsl.model.{
   ContentTypes,
   FormData,
   HttpEntity,
+  HttpHeader,
   HttpMethods,
   HttpRequest,
   HttpResponse,
@@ -23,17 +26,40 @@ import akka.util.ByteString
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.nimbusds.jose.jwk.{ECKey, JWK, RSAKey}
+import com.typesafe.config.ConfigFactory
+import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import com.typesafe.sslconfig.akka.util.AkkaLoggerFactory
+import com.typesafe.sslconfig.ssl.{
+  Ciphers,
+  ConfigSSLContextBuilder,
+  DefaultKeyManagerFactoryWrapper,
+  DefaultTrustManagerFactoryWrapper,
+  KeyManagerConfig,
+  KeyManagerFactoryWrapper,
+  KeyStoreConfig,
+  Protocols,
+  SSLConfigSettings,
+  TrustManagerConfig,
+  TrustManagerFactoryWrapper,
+  TrustStoreConfig
+}
 import domains.configuration.PlayModule
 import domains.Key
 import domains.auth.Oauth2Service
 import domains.errors.{IzanamiErrors, Unauthorized}
 import domains.user.{OauthUser, User, UserContext, UserService}
 import env.configuration.IzanamiConfigModule
-import env.{AlgoSettingsConfig, ES, HS, IzanamiConfig, JWKS, Oauth2Config, RSA}
+import env.{AlgoSettingsConfig, CertificateConfig, ES, HS, IzanamiConfig, JWKS, MtlsConfig, Oauth2Config, RSA}
 import javax.net.ssl.{
   KeyManager,
   KeyManagerFactory,
   SSLContext,
+  SSLContextSpi,
+  SSLEngine,
+  SSLParameters,
+  SSLServerSocketFactory,
+  SSLSessionContext,
+  SSLSocketFactory,
   TrustManager,
   TrustManagerFactory,
   X509KeyManager,
@@ -119,7 +145,7 @@ package object auth {
 
   }
 
-  type OAuthModule = PlayModule with UserContext with ZLogger with AuthInfo
+  type OAuthModule = UserContext with ZLogger with AuthInfo
 
   type OAuthServiceModule = Oauth2Service with OAuthModule
 
@@ -140,22 +166,140 @@ package object auth {
       new Oauth2ServiceProd(izanamiConfig.oauth2)
     }
 
-    def loadCertificate(path: String, pass: Option[String]): SSLContext = {
-      val sslContext: SSLContext = SSLContext.getInstance("TLS")
-      val keyManagerFactory: KeyManagerFactory =
-        Try(KeyManagerFactory.getInstance("X509")).orElse(Try(KeyManagerFactory.getInstance("SunX509"))).get
-      val keyStore: KeyStore =
-        KeyStore.getInstance(new File(path), pass.map(_.toCharArray).getOrElse(Array.emptyCharArray))
+    def loadCertificate(system: ActorSystem, certificateConfig: CertificateConfig): SSLContext = {
 
-      keyManagerFactory.init(keyStore, pass.map(_.toCharArray).getOrElse(Array.emptyCharArray))
-      IzanamiLogger.debug("SSL Context init ...")
-      val keyManagers: Array[KeyManager] = keyManagerFactory.getKeyManagers
+      val sslConfig: SSLConfigSettings = SSLConfigSettings()
+        .withKeyManagerConfig(
+          KeyManagerConfig().withKeyStoreConfigs(
+            certificateConfig.keystorePath.toList.map(
+              keystorePath =>
+                KeyStoreConfig(data = None, filePath = Some(keystorePath))
+                  .withPassword(certificateConfig.keystorePassword)
+                  .withStoreType(certificateConfig.keystoreType)
+            )
+          )
+        )
+        .withTrustManagerConfig(
+          TrustManagerConfig()
+            .withTrustStoreConfigs(
+              certificateConfig.truststorePath.toList.map(
+                truststorePath =>
+                  TrustStoreConfig(data = None,
+                                   filePath = Some(truststorePath),
+                                   password = certificateConfig.truststorePassword)
+                    .withStoreType(certificateConfig.truststoreType)
+              )
+            )
+        )
 
-      //TrustManagerFactory.getInstance()
-      sslContext.init(keyManagers, /*tm*/ null, null)
-      IzanamiLogger.debug(s"SSL Context init done ! (${keyStore.size()} - ${keyStore.size()})")
-      SSLContext.setDefault(sslContext)
-      sslContext
+      val mkLogger = new AkkaLoggerFactory(system)
+
+//      val sslContext = new SSLContext(
+//        new SSLContextSpi() {
+//          private def looseDisableSNI(defaultParams: SSLParameters): Unit = if (sslConfig.loose.disableSNI) {
+//            defaultParams.setServerNames(Collections.emptyList())
+//            defaultParams.setSNIMatchers(Collections.emptyList())
+//          }
+//
+//          private def buildKeyManagerFactory(ssl: SSLConfigSettings): KeyManagerFactoryWrapper = {
+//            val keyManagerAlgorithm = ssl.keyManagerConfig.algorithm
+//            new DefaultKeyManagerFactoryWrapper(keyManagerAlgorithm)
+//          }
+//          private def buildTrustManagerFactory(ssl: SSLConfigSettings): TrustManagerFactoryWrapper = {
+//            val trustManagerAlgorithm = ssl.trustManagerConfig.algorithm
+//            new DefaultTrustManagerFactoryWrapper(trustManagerAlgorithm)
+//          }
+//
+//          private def configureProtocols(existingProtocols: Array[String],
+//                                         sslConfig: SSLConfigSettings): Array[String] = {
+//            val definedProtocols = sslConfig.enabledProtocols match {
+//              case Some(configuredProtocols) =>
+//                // If we are given a specific list of protocols, then return it in exactly that order,
+//                // assuming that it's actually possible in the SSL context.
+//                configuredProtocols.filter(existingProtocols.contains).toArray
+//              case None =>
+//                // Otherwise, we return the default protocols in the given list.
+//                Protocols.recommendedProtocols.filter(existingProtocols.contains)
+//            }
+//
+//            val allowWeakProtocols = sslConfig.loose.allowWeakProtocols
+//            if (!allowWeakProtocols) {
+//              val deprecatedProtocols = Protocols.deprecatedProtocols
+//              for (deprecatedProtocol <- deprecatedProtocols) {
+//                if (definedProtocols.contains(deprecatedProtocol)) {
+//                  throw new IllegalStateException(s"Weak protocol $deprecatedProtocol found in ssl-config.protocols!")
+//                }
+//              }
+//            }
+//            definedProtocols
+//          }
+//
+//          private def configureCipherSuites(existingCiphers: Array[String],
+//                                            sslConfig: SSLConfigSettings): Array[String] = {
+//            val definedCiphers = sslConfig.enabledCipherSuites match {
+//              case Some(configuredCiphers) =>
+//                // If we are given a specific list of ciphers, return it in that order.
+//                configuredCiphers.filter(existingCiphers.contains(_)).toArray
+//              case None =>
+//                Ciphers.recommendedCiphers.filter(existingCiphers.contains(_)).toArray
+//            }
+//
+//            val allowWeakCiphers = sslConfig.loose.allowWeakCiphers
+//            if (!allowWeakCiphers) {
+//              val deprecatedCiphers = Ciphers.deprecatedCiphers
+//              for (deprecatedCipher <- deprecatedCiphers) {
+//                if (definedCiphers.contains(deprecatedCipher)) {
+//                  throw new IllegalStateException(s"Weak cipher $deprecatedCipher found in ssl-config.ciphers!")
+//                }
+//              }
+//            }
+//            definedCiphers
+//          }
+//
+//          private def getCtx(): SSLContext = {
+//            val keyManagerFactory   = buildKeyManagerFactory(sslConfig)
+//            val trustManagerFactory = buildTrustManagerFactory(sslConfig)
+//            new ConfigSSLContextBuilder(mkLogger, sslConfig, keyManagerFactory, trustManagerFactory).build()
+//          }
+//
+//          private def createSSLEngine(): SSLEngine = {
+//            // protocols!
+//            val defaultParams    = currentCtx.getDefaultSSLParameters
+//            val defaultProtocols = defaultParams.getProtocols
+//            val protocols        = configureProtocols(defaultProtocols, sslConfig)
+//            // ciphers!
+//            val defaultCiphers = defaultParams.getCipherSuites
+//            val cipherSuites   = configureCipherSuites(defaultCiphers, sslConfig)
+//            // apply "loose" settings
+//            looseDisableSNI(defaultParams)
+//
+//            val engine = currentCtx.createSSLEngine()
+//            engine.setSSLParameters(currentCtx.getDefaultSSLParameters)
+//            engine.setEnabledProtocols(protocols)
+//            engine.setEnabledCipherSuites(cipherSuites)
+//            engine
+//          }
+//
+//          lazy val currentCtx: SSLContext = getCtx()
+//
+//          override def engineCreateSSLEngine(): SSLEngine                  = createSSLEngine()
+//          override def engineCreateSSLEngine(s: String, i: Int): SSLEngine = engineCreateSSLEngine()
+//          override def engineInit(keyManagers: Array[KeyManager],
+//                                  trustManagers: Array[TrustManager],
+//                                  secureRandom: SecureRandom): Unit           = ()
+//          override def engineGetClientSessionContext(): SSLSessionContext     = currentCtx.getClientSessionContext
+//          override def engineGetServerSessionContext(): SSLSessionContext     = currentCtx.getServerSessionContext
+//          override def engineGetSocketFactory(): SSLSocketFactory             = currentCtx.getSocketFactory
+//          override def engineGetServerSocketFactory(): SSLServerSocketFactory = currentCtx.getServerSocketFactory
+//        },
+//        new Provider("foo", "1", "foo") {},
+//        "foo"
+//      ) {}
+      val keyManagerFactoryWrapper   = new DefaultKeyManagerFactoryWrapper(sslConfig.keyManagerConfig.algorithm)
+      val trustManagerFactoryWrapper = new DefaultTrustManagerFactoryWrapper(sslConfig.trustManagerConfig.algorithm)
+      val sslConfigBuilder =
+        new ConfigSSLContextBuilder(mkLogger, sslConfig, keyManagerFactoryWrapper, trustManagerFactoryWrapper)
+      sslConfigBuilder.build()
     }
 
     def paCallback(
@@ -166,8 +310,10 @@ package object auth {
 
     class Oauth2ServiceProd(mayBeOAuthConfig: Option[Oauth2Config])(implicit system: ActorSystem) extends Service {
       val sslContext: Option[SSLContext] =
-        mayBeOAuthConfig.flatMap(_.mtls.filter(_.enabled).flatMap(_.config)).map(c => loadCertificate(c.path, c.pass))
-      val connectionContext: Option[HttpsConnectionContext] = sslContext.map(c => ConnectionContext.https(c))
+        mayBeOAuthConfig.flatMap(_.mtls.filter(_.enabled).flatMap(_.config)).map(c => loadCertificate(system, c))
+      val connectionContext: Option[HttpsConnectionContext] = sslContext.map { c =>
+        ConnectionContext.https(c)
+      }
 
       val http: HttpExt = Http()
 
@@ -280,13 +426,6 @@ package object auth {
             }
             .orDie
 
-        def parseResponse(httpResponse: HttpResponse): IO[IzanamiErrors, (StatusCode, String)] = httpResponse match {
-          case HttpResponse(code, _, entity, _) =>
-            ZIO.fromFuture { implicit ec =>
-              stringBody(entity).map(b => (code, b))
-            }.orDie
-        }
-
         for {
           request     <- buildRequest
           response    <- httpCall(request)
@@ -299,6 +438,26 @@ package object auth {
         } yield json
       }
 
+      def httpCall(httpRequest: HttpRequest): ZIO[ZLogger, IzanamiErrors, HttpResponse] =
+        connectionContext
+          .fold(
+            ZLogger.info(s"Calling $httpRequest") *> ZIO.fromFuture { implicit ec =>
+              http.singleRequest(httpRequest)
+            }
+          ) { ctx =>
+            ZLogger.info(s"Calling $httpRequest with MTLS") *> ZIO.fromFuture { implicit ec =>
+              http.singleRequest(httpRequest, connectionContext = ctx)
+            }
+          }
+          .orDie
+
+      def parseResponse(httpResponse: HttpResponse): IO[IzanamiErrors, (StatusCode, String)] = httpResponse match {
+        case HttpResponse(code, _, entity, _) =>
+          ZIO.fromFuture { implicit ec =>
+            stringBody(entity).map(b => (code, b))
+          }.orDie
+      }
+
       def stringBody(entity: HttpEntity): Future[String] =
         entity.dataBytes.fold(ByteString.empty)(_ ++ _).map(_.utf8String).runWith(Sink.head)
 
@@ -306,6 +465,27 @@ package object auth {
                       authConfig: Oauth2Config): ZIO[OAuthModule, IzanamiErrors, (JsValue, JsValue)] = {
 
         val rawToken: JsValue = response
+
+        def buildUserInfoRequest(accessToken: String): UIO[HttpRequest] = UIO {
+          if (authConfig.useJson) {
+            val body = Json.obj(
+              "access_token" -> accessToken
+            )
+            HttpRequest(
+              method = HttpMethods.POST,
+              uri = Uri(authConfig.userInfoUrl),
+              entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(body))
+            )
+          } else {
+            HttpRequest(method = HttpMethods.POST,
+                        uri = Uri(authConfig.tokenUrl),
+                        entity = FormData(
+                          Map(
+                            "access_token" -> accessToken
+                          )
+                        ).toEntity)
+          }
+        }
 
         (authConfig.readProfileFromToken, authConfig.jwtVerifier.filter(_.enabled)) match {
           case (true, Some(algoConfig)) =>
@@ -332,27 +512,17 @@ package object auth {
               accessToken <- ZIO
                               .fromOption(maybeAccessToken)
                               .mapError(_ => IzanamiErrors.error(Json.stringify(rawToken)))
-              wsClient <- PlayModule.wSClient
-              response <- ZIO.fromFuture { implicit ec =>
-                           if (authConfig.useJson) {
-                             wsClient
-                               .url(authConfig.userInfoUrl)
-                               .post(
-                                 Json.obj(
-                                   "access_token" -> accessToken
-                                 )
-                               )
-                           } else {
-                             wsClient
-                               .url(authConfig.userInfoUrl)
-                               .post(
-                                 Map(
-                                   "access_token" -> accessToken
-                                 )
-                               )(writeableOf_urlEncodedSimpleForm)
-                           }
-                         }.orDie
-            } yield (response.json, rawToken)
+              request     <- buildUserInfoRequest(accessToken)
+              response    <- httpCall(request)
+              strResponse <- parseResponse(response)
+              json <- strResponse match {
+                       case (StatusCodes.OK, body) => Task(Json.parse(body)).orDie
+                       case (code, body) =>
+                         ZLogger.error(s"Error during OAuth2 user info $code: $body") *> ZIO.fail(
+                           IzanamiErrors.error(body)
+                         )
+                     }
+            } yield (json, rawToken)
         }
       }
 
@@ -432,19 +602,28 @@ package object auth {
               }
 
             for {
-              logger   <- ZLogger("izanami.oauth2")
-              _        <- logger.debug(s"decoding with JWKS $url $alg and $kid")
-              wsClient <- PlayModule.wSClient
-              resp <- ZIO.fromFuture { implicit ec =>
-                       wsClient
-                         .url(url)
-                         .withRequestTimeout(timeout.getOrElse(1.seconds))
-                         .withHttpHeaders(headers.map(_.toSeq).getOrElse(Seq.empty): _*)
-                         .get()
-                     }.orDie
+              logger <- ZLogger("izanami.oauth2")
+              _      <- logger.debug(s"decoding with JWKS $url $alg and $kid")
+              request <- Task {
+                          HttpRequest(
+                            uri = Uri(url),
+                            headers = headers.toSeq.flatMap(_.toSeq).map(p => HttpHeader.parse(p._1, p._2)).collect {
+                              case ParsingResult.Ok(h, _) => h
+                            }
+                          )
+                        }.orDie
+              response    <- httpCall(request)
+              strResponse <- parseResponse(response)
+              body <- strResponse match {
+                       case (StatusCodes.OK, body) => Task(body).orDie
+                       case (code, body) =>
+                         ZLogger.error(s"Error during OAuth2 user info $code: $body") *> ZIO.fail(
+                           IzanamiErrors.error(body)
+                         )
+                     }
               res <- ZIO
                       .fromOption {
-                        val obj = Json.parse(resp.body).as[JsObject]
+                        val obj = Json.parse(body).as[JsObject]
                         (obj \ "keys").asOpt[JsArray] match {
                           case Some(values) => {
                             val keys = values.value.map { k =>

@@ -225,7 +225,12 @@ case class Oauth2Config(enabled: Boolean,
                         izanamiManagedUser: Boolean,
                         admins: Option[Seq[String]] = None)
 case class MtlsConfig(enabled: Boolean, config: Option[CertificateConfig])
-case class CertificateConfig(path: String, pass: Option[String])
+case class CertificateConfig(truststorePath: Option[String],
+                             truststorePassword: Option[String],
+                             truststoreType: String,
+                             keystorePath: Option[String],
+                             keystorePassword: Option[String],
+                             keystoreType: String)
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)
 case class GlobalScriptConfig(db: DbDomainConfig)
