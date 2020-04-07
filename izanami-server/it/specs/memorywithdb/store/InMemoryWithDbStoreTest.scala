@@ -68,13 +68,12 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
   "scheduler should reload cache" in {
 
-    val name            = "test"
-    val underlyingStore = new InMemoryJsonDataStore(name)
+    val name = "test"
 
-    val key1         = Key("key:1")
-    val feature1     = DefaultFeature(key1, false, None)
-    val feature1Json = FeatureInstances.format.writes(feature1)
-    underlyingStore.create(key1, feature1Json).either.unsafeRunSync() mustBe Right(feature1Json)
+    val key1            = Key("key:1")
+    val feature1        = DefaultFeature(key1, false, None)
+    val feature1Json    = FeatureInstances.format.writes(feature1)
+    val underlyingStore = new InMemoryJsonDataStore(name, TrieMap(key1 -> feature1Json))
 
     val inMemoryWithDb = new InMemoryWithDbStore(
       InMemoryWithDbConfig(db = InMemory, Some(500.milliseconds)),
