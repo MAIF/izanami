@@ -26,6 +26,6 @@ services:
       DB_PASSWORD: password
       KEYCLOAK_USER: izanami
       KEYCLOAK_PASSWORD: izanami
-      X509_CA_BUNDLE: /etc/x509/iza-mtls/client.bundle.crt
+      X509_CA_BUNDLE: /etc/x509/iza-mtls/client.fullbundle.crt
     depends_on:
       - keycloak_postgres

@@ -55,8 +55,14 @@ openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out c
 
 CA with server 
 
+Client bundle 
 ```
 cat client.crt ca.crt > client.bundle.crt
+```
+
+Server bundle 
+```
+cat client.key client.crt ca.crt > client.fullbundle.crt
 ```
 
 ## JKS 
