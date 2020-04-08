@@ -86,6 +86,7 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"           % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-scripting-compiler-embeddable" % kotlinVersion,
   "org.webjars"              % "swagger-ui"                           % "3.25.0",
+  "net.logstash.logback"     % "logstash-logback-encoder"             % "6.3",
   "com.typesafe.akka"        %% "akka-http"                           % akkaHttpVersion % "it,test", // Apache 2.0
   "com.typesafe.akka"        %% "akka-testkit"                        % akkaVersion % "it,test", // Apache 2.0
   "de.heikoseeberger"        %% "akka-http-play-json"                 % "1.31.0" % "it,test" excludeAll ExclusionRule(
