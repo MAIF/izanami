@@ -70,10 +70,10 @@ class WebHooksActor(wSClient: WSClient, config: WebhookConfig, runtime: Runtime[
       createWebhook(hook)
       context.child(buildId(hook.clientId)).foreach(_ ! UpdateWebHook(hook))
     case WebhookDeleted(_, hook, _, _, _) =>
-      IzanamiLogger.info(s"Deleting webhook ${hook.clientId.key}")
+      IzanamiLogger.debug(s"Deleting webhook ${hook.clientId.key}")
       context.child(buildId(hook.clientId)).foreach(_ ! PoisonPill)
     case Terminated(r) =>
-      IzanamiLogger.info(s"Webhook stopped $r")
+      IzanamiLogger.debug(s"Webhook stopped $r")
   }
 
   override def preStart(): Unit = {
@@ -126,11 +126,11 @@ class WebHooksActor(wSClient: WSClient, config: WebhookConfig, runtime: Runtime[
   private def createWebhook(hook: Webhook): Unit = {
     val childName = buildId(hook.clientId)
     if (!hook.isBanned && context.child(childName).isEmpty) {
-      IzanamiLogger.info(s"Starting new webhook $childName")
+      IzanamiLogger.debug(s"Starting new webhook $childName")
       val ref = context.actorOf(WebHookActor.props(wSClient, hook, config, runtime), childName)
       context.watch(ref)
     } else {
-      IzanamiLogger.info(s"Webhook $hook not started")
+      IzanamiLogger.debug(s"Webhook $hook not started")
     }
   }
 
