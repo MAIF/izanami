@@ -1,8 +1,34 @@
 # Generate certificates for MTLS
 
+```
+sh gen-cert.sh
+```
+
+```
+openssl s_client -connect localhost:8943 > tls-opt.txt  
+```
+find client-ca ! 
+
+It's ok 
+
+Test the mtls settings: 
+```
+curl -k -v https://localhost:8943 # works because of -f
+curl -v https://localhost:8943 --cacert ./keycloak/cert/ca-keycloak.cer # works because no client cert but good server CA
+curl -v https://localhost:8943 --cacert ./keycloak/cert/ca-keycloak.cer --key ./keycloak/cert/keycloak-server.key --cert ./keycloak/cert/keycloak-server.cer # fails
+curl -v https://localhost:8943 --cacert ./keycloak/cert/ca-keycloak.cer --key ./keycloak/cert/izanami-client.key --cert ./keycloak/cert/izanami-client.cer   # works
+```
+​
+
 https://gist.github.com/Soarez/9688998
 
 ## Certificate 
+
+### Server certificate 
+
+```
+openssl req -new -newkey rsa:2048 -x509 -sha256 -days 100 -nodes -out tls.crt -keyout tls.key -subj "/CN=localhost"
+```
 
 ### Generate the key 
 

@@ -8,6 +8,7 @@ import java.util.Collections
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpHeader.ParsingResult
+import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.{
   ContentTypes,
   FormData,
@@ -16,17 +17,19 @@ import akka.http.scaladsl.model.{
   HttpMethods,
   HttpRequest,
   HttpResponse,
+  MediaTypes,
   StatusCode,
   StatusCodes,
   Uri
 }
+import akka.http.scaladsl.server.ContentNegotiator.Alternative.ContentType
 import akka.http.scaladsl.{ConnectionContext, Http, HttpExt, HttpsConnectionContext}
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.nimbusds.jose.jwk.{ECKey, JWK, RSAKey}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import com.typesafe.sslconfig.akka.util.AkkaLoggerFactory
 import com.typesafe.sslconfig.ssl.{
@@ -38,6 +41,7 @@ import com.typesafe.sslconfig.ssl.{
   KeyManagerFactoryWrapper,
   KeyStoreConfig,
   Protocols,
+  SSLConfigFactory,
   SSLConfigSettings,
   TrustManagerConfig,
   TrustManagerFactoryWrapper,
@@ -161,36 +165,19 @@ package object auth {
     }
 
     def live(izanamiConfig: IzanamiConfig): ZLayer[PlayModule, Throwable, Oauth2Service] = ZLayer.fromFunction { mix =>
-      implicit val system: ActorSystem = mix.get[PlayModule.Service].system
-
-      new Oauth2ServiceProd(izanamiConfig.oauth2)
+      val playModule                   = mix.get[PlayModule.Service]
+      implicit val system: ActorSystem = playModule.system
+      new Oauth2ServiceProd(izanamiConfig.oauth2, playModule.configuration)
     }
 
-    def loadCertificate(system: ActorSystem, certificateConfig: CertificateConfig): SSLContext = {
+    def loadCertificate(system: ActorSystem, configuration: Configuration): SSLContext = {
 
-      val sslConfig: SSLConfigSettings = SSLConfigSettings()
-        .withKeyManagerConfig(
-          KeyManagerConfig().withKeyStoreConfigs(
-            certificateConfig.keystorePath.toList.map(
-              keystorePath =>
-                KeyStoreConfig(data = None, filePath = Some(keystorePath))
-                  .withPassword(certificateConfig.keystorePassword)
-                  .withStoreType(certificateConfig.keystoreType)
-            )
-          )
-        )
-        .withTrustManagerConfig(
-          TrustManagerConfig()
-            .withTrustStoreConfigs(
-              certificateConfig.truststorePath.toList.map(
-                truststorePath =>
-                  TrustStoreConfig(data = None,
-                                   filePath = Some(truststorePath),
-                                   password = certificateConfig.truststorePassword)
-                    .withStoreType(certificateConfig.truststoreType)
-              )
-            )
-        )
+      val config: Config =
+        configuration.underlying.getConfig("izanami.oauth2.mtls.ssl-config") // .withFallback(configuration.underlying)
+
+      println(config)
+
+      val sslConfig: SSLConfigSettings = SSLConfigFactory.parse(config)
 
       val mkLogger = new AkkaLoggerFactory(system)
 
@@ -308,9 +295,13 @@ package object auth {
     )(implicit request: Request[AnyContent]): ZIO[OAuthServiceModule, IzanamiErrors, User] =
       ZIO.accessM(_.get[Oauth2Service.Service].paCallback(baseURL, authConfig)(request))
 
-    class Oauth2ServiceProd(mayBeOAuthConfig: Option[Oauth2Config])(implicit system: ActorSystem) extends Service {
+    class Oauth2ServiceProd(mayBeOAuthConfig: Option[Oauth2Config], configuration: Configuration)(
+        implicit system: ActorSystem
+    ) extends Service {
       val sslContext: Option[SSLContext] =
-        mayBeOAuthConfig.flatMap(_.mtls.filter(_.enabled).flatMap(_.config)).map(c => loadCertificate(system, c))
+        mayBeOAuthConfig
+          .flatMap(_.mtls.filter(_.enabled))
+          .map(c => loadCertificate(system, configuration))
       val connectionContext: Option[HttpsConnectionContext] = sslContext.map { c =>
         ConnectionContext.https(c)
       }
@@ -413,53 +404,11 @@ package object auth {
           }
         }
 
-        def httpCall(httpRequest: HttpRequest): ZIO[ZLogger, IzanamiErrors, HttpResponse] =
-          connectionContext
-            .fold(
-              ZLogger.info(s"Calling IDP") *> ZIO.fromFuture { implicit ec =>
-                http.singleRequest(httpRequest)
-              }
-            ) { ctx =>
-              ZLogger.info(s"Calling IDP with MTLS") *> ZIO.fromFuture { implicit ec =>
-                http.singleRequest(httpRequest, connectionContext = ctx)
-              }
-            }
-            .orDie
-
         for {
-          request     <- buildRequest
-          response    <- httpCall(request)
-          strResponse <- parseResponse(response)
-          json <- strResponse match {
-                   case (StatusCodes.OK, body) => Task(Json.parse(body)).orDie
-                   case (_, body) =>
-                     ZLogger.error(s"Error during OAuth2 auth $code: $body") *> ZIO.fail(IzanamiErrors.error(body))
-                 }
+          request <- buildRequest
+          json    <- httpCallAndParse(request)
         } yield json
       }
-
-      def httpCall(httpRequest: HttpRequest): ZIO[ZLogger, IzanamiErrors, HttpResponse] =
-        connectionContext
-          .fold(
-            ZLogger.info(s"Calling $httpRequest") *> ZIO.fromFuture { implicit ec =>
-              http.singleRequest(httpRequest)
-            }
-          ) { ctx =>
-            ZLogger.info(s"Calling $httpRequest with MTLS") *> ZIO.fromFuture { implicit ec =>
-              http.singleRequest(httpRequest, connectionContext = ctx)
-            }
-          }
-          .orDie
-
-      def parseResponse(httpResponse: HttpResponse): IO[IzanamiErrors, (StatusCode, String)] = httpResponse match {
-        case HttpResponse(code, _, entity, _) =>
-          ZIO.fromFuture { implicit ec =>
-            stringBody(entity).map(b => (code, b))
-          }.orDie
-      }
-
-      def stringBody(entity: HttpEntity): Future[String] =
-        entity.dataBytes.fold(ByteString.empty)(_ ++ _).map(_.utf8String).runWith(Sink.head)
 
       def decodeToken(response: JsValue,
                       authConfig: Oauth2Config): ZIO[OAuthModule, IzanamiErrors, (JsValue, JsValue)] = {
@@ -477,13 +426,12 @@ package object auth {
               entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(body))
             )
           } else {
-            HttpRequest(method = HttpMethods.POST,
-                        uri = Uri(authConfig.tokenUrl),
-                        entity = FormData(
-                          Map(
-                            "access_token" -> accessToken
-                          )
-                        ).toEntity)
+            HttpRequest(
+              method = HttpMethods.POST,
+              uri = Uri(authConfig.userInfoUrl),
+              entity = FormData(Map("access_token" -> accessToken)).toEntity,
+              headers = List(Accept(MediaTypes.`application/json`))
+            )
           }
         }
 
@@ -512,16 +460,8 @@ package object auth {
               accessToken <- ZIO
                               .fromOption(maybeAccessToken)
                               .mapError(_ => IzanamiErrors.error(Json.stringify(rawToken)))
-              request     <- buildUserInfoRequest(accessToken)
-              response    <- httpCall(request)
-              strResponse <- parseResponse(response)
-              json <- strResponse match {
-                       case (StatusCodes.OK, body) => Task(Json.parse(body)).orDie
-                       case (code, body) =>
-                         ZLogger.error(s"Error during OAuth2 user info $code: $body") *> ZIO.fail(
-                           IzanamiErrors.error(body)
-                         )
-                     }
+              request <- buildUserInfoRequest(accessToken)
+              json    <- httpCallAndParse(request)
             } yield (json, rawToken)
         }
       }
@@ -612,18 +552,10 @@ package object auth {
                             }
                           )
                         }.orDie
-              response    <- httpCall(request)
-              strResponse <- parseResponse(response)
-              body <- strResponse match {
-                       case (StatusCodes.OK, body) => Task(body).orDie
-                       case (code, body) =>
-                         ZLogger.error(s"Error during OAuth2 user info $code: $body") *> ZIO.fail(
-                           IzanamiErrors.error(body)
-                         )
-                     }
+              body <- httpCallAndParse(request)
               res <- ZIO
                       .fromOption {
-                        val obj = Json.parse(body).as[JsObject]
+                        val obj = body.as[JsObject]
                         (obj \ "keys").asOpt[JsArray] match {
                           case Some(values) => {
                             val keys = values.value.map { k =>
@@ -715,6 +647,45 @@ package object auth {
                         )
                         .orDie
         } yield publicKey
+
+      private def httpCallAndParse(httpRequest: HttpRequest,
+                                   expectedCode: StatusCode = StatusCodes.OK): ZIO[ZLogger, IzanamiErrors, JsValue] =
+        for {
+          response    <- httpCall(httpRequest)
+          strResponse <- parseResponse(response)
+          json <- strResponse match {
+                   case (code, body) if code == expectedCode => Task(Json.parse(body)).orDie
+                   case (code, body) =>
+                     ZLogger.error(s"Error during http call $httpRequest\n => $code: $body") *> ZIO.fail(
+                       IzanamiErrors.error(body)
+                     )
+                 }
+        } yield json
+
+      private def httpCall(httpRequest: HttpRequest): ZIO[ZLogger, IzanamiErrors, HttpResponse] =
+        connectionContext
+          .fold(
+            ZLogger.info(s"Calling $httpRequest") *> ZIO.fromFuture { implicit ec =>
+              http.singleRequest(httpRequest)
+            }
+          ) { ctx =>
+            ZLogger.info(s"Calling $httpRequest with MTLS") *> ZIO.fromFuture { implicit ec =>
+              http.singleRequest(httpRequest, connectionContext = ctx)
+            }
+          }
+          .orDie
+
+      private def parseResponse(httpResponse: HttpResponse): IO[IzanamiErrors, (StatusCode, String)] =
+        httpResponse match {
+          case HttpResponse(code, _, entity, _) =>
+            ZIO.fromFuture { implicit ec =>
+              stringBody(entity).map(b => (code, b))
+            }.orDie
+        }
+
+      private def stringBody(entity: HttpEntity): Future[String] =
+        entity.dataBytes.fold(ByteString.empty)(_ ++ _).map(_.utf8String).runWith(Sink.head)
+
     }
   }
 }
