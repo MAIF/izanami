@@ -13,8 +13,6 @@ services:
     image: jboss/keycloak
     volumes:
       - ./keycloak-tls:/etc/x509/https
-#      - ./keycloak/mtls/:/etc/x509/https/
-#      - ./keycloak/mtls/:/etc/x509/client/
     ports:
       - 8980:8080
       - 8943:8443
