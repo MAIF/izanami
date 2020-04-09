@@ -126,6 +126,8 @@ class InMemoryWithDbStore(
 
   override def start: RIO[DataStoreContext with Clock, Unit] =
     for {
+      _            <- ZLogger.info(s"Initializing in memory DB")
+      _            <- refreshCacheFromDb
       fiberEvents  <- listenEvents.unit.fork
       fiberPolling <- polling
       _            <- toClose.set(Some(OpenResources(fiberEvents, fiberPolling)))
@@ -170,8 +172,6 @@ class InMemoryWithDbStore(
 
   private val listenEvents: ZIO[DataStoreContext, Throwable, Unit] =
     for {
-      _      <- ZLogger.info(s"Initializing in memory DB")
-      _      <- refreshCacheFromDb
       events <- EventStore.events()
       res <- IO.fromFuture { _ =>
               RestartSource
