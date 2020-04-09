@@ -77,7 +77,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     val underlyingStore = new InMemoryJsonDataStore(name, TrieMap(key1 -> feature1Json))
 
     val inMemoryWithDb = new InMemoryWithDbStore(
-      InMemoryWithDbConfig(db = InMemory, Some(500.milliseconds)),
+      InMemoryWithDbConfig(db = InMemory, Some(1.seconds)),
       name,
       underlyingStore,
       InMemoryWithDbStore.featureEventAdapter,
@@ -85,13 +85,13 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     )
     inMemoryWithDb.start.unsafeRunSync()
 
-    Thread.sleep(400)
+    Thread.sleep(800)
 
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
     val feature1Updated = feature1.copy(enabled = true)
     underlyingStore.update(key1, key1, FeatureInstances.format.writes(feature1Updated)).either.unsafeRunSync()
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
-    Thread.sleep(800)
+    Thread.sleep(1000)
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
       .writes(feature1Updated)
       .some
