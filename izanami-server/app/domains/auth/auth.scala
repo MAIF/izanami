@@ -179,109 +179,7 @@ package object auth {
 
       val sslConfig: SSLConfigSettings = SSLConfigFactory.parse(config)
 
-      val mkLogger = new AkkaLoggerFactory(system)
-
-//      val sslContext = new SSLContext(
-//        new SSLContextSpi() {
-//          private def looseDisableSNI(defaultParams: SSLParameters): Unit = if (sslConfig.loose.disableSNI) {
-//            defaultParams.setServerNames(Collections.emptyList())
-//            defaultParams.setSNIMatchers(Collections.emptyList())
-//          }
-//
-//          private def buildKeyManagerFactory(ssl: SSLConfigSettings): KeyManagerFactoryWrapper = {
-//            val keyManagerAlgorithm = ssl.keyManagerConfig.algorithm
-//            new DefaultKeyManagerFactoryWrapper(keyManagerAlgorithm)
-//          }
-//          private def buildTrustManagerFactory(ssl: SSLConfigSettings): TrustManagerFactoryWrapper = {
-//            val trustManagerAlgorithm = ssl.trustManagerConfig.algorithm
-//            new DefaultTrustManagerFactoryWrapper(trustManagerAlgorithm)
-//          }
-//
-//          private def configureProtocols(existingProtocols: Array[String],
-//                                         sslConfig: SSLConfigSettings): Array[String] = {
-//            val definedProtocols = sslConfig.enabledProtocols match {
-//              case Some(configuredProtocols) =>
-//                // If we are given a specific list of protocols, then return it in exactly that order,
-//                // assuming that it's actually possible in the SSL context.
-//                configuredProtocols.filter(existingProtocols.contains).toArray
-//              case None =>
-//                // Otherwise, we return the default protocols in the given list.
-//                Protocols.recommendedProtocols.filter(existingProtocols.contains)
-//            }
-//
-//            val allowWeakProtocols = sslConfig.loose.allowWeakProtocols
-//            if (!allowWeakProtocols) {
-//              val deprecatedProtocols = Protocols.deprecatedProtocols
-//              for (deprecatedProtocol <- deprecatedProtocols) {
-//                if (definedProtocols.contains(deprecatedProtocol)) {
-//                  throw new IllegalStateException(s"Weak protocol $deprecatedProtocol found in ssl-config.protocols!")
-//                }
-//              }
-//            }
-//            definedProtocols
-//          }
-//
-//          private def configureCipherSuites(existingCiphers: Array[String],
-//                                            sslConfig: SSLConfigSettings): Array[String] = {
-//            val definedCiphers = sslConfig.enabledCipherSuites match {
-//              case Some(configuredCiphers) =>
-//                // If we are given a specific list of ciphers, return it in that order.
-//                configuredCiphers.filter(existingCiphers.contains(_)).toArray
-//              case None =>
-//                Ciphers.recommendedCiphers.filter(existingCiphers.contains(_)).toArray
-//            }
-//
-//            val allowWeakCiphers = sslConfig.loose.allowWeakCiphers
-//            if (!allowWeakCiphers) {
-//              val deprecatedCiphers = Ciphers.deprecatedCiphers
-//              for (deprecatedCipher <- deprecatedCiphers) {
-//                if (definedCiphers.contains(deprecatedCipher)) {
-//                  throw new IllegalStateException(s"Weak cipher $deprecatedCipher found in ssl-config.ciphers!")
-//                }
-//              }
-//            }
-//            definedCiphers
-//          }
-//
-//          private def getCtx(): SSLContext = {
-//            val keyManagerFactory   = buildKeyManagerFactory(sslConfig)
-//            val trustManagerFactory = buildTrustManagerFactory(sslConfig)
-//            new ConfigSSLContextBuilder(mkLogger, sslConfig, keyManagerFactory, trustManagerFactory).build()
-//          }
-//
-//          private def createSSLEngine(): SSLEngine = {
-//            // protocols!
-//            val defaultParams    = currentCtx.getDefaultSSLParameters
-//            val defaultProtocols = defaultParams.getProtocols
-//            val protocols        = configureProtocols(defaultProtocols, sslConfig)
-//            // ciphers!
-//            val defaultCiphers = defaultParams.getCipherSuites
-//            val cipherSuites   = configureCipherSuites(defaultCiphers, sslConfig)
-//            // apply "loose" settings
-//            looseDisableSNI(defaultParams)
-//
-//            val engine = currentCtx.createSSLEngine()
-//            engine.setSSLParameters(currentCtx.getDefaultSSLParameters)
-//            engine.setEnabledProtocols(protocols)
-//            engine.setEnabledCipherSuites(cipherSuites)
-//            engine
-//          }
-//
-//          lazy val currentCtx: SSLContext = getCtx()
-//
-//          override def engineCreateSSLEngine(): SSLEngine                  = createSSLEngine()
-//          override def engineCreateSSLEngine(s: String, i: Int): SSLEngine = engineCreateSSLEngine()
-//          override def engineInit(keyManagers: Array[KeyManager],
-//                                  trustManagers: Array[TrustManager],
-//                                  secureRandom: SecureRandom): Unit           = ()
-//          override def engineGetClientSessionContext(): SSLSessionContext     = currentCtx.getClientSessionContext
-//          override def engineGetServerSessionContext(): SSLSessionContext     = currentCtx.getServerSessionContext
-//          override def engineGetSocketFactory(): SSLSocketFactory             = currentCtx.getSocketFactory
-//          override def engineGetServerSocketFactory(): SSLServerSocketFactory = currentCtx.getServerSocketFactory
-//        },
-//        new Provider("foo", "1", "foo") {},
-//        "foo"
-//      ) {}
+      val mkLogger                   = new AkkaLoggerFactory(system)
       val keyManagerFactoryWrapper   = new DefaultKeyManagerFactoryWrapper(sslConfig.keyManagerConfig.algorithm)
       val trustManagerFactoryWrapper = new DefaultTrustManagerFactoryWrapper(sslConfig.trustManagerConfig.algorithm)
       val sslConfigBuilder =
@@ -300,6 +198,7 @@ package object auth {
     ) extends Service {
       val sslContext: Option[SSLContext] =
         mayBeOAuthConfig
+          .filter(_.enabled)
           .flatMap(_.mtls.filter(_.enabled))
           .map(c => loadCertificate(system, configuration))
       val connectionContext: Option[HttpsConnectionContext] = sslContext.map { c =>
