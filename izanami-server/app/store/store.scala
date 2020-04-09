@@ -29,6 +29,7 @@ import store.mongo.MongoJsonDataStore
 import store.redis.RedisJsonDataStore
 import store.dynamo.DynamoJsonDataStore
 import store.postgresql.PostgresqlJsonDataStore
+import zio.clock.Clock
 import zio.{Has, Managed, RManaged, Task, TaskManaged, ZLayer}
 
 import scala.reflect.ClassTag
@@ -156,8 +157,8 @@ package object datastore {
     def findByQuery(query: Query, page: Int = 1, nbElementPerPage: Int = 15): RIO[DataStoreContext, PagingResult[Data]]
     def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, Data), NotUsed]]
     def count(query: Query): RIO[DataStoreContext, Long]
-    def start: RIO[DataStoreContext, Unit] = Task.succeed(())
-    def close: RIO[DataStoreContext, Unit] = Task.succeed(())
+    def start: RIO[DataStoreContext with Clock, Unit] = Task.succeed(())
+    def close: RIO[DataStoreContext, Unit]            = Task.succeed(())
   }
 
   trait JsonDataStoreHelper[R <: DataStoreContext] {
@@ -195,7 +196,7 @@ package object datastore {
     def count(query: Query): RIO[R, Long] =
       getStore.flatMap(_.count(query))
 
-    def start: RIO[R, Unit] = getStore.flatMap(_.start)
+    def start: RIO[R with Clock, Unit] = getStore.flatMap(_.start)
 
     def close: RIO[R, Unit] = getStore.flatMap(_.close)
   }

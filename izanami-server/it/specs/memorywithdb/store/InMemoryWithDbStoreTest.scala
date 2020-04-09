@@ -18,6 +18,7 @@ import zio.{Runtime, ZLayer}
 import scala.concurrent.duration.DurationDouble
 import domains.auth.AuthInfo
 import store.memorywithdb.{InMemoryWithDbStore, OpenResources}
+import zio.clock.Clock
 
 import scala.collection.concurrent.TrieMap
 
@@ -25,7 +26,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
   implicit val actorSystem: ActorSystem = ActorSystem()
 
-  implicit class RunOps[T](t: zio.RIO[DataStoreContext, T]) {
+  implicit class RunOps[T](t: zio.RIO[DataStoreContext with Clock, T]) {
     def unsafeRunSync(): T = Runtime.default.unsafeRun(t.provideLayer(context))
   }
 
@@ -68,7 +69,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
 
   "scheduler should reload cache" in {
 
-    val name = "test"
+    val name = "test-reload"
 
     val key1            = Key("key:1")
     val feature1        = DefaultFeature(key1, false, None)
@@ -84,18 +85,19 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     )
     inMemoryWithDb.start.unsafeRunSync()
 
-    Thread.sleep(500)
+    Thread.sleep(400)
+
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
     val feature1Updated = feature1.copy(enabled = true)
     underlyingStore.update(key1, key1, FeatureInstances.format.writes(feature1Updated)).either.unsafeRunSync()
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
-    Thread.sleep(600)
+    Thread.sleep(800)
     inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
       .writes(feature1Updated)
       .some
   }
 
-  val context: ZLayer[Any, Throwable, DataStoreContext] =
-  ZLogger.live ++ EventStore.value(new BasicEventStore) ++ AuthInfo.empty
+  val context: ZLayer[Any, Throwable, DataStoreContext with Clock] =
+  ZLogger.live ++ EventStore.value(new BasicEventStore) ++ AuthInfo.empty ++ Clock.live
 
 }
