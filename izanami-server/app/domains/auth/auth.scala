@@ -324,7 +324,7 @@ package object auth {
           _             <- logger.debug(s"User mapped from token $user")
           _             <- createOrUpdateUserIfNeeded(authConfig, effectiveUser)
           endUser       <- enrichWithDb(authConfig, effectiveUser)
-          _             <- logger.info(s"Oauth user logged with $endUser")
+          _             <- logger.debug(s"Oauth user logged with $endUser")
         } yield endUser
 
       def createOrUpdateUserIfNeeded(authConfig: Oauth2Config,
@@ -665,11 +665,11 @@ package object auth {
       private def httpCall(httpRequest: HttpRequest): ZIO[ZLogger, IzanamiErrors, HttpResponse] =
         connectionContext
           .fold(
-            ZLogger.info(s"Calling $httpRequest") *> ZIO.fromFuture { implicit ec =>
+            ZLogger.debug(s"Calling $httpRequest") *> ZIO.fromFuture { implicit ec =>
               http.singleRequest(httpRequest)
             }
           ) { ctx =>
-            ZLogger.info(s"Calling $httpRequest with MTLS") *> ZIO.fromFuture { implicit ec =>
+            ZLogger.debug(s"Calling $httpRequest with MTLS") *> ZIO.fromFuture { implicit ec =>
               http.singleRequest(httpRequest, connectionContext = ctx)
             }
           }
