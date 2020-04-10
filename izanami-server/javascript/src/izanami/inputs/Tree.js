@@ -37,14 +37,12 @@ class CopyNodeWindow extends Component {
         <div onMouseOut={_ => this.props.close() }
              className={'copy-node-window'} onClick={_ => false}>
           <form className="form-horizontal" style={this.props.style}>
-            <div className="form-group">
-              <label htmlFor={`input-From`} className="col-sm-2 control-label">
+            <div className="form-group row">
+              <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
                 From
               </label>
-              <div className="col-sm-10">
-                <div className="keypicker-control">
-                  <Key value={this.props.nodekey || ''} />
-                </div>
+              <div className="col-sm-10 d-flex align-items-center">
+                <Key value={this.props.nodekey || ''} />
               </div>
             </div>
            <div className="form-group">
@@ -60,7 +58,7 @@ class CopyNodeWindow extends Component {
                           onChange={defaultValue => this.setState({defaultValue})} />
             <div className="form-group">
               <div className="col-sm-12">
-                <div className="form-buttons pull-right">
+                <div className="btn-group float-right">
                   <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
                   <button type="button" className="btn btn-primary"
                           onClick={_ => this.clone()}>
@@ -163,7 +161,7 @@ class Node extends Component {
             <div
                 className="btn-group btn-breadcrumb breadcrumb-info"
             >
-              <div className="key-value-value">
+              <div className="key-value-value d-flex align-items-center">
                 <span onClick={this.toggleChildOrEdit(id, this.props.node)}>{this.props.node.text}</span>
                 <div className={`btn-group btn-group-xs btn-submenu`}
                      style={styleDisplay}
@@ -173,7 +171,7 @@ class Node extends Component {
                   <Link
                       to={link}
                       type="button"
-                      className={`btn btn-primary`}
+                      className={`btn btn-sm btn-primary`}
                       onMouseOver={ _ => this.setState({openCopy:false})}
                       title="Add childnote"
                   >
@@ -200,7 +198,7 @@ class Node extends Component {
                                                open={_ => this.setState({openCopy:true})}
                                />
                              } >
-                      <i className="glyphicon glyphicon-duplicate" />
+                      <i className="fas fa-copy"></i>
                     </Popover>
                   </button>}
                   <button
@@ -210,7 +208,7 @@ class Node extends Component {
                       className="btn btn-sm btn-success"
                       title="Open on table view"
                   >
-                    <i className="glyphicon glyphicon-th-list" />
+                    <i className="fas fa-list"></i>
                   </button>
 
                   {this.props.node.value && (
@@ -222,7 +220,7 @@ class Node extends Component {
                             className="btn btn-sm btn-success"
                             title="Edit this Configuration"
                         >
-                          <i className="glyphicon glyphicon-pencil" />
+                          <i className="fas fa-pencil-alt"></i>
                         </button>
                       </div>
                   )}
@@ -235,7 +233,7 @@ class Node extends Component {
                             className="btn btn-sm btn-danger"
                             title="Delete this Configuration"
                         >
-                          <i className="glyphicon glyphicon-trash" />
+                                <i className="fas fa-trash-alt" />
                         </button>
                       </div>
                   )}
@@ -330,8 +328,10 @@ export class Tree extends Component {
         <form className="form-horizontal">
           <div className="form-group">
             <div className="input-group dark-input">
-              <span className="input-group-addon back-intermediate-color">
-                <span className="back-color glyphicon glyphicon-search" />
+              <span className="input-group-prepend back-intermediate-color">
+                <span className="input-group-text">
+                  <i className="back-color fas fa-search"></i>
+                </span>
               </span>
               <input
                 id={`input-search`}

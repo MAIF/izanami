@@ -59,10 +59,10 @@ const keys = {
 
 export class KeyInputForm extends Component {
   render() {
-    return <div className="form-group">
+    return <div className="form-group row">
       <label
           htmlFor={`input-${this.props.label}`}
-          className="col-sm-2 control-label"
+          className="col-sm-2 col-form-label"
       >
         {this.props.label}
       </label>
@@ -267,7 +267,6 @@ export class KeyInput extends Component {
   render() {
     const autoFocus = this.props.autoFocus || (this.state.segments.length === 0);
     return (
-
           <div
             className="keypicker keypicker--multi"
             ref={ref => (this.wrapper = ref)}
@@ -327,9 +326,10 @@ export class KeyInput extends Component {
               {this.props.copyButton && <span>
                 <button
                   type="button"
-                  className="btn btn-small btn-success"
+                  className="btn btn-sm btn-success"
                   title="copy"
                   onClick={this.copyToClipboard}
+                  style={{marginTop:'2px'}}
                 >
                   <i className="far fa-copy" />
                 </button>

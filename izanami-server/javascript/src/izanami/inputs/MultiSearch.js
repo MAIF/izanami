@@ -4,7 +4,7 @@ const PressedButton = props => {
   const moreClass = props.active ? "btn-active" : "";
   return (
     <button
-      className={`btn btn-xs btn-search ${moreClass}`}
+      className={`btn btn-sm btn-search ${moreClass}`}
       type="button"
       onClick={props.onClick}
     >
@@ -139,9 +139,8 @@ export class MultiSearch extends Component {
 
   render() {
     return (
-      <div className="row" ref={ref => (this.wrapper = ref)}>
-        <div className="col-lg-12">
-          <div className="form-group has-feedback">
+      <div className="" ref={ref => (this.wrapper = ref)}>
+          <div className="form-group row has-feedback">
             <input
               type="text"
               className="form-control search-input"
@@ -162,7 +161,7 @@ export class MultiSearch extends Component {
               }}
             >
               <span
-                style={{ width: 19, height: 20, marginRight: 6 }}
+                style={{ marginLeft: '-30px' }}
                 title="You can jump directly into the search bar from anywhere just by typing '/'"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="19" height="20">
@@ -218,7 +217,6 @@ export class MultiSearch extends Component {
                 )}
               </div>
             )}
-          </div>
         </div>
       </div>
     );

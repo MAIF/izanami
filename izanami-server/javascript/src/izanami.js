@@ -5,7 +5,10 @@ import $ from "jquery";
 
 //import 'react-select/dist/react-select.css';
 
+import 'bootstrap/dist/css/bootstrap.css';
 import "react-table/react-table.css";
+
+import 'bootstrap/dist/js/bootstrap';
 
 if (!window.Symbol) {
   window.Symbol = Symbol;
@@ -13,7 +16,6 @@ if (!window.Symbol) {
 window.$ = $;
 window.jQuery = $;
 
-require("bootstrap/dist/js/bootstrap.min");
 
 Array.prototype.flatMap = function(lambda) {
   return Array.prototype.concat.apply([], this.map(lambda));

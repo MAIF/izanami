@@ -66,45 +66,47 @@ export class LoginPage extends Component {
   render() {
     return (
       <div className="container-fluid">
-        <div className="text-center">
-          <img
-            className="logo_izanami_dashboard"
-            src={`${window.__contextPath}/assets/images/izanami.png`}
-          />
-        </div>
-        <div className="col-md-4 col-md-offset-4" style={{ marginTop: "20px" }}>
-          <Form
-            value={this.state.value}
-            onChange={value => this.setState({ value })}
-            flow={this.formFlow}
-            schema={this.formSchema}
-          >
-            <hr />
-            {this.state.error && (
-              <div className="col-sm-offset-2 panel-group">
-                <Alerts
-                  display={this.state.error}
-                  messages={[{ message: "auth.invalid.login" }]}
-                />
+        <div className="row">
+          <div className="text-center col-12">
+            <img
+              className="logo_izanami_dashboard"
+              src={`${window.__contextPath}/assets/images/izanami.png`}
+            />
+          </div>
+          <div className="col-md-4 offset-md-4 mt-4" >
+            <Form
+              value={this.state.value}
+              onChange={value => this.setState({ value })}
+              flow={this.formFlow}
+              schema={this.formSchema}
+            >
+              <hr />
+              {this.state.error && (
+                <div className="offset-sm-2 panel-group">
+                  <Alerts
+                    display={this.state.error}
+                    messages={[{ message: "auth.invalid.login" }]}
+                  />
+                </div>
+              )}
+              <div className="form-buttons float-right">
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={this.clean}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={this.login}
+                >
+                  <i className="fas fa-hdd"></i> Login
+                </button>
               </div>
-            )}
-            <div className="form-buttons pull-right">
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={this.clean}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={this.login}
-              >
-                <i className="glyphicon glyphicon-hdd" /> Login
-              </button>
-            </div>
-          </Form>
+            </Form>
+          </div>
         </div>
       </div>
     );

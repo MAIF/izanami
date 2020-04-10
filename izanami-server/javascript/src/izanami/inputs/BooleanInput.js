@@ -31,9 +31,9 @@ export class BooleanInput extends Component {
     const value = !!this.props.value;
     return (
       <div>
-        <div className="form-group">
-          <label className="col-sm-2 control-label">{this.props.label}</label>
-          <div className="col-sm-10">
+        <div className="form-group row">
+          <label className="col-sm-2 col-form-label">{this.props.label}</label>
+          <div className="col-sm-10 d-flex align-items-center">
             {value && <OnSwitch onChange={this.toggleOff} />}
             {!value && <OffSwitch onChange={this.toggleOn} />}
           </div>

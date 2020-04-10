@@ -120,13 +120,13 @@ export class SweetModal extends Component {
                   <div
                     className={
                       this.state.errors.indexOf("confirmToDelete.error") !== -1
-                        ? "form-group has-error"
-                        : "form-group"
+                        ? "form-group row has-error"
+                        : "form-group row"
                     }
                   >
                     <label
                       htmlFor="serviceName"
-                      className="col-xs-12 col-sm-2 control-label"
+                      className="col-xs-12 col-sm-2 col-form-label"
                     >
                       {this.props.labelRemove || "App name to delete"}
                     </label>
