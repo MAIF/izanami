@@ -3,8 +3,7 @@ package controllers
 import akka.util.ByteString
 import com.auth0.jwt.algorithms.Algorithm
 import controllers.dto.error.ApiErrors
-import domains.auth.OAuthModule
-import domains.auth.Oauth2Service
+import domains.auth.{OAuthModule, OAuthServiceModule, Oauth2Service}
 import domains.user.User
 import env.{Env, Oauth2Config}
 import play.api.libs.json.Json
@@ -13,7 +12,7 @@ import zio.{Runtime, ZIO}
 import libs.http.HttpContext
 
 class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: ControllerComponents)(
-    implicit R: HttpContext[OAuthModule]
+    implicit R: HttpContext[OAuthServiceModule]
 ) extends AbstractController(cc) {
 
   import libs.http._
@@ -54,7 +53,7 @@ class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: Co
     }
   }
 
-  def appCallback() = Action.asyncZio[OAuthModule] { implicit ctx =>
+  def appCallback() = Action.asyncZio[OAuthServiceModule] { implicit ctx =>
     mayBeOauth2Config match {
       case Some(openIdConnectConfig) =>
         Oauth2Service

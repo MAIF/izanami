@@ -11,8 +11,11 @@ services:
       POSTGRES_PASSWORD: password
   izanami_keycloak:
     image: jboss/keycloak
+    volumes:
+      - ./keycloak-tls:/etc/x509/https
     ports:
       - 8980:8080
+      - 8943:8443
     environment:
       DB_VENDOR: POSTGRES
       DB_ADDR: keycloak_postgres
@@ -22,5 +25,7 @@ services:
       DB_PASSWORD: password
       KEYCLOAK_USER: izanami
       KEYCLOAK_PASSWORD: izanami
+#      KEYCLOAK_LOGLEVEL: DEBUG
+      X509_CA_BUNDLE: /etc/x509/https/ca-client.bundle
     depends_on:
       - keycloak_postgres

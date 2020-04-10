@@ -2,9 +2,8 @@ package store.memorywithdb
 
 import akka.{Done, NotUsed}
 import akka.actor.{ActorSystem, Cancellable}
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
-import akka.stream.{ActorMaterializer, Materializer}
+import cats.implicits._
 import domains.Key
 import domains.abtesting.ExperimentInstances
 import domains.apikey.ApikeyInstances
@@ -18,14 +17,16 @@ import domains.user.UserInstances
 import domains.webhook.WebhookInstances
 import env.{DbDomainConfig, InMemoryWithDbConfig}
 import libs.logs.{IzanamiLogger, ZLogger}
-import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.JsValue
 import domains.errors.IzanamiErrors
 import store._
 import store.datastore._
 import store.memory.BaseInMemoryJsonDataStore
-import zio.{Fiber, Ref, ZLayer}
+import zio.clock.Clock
+import zio.duration.Duration
+import zio.{Exit, Fiber, Ref, UIO, ZIO, ZLayer}
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.DurationDouble
 
 sealed trait CacheEvent
@@ -104,14 +105,18 @@ object InMemoryWithDbStore {
   }
 }
 
-case class OpenResources(cancellable: Option[Cancellable], fiber: Fiber[Throwable, Done])
+case class OpenResources(fiber: Fiber[Throwable, Unit], c: Option[Cancellable]) {
+  def stop: ZIO[Any, Nothing, Unit] =
+    (fiber.interrupt *> c.fold(ZIO.unit)(c => UIO(c.cancel()))).unit
+}
 
 class InMemoryWithDbStore(
     dbConfig: InMemoryWithDbConfig,
     name: String,
     underlyingDataStore: JsonDataStore.Service,
     eventAdapter: Flow[IzanamiEvent, CacheEvent, NotUsed],
-    toClose: Ref[Option[OpenResources]]
+    toClose: Ref[Option[OpenResources]],
+    override val inMemoryStore: TrieMap[Key, JsValue] = TrieMap.empty[Key, JsValue]
 )(implicit system: ActorSystem)
     extends BaseInMemoryJsonDataStore()
     with JsonDataStore.Service {
@@ -119,77 +124,83 @@ class InMemoryWithDbStore(
   import zio._
   import system.dispatcher
 
-  override def start: RIO[DataStoreContext, Unit] =
+  override def start: RIO[DataStoreContext with Clock, Unit] =
     for {
-      runtime <- ZIO.runtime[DataStoreContext]
-      fiber   <- init().fork
-      cancellable = dbConfig.pollingInterval.map { interval =>
-        system.scheduler.scheduleWithFixedDelay(interval, interval)(new Runnable {
-          override def run(): Unit = {
-            IzanamiLogger.debug(s"Reloading data from db for $name")
-            runtime.unsafeRunToFuture(loadCacheFromDb.flatMap(s => ZIO.fromFuture(_ => s.runWith(Sink.ignore))))
-            ()
-          }
-        })
-      }
-      _ <- toClose.set(Some(OpenResources(cancellable, fiber)))
-    } yield {
-      ()
+      _            <- ZLogger.info(s"Initializing in memory DB")
+      _            <- refreshCacheFromDb
+      fiberEvents  <- listenEvents.unit.fork
+      fiberPolling <- polling
+      _            <- toClose.set(Some(OpenResources(fiberEvents, fiberPolling)))
+    } yield ()
+
+  private val refreshCacheFromDb: RIO[DataStoreContext, Unit] =
+    for {
+      refreshCacheProcess <- underlyingDataStore
+                              .findByQuery(Query.oneOf("*"))
+                              .map {
+                                _.map {
+                                  case (k, v) =>
+                                    inMemoryStore.put(k, v)
+                                    Done
+                                }
+                              }
+      _ <- ZIO.fromFuture(_ => refreshCacheProcess.runWith(Sink.ignore))
+    } yield ()
+
+  private val polling: ZIO[DataStoreContext with Clock, Throwable, Option[Cancellable]] =
+    dbConfig.pollingInterval match {
+      case Some(interval) =>
+        ZIO.runtime[DataStoreContext].map { runtime =>
+          system.scheduler
+            .scheduleWithFixedDelay(interval, interval)(new Runnable {
+              override def run(): Unit = {
+                IzanamiLogger.debug(s"Reloading data from db for $name")
+                runtime.unsafeRunToFuture(refreshCacheFromDb)
+                ()
+              }
+            })
+            .some
+        }
+      case None => ZIO(none[Cancellable])
     }
 
   override def close: RIO[DataStoreContext, Unit] =
     toClose.get.flatMap {
-      case Some(r) =>
-        r.cancellable.foreach(_.cancel())
-        r.fiber.interrupt.unit
-      case _ => ZIO.unit
+      case Some(r) => r.stop.unit
+      case _       => ZIO.unit
     }
 
-  def init(): ZIO[DataStoreContext, Throwable, Done] =
+  private val listenEvents: ZIO[DataStoreContext, Throwable, Unit] =
     for {
-      cache  <- loadCacheFromDb
       events <- EventStore.events()
       res <- IO.fromFuture { _ =>
               RestartSource
                 .onFailuresWithBackoff(1.second, 20.second, 1)(
                   () =>
-                    cache.concat(
-                      events
-                        .via(eventAdapter)
-                        .map {
-                          case e @ Create(id, data) =>
-                            IzanamiLogger.debug(s"Applying create event $e")
-                            createSync(id, data)
-                            Done
-                          case e @ Update(oldId, id, data) =>
-                            IzanamiLogger.debug(s"Applying update event $e")
-                            updateSync(oldId, id, data)
-                            Done
-                          case e @ Delete(id) =>
-                            IzanamiLogger.debug(s"Applying delete event $e")
-                            deleteSync(id)
-                            Done
-                          case e @ DeleteAll(patterns) =>
-                            IzanamiLogger.debug(s"Applying delete all event $e")
-                            deleteAllSync(Query.oneOf(patterns))
-                            Done
-                        }
-                  )
+                    events
+                      .via(eventAdapter)
+                      .map {
+                        case e @ Create(id, data) =>
+                          IzanamiLogger.debug(s"Applying create event $e")
+                          createSync(id, data)
+                          Done
+                        case e @ Update(oldId, id, data) =>
+                          IzanamiLogger.debug(s"Applying update event $e")
+                          updateSync(oldId, id, data)
+                          Done
+                        case e @ Delete(id) =>
+                          IzanamiLogger.debug(s"Applying delete event $e")
+                          deleteSync(id)
+                          Done
+                        case e @ DeleteAll(patterns) =>
+                          IzanamiLogger.debug(s"Applying delete all event $e")
+                          deleteAllSync(Query.oneOf(patterns))
+                          Done
+                    }
                 )
                 .runWith(Sink.ignore)
-            }
+            }.unit
     } yield res
-
-  private def loadCacheFromDb: RIO[DataStoreContext, Source[Done, NotUsed]] =
-    underlyingDataStore
-      .findByQuery(Query.oneOf("*"))
-      .map {
-        _.map {
-          case (k, v) =>
-            inMemoryStore.put(k, v)
-            Done
-        }
-      }
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     for {

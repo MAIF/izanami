@@ -20,6 +20,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Random
 import domains.user.User
 import store.datastore._
+import zio.clock.Clock
 
 abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with ScalaFutures with IntegrationPatience {
 
@@ -29,8 +30,8 @@ abstract class AbstractJsonDataStoreTest(name: String) extends PlaySpec with Sca
     ActorSystem("Test", akkaConfig.map(c => c.withFallback(ConfigFactory.load())).getOrElse(ConfigFactory.load()))
   implicit val ec: ExecutionContext = system.dispatcher
 
-  private val context: ZLayer[Any, Throwable, DataStoreContext] = {
-    ZLogger.live ++ EventStore.value(new TestEventStore()) ++ AuthInfo.empty
+  private val context: ZLayer[Any, Throwable, DataStoreContext with Clock] = {
+    ZLogger.live ++ EventStore.value(new TestEventStore()) ++ AuthInfo.empty ++ Clock.live
   }
   implicit val runtime = Runtime.default
   private val random   = Random

@@ -205,3 +205,12 @@ Here, you can find the settings to configure the security filter.
 | `izanami.oauth2.jwtVerifier.url`          | `OAUTH2_JWT_VERIFIER_JWKS_URL`        | JWKS url  |
 | `izanami.oauth2.jwtVerifier.headers`      | `OAUTH2_JWT_VERIFIER_JWKS_HEADERS`    | JWKS headers  |
 | `izanami.oauth2.jwtVerifier.timeout`      | `OAUTH2_JWT_VERIFIER_JWKS_TIMEOUT`    | JWKS timeout call  |
+| `izanami.oauth2.mtls.enabled`             | `OAUTH2_MTLS_ENABLED`                 | Enable mtls authentication  |
+| `izanami.oauth2.mtls.ssl-config.trustManager.stores.0.path`       | `OAUTH2_TRUSTSTORE_PATH`       | Path to store |
+| `izanami.oauth2.mtls.ssl-config.trustManager.stores.0.type`       | `OAUTH2_TRUSTSTORE_TYPE`       | Type of the store `PEM`, `JKS`, `PKCS12` |
+| `izanami.oauth2.mtls.ssl-config.trustManager.stores.0.password`   | `OAUTH2_TRUSTSTORE_PASSWORD`   | The password  |
+| `izanami.oauth2.mtls.ssl-config.keyManager.stores.0.path`         | `OAUTH2_KEYSTORE_PATH`         | Path to store |
+| `izanami.oauth2.mtls.ssl-config.keyManager.stores.0.type`         | `OAUTH2_KEYSTORE_TYPE`         | Type of the store `PEM`, `JKS`, `PKCS12` |
+| `izanami.oauth2.mtls.ssl-config.keyManager.stores.0.password`     | `OAUTH2_KEYSTORE_PASSWORD`     | The password  |
+
+You can find more option about the `ssl-config` part on this link: https://lightbend.github.io/ssl-config/index.html.
