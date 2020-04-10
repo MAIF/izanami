@@ -53,8 +53,8 @@ export class CodeInput extends Component {
 
   render() {
     const debug = this.props.debug ? (
-      <div className="form-group" key={"code-input-debug-zone"}>
-        <label htmlFor={`input-debug`} className="col-sm-2 control-label">
+      <div className="form-group row" key={"code-input-debug-zone"}>
+        <label htmlFor={`input-debug`} className="col-sm-2 col-form-label">
           Debug
         </label>
         <div className="col-sm-10">
@@ -69,10 +69,10 @@ export class CodeInput extends Component {
     );
 
     return [
-      <div className="form-group" key={"code-input-main-zone"}>
+      <div className="form-group row" key={"code-input-main-zone"}>
         <label
           htmlFor={`input-${this.props.label}`}
-          className="col-sm-2 control-label"
+          className="col-sm-2 col-form-label"
         >
           {this.props.label}
         </label>

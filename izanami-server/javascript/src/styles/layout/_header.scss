@@ -1,42 +1,29 @@
-.navbar-inverse {
+.navbar {
   background-color: $fondNavbar;
-  background-image: none;
-  border: none;
-
-  .navbar-brand {
-    -webkit-flex-direction: row;
-    flex-direction: row;
-    color: #fff;
-    font-weight: 700;
-    text-shadow: none;
-    justify-content: center;
-    text-align: center;
-    width: 100%;
-    font-size: 18px;
-    cursor: pointer;
-    @media screen and (max-width:1300px) {
-      flex-direction: column;
-    }
-    @media screen and (max-width:1200px) {
-      font-size: 14px;
-    }
-    @media screen and (max-width: $screen-sm) {
-      margin-top: -56px;
-    }
-  }
 
   .navbar-nav > li {
     > a {
       color: $colorGris;
+      padding: 17px;
     }
 
     .dropdown-menu {
-      margin-top: -1px;
+      position: absolute;
+      margin-top: 15px;
+      li:hover,
+      li:focus {
+        background-color: $fondGrisclairSurvolMenu;
+      }
+      a:hover,
+      a:focus {
+        text-decoration: none;
+      }
     }
 
     > a:hover,
     > a:focus {
       color: $primaryColor;
+      text-decoration: none;
     }
   }
 
@@ -46,7 +33,7 @@
   .navbar-nav > .open > a:hover {
     background-color: $fondBody;
     background-image: none;
-    color: $primaryColor;
+    color: $primaryColor
   }
 
   .navbar-right > li > a {
@@ -58,18 +45,15 @@
       cursor: pointer;
     }
   }
-
-  i.glyphicon.glyphicon-off {
-    margin-left: 4px;
-  }
 }
 
 .navbar-header {
-  height: 52px;
   background-color: $primaryColor;
+  color: #fff;
+  font-size: 18px;
+  line-height: 20px;
 }
 
-.glyphicon-cog,
 .navbar-inverse .navbar-nav > li > a {
   color: $primaryColor;
 }
@@ -79,14 +63,10 @@
   color: $colorRose;
 }
 
-.input-group-addon {
-  background: none;
-  border: none;
-}
-
 .form-control:focus {
   border-color: #373735;
   box-shadow: none;
+  background-color: $fondNavbar;
 }
 
 .nav > li > a {
@@ -135,4 +115,8 @@
     float: left;
     color: #fff;
   }
+}
+
+.collapse.show{
+  display: block;
 }

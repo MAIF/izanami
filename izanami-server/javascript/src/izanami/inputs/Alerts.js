@@ -50,7 +50,7 @@ export class Alerts extends Component {
             <button
               type="button"
               onClick={this.close}
-              className="close cancel pull-right"
+              className="close cancel float-right"
             >
               &times;
             </button>

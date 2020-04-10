@@ -10,6 +10,7 @@ body {
 a,
 a:hover {
   color: $primaryColor;
+  text-decoration: none;
 }
 
 .main {
@@ -36,6 +37,9 @@ a:hover {
 h3,
 h4 {
   color: $primaryColor;
+}
+hr {
+  border-top: 1px solid #eee;
 }
 @mixin h3fixed {
   position: fixed;
@@ -65,19 +69,14 @@ h4 {
     margin-right: -10px;
   }
 
-  .glyphicon-ok-sign,
-  .glyphicon-remove-sign {
-    font-size: 16px;
-    top: 4px;
-  }
-  @media only screen and (max-width: $screen-sm) {
+  @media only screen and (max-width: 1002px) {
     margin-top: 66px;
   }
 }
 
 
 .fa-cog {
-  font-size: 1.5em;
+ // font-size: 1.5em;
   top: 5px;
   color: #fff;
 }
@@ -86,4 +85,13 @@ h4 {
 .logo_izanami_dashboard {
   margin-top: 30px;
   width: 240px;
+}
+
+.panel-danger {
+  border-color: #ebccd1;
+  > .panel-heading {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+  }
 }

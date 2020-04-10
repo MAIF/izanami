@@ -21,8 +21,8 @@ export class LabelInput extends Component {
 
   render() {
     return (
-      <div className="form-group">
-        <label className="col-sm-2 control-label">{this.props.label}</label>
+      <div className="form-group row">
+        <label className="col-sm-2 col-form-label">{this.props.label}</label>
         <div className="col-sm-10">
           {this.state.loading && (
             <input

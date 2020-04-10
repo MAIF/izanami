@@ -691,7 +691,7 @@ export class Table extends Component {
                 )}
                 onClick={e => this.showEditForm(e, item)}
               >
-                <i className="glyphicon glyphicon-pencil" />
+                  <i className="fas fa-pencil-alt" />
               </button>
               {this.props.showLink && (
                 <button
@@ -704,7 +704,7 @@ export class Table extends Component {
                   )}
                   onClick={e => this.gotoItem(e, item)}
                 >
-                  <i className="glyphicon glyphicon-link" />
+                  <i className="fas fa-link" />
                 </button>
               )}
               {this.isDeleteAllowed(item) && <button
@@ -719,7 +719,7 @@ export class Table extends Component {
                   this.setState({ confirmDeleteTable: true, toDelete: item })
                 }
               >
-                <i className="glyphicon glyphicon-trash" />
+                <i className="fas fa-trash-alt" />
               </button>}
             </div>
           </div>
@@ -727,7 +727,7 @@ export class Table extends Component {
       });
     }
     return (
-      <div>
+      <div className="col-12">
         {!this.state.showEditForm && !this.state.showAddForm && (
           <div>
             <div className="row" style={{ marginBottom: 10 }}>
@@ -759,10 +759,7 @@ export class Table extends Component {
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
-                    <span
-                      className="glyphicon glyphicon-signal"
-                      style={{ transform: "rotate(90deg)" }}
-                    />
+                    <i className="fas fa-signal" style={{ transform: "rotate(90deg)" }} />
                   </button>
                 )}
                 {this.isTree() && (
@@ -773,7 +770,7 @@ export class Table extends Component {
                     style={{ marginLeft: 10 }}
                     {...createTooltip("Switch the view")}
                   >
-                    <span className="glyphicon glyphicon-th-list" />
+                    <i className="fas fa-list" />
                   </button>
                 )}
                 <button
@@ -782,7 +779,7 @@ export class Table extends Component {
                   {...createTooltip("Reload the current table")}
                   onClick={this.update}
                 >
-                  <span className="glyphicon glyphicon-refresh" />
+                      <i className="fas fa-sync-alt" />
                 </button>
 
                 {this.props.showActions && !this.props.disableAddButton && (
@@ -793,7 +790,7 @@ export class Table extends Component {
                     onClick={this.showAddForm}
                     {...createTooltip(`Create a new ${this.props.itemName}`)}
                   >
-                    <span className="glyphicon glyphicon-plus-sign" /> Add item
+                    <i className="fas fa-plus-circle mr-2" />Add item
                   </button>
                 )}
                 {this.props.showActions && this.props.user.admin && (
@@ -806,7 +803,7 @@ export class Table extends Component {
                     }}
                   >
                     <button
-                      className="dropdown-toggle btn-dropdown"
+                      className="btn-dropdown"
                       data-toggle="dropdown"
                       type="button"
                       aria-haspopup="true"
@@ -815,12 +812,12 @@ export class Table extends Component {
                     >
                       <i className="fas fa-cog" aria-hidden="true" />
                     </button>
-                    <ul className="dropdown-menu">
+                    <ul className="dropdown-menu p-3">
                       {this.props.downloadLinks &&
                         this.props.downloadLinks.map(({ title, link }, i) => (
                           <li key={`download-${i}`}>
                             <a href={link} {...createTooltip(`${title}`)}>
-                              <span className="glyphicon glyphicon-download" />{" "}
+                                  <i className="fas fa-file-download" />{" "}
                               {title}
                             </a>
                           </li>
@@ -829,12 +826,13 @@ export class Table extends Component {
                         this.props.uploadLinks.map(({ title, link }, i) => (
                           <li key={`upload-${i}`}>
                             <a
+                              href=""
                               style={{ cursor: "pointer" }}
                               onClick={e => {
                                 document.getElementById(`upload${i}`).click();
                               }}
                             >
-                              <span className="glyphicon glyphicon-upload" />{" "}
+                              <i className="fas fa-file-upload" />{" "}
                               {title}
                               <input
                                 id={`upload${i}`}
@@ -921,7 +919,7 @@ export class Table extends Component {
                 />
               </div>
             )}
-            <div className="form-buttons pull-right">
+            <div className="form-buttons float-right">
               <button
                 type="button"
                 className="btn btn-danger"
@@ -934,7 +932,7 @@ export class Table extends Component {
                 className="btn btn-success"
                 onClick={this.createItem}
               >
-                <i className="glyphicon glyphicon-hdd" /> Create{" "}
+                    <i className="fas fa-hdd" /> Create{" "}
                 {this.props.itemName}
               </button>
             </div>
@@ -958,7 +956,7 @@ export class Table extends Component {
                 />
               </div>
             )}
-            <div className="form-buttons pull-right updateConfig">
+            <div className="form-buttons float-right updateConfig">
               {this.isDeleteAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-danger"
@@ -978,8 +976,7 @@ export class Table extends Component {
                 type="button"
                 className="btn btn-success"
                 onClick={this.updateItem}
-              >
-                <i className="glyphicon glyphicon-hdd" /> Update{" "}
+              > <i className="fas fa-hdd" /> Update{" "}
                 {this.props.itemName}
               </button>}
               <SweetModal

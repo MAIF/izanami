@@ -70,7 +70,7 @@ export class ExperimentsExplorerPage extends Component {
             className="btn btn-success btn-search"
             onClick={this.updateGraph}
           >
-            <i className="glyphicon glyphicon-search" />{" "}
+            <i className="fas fa-search"></i>{" "}
             {!this.state.searching && "Search"}
             {this.state.searching && "Searching ..."}
           </button>

@@ -83,34 +83,34 @@ export class ObjectInput extends Component {
     return (
       <div>
         {this.state.values.length === 0 && (
-          <div className="form-group">
+          <div className="form-group row">
             <label
               htmlFor={`input-${this.props.label}`}
-              className="col-sm-2 control-label"
+              className="col-sm-2 col-form-label"
             >
               {this.props.label}
             </label>
-            <div className="col-sm-10">
+            <div className="col-sm-10 d-flex align-items-center">
               <button
                 disabled={this.props.disabled}
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 onClick={this.addFirst}
               >
-                <i className="glyphicon glyphicon-plus-sign" />{" "}
+                    <i className="fas fa-plus-circle" />{" "}
               </button>
             </div>
           </div>
         )}
         {this.state.values.map((value, idx) => (
-          <div className="form-group" key={`obj-${idx}`}>
+          <div className="form-group row" key={`obj-${idx}`}>
             {idx === 0 && (
-              <label className="col-sm-2 control-label">
+              <label className="col-sm-2 col-form-label">
                 {this.props.label}
               </label>
             )}
             {idx > 0 && (
-              <label className="col-sm-2 control-label">&nbsp;</label>
+              <label className="col-sm-2 col-form-label">&nbsp;</label>
             )}
             <div className="col-sm-10">
               <div className="input-group">
@@ -118,7 +118,6 @@ export class ObjectInput extends Component {
                   disabled={this.props.disabled}
                   type="text"
                   className="form-control"
-                  style={{ width: "50%" }}
                   placeholder={this.props.placeholderKey}
                   value={value[0]}
                   onChange={e => this.changeKey(e, value[0], idx)}
@@ -127,30 +126,31 @@ export class ObjectInput extends Component {
                   disabled={this.props.disabled}
                   type="text"
                   className="form-control"
-                  style={{ width: "50%" }}
                   placeholder={this.props.placeholderValue}
                   value={value[1]}
                   onChange={e => this.changeValue(e, value[0], idx)}
                 />
-                <span className="input-group-btn">
-                  <button
-                    disabled={this.props.disabled}
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={e => this.remove(e, idx)}
-                  >
-                    <i className="glyphicon glyphicon-trash" />
-                  </button>
-                  {idx === this.state.values.length - 1 && (
+                <span className="input-group-prepend align-items-center">
+                  <div>
                     <button
                       disabled={this.props.disabled}
                       type="button"
-                      className="btn btn-primary"
-                      onClick={this.addNext}
+                      className="btn btn-danger btn-sm"
+                      onClick={e => this.remove(e, idx)}
                     >
-                      <i className="glyphicon glyphicon-plus-sign" />{" "}
+                      <i className="fas fa-trash-alt" />
                     </button>
-                  )}
+                    {idx === this.state.values.length - 1 && (
+                      <button
+                        disabled={this.props.disabled}
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={this.addNext}
+                      >
+                            <i className="fas fa-plus-circle" />{" "}
+                      </button>
+                    )}
+                  </div>
                 </span>
               </div>
             </div>

@@ -85,8 +85,8 @@ export class LoggedApp extends Component {
 
   lineRenderer = option => {
     return (
-      <label style={{ cursor: "pointer" }}>
-        <i className={pictos[option.type]} /> {option.label}
+      <label style={{ cursor: "pointer" }} className="justify-content-start">
+        <i className={`mr-2 ${pictos[option.type]}`} /> {option.label}
       </label>
     );
   };
@@ -119,30 +119,58 @@ export class LoggedApp extends Component {
 
     return (
       <div className="container-fluid">
-        <nav className="navbar navbar-inverse navbar-fixed-top">
-          <div className="navbar-header col-md-2">
-            <button
-              type="button"
-              className="navbar-toggle collapsed menu"
-              data-toggle="collapse"
-              data-target="#sidebar"
-              aria-expanded="false"
-              aria-controls="sidebar"
-            >
-              <span className="sr-only">Toggle sidebar</span>
-              <span>Menu</span>
-            </button>
-            <a href="/" className="navbar-brand" style={{ display: "flex" }}>
-              イザナミ&nbsp; Izanami
-            </a>
-          </div>
+        <nav className="navbar navbar-expand-lg fixed-top p-0">
+          <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex ">
+              <a className="navbar-brand"  href="/">
+                <div className="d-flex flex-column justify-content-center align-items-center"><span>イザナミ</span> Izanami</div>
+              </a>
+              <button
+                  type="button"
+                  className="navbar-toggler menu"
+                  data-toggle="collapse"
+                  data-target="#sidebar"
+                  aria-expanded="false"
+                  aria-controls="sidebar"
+              >
+                <span className="sr-only">Toggle sidebar</span>
+                <span>Menu</span>
+              </button>
+           </div>
 
-          <div className="container-fluid">
-            <ul key="admin-menu" className="nav navbar-nav navbar-right">
+      <form className="form-inline ml-4 p-2 p-lg-0">
+          {selected && (
+          <div
+              className="form-group"
+              style={{ marginRight: 10, display: "inline" }}
+          >
+          <span
+              title="Current line"
+              className="label label-success"
+              style={{ fontSize: 20, cursor: "pointer" }}
+          >
+              {selected}
+          </span>
+      </div>
+  )}
+  <div>
+  <MultiSearch
+      filters={[
+              { name: "features", label: "Features", active: true },
+      { name: "configs", label: "Configurations", active: true },
+      { name: "experiments", label: "Experiments", active: true },
+      { name: "scripts", label: "Scripts", active: true }
+  ]}
+      query={this.searchServicesOptions}
+      lineRenderer={this.lineRenderer}
+      onElementSelected={this.gotoService}
+      />
+      </div>
+      </form>
+
+            <ul key="admin-menu" className="navbar-nav ml-auto">
               <li className="dropdown userManagement">
                 <a
                   href="#"
-                  className="dropdown-toggle"
                   data-toggle="dropdown"
                   role="button"
                   aria-haspopup="true"
@@ -150,9 +178,9 @@ export class LoggedApp extends Component {
                 >
                   <i className="fas fa-cog" aria-hidden="true" />
                 </a>
-                <ul className="dropdown-menu">
+                <ul className="dropdown-menu dropdown-menu-right">
                   {userManagementEnabled &&
-                    <li key="li-users">
+                    <li key="li-users" className="dropdown-item">
                       <Link
                         to="/users"
                         className=""
@@ -162,7 +190,7 @@ export class LoggedApp extends Component {
                       </Link>
                     </li>}
                   {apikeyManagementEnabled &&
-                    <li key="li-apikeys">
+                    <li key="li-apikeys" className="dropdown-item">
                       <Link
                         to="/apikeys"
                         className=""
@@ -172,10 +200,10 @@ export class LoggedApp extends Component {
                       </Link>
                     </li>
                   }
-                  <li>
+                  <li className="dropdown-item">
                     <a href={this.props.logout} className="link-logout">
                       {this.props.user ? this.props.user.email : ""}&nbsp;
-                      <span className="glyphicon glyphicon-off" />
+                        <i className="fas fa-power-off"></i>
                     </a>
                   </li>
                 </ul>
@@ -197,10 +225,10 @@ export class LoggedApp extends Component {
                 {...popover({
                   options: {
                     title:
-                      '<span><strong>Create a user</strong></span><button type="button" class="close cancel pull-right" >&times;</button>',
+                      '<span><strong>Create a user</strong></span><button type="button" class="close cancel float-right" >&times;</button>',
                     html: "true",
                     content:
-                      '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary pull-right click" href="/users/add">Create user</a>',
+                      '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary float-right click" href="/users/add">Create user</a>',
                     container: "body"
                   },
                   state: "show",
@@ -209,51 +237,21 @@ export class LoggedApp extends Component {
                 })}
               />
             )}
-            <form className="navbar-form navbar-left">
-              {selected && (
-                <div
-                  className="form-group"
-                  style={{ marginRight: 10, display: "inline" }}
-                >
-                  <span
-                    title="Current line"
-                    className="label label-success"
-                    style={{ fontSize: 20, cursor: "pointer" }}
-                  >
-                    {selected}
-                  </span>
-                </div>
-              )}
-              <div className="form-group" style={{ marginRight: 10 }}>
-                <MultiSearch
-                  filters={[
-                    { name: "features", label: "Features", active: true },
-                    { name: "configs", label: "Configurations", active: true },
-                    { name: "experiments", label: "Experiments", active: true },
-                    { name: "scripts", label: "Scripts", active: true }
-                  ]}
-                  query={this.searchServicesOptions}
-                  lineRenderer={this.lineRenderer}
-                  onElementSelected={this.gotoService}
-                />
-              </div>
-            </form>
-          </div>
+
         </nav>
 
         <div className="container-fluid">
           <div className="row">
-            <div className="analytics-viewer-bottom-container">
-              <div className="col-sm-2 sidebar" id="sidebar">
+              <div className="col-lg-2 sidebar" id="sidebar">
                 <div className="sidebar-container">
                   <div className="sidebar-content">
-                    <ul className="nav nav-sidebar">
+                    <ul className="nav nav-sidebar flex-column">
                       <li className={className("/")}>
-                        <Link to="/">
-                          <h3 style={{ marginTop: 0, marginLeft: -25 }}>
+                        <h3>
+                         <Link to="/">
                             <i className="fas fa-tachometer-alt" /> Home
-                          </h3>
-                        </Link>
+                         </Link>
+                        </h3>
                       </li>
                       <li className={className("/features")}>
                         <Link to="/features" style={{ cursor: "pointer" }}>
@@ -302,7 +300,7 @@ export class LoggedApp extends Component {
                         </Link>
                       </li>
                     </ul>
-                    <ul className="nav nav-sidebar">
+                    <ul className="nav nav-sidebar  flex-column">
                       <li className={className("/")}>
                         <h3 style={{ marginTop: 0 }}>
                           <i className="fas fa-tachometer-alt" /> Explore
@@ -339,9 +337,9 @@ export class LoggedApp extends Component {
                   </div>
                 </div>
               </div>
-              <div className="col-sm-10 col-sm-offset-2 main">
+              <div className="col-lg-10 offset-lg-2 main">
                 <div className="row">
-                  <div className="izanami-container">
+                  <div className="col-12 izanami-container">
                     <DynamicTitle />
                     <div className="row">
                       <Switch>
@@ -522,7 +520,6 @@ export class LoggedApp extends Component {
                   </div>
                 </div>
               </div>
-            </div>
           </div>
         </div>
       </div>

@@ -12,6 +12,11 @@
 .ant-calendar-picker-input{
   background-color: transparent;
   border: none;
+    color: #fff;
+}
+
+.ant-calendar-range-picker-input, .ant-calendar-picker-container{
+    color: #fff;
 }
 
 .ant-calendar-date{

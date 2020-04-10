@@ -142,7 +142,7 @@ export class AuthorizedPatternsInput extends Component {
                                 className="btn btn-primary"
                                 onClick={this.addFirst}
                             >
-                                <i className="glyphicon glyphicon-plus-sign" />{" "}
+                                <i className="fas fa-plus-circle"></i>{" "}
                             </button>
                         </div>
                     </div>
@@ -169,7 +169,7 @@ export class AuthorizedPatternsInput extends Component {
                       className="btn btn-danger"
                       onClick={e => this.remove(e, idx)}
                   >
-                    <i className="glyphicon glyphicon-trash" />
+                    <i className="fas fa-trash-alt"></i>
                   </button>
                                     {idx === this.state.values.length - 1 && (
                                         <button
@@ -178,7 +178,7 @@ export class AuthorizedPatternsInput extends Component {
                                             className="btn btn-primary"
                                             onClick={this.addNext}
                                         >
-                                            <i className="glyphicon glyphicon-plus-sign" />{" "}
+                                            <i className="fas fa-plus-circle"></i>{" "}
                                         </button>
                                     )}
                 </span>
