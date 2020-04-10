@@ -22,3 +22,5 @@ e2e
 .bloop
 settings.json
 keycloak_postgres_data
+keycloak-tls
+certs

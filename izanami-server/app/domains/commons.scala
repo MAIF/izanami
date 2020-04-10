@@ -13,7 +13,7 @@ import domains.abtesting.ExperimentDataStore
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyDataStore
 import domains.config.ConfigDataStore
-import domains.auth.AuthInfo
+import domains.auth.{AuthInfo, Oauth2Service}
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
@@ -121,6 +121,7 @@ package object configuration {
     with EventStore
     with ScriptCache
     with RunnableScriptModule
+    with Oauth2Service
     with Clock
     with Blocking
 
@@ -141,8 +142,11 @@ package object configuration {
       val izanamiConfigModule = IzanamiConfigModule.value(izanamiConfig)
 
       val configAndScript
-        : ZLayer[ZEnv, Throwable, ScriptCache with RunnableScriptModule with MetricsModule with ZLogger] =
-      playModule >>> (ScriptCache.live ++ RunnableScriptModule.live ++ MetricsModule.live ++ ZLogger.live)
+        : ZLayer[ZEnv,
+                 Throwable,
+                 ScriptCache with RunnableScriptModule with MetricsModule with ZLogger with Oauth2Service] =
+      playModule >>> (ScriptCache.live ++ RunnableScriptModule.live ++ MetricsModule.live ++ ZLogger.live ++ Oauth2Service
+        .live(izanamiConfig))
 
       val dataStoreLayerContext: ZLayer[ZEnv, Throwable, DataStoreLayerContext] =
       playModule ++ izanamiConfigModule ++ ZLogger.live
