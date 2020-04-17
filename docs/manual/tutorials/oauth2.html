@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.7.1*
+1.8.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.7.1*
+1.8.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -235,6 +235,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     </ul></li>
   </ul></li>
   <li><a href="../tutorials/oauth2.html#configure-izanami" class="header">Configure izanami</a></li>
+  <li><a href="../tutorials/oauth2.html#mutual-tls-authentication" class="header">Mutual TLS authentication</a>
+  <ul>
+    <li><a href="../tutorials/oauth2.html#generate-certificates" class="header">Generate certificates</a></li>
+    <li><a href="../tutorials/oauth2.html#keycloak-configuration" class="header">Keycloak configuration</a></li>
+    <li><a href="../tutorials/oauth2.html#izanami-configuration" class="header">Izanami configuration</a></li>
+  </ul></li>
 </ul>
 </div>
 <p>This tutorial show how to delegate user authentication to keycloak using oauth2. </p>
@@ -356,6 +362,81 @@ OAUTH2_IZANAMI_MANAGED_USERS=true
 <p><img src="../img/tutorial/oauth/izanami_random_ok.png" alt="Admin login" /></p>
 <p>And the user is not able to create a feature with a pattern he is not allowed </p>
 <p><img src="../img/tutorial/oauth/izanami_random_pattern_ok.png" alt="Admin login" /></p>
+<h2><a href="#mutual-tls-authentication" name="mutual-tls-authentication" class="anchor"><span class="anchor-link"></span></a>Mutual TLS authentication</h2>
+<h3><a href="#generate-certificates" name="generate-certificates" class="anchor"><span class="anchor-link"></span></a>Generate certificates</h3>
+<p>Izanami supports MTLS authentication. To do this we need to use keycloak with https et define un client certificate.</p>
+<p>First run </p>
+<pre class="prettyprint"><code class="language-bash">sh ./gen-cert.sh
+</code></pre>
+<p>This script will generate, the certificates needed to : </p>
+<ul>
+  <li>use keycloak with https</li>
+  <li>use keycloak with mts</li>
+  <li>use izanami as client with mtls</li>
+</ul>
+<p>At the end, in the <code>keycloak-mtl</code> folder, you will have </p>
+<ul>
+  <li><code>tls.crt</code>and <code>tls.key</code> for the https part of keycloak</li>
+  <li><code>ca-client.bundle</code> for the mtls part of keyclaok</li>
+  <li><code>server.pem</code> and <code>client.p12</code> for izanami</li>
+</ul>
+<h3><a href="#keycloak-configuration" name="keycloak-configuration" class="anchor"><span class="anchor-link"></span></a>Keycloak configuration</h3>
+<p>Then run keycloak : </p>
+<pre><code>docker-compose -f docker-compose.oauth.yml up  
+</code></pre>
+<p>in the docker-compose, this setting enable https :</p>
+<pre class="prettyprint"><code class="language-yaml">volumes:
+  - ./keycloak-tls:/etc/x509/https
+</code></pre>
+<p>because, the docker image track <code>/etc/x509/https/tsl.crt</code> and <code>/etc/x509/https/tsl.key</code>. </p>
+<p>and this settings define a client ca bundle for mtls : </p>
+<pre class="prettyprint"><code class="language-yaml">X509_CA_BUNDLE: /etc/x509/https/ca-client.bundle
+</code></pre>
+<p>Now we have a keycloak server running with https and mtls configured, you can open the <code>https://localhost:8943</code> in your browser.</p>
+<p>You can update the previous config </p>
+<ul>
+  <li><code>Access Type</code>: should be <code>confidential</code>. This display <code>Service Accounts Enabled</code> and <code>Authorization Enabled</code></li>
+  <li><code>Service Accounts Enabled</code> should be checked</li>
+  <li><code>Authorization Enabled</code> should be checked</li>
+</ul>
+<p><img src="../img/tutorial/oauth/mtls1.png" alt="MTLS" /></p>
+<p>The <code>Credentials</code> menu appears. </p>
+<p><img src="../img/tutorial/oauth/mtls2.png" alt="MTLS" /></p>
+<ul>
+  <li><code>Client Authenticator</code>: choose the <code>X509 Certificate</code> option</li>
+  <li><code>Subject DN</code>: Set the DN with <code>CN=izanami</code></li>
+</ul>
+<p>This is now done for the keycloak part! </p>
+<p>Now we need to configure the Izanami part. </p>
+<h3><a href="#izanami-configuration" name="izanami-configuration" class="anchor"><span class="anchor-link"></span></a>Izanami configuration</h3>
+<p>In the oauth configuration part of Izanami, we need to configure the mtls part, pointing to the files generated previously : </p>
+<pre class="prettyprint"><code class="language-hocon">oauth2 {
+  # ... 
+  mtls = {
+    enabled = true
+    ssl-config {
+      #...
+      trustManager {
+        stores = [
+          {
+            path: &quot;./keycloak-tls/server.pem&quot;
+            type: &quot;PEM&quot;
+          }
+        ]      
+      }
+      keyManager {
+        stores = [
+          { path= &quot;./keycloak-tls/client.p12&quot;
+            password=&quot;izanami&quot;
+            type= &quot;PKCS12&quot;}
+        ]
+      }
+    } 
+  }
+}
+</code></pre>
+<p>You can find more option about the SSL config on this link: <a href="https://lightbend.github.io/ssl-config/index.html">https://lightbend.github.io/ssl-config/index.html</a>. </p>
+<p>That it ! </p>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/tutorials/oauth2.md">here</a>.
 </div>
@@ -376,6 +457,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
     <li><a href="../tutorials/oauth2.html#managing-abilitations-in-izanami" class="header">Managing abilitations in Izanami</a></li>
     <li><a href="../tutorials/oauth2.html#managing-abilitations-in-keycloak" class="header">Managing abilitations in keycloak</a></li>
     <li><a href="../tutorials/oauth2.html#configure-izanami" class="header">Configure izanami</a></li>
+    <li><a href="../tutorials/oauth2.html#mutual-tls-authentication" class="header">Mutual TLS authentication</a></li>
   </ul></li>
 </ul>
 </div>

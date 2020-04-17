@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.7.1*
+1.8.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.7.1*
+1.8.1*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -1150,8 +1150,44 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>OAUTH2_JWT_VERIFIER_JWKS_TIMEOUT</code> </td>
       <td>JWKS timeout call </td>
     </tr>
+    <tr>
+      <td><code>izanami.oauth2.mtls.enabled</code> </td>
+      <td><code>OAUTH2_MTLS_ENABLED</code> </td>
+      <td>Enable mtls authentication </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.mtls.ssl-config.trustManager.stores.0.path</code> </td>
+      <td><code>OAUTH2_TRUSTSTORE_PATH</code> </td>
+      <td>Path to store </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.mtls.ssl-config.trustManager.stores.0.type</code> </td>
+      <td><code>OAUTH2_TRUSTSTORE_TYPE</code> </td>
+      <td>Type of the store <code>PEM</code>, <code>JKS</code>, <code>PKCS12</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.mtls.ssl-config.trustManager.stores.0.password</code> </td>
+      <td><code>OAUTH2_TRUSTSTORE_PASSWORD</code> </td>
+      <td>The password </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.mtls.ssl-config.keyManager.stores.0.path</code> </td>
+      <td><code>OAUTH2_KEYSTORE_PATH</code> </td>
+      <td>Path to store </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.mtls.ssl-config.keyManager.stores.0.type</code> </td>
+      <td><code>OAUTH2_KEYSTORE_TYPE</code> </td>
+      <td>Type of the store <code>PEM</code>, <code>JKS</code>, <code>PKCS12</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.oauth2.mtls.ssl-config.keyManager.stores.0.password</code> </td>
+      <td><code>OAUTH2_KEYSTORE_PASSWORD</code> </td>
+      <td>The password </td>
+    </tr>
   </tbody>
 </table>
+<p>You can find more option about the <code>ssl-config</code> part on this link: <a href="https://lightbend.github.io/ssl-config/index.html">https://lightbend.github.io/ssl-config/index.html</a>.</p>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
 </div>
