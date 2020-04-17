@@ -1,6 +1,6 @@
 {
   "name": "react-izanami",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "A set of React Component to use izanami idiomatically",
   "main": "lib/index.js",
   "author": "MAIF Team",
