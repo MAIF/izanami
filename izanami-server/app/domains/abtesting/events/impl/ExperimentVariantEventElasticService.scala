@@ -461,7 +461,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
             variant = Some(variant),
             displayed = d,
             won = w,
-            users = u,
+            users = u.toDouble,
             transformation = if (d != 0) (w * 100.0) / d else 0.0,
             events = e
           )
