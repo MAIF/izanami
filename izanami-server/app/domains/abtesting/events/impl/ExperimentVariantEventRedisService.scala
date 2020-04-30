@@ -104,7 +104,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
                    .zadd(
                      eventsKey,
                      ScoredValue.just(
-                       now(),
+                       now().toDouble,
                        Json.stringify(ExperimentVariantEventInstances.format.writes(data))
                      )
                    )
