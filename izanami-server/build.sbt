@@ -6,7 +6,7 @@ packageName in Universal := "izanami"
 
 name in Universal := "izanami"
 
-scalaVersion := "2.13.0"
+scalaVersion := "2.13.2"
 
 lazy val ITest = config("it") extend Test
 
@@ -117,7 +117,7 @@ scalacOptions ++= Seq(
   "-Yrangepos"
 )
 
-addCompilerPlugin(scalafixSemanticdb)
+//addCompilerPlugin(scalafixSemanticdb)
 
 coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
