@@ -146,7 +146,7 @@ package object abtesting {
   object VariantResult {
     def transformation(displayed: Long, won: Long): Double = displayed match {
       case 0 => 0.0
-      case _ => (won * 100) / displayed
+      case _ => ((won * 100) / displayed).toDouble
     }
   }
 
