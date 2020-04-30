@@ -59,5 +59,5 @@ scalacOptions ++= Seq(
   "-Yrangepos",
   "-P:semanticdb:synthetics:on"
 )
-addCompilerPlugin(scalafixSemanticdb)
+//addCompilerPlugin(scalafixSemanticdb)
 scalafixDependencies in ThisBuild += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.2"
