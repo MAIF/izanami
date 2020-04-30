@@ -9,7 +9,9 @@
     "test": "karma start ./karma.conf.js",
     "lint": "ng lint",
     "e2e": "protractor ./protractor.conf.js",
-    "pree2e": "webdriver-manager update --standalone false --gecko false --quiet"
+    "pree2e": "webdriver-manager update --standalone false --gecko false --quiet",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "private": true,
   "dependencies": {
@@ -29,7 +31,8 @@
     "lodash": "^4.17.13",
     "ng-select": "^1.0.0-rc.3",
     "rxjs": "^5.5.6",
-    "zone.js": "^0.8.19"
+    "zone.js": "^0.8.19",
+    "snyk": "^1.316.1"
   },
   "devDependencies": {
     "@angular-devkit/core": "0.0.29",
@@ -73,5 +76,6 @@
     "url-loader": "^0.6.2",
     "webpack": "~3.10.0",
     "webpack-dev-server": "~3.1.11"
-  }
+  },
+  "snyk": true
 }
