@@ -56,8 +56,7 @@ scalacOptions ++= Seq(
   "-language:existentials",
 //  "-Xfatal-warnings",
   "-Ywarn-unused:imports",
-  "-Yrangepos",
-  "-P:semanticdb:synthetics:on"
+  "-Yrangepos"
 )
 //addCompilerPlugin(scalafixSemanticdb)
 scalafixDependencies in ThisBuild += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.2"
