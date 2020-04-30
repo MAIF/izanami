@@ -175,8 +175,6 @@ package object auth {
       val config: Config =
         configuration.underlying.getConfig("izanami.oauth2.mtls.ssl-config") // .withFallback(configuration.underlying)
 
-      println(config)
-
       val sslConfig: SSLConfigSettings = SSLConfigFactory.parse(config)
 
       val mkLogger                   = new AkkaLoggerFactory(system)
