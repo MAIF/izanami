@@ -5,7 +5,10 @@
   "main": "index.js",
   "author": "MAIF Team",
   "license": "Apache-2.0",
-  "scripts": {},
+  "scripts": {
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/MAIF/izanami.git"
@@ -13,9 +16,11 @@
   "dependencies": {
     "deepmerge": "1.4.3",
     "isomorphic-fetch": "2.2.1",
-    "lodash": "4.17.13"
+    "lodash": "4.17.13",
+    "snyk": "^1.316.1"
   },
   "devDependencies": {
     "chai": "4.0.2"
-  }
+  },
+  "snyk": true
 }
