@@ -41,7 +41,7 @@ To run the application, you will need
 
 * JDK 8 : http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
 * sbt : http://www.scala-sbt.org/download.html or gradle https://gradle.org/install/
-* Node js : https://nodejs.org/en/download/ 
+* Node.js 10 : https://nodejs.org/en/download/ 
 * Yarn : https://yarnpkg.com/lang/en/docs/install/ 
 
 Let's start by cloning Izanami : 
@@ -53,7 +53,7 @@ git clone https://github.com/MAIF/izanami.git --depth=1
 Then we have to compile and run the js/react code 
 
 ```
-cd example/example-spring/javascript
+cd example/example-react/javascript
 yarn install 
 yarn start 
 ```
@@ -72,7 +72,7 @@ gradle bootRun
 Sbt
 :   
 ```bash
-sbt 'project example-spring' ';clean;~reStart'
+sbt 'project example-spring' ';clean;~run'
 ```
 
 Like on the client side, the server will be restarted automatically when your code will change. 
