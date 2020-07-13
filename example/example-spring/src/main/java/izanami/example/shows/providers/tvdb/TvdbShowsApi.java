@@ -1,8 +1,8 @@
 package izanami.example.shows.providers.tvdb;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.vavr.collection.List;
-import io.vavr.collection.Seq;
 import io.vavr.control.Option;
 import izanami.example.shows.Shows;
 import org.slf4j.Logger;
@@ -131,6 +131,7 @@ public class TvdbShowsApi implements Shows {
 
     public static class TvshowResume {
         public String banner;
+        @JsonFormat(pattern = "yyyy-M-d")
         public Date firstAired;
         public Long id;
         public String imdbId;
