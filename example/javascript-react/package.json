@@ -5,6 +5,8 @@
   "author": "adelegue",
   "license": "MIT",
   "scripts": {
+    "link-dev-react-izanami": "cd ../../izanami-clients/react && yarn link && npm-install-peers && cd ../../example/javascript-react/ && yarn link react-izanami",
+    "unlink-dev-react-izanami": "cd ../../example/javascript-react/ && yarn unlink react-izanami && cd ../../izanami-clients/react && yarn unlink",
     "bundle": "cross-env NODE_ENV=production webpack --colors --progress",
     "build": "rm -f ../src/main/resources/public/javascripts/bundle/* && npm run bundle",
     "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3334"
