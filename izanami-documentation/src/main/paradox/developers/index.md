@@ -1,5 +1,13 @@
 # For Developers
 
+## Run React example with local react-izanami module
+
+```bash
+cd izanami/example/javascript-react
+yarn run link-dev-react-izanami
+```
+> :warning: when your task is finished, run unlink-dev-react-izanami to stop the local resolution of dependency.
+
 ## Starting the server for developers 
 
 ```bash 
