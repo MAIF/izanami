@@ -113,11 +113,13 @@ The instance is configured on the `src/main/resources/application.yml` file :
 
 ```yaml
 izanami:
-  host: "http://localhost:9000"
-  client-id: xxxx
-  client-secret: xxxx
+  host: "http://izanami-tryout.cleverapps.io"
+  client-id: myApiKeyClientId
+  client-secret: myApiKeyClientSecret
   backend: SseBackend
 ```
+
+Go to http://izanami-tryout.cleverapps.io (admin / admin), create APIKey, and replace myApiKeyClientId / myApiKeyClientSecret with yours values. 
 
 And the client is registered as spring bean with the spring izanami starter.  
 
