@@ -43,11 +43,19 @@ To run the application, you will need
 * sbt : http://www.scala-sbt.org/download.html or gradle https://gradle.org/install/
 * Node.js 10 : https://nodejs.org/en/download/ 
 * Yarn : https://yarnpkg.com/lang/en/docs/install/ 
+* Docker Compose : https://docs.docker.com/compose/install/
 
 Let's start by cloning Izanami : 
 
 ```bash
 git clone https://github.com/MAIF/izanami.git --depth=1
+```
+
+Run Izanami locally :
+
+```bash
+cd example
+docker-compose -f docker-compose.izanami.yml up
 ```
 
 Then we have to compile and run the js/react code 
