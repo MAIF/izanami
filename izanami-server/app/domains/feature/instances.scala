@@ -254,16 +254,19 @@ object HourRangeFeatureInstances {
   import play.api.libs.json.Writes.temporalWrites
   import play.api.libs.json._
 
-  private[feature] val pattern = "HH:mm"
+  private[feature] val pattern  = "HH:mm"
+  private[feature] val pattern2 = "H:mm"
 
   val reads: Reads[HourRangeFeature] = (
     (__ \ "id").read[Key] and
     (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
     (__ \ "description").readNullable[String] and
     (__ \ "parameters" \ "startAt")
-      .read[LocalTime](localTimeReads(pattern)) and
+      .read[LocalTime](localTimeReads(pattern2))
+      .orElse(localTimeReads(pattern)) and
     (__ \ "parameters" \ "endAt")
-      .read[LocalTime](localTimeReads(pattern))
+      .read[LocalTime](localTimeReads(pattern2))
+      .orElse(localTimeReads(pattern))
   )(HourRangeFeature.apply _)
 
   private val dateWrite: Writes[LocalTime] = temporalWrites[LocalTime, String](pattern)
