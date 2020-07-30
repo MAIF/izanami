@@ -241,6 +241,26 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     }
 
+    "Deserialize HourRangeFeature 2" in {
+      import FeatureInstances._
+      val json =
+        Json.parse("""{
+                |"id":"test",
+                |"enabled":true,
+                |"parameters":{
+                |   "endAt":"13:06",
+                |   "startAt":"1:06"
+                |},
+                |"activationStrategy":"HOUR_RANGE"
+                |}""".stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(HourRangeFeature(Key("test"), true, None, LocalTime.of(1, 6), LocalTime.of(13, 6)))
+
+    }
+
     "Deserialize HourRangeFeature  without enabled" in {
       import FeatureInstances._
       val json =
