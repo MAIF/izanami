@@ -2,42 +2,36 @@ package domains
 
 import java.time.LocalDateTime
 
-import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import domains.Domain.Domain
 import domains.abtesting.Experiment.ExperimentKey
 import domains.abtesting._
 import domains.abtesting.events._
-import domains.apikey.{Apikey, ApikeyInstances}
 import domains.apikey.Apikey.ApikeyKey
-import domains.config.{Config, ConfigInstances}
+import domains.apikey.{Apikey, ApikeyInstances}
+import domains.auth.AuthInfo
 import domains.config.Config.ConfigKey
+import domains.config.{Config, ConfigInstances}
+import domains.errors.IzanamiErrors
 import domains.events.Events.IzanamiEvent
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
-import domains.feature.{Feature, FeatureInstances}
 import domains.feature.Feature.FeatureKey
-import domains.script.{GlobalScript, GlobalScriptInstances}
+import domains.feature.{Feature, FeatureInstances}
 import domains.script.GlobalScript.GlobalScriptKey
-import domains.user.{User, UserInstances}
+import domains.script.{GlobalScript, GlobalScriptInstances}
 import domains.user.User.UserKey
-import domains.webhook.{Webhook, WebhookInstances}
+import domains.user.{User, UserInstances}
 import domains.webhook.Webhook.WebhookKey
-import domains.{Domain, Key}
-import env.{DistributedEvents, InMemoryEvents, IzanamiConfig, KafkaEvents, RedisEvents}
+import domains.webhook.{Webhook, WebhookInstances}
+import env._
 import libs.IdGenerator
 import libs.database.Drivers
-import play.api.inject.ApplicationLifecycle
-import play.api.libs.json._
-import play.api.Logger
-import domains.errors.IzanamiErrors
-import zio.{Managed, RIO, Task, ZIO, ZLayer}
 import libs.logs.ZLogger
-import domains.auth.AuthInfo
-import domains.auth.AuthInfo
-import domains.configuration.PlayModule
-import env.configuration.IzanamiConfigModule
-import store.datastore.{DataStoreContext, DataStoreLayerContext}
+import play.api.Logger
+import play.api.libs.json._
+import store.datastore.DataStoreLayerContext
+import zio.{RIO, Task, ZIO, ZLayer}
 
 package object events {
 
@@ -782,15 +776,15 @@ package object events {
       }
 
     def publish(event: IzanamiEvent): ZIO[EventStoreContext, IzanamiErrors, Done] =
-      ZIO.accessM(_.get.publish(event))
+      ZIO.accessM(_.get[EventStore.Service].publish(event))
 
     def events(domains: Seq[Domain] = Seq.empty[Domain],
                patterns: Seq[String] = Seq.empty[String],
                lastEventId: Option[Long] = None): RIO[EventStoreContext, Source[IzanamiEvent, NotUsed]] =
-      ZIO.access(_.get.events(domains, patterns, lastEventId))
+      ZIO.access(_.get[EventStore.Service].events(domains, patterns, lastEventId))
 
     def check(): ZIO[EventStoreContext, IzanamiErrors, Unit] =
-      ZIO.accessM(_.get.check().orDie)
+      ZIO.accessM(_.get[EventStore.Service].check().orDie)
 
   }
 }

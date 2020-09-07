@@ -4,37 +4,22 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 import akka.NotUsed
-import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
 import domains.abtesting.Experiment.ExperimentKey
-import domains.abtesting.events.ExperimentVariantEventService
-import domains.abtesting.events.impl.{
-  ExperimentVariantEventCassandraService,
-  ExperimentVariantEventDynamoService,
-  ExperimentVariantEventElasticService,
-  ExperimentVariantEventInMemoryService,
-  ExperimentVariantEventLevelDBService,
-  ExperimentVariantEventMongoService,
-  ExperimentVariantEventPostgresqlService,
-  ExperimentVariantEventRedisService
-}
-import domains.abtesting.{Experiment, ExperimentResultEvent, Variant, VariantResult}
+import domains.abtesting.events.impl._
 import domains.auth.AuthInfo
-import domains.configuration.PlayModule
 import domains.errors.{ErrorMessage, IzanamiErrors}
 import domains.events.EventStore
 import domains.{ImportResult, Key}
 import env._
-import env.configuration.IzanamiConfigModule
 import libs.IdGenerator
 import libs.database.Drivers
 import libs.logs.{IzanamiLogger, ZLogger}
-import play.api.inject.ApplicationLifecycle
 import play.api.libs.json.{JsError, JsSuccess, JsValue}
-import store.datastore.{DataStoreContext, DataStoreLayerContext}
-import zio.{Task, ZIO, ZLayer}
+import store.datastore.DataStoreLayerContext
 import zio.blocking.Blocking
+import zio.{Task, ZIO, ZLayer}
 
 import scala.collection.immutable.HashSet
 
@@ -239,31 +224,31 @@ package object events {
         id: ExperimentVariantEventKey,
         data: ExperimentVariantEvent
     ): zio.ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, ExperimentVariantEvent] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.create(id, data))
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].create(id, data))
 
     def deleteEventsForExperiment(
         experiment: Experiment
     ): zio.ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.deleteEventsForExperiment(experiment))
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].deleteEventsForExperiment(experiment))
 
     def findVariantResult(
         experiment: Experiment
     ): zio.RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.findVariantResult(experiment))
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].findVariantResult(experiment))
 
     def listAll(
         patterns: Seq[String] = Seq("*")
     ): zio.RIO[ExperimentVariantEventServiceModule, Source[ExperimentVariantEvent, NotUsed]] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.listAll(patterns))
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].listAll(patterns))
 
     def check(): zio.ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.check().orDie)
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].check().orDie)
 
     def start: zio.RIO[ExperimentVariantEventServiceModule, Unit] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.start)
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].start)
 
     def importData(): zio.RIO[ExperimentVariantEventServiceModule, Flow[(String, JsValue), ImportResult, NotUsed]] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get.importData)
+      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].importData)
 
     def value(store: ExperimentVariantEventService.Service): ZLayer[Any, Nothing, ExperimentVariantEventService] =
       ZLayer.succeed(store)
