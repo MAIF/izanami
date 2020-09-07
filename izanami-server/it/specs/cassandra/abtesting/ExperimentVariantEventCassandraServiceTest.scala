@@ -13,6 +13,7 @@ import zio.{Exit, Reservation}
 class ExperimentVariantEventCassandraServiceTest
     extends AbstractExperimentServiceTest("Cassandra")
     with BeforeAndAfterAll {
+  import zio.NeedsEnv.needsEnv
 
   val cassandraConfig = CassandraConfig(Seq("127.0.0.1:9042"), None, 1, "izanami_test")
   private val rDriver: Reservation[ZLogger, Throwable, Option[(Cluster, Session)]] =
