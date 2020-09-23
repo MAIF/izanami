@@ -49,7 +49,7 @@
     "webpack-dev-server": "3.1.11"
   },
   "dependencies": {
-    "antd": "^3.4.3",
+    "antd": "^3.16.4",
     "bootstrap": "4.3.1",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.3",
@@ -62,7 +62,7 @@
     "lodash": "4.17.13",
     "moment": "2.21.0",
     "popper.js": "^1.16.0",
-    "prop-types": "15.6.0",
+    "prop-types": "15.6.2",
     "query-string": "^6.2.0",
     "react": "16.6.3",
     "react-ace": "6.2.0",
