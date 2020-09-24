@@ -20,7 +20,7 @@ You can get
 
 ## Run izanami.jar 
 
-To run izanami.jar, you will need JDK 8. 
+To run izanami.jar, you will need JDK 11. 
 
 Then just use :
 
@@ -30,7 +30,7 @@ java -jar izanami.jar
    
 ## Run izanami.zip
 
-To run izanami.zip, you will need JDK 8.
+To run izanami.zip, you will need JDK 11.
 
 First unzip the archive : 
 

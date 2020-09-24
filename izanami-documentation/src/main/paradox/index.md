@@ -48,7 +48,7 @@ Download it :
 wget --quiet 'https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar'
 ```
 
-Run it (JDK 8 needed)
+Run it (JDK 11 needed)
 
 ```zsh
 java -jar izanami.jar
