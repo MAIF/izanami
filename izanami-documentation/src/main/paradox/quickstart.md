@@ -3,7 +3,7 @@
 
 what you will need :
 
-* JDK 8
+* JDK 11
 * wget
 
 

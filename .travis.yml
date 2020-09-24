@@ -16,68 +16,68 @@ jobs:
     - stage: server_test     
       name: "Run unit test"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: sbt -jvm-opts .jvmopts-travis  -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/test;jvm/test"
 
     - stage: server_it
       name: "Run integration that depends on cassandra"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "cassandra" "specs.cassandra.*"
 
     - stage: server_it
       name: "Run integration that depends on dynamo"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "dynamodb" "specs.dynamo.*"
 
     - stage: server_it
       name: "Run integration that depends on elasticsearch"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "elasticsearch" "specs.elastic.*"
 
     - stage: server_it
       name: "Run integration that depends on levedb"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "" "specs.leveldb.*"
 
     - stage: server_it
       name: "Run integration that depends on memory"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "" "specs.memory.*"
 
     - stage: server_it
       name: "Run integration that depends on memory with db"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "" "specs.memorywithdb.*"
 
     - stage: server_it
       name: "Run integration that depends on mongo"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "mongo" "specs.mongo.*"
 
     - stage: server_it
       name: "Run integration that depends on postgresql"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "postgres_test" "specs.postgresql.*"
 
     - stage: server_it
       name: "Run integration that depends on redis"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: ./scripts/runIt.sh "redis" "specs.redis.*"     
 
 
     - stage: server_package
       name: "Build server package"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       script: 
       - sh ./scripts/build-javascript.sh
       - sbt  -Dsbt.color=always -Dsbt.supershell=false -jvm-opts .jvmopts-travis ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;+jvm/publishLocal;izanami-spring/publishLocal"
@@ -85,7 +85,7 @@ jobs:
     - stage: publish 
       name: "Build server package and publish it to bintray"
       os: linux
-      jdk: openjdk8
+      jdk: openjdk11
       env: 
         - JS_BUILD=true
       script: 

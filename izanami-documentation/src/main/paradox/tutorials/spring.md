@@ -39,7 +39,7 @@ The code is organized as follow :
 
 To run the application, you will need 
 
-* JDK 8 : http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+* JDK 11 : https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
 * sbt : http://www.scala-sbt.org/download.html or gradle https://gradle.org/install/
 * Node.js 10 : https://nodejs.org/en/download/ 
 * Yarn : https://yarnpkg.com/lang/en/docs/install/ 
