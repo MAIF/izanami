@@ -1,5 +1,4 @@
 import akka.actor.ActorSystem
-import cats.effect.Resource
 import com.softwaremill.macwire._
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
@@ -16,7 +15,6 @@ import domains.webhook.{WebhookDataStore, WebhookService}
 import env._
 import filters.{ZioIzanamiDefaultFilter, ZioOtoroshiFilter}
 import handlers.ErrorHandler
-import libs.http.HttpContext
 import libs.logs.IzanamiLogger
 import metrics.MetricsService
 import play.api.ApplicationLoader.Context
@@ -28,7 +26,7 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
 import router.Routes
-import zio.{Exit, Reservation, Runtime, URIO, ZIO, ZManaged}
+import zio.{Runtime, ZEnv, ZIO, ZLayer}
 
 import scala.util.Random
 
@@ -56,7 +54,8 @@ package object modules {
     lazy val mayBeOauth2Config: Option[Oauth2Config] = izanamiConfig.oauth2.filter(_.enabled)
 
     implicit val system: ActorSystem        = actorSystem
-    implicit val runtime: Runtime[zio.ZEnv] = Runtime.default
+    implicit val runtime: Runtime[ZEnv] = Runtime.default
+    import zio.interop.catz._
 
     IzanamiLogger.info(s"Configuration: \n$izanamiConfig")
 
@@ -76,27 +75,23 @@ package object modules {
       case _         => cacheApi("izanami")
     }
 
-    private val release: ZManaged[Any, Nothing, HttpContext[GlobalContext]] =
-      GlobalContext
-        .live(actorSystem,
-              materializer,
-              izanamiCache,
-              configuration,
-              environment,
-              wsClient,
-              system.dispatcher,
-              izanamiConfig,
-              applicationLifecycle)
-        .memoize
-
-    private val reservation: Reservation[Any, Nothing, HttpContext[GlobalContext]] =
-      runtime.unsafeRun(release.reserve)
-
-    private implicit val globalContextLayer: HttpContext[GlobalContext] =
-      runtime.unsafeRun(reservation.acquire)
+    private implicit val  (globalContextLayer: ZLayer[zio.ZEnv, Throwable, GlobalContext], release: ZIO[zio.ZEnv, Throwable, Unit])  =
+      Runtime.default.unsafeRun(
+        GlobalContext.live(actorSystem,
+        materializer,
+        izanamiCache,
+        configuration,
+        environment,
+        wsClient,
+        system.dispatcher,
+        izanamiConfig,
+        applicationLifecycle)
+      .memoize
+      .toResource
+      .allocated)
 
     applicationLifecycle.addStopHook { () =>
-      runtime.unsafeRunToFuture(reservation.release(Exit.succeed(())))
+      runtime.unsafeRunToFuture(release)
     }
 
     // Start stores

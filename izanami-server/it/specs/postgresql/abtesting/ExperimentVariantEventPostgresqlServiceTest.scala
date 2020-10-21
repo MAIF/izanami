@@ -14,6 +14,7 @@ class ExperimentVariantEventPostgresqlServiceTest
     extends AbstractExperimentServiceTest("Postgresql")
     with BeforeAndAfter
     with BeforeAndAfterAll {
+  import zio.NeedsEnv.needsEnv
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
   import zio.interop.catz._
