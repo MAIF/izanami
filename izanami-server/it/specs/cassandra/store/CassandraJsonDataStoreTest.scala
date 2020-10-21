@@ -8,6 +8,7 @@ import store.AbstractJsonDataStoreTest
 import store.cassandra.CassandraClient
 import store.cassandra.CassandraJsonDataStore
 import zio.{Exit, Reservation}
+import zio.NeedsEnv.needsEnv
 
 class CassandraJsonDataStoreTest
     extends AbstractJsonDataStoreTest("Cassandra")

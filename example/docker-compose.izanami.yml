@@ -46,7 +46,7 @@ services:
     - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
 
   izanami:
-    image: maif/izanami:1.0.9
+    image: maif/izanami:1.8.2
     ports:
     - 9000:8080
     expose:

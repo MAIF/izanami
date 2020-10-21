@@ -3,8 +3,9 @@
 To run izanami from sources, you will need : 
 
 * git 
-* JDK 8 
+* JDK 11 
 * SBT 
+* Node.js 10
 * yarn or npm 
 
 First get the sources : 

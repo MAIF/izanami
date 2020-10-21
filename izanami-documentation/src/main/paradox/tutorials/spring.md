@@ -39,10 +39,11 @@ The code is organized as follow :
 
 To run the application, you will need 
 
-* JDK 8 : http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+* JDK 11 : https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
 * sbt : http://www.scala-sbt.org/download.html or gradle https://gradle.org/install/
-* Node js : https://nodejs.org/en/download/ 
+* Node.js 10 : https://nodejs.org/en/download/ 
 * Yarn : https://yarnpkg.com/lang/en/docs/install/ 
+* Docker Compose : https://docs.docker.com/compose/install/
 
 Let's start by cloning Izanami : 
 
@@ -50,10 +51,17 @@ Let's start by cloning Izanami :
 git clone https://github.com/MAIF/izanami.git --depth=1
 ```
 
+Run Izanami locally :
+
+```bash
+cd example
+docker-compose -f docker-compose.izanami.yml up
+```
+
 Then we have to compile and run the js/react code 
 
 ```
-cd example/example-spring/javascript
+cd example/example-react/javascript
 yarn install 
 yarn start 
 ```
@@ -72,7 +80,7 @@ gradle bootRun
 Sbt
 :   
 ```bash
-sbt 'project example-spring' ';clean;~reStart'
+sbt 'project example-spring' ';clean;~run'
 ```
 
 Like on the client side, the server will be restarted automatically when your code will change. 
@@ -105,11 +113,13 @@ The instance is configured on the `src/main/resources/application.yml` file :
 
 ```yaml
 izanami:
-  host: "http://localhost:9000"
-  client-id: xxxx
-  client-secret: xxxx
+  host: "http://izanami-tryout.cleverapps.io"
+  client-id: myApiKeyClientId
+  client-secret: myApiKeyClientSecret
   backend: SseBackend
 ```
+
+Go to http://izanami-tryout.cleverapps.io (admin / admin), create APIKey, and replace myApiKeyClientId / myApiKeyClientSecret with yours values. 
 
 And the client is registered as spring bean with the spring izanami starter.  
 

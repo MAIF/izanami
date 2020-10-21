@@ -14,6 +14,7 @@ class PostgresqlJsonDataStoreTest
     with BeforeAndAfterAll {
   import zio._
   import zio.interop.catz._
+  import zio.NeedsEnv.needsEnv
 
   private val pgConfig = PostgresqlConfig(
     "org.postgresql.Driver",
