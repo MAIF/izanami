@@ -215,7 +215,7 @@ class IzanamiExperimentsClient {
   variantFor(key, clientId) {
     const columnKey = key.replace(/\./g, ":");
     const dottyKey = key.replace(/:/g, ".");
-    const url = this.conf.host + "/api/experiments/" + columnKey; + "/won?clientId=" + clientId
+    const url = this.conf.host + "/api/experiments/" + columnKey + "/variant?clientId=" + clientId
     if (this.conf.env === 'DEV') {
       const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
       return new Promise((s, f) => s(value.active || {}));
