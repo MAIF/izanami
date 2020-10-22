@@ -21,7 +21,7 @@
     "deepmerge": "^1.4.4",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.3",
-    "prop-types": "15.6.0",
+    "prop-types": "15.7.2",
     "whatwg-fetch": "2.0.3"
   },
   "peerDependencies": {
