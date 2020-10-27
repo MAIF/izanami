@@ -6,7 +6,7 @@ packageName in Universal := "izanami"
 
 name in Universal := "izanami"
 
-scalaVersion := "2.13.2"
+scalaVersion := "2.13.3"
 
 lazy val ITest = config("it") extend Test
 
