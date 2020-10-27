@@ -33,6 +33,11 @@ This will start an Izanami server listening on the port `9000` and using
 
 You can find the springboot tutorial at this link https://maif.github.io/izanami/manual/tutorials/spring.html. 
 
+## Publish Izanami client on local repository
+
+```
+sbt 'project jvm' '~publishLocal'
+```
 
 ## Run the play app 
 

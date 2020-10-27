@@ -68,6 +68,11 @@ yarn start
 
 Now there is a webpack server waiting to refresh the browser when the code change. 
 
+Server depend of Izanami client in dev version. Publish it on the local repository :
+```bash
+sbt 'project jvm' '~publishLocal'
+```
+
 Let's run the server side : 
 
 Graddle

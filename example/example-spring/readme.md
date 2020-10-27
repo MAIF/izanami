@@ -6,14 +6,14 @@ This app is a springboot and react application using izanami for feature flippin
 
 ### Build javascript 
 ```bash
-cd javascript 
+cd example/javascript-react 
 yarn install 
 yarn build 
 ```
 or In dev mode 
 
 ```bash
-cd javascript 
+cd example/javascript-react 
 yarn install 
 yarn start 
 ```
@@ -43,6 +43,12 @@ Run app with the watch mode (the app is restarted on changes)
 
 In the root folder
 
+Publish izanami client on local repository
+```bash
+sbt 'project jvm' '~publishLocal'
+```
+
+Start sample
 ```bash
 sbt 'project example-spring' '~reStart'
 ```
