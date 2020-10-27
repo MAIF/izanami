@@ -91,7 +91,7 @@ object TvdbShows {
   case class TvshowResume(banner: Option[String],
                           id: Int,
                           imdbId: Option[String],
-                          network: String,
+                          network: Option[String],
                           overview: Option[String],
                           seriesName: String,
                           status: String) {
@@ -338,6 +338,7 @@ class BetaSerieShows(config: BetaSerieConfig, wSClient: WSClient)(implicit ec: E
                   },
                   s => s.some
                 )
+              AppLogger.info(""+show.get.shows.length)
               FastFuture.successful(show.get.shows)
             case r =>
               FastFuture.failed(new RuntimeException(s"Error getting betaseries show ${r.body}"))
