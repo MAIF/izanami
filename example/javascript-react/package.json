@@ -5,8 +5,7 @@
   "author": "adelegue",
   "license": "MIT",
   "scripts": {
-    "link-dev-react-izanami": "cd ../../izanami-clients/react && yarn link && npm-install-peers && cd ../../example/javascript-react/ && yarn link react-izanami",
-    "unlink-dev-react-izanami": "cd ../../example/javascript-react/ && yarn unlink react-izanami && cd ../../izanami-clients/react && yarn unlink",
+    "preinstall": "cd ../../izanami-clients/react && yarn install && yarn prepublishOnly",
     "bundle": "cross-env NODE_ENV=production webpack --colors --progress",
     "build": "rm -f ../src/main/resources/public/javascripts/bundle/* && npm run bundle",
     "start": "cross-env NODE_ENV=dev webpack-dev-server -d --colors --inline --port 3334"
@@ -58,15 +57,13 @@
     "jquery": "3.5.0",
     "lodash": "4.17.13",
     "moment": "2.21.0",
-    "prop-types": "^15.6.0",
-    "react": "16.0.0",
-    "react-ace": "5.2.1",
-    "react-datetime": "2.10.3",
-    "react-dom": "16.0.1",
-    "react-izanami": "1.4.4",
-    "react-router": "4.1.2",
-    "react-router-dom": "4.2.2",
-    "react-select": "^1.2.1",
+    "prop-types": "15.7.2",
+    "react": "16.14.0",
+    "react-dom": "16.14.0",
+    "react-izanami": "file:../../izanami-clients/react",
+    "react-router": "5.2.0",
+    "react-router-dom": "5.2.0",
+    "react-select": "3.1.0",
     "showdown": "1.9.1",
     "whatwg-fetch": "2.0.3"
   }
