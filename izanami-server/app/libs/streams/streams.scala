@@ -100,7 +100,7 @@ object CacheableQueue {
       Source
         .queue[QueueElement[T]](queueBufferSize, backpressure)
         .toMat(BroadcastHub.sink(2))(Keep.both)
-        .run
+        .run()
 
     val (_, tmpSource: Source[QueueState[T], NotUsed]) = rawSource
       .scan(QueueState.empty[T](capacity)) {
@@ -110,7 +110,7 @@ object CacheableQueue {
           state.push(elt)
       }
       .toMat(BroadcastHub.sink(broadcastCapacity))(Keep.both)
-      .run
+      .run()
 
     val source: Source[T, NotUsed] = tmpSource.statefulMapConcat { () =>
       var first = true

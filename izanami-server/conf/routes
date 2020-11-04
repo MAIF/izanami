@@ -5,7 +5,7 @@
 
 
 ### NoDocs ###
-GET     /                                   controllers.HomeController.index
+GET     /                                   controllers.HomeController.index()
 
 #########################################################################
 #                           Configs                                     #
@@ -1678,7 +1678,7 @@ GET     /api/_search                        controllers.SearchController.search(
 #          schema:
 #            type: object
 ###
-GET     /api/_health                        controllers.HealthCheckController.check
+GET     /api/_health                        controllers.HealthCheckController.check()
 ###
 #  summary: metrics for prometheus
 #  tags:
