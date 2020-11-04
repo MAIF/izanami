@@ -270,7 +270,7 @@ object Cassandra {
   implicit class AsyncConvertions[T](f: ListenableFuture[T]) {
 
     def toFuture(implicit ec: ExecutionContext): Future[T] = {
-      val promise: Promise[T] = Promise[T]
+      val promise: Promise[T] = Promise[T]()
       Futures.addCallback(
         f,
         new FutureCallback[T] {
