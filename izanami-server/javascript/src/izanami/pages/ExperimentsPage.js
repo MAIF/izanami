@@ -197,10 +197,7 @@ class Variants extends Component {
     //  return a.id.localeCompare(b.id);
     //});
     const trafficStack = this.trafficStack();
-    console.log(trafficStack)
     const isUpdate = !!this.props.source.id;
-    let value = trafficStack.map(i => i.percent);
-    console.log(value);
     return (
       <div>
         <hr />
@@ -231,7 +228,7 @@ class Variants extends Component {
               trackClassName="bar"
               withBars={true}
               defaultValue={trafficStack.map(i => i.percent)}
-              value={value}
+              value={trafficStack.map(i => i.percent)}
               onChange={this.updateTraffic}
               orientation="horizontal"
               min={0}

@@ -5994,7 +5994,7 @@ react-table@6.6.0:
   dependencies:
     classnames "^2.2.5"
 
-react-timekeeper@1.1.0:
+react-timekeeper@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/react-timekeeper/-/react-timekeeper-1.1.0.tgz#55da1829811bdc069e4ef53eb29a95f19c3c4ee6"
   integrity sha512-+Ee1bigAXkQbzvO+BdGiNkDSl44/BB6H0cC2WsXYnOZaBMiNl587cP9XZqul7pP/IK0YgpzONdGlmVig7viR4g==
