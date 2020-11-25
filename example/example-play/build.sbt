@@ -10,6 +10,8 @@ scalaVersion := "2.13.3"
 
 val akkaVersion = "2.6.3"
 
+PlayKeys.devSettings := Seq("play.server.http.port" -> "8080")
+
 resolvers ++= Seq(
   Resolver.jcenterRepo,
   ("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local").withAllowInsecureProtocol(true)
