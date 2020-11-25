@@ -42,7 +42,7 @@ class FallbackExperimentStrategy(fallback: Experiments) extends ExperimentsClien
 
     val experiment: ExperimentFallback = fallback.experiments
       .find(_.id == experimentId)
-      .getOrElse(ExperimentFallback(experimentId, "", "", false, Variant("", "", "")))
+      .getOrElse(ExperimentFallback(experimentId, "", "", false, Variant("", "", None)))
 
     FastFuture.successful(
       ExperimentVariantDisplayed(
@@ -61,7 +61,7 @@ class FallbackExperimentStrategy(fallback: Experiments) extends ExperimentsClien
 
     val experiment: ExperimentFallback = fallback.experiments
       .find(_.id == experimentId)
-      .getOrElse(ExperimentFallback(experimentId, "", "", false, Variant("", "", "")))
+      .getOrElse(ExperimentFallback(experimentId, "", "", false, Variant("", "", None)))
 
     FastFuture.successful(
       ExperimentVariantWon(

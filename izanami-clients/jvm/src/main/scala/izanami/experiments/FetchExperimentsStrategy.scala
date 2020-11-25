@@ -121,7 +121,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments, er
 
           val experiment: ExperimentFallback = fallback.experiments
             .find(_.id == experimentId)
-            .getOrElse(ExperimentFallback(experimentId, "", "", enabled = false, Variant("", "", "")))
+            .getOrElse(ExperimentFallback(experimentId, "", "", enabled = false, Variant("", "", None)))
 
           FastFuture.successful(
             ExperimentVariantDisplayed(
@@ -163,7 +163,7 @@ class FetchExperimentsStrategy(httpClient: HttpClient, fallback: Experiments, er
 
           val experiment: ExperimentFallback = fallback.experiments
             .find(_.id == experimentId)
-            .getOrElse(ExperimentFallback(experimentId, "", "", enabled = false, Variant("", "", "")))
+            .getOrElse(ExperimentFallback(experimentId, "", "", enabled = false, Variant("", "", None)))
 
           FastFuture.successful(
             ExperimentVariantWon(

@@ -30,8 +30,8 @@ class FetchExperimentsClientStrategySpec extends IzanamiSpec with BeforeAndAfter
         .experimentClient(Strategies.fetchStrategy())
       //#experiment-client
 
-      val variantA            = Variant("A", "Variant A", "The A variant")
-      val variantB            = Variant("B", "Variant B", "The B variant")
+      val variantA            = Variant("A", "Variant A", Some("The A variant"))
+      val variantB            = Variant("B", "Variant B", Some("The B variant"))
       val expectedExperiments = Experiment("test", "test", "An experiment", true, Seq(variantA, variantB))
 
       getExperimentList("*", Seq(expectedExperiments))
@@ -105,8 +105,8 @@ class FetchExperimentsClientStrategySpec extends IzanamiSpec with BeforeAndAfter
       val client = IzanamiClient(ClientConfig(host))
         .experimentClient(Strategies.fetchStrategy())
 
-      val variantA            = Variant("A", "Variant A", "The A variant")
-      val variantB            = Variant("B", "Variant B", "The B variant")
+      val variantA            = Variant("A", "Variant A", Some("The A variant"))
+      val variantB            = Variant("B", "Variant B", Some("The B variant"))
       val expectedExperiments = Experiment("izanami:ab:test", "test", "An experiment", true, Seq(variantA, variantB))
 
       getExperimentTree("*", "client1", "A", Seq(expectedExperiments))
@@ -129,8 +129,8 @@ class FetchExperimentsClientStrategySpec extends IzanamiSpec with BeforeAndAfter
 
     "Tree experiments with disabled experiment" in {
 
-      val variantA = Variant("A", "Variant A", "The A variant")
-      val variantB = Variant("B", "Variant B", "The B variant")
+      val variantA = Variant("A", "Variant A", Some("The A variant"))
+      val variantB = Variant("B", "Variant B", Some("The B variant"))
 
       val client = IzanamiClient(ClientConfig(host))
         .experimentClient(

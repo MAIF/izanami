@@ -725,7 +725,7 @@ public class IzanamiTest {
                                 "Experiment",
                                 "An Experiment",
                                 true,
-                                Variant.create("A", "Variant A", "Variant A")
+                                Variant.create("A", "Variant A", scala.Option.apply("Variant A"))
                         )));
 
         Proxy proxy = izanamiClient.proxy()

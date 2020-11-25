@@ -186,11 +186,11 @@ trait Event
 ///////////////////////////  Experiment   /////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-case class Variant(id: String, name: String, description: String)
+case class Variant(id: String, name: String, description: Option[String])
 
 object Variant {
   implicit val format                                                = Json.format[Variant]
-  def create(id: String, name: String, description: String): Variant = Variant(id, name, description)
+  def create(id: String, name: String, description: Option[String]): Variant = Variant(id, name, description)
 }
 
 sealed trait ExperimentVariantEvent {
