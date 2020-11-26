@@ -131,7 +131,7 @@ export class AuthorizedPatternsInput extends Component {
                     <div className="form-group row">
                         <label
                             htmlFor={`input-${this.props.label}`}
-                            className="col-sm-2 control-label"
+                            className="col-sm-2 col-form-label"
                         >
                             {this.props.label}
                         </label>
@@ -150,12 +150,12 @@ export class AuthorizedPatternsInput extends Component {
                 {this.state.values && this.state.values.map((value, idx) => (
                     <div className="form-group row" key={`obj-${idx}`}>
                         {idx === 0 && (
-                            <label className="col-sm-2 control-label">
+                            <label className="col-sm-2 col-form-label">
                                 {this.props.label}
                             </label>
                         )}
                         {idx > 0 && (
-                            <label className="col-sm-2 control-label">&nbsp;</label>
+                            <label className="col-sm-2 col-form-label">&nbsp;</label>
                         )}
                         <div className="col-sm-10">
                             <div className="input-group">
