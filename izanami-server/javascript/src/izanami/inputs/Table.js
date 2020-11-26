@@ -912,7 +912,7 @@ export class Table extends Component {
             />
             <hr />
             {this.state.error && (
-              <div className="col-sm-offset-2 panel-group">
+              <div className="offset-sm-2 panel-group">
                 <Alerts
                   display={this.state.error}
                   messages={this.state.errorList}
@@ -949,7 +949,7 @@ export class Table extends Component {
             />
             <hr />
             {this.state.error && (
-              <div className="col-sm-offset-2 panel-group">
+              <div className="offset-sm-2 panel-group">
                 <Alerts
                   display={this.state.error}
                   messages={this.state.errorList}

@@ -14,12 +14,12 @@ export class FieldError extends Component {
 
     if (display) {
       return (
-        <div className="form-group row has-error">
+        <div className="has-error">
           {this.props.children}
           {this.props.errorMessage.map((err, index) => (
             <div>
               <label
-                className="col-form-label col-sm-offset-2 paddingLabelError"
+                className="col-form-label offset-sm-2"
                 for="inputError1"
                 key={index}
               >
