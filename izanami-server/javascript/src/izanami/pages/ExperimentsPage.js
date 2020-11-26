@@ -15,9 +15,7 @@ import {
   AreaChart,
   Area
 } from "recharts";
-//import ReactSlider from 'react-slider';
-// FIXME : this is a fork of react-slider to fix a bug. Waiting for a PR to be merged
-import ReactSlider from "../components/ReactSlider";
+import ReactSlider from 'react-slider';
 import moment from "moment";
 import { IzaDateRangePicker } from "../components/IzanamiDatePicker";
 import truncate from "lodash/truncate";
@@ -226,6 +224,8 @@ class Variants extends Component {
           <div>
             <ReactSlider
               className="horizontal-slider"
+              thumbClassName="handle"
+              trackClassName="bar"
               withBars={true}
               defaultValue={trafficStack.map(i => i.percent)}
               value={trafficStack.map(i => i.percent)}
@@ -233,13 +233,15 @@ class Variants extends Component {
               orientation="horizontal"
               min={0}
               max={100}
-            >
-              {trafficStack.map((t, i) => (
-                <div key={`trafic-slider-${t}-${i}`}>
-                  {`${t.id ? `${t.id}: ` : ""} ${t.traffic} %`}
-                </div>
-              ))}
-            </ReactSlider>
+              withTracks={true}
+              renderThumb={(props, state) => {
+                const current = trafficStack[state.index]
+                return <div key={`trafic-slider-${current}-${state.index}`} {...props}>
+                  {`${current.id ? `${current.id}: ` : ""} ${current.traffic} %`}
+                  </div>
+              }}
+              // ))}
+            />
           </div>
         </div>
       </div>

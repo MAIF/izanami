@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.vavr.collection.List;
 import io.vavr.control.Option;
+import izanami.example.otoroshi.OtoroshiFilter;
 import izanami.example.shows.Shows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -130,6 +133,8 @@ public class TvdbShowsApi implements Shows {
 
 
     public static class TvshowResume {
+        private final Logger Logger = LoggerFactory.getLogger(TvshowResume.class);
+
         public String banner;
         @JsonFormat(pattern = "yyyy-M-d")
         public Date firstAired;
@@ -159,7 +164,7 @@ public class TvdbShowsApi implements Shows {
                     String.valueOf(this.id),
                     this.seriesName,
                     this.overview,
-                    Option.of(this.banner).filter(i -> !i.isEmpty()).map(i -> baseUrl + i).getOrNull(),
+                    getBanner(baseUrl),
                     seasons
             );
         }
@@ -169,9 +174,20 @@ public class TvdbShowsApi implements Shows {
                     String.valueOf(this.id),
                     this.seriesName,
                     this.overview,
-                    Option.of(this.banner).filter(i -> !i.isEmpty()).map(i -> baseUrl + i).getOrNull(),
+                    getBanner(baseUrl),
                     "tvdb"
             );
+        }
+
+        private String getBanner(String baseUrl) {
+                return Option.of(this.banner).filter(i -> !i.isEmpty()).map(i -> {
+                    try {
+                        return new URI(baseUrl + i.replace("banners/","")).normalize().toString();
+                    } catch (URISyntaxException e) {
+                        Logger.error("Banner URL can be generated", e);
+                    }
+                    return null;
+                }).getOrNull();
         }
     }
 

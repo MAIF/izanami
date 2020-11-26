@@ -301,7 +301,7 @@ package object metrics {
           izanamiConfig    <- IzanamiConfigModule.izanamiConfig
           kafkaConfig      <- ZIO.fromOption(izanamiConfig.db.kafka)
           producerSettings = KafkaSettings.producerSettings(system, kafkaConfig)
-          producer         = producerSettings.createKafkaProducer
+          producer         = producerSettings.createKafkaProducer()
           _                <- ZLogger.info("Enabling kafka metrics reporter")
           fiber <- (MetricsService.metrics flatMap { (metrics: Metrics) =>
                     sendToKafka(producer, metricsConfig, metrics)

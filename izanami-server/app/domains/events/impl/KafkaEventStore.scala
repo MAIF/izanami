@@ -110,7 +110,7 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
     KafkaSettings.producerSettings(system, clusterConfig)
 
   private lazy val producer =
-    producerSettings.createKafkaProducer
+    producerSettings.createKafkaProducer()
 
   val settings: ConsumerSettings[String, String] = KafkaSettings
     .consumerSettings(system, clusterConfig)

@@ -291,7 +291,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
 
   def uploadEvents() = AuthAction.asyncTask[ExperimentContext](Import.ndJson) { ctx =>
     for {
-      flow <- ExperimentVariantEventService.importData
+      flow <- ExperimentVariantEventService.importData()
       res <- ZIO.fromFuture(
               _ =>
                 ctx.body
