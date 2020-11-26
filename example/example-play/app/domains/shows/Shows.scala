@@ -1,5 +1,6 @@
 package domains.shows
 
+import java.net.URI
 import java.util.Date
 
 import akka.http.scaladsl.util.FastFuture
@@ -91,16 +92,17 @@ object TvdbShows {
   case class TvshowResume(banner: Option[String],
                           id: Int,
                           imdbId: Option[String],
-                          network: String,
+                          network: Option[String],
                           overview: Option[String],
                           seriesName: String,
                           status: String) {
 
-    def toShow(baseUrl: String, seasons: Seq[Season]): Show =
-      Show(id.toString, seriesName, overview.getOrElse(""), banner.map(b => s"$baseUrl/$b"), seasons)
+    def toShow(baseUrl: String, seasons: Seq[Season]): Show = Show(id.toString, seriesName, overview.getOrElse(""), getBannerUrl(baseUrl), seasons)
 
-    def toShowResume(baseUrl: String): ShowResume =
-      ShowResume(id.toString, seriesName, overview.getOrElse(""), banner.map(b => s"$baseUrl/$b"), "tvdb")
+    def toShowResume(baseUrl: String): ShowResume = ShowResume(id.toString, seriesName, overview.getOrElse(""), getBannerUrl(baseUrl), "tvdb")
+
+    def getBannerUrl(baseUrl: String): Option[String] =
+      banner.filter(_ != "").map(b => new URI(s"$baseUrl/${b.replace("banners/","")}").normalize().toString())
   }
 
   object PagedResponse {

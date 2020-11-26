@@ -1,7 +1,7 @@
 organization := "fr.maif"
 name := "example-spring"
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.13.3"
 
 mainClass := Some("izanami.example.Application")
 
@@ -20,6 +20,6 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind"              % "2.9.3",
   "io.vavr"                    % "vavr-jackson"                  % "0.10.0",
   "com.auth0"                  % "java-jwt"                      % "3.1.0",
-  "fr.maif"                    % "izanami-spring"                % "1.5.5-SNAPSHOT",
+  "fr.maif"                    % "izanami-spring"                % version.value,
   "org.iq80.leveldb"           % "leveldb"                       % "0.10"
 )

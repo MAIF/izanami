@@ -21,7 +21,7 @@ The node client expose conveniant methods to call Izanami.
  
 ```javascript
 const izanamicConfig = Object.assign({}, Izanami.defaultConfig, {
-  'http://localhost:9000',
+  host: 'http://localhost:9000',
   clientId: process.env.CLIENT_ID || 'xxxx',
   clientSecret: process.env.CLIENT_SECRET || 'xxxx',
 });

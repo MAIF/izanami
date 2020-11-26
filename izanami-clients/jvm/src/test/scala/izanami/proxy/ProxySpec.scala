@@ -47,7 +47,7 @@ class ProxySpec extends IzanamiSpec with BeforeAndAfterAll {
                              "Experiment",
                              "An experiment",
                              true,
-                             Variant("A", "Variant A", "Variant A"))
+                             Variant("A", "Variant A", Some("Variant A")))
         )
       )
 
