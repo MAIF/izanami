@@ -268,7 +268,7 @@ export class KeyInput extends Component {
     const autoFocus = this.props.autoFocus || (this.state.segments.length === 0);
     return (
           <div
-            className="keypicker keypicker--multi"
+            className="keypicker keypicker--multi flex-grow-1"
             ref={ref => (this.wrapper = ref)}
           >
             <div className="keypicker-control">
