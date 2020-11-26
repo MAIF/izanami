@@ -128,7 +128,7 @@ export class AuthorizedPatternsInput extends Component {
         return (
             <div>
                 {this.state.values.length === 0 && (
-                    <div className="form-group">
+                    <div className="form-group row">
                         <label
                             htmlFor={`input-${this.props.label}`}
                             className="col-sm-2 control-label"
@@ -148,7 +148,7 @@ export class AuthorizedPatternsInput extends Component {
                     </div>
                 )}
                 {this.state.values && this.state.values.map((value, idx) => (
-                    <div className="form-group" key={`obj-${idx}`}>
+                    <div className="form-group row" key={`obj-${idx}`}>
                         {idx === 0 && (
                             <label className="col-sm-2 control-label">
                                 {this.props.label}
@@ -163,14 +163,14 @@ export class AuthorizedPatternsInput extends Component {
                                                    onChange={ v => this.changeValue(v, idx)}
                                 />
                                 <span className="input-group-btn">
-                  <button
-                      disabled={this.props.disabled}
-                      type="button"
-                      className="btn btn-danger"
-                      onClick={e => this.remove(e, idx)}
-                  >
-                    <i className="fas fa-trash-alt"></i>
-                  </button>
+                                  <button
+                                      disabled={this.props.disabled}
+                                      type="button"
+                                      className="btn btn-danger"
+                                      onClick={e => this.remove(e, idx)}
+                                  >
+                                    <i className="fas fa-trash-alt"></i>
+                                  </button>
                                     {idx === this.state.values.length - 1 && (
                                         <button
                                             disabled={this.props.disabled}
@@ -181,7 +181,7 @@ export class AuthorizedPatternsInput extends Component {
                                             <i className="fas fa-plus-circle"></i>{" "}
                                         </button>
                                     )}
-                </span>
+                                </span>
                             </div>
                         </div>
                     </div>
