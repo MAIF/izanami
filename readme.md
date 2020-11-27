@@ -1,7 +1,7 @@
-# Izanami [![gitter-badge][]][gitter] [![travis-badge][]][travis] [![jar-badge][]][jar]
+# Izanami [![gitter-badge][]][gitter] [![github-actions-badge][]][github-actions] [![jar-badge][]][jar]
 
-[travis]:               https://travis-ci.org/MAIF/izanami
-[travis-badge]:         https://travis-ci.org/MAIF/izanami.svg?branch=master
+[github-actions]:       https://github.com/MAIF/izanami/actions
+[github-actions-badge]: https://github.com/MAIF/izanami/workflows/build/badge.svg
 [gitter]:               https://gitter.im/MAIF/izanami
 [gitter-badge]:         https://badges.gitter.im/MAIF/izanami.svg
 [dist]:                 https://bintray.com/maif/binaries/izanami-dist/_latestVersion
