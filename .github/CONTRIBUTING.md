@@ -12,7 +12,7 @@ We encourage changes that make it easier to achieve our goals in an efficient wa
 * [manual](https://github.com/MAIF/izanami/izanami-documentation): the izanami user manual that will be generated with [Paradox](https://github.com/lightbend/paradox)
 * [izanami](https://github.com/MAIF/izanami/izanami-server): the izanami server app
 * [simulation](https://github.com/MAIF/izanami/simulation): some gatling simulation 
-* [scripts](https://github.com/MAIF/izanami/scripts): various scripts used by Travis and devs
+* [scripts](https://github.com/MAIF/izanami/scripts): various scripts used by CI and devs
 
 ## Workflow
 
@@ -103,4 +103,4 @@ sh ./scripts/fmt.sh
 
 ## Continuous integration
 
-Every commit and PR to Izanami is built by [Travis](https://travis-ci.org/MAIF/izanami). Travis will also check your pull request to prevent merging code that does not build.
+Every commit and PR to Izanami is built by [GitHub Actions](https://github.com/MAIF/izanami/actions). GitHub Actions will also check your pull request to prevent merging code that does not build.
