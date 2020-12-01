@@ -1,0 +1,62 @@
+name: test
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: "Run unit test"
+            command: sbt -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/test;jvm/test"
+          - name: "Run integration that depends on cassandra"
+            command: ./scripts/runIt.sh "cassandra" "specs.cassandra.*"
+          - name: "Run integration that depends on dynamo"
+            command: ./scripts/runIt.sh "dynamodb" "specs.dynamo.*"
+          - name: "Run integration that depends on elasticsearch"
+            command: ./scripts/runIt.sh "elasticsearch" "specs.elastic.*"
+          - name: "Run integration that depends on levedb"
+            command: ./scripts/runIt.sh "" "specs.leveldb.*"
+          - name: "Run integration that depends on memory"
+            command: ./scripts/runIt.sh "" "specs.memory.*"
+          - name: "Run integration that depends on memory with db"
+            command: ./scripts/runIt.sh "" "specs.memorywithdb.*"
+          - name: "Run integration that depends on mongo"
+            command: ./scripts/runIt.sh "mongo" "specs.mongo.*"
+          - name: "Run integration that depends on postgresql"
+            command: ./scripts/runIt.sh "postgres_test" "specs.postgresql.*"
+          - name: "Run integration that depends on redis"
+            command: ./scripts/runIt.sh "redis" "specs.redis.*"
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+      - name: Set up Node.js 10
+        uses: actions/setup-node@v1
+        with:
+          node-version: '10'
+      - name: Cache multiple paths
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt/boot
+            ~/.sbt
+            ~/.coursier
+            ~/.nvm
+            ~/.yarn-cache
+            ~/.rustup
+            ~/.cargo
+          key: ${{ runner.os }}-izanami
+      - uses: ./.github/workflows/java-opts
+      - run: ${{ matrix.command }}
+      - if: ${{ failure() }}
+        run: docker-compose logs
+      - uses: ./.github/workflows/clean-cache
