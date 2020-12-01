@@ -1,0 +1,7 @@
+name: Sette JAVA_OPTS
+description: Sette JAVA_OPTS
+runs:
+  using: "composite"
+  steps:
+    - run: echo "JAVA_OPTS=-Xms2G -Xmx2G -Xss1G -XX:ReservedCodeCacheSize=256m" >> $GITHUB_ENV
+      shell: bash
