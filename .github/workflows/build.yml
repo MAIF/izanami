@@ -1,0 +1,67 @@
+name: build
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  tests-package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: "Run unit test"
+            command: sbt -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/test;jvm/test"
+          - name: "Run integration that depends on cassandra"
+            command: ./scripts/runIt.sh "cassandra" "specs.cassandra.*"
+          - name: "Run integration that depends on dynamo"
+            command: ./scripts/runIt.sh "dynamodb" "specs.dynamo.*"
+          - name: "Run integration that depends on elasticsearch"
+            command: ./scripts/runIt.sh "elasticsearch" "specs.elastic.*"
+          - name: "Run integration that depends on levedb"
+            command: ./scripts/runIt.sh "" "specs.leveldb.*"
+          - name: "Run integration that depends on memory"
+            command: ./scripts/runIt.sh "" "specs.memory.*"
+          - name: "Run integration that depends on memory with db"
+            command: ./scripts/runIt.sh "" "specs.memorywithdb.*"
+          - name: "Run integration that depends on mongo"
+            command: ./scripts/runIt.sh "mongo" "specs.mongo.*"
+          - name: "Run integration that depends on postgresql"
+            command: ./scripts/runIt.sh "postgres_test" "specs.postgresql.*"
+          - name: "Run integration that depends on redis"
+            command: ./scripts/runIt.sh "redis" "specs.redis.*"
+          - name: "Build server package"
+            command: sh ./scripts/build-javascript.sh && sbt  -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;+jvm/publishLocal;izanami-spring/publishLocal"
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+      - name: Set up Node.js 10
+        uses: actions/setup-node@v1
+        with:
+          node-version: '10'
+      - name: Cache multiple paths
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt/boot
+            ~/.sbt
+            ~/.coursier
+            ~/.nvm
+            ~/.yarn-cache
+            ~/.rustup
+            ~/.cargo
+          key: ${{ runner.os }}-test
+      - run: echo "JAVA_OPTS=-Xms2G -Xmx2G -Xss1G -XX:ReservedCodeCacheSize=256m" >> $GITHUB_ENV
+      - run: ${{ matrix.command }}
+      - if: ${{ failure() }}
+        run: docker-compose logs
+      - name: clean before cache
+        run: |
+          find ~/.ivy2 -name "ivydata-*.properties" -print -delete
+          find ~/.sbt  -name "*.lock"               -print -delete

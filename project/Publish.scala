@@ -41,7 +41,7 @@ object BintrayConfig {
   )
 
   lazy val publishSettings =
-    if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+    if (sys.env.get("TAG_NAME").filterNot(_.isEmpty).isDefined) {
       publishCommonsSettings ++ Seq(
         bintrayOrganization := Some("maif"),
         pomIncludeRepository := { _ =>
