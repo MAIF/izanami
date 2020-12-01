@@ -27,4 +27,21 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: '10'
+      - name: Cache multiple paths
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt/boot
+            ~/.sbt
+            ~/.coursier
+            ~/.nvm
+            ~/.yarn-cache
+            ~/.rustup
+            ~/.cargo
+          key: ${{ runner.os }}-izanami
       - run: ${{ matrix.command }}
+      - name: clean before cache
+        run: |
+          find ~/.ivy2 -name "ivydata-*.properties" -print -delete
+          find ~/.sbt  -name "*.lock"               -print -delete
