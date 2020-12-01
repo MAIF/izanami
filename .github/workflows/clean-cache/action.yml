@@ -1,0 +1,9 @@
+name: Clean before cache
+description: Clean before cache
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        find ~/.ivy2 -name "ivydata-*.properties" -print -delete
+        find ~/.sbt  -name "*.lock"               -print -delete
+      shell: bash
