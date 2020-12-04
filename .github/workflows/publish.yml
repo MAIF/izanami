@@ -42,11 +42,11 @@ jobs:
           key: ${{ runner.os }}-izanami
       - run: ${{ matrix.command }}
         env:
-          - BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
-          - BINTRAY_PASS: ${{ secrets.BINTRAY_PASS }}
-          - DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          - DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          - NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
+          BINTRAY_PASS: ${{ secrets.BINTRAY_PASS }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: clean before cache
         run: |
           find ~/.ivy2 -name "ivydata-*.properties" -print -delete
