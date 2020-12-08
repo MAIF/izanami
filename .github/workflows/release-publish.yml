@@ -11,10 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up JDK 11
+      - uses: ./.github/workflows/load-versions
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v1
         with:
-          java-version: 11
+          java-version: ${{ env.JAVA_VERSION }}
       - run: test  "${{ github.ref }}" = "refs/heads/master" ||  (echo "Release can be created only from master (${{ github.ref }} not supported)." && false)
       - name: get release version (remove "v" of "vX.Y.Z")
         run: |
@@ -44,14 +45,15 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ env.TAG_NAME }}
-      - name: Set up JDK 11
+      - uses: ./.github/workflows/load-versions
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v1
         with:
-          java-version: 11
-      - name: Set up Node.js 10
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v1
         with:
-          node-version: '10'
+          node-version: ${{ env.NODE_VERSION }}
       - name: Cache multiple paths
         uses: actions/cache@v2
         with:

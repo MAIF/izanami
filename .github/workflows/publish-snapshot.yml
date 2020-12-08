@@ -15,14 +15,15 @@ jobs:
     name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v2
-      - name: Set up JDK 11
+      - uses: ./.github/workflows/load-versions
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v1
         with:
-          java-version: 11
-      - name: Set up Node.js 10
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v1
         with:
-          node-version: '10'
+          node-version: ${{ env.NODE_VERSION }}
       - name: Cache multiple paths
         uses: actions/cache@v2
         with:
