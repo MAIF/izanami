@@ -32,11 +32,8 @@ jobs:
             ~/.rustup
             ~/.cargo
           key: ${{ runner.os }}-izanami
-      - run: echo "JAVA_OPTS=-Xms2G -Xmx2G -Xss1G -XX:ReservedCodeCacheSize=256m" >> $GITHUB_ENV
+      - uses: ./.github/workflows/java-opts
       - run: |
           ./scripts/build-javascript.sh
           sbt  -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;+jvm/publishLocal;izanami-spring/publishLocal"
-      - name: clean before cache
-        run: |
-          find ~/.ivy2 -name "ivydata-*.properties" -print -delete
-          find ~/.sbt  -name "*.lock"               -print -delete
+      - uses: ./.github/workflows/clean-cache
