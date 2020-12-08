@@ -1,14 +1,18 @@
-name: build-package
-
+name: Publish snapshot
 on:
   push:
-    branches:
-      - "**"
-      - "!master"
+    branches: [ master ]
 jobs:
-  build-package:
+  publish-snapshot:
     runs-on: ubuntu-latest
-    name: "Build server package"
+    strategy:
+      matrix:
+        include:
+          - name: "Build server package and publish it to bintray"
+            command: ./scripts/build-javascript.sh && ./scripts/sbt-publish.sh
+          - name: "Build js client and publish it to npm if needed"
+            command: ./scripts/publish-npm.sh
+    name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/workflows/load-versions
@@ -34,7 +38,11 @@ jobs:
             ~/.cargo
           key: ${{ runner.os }}-izanami
       - uses: ./.github/workflows/java-opts
-      - run: |
-          ./scripts/build-javascript.sh
-          sbt  -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;+jvm/publishLocal;izanami-spring/publishLocal"
+      - run: ${{ matrix.command }}
+        env:
+          BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
+          BINTRAY_PASS: ${{ secrets.BINTRAY_PASS }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - uses: ./.github/workflows/clean-cache
