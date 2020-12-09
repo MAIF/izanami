@@ -7,36 +7,57 @@ on:
         required: true
 
 jobs:
-  create-tag:
+  create-release:
+    name: Create release
     runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/workflows/load-versions
+      - name: Get Java version
+        uses: ./.github/workflows/load-versions
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v1
         with:
           java-version: ${{ env.JAVA_VERSION }}
-      - run: test  "${{ github.ref }}" = "refs/heads/master" ||  (echo "Release can be created only from master (${{ github.ref }} not supported)." && false)
-      - name: get release version (remove "v" of "vX.Y.Z")
+      - name: Workflow can be run only on master
+        run: test  "${{ github.ref }}" = "refs/heads/master" ||  (echo "Release can be created only from master (${{ github.ref }} not supported)." && false)
+      - name: Set release version (remove "v" of "vX.Y.Z")
         run: |
           export VERSION=$(echo ${{ github.event.inputs.releaseVersion }} | sed 's/v//')
           echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
-      - name: release sbt
+      - name: Build & create tag
         run: |
           git config --local user.email "izanami-github-actions@users.noreply.github.com"
           git config --local user.name "izanami-github-actions"
           sbt "release with-defaults release-version ${{ env.RELEASE_VERSION }}"
+      - name: Set tag name (add "v" of "X.Y.Z")
+        run: |
+          export VERSION=$(echo ${{ github.event.inputs.releaseVersion }} | sed 's/v//')
+          echo "TAG_NAME=v$VERSION" >> $GITHUB_ENV
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          release_name: Release ${{ env.TAG_NAME }}
+          draft: false
+          prerelease: false
   publish-job:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - name: "Build server package and publish it to bintray"
+          - name: "Build server package and publish"
             command: ./scripts/build-javascript.sh && ./scripts/sbt-publish.sh
+            with-sbt-assets: true
           - name: "Build js client and publish it to npm if needed"
             command: ./scripts/publish-npm.sh
+            with-sbt-assets: false
     name: ${{ matrix.name }}
-    needs: create-tag
+    needs: create-release
     steps:
       - name: tag name (add "v" of "X.Y.Z")
         run: |
@@ -75,23 +96,26 @@ jobs:
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - uses: ./.github/workflows/clean-cache
-  create-release:
-    name: Create release
-    runs-on: ubuntu-latest
-    needs: publish-job
-    steps:
-      - name: tag name (add "v" of "X.Y.Z")
-        run: |
-          export VERSION=$(echo ${{ github.event.inputs.releaseVersion }} | sed 's/v//')
-          echo "TAG_NAME=v$VERSION" >> $GITHUB_ENV
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Upload jar in assets
+        id: upload-jar
+        if: ${{ matrix.with-sbt-assets }}
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          release_name: Release ${{ env.TAG_NAME }}
-          draft: false
-          prerelease: false
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./izanami-server/target/scala-2.13/izanami.jar
+          asset_name: izanami.jar
+          asset_content_type: application/jar
+      - name: Upload zip in assets
+        id: upload-zip
+        if: ${{ matrix.with-sbt-assets }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./izanami-server/target/universal/izanami.zip
+          asset_name: izanami.zip
+          asset_content_type: application/zip
+      - uses: ./.github/workflows/clean-cache
