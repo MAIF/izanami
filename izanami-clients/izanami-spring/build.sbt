@@ -3,7 +3,7 @@ scalaVersion := "2.13.3"
 val springbootVersion = "2.2.2.RELEASE"
 val akkaVersion       = "2.6.3"
 
-val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+val disabledPlugins = if (sys.env.get("TAG_NAME").filterNot(_.isEmpty).isDefined) {
   Seq()
 } else {
   Seq(BintrayPlugin)

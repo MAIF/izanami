@@ -2,7 +2,7 @@ import sbt.Keys.{organization, scalacOptions}
 import sbtrelease.ReleaseStateTransformations._
 import BintrayConfig._
 
-val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+val disabledPlugins = if (sys.env.get("TAG_NAME").filterNot(_.isEmpty).isDefined) {
   Seq(RevolverPlugin)
 } else {
   Seq(RevolverPlugin, BintrayPlugin)
