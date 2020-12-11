@@ -2,6 +2,7 @@ package env
 
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.file.{Path, Paths}
+import java.time.ZoneId
 
 import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
 import domains.AuthorizedPatterns
@@ -131,6 +132,14 @@ object IzanamiConfig {
         case "test" => Mode.Test
       }
       .getOrElse(default)
+
+  def zoneId(izanamiConfig: IzanamiConfig): String =
+    izanamiConfig.zoneId.getOrElse(ZoneId.systemDefault().getId)
+
+  def zoneId: ZIO[IzanamiConfigModule, Nothing, String] =
+    for {
+      izanamiConfig <- IzanamiConfigModule.izanamiConfig
+    } yield IzanamiConfig.zoneId(izanamiConfig)
 }
 
 case class IzanamiConfig(
@@ -140,6 +149,7 @@ case class IzanamiConfig(
     patchEnabled: Boolean,
     confirmationDialog: Boolean,
     headerHost: String,
+    zoneId: Option[String],
     filter: IzanamiFilter,
     oauth2: Option[Oauth2Config],
     db: DbConfig,
