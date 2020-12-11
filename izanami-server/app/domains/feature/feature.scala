@@ -96,6 +96,7 @@ package object feature {
     with AuthInfo
     with Blocking
     with PlayModule
+    with IzanamiConfigModule
 
   trait IsActive[A <: Feature] {
     def isActive(feature: A, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean]
@@ -167,6 +168,7 @@ package object feature {
     with RunnableScriptModule
     with AuthInfo
     with Blocking
+    with IzanamiConfigModule
 
   object FeatureService {
     import zio._
