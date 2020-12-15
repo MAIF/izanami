@@ -37,12 +37,8 @@ object DistributedPubSubEventStore {
           ZLogger.info(s"Starting akka cluster with config ${globalConfig.getConfig("cluster")}") *> Task(
             ActorSystem(actorSystemName, globalConfig.getConfig("cluster"))
           )
-        )(
-          s => Task.fromFuture(_ => s.terminate()).ignore
-        )
-        .map { implicit actorSystem =>
-          new DistributedPubSubEventStore(config)
-        }
+        )(s => Task.fromFuture(_ => s.terminate()).ignore)
+        .map(implicit actorSystem => new DistributedPubSubEventStore(config))
         .provide(mix)
     }
 }
@@ -51,7 +47,7 @@ class DistributedPubSubEventStore(config: DistributedEventsConfig)(implicit s: A
 
   logger.info(s"Creating distributed event store")
 
-  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
+  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = config.backpressureBufferSize)
 
   private val actor =
     s.actorOf(DistributedEventsPublisherActor.props(queue, config))
@@ -62,9 +58,11 @@ class DistributedPubSubEventStore(config: DistributedEventsConfig)(implicit s: A
     IO.succeed(Done)
   }
 
-  override def events(domains: Seq[Domain],
-                      patterns: Seq[String],
-                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
+  override def events(
+      domains: Seq[Domain],
+      patterns: Seq[String],
+      lastEventId: Option[Long]
+  ): Source[IzanamiEvent, NotUsed] =
     lastEventId match {
       case Some(_) =>
         queue.sourceWithCache
@@ -119,9 +117,10 @@ object DistributedEventsPublisherActor {
     Props(new DistributedEventsPublisherActor(queue, config))
 }
 
-private[events] class DistributedEventsPublisherActor(queue: CacheableQueue[IzanamiEvent],
-                                                      config: DistributedEventsConfig)
-    extends Actor {
+private[events] class DistributedEventsPublisherActor(
+    queue: CacheableQueue[IzanamiEvent],
+    config: DistributedEventsConfig
+) extends Actor {
 
   import context.dispatcher
 

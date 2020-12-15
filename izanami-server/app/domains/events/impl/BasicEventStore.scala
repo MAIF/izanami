@@ -11,23 +11,25 @@ import domains.events.EventStore
 import domains.events.Events.IzanamiEvent
 import libs.streams.CacheableQueue
 import domains.errors.IzanamiErrors
+import env.InMemoryEventsConfig
 import store.datastore.DataStoreLayerContext
 import zio.{IO, Task, ZLayer}
 
 import scala.util.Try
 
 object BasicEventStore {
-  val live: ZLayer[DataStoreLayerContext, Throwable, EventStore] = ZLayer.fromFunction { mix =>
-    implicit val system: ActorSystem = mix.get[PlayModule.Service].system
-    new BasicEventStore
+  def live(config: InMemoryEventsConfig): ZLayer[DataStoreLayerContext, Throwable, EventStore] = ZLayer.fromFunction {
+    mix =>
+      implicit val system: ActorSystem = mix.get[PlayModule.Service].system
+      new BasicEventStore(config)
   }
 }
 
-class BasicEventStore(implicit system: ActorSystem) extends EventStore.Service {
+class BasicEventStore(config: InMemoryEventsConfig)(implicit system: ActorSystem) extends EventStore.Service {
 
   logger.info("Starting default event store")
 
-  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
+  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = config.backpressureBufferSize)
   system.actorOf(EventStreamActor.props(queue))
 
   override def publish(event: IzanamiEvent): IO[IzanamiErrors, Done] =
@@ -37,9 +39,11 @@ class BasicEventStore(implicit system: ActorSystem) extends EventStore.Service {
       Done
     }.orDie
 
-  override def events(domains: Seq[Domain],
-                      patterns: Seq[String],
-                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
+  override def events(
+      domains: Seq[Domain],
+      patterns: Seq[String],
+      lastEventId: Option[Long]
+  ): Source[IzanamiEvent, NotUsed] =
     lastEventId match {
       case Some(_) =>
         queue.sourceWithCache

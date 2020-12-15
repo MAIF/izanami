@@ -92,10 +92,10 @@ object IzanamiConfig {
   }
 
   implicit val keyTypeHint: ConfigConvert[KeyType] =
-    viaString[KeyType](catchReadError { KeyType.parse }, _.getValue)
+    viaString[KeyType](catchReadError(KeyType.parse), _.getValue)
 
   implicit val dbTypeHint: ConfigConvert[DbType] =
-    viaString[DbType](catchReadError { DbType.fromString }, _.toString)
+    viaString[DbType](catchReadError(DbType.fromString), _.toString)
 
   implicit val inetAddressCC: ConfigConvert[InetAddress] =
     viaString[InetAddress](catchReadError(InetAddress.getByName), _.getHostAddress)
@@ -185,17 +185,21 @@ case class MetricsElasticConfig(enabled: Boolean, index: String, pushInterval: F
 
 case class LogoutConfig(url: String)
 case class ApiKeyHeaders(headerClientId: String, headerClientSecret: String)
-case class OtoroshiFilterConfig(sharedKey: String,
-                                issuer: String,
-                                headerClaim: String,
-                                headerRequestId: String,
-                                headerGatewayState: String,
-                                headerGatewayStateResp: String)
-case class DefaultFilter(allowedPaths: Seq[String],
-                         issuer: String,
-                         sharedKey: String,
-                         cookieClaim: String,
-                         apiKeys: ApiKeyHeaders)
+case class OtoroshiFilterConfig(
+    sharedKey: String,
+    issuer: String,
+    headerClaim: String,
+    headerRequestId: String,
+    headerGatewayState: String,
+    headerGatewayStateResp: String
+)
+case class DefaultFilter(
+    allowedPaths: Seq[String],
+    issuer: String,
+    sharedKey: String,
+    cookieClaim: String,
+    apiKeys: ApiKeyHeaders
+)
 sealed trait IzanamiFilter
 case class Otoroshi(otoroshi: OtoroshiFilterConfig) extends IzanamiFilter
 case class Default(default: DefaultFilter)          extends IzanamiFilter
@@ -209,38 +213,42 @@ case class RSA(enabled: Boolean, size: Int, publicKey: String, privateKey: Optio
 case class JWKS(enabled: Boolean, url: String, headers: Option[Map[String, String]], timeout: Option[FiniteDuration])
     extends AlgoSettingsConfig
 
-case class Oauth2Config(enabled: Boolean,
-                        authorizeUrl: String,
-                        tokenUrl: String,
-                        userInfoUrl: String,
-                        introspectionUrl: String,
-                        loginUrl: String,
-                        logoutUrl: String,
-                        clientId: String,
-                        clientSecret: Option[String],
-                        mtls: Option[MtlsConfig],
-                        scope: Option[String] = None,
-                        claims: String = "email name",
-                        accessTokenField: String = "access_token",
-                        jwtVerifier: Option[AlgoSettingsConfig],
-                        readProfileFromToken: Boolean = false,
-                        useCookie: Boolean = true,
-                        useJson: Boolean = true,
-                        idField: String,
-                        nameField: String,
-                        emailField: String,
-                        adminField: String,
-                        authorizedPatternField: String,
-                        defaultPatterns: String,
-                        izanamiManagedUser: Boolean,
-                        admins: Option[Seq[String]] = None)
+case class Oauth2Config(
+    enabled: Boolean,
+    authorizeUrl: String,
+    tokenUrl: String,
+    userInfoUrl: String,
+    introspectionUrl: String,
+    loginUrl: String,
+    logoutUrl: String,
+    clientId: String,
+    clientSecret: Option[String],
+    mtls: Option[MtlsConfig],
+    scope: Option[String] = None,
+    claims: String = "email name",
+    accessTokenField: String = "access_token",
+    jwtVerifier: Option[AlgoSettingsConfig],
+    readProfileFromToken: Boolean = false,
+    useCookie: Boolean = true,
+    useJson: Boolean = true,
+    idField: String,
+    nameField: String,
+    emailField: String,
+    adminField: String,
+    authorizedPatternField: String,
+    defaultPatterns: String,
+    izanamiManagedUser: Boolean,
+    admins: Option[Seq[String]] = None
+)
 case class MtlsConfig(enabled: Boolean, config: Option[CertificateConfig])
-case class CertificateConfig(truststorePath: Option[String],
-                             truststorePassword: Option[String],
-                             truststoreType: String,
-                             keystorePath: Option[String],
-                             keystorePassword: Option[String],
-                             keystoreType: String)
+case class CertificateConfig(
+    truststorePath: Option[String],
+    truststorePassword: Option[String],
+    truststoreType: String,
+    keystorePath: Option[String],
+    keystorePassword: Option[String],
+    keystoreType: String
+)
 case class ConfigConfig(db: DbDomainConfig)
 case class FeaturesConfig(db: DbDomainConfig)
 case class GlobalScriptConfig(db: DbDomainConfig)
@@ -267,9 +275,9 @@ case class DistributedEvents(distributed: DistributedEventsConfig) extends Event
 case class RedisEvents(redis: RedisEventsConfig)                   extends EventsConfig
 case class KafkaEvents(kafka: KafkaEventsConfig)                   extends EventsConfig
 
-case class InMemoryEventsConfig()
-case class DistributedEventsConfig(topic: String)
-case class RedisEventsConfig(topic: String)
+case class InMemoryEventsConfig(backpressureBufferSize: Int)
+case class DistributedEventsConfig(topic: String, backpressureBufferSize: Int)
+case class RedisEventsConfig(topic: String, backpressureBufferSize: Int)
 case class KafkaEventsConfig(topic: String)
 
 case class DbConfig(
@@ -310,42 +318,50 @@ case class RedisOneSentinelConfig(host: String, port: Int)
 
 case class LevelDbConfig(parentPath: String)
 
-case class CassandraConfig(addresses: Seq[String],
-                           clusterName: Option[String],
-                           replicationFactor: Int,
-                           keyspace: String,
-                           username: Option[String] = None,
-                           password: Option[String] = None)
+case class CassandraConfig(
+    addresses: Seq[String],
+    clusterName: Option[String],
+    replicationFactor: Int,
+    keyspace: String,
+    username: Option[String] = None,
+    password: Option[String] = None
+)
 
-case class DynamoConfig(tableName: String,
-                        eventsTableName: String,
-                        region: String,
-                        host: String,
-                        port: Int,
-                        tls: Boolean = true,
-                        parallelism: Int = 32,
-                        accessKey: Option[String] = None,
-                        secretKey: Option[String] = None)
+case class DynamoConfig(
+    tableName: String,
+    eventsTableName: String,
+    region: String,
+    host: String,
+    port: Int,
+    tls: Boolean = true,
+    parallelism: Int = 32,
+    accessKey: Option[String] = None,
+    secretKey: Option[String] = None
+)
 
 case class KafkaConfig(servers: String, keyPass: Option[String], keystore: Location, truststore: Location)
 
 case class Location(location: Option[String])
 
-case class ElasticConfig(host: String,
-                         port: Int,
-                         scheme: String,
-                         user: Option[String],
-                         password: Option[String],
-                         automaticRefresh: Boolean = false)
+case class ElasticConfig(
+    host: String,
+    port: Int,
+    scheme: String,
+    user: Option[String],
+    password: Option[String],
+    automaticRefresh: Boolean = false
+)
 
 case class MongoConfig(url: String, database: Option[String], name: Option[String])
 
-case class PostgresqlConfig(driver: String,
-                            url: String,
-                            username: String,
-                            password: String,
-                            connectionPoolSize: Int,
-                            tmpfolder: Option[String])
+case class PostgresqlConfig(
+    driver: String,
+    url: String,
+    username: String,
+    password: String,
+    connectionPoolSize: Int,
+    tmpfolder: Option[String]
+)
 
 case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails, `import`: Option[Path])
 case class InitialUserConfig(userId: String, password: String)
