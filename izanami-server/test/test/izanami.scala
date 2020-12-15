@@ -143,7 +143,7 @@ object FakeConfig {
     WebhookConfig(dbConfig, WebhookEventsConfig(5, 1.second, 1, 1.second)),
     UserConfig(dbConfig, InitialUserConfig("", "")),
     ApikeyConfig(dbConfig, InitializeApiKey(None, None, "*")),
-    InMemoryEvents(InMemoryEventsConfig()),
+    InMemoryEvents(InMemoryEventsConfig(500)),
     PatchConfig(dbConfig),
     MetricsConfig(
       false,

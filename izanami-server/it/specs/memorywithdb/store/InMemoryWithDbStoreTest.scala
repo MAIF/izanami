@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import domains.events.Events.{FeatureCreated, FeatureUpdated}
 import domains.Key
 import domains.feature.{DefaultFeature, FeatureInstances}
-import env.{InMemory, InMemoryWithDbConfig}
+import env.{InMemory, InMemoryEventsConfig, InMemoryWithDbConfig}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
 import store.memory.InMemoryJsonDataStore
@@ -96,8 +96,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       .writes(feature1Updated)
       .some
   }
-
   val context: ZLayer[Any, Throwable, DataStoreContext with Clock] =
-  ZLogger.live ++ EventStore.value(new BasicEventStore) ++ AuthInfo.empty ++ Clock.live
+    ZLogger.live ++ EventStore.value(new BasicEventStore(new InMemoryEventsConfig(500))) ++ AuthInfo.empty ++ Clock.live
 
 }

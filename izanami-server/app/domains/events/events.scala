@@ -322,9 +322,7 @@ package object events {
           JsError("events.unknow.type")
       }
 
-      private val writes: Writes[IzanamiEvent] = Writes[IzanamiEvent] { event =>
-        event.toJson
-      }
+      private val writes: Writes[IzanamiEvent] = Writes[IzanamiEvent](event => event.toJson)
 
       implicit val format = Format(reads, writes)
 
@@ -336,42 +334,46 @@ package object events {
       override def domain = Domain.Config
     }
 
-    case class ConfigCreated(key: ConfigKey,
-                             config: Config,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now(),
-                             authInfo: Option[AuthInfo.Service])
-        extends ConfigEvent {
+    case class ConfigCreated(
+        key: ConfigKey,
+        config: Config,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ConfigEvent {
       val `type`: String   = "CONFIG_CREATED"
       val payload: JsValue = ConfigInstances.format.writes(config)
     }
-    case class ConfigUpdated(key: ConfigKey,
-                             oldValue: Config,
-                             config: Config,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now(),
-                             authInfo: Option[AuthInfo.Service])
-        extends ConfigEvent {
+    case class ConfigUpdated(
+        key: ConfigKey,
+        oldValue: Config,
+        config: Config,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ConfigEvent {
       val `type`: String   = "CONFIG_UPDATED"
       val payload: JsValue = ConfigInstances.format.writes(config)
       override def toJson: JsValue =
         super.toJson.as[JsObject] ++ Json.obj("oldValue" -> ConfigInstances.format.writes(oldValue))
     }
-    case class ConfigDeleted(key: ConfigKey,
-                             config: Config,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now(),
-                             authInfo: Option[AuthInfo.Service])
-        extends ConfigEvent {
+    case class ConfigDeleted(
+        key: ConfigKey,
+        config: Config,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ConfigEvent {
       val `type`: String   = "CONFIG_DELETED"
       val payload: JsValue = ConfigInstances.format.writes(config)
     }
-    case class ConfigsDeleted(_id: Long = gen.nextId(),
-                              patterns: Seq[String],
-                              count: Long,
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends ConfigEvent {
+    case class ConfigsDeleted(
+        _id: Long = gen.nextId(),
+        patterns: Seq[String],
+        count: Long,
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ConfigEvent {
       val `type`: String   = "CONFIGS_DELETED"
       val key: ConfigKey   = Key.Empty
       val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
@@ -389,43 +391,47 @@ package object events {
       override def domain = Domain.Feature
     }
 
-    case class FeatureCreated(key: FeatureKey,
-                              feature: Feature,
-                              _id: Long = gen.nextId(),
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends FeatureEvent {
+    case class FeatureCreated(
+        key: FeatureKey,
+        feature: Feature,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends FeatureEvent {
       val `type`: String   = "FEATURE_CREATED"
       val payload: JsValue = FeatureInstances.format.writes(feature)
     }
-    case class FeatureUpdated(key: FeatureKey,
-                              oldValue: Feature,
-                              feature: Feature,
-                              _id: Long = gen.nextId(),
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends FeatureEvent {
+    case class FeatureUpdated(
+        key: FeatureKey,
+        oldValue: Feature,
+        feature: Feature,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends FeatureEvent {
       val `type`: String   = "FEATURE_UPDATED"
       val payload: JsValue = FeatureInstances.format.writes(feature)
 
       override def toJson: JsValue =
         super.toJson.as[JsObject] ++ Json.obj("oldValue" -> FeatureInstances.format.writes(oldValue))
     }
-    case class FeatureDeleted(key: FeatureKey,
-                              feature: Feature,
-                              _id: Long = gen.nextId(),
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends FeatureEvent {
+    case class FeatureDeleted(
+        key: FeatureKey,
+        feature: Feature,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends FeatureEvent {
       val `type`: String   = "FEATURE_DELETED"
       val payload: JsValue = FeatureInstances.format.writes(feature)
     }
-    case class FeaturesDeleted(count: Long,
-                               patterns: Seq[String],
-                               _id: Long = gen.nextId(),
-                               timestamp: LocalDateTime = LocalDateTime.now(),
-                               authInfo: Option[AuthInfo.Service])
-        extends FeatureEvent {
+    case class FeaturesDeleted(
+        count: Long,
+        patterns: Seq[String],
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends FeatureEvent {
       val key: FeatureKey  = Key.Empty
       val `type`: String   = "FEATURES_DELETED"
       val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
@@ -443,42 +449,46 @@ package object events {
       override def domain = Domain.Script
     }
 
-    case class GlobalScriptCreated(key: GlobalScriptKey,
-                                   globalScript: GlobalScript,
-                                   _id: Long = gen.nextId(),
-                                   timestamp: LocalDateTime = LocalDateTime.now(),
-                                   authInfo: Option[AuthInfo.Service])
-        extends GlobalScriptEvent {
+    case class GlobalScriptCreated(
+        key: GlobalScriptKey,
+        globalScript: GlobalScript,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends GlobalScriptEvent {
       val `type`: String   = "GLOBALSCRIPT_CREATED"
       val payload: JsValue = GlobalScriptInstances.format.writes(globalScript)
     }
-    case class GlobalScriptUpdated(key: GlobalScriptKey,
-                                   oldValue: GlobalScript,
-                                   globalScript: GlobalScript,
-                                   _id: Long = gen.nextId(),
-                                   timestamp: LocalDateTime = LocalDateTime.now(),
-                                   authInfo: Option[AuthInfo.Service])
-        extends GlobalScriptEvent {
+    case class GlobalScriptUpdated(
+        key: GlobalScriptKey,
+        oldValue: GlobalScript,
+        globalScript: GlobalScript,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends GlobalScriptEvent {
       val `type`: String   = "GLOBALSCRIPT_UPDATED"
       val payload: JsValue = GlobalScriptInstances.format.writes(globalScript)
       override def toJson: JsValue =
         super.toJson.as[JsObject] ++ Json.obj("oldValue" -> GlobalScriptInstances.format.writes(oldValue))
     }
-    case class GlobalScriptDeleted(key: GlobalScriptKey,
-                                   globalScript: GlobalScript,
-                                   _id: Long = gen.nextId(),
-                                   timestamp: LocalDateTime = LocalDateTime.now(),
-                                   authInfo: Option[AuthInfo.Service])
-        extends GlobalScriptEvent {
+    case class GlobalScriptDeleted(
+        key: GlobalScriptKey,
+        globalScript: GlobalScript,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends GlobalScriptEvent {
       val `type`: String   = "GLOBALSCRIPT_DELETED"
       val payload: JsValue = GlobalScriptInstances.format.writes(globalScript)
     }
-    case class GlobalScriptsDeleted(count: Long,
-                                    patterns: Seq[String],
-                                    _id: Long = gen.nextId(),
-                                    timestamp: LocalDateTime = LocalDateTime.now(),
-                                    authInfo: Option[AuthInfo.Service])
-        extends GlobalScriptEvent {
+    case class GlobalScriptsDeleted(
+        count: Long,
+        patterns: Seq[String],
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends GlobalScriptEvent {
       val key              = Key.Empty
       val `type`: String   = "GLOBALSCRIPTS_DELETED"
       val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
@@ -490,45 +500,49 @@ package object events {
       override def domain = Domain.User
     }
 
-    case class UserCreated(key: UserKey,
-                           user: User,
-                           _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now(),
-                           authInfo: Option[AuthInfo.Service])
-        extends UserEvent {
+    case class UserCreated(
+        key: UserKey,
+        user: User,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends UserEvent {
       val `type`: String   = "USER_CREATED"
       val payload: JsValue = UserInstances.format.writes(user)
     }
 
-    case class UserUpdated(key: UserKey,
-                           oldValue: User,
-                           user: User,
-                           _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now(),
-                           authInfo: Option[AuthInfo.Service])
-        extends UserEvent {
+    case class UserUpdated(
+        key: UserKey,
+        oldValue: User,
+        user: User,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends UserEvent {
       val `type`: String   = "USER_UPDATED"
       val payload: JsValue = UserInstances.format.writes(user)
       override def toJson: JsValue =
         super.toJson.as[JsObject] ++ Json.obj("oldValue" -> UserInstances.format.writes(oldValue))
     }
 
-    case class UserDeleted(key: UserKey,
-                           user: User,
-                           _id: Long = gen.nextId(),
-                           timestamp: LocalDateTime = LocalDateTime.now(),
-                           authInfo: Option[AuthInfo.Service])
-        extends UserEvent {
+    case class UserDeleted(
+        key: UserKey,
+        user: User,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends UserEvent {
       val `type`: String   = "USER_DELETED"
       val payload: JsValue = UserInstances.format.writes(user)
     }
 
-    case class UsersDeleted(count: Long,
-                            patterns: Seq[String],
-                            _id: Long = gen.nextId(),
-                            timestamp: LocalDateTime = LocalDateTime.now(),
-                            authInfo: Option[AuthInfo.Service])
-        extends UserEvent {
+    case class UsersDeleted(
+        count: Long,
+        patterns: Seq[String],
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends UserEvent {
       val `type`: String   = "USERS_DELETED"
       val key: UserKey     = Key.Empty
       val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
@@ -546,42 +560,46 @@ package object events {
       override def domain = Domain.Webhook
     }
 
-    case class WebhookCreated(key: WebhookKey,
-                              webhook: Webhook,
-                              _id: Long = gen.nextId(),
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends WebhookEvent {
+    case class WebhookCreated(
+        key: WebhookKey,
+        webhook: Webhook,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends WebhookEvent {
       val `type`: String   = "WEBHOOK_CREATED"
       val payload: JsValue = WebhookInstances.format.writes(webhook)
     }
-    case class WebhookUpdated(key: WebhookKey,
-                              oldValue: Webhook,
-                              webhook: Webhook,
-                              _id: Long = gen.nextId(),
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends WebhookEvent {
+    case class WebhookUpdated(
+        key: WebhookKey,
+        oldValue: Webhook,
+        webhook: Webhook,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends WebhookEvent {
       val `type`: String   = "WEBHOOK_UPDATED"
       val payload: JsValue = WebhookInstances.format.writes(webhook)
       override def toJson: JsValue =
         super.toJson.as[JsObject] ++ Json.obj("oldValue" -> WebhookInstances.format.writes(oldValue))
     }
-    case class WebhookDeleted(key: WebhookKey,
-                              webhook: Webhook,
-                              _id: Long = gen.nextId(),
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends WebhookEvent {
+    case class WebhookDeleted(
+        key: WebhookKey,
+        webhook: Webhook,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends WebhookEvent {
       val `type`: String   = "WEBHOOK_DELETED"
       val payload: JsValue = WebhookInstances.format.writes(webhook)
     }
-    case class WebhooksDeleted(count: Long,
-                               patterns: Seq[String],
-                               _id: Long = gen.nextId(),
-                               timestamp: LocalDateTime = LocalDateTime.now(),
-                               authInfo: Option[AuthInfo.Service])
-        extends WebhookEvent {
+    case class WebhooksDeleted(
+        count: Long,
+        patterns: Seq[String],
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends WebhookEvent {
       val key              = Key.Empty
       val `type`: String   = "WEBHOOKS_DELETED"
       val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
@@ -598,45 +616,49 @@ package object events {
       implicit val apikeyUpdated = Json.format[ApikeyUpdated]
     }
 
-    case class ApikeyCreated(key: ApikeyKey,
-                             apikey: Apikey,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now(),
-                             authInfo: Option[AuthInfo.Service])
-        extends ApikeyEvent {
+    case class ApikeyCreated(
+        key: ApikeyKey,
+        apikey: Apikey,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ApikeyEvent {
       val `type`: String   = "APIKEY_CREATED"
       val payload: JsValue = Json.toJson(apikey)
     }
 
-    case class ApikeyUpdated(key: ApikeyKey,
-                             oldValue: Apikey,
-                             apikey: Apikey,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now(),
-                             authInfo: Option[AuthInfo.Service])
-        extends ApikeyEvent {
+    case class ApikeyUpdated(
+        key: ApikeyKey,
+        oldValue: Apikey,
+        apikey: Apikey,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ApikeyEvent {
       val `type`: String   = "APIKEY_UPDATED"
       val payload: JsValue = Json.toJson(apikey)
       override def toJson: JsValue =
         super.toJson.as[JsObject] ++ Json.obj("oldValue" -> Json.toJson(oldValue))
     }
 
-    case class ApikeyDeleted(key: ApikeyKey,
-                             apikey: Apikey,
-                             _id: Long = gen.nextId(),
-                             timestamp: LocalDateTime = LocalDateTime.now(),
-                             authInfo: Option[AuthInfo.Service])
-        extends ApikeyEvent {
+    case class ApikeyDeleted(
+        key: ApikeyKey,
+        apikey: Apikey,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ApikeyEvent {
       val `type`: String   = "APIKEY_DELETED"
       val payload: JsValue = Json.toJson(apikey)
     }
 
-    case class ApikeysDeleted(count: Long,
-                              patterns: Seq[String],
-                              _id: Long = gen.nextId(),
-                              timestamp: LocalDateTime = LocalDateTime.now(),
-                              authInfo: Option[AuthInfo.Service])
-        extends ApikeyEvent {
+    case class ApikeysDeleted(
+        count: Long,
+        patterns: Seq[String],
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ApikeyEvent {
       val `type`: String   = "APIKEYS_DELETED"
       val key: ApikeyKey   = Key.Empty
       val payload: JsValue = Json.obj("count" -> count, "patterns" -> patterns)
@@ -647,45 +669,49 @@ package object events {
       override def domain = Domain.Experiment
     }
 
-    case class ExperimentCreated(key: ExperimentKey,
-                                 experiment: Experiment,
-                                 _id: Long = gen.nextId(),
-                                 timestamp: LocalDateTime = LocalDateTime.now(),
-                                 authInfo: Option[AuthInfo.Service])
-        extends ExperimentEvent {
+    case class ExperimentCreated(
+        key: ExperimentKey,
+        experiment: Experiment,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ExperimentEvent {
       val `type`: String   = "EXPERIMENT_CREATED"
       val payload: JsValue = ExperimentInstances.format.writes(experiment)
     }
 
-    case class ExperimentUpdated(key: ExperimentKey,
-                                 oldValue: Experiment,
-                                 experiment: Experiment,
-                                 _id: Long = gen.nextId(),
-                                 timestamp: LocalDateTime = LocalDateTime.now(),
-                                 authInfo: Option[AuthInfo.Service])
-        extends ExperimentEvent {
+    case class ExperimentUpdated(
+        key: ExperimentKey,
+        oldValue: Experiment,
+        experiment: Experiment,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ExperimentEvent {
       val `type`: String   = "EXPERIMENT_UPDATED"
       val payload: JsValue = ExperimentInstances.format.writes(experiment)
       override def toJson: JsValue =
         super.toJson.as[JsObject] ++ Json.obj("oldValue" -> ExperimentInstances.format.writes(oldValue))
     }
 
-    case class ExperimentDeleted(key: ExperimentKey,
-                                 experiment: Experiment,
-                                 _id: Long = gen.nextId(),
-                                 timestamp: LocalDateTime = LocalDateTime.now(),
-                                 authInfo: Option[AuthInfo.Service])
-        extends ExperimentEvent {
+    case class ExperimentDeleted(
+        key: ExperimentKey,
+        experiment: Experiment,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ExperimentEvent {
       val `type`: String   = "EXPERIMENT_DELETED"
       val payload: JsValue = ExperimentInstances.format.writes(experiment)
     }
 
-    case class ExperimentsDeleted(count: Long,
-                                  patterns: Seq[String],
-                                  _id: Long = gen.nextId(),
-                                  timestamp: LocalDateTime = LocalDateTime.now(),
-                                  authInfo: Option[AuthInfo.Service])
-        extends ExperimentEvent {
+    case class ExperimentsDeleted(
+        count: Long,
+        patterns: Seq[String],
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ExperimentEvent {
       val `type`: String     = "EXPERIMENTS_DELETED"
       val payload: JsValue   = Json.obj("count" -> count, "patterns" -> patterns)
       val key: ExperimentKey = Key.Empty
@@ -695,22 +721,24 @@ package object events {
 
     sealed trait ExperimentVariantEventEvent extends ExperimentEvent
 
-    case class ExperimentVariantEventCreated(id: ExperimentVariantEventKey,
-                                             data: ExperimentVariantEvent,
-                                             _id: Long = gen.nextId(),
-                                             timestamp: LocalDateTime = LocalDateTime.now(),
-                                             authInfo: Option[AuthInfo.Service])
-        extends ExperimentVariantEventEvent {
+    case class ExperimentVariantEventCreated(
+        id: ExperimentVariantEventKey,
+        data: ExperimentVariantEvent,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ExperimentVariantEventEvent {
       override def `type`: String     = "EXPERIMENT_VARIANT_EVENT_CREATED"
       override def key: ExperimentKey = id.key
       override def payload: JsValue   = ExperimentVariantEventInstances.format.writes(data)
     }
 
-    case class ExperimentVariantEventsDeleted(experiment: Experiment,
-                                              _id: Long = gen.nextId(),
-                                              timestamp: LocalDateTime = LocalDateTime.now(),
-                                              authInfo: Option[AuthInfo.Service])
-        extends ExperimentVariantEventEvent {
+    case class ExperimentVariantEventsDeleted(
+        experiment: Experiment,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends ExperimentVariantEventEvent {
       override def `type`: String     = "EXPERIMENT_VARIANT_EVENT_DELETED"
       override def key: ExperimentKey = experiment.id
       override def payload: JsValue =
@@ -751,9 +779,11 @@ package object events {
 
       def publish(event: IzanamiEvent): ZIO[ZLogger with AuthInfo, IzanamiErrors, Done]
 
-      def events(domains: Seq[Domain] = Seq.empty[Domain],
-                 patterns: Seq[String] = Seq.empty[String],
-                 lastEventId: Option[Long] = None): Source[IzanamiEvent, NotUsed]
+      def events(
+          domains: Seq[Domain] = Seq.empty[Domain],
+          patterns: Seq[String] = Seq.empty[String],
+          lastEventId: Option[Long] = None
+      ): Source[IzanamiEvent, NotUsed]
 
       def check(): RIO[ZLogger with AuthInfo, Unit]
 
@@ -768,7 +798,7 @@ package object events {
         izanamiConfig: IzanamiConfig
     ): ZLayer[DataStoreLayerContext, Throwable, EventStore] =
       izanamiConfig.events match {
-        case InMemoryEvents(_)    => BasicEventStore.live
+        case InMemoryEvents(c)    => BasicEventStore.live(c)
         case KafkaEvents(c)       => KafkaEventStore.live(c)
         case RedisEvents(c)       => Drivers.redisClientLayer.passthrough >>> RedisEventStore.live(c)
         case DistributedEvents(c) => DistributedPubSubEventStore.live(c)
@@ -778,9 +808,11 @@ package object events {
     def publish(event: IzanamiEvent): ZIO[EventStoreContext, IzanamiErrors, Done] =
       ZIO.accessM(_.get[EventStore.Service].publish(event))
 
-    def events(domains: Seq[Domain] = Seq.empty[Domain],
-               patterns: Seq[String] = Seq.empty[String],
-               lastEventId: Option[Long] = None): RIO[EventStoreContext, Source[IzanamiEvent, NotUsed]] =
+    def events(
+        domains: Seq[Domain] = Seq.empty[Domain],
+        patterns: Seq[String] = Seq.empty[String],
+        lastEventId: Option[Long] = None
+    ): RIO[EventStoreContext, Source[IzanamiEvent, NotUsed]] =
       ZIO.access(_.get[EventStore.Service].events(domains, patterns, lastEventId))
 
     def check(): ZIO[EventStoreContext, IzanamiErrors, Unit] =
