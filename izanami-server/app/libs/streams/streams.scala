@@ -2,8 +2,8 @@ package libs.streams
 
 import akka.NotUsed
 import akka.stream.OverflowStrategy.backpressure
-import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Source, SourceQueueWithComplete, Zip}
-import akka.stream.{FlowShape, Materializer, QueueOfferResult}
+import akka.stream.scaladsl.{Broadcast, BroadcastHub, Flow, GraphDSL, Keep, Sink, Source, SourceQueueWithComplete, Zip}
+import akka.stream.{FlowShape, Materializer, OverflowStrategies, OverflowStrategy, QueueOfferResult}
 import cats.implicits._
 import domains.Key
 import libs.streams.CacheableQueue.{Element, QueueElement}
@@ -24,9 +24,8 @@ object syntax {
               { err =>
                 IzanamiLogger.error(s"Error parsing $v : $err")
                 List.empty[(Key, V)]
-              }, { v =>
-                List((k, v))
-              }
+              },
+              v => List((k, v))
             )
       }
   }
@@ -41,9 +40,7 @@ object Flows {
 
         val bcast = b.add(Broadcast[In](2))
         val zip   = b.add(Zip[Out, Int]())
-        val count = Flow[In].fold(0) { (acc, _) =>
-          acc + 1
-        }
+        val count = Flow[In].fold(0)((acc, _) => acc + 1)
 
         bcast ~> count ~> zip.in1
         bcast ~> aFlow ~> zip.in0
@@ -54,10 +51,11 @@ object Flows {
 
 }
 
-case class CacheableQueue[T](queue: SourceQueueWithComplete[QueueElement[T]],
-                             sourceWithCache: Source[T, NotUsed],
-                             rawSource: Source[T, NotUsed])
-    extends SourceQueueWithComplete[T] {
+case class CacheableQueue[T](
+    queue: SourceQueueWithComplete[QueueElement[T]],
+    sourceWithCache: Source[T, NotUsed],
+    rawSource: Source[T, NotUsed]
+) extends SourceQueueWithComplete[T] {
 
   override def offer(elem: T): Future[QueueOfferResult] = queue.offer(Element(elem))
   override def watchCompletion()                        = queue.watchCompletion()
@@ -92,13 +90,18 @@ object CacheableQueue {
   case class State[T](current: T, elements: Seq[T] = Seq.empty, capacity: Int) extends QueueState[T]
   case class Starter[T](elements: Seq[T] = Seq.empty, capacity: Int)           extends QueueState[T]
 
-  def apply[T](capacity: Int, queueBufferSize: Int = 50, broadcastCapacity: Int = 256)(
+  def apply[T](
+      capacity: Int,
+      queueBufferSize: Int = 50,
+      broadcastCapacity: Int = 256,
+      overflowStrategy: OverflowStrategy = OverflowStrategy.backpressure
+  )(
       implicit mat: Materializer
   ): CacheableQueue[T] = {
 
     val (queue, rawSource: Source[QueueElement[T], NotUsed]) =
       Source
-        .queue[QueueElement[T]](queueBufferSize, backpressure)
+        .queue[QueueElement[T]](queueBufferSize, OverflowStrategy.backpressure)
         .toMat(BroadcastHub.sink(2))(Keep.both)
         .run()
 
@@ -132,16 +135,20 @@ object CacheableQueue {
         }
     }
 
+    val sourceWithCache = source.mapMaterializedValue { n =>
+      queue.offer(Fake[T]())
+      n
+    }
+    val nativeSource = rawSource
+      .collect {
+        case Element(e) => e
+      }
+    sourceWithCache.runWith(Sink.ignore)
+    nativeSource.runWith(Sink.ignore)
     CacheableQueue(
       queue,
-      source.mapMaterializedValue { n =>
-        queue.offer(Fake[T]())
-        n
-      },
-      rawSource
-        .collect {
-          case Element(e) => e
-        }
+      sourceWithCache,
+      nativeSource
     )
   }
 
