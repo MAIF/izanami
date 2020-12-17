@@ -75,23 +75,27 @@ package object configuration {
 
     def live(playModuleProd: PlayModuleProd): ULayer[PlayModule] = ZLayer.succeed(playModuleProd)
 
-    def live(system: ActorSystem,
-             mat: Materializer,
-             defaultCacheApi: AsyncCacheApi,
-             configuration: Configuration,
-             environment: Environment,
-             wSClient: play.api.libs.ws.WSClient,
-             ec: ExecutionContext,
-             applicationLifecycle: ApplicationLifecycle): ULayer[PlayModule] = ZLayer.succeed(
-      PlayModuleProd(system,
-                     mat,
-                     defaultCacheApi,
-                     configuration,
-                     environment,
-                     wSClient,
-                     new AhcWSClient(wSClient.underlying[AsyncHttpClient], mat),
-                     ec,
-                     applicationLifecycle)
+    def live(
+        system: ActorSystem,
+        mat: Materializer,
+        defaultCacheApi: AsyncCacheApi,
+        configuration: Configuration,
+        environment: Environment,
+        wSClient: play.api.libs.ws.WSClient,
+        ec: ExecutionContext,
+        applicationLifecycle: ApplicationLifecycle
+    ): ULayer[PlayModule] = ZLayer.succeed(
+      PlayModuleProd(
+        system,
+        mat,
+        defaultCacheApi,
+        configuration,
+        environment,
+        wSClient,
+        new AhcWSClient(wSClient.underlying[AsyncHttpClient], mat),
+        ec,
+        applicationLifecycle
+      )
     )
 
     def mat: URIO[PlayModule, Materializer]         = ZIO.access[PlayModule](_.get.mat)
@@ -126,56 +130,46 @@ package object configuration {
     with Blocking
 
   object GlobalContext {
-    def live(system: ActorSystem,
-             mat: Materializer,
-             defaultCacheApi: AsyncCacheApi,
-             configuration: Configuration,
-             environment: Environment,
-             wSClient: play.api.libs.ws.WSClient,
-             ec: ExecutionContext,
-             izanamiConfig: IzanamiConfig,
-             applicationLifecycle: ApplicationLifecycle): HttpContext[GlobalContext] = {
+    def live(
+        system: ActorSystem,
+        mat: Materializer,
+        defaultCacheApi: AsyncCacheApi,
+        configuration: Configuration,
+        environment: Environment,
+        wSClient: play.api.libs.ws.WSClient,
+        ec: ExecutionContext,
+        izanamiConfig: IzanamiConfig,
+        applicationLifecycle: ApplicationLifecycle
+    ): HttpContext[GlobalContext] = {
 
       val playModule =
         PlayModule.live(system, mat, defaultCacheApi, configuration, environment, wSClient, ec, applicationLifecycle)
 
       val izanamiConfigModule = IzanamiConfigModule.value(izanamiConfig)
 
-      val configAndScript
-        : ZLayer[ZEnv,
-                 Throwable,
-                 ScriptCache with RunnableScriptModule with MetricsModule with ZLogger with Oauth2Service] =
-      playModule >>> (ScriptCache.live ++ RunnableScriptModule.live ++ MetricsModule.live ++ ZLogger.live ++ Oauth2Service
-        .live(izanamiConfig))
-
-      val dataStoreLayerContext: ZLayer[ZEnv, Throwable, DataStoreLayerContext] =
-      playModule ++ izanamiConfigModule ++ ZLogger.live
-
-      val stores: ZLayer[
-        ZEnv,
-        Throwable,
-        MetricsModules with EventStore with ExperimentDataStore with ExperimentVariantEventService with ApikeyDataStore with ConfigDataStore with FeatureDataStore with GlobalScriptDataStore with UserDataStore with WebhookDataStore
-      ] =
-      dataStoreLayerContext >>> (
-        MetricsModules.allMetricsModules(izanamiConfig) ++
-        EventStore.live(izanamiConfig) ++
-        ExperimentDataStore.live(izanamiConfig) ++
-        ExperimentVariantEventService.live(izanamiConfig) ++
-        ApikeyDataStore.live(izanamiConfig) ++
-        ConfigDataStore.live(izanamiConfig) ++
-        FeatureDataStore.live(izanamiConfig) ++
-        GlobalScriptDataStore.live(izanamiConfig) ++
-        UserDataStore.live(izanamiConfig) ++
-        WebhookDataStore.live(izanamiConfig)
-      )
-
-      playModule ++
-      izanamiConfigModule ++
-      AuthInfo.empty ++
-      ZLogger.live ++
-      stores ++
-      configAndScript ++
-      Clock.live ++ Blocking.live
+      // Conf
+      playModule >+>
+      izanamiConfigModule >+>
+      AuthInfo.empty >+>
+      ZLogger.live >+>
+      // Stores
+      MetricsModules.allMetricsModules(izanamiConfig) >+>
+      EventStore.live(izanamiConfig) >+>
+      ExperimentDataStore.live(izanamiConfig) >+>
+      ExperimentVariantEventService.live(izanamiConfig) >+>
+      ApikeyDataStore.live(izanamiConfig) >+>
+      ConfigDataStore.live(izanamiConfig) >+>
+      FeatureDataStore.live(izanamiConfig) >+>
+      GlobalScriptDataStore.live(izanamiConfig) >+>
+      UserDataStore.live(izanamiConfig) >+>
+      WebhookDataStore.live(izanamiConfig) >+>
+      // Scripts
+      ScriptCache.live >+>
+      RunnableScriptModule.live >+>
+      MetricsModule.live >+>
+      // Other
+      Oauth2Service.live(izanamiConfig) >+>
+      Clock.live >+> Blocking.live
     }
 
   }
@@ -188,9 +182,7 @@ object Import {
   val toJson = Flow[ByteString] via newLineSplit map (_.utf8String) filterNot (_.isEmpty) map (l => (l, Json.parse(l)))
 
   def ndJson(implicit ec: ExecutionContext): BodyParser[Source[(String, JsValue), _]] =
-    BodyParser { _ =>
-      Accumulator.source[ByteString].map(s => Right(s.via(toJson)))
-    }
+    BodyParser(_ => Accumulator.source[ByteString].map(s => Right(s.via(toJson))))
 
   def importFile[Ctx <: ZLogger with IzanamiConfigModule](
       getDb: IzanamiConfig => DbDomainConfig,
@@ -325,9 +317,7 @@ case class Key(key: String) {
 
   val segments: Seq[String] = key.split(":").toIndexedSeq
 
-  val jsPath: JsPath = segments.foldLeft[JsPath](JsPath) { (p, s) =>
-    p \ s
-  }
+  val jsPath: JsPath = segments.foldLeft[JsPath](JsPath)((p, s) => p \ s)
 
   def dropHead: Key = Key(segments.tail)
 
@@ -416,9 +406,7 @@ object Key {
 
   val reads: Reads[Key] =
     __.read[String](pattern("(([\\w@\\.0-9\\-]+)(:?))+".r)).map(Key.apply)
-  val writes: Writes[Key] = Writes[Key] { k =>
-    JsString(k.key)
-  }
+  val writes: Writes[Key] = Writes[Key](k => JsString(k.key))
 
   implicit val format: Format[Key] = Format(reads, writes)
 

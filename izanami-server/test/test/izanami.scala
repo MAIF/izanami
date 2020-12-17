@@ -69,6 +69,7 @@ import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 import play.api.libs.json.Json
 
+import java.time.ZoneId
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
@@ -81,12 +82,13 @@ object IzanamiSpecObj extends IzanamiSpec
 
 object FakeConfig {
 
-  case class FakeAhcWSComponents(environment: Environment,
-                                 applicationLifecycle: play.api.inject.ApplicationLifecycle,
-                                 configuration: play.api.Configuration,
-                                 executionContext: scala.concurrent.ExecutionContext,
-                                 materializer: akka.stream.Materializer)
-      extends AhcWSComponents
+  case class FakeAhcWSComponents(
+      environment: Environment,
+      applicationLifecycle: play.api.inject.ApplicationLifecycle,
+      configuration: play.api.Configuration,
+      executionContext: scala.concurrent.ExecutionContext,
+      materializer: akka.stream.Materializer
+  ) extends AhcWSComponents
 
   def playModule(actorSystem: ActorSystem, environment: Environment = Environment.simple()): ULayer[PlayModule] = {
     val configuration                                       = Configuration.load(environment)
@@ -128,6 +130,7 @@ object FakeConfig {
     false,
     false,
     "X-Forwarded-For",
+    Some(ZoneId.systemDefault().getId),
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
     None,
     DbConfig(""),
@@ -140,7 +143,7 @@ object FakeConfig {
     WebhookConfig(dbConfig, WebhookEventsConfig(5, 1.second, 1, 1.second)),
     UserConfig(dbConfig, InitialUserConfig("", "")),
     ApikeyConfig(dbConfig, InitializeApiKey(None, None, "*")),
-    InMemoryEvents(InMemoryEventsConfig()),
+    InMemoryEvents(InMemoryEventsConfig(500)),
     PatchConfig(dbConfig),
     MetricsConfig(
       false,
@@ -191,12 +194,14 @@ trait OneAppPerTestWithMyComponents extends OneAppPerTestWithComponents with Sca
   this: TestSuite =>
 
   def user =
-    IzanamiUser(id = "id",
-                name = "Ragnar Lodbrok",
-                email = "ragnar.lodbrok@gmail.com",
-                admin = true,
-                password = None,
-                authorizedPatterns = AuthorizedPatterns.fromString("*"))
+    IzanamiUser(
+      id = "id",
+      name = "Ragnar Lodbrok",
+      email = "ragnar.lodbrok@gmail.com",
+      admin = true,
+      password = None,
+      authorizedPatterns = AuthorizedPatterns.fromString("*")
+    )
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -209,12 +214,14 @@ trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with S
   this: TestSuite =>
 
   def user =
-    IzanamiUser(id = "id",
-                name = "Ragnar Lodbrok",
-                email = "ragnar.lodbrok@gmail.com",
-                admin = true,
-                password = None,
-                authorizedPatterns = AuthorizedPatterns.All)
+    IzanamiUser(
+      id = "id",
+      name = "Ragnar Lodbrok",
+      email = "ragnar.lodbrok@gmail.com",
+      admin = true,
+      password = None,
+      authorizedPatterns = AuthorizedPatterns.All
+    )
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -227,12 +234,14 @@ trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents wi
   this: TestSuite =>
 
   def user =
-    IzanamiUser(id = "id",
-                name = "Ragnar Lodbrok",
-                email = "ragnar.lodbrok@gmail.com",
-                admin = true,
-                password = None,
-                authorizedPatterns = AuthorizedPatterns.All)
+    IzanamiUser(
+      id = "id",
+      name = "Ragnar Lodbrok",
+      email = "ragnar.lodbrok@gmail.com",
+      admin = true,
+      password = None,
+      authorizedPatterns = AuthorizedPatterns.All
+    )
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -247,12 +256,14 @@ trait OneServerPerSuiteWithMyComponents
     with AddConfiguration { this: TestSuite =>
 
   def user: User =
-    IzanamiUser(id = "id",
-                name = "Ragnar Lodbrok",
-                email = "ragnar.lodbrok@gmail.com",
-                admin = true,
-                password = None,
-                authorizedPatterns = AuthorizedPatterns.All)
+    IzanamiUser(
+      id = "id",
+      name = "Ragnar Lodbrok",
+      email = "ragnar.lodbrok@gmail.com",
+      admin = true,
+      password = None,
+      authorizedPatterns = AuthorizedPatterns.All
+    )
 
   def izanamiComponents =
     new IzanamiTestComponentsInstances(context, user, getConfiguration)
@@ -330,9 +341,11 @@ class TestEventStore(val events: ArrayBuffer[Events.IzanamiEvent] = mutable.Arra
     IO.succeed(Done)
   }
 
-  def events(domains: Seq[Domain] = Seq.empty[Domain],
-             patterns: Seq[String] = Seq.empty[String],
-             lastEventId: Option[Long] = None): Source[IzanamiEvent, NotUsed] =
+  def events(
+      domains: Seq[Domain] = Seq.empty[Domain],
+      patterns: Seq[String] = Seq.empty[String],
+      lastEventId: Option[Long] = None
+  ): Source[IzanamiEvent, NotUsed] =
     Source(events.toList)
 
   def check(): Task[Unit] = Task.succeed(())

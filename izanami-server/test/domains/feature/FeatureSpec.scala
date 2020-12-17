@@ -2,7 +2,6 @@ package domains.feature
 
 import java.time.{LocalDateTime, ZoneId}
 import java.time.temporal.ChronoUnit
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
@@ -38,13 +37,16 @@ import scala.concurrent.ExecutionContext
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.Configuration
 import play.api.libs.json.JsArray
+
 import java.time.LocalTime
 import java.time.Duration
-
 import cats.data.NonEmptyList
 import domains.configuration.PlayModule
 import domains.configuration.PlayModule.PlayModuleProd
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
+import env.IzanamiConfig
+import env.configuration.IzanamiConfigModule
+
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
 import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
 import play.api.inject.ApplicationLifecycle
@@ -978,7 +980,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     playModule ++ ZLogger.live ++ Blocking.live ++
     ScriptCache.value(scriptCache) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
       .optValue(user) ++ GlobalScriptDataStore.value(globalScriptDataStore) ++ FeatureDataStore.value(featureDataStore) ++
-    runnableScriptModule
+    runnableScriptModule >+> IzanamiConfigModule.value(FakeConfig.config)
 
   private def runIsActive[T](t: ZIO[IsActiveContext, IzanamiErrors, T]): T =
     runtime.unsafeRun(t.provideLayer(isActiveContext))
@@ -987,11 +989,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     runtime.unsafeRun(t.provideLayer(isActiveContext))
 
   private def isActiveContext: ZLayer[Any, Throwable, IsActiveContext] =
-    playModule ++ ZLogger.live ++ ScriptCache.value(fakeCache) ++ EventStore.value(new TestEventStore()) ++ AuthInfo
+    playModule  ++ ScriptCache.value(fakeCache) ++ EventStore.value(new TestEventStore()) ++ AuthInfo
       .optValue(Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))) ++ Blocking.live ++ GlobalScriptDataStore
       .value(
         new InMemoryJsonDataStore("script", TrieMap.empty[GlobalScriptKey, JsValue])
-      ) ++ runnableScriptModule
+      ) ++ runnableScriptModule ++ ZLogger.live >+> IzanamiConfigModule.value(FakeConfig.config)
 
   def fakeCache: CacheService[String] = new CacheService[String] {
     override def get[T: ClassTag](id: String): Task[Option[T]]      = Task.succeed(None)

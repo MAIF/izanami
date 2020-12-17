@@ -1,17 +1,16 @@
 package domains.feature
 import java.time.{LocalDateTime, ZoneId}
-
 import domains.{IsAllowed, Key}
 import domains.auth.AuthInfo
 import domains.script._
 import domains.errors.{IzanamiErrors, ValidationError}
 import FeatureType._
 import domains.feature.Feature.FeatureKey
+import env.IzanamiConfig
 import zio.ZIO
 
 import scala.util.hashing.MurmurHash3
 import java.time.LocalTime
-
 import metrics.MetricsService
 
 object DefaultFeatureInstances {
@@ -52,9 +51,7 @@ object GlobalScriptFeatureInstances {
     FeatureInstances.commonWrite and
     (__ \ "parameters" \ "ref").write[String]
   )(unlift(GlobalScriptFeature.unapply))
-    .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> GLOBAL_SCRIPT)
-    }
+    .transform { o: JsObject => o ++ Json.obj("activationStrategy" -> GLOBAL_SCRIPT) }
 
   private val reads: Reads[GlobalScriptFeature] = (
     (__ \ "id").read[Key] and
@@ -98,9 +95,7 @@ object ScriptFeatureInstances {
     FeatureInstances.commonWrite and
     (__ \ "parameters").write[Script](ScriptInstances.writes)
   )(unlift(ScriptFeature.unapply))
-    .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> SCRIPT)
-    }
+    .transform { o: JsObject => o ++ Json.obj("activationStrategy" -> SCRIPT) }
 
   private val reads: Reads[ScriptFeature] = (
     (__ \ "id").read[Key] and
@@ -149,23 +144,21 @@ object DateRangeFeatureInstances {
     FeatureInstances.commonWrite and
     (__ \ "parameters" \ "from").write[LocalDateTime](dateWrite) and
     (__ \ "parameters" \ "to").write[LocalDateTime](dateWrite)
-  )(unlift(DateRangeFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> DATE_RANGE)
-  }
+  )(unlift(DateRangeFeature.unapply)).transform { o: JsObject => o ++ Json.obj("activationStrategy" -> DATE_RANGE) }
 
   implicit val format: Format[DateRangeFeature] = Format(reads, writes)
 
   def isActive: IsActive[DateRangeFeature] = new IsActive[DateRangeFeature] {
-    override def isActive(feature: DateRangeFeature,
-                          context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] = {
-      val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-      val active = (now.isAfter(feature.from) || now.isEqual(feature.from)) && (now.isBefore(feature.to) || now.isEqual(
-        feature.to
-      ))
-      ZIO.succeed(active)
-    }
+    override def isActive(feature: DateRangeFeature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+      IzanamiConfig.zoneId.map { zoneId =>
+        val now: LocalDateTime = LocalDateTime.now(ZoneId.of(zoneId))
+        val active =
+          (now.isAfter(feature.from) || now.isEqual(feature.from)) && (now.isBefore(feature.to) || now.isEqual(
+            feature.to
+          ))
+        active;
+      }
   }
-
 }
 
 object ReleaseDateFeatureInstances {
@@ -192,9 +185,7 @@ object ReleaseDateFeatureInstances {
     FeatureInstances.commonWrite and
     (__ \ "parameters" \ "releaseDate")
       .write[LocalDateTime](temporalWrites[LocalDateTime, String](pattern))
-  )(unlift(ReleaseDateFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> RELEASE_DATE)
-  }
+  )(unlift(ReleaseDateFeature.unapply)).transform { o: JsObject => o ++ Json.obj("activationStrategy" -> RELEASE_DATE) }
 
   implicit val format: Format[ReleaseDateFeature] = Format(reads, writes)
 
@@ -202,10 +193,11 @@ object ReleaseDateFeatureInstances {
     override def isActive(
         feature: ReleaseDateFeature,
         context: JsObject
-    ): ZIO[IsActiveContext, IzanamiErrors, Boolean] = {
-      val now: LocalDateTime = LocalDateTime.now(ZoneId.of("Europe/Paris"))
-      ZIO.succeed(now.isAfter(feature.date))
-    }
+    ): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+      IzanamiConfig.zoneId.map { zoneId =>
+        val now: LocalDateTime = LocalDateTime.now(ZoneId.of(zoneId))
+        now.isAfter(feature.date)
+      }
   }
 }
 
@@ -224,9 +216,7 @@ object PercentageFeatureInstances {
   val writes: Writes[PercentageFeature] = (
     FeatureInstances.commonWrite and
     (__ \ "parameters" \ "percentage").write[Int]
-  )(unlift(PercentageFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> PERCENTAGE)
-  }
+  )(unlift(PercentageFeature.unapply)).transform { o: JsObject => o ++ Json.obj("activationStrategy" -> PERCENTAGE) }
 
   implicit val format: Format[PercentageFeature] = Format(reads, writes)
 
@@ -275,9 +265,7 @@ object HourRangeFeatureInstances {
     FeatureInstances.commonWrite and
     (__ \ "parameters" \ "startAt").write[LocalTime](dateWrite) and
     (__ \ "parameters" \ "endAt").write[LocalTime](dateWrite)
-  )(unlift(HourRangeFeature.unapply)).transform { o: JsObject =>
-    o ++ Json.obj("activationStrategy" -> HOUR_RANGE)
-  }
+  )(unlift(HourRangeFeature.unapply)).transform { o: JsObject => o ++ Json.obj("activationStrategy" -> HOUR_RANGE) }
 
   implicit val format: Format[HourRangeFeature] = Format(reads, writes)
 
@@ -285,10 +273,11 @@ object HourRangeFeatureInstances {
     override def isActive(
         feature: HourRangeFeature,
         context: JsObject
-    ): ZIO[IsActiveContext, IzanamiErrors, Boolean] = {
-      val now = LocalTime.now()
-      ZIO.succeed(now.isAfter(feature.startAt) && now.isBefore(feature.endAt))
-    }
+    ): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+      IzanamiConfig.zoneId.map { zoneId =>
+        val now = LocalTime.now(ZoneId.of(zoneId))
+        now.isAfter(feature.startAt) && now.isBefore(feature.endAt)
+      }
   }
 }
 
@@ -309,9 +298,7 @@ object FeatureInstances {
         case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive.isActive(f, context)
         case f: PercentageFeature   => PercentageFeatureInstances.isActive.isActive(f, context)
         case f: HourRangeFeature    => HourRangeFeatureInstances.isActive.isActive(f, context)
-      }) >>= { checked =>
-        MetricsService.incFeatureCheckCount(feature.id.key, checked) *> ZIO.succeed(checked)
-      }
+      }) >>= { checked => MetricsService.incFeatureCheckCount(feature.id.key, checked) *> ZIO.succeed(checked) }
     }
 
   implicit val isActive: IsActive[Feature] =
@@ -321,17 +308,15 @@ object FeatureInstances {
     }
 
   def graphWrites(active: Boolean): Writes[Feature] = Writes[Feature] { feature =>
-    val path = feature.id.segments.foldLeft[JsPath](JsPath) { (path, seq) =>
-      path \ seq
-    }
+    val path   = feature.id.segments.foldLeft[JsPath](JsPath)((path, seq) => path \ seq)
     val writer = (path \ "active").write[Boolean]
     writer.writes(active)
   }
 
   private[feature] val commonWrite =
-  (__ \ "id").write[FeatureKey] and
-  (__ \ "enabled").write[Boolean] and
-  (__ \ "description").writeNullable[String]
+    (__ \ "id").write[FeatureKey] and
+    (__ \ "enabled").write[Boolean] and
+    (__ \ "description").writeNullable[String]
 
   private val reads: Reads[Feature] = Reads[Feature] {
     case o if (o \ "activationStrategy").asOpt[String].contains(NO_STRATEGY) =>
