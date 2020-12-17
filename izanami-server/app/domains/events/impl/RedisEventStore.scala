@@ -29,9 +29,11 @@ object RedisEventStore {
       create(redisDriver, config, playModule.system)
     }
 
-  def create(client: RedisWrapper,
-             config: RedisEventsConfig,
-             system: ActorSystem): Managed[Throwable, RedisEventStore] =
+  def create(
+      client: RedisWrapper,
+      config: RedisEventsConfig,
+      system: ActorSystem
+  ): Managed[Throwable, RedisEventStore] =
     (client.managedConnection <*>
     client.connectPubSub).map {
       case (connection, connectionPubSub) =>
@@ -39,11 +41,12 @@ object RedisEventStore {
     }
 }
 
-class RedisEventStore(connection: StatefulRedisConnection[String, String],
-                      connectionPubSub: StatefulRedisPubSubConnection[String, String],
-                      config: RedisEventsConfig,
-                      system: ActorSystem)
-    extends EventStore.Service {
+class RedisEventStore(
+    connection: StatefulRedisConnection[String, String],
+    connectionPubSub: StatefulRedisPubSubConnection[String, String],
+    config: RedisEventsConfig,
+    system: ActorSystem
+) extends EventStore.Service {
 
   import EventLogger._
   import system.dispatcher
@@ -52,7 +55,7 @@ class RedisEventStore(connection: StatefulRedisConnection[String, String],
 
   logger.info(s"Starting redis event store")
 
-  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = 500)
+  private val queue = CacheableQueue[IzanamiEvent](500, queueBufferSize = config.backpressureBufferSize)
 
   connectionPubSub.addListener(new RedisPubSubListener[String, String] {
     private def publishMessage(message: String) = {
@@ -106,9 +109,11 @@ class RedisEventStore(connection: StatefulRedisConnection[String, String],
       .orDie
   }
 
-  override def events(domains: Seq[Domain],
-                      patterns: Seq[String],
-                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] =
+  override def events(
+      domains: Seq[Domain],
+      patterns: Seq[String],
+      lastEventId: Option[Long]
+  ): Source[IzanamiEvent, NotUsed] =
     lastEventId match {
       case Some(_) =>
         queue.sourceWithCache
@@ -123,12 +128,12 @@ class RedisEventStore(connection: StatefulRedisConnection[String, String],
     connection
       .async()
       .get("test")
-      .whenComplete((_, e) => {
+      .whenComplete { (_, e) =>
         if (e != null) {
           cb(IO.fail(e))
         } else {
           cb(IO.succeed(()))
         }
-      })
+      }
   }
 }
