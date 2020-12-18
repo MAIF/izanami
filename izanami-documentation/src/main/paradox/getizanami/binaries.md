@@ -3,13 +3,13 @@
 Binaries are the recommended way to run Izanami. 
 
 ```
-wget --quiet 'https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar'
+wget --quiet 'https://github.com/MAIF/izanami/releases/latest/download/izanami.jar'
 ``` 
 
 Or 
 
 ```
-wget --quiet 'https://dl.bintray.com/maif/binaries/izanami-dist/latest/izanami-dist.zip'
+wget --quiet 'https://github.com/MAIF/izanami/releases/latest/download/izanami.zip'
 ``` 
 
 

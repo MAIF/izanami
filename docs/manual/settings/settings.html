@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.8.1*
+1.8.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.8.1*
+1.8.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -239,6 +239,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td>The context used </td>
       <td><code>/</code> </td>
     </tr>
+    <tr>
+      <td><code>izanami.zoneId</code> </td>
+      <td><code>ZONE_ID</code> </td>
+      <td><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/ZoneId.html">The time-zone id</a> </td>
+      <td><code>Europe/Paris</code> </td>
+    </tr>
   </tbody>
 </table>
 <h2><a href="#events" name="events" class="anchor"><span class="anchor-link"></span></a>Events</h2>
@@ -278,10 +284,28 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>izanami:events</code> </td>
     </tr>
     <tr>
+      <td><code>izanami.events.redis.backpressureBufferSize</code> </td>
+      <td><code>REDIS_BACKPRESSURE_BUFFER_SIZE</code> </td>
+      <td>Size of buffer (of backpressure) between <code>Redis</code> event store and notification (SSE, WebHook and hook). </td>
+      <td><code>500</code> </td>
+    </tr>
+    <tr>
       <td><code>izanami.events.kafka.topic</code> </td>
       <td><code>KAFKA_TOPIC</code> </td>
       <td>Name of the topic when <code>izanami.events.store</code>=<code>Kafka</code> </td>
       <td><code>izanami</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.events.kafka.backpressureBufferSize</code> </td>
+      <td><code>KAFKA_BACKPRESSURE_BUFFER_SIZE</code> </td>
+      <td>Size of buffer (of backpressure) between <code>Kafka</code> event store and notification (SSE, WebHook and hook). </td>
+      <td><code>500</code> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.events.inmemory.backpressureBufferSize</code> </td>
+      <td><code>IN_MEMORY_BACKPRESSURE_BUFFER_SIZE</code> </td>
+      <td>Size of buffer (of backpressure) between <code>InMemory</code> event store and notification (SSE, WebHook and hook). </td>
+      <td><code>500</code> </td>
     </tr>
     <tr>
       <td><code>izanami.cluster.seed-node-host</code> </td>

@@ -10,7 +10,7 @@ what you will need :
 First download the executable jar : 
 
 ```zsh
-wget --quiet -O izanami.jar https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar
+wget --quiet -O izanami.jar https://github.com/MAIF/izanami/releases/latest/download/izanami.jar
 ```
 
 And then run it 
