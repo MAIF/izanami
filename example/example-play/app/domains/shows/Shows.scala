@@ -89,20 +89,24 @@ object TvdbShows {
   object TvshowResume {
     implicit val format = Json.format[TvshowResume]
   }
-  case class TvshowResume(banner: Option[String],
-                          id: Int,
-                          imdbId: Option[String],
-                          network: Option[String],
-                          overview: Option[String],
-                          seriesName: String,
-                          status: String) {
+  case class TvshowResume(
+      banner: Option[String],
+      id: Int,
+      imdbId: Option[String],
+      network: Option[String],
+      overview: Option[String],
+      seriesName: String,
+      status: String
+  ) {
 
-    def toShow(baseUrl: String, seasons: Seq[Season]): Show = Show(id.toString, seriesName, overview.getOrElse(""), getBannerUrl(baseUrl), seasons)
+    def toShow(baseUrl: String, seasons: Seq[Season]): Show =
+      Show(id.toString, seriesName, overview.getOrElse(""), getBannerUrl(baseUrl), seasons)
 
-    def toShowResume(baseUrl: String): ShowResume = ShowResume(id.toString, seriesName, overview.getOrElse(""), getBannerUrl(baseUrl), "tvdb")
+    def toShowResume(baseUrl: String): ShowResume =
+      ShowResume(id.toString, seriesName, overview.getOrElse(""), getBannerUrl(baseUrl), "tvdb")
 
     def getBannerUrl(baseUrl: String): Option[String] =
-      banner.filter(_ != "").map(b => new URI(s"$baseUrl/${b.replace("banners/","")}").normalize().toString())
+      banner.filter(_ != "").map(b => new URI(s"$baseUrl/${b.replace("banners/", "")}").normalize().toString())
   }
 
   object PagedResponse {
@@ -122,12 +126,15 @@ object TvdbShows {
   object EpisodeResume {
     implicit val format = Json.format[EpisodeResume]
   }
-  case class EpisodeResume(id: Int,
-                           airedEpisodeNumber: Int,
-                           airedSeason: Int,
-                           episodeName: String,
-                           overview: Option[String]) {
-    def toEpisode: Episode = Episode(id.toString, airedEpisodeNumber, airedSeason, episodeName, overview, false)
+  case class EpisodeResume(
+      id: Int,
+      airedEpisodeNumber: Int,
+      airedSeason: Int,
+      episodeName: Option[String],
+      overview: Option[String]
+  ) {
+    def toEpisode: Episode =
+      Episode(id.toString, airedEpisodeNumber, airedSeason, episodeName.getOrElse(""), overview, false)
   }
 
   object Login {
@@ -147,9 +154,7 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
       .url(s"${config.url}/login")
       .post(Json.toJson(Login(config.apiKey)))
       .flatMap {
-        parseResponse[String]("token") { j =>
-          (j \ "token").validate[String]
-        }
+        parseResponse[String]("token")(j => (j \ "token").validate[String])
       }
 
   private def getAccessHeaders(): Future[Seq[(String, String)]] =
@@ -172,9 +177,7 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
               }
               .toSeq
           }
-        fSeasons.map { s =>
-          show.toShow(config.baseUrl, s)
-        }
+        fSeasons.map(s => show.toShow(config.baseUrl, s))
       }.sequence
     }
 
@@ -191,7 +194,7 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
             .addQueryStringParameters("name" -> text)
             .addHttpHeaders(headers: _*)
             .get()
-            .flatMap { parseResponse[PagedResponse[TvshowResume]]("search") }
+            .flatMap(parseResponse[PagedResponse[TvshowResume]]("search"))
             .map(_.data)
             .recover { case _ => Seq.empty }
         }
@@ -224,7 +227,7 @@ class TvdbShows(config: TvdbConfig, wSClient: WSClient)(implicit ec: ExecutionCo
         .url(s"${config.url}/series/$tvdbId/episodes")
         .addHttpHeaders(headers: _*)
         .get()
-        .flatMap { parseResponse[PagedResponse[EpisodeResume]]("list") }
+        .flatMap(parseResponse[PagedResponse[EpisodeResume]]("list"))
         .map(_.data)
     }
 
@@ -258,12 +261,14 @@ object BetaSerieShows {
   object BetaSerie {
     implicit val format = Json.format[BetaSerie]
   }
-  case class BetaSerie(id: Long,
-                       thetvdb_id: Long,
-                       imdb_id: String,
-                       title: String,
-                       description: String,
-                       images: Option[Images]) {
+  case class BetaSerie(
+      id: Long,
+      thetvdb_id: Long,
+      imdb_id: String,
+      title: String,
+      description: String,
+      images: Option[Images]
+  ) {
     def toShow(season: Seq[Season]): Show = Show(id.toString, title, description, images.flatMap(_.banner), season)
     def toShowResume                      = ShowResume(id.toString, title, description, images.flatMap(_.banner), "betaserie")
   }
