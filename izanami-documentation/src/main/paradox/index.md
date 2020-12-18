@@ -45,7 +45,7 @@ Download it :
 
 
 ```bash
-wget --quiet 'https://dl.bintray.com/maif/binaries/izanami.jar/latest/izanami.jar'
+wget --quiet 'https://github.com/MAIF/izanami/releases/latest/download/izanami.jar'
 ```
 
 Run it (JDK 11 needed)

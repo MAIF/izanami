@@ -1,15 +1,14 @@
-# Izanami [![gitter-badge][]][gitter] [![github-actions-badge][]][github-actions] [![jar-badge][]][jar]
+# Izanami [![gitter-badge][]][gitter] [![github-actions-badge][]][github-actions] ![release-badge]
 
 [github-actions]:       https://github.com/MAIF/izanami/actions
-[github-actions-badge]: https://github.com/MAIF/izanami/workflows/build/badge.svg
+[github-actions-badge]: https://github.com/MAIF/izanami/workflows/test/badge.svg
 [gitter]:               https://gitter.im/MAIF/izanami
 [gitter-badge]:         https://badges.gitter.im/MAIF/izanami.svg
-[dist]:                 https://bintray.com/maif/binaries/izanami-dist/_latestVersion
-[dist-badge]:           https://api.bintray.com/packages/maif/binaries/izanami-dist/images/download.svg
-[jar]:                  https://bintray.com/maif/binaries/izanami.jar/_latestVersion
-[jar-badge]:            https://api.bintray.com/packages/maif/binaries/izanami.jar/images/download.svg
+[release-badge]:        https://img.shields.io/github/v/release/MAIF/izanami
+[dist]:                 https://github.com/MAIF/izanami/releases/latest/download/izanami.zip
+[jar]:                  https://github.com/MAIF/izanami/releases/latest/download/izanami.jar
 [client]:               https://bintray.com/maif/maven/izanami-client/_latestVersion
-[client-badge]:         https://api.bintray.com/packages/maif/maven/izanami-client/images/download.svg
+[client-badge]:         https://img.shields.io/bintray/v/maif/maven/izanami-client
 [nodeclient]:           https://badge.fury.io/js/izanami-node
 [nodeclient-badge]:     https://badge.fury.io/js/izanami-node.svg
 [reactclient]:          https://badge.fury.io/js/react-izanami
@@ -21,18 +20,18 @@
 
 **Izanami** also provides first class integration. We provide Java, Scala, Node and React clients to integrate with your apps. We also provide webhook integration.
 
-**Izanami** is written in [scala](https://www.scala-lang.org/) using the [playframework](https://www.playframework.com/) and developed by the <a href="https://maif.github.io" target="_blank">MAIF OSS</a> team. 
+**Izanami** is written in [scala](https://www.scala-lang.org/) using the [playframework](https://www.playframework.com/) and developed by the <a href="https://maif.github.io" target="_blank">MAIF OSS</a> team.
 
-## Izanami packages  
+## Izanami packages
 
-- Latest dist zip [![dist-badge][]][dist]  
-- Latest jar [![jar-badge][]][jar] 
-- Latest client [![jar-badge][]][jar] 
+- Latest dist zip [![release-badge][]][dist]
+- Latest jar [![release-badge][]][jar]
+- Latest client [![Bintray][client-badge]][client]
 - Latest docker image [![docker-badge][]][docker]
-- Latest node client [![nodeclient-badge][]][nodeclient] 
+- Latest node client [![nodeclient-badge][]][nodeclient]
 - Latest react client [![reactclient-badge][]][reactclient]
 
-## Documentation 
+## Documentation
 
 See our [documentation](https://maif.github.io/izanami)
 
@@ -42,15 +41,15 @@ You can join these groups and chats to discuss and ask Izanami related questions
 
 - Issue tracker: [![github: MAIF/izanami](https://img.shields.io/github/issues/MAIF/izanami.svg)](https://github.com/MAIF/izanami/issues)
 - Chat room: [![gitter-badge][]][gitter]
- 
 
-## Contribution & Maintainers 
 
-Contributions are welcomed. 
+## Contribution & Maintainers
+
+Contributions are welcomed.
 
 Refer to the [CONTRIBUTING.md](https://github.com/MAIF/izanami/blob/master/.github/CONTRIBUTING.md) file for more details about the workflow,
 and general hints on how to prepare your pull request. You can also ask for clarifications or guidance in GitHub issues directly.
 
-## License 
+## License
 
 Izanami is Open Source and available under the Apache 2 License.

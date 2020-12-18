@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.8.1*
+1.8.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.8.1*
+1.8.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -256,20 +256,28 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <h3><a href="#running-the-application" name="running-the-application" class="anchor"><span class="anchor-link"></span></a>Running the application</h3>
 <p>To run the application, you will need </p>
 <ul>
-  <li>JDK 8 : <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html</a></li>
+  <li>JDK 11 : <a href="https://www.oracle.com/java/technologies/javase-jdk11-downloads.html">https://www.oracle.com/java/technologies/javase-jdk11-downloads.html</a></li>
   <li>sbt : <a href="http://www.scala-sbt.org/download.html">http://www.scala-sbt.org/download.html</a> or gradle <a href="https://gradle.org/install/">https://gradle.org/install/</a></li>
-  <li>Node js : <a href="https://nodejs.org/en/download/">https://nodejs.org/en/download/</a></li>
+  <li>Node.js 10 : <a href="https://nodejs.org/en/download/">https://nodejs.org/en/download/</a></li>
   <li>Yarn : <a href="https://yarnpkg.com/lang/en/docs/install/">https://yarnpkg.com/lang/en/docs/install/</a></li>
+  <li>Docker Compose : <a href="https://docs.docker.com/compose/install/">https://docs.docker.com/compose/install/</a></li>
 </ul>
 <p>Let&rsquo;s start by cloning Izanami : </p>
 <pre class="prettyprint"><code class="language-bash">git clone https://github.com/MAIF/izanami.git --depth=1
 </code></pre>
+<p>Run Izanami locally :</p>
+<pre class="prettyprint"><code class="language-bash">cd example
+docker-compose -f docker-compose.izanami.yml up
+</code></pre>
 <p>Then we have to compile and run the js/react code </p>
-<pre><code>cd example/example-spring/javascript
+<pre><code>cd example/example-react/javascript
 yarn install 
 yarn start 
 </code></pre>
 <p>Now there is a webpack server waiting to refresh the browser when the code change. </p>
+<p>Server depend of Izanami client in dev version. Publish it on the local repository :</p>
+<pre class="prettyprint"><code class="language-bash">sbt &#39;project jvm&#39; &#39;~publishLocal&#39;
+</code></pre>
 <p>Let&rsquo;s run the server side : </p>
 <dl>
   <dt>Graddle</dt>
@@ -279,7 +287,7 @@ gradle bootRun
 </code></pre></dd>
   <dt>Sbt</dt>
   <dd>
-  <pre class="prettyprint"><code class="language-bash">sbt &#39;project example-spring&#39; &#39;;clean;~reStart&#39;
+  <pre class="prettyprint"><code class="language-bash">sbt &#39;project example-spring&#39; &#39;;clean;~run&#39;
 </code></pre></dd>
 </dl>
 <p>Like on the client side, the server will be restarted automatically when your code will change. </p>
@@ -297,11 +305,12 @@ gradle bootRun
 <p>In this example, we&rsquo;re going to use the izanami tryout instance (<a href="http://izanami-tryout.cleverapps.io">http://izanami-tryout.cleverapps.io</a>) deployed on <a href="https://www.clever-cloud.com/">clever cloud</a>.</p>
 <p>The instance is configured on the <code>src/main/resources/application.yml</code> file : </p>
 <pre class="prettyprint"><code class="language-yaml">izanami:
-  host: &quot;http://localhost:9000&quot;
-  client-id: xxxx
-  client-secret: xxxx
+  host: &quot;http://izanami-tryout.cleverapps.io&quot;
+  client-id: myApiKeyClientId
+  client-secret: myApiKeyClientSecret
   backend: SseBackend
 </code></pre>
+<p>Go to <a href="http://izanami-tryout.cleverapps.io">http://izanami-tryout.cleverapps.io</a> (admin / admin), create APIKey, and replace myApiKeyClientId / myApiKeyClientSecret with yours values. </p>
 <p>And the client is registered as spring bean with the spring izanami starter. </p>
 <p>The client is based on <a href="https://akka.io/">Akka</a>, an <code>ActorSystem</code> is provided but you can override it if needed. </p><div class="callout warning "><div class="callout-title">Warning</div>
 <p>Izanami use non blocking call. In order to block call you have to configure a thread pool. This is done by configuring an akka dispatcher.</p>
