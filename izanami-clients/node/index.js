@@ -2,7 +2,7 @@ const _ = require('lodash');
 const deepmerge = require('deepmerge');
 const fetch = require('isomorphic-fetch');
 
-class IzanamicFeatureClient {
+class IzanamiFeatureClient {
 
   constructor(config) {
     this.config = config;
@@ -315,7 +315,7 @@ module.exports = {
     clientSecret: '--',
     env: 'PROD'
   },
-  featureClient: (config) => new IzanamicFeatureClient(config),
+  featureClient: (config) => new IzanamiFeatureClient(config),
   configClient: (config) => new IzanamiConfigClient(config),
   experimentsClient: (config) => new IzanamiExperimentsClient(config),
   expressProxy(config) {
