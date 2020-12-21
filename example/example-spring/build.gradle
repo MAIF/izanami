@@ -20,8 +20,8 @@ dependencies {
     compile('org.springframework.boot:spring-boot-starter-thymeleaf')
     compile('org.springframework.boot:spring-boot-starter-actuator')
     compile('org.springframework.cloud:spring-cloud-starter-config')
-    compile('com.auth0:java-jwt:3.1.0')
-    compile("fr.maif:izanami-client_2.12:1.5.2")
+    compile('com.auth0:java-jwt:3.11.0')
+    compile("fr.maif:izanami-client_2.13:1.8.3")
     compile("io.vavr:vavr-jackson:0.9.2")
     compile("org.iq80.leveldb:leveldb:0.10")
 }
@@ -31,6 +31,6 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("org.springframework.boot:spring-boot-gradle-plugin:1.5.10.RELEASE")
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.4.1.RELEASE")
     }
 }

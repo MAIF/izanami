@@ -20,7 +20,7 @@ resolvers ++= Seq(
 libraryDependencies ++= Seq(
   ws,
   "de.svenkubiak"            % "jBCrypt"         % "0.4.1", //  ISC/BSD
-  "com.auth0"                % "java-jwt"        % "3.3.0", // MIT license
+  "com.auth0"                % "java-jwt"        % "3.11.0", // MIT license
   "com.softwaremill.macwire" %% "macros"         % "2.3.3" % "provided", // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"    % akkaVersion, // Apache 2.0
   "org.typelevel"            %% "cats-core"      % "2.0.0", // MIT license
