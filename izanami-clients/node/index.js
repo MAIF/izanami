@@ -1,4 +1,4 @@
-const _ = require('lodash');
+const get = require('lodash/get');
 const deepmerge = require('deepmerge');
 const fetch = require('isomorphic-fetch');
 
@@ -15,7 +15,7 @@ class IzanamiFeatureClient {
     const dottyKey = key.replace(/:/g, ".");
     const url = this.config.host + "/api/features/" + columnKey + "/check";
     if (this.config.env === 'DEV') {
-      const value = _.get(this.config.fallbackConfig, dottyKey) || { active: false };
+      const value = get(this.config.fallbackConfig, dottyKey) || { active: false };
       return Promise.resolve(value.active || false);
     }
     const config = this.config;
@@ -33,7 +33,7 @@ class IzanamiFeatureClient {
         if (r.status === 200) {
           return r.json().then(t => !!t.active);
         } else if (r.status === 404) {
-          return (_.get(this.config.fallbackConfig, dottyKey) || { active: false }).active;
+          return (get(this.config.fallbackConfig, dottyKey) || { active: false }).active;
         } else {
           return Promise.reject({ message: 'Bad response', response: r });
         }
@@ -48,7 +48,7 @@ class IzanamiFeatureClient {
     const dottyKey = pattern.replace(/:/g, ".");
     const url = this.config.host + "/api/tree/features?pattern=" + columnPattern;
     if (this.config.env === 'DEV') {
-      return Promise.resolve(_.get(this.config.fallbackConfig, dottyKey));
+      return Promise.resolve(get(this.config.fallbackConfig, dottyKey));
     }
     const config = this.config;
     return fetch(url, {
@@ -85,7 +85,7 @@ class IzanamiConfigClient {
     const dottyKey = key.replace(/:/g, ".");
     const url = this.conf.host + "/api/configs/" + columnKey;
     if (this.conf.env === 'DEV') {
-      const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
+      const value = get(this.conf.fallbackConfig, dottyKey) || {};
       return Promise.resolve(value.active || {});
     }
     const conf = this.conf;
@@ -102,11 +102,11 @@ class IzanamiConfigClient {
         if (r.status === 200) {
           return r.json().then(t => {
             const value = t.value;
-            const mergedValue = deepmerge(_.get(this.conf.fallbackConfig, dottyKey), value);
+            const mergedValue = deepmerge(get(this.conf.fallbackConfig, dottyKey), value);
             return mergedValue || {}
           });
         } else if (r.status === 404) {
-          return _.get(this.conf.fallbackConfig, dottyKey) || {};
+          return get(this.conf.fallbackConfig, dottyKey) || {};
         } else {
           return Promise.reject({ message: 'Bad response', response: r });
         }
@@ -121,7 +121,7 @@ class IzanamiConfigClient {
     const dottyKey = pattern.replace(/:/g, ".");
     const url = this.conf.host + "/api/tree/configs?pattern=" + columnPattern;
     if (this.conf.env === 'DEV') {
-      return Promise(_.get(this.conf.fallbackConfig, dottyKey));
+      return Promise(get(this.conf.fallbackConfig, dottyKey));
     }
     return fetch(url, {
       method: 'GET',
@@ -156,7 +156,7 @@ class IzanamiExperimentsClient {
     const dottyKey = key.replace(/:/g, ".");
     const url = this.conf.host + "/api/experiments/" + columnKey;
     if (this.conf.env === 'DEV') {
-      const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
+      const value = get(this.conf.fallbackConfig, dottyKey) || {};
       return Promise.resolve(value.active || {});
     }
     return fetch(url, {
@@ -172,11 +172,11 @@ class IzanamiExperimentsClient {
         if (r.status === 200) {
           return r.json().then(t => {
             const value = JSON.parse(t.value);
-            const mergedValue = deepmerge(_.get(this.conf.fallbackConfig, dottyKey), value);
+            const mergedValue = deepmerge(get(this.conf.fallbackConfig, dottyKey), value);
             return mergedValue || {}
           });
         } else if (r.status === 404) {
-          return _.get(this.conf.fallbackConfig, dottyKey) || {};
+          return get(this.conf.fallbackConfig, dottyKey) || {};
         } else {
           return Promise.reject({ message: 'Bad response', response: r });
         }
@@ -191,7 +191,7 @@ class IzanamiExperimentsClient {
     const dottyKey = pattern.replace(/:/g, ".");
     const url = this.conf.host + "/api/tree/experiments?pattern=" + columnPattern + "&clientId=" + clientId;
     if (this.conf.env === 'DEV') {
-      return Promise.resolve(_.get(this.conf.fallbackConfig, dottyKey));
+      return Promise.resolve(get(this.conf.fallbackConfig, dottyKey));
     }
     return fetch(url, {
       method: 'GET',
@@ -217,7 +217,7 @@ class IzanamiExperimentsClient {
     const dottyKey = key.replace(/:/g, ".");
     const url = this.conf.host + "/api/experiments/" + columnKey + "/variant?clientId=" + clientId
     if (this.conf.env === 'DEV') {
-      const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
+      const value = get(this.conf.fallbackConfig, dottyKey) || {};
       return Promise.resolve(value.active || {});
     }
     return fetch(url, {
@@ -233,7 +233,7 @@ class IzanamiExperimentsClient {
         if (r.status === 200) {
           return r.json();
         } else if (r.status === 404) {
-          const value = _.get(this.conf.fallbackConfig, dottyKey) || {};
+          const value = get(this.conf.fallbackConfig, dottyKey) || {};
           return Promise.resolve(value.active || {});
         } else {
           return Promise.reject({ message: 'Bad response', response: r });
