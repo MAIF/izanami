@@ -320,9 +320,18 @@ module.exports = {
   experimentsClient: (config) => new IzanamiExperimentsClient(config),
   expressProxy(config) {
 
-    const { featureClient, configClient, experimentsClient, app, sessionPath, experimentWonPath, experimentDisplayedPath, path } = config;
+    const {
+      featureClient,
+      configClient,
+      experimentsClient,
+      app,
+      sessionPath = '/api/me',
+      experimentWonPath = '/api/experiments/won',
+      experimentDisplayedPath = '/api/experiments/displayed',
+      path
+    } = config;
 
-    app.get(sessionPath || '/api/me', (req, res) => {
+    app.get(sessionPath, (req, res) => {
         const [features, experiments, configurations] = Promise.all([
             (!!featureClient ? featureClient.features(path, { user: req.user_email }) : {}),
             (!!experimentsClient ? experimentsClient.experiments(path, req.user_email) : {}),
@@ -331,13 +340,13 @@ module.exports = {
         res.send({ experiments, features, configurations });
     });
 
-    app.post(experimentWonPath || '/api/experiments/won', (req, res) => {
+    app.post(experimentWonPath, (req, res) => {
       experimentsClient.won(req.query.experiment, req.user_email).then(() => {
         res.send({ done: true });
       });
     });
 
-    app.post(experimentDisplayedPath || '/api/experiments/displayed', (req, res) => {
+    app.post(experimentDisplayedPath, (req, res) => {
       experimentsClient.displayed(req.query.experiment, req.user_email).then(() => {
         res.send({ done: true });
       });
