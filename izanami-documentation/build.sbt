@@ -1,6 +1,6 @@
 import sbt.project
 
-scalaVersion := "2.12.9"
+scalaVersion := "2.13.3"
 
 lazy val `izanami-documentation` = (project in file("."))
   .enablePlugins(ParadoxPlugin, DitaaPlugin)
