@@ -86,7 +86,7 @@ class IzanamiConfigClient {
     const url = this.conf.host + "/api/configs/" + columnKey;
     if (this.conf.env === 'DEV') {
       const value = get(this.conf.fallbackConfig, dottyKey) || {};
-      return Promise.resolve(value.active || {});
+      return Promise.resolve(value);
     }
     const conf = this.conf;
     return fetch(url, {
@@ -218,7 +218,7 @@ class IzanamiExperimentsClient {
     const url = this.conf.host + "/api/experiments/" + columnKey + "/variant?clientId=" + clientId
     if (this.conf.env === 'DEV') {
       const value = get(this.conf.fallbackConfig, dottyKey) || {};
-      return Promise.resolve(value.active || {});
+      return Promise.resolve(value);
     }
     return fetch(url, {
       method: 'GET',
@@ -234,7 +234,7 @@ class IzanamiExperimentsClient {
           return r.json();
         } else if (r.status === 404) {
           const value = get(this.conf.fallbackConfig, dottyKey) || {};
-          return Promise.resolve(value.active || {});
+          return Promise.resolve(value);
         } else {
           return Promise.reject({ message: 'Bad response', response: r });
         }
