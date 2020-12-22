@@ -10,12 +10,22 @@ scalaVersion := "2.13.3"
 
 lazy val ITest = config("it") extend Test
 
+val gitCommitId = SettingKey[String]("gitCommitId")
+gitCommitId := git.gitHeadCommit.value.getOrElse("Not Set")
+
 lazy val `izanami-server` = (project in file("."))
   .configs(ITest)
   .settings(Defaults.itSettings: _*)
-  .enablePlugins(PlayScala, SwaggerPlugin, DockerPlugin)
+  .enablePlugins(PlayScala, SwaggerPlugin, DockerPlugin, BuildInfoPlugin)
   .enablePlugins(NoPublish)
   .disablePlugins(BintrayPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](
+        version,
+        gitCommitId
+      ),
+    buildInfoPackage := "buildinfo"
+  )
 
 val akkaVersion       = "2.6.3"
 val alpakkaVersion    = "1.1.2"
@@ -97,15 +107,13 @@ libraryDependencies ++= Seq(
   "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
   "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
   "org.apache.logging.log4j" % "log4j-api"           % "2.8.2"  % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-core"          % "2.8.2"  % "it,test" // MIT license
+  "org.apache.logging.log4j" % "log4j-core"          % "2.8.2"  % "it,test"  // MIT license
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
 
 scalaSource in ITest := baseDirectory.value / "it"
-resourceDirectory in ITest := (baseDirectory apply { baseDir: File =>
-  baseDir / "it/resources"
-}).value
+resourceDirectory in ITest := (baseDirectory apply { baseDir: File => baseDir / "it/resources" }).value
 
 scalacOptions ++= Seq(
   "-feature",
