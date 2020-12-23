@@ -145,7 +145,7 @@ abstract class ExperimentControllerSpec(name: String,
       val experimentUpdatedJson = Json.toJson(experiment.copy(id = Key(key2), enabled = true))
       ws.url(s"$rootPath/api/experiments/$key")
         .put(experimentUpdatedJson)
-        .futureValue must beAStatus(400)
+        .futureValue must beAStatus(200)
     }
 
     "A/B testing population binding" in {

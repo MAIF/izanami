@@ -170,16 +170,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         enabled = true,
         campaign = Some(ClosedCampaign(from, to, "A")),
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.6),
+            currentPopulation = Some(6)
+          )
         )
       )
 
@@ -255,16 +259,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         enabled = true,
         campaign = Some(ClosedCampaign(from, to, "A")),
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.6),
+            currentPopulation = Some(6)
+          )
         )
       )
 
@@ -305,16 +313,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         description = Some("desc"),
         enabled = true,
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.6),
+            currentPopulation = Some(6)
+          )
         )
       )
 
@@ -328,16 +340,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         description = Some("desc"),
         enabled = true,
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.5),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.5),
+            currentPopulation = Some(6)
+          )
         )
       )
 
@@ -355,16 +371,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         enabled = true,
         campaign = Some(ClosedCampaign(from, to, "A")),
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.6),
+            currentPopulation = Some(6)
+          )
         )
       )
 
@@ -394,16 +414,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         description = Some("desc"),
         enabled = true,
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.6),
+            currentPopulation = Some(6)
+          )
         )
       )
       val value: Either[IzanamiErrors, Experiment] =
@@ -428,16 +452,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         description = Some("desc"),
         enabled = true,
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.6),
+            currentPopulation = Some(6)
+          )
         )
       )
       val value: Either[IzanamiErrors, Experiment] =
@@ -457,53 +485,25 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         description = Some("desc"),
         enabled = true,
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.5),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.5),
+            currentPopulation = Some(6)
+          )
         )
       )
       val value: Either[IzanamiErrors, Experiment] =
         runSync(context, ExperimentService.create(experiment.id, experiment).either)
       value mustBe Left(ValidationError.error("error.traffic.not.cent.percent").toErrors)
-
-      store.get(experiment.id) mustBe None
-      events must have size 0
-    }
-
-    "reject an update if ids are not the same" in {
-      val store   = TrieMap.empty[Key, JsValue]
-      val events  = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
-      val context = fakeExperimentContext(store, events)
-
-      val experiment = Experiment(
-        id = Key("test"),
-        name = "name",
-        description = Some("desc"),
-        enabled = true,
-        variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
-        )
-      )
-      val oldId = Key("oldtest")
-      val value: Either[IzanamiErrors, Experiment] =
-        runSync(context, ExperimentService.update(oldId, experiment.id, experiment).either)
-      value mustBe Left(IdMustBeTheSame(oldId, experiment.id).toErrors)
 
       store.get(experiment.id) mustBe None
       events must have size 0
@@ -521,16 +521,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
         description = Some("desc"),
         enabled = true,
         variants = NonEmptyList.of(
-          Variant(id = "A",
-                  name = "name A",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.4),
-                  currentPopulation = Some(5)),
-          Variant(id = "B",
-                  name = "name B",
-                  description = Some("desc A"),
-                  traffic = Traffic(0.6),
-                  currentPopulation = Some(6))
+          Variant(
+            id = "A",
+            name = "name A",
+            description = Some("desc A"),
+            traffic = Traffic(0.4),
+            currentPopulation = Some(5)
+          ),
+          Variant(
+            id = "B",
+            name = "name B",
+            description = Some("desc A"),
+            traffic = Traffic(0.6),
+            currentPopulation = Some(6)
+          )
         )
       )
       val value: Either[IzanamiErrors, Experiment] =
@@ -553,16 +557,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
 
     "Affect variant" in {
       val id = Key("test")
-      val variantA = Variant(id = "A",
-                             name = "name A",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.4),
-                             currentPopulation = Some(5))
-      val variantB = Variant(id = "B",
-                             name = "name B",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.6),
-                             currentPopulation = Some(6))
+      val variantA = Variant(
+        id = "A",
+        name = "name A",
+        description = Some("desc A"),
+        traffic = Traffic(0.4),
+        currentPopulation = Some(5)
+      )
+      val variantB = Variant(
+        id = "B",
+        name = "name B",
+        description = Some("desc A"),
+        traffic = Traffic(0.6),
+        currentPopulation = Some(6)
+      )
 
       val experiment = Experiment(
         id = id,
@@ -576,9 +584,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       )
 
       val variants: Seq[Variant] = (1 to 100)
-        .map { i =>
-          Experiment.findVariant(experiment, s"client$i")
-        }
+        .map(i => Experiment.findVariant(experiment, s"client$i"))
       val aCount = variants.count(_.id === "A")
       val bCount = variants.count(_.id === "B")
       aCount must equal(40 +- 5)
@@ -587,16 +593,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
 
     "Variant for an id should remain the same" in {
       val id = Key("test")
-      val variantA = Variant(id = "A",
-                             name = "name A",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.4),
-                             currentPopulation = Some(5))
-      val variantB = Variant(id = "B",
-                             name = "name B",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.6),
-                             currentPopulation = Some(6))
+      val variantA = Variant(
+        id = "A",
+        name = "name A",
+        description = Some("desc A"),
+        traffic = Traffic(0.4),
+        currentPopulation = Some(5)
+      )
+      val variantB = Variant(
+        id = "B",
+        name = "name B",
+        description = Some("desc A"),
+        traffic = Traffic(0.6),
+        currentPopulation = Some(6)
+      )
 
       val experiment = Experiment(
         id = id,
@@ -610,9 +620,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       )
       val choosenVariant = Experiment.findVariant(experiment, s"client1")
       val variants: Seq[Variant] = (1 to 10000)
-        .map { i =>
-          Experiment.findVariant(experiment, s"client1")
-        }
+        .map(i => Experiment.findVariant(experiment, s"client1"))
       val aCount = variants.count(_.id === choosenVariant.id)
       val bCount = variants.count(_.id !== choosenVariant.id)
       aCount mustBe 10000
@@ -628,16 +636,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val id   = Key("test")
-      val variantA = Variant(id = "A",
-                             name = "name A",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.4),
-                             currentPopulation = Some(5))
-      val variantB = Variant(id = "B",
-                             name = "name B",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.6),
-                             currentPopulation = Some(6))
+      val variantA = Variant(
+        id = "A",
+        name = "name A",
+        description = Some("desc A"),
+        traffic = Traffic(0.4),
+        currentPopulation = Some(5)
+      )
+      val variantB = Variant(
+        id = "B",
+        name = "name B",
+        description = Some("desc A"),
+        traffic = Traffic(0.6),
+        currentPopulation = Some(6)
+      )
       val experiment = Experiment(
         id = id,
         name = "name",
@@ -651,9 +663,7 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       )
       store.put(id, Json.toJson(experiment))
 
-      val variants = (1 to 100).map { i =>
-        variantFor(context, id, s"client$i")
-      }
+      val variants    = (1 to 100).map(i => variantFor(context, id, s"client$i"))
       val aCount: Int = variants.count(_.id === "A")
       val bCount: Int = variants.count(_.id === "B")
       aCount must equal(40 +- 5)
@@ -669,16 +679,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val from = LocalDateTime.now().minus(2, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val to   = LocalDateTime.now().minus(1, ChronoUnit.MINUTES).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val id   = Key("test")
-      val variantA = Variant(id = "A",
-                             name = "name A",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.4),
-                             currentPopulation = Some(5))
-      val variantB = Variant(id = "B",
-                             name = "name B",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.6),
-                             currentPopulation = Some(6))
+      val variantA = Variant(
+        id = "A",
+        name = "name A",
+        description = Some("desc A"),
+        traffic = Traffic(0.4),
+        currentPopulation = Some(5)
+      )
+      val variantB = Variant(
+        id = "B",
+        name = "name B",
+        description = Some("desc A"),
+        traffic = Traffic(0.6),
+        currentPopulation = Some(6)
+      )
       val experiment = Experiment(
         id = id,
         name = "name",
@@ -699,16 +713,16 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
           .either
       )
       val evtId2 = ExperimentVariantEventKey(id, "A", "client1", "test", "2")
-      runSync(context,
-              ExperimentVariantEventService
-                .create(evtId1, ExperimentVariantWon(evtId2, id, "client1", variantA, LocalDateTime.now(), 0, "A"))
-                .either)
+      runSync(
+        context,
+        ExperimentVariantEventService
+          .create(evtId1, ExperimentVariantWon(evtId2, id, "client1", variantA, LocalDateTime.now(), 0, "A"))
+          .either
+      )
 
-      val variants = (1 to 100).map { i =>
-        variantFor(context, id, s"client$i")
-      }
-      val aCount = variants.count(_.id === "A")
-      val bCount = variants.count(_.id === "B")
+      val variants = (1 to 100).map(i => variantFor(context, id, s"client$i"))
+      val aCount   = variants.count(_.id === "A")
+      val bCount   = variants.count(_.id === "B")
       aCount must equal(100)
       bCount must equal(0)
 
@@ -725,16 +739,20 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       val from = LocalDateTime.now().minus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val to   = LocalDateTime.now().plus(1, ChronoUnit.HOURS).`with`(ChronoField.MILLI_OF_SECOND, 0)
       val id   = Key("test")
-      val variantA = Variant(id = "A",
-                             name = "name A",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.4),
-                             currentPopulation = Some(5))
-      val variantB = Variant(id = "B",
-                             name = "name B",
-                             description = Some("desc A"),
-                             traffic = Traffic(0.6),
-                             currentPopulation = Some(6))
+      val variantA = Variant(
+        id = "A",
+        name = "name A",
+        description = Some("desc A"),
+        traffic = Traffic(0.4),
+        currentPopulation = Some(5)
+      )
+      val variantB = Variant(
+        id = "B",
+        name = "name B",
+        description = Some("desc A"),
+        traffic = Traffic(0.6),
+        currentPopulation = Some(6)
+      )
       val experiment = Experiment(
         id = id,
         name = "name",
@@ -748,11 +766,9 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
       )
       store.put(id, Json.toJson(experiment))
 
-      val variants = (1 to 100).map { i =>
-        variantFor(context, id, s"client$i")
-      }
-      val aCount = variants.count(_.id === "A")
-      val bCount = variants.count(_.id === "B")
+      val variants = (1 to 100).map(i => variantFor(context, id, s"client$i"))
+      val aCount   = variants.count(_.id === "A")
+      val bCount   = variants.count(_.id === "B")
       aCount mustBe 100
       bCount mustBe 0
     }
