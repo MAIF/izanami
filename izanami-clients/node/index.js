@@ -15,7 +15,7 @@ class IzanamiFeatureClient {
     const dottyKey = key.replace(/:/g, ".");
     const url = this.config.host + "/api/features/" + columnKey + "/check";
     if (this.config.env === 'DEV') {
-      const value = get(this.config.fallbackConfig, dottyKey) || { active: false };
+      const value = get(this.config.fallbackConfig, dottyKey) || {active: false};
       return Promise.resolve(value.active || false);
     }
     const config = this.config;
@@ -33,11 +33,11 @@ class IzanamiFeatureClient {
         if (r.status === 200) {
           return r.json().then(t => !!t.active);
         } else if (r.status === 404) {
-          return (get(this.config.fallbackConfig, dottyKey) || { active: false }).active;
+          return (get(this.config.fallbackConfig, dottyKey) || {active: false}).active;
         } else {
-          return Promise.reject({ message: 'Bad response', response: r });
+          return Promise.reject({message: 'Bad response', response: r});
         }
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -65,7 +65,7 @@ class IzanamiFeatureClient {
         return r.json().then(f => {
           return deepmerge(this.config.fallbackConfig, f)
         });
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -108,9 +108,9 @@ class IzanamiConfigClient {
         } else if (r.status === 404) {
           return get(this.conf.fallbackConfig, dottyKey) || {};
         } else {
-          return Promise.reject({ message: 'Bad response', response: r });
+          return Promise.reject({message: 'Bad response', response: r});
         }
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -136,7 +136,7 @@ class IzanamiConfigClient {
         return r.json().then(f => {
           return deepmerge(this.conf.fallbackConfig, f)
         });
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -178,9 +178,9 @@ class IzanamiExperimentsClient {
         } else if (r.status === 404) {
           return get(this.conf.fallbackConfig, dottyKey) || {};
         } else {
-          return Promise.reject({ message: 'Bad response', response: r });
+          return Promise.reject({message: 'Bad response', response: r});
         }
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -206,7 +206,7 @@ class IzanamiExperimentsClient {
         return r.json().then(f => {
           return deepmerge(this.conf.fallbackConfig, f)
         });
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -236,9 +236,9 @@ class IzanamiExperimentsClient {
           const value = get(this.conf.fallbackConfig, dottyKey) || {};
           return Promise.resolve(value.active || {});
         } else {
-          return Promise.reject({ message: 'Bad response', response: r });
+          return Promise.reject({message: 'Bad response', response: r});
         }
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -264,9 +264,9 @@ class IzanamiExperimentsClient {
         if (r.status === 200 || r.state === 404) {
           return r;
         } else {
-          return Promise.reject({ message: 'Bad response', response: r });
+          return Promise.reject({message: 'Bad response', response: r});
         }
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -292,9 +292,9 @@ class IzanamiExperimentsClient {
         if (r.status === 200 || r.state === 404) {
           return r;
         } else {
-          return Promise.reject({ message: 'Bad response', response: r });
+          return Promise.reject({message: 'Bad response', response: r});
         }
-      } catch(e) {
+      } catch (e) {
         return Promise.reject(e);
       }
     });
@@ -331,24 +331,26 @@ module.exports = {
       path
     } = config;
 
+
     app.get(sessionPath, (req, res) => {
-        const [features, experiments, configurations] = Promise.all([
-            (!!featureClient ? featureClient.features(path, { user: req.user_email }) : {}),
-            (!!experimentsClient ? experimentsClient.experiments(path, req.user_email) : {}),
-            (!!configClient ? configClient.configs(path) : {})
-        ]);
-        res.send({ experiments, features, configurations });
+      Promise.all([
+        (!!featureClient ? featureClient.features(path, {user: req.user_email}) : {}),
+        (!!experimentsClient ? experimentsClient.experiments(path, req.user_email) : {}),
+        (!!configClient ? configClient.configs(path) : {})
+      ]).then(([features, experiments, configurations]) => {
+        res.send({experiments, features, configurations});
+      });
     });
 
     app.post(experimentWonPath, (req, res) => {
       experimentsClient.won(req.query.experiment, req.user_email).then(() => {
-        res.send({ done: true });
+        res.send({done: true});
       });
     });
 
     app.post(experimentDisplayedPath, (req, res) => {
       experimentsClient.displayed(req.query.experiment, req.user_email).then(() => {
-        res.send({ done: true });
+        res.send({done: true});
       });
     });
   }
