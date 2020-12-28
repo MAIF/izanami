@@ -194,7 +194,7 @@ export class LoggedApp extends Component {
                           className=""
                           style={{ cursor: "pointer" }}
                         >
-                          <span className="fas fa-user"> Users management</span>
+                          <i className="fas fa-user mr-2"></i> Users management
                         </Link>
                     </li>}
                   {apikeyManagementEnabled &&
@@ -204,13 +204,13 @@ export class LoggedApp extends Component {
                           className=""
                           style={{ cursor: "pointer" }}
                         >
-                          <span className="fas fa-key"> Api Keys management</span>
+                          <i className="fas fa-key mr-2"></i> Api Keys management
                         </Link>
                     </li>
                   }
                   <li className="dropdown-item">
                     <a href={this.props.logout} className="link-logout">
-                      <span className="fas fa-power-off"> {this.props.user ? this.props.user.email : ""}&nbsp;</span>
+                      <i className="fas fa-power-off mr-2"></i> {this.props.user ? this.props.user.email : ""}
                     </a>
                   </li>
                   <li>
@@ -218,7 +218,7 @@ export class LoggedApp extends Component {
                   </li>
                   <li className="dropdown-item">
                     <a href="#">
-                      <img src={`${window.__contextPath}/assets/images/izanami-inverse.png`} width="16"/> version {this.state.version}
+                      <img src={`${window.__contextPath}/assets/images/izanami-inverse.png`} width="16" className="mr-2"/> version {this.state.version}
                     </a>
                   </li>
                 </ul>
