@@ -1,203 +1,218 @@
 # Node js client
 
-## Install 
+## Install
 
 ```bash
 npm install izanami-node
 ```
 
-## Import 
+## Import
 
 ```javascript
-const Izanami = require('izanami-node');
+const Izanami = require("izanami-node");
 ```
 
+## Usage
 
-## Usage 
-
-The node client expose conveniant methods to call Izanami. 
+The node client expose conveniant methods to call Izanami.
 
 ### Configure the client:
- 
+
 ```javascript
-const izanamicConfig = Object.assign({}, Izanami.defaultConfig, {
-  host: 'http://localhost:9000',
-  clientId: process.env.CLIENT_ID || 'xxxx',
-  clientSecret: process.env.CLIENT_SECRET || 'xxxx',
+const izanamiConfig = Object.assign({}, Izanami.defaultConfig, {
+  host: "http://localhost:9000",
+  clientId: process.env.CLIENT_ID || "xxxx",
+  clientSecret: process.env.CLIENT_SECRET || "xxxx",
 });
 
 // Get a configs client
-const configClient = Izanami.configClient(izanamicConfig);
-// Get a feature client 
-const featureClient = Izanami.featureClient(izanamicConfig);
-// Get a experiments client 
-const experimentsClient = Izanami.experimentsClient(izanamicConfig);
+const configClient = Izanami.configClient(izanamiConfig);
+// Get a feature client
+const featureClient = Izanami.featureClient(izanamiConfig);
+// Get a experiments client
+const experimentsClient = Izanami.experimentsClient(izanamiConfig);
 ```
 
-### Configs 
+### Configs
 
-### Get a config 
+### Get a config
 
 ```javascript
-configClient.config("my.config.id").then(config => {
-  console.log('The config is ', config);
+configClient.config("my.config.id").then((config) => {
+  console.log("The config is ", config);
   tree.should.be.deep.equal({
-      "value": "test"
-  })
+    value: "test",
+  });
 });
 ```
+
 #### Get the configs tree
 
 ```javascript
-configClient.configs("my.config.*").then(tree => {
+configClient.configs("my.config.*").then((tree) => {
   tree.should.be.deep.equal({
-      "my": {
-        "config": {
-          "id": {
-            "value": "test"
+    my: {
+      config: {
+        id: {
+          value: "test",
+        },
+        id2: {
+          another: {
+            value: "a value",
           },
-          "id2": {
-            "another": {
-              "value": "a value"
-            }
-          }
-        }
-      }
-    });
+        },
+      },
+    },
+  });
 });
 ```
- 
 
 ### Features
- 
+
 #### Check a feature
 
 ```javascript
-featureClient.checkFeature("my.feature.id").then(active => {
-  console.log('The feature is ', active);
+featureClient.checkFeature("my.feature.id").then((active) => {
+  console.log("The feature is ", active);
 });
 ```
 
-Or with a context: 
- 
+Or with a context:
+
 ```javascript
-featureClient.checkFeature("my.feature.id", {client: "ragnard.lodbrock@gmail.com"}).then(active => {
-  console.log('The feature is ', active);
-});
-```
-#### Get the features tree 
- 
-```javascript
-featureClient.features("my.feature.*").then(tree => {
-  tree.should.be.deep.equal({
-    "my": {
-      "feature": {
-        "id": {
-          "active": true
-        },
-        "id2": {
-          "active": false
-        }
-      }
-    }
+featureClient
+  .checkFeature("my.feature.id", { client: "ragnard.lodbrock@gmail.com" })
+  .then((active) => {
+    console.log("The feature is ", active);
   });
-});
 ```
- 
-Or with a context: 
+
+#### Get the features tree
 
 ```javascript
-featureClient.features("my.feature.*", {client: "ragnard.lodbrock@gmail.com"}).then(tree => {
+featureClient.features("my.feature.*").then((tree) => {
   tree.should.be.deep.equal({
-    "my": {
-      "feature": {
-        "id": {
-          "active": true
+    my: {
+      feature: {
+        id: {
+          active: true,
         },
-        "id2": {
-          "active": false
-        }
-      }
-    }
+        id2: {
+          active: false,
+        },
+      },
+    },
   });
 });
 ```
 
-### Experiments  
+Or with a context:
+
+```javascript
+featureClient
+  .features("my.feature.*", { client: "ragnard.lodbrock@gmail.com" })
+  .then((tree) => {
+    tree.should.be.deep.equal({
+      my: {
+        feature: {
+          id: {
+            active: true,
+          },
+          id2: {
+            active: false,
+          },
+        },
+      },
+    });
+  });
+```
+
+### Experiments
 
 #### Get an experiment
- 
+
 ```javascript
-experimentsClient.experiment("my.experiment.id").then(experiment => {
-  //Empty json if the experiment doesn't exists 
-  console.log('The experiment is ', experiment);
+experimentsClient.experiment("my.experiment.id").then((experiment) => {
+  //Empty json if the experiment doesn't exists
+  console.log("The experiment is ", experiment);
 });
 ```
 
 #### Get experiments as tree
- 
+
 ```javascript
-experimentsClient.experiments("my.experiment.*", "ragnard.lodbrock@gmail.com").then(tree => {
-  //Empty json if the experiment doesn't exists 
-  console.log('The experiment is ', experiment);
-  tree.should.be.deep.equal({
-    "my": {
-      "experiment": {
-        "id": {
-          "variant": "A"
+experimentsClient
+  .experiments("my.experiment.*", "ragnard.lodbrock@gmail.com")
+  .then((tree) => {
+    //Empty json if the experiment doesn't exists
+    console.log("The experiment is ", experiment);
+    tree.should.be.deep.equal({
+      my: {
+        experiment: {
+          id: {
+            variant: "A",
+          },
+          id2: {
+            variant: "B",
+          },
         },
-        "id2": {
-          "variant": "B"
-        }
-      }
-    }
-  })
-});
+      },
+    });
+  });
 ```
 
 #### Get a variant
- 
+
 ```javascript
-experimentsClient.variantFor("my.experiment.id", "ragnard.lodbrock@gmail.com").then(variant => {
-  //Empty json if the variant doesn't exists 
-  console.log('The variant is ', variant);
-});
+experimentsClient
+  .variantFor("my.experiment.id", "ragnard.lodbrock@gmail.com")
+  .then((variant) => {
+    //Empty json if the variant doesn't exists
+    console.log("The variant is ", variant);
+  });
 ```
 
 #### Mark variant displayed
- 
-```javascript
-experimentsClient.displayed("my.experiment.id", "ragnard.lodbrock@gmail.com").then(__ => {
-  console.log('The variant is marked displayed');
-});
-```
- 
-#### Mark variant won  
 
 ```javascript
-experimentsClient.won("my.experiment.id", "ragnard.lodbrock@gmail.com").then(__ => {
-  console.log('The variant is marked won');
-});
+experimentsClient
+  .displayed("my.experiment.id", "ragnard.lodbrock@gmail.com")
+  .then((__) => {
+    console.log("The variant is marked displayed");
+  });
 ```
 
+#### Mark variant won
 
-## Express proxy 
+```javascript
+experimentsClient
+  .won("my.experiment.id", "ragnard.lodbrock@gmail.com")
+  .then((__) => {
+    console.log("The variant is marked won");
+  });
+```
 
-You use express as a proxy to expose Izanami to the client side. 
+## Express proxy
+
+You use express as a proxy to expose Izanami to the client side.
+You can customize the api endpoints with the `sessionPath`, `experimentsDisplayedPath` and `experimentsWonPath`
+config options.
+
+The feature and experiments clients context and id are extracted from the request; you can extend it using your own methods with `featureContextFromRequest` and `experimentsIdFromRequest`.
 
 ```javascript
 const app = express();
 
 Izanami.expressProxy({
-  sessionPath: '/api/izanami', // default '/api/me'
+  sessionPath: "/api/izanami", // default '/api/me'
+  experimentsDisplayedPath, // default: '/api/experiments/displayed'
+  experimentsWonPath, // default: '/api/experiments/won'
   featureClient, // Optional
+  featureContextFromRequest, //default: (req) => ({user: req.user_email})
   experimentsClient, // Optional
+  experimentsIdFromRequest, //default: (req) => (req.user_email)
   configClient, // Optional
-  app, // Express app 
-  path: 'my.namespace.*' // The pattern to filter experiments, configs and features
+  app, // Express app
+  path: "my.namespace.*", // The pattern to filter experiments, configs and features
 });
-
 ```
-
-
-
