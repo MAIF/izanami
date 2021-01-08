@@ -6,6 +6,7 @@ import domains.user.{User, UserNoPasswordInstances}
 import env.{Env, Oauth2Config}
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
+import izanami.BuildInfo
 
 class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyContent], cc: ControllerComponents)
     extends AbstractController(cc) {
@@ -30,22 +31,25 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
     s"$baseURL${_env.izanamiConfig.logout.url}"
   }
 
-  private val p: Package      = getClass.getPackage
-  private val version: String = p.getImplementationVersion
+  private val version: String = BuildInfo.version
+  private val commit: String  = BuildInfo.gitCommitId
 
   def index() = AuthAction { ctx =>
     ctx.auth match {
       case Some(_) =>
         Ok(
           views.html
-            .index(_env,
-                   baseURL,
-                   logoutUrl,
-                   confirmationDialog,
-                   userManagementMode,
-                   enabledApikeyManagement,
-                   toJson(ctx.auth),
-                   version)
+            .index(
+              _env,
+              baseURL,
+              logoutUrl,
+              confirmationDialog,
+              userManagementMode,
+              enabledApikeyManagement,
+              toJson(ctx.auth),
+              version,
+              commit
+            )
         )
       case None =>
         Redirect(s"$baseURL/login")
@@ -58,14 +62,17 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
         Redirect(controllers.routes.OAuthController.appLoginPage())
       case _ =>
         Ok(
-          views.html.index(_env,
-                           baseURL,
-                           logoutUrl,
-                           confirmationDialog,
-                           userManagementMode,
-                           enabledApikeyManagement,
-                           toJson(ctx.auth),
-                           version)
+          views.html.index(
+            _env,
+            baseURL,
+            logoutUrl,
+            confirmationDialog,
+            userManagementMode,
+            enabledApikeyManagement,
+            toJson(ctx.auth),
+            version,
+            commit
+          )
         )
     }
   }
