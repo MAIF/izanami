@@ -9,7 +9,8 @@ import {
   SimpleBooleanInput,
   AsyncSelectInput,
   TextInput,
-  PercentageInput
+  PercentageInput,
+  ArrayInput
 } from "../inputs";
 import moment from "moment";
 import {
@@ -38,6 +39,8 @@ class FeatureParameters extends Component {
         this.props.onChange({ ref: undefined });
       } else if (nextStrategy === "PERCENTAGE") {
         this.props.onChange({ percentage: undefined });
+      } else if (nextStrategy === "CUSTOMERS_LIST") {
+        this.props.onChange({ customers: undefined });
       }
       if (nextStrategy === "SCRIPT") {
         this.props.onChange({
@@ -51,6 +54,8 @@ class FeatureParameters extends Component {
       } else if (nextStrategy === "PERCENTAGE") {
         this.props.onChange({ percentage: 50 });
       } else if (nextStrategy === "NO_STRATEGY") {
+        this.props.onChange({});
+      } else if (nextStrategy === "CUSTOMERS_LIST") {
         this.props.onChange({});
       }
     }
@@ -177,6 +182,16 @@ class FeatureParameters extends Component {
         />
       );
     }
+    if (this.props.source.activationStrategy === "CUSTOMERS_LIST") {
+      return (
+        <ArrayInput
+          value={this.props.value.customers}
+          label={"Customers"}
+          placeholder={"customerId"}
+          onChange={c => this.props.onChange({ customers: c })}
+        />
+      );
+    }
     return (
       <div className="form-group row">
         <label
@@ -220,7 +235,8 @@ export class FeaturesPage extends Component {
           "DATE_RANGE",
           "HOUR_RANGE",
           "SCRIPT",
-          "GLOBAL_SCRIPT"
+          "GLOBAL_SCRIPT",
+          "CUSTOMERS_LIST"
         ]
       },
       error: { key: "obj.activationStrategy" }
@@ -360,6 +376,10 @@ export class FeaturesPage extends Component {
       case "PERCENTAGE":
         return (
           <span>Enabled for {`${params.percentage} % of the traffic`}</span>
+        );
+      case "CUSTOMERS_LIST":
+        return (
+          <span>Enabled for customers list</span>
         );
       default:
         return item.activationStrategy;

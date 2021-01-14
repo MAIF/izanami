@@ -126,9 +126,11 @@ package object datastore {
       def deleteAll(patterns: Seq[String]): ZIO[DataStoreContext, IzanamiErrors, Unit] =
         deleteAll(Query.oneOf(patterns))
       def getById(id: Key): RIO[DataStoreContext, Option[Data]]
-      def findByQuery(query: Query,
-                      page: Int = 1,
-                      nbElementPerPage: Int = 15): RIO[DataStoreContext, PagingResult[Data]]
+      def findByQuery(
+          query: Query,
+          page: Int = 1,
+          nbElementPerPage: Int = 15
+      ): RIO[DataStoreContext, PagingResult[Data]]
       def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, Data), NotUsed]]
       def count(query: Query): RIO[DataStoreContext, Long]
       def start: RIO[DataStoreContext, Unit] = Task.succeed(())
