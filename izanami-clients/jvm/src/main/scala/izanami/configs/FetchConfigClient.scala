@@ -17,13 +17,15 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.Future
 
 object FetchConfigClient {
-  def apply(client: HttpClient,
-            clientConfig: ClientConfig,
-            fallback: Configs,
-            errorStrategy: ErrorStrategy,
-            autocreate: Boolean,
-            events: Source[IzanamiEvent, NotUsed],
-            cuDConfigClient: CUDConfigClient)(
+  def apply(
+      client: HttpClient,
+      clientConfig: ClientConfig,
+      fallback: Configs,
+      errorStrategy: ErrorStrategy,
+      autocreate: Boolean,
+      events: Source[IzanamiEvent, NotUsed],
+      cuDConfigClient: CUDConfigClient
+  )(
       implicit izanamiDispatcher: IzanamiDispatcher,
       actorSystem: ActorSystem,
       materializer: Materializer
@@ -42,7 +44,6 @@ private[configs] class FetchConfigClient(
 )(implicit val izanamiDispatcher: IzanamiDispatcher, actorSystem: ActorSystem, val materializer: Materializer)
     extends ConfigClient {
 
-  import client._
   import izanamiDispatcher.ec
   private val logger = Logging(actorSystem, this.getClass.getName)
 
@@ -115,9 +116,7 @@ private[configs] class FetchConfigClient(
             .validate[Config]
             .fold(
               err => FastFuture.failed(IzanamiException(s"Error parsing config $body, err = $err")),
-              c => {
-                FastFuture.successful(c.value)
-              }
+              c => FastFuture.successful(c.value)
             )
         case (code, _) if code == StatusCodes.NotFound =>
           if (autocreate) {
@@ -142,6 +141,8 @@ private[configs] class FetchConfigClient(
   }
 
   override def configsStream(pattern: String): Publisher[ConfigEvent] =
-    configsSource(pattern).runWith(Sink.asPublisher(true))
+    configsSource(pattern)
+      .withAttributes(client.dispatcherAttribute)
+      .runWith(Sink.asPublisher(true))
 
 }

@@ -1,19 +1,20 @@
 package izanami.features
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import izanami.FeatureEvent.{FeatureCreated, FeatureDeleted, FeatureUpdated}
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import izanami.Strategy.FetchStrategy
+
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -25,7 +26,7 @@ class FetchFeatureClientSpec
     with FeatureMockServer {
 
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
   import com.github.tomakehurst.wiremock.client.WireMock._
   import system.dispatcher

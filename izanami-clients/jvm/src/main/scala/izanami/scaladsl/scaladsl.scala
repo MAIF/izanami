@@ -33,22 +33,19 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
 
   private val client: HttpClient = HttpClient(actorSystem, config)
 
-  private implicit val materializer: Materializer =
-    ActorMaterializer(ActorMaterializerSettings(actorSystem).withDispatcher(config.dispatcher))(actorSystem)
-
   implicit val izanamiDispatcher =
     IzanamiDispatcher(config.dispatcher, actorSystem)
 
   private implicit val cudFeatureClient: CUDFeatureClient = CUDFeatureClient(client)
 
   private val eventSource: Source[IzanamiEvent, NotUsed] = Source
-    .lazily(
-      () =>
-        client
-          .eventStream()
-          .runWith(BroadcastHub.sink(1024))
+    .lazySource(() =>
+      client
+        .eventStream()
+        .runWith(BroadcastHub.sink(1024))
     )
     .mapMaterializedValue(_ => NotUsed)
+    .withAttributes(ActorAttributes.dispatcher(config.dispatcher))
 
   /**
    *
@@ -91,15 +88,19 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
           s
         )
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheConfigClient(config,
-                               FetchConfigClient(client, config, fallback, Crash, autocreate, eventSource, cudClient),
-                               fallback,
-                               s)
+        SmartCacheConfigClient(
+          config,
+          FetchConfigClient(client, config, fallback, Crash, autocreate, eventSource, cudClient),
+          fallback,
+          s
+        )
       case s: Strategy.CacheWithPollingStrategy =>
-        SmartCacheConfigClient(config,
-                               FetchConfigClient(client, config, fallback, Crash, autocreate, source, cudClient),
-                               fallback,
-                               s)
+        SmartCacheConfigClient(
+          config,
+          FetchConfigClient(client, config, fallback, Crash, autocreate, source, cudClient),
+          fallback,
+          s
+        )
     }
   }
 
@@ -148,14 +149,18 @@ class IzanamiClient(val config: ClientConfig)(implicit val actorSystem: ActorSys
       case Strategy.FetchStrategy(errorStrategy) =>
         FetchFeatureClient(client, config, fb, errorStrategy, autocreate, source)
       case s: Strategy.FetchWithCacheStrategy =>
-        FetchWithCacheFeatureClient(config,
-                                    FetchFeatureClient(client, config, fb, s.errorStrategy, autocreate, source),
-                                    s)
+        FetchWithCacheFeatureClient(
+          config,
+          FetchFeatureClient(client, config, fb, s.errorStrategy, autocreate, source),
+          s
+        )
       case s: Strategy.CacheWithSseStrategy =>
-        SmartCacheFeatureClient(config,
-                                FetchFeatureClient(client, config, fallback(config), Crash, autocreate, eventSource),
-                                fb,
-                                s)
+        SmartCacheFeatureClient(
+          config,
+          FetchFeatureClient(client, config, fallback(config), Crash, autocreate, eventSource),
+          fb,
+          s
+        )
       case s: Strategy.CacheWithPollingStrategy =>
         SmartCacheFeatureClient(config, FetchFeatureClient(client, config, fb, Crash, autocreate, source), fb, s)
     }
@@ -228,19 +233,17 @@ case class Proxy(
 
     val features: Future[JsObject] =
       featureClient
-        .map(
-          cli =>
-            context
-              .map(
-                ctx =>
-                  cli
-                    .features(featurePattern, ctx)
-                    .map(f => Json.obj("features" -> f.tree()))
-              )
-              .getOrElse(
-                cli
-                  .features(featurePattern)
-                  .map(f => Json.obj("features" -> f.tree()))
+        .map(cli =>
+          context
+            .map(ctx =>
+              cli
+                .features(featurePattern, ctx)
+                .map(f => Json.obj("features" -> f.tree()))
+            )
+            .getOrElse(
+              cli
+                .features(featurePattern)
+                .map(f => Json.obj("features" -> f.tree()))
             )
         )
         .getOrElse(FastFuture.successful(Json.obj("features" -> Json.obj())))
@@ -280,9 +283,7 @@ case class Proxy(
     experimentClient
       .map(
         _.markVariantDisplayed(experimentId, clientId)
-          .map { event =>
-            (200, Json.toJson(event))
-          }
+          .map(event => (200, Json.toJson(event)))
           .recover {
             case e =>
               logger.error(e, "Error while marking variant displayed")
@@ -300,9 +301,7 @@ case class Proxy(
     experimentClient
       .map(
         _.markVariantWon(experimentId, clientId)
-          .map { event =>
-            (200, Json.toJson(event))
-          }
+          .map(event => (200, Json.toJson(event)))
           .recover {
             case e =>
               logger.error(e, "Error while marking variant displayed")
@@ -336,10 +335,12 @@ trait FeatureClient {
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createJsonFeature(id: String,
-                        enabled: Boolean = true,
-                        activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
-                        parameters: Option[JsObject] = None): Future[Feature] =
+  def createJsonFeature(
+      id: String,
+      enabled: Boolean = true,
+      activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
+      parameters: Option[JsObject] = None
+  ): Future[Feature] =
     cudFeatureClient.createJsonFeature(id, enabled, activationStrategy, parameters)
 
   /**
@@ -492,7 +493,7 @@ case class DefaultRegistration(killSwitch: UniqueKillSwitch, done: Future[Done])
 ) extends Registration {
 
   override def onComplete(cb: Try[Done] => Unit): Unit =
-    done.onComplete { cb }(izanamiDispatcher.ec)
+    done.onComplete(cb)(izanamiDispatcher.ec)
 
   override def close(): Unit = killSwitch.shutdown()
 
@@ -504,9 +505,7 @@ object Features {
     Features(clientConfig, features, Seq.empty)
   }
 
-  def empty(): ClientConfig => Features = { clientConfig =>
-    Features(clientConfig, Seq.empty, Seq.empty)
-  }
+  def empty(): ClientConfig => Features = { clientConfig => Features(clientConfig, Seq.empty, Seq.empty) }
 
   def feature(key: String, active: Boolean) = DefaultFeature(key, active)
 
@@ -522,8 +521,7 @@ object Features {
         err => throw IzanamiException(s"Error parsing json $json: \n${Json.prettyPrint(JsError.toJson(err))}"),
         identity
       )
-    config =>
-      Features(config, featuresSeq)
+    config => Features(config, featuresSeq)
   }
 }
 
@@ -554,9 +552,7 @@ case class Features(clientConfig: ClientConfig, featuresSeq: Seq[Feature], fallb
   }
 
   private def json(feature: Feature): JsObject = {
-    val jsPath: JsPath = feature.id.split(":").foldLeft[JsPath](JsPath) { (p, s) =>
-      p \ s
-    }
+    val jsPath: JsPath = feature.id.split(":").foldLeft[JsPath](JsPath)((p, s) => p \ s)
     (jsPath \ "active").write[Boolean].writes(feature.isActive(clientConfig))
   }
 }
@@ -572,14 +568,13 @@ object Config {
     (__ \ "id").read[String] and
     (__ \ "value")
       .read[String]
-      .flatMap(
-        s =>
-          Reads[JsValue] { _ =>
-            try {
-              JsSuccess(Json.parse(s))
-            } catch {
-              case _: Throwable => JsError("Error parsing json")
-            }
+      .flatMap(s =>
+        Reads[JsValue] { _ =>
+          try {
+            JsSuccess(Json.parse(s))
+          } catch {
+            case _: Throwable => JsError("Error parsing json")
+          }
         }
       )
       .orElse {

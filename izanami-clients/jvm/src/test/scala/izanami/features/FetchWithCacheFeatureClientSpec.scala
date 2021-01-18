@@ -1,16 +1,15 @@
 package izanami.features
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.github.tomakehurst.wiremock.client.WireMock.{containing, equalTo, postRequestedFor, urlEqualTo}
 import izanami.Strategy.FetchWithCacheStrategy
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Json
 
 import scala.concurrent.Future
@@ -24,11 +23,10 @@ class FetchWithCacheFeatureClientSpec
     with FeatureMockServer {
 
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
-  override def afterAll: Unit = {
+  override def afterAll: Unit =
     TestKit.shutdownActorSystem(system)
-  }
 
   "FetchWithCacheFeatureStrategy" should {
     "List features" in {
@@ -66,16 +64,18 @@ class FetchWithCacheFeatureClientSpec
       runServer { ctx =>
         val strategy = IzanamiClient(
           ClientConfig(ctx.host)
-        ).featureClient(strategy = FetchWithCacheStrategy(2, 1.second),
-                        fallback = Features(
-                          DefaultFeature("test4", true)
-                        ))
+        ).featureClient(
+          strategy = FetchWithCacheStrategy(2, 1.second),
+          fallback = Features(
+            DefaultFeature("test4", true)
+          )
+        )
 
         val initialFeatures = Seq(
           DefaultFeature("test1", true),
           DefaultFeature("test2", true),
           DefaultFeature("test3", true),
-          DefaultFeature("test4", true),
+          DefaultFeature("test4", true)
         )
         ctx.setValues(initialFeatures)
 
