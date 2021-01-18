@@ -3,7 +3,7 @@ package izanami.features
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
 import akka.pattern
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import com.github.tomakehurst.wiremock.client.WireMock._
@@ -13,7 +13,7 @@ import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Seconds, Span}
 import play.api.libs.json.{JsObject, Json}
 
@@ -28,13 +28,12 @@ class SmartCacheFeatureClientSpec
     with FeatureMockServer {
 
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
   import system.dispatcher
 
-  override def afterAll: Unit = {
+  override def afterAll: Unit =
     TestKit.shutdownActorSystem(system)
-  }
 
   "SmartCacheFeatureStrategy" should {
 
@@ -160,10 +159,8 @@ class SmartCacheFeatureClientSpec
           )
         )
 
-        val promise = Promise[Feature]
-        strategy.onFeatureChanged("test1") { f =>
-          promise.success(f)
-        }
+        val promise = Promise[Feature]()
+        strategy.onFeatureChanged("test1")(f => promise.success(f))
 
         val events = strategy.featuresSource("*").take(1).runWith(Sink.seq)
 

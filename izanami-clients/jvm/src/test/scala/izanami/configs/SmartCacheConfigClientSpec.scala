@@ -1,8 +1,7 @@
 package izanami.configs
 
-
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.github.tomakehurst.wiremock.client.WireMock._
 import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy}
@@ -10,7 +9,7 @@ import izanami._
 import izanami.scaladsl.ConfigEvent.ConfigUpdated
 import izanami.scaladsl.{Config, Configs, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Json
 
 import scala.concurrent.duration.DurationInt
@@ -23,13 +22,12 @@ class SmartCacheConfigClientSpec
     with ConfigMockServer {
 
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
   import system.dispatcher
 
-  override def afterAll: Unit = {
+  override def afterAll: Unit =
     TestKit.shutdownActorSystem(system)
-  }
 
   "SmartCacheConfigStrategy" should {
     "Configs by pattern with polling" in {
@@ -228,10 +226,12 @@ class SmartCacheConfigClientSpec
 
         // We update config via sse
         ctx.push(
-          ConfigUpdated(Some(1),
-                        "test1",
-                        Config("test1", Json.obj("value" -> 3)),
-                        Config("test1", Json.obj("value" -> 1)))
+          ConfigUpdated(
+            Some(1),
+            "test1",
+            Config("test1", Json.obj("value" -> 3)),
+            Config("test1", Json.obj("value" -> 1))
+          )
         )
 
         //We wait that the events arrive

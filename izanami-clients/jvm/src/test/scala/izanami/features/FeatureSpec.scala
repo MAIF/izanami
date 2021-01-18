@@ -1,7 +1,7 @@
 package izanami.features
 import izanami._
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json._
 import java.time.LocalTime
 

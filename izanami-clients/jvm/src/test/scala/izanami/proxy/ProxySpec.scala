@@ -1,7 +1,7 @@
 package izanami.proxy
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.TestKit
 import izanami.scaladsl._
 import izanami._
@@ -14,7 +14,7 @@ import scala.util.Success
 class ProxySpec extends IzanamiSpec with BeforeAndAfterAll {
 
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
   import system.dispatcher
 
@@ -43,11 +43,13 @@ class ProxySpec extends IzanamiSpec with BeforeAndAfterAll {
       val experimentsClient: ExperimentsClient = client.experimentClient(
         strategy = Strategies.dev(),
         fallback = Experiments(
-          ExperimentFallback("experiments:id",
-                             "Experiment",
-                             "An experiment",
-                             true,
-                             Variant("A", "Variant A", Some("Variant A")))
+          ExperimentFallback(
+            "experiments:id",
+            "Experiment",
+            "An experiment",
+            true,
+            Variant("A", "Variant A", Some("Variant A"))
+          )
         )
       )
 
@@ -103,8 +105,7 @@ class ProxySpec extends IzanamiSpec with BeforeAndAfterAll {
     }
   }
 
-  override def afterAll: Unit = {
+  override def afterAll: Unit =
     TestKit.shutdownActorSystem(system)
-  }
 
 }

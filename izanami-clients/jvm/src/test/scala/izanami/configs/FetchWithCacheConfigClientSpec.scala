@@ -1,13 +1,13 @@
 package izanami.configs
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.TestKit
 import izanami.Strategy.FetchWithCacheStrategy
 import izanami._
 import izanami.scaladsl.{Config, Configs, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Json
 
 import scala.concurrent.duration.DurationInt
@@ -15,11 +15,10 @@ import scala.concurrent.duration.DurationInt
 class FetchWithCacheConfigClientSpec extends IzanamiSpec with BeforeAndAfterAll with MockitoSugar with ConfigServer {
 
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
-  override def afterAll: Unit = {
+  override def afterAll: Unit =
     TestKit.shutdownActorSystem(system)
-  }
 
   "FetchWithCacheFeatureStrategy" should {
     "List configs" in {
