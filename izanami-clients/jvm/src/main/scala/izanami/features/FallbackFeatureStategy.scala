@@ -6,31 +6,40 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import izanami.commons.IzanamiException
 import izanami.scaladsl._
-import izanami.{Feature, FeatureEvent, FeatureType, IzanamiDispatcher}
+import izanami.{
+  CustomersFeature,
+  DateRangeFeature,
+  DefaultFeature,
+  Feature,
+  FeatureEvent,
+  FeatureType,
+  GlobalScriptFeature,
+  HourRangeFeature,
+  IzanamiDispatcher,
+  PercentageFeature,
+  ReleaseDateFeature,
+  ScriptFeature
+}
 import org.reactivestreams.{Publisher, Subscriber}
 import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
 import java.util.concurrent.atomic.AtomicReference
-import izanami.DefaultFeature
-import izanami.DateRangeFeature
-import izanami.HourRangeFeature
-import izanami.PercentageFeature
-import izanami.ReleaseDateFeature
-import izanami.GlobalScriptFeature
-import izanami.ScriptFeature
 
 object FallbackFeatureStategy {
-  def apply(fallback: Features)(implicit izanamiDispatcher: IzanamiDispatcher,
-                                materializer: Materializer,
-                                cudFeatureClient: CUDFeatureClient): FallbackFeatureStategy =
+  def apply(fallback: Features)(
+      implicit izanamiDispatcher: IzanamiDispatcher,
+      materializer: Materializer,
+      cudFeatureClient: CUDFeatureClient
+  ): FallbackFeatureStategy =
     new FallbackFeatureStategy(fallback)
 }
 
-class FallbackFeatureStategy(f: Features)(implicit val izanamiDispatcher: IzanamiDispatcher,
-                                          val materializer: Materializer,
-                                          val cudFeatureClient: CUDFeatureClient)
-    extends FeatureClient {
+class FallbackFeatureStategy(f: Features)(
+    implicit val izanamiDispatcher: IzanamiDispatcher,
+    val materializer: Materializer,
+    val cudFeatureClient: CUDFeatureClient
+) extends FeatureClient {
 
   import izanamiDispatcher.ec
 
@@ -55,9 +64,10 @@ class FallbackFeatureStategy(f: Features)(implicit val izanamiDispatcher: Izanam
       activationStrategy: FeatureType,
       parameters: Option[JsObject]
   ): Future[Feature] = {
-    val payload = Json.obj("id" -> id, "enabled" -> enabled, "activationStrategy" -> activationStrategy.name) ++ parameters
-      .map(value => Json.obj("parameters" -> value))
-      .getOrElse(Json.obj())
+    val payload =
+      Json.obj("id" -> id, "enabled" -> enabled, "activationStrategy" -> activationStrategy.name) ++ parameters
+        .map(value => Json.obj("parameters" -> value))
+        .getOrElse(Json.obj())
 
     Feature.reads.reads(payload).asOpt match {
       case None => {
@@ -92,6 +102,7 @@ class FallbackFeatureStategy(f: Features)(implicit val izanamiDispatcher: Izanam
           case f: DateRangeFeature if f.id == id    => f.copy(enabled = enabled)
           case f: HourRangeFeature if f.id == id    => f.copy(enabled = enabled)
           case f: PercentageFeature if f.id == id   => f.copy(enabled = enabled)
+          case f: CustomersFeature if f.id == id    => f.copy(enabled = enabled)
           case f: ReleaseDateFeature if f.id == id  => f.copy(enabled = enabled)
           case f: GlobalScriptFeature if f.id == id => f.copy(enabled = enabled)
           case f: ScriptFeature if f.id == id       => f.copy(enabled = enabled)
