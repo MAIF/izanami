@@ -17,12 +17,14 @@ import play.api.libs.json.{JsObject, JsValue, Json}
 import scala.concurrent.Future
 
 object FetchFeatureClient {
-  def apply(client: HttpClient,
-            clientConfig: ClientConfig,
-            fallback: Features,
-            errorStrategy: ErrorStrategy,
-            autocreate: Boolean,
-            events: Source[IzanamiEvent, NotUsed])(
+  def apply(
+      client: HttpClient,
+      clientConfig: ClientConfig,
+      fallback: Features,
+      errorStrategy: ErrorStrategy,
+      autocreate: Boolean,
+      events: Source[IzanamiEvent, NotUsed]
+  )(
       implicit
       izanamiDispatcher: IzanamiDispatcher,
       actorSystem: ActorSystem,
@@ -39,13 +41,13 @@ private[features] class FetchFeatureClient(
     errorStrategy: ErrorStrategy,
     autocreate: Boolean,
     events: Source[IzanamiEvent, NotUsed]
-)(implicit val izanamiDispatcher: IzanamiDispatcher,
-  actorSystem: ActorSystem,
-  val materializer: Materializer,
-  val cudFeatureClient: CUDFeatureClient)
-    extends FeatureClient {
+)(
+    implicit val izanamiDispatcher: IzanamiDispatcher,
+    actorSystem: ActorSystem,
+    val materializer: Materializer,
+    val cudFeatureClient: CUDFeatureClient
+) extends FeatureClient {
 
-  import client._
   import izanamiDispatcher.ec
   private val logger = Logging(actorSystem, this.getClass.getName)
 
@@ -169,18 +171,19 @@ private[features] class FetchFeatureClient(
   }
 
   override def featuresStream(pattern: String): Publisher[izanami.FeatureEvent] =
-    featuresSource(pattern).runWith(Sink.asPublisher(true))
+    featuresSource(pattern)
+      .withAttributes(client.dispatcherAttribute)
+      .runWith(Sink.asPublisher(true))
 
   private def parseFeatures(featuresJson: Seq[JsValue]): Seq[Feature] =
-    featuresJson.flatMap(
-      f =>
-        f.validate[Feature]
-          .fold(
-            err => {
-              logger.error(s"Error deserializing feature {}: {}", f, err)
-              None
-            },
-            f => Some(f)
+    featuresJson.flatMap(f =>
+      f.validate[Feature]
+        .fold(
+          err => {
+            logger.error(s"Error deserializing feature {}: {}", f, err)
+            None
+          },
+          f => Some(f)
         )
     )
 

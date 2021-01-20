@@ -247,14 +247,14 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       import FeatureInstances._
       val json =
         Json.parse("""{
-                |"id":"test",
-                |"enabled":true,
-                |"parameters":{
-                |   "endAt":"13:06",
-                |   "startAt":"1:06"
-                |},
-                |"activationStrategy":"HOUR_RANGE"
-                |}""".stripMargin)
+                     |"id":"test",
+                     |"enabled":true,
+                     |"parameters":{
+                     |   "endAt":"13:06",
+                     |   "startAt":"1:06"
+                     |},
+                     |"activationStrategy":"HOUR_RANGE"
+                     |}""".stripMargin)
 
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
@@ -267,19 +267,55 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       import FeatureInstances._
       val json =
         Json.parse("""
-                |{
-                |   "id": "id",
-                |   "activationStrategy": "HOUR_RANGE",
-                |   "parameters": { 
-                |     "startAt": "02:15",
-                |     "endAt": "17:30" 
-                |   }
-                |}""".stripMargin)
+                     |{
+                     |   "id": "id",
+                     |   "activationStrategy": "HOUR_RANGE",
+                     |   "parameters": { 
+                     |     "startAt": "02:15",
+                     |     "endAt": "17:30" 
+                     |   }
+                     |}""".stripMargin)
 
       val result = json.validate[Feature]
       result mustBe an[JsSuccess[_]]
 
       result.get must be(HourRangeFeature(Key("id"), false, None, LocalTime.of(2, 15), LocalTime.of(17, 30)))
+    }
+
+    "Deserialize CustomersFeature" in {
+      import FeatureInstances._
+      val json =
+        Json.parse("""{
+                     |"id":"test",
+                     |"enabled":true,
+                     |"parameters":{
+                     |   "customers":["id1", "id2"]
+                     |},
+                     |"activationStrategy":"CUSTOMERS_LIST"
+                     |}""".stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(CustomersFeature(Key("test"), true, None, List("id1", "id2")))
+
+    }
+
+    "Deserialize CustomersFeature without enabled" in {
+      import FeatureInstances._
+      val json =
+        Json.parse("""{
+                     |"id":"test",
+                     |"parameters":{
+                     |   "customers":["id3", "id4"]
+                     |},
+                     |"activationStrategy":"CUSTOMERS_LIST"
+                     |}""".stripMargin)
+
+      val result = json.validate[Feature]
+      result mustBe an[JsSuccess[_]]
+
+      result.get must be(CustomersFeature(Key("test"), false, None, List("id3", "id4")))
     }
 
   }
@@ -341,17 +377,34 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "Serialize HourRangeFeature" in {
       val json =
         Json.parse("""
-          |{
-          |   "id": "id",
-          |   "enabled": true,
-          |   "activationStrategy": "HOUR_RANGE",
-          |   "parameters": { 
-          |     "startAt": "02:30",
-          |     "endAt": "17:15" 
-          |   }
-          |}
+                     |{
+                     |   "id": "id",
+                     |   "enabled": true,
+                     |   "activationStrategy": "HOUR_RANGE",
+                     |   "parameters": { 
+                     |     "startAt": "02:30",
+                     |     "endAt": "17:15" 
+                     |   }
+                     |}
         """.stripMargin)
       FeatureInstances.format.writes(HourRangeFeature(Key("id"), true, None, LocalTime.of(2, 30), LocalTime.of(17, 15))) must be(
+        json
+      )
+    }
+
+    "Serialize CustomersFeature" in {
+      val json =
+        Json.parse("""
+                     |{
+                     |   "id": "id",
+                     |   "enabled": true,
+                     |   "activationStrategy": "CUSTOMERS_LIST",
+                     |   "parameters": { 
+                     |     "customers": ["id5", "id6"]
+                     |   }
+                     |}
+        """.stripMargin)
+      FeatureInstances.format.writes(CustomersFeature(Key("id"), true, None, List("id5", "id6"))) must be(
         json
       )
     }
@@ -427,18 +480,26 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     "Calc ratio" in {
       val feature = PercentageFeature(Key("key"), true, None, 60)
 
-      val count: Int = calcPercentage(feature) { i =>
-        s"string-number-$i"
-      }
+      val count: Int = calcPercentage(feature)(i => s"string-number-$i")
 
       count must (be > 55 and be < 65)
 
-      val count2: Int = calcPercentage(feature) { i =>
-        Random.nextString(50)
-      }
+      val count2: Int = calcPercentage(feature)(i => Random.nextString(50))
 
       count2 must (be > 55 and be < 65)
 
+    }
+  }
+
+  "Customers feature" must {
+    val feature = CustomersFeature(Key("key"), true, None, List("id1", "id2"))
+
+    "active" in {
+      runIsActive(CustomersFeatureInstances.isActive.isActive(feature, Json.obj("id" -> "id1"))) must be(true)
+    }
+
+    "inactive" in {
+      runIsActive(CustomersFeatureInstances.isActive.isActive(feature, Json.obj("id" -> "id3"))) must be(false)
     }
   }
 
@@ -495,9 +556,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
       val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val featureDataStore = new InMemoryJsonDataStore("Feature-test")
-      val ctx = testFeatureContext(featureDataStore = featureDataStore,
-                                   events = events,
-                                   user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+      val ctx = testFeatureContext(
+        featureDataStore = featureDataStore,
+        events = events,
+        user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R))
+      )
       val feature = DefaultFeature(id, true, None)
 
       val value = run(ctx)(FeatureService.create(id, feature).either)
@@ -556,9 +619,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id               = Key("test")
       val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val featureDataStore = new InMemoryJsonDataStore("Feature-test")
-      val ctx = testFeatureContext(featureDataStore = featureDataStore,
-                                   events = events,
-                                   user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+      val ctx = testFeatureContext(
+        featureDataStore = featureDataStore,
+        events = events,
+        user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C))
+      )
       val feature = DefaultFeature(id, true, None)
 
       val value = run(ctx)(FeatureService.update(id, id, feature).either)
@@ -629,9 +694,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id               = Key("test")
       val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val featureDataStore = new InMemoryJsonDataStore("Feature-test")
-      val ctx = testFeatureContext(featureDataStore = featureDataStore,
-                                   events = events,
-                                   user = authInfo(patterns = AuthorizedPatterns.of("test" -> PatternRights.R)))
+      val ctx = testFeatureContext(
+        featureDataStore = featureDataStore,
+        events = events,
+        user = authInfo(patterns = AuthorizedPatterns.of("test" -> PatternRights.R))
+      )
 
       val value = run(ctx)(FeatureService.copyNode(Key("my:awesome"), Key("my:awesome:other"), false).either)
       value mustBe Left(
@@ -718,9 +785,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id               = Key("test")
       val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val featureDataStore = new InMemoryJsonDataStore("Feature-test")
-      val ctx = testFeatureContext(featureDataStore = featureDataStore,
-                                   events = events,
-                                   user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C)))
+      val ctx = testFeatureContext(
+        featureDataStore = featureDataStore,
+        events = events,
+        user = authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.C))
+      )
 
       val value = run(ctx)(FeatureService.delete(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
@@ -811,9 +880,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id               = Key("test")
       val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val featureDataStore = new InMemoryJsonDataStore("Feature-test")
-      val ctx = testFeatureContext(featureDataStore = featureDataStore,
-                                   events = events,
-                                   user = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
+      val ctx = testFeatureContext(
+        featureDataStore = featureDataStore,
+        events = events,
+        user = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C))
+      )
 
       val value = run(ctx)(FeatureService.getById(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
@@ -824,9 +895,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       val id               = Key("test")
       val events           = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val featureDataStore = new InMemoryJsonDataStore("Feature-test")
-      val ctx = testFeatureContext(featureDataStore = featureDataStore,
-                                   events = events,
-                                   user = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C)))
+      val ctx = testFeatureContext(
+        featureDataStore = featureDataStore,
+        events = events,
+        user = authInfo(patterns = AuthorizedPatterns.of("other" -> PatternRights.C))
+      )
 
       val value = run(ctx)(FeatureService.getByIdActive(Json.obj(), id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
@@ -975,7 +1048,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
       user: Option[AuthInfo.Service] = authInfo,
       featureDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("Feature-test"),
       globalScriptDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("Feature-test"),
-      scriptCache: CacheService[String] = fakeCache,
+      scriptCache: CacheService[String] = fakeCache
   ): ZLayer[Any, Throwable, FeatureContext] =
     playModule ++ ZLogger.live ++ Blocking.live ++
     ScriptCache.value(scriptCache) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
@@ -989,7 +1062,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     runtime.unsafeRun(t.provideLayer(isActiveContext))
 
   private def isActiveContext: ZLayer[Any, Throwable, IsActiveContext] =
-    playModule  ++ ScriptCache.value(fakeCache) ++ EventStore.value(new TestEventStore()) ++ AuthInfo
+    playModule ++ ScriptCache.value(fakeCache) ++ EventStore.value(new TestEventStore()) ++ AuthInfo
       .optValue(Some(Apikey("1", "key", "secret", AuthorizedPatterns.All, true))) ++ Blocking.live ++ GlobalScriptDataStore
       .value(
         new InMemoryJsonDataStore("script", TrieMap.empty[GlobalScriptKey, JsValue])
@@ -1002,15 +1075,15 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   private def calcPercentage(feature: PercentageFeature)(mkString: Int => String) = {
     val count = (0 to 1000)
-      .map { i =>
-        val isActive =
-          runIsActive(
-            PercentageFeatureInstances.isActive
-              .isActive(feature, Json.obj("id" -> mkString(i)))
-          )
-        isActive
-      }
-      .count(identity) / 10
+        .map { i =>
+          val isActive =
+            runIsActive(
+              PercentageFeatureInstances.isActive
+                .isActive(feature, Json.obj("id" -> mkString(i)))
+            )
+          isActive
+        }
+        .count(identity) / 10
     count
   }
 }

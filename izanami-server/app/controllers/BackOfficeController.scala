@@ -3,9 +3,10 @@ package controllers
 import ch.qos.logback.classic.{Level, LoggerContext}
 import controllers.actions.SecuredAuthContext
 import domains.user.User
+import buildinfo.BuildInfo
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, Json}
-import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents}
+import play.api.mvc.{AbstractController, ActionBuilder, AnyContent, ControllerComponents, Result}
 
 class BackOfficeController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent], cc: ControllerComponents)
     extends AbstractController(cc) {
@@ -41,11 +42,11 @@ class BackOfficeController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
       val loggerContext =
         LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
       val rawLoggers = loggerContext.getLoggerList.asScala.toIndexedSeq
-      val loggers = JsArray(rawLoggers.map(logger => {
+      val loggers = JsArray(rawLoggers.map { logger =>
         val level: String =
           Option(logger.getLevel).map(_.levelStr).getOrElse("OFF")
         Json.obj("name" -> logger.getName, "level" -> level)
-      }))
+      })
       Ok(loggers)
     } else {
       Unauthorized
@@ -58,4 +59,6 @@ class BackOfficeController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
       case _       => false
     }
 
+  def appInfo() =
+    AuthAction(ctx => Ok(Json.obj("version" -> BuildInfo.version)))
 }

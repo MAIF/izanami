@@ -4,6 +4,7 @@ import controllers.actions.AuthContext
 import domains.auth.AuthInfo
 import domains.user.{User, UserNoPasswordInstances}
 import env.{Env, Oauth2Config}
+import buildinfo.BuildInfo
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
 
@@ -37,15 +38,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
     ctx.auth match {
       case Some(_) =>
         Ok(
-          views.html
-            .index(_env,
-                   baseURL,
-                   logoutUrl,
-                   confirmationDialog,
-                   userManagementMode,
-                   enabledApikeyManagement,
-                   toJson(ctx.auth),
-                   version)
+          generateIndex(ctx)
         )
       case None =>
         Redirect(s"$baseURL/login")
@@ -58,17 +51,23 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
         Redirect(controllers.routes.OAuthController.appLoginPage())
       case _ =>
         Ok(
-          views.html.index(_env,
-                           baseURL,
-                           logoutUrl,
-                           confirmationDialog,
-                           userManagementMode,
-                           enabledApikeyManagement,
-                           toJson(ctx.auth),
-                           version)
+          generateIndex(ctx)
         )
     }
   }
+
+  private def generateIndex(ctx: AuthContext[AnyContent]) =
+    views.html.index(
+      _env,
+      baseURL,
+      logoutUrl,
+      confirmationDialog,
+      userManagementMode,
+      enabledApikeyManagement,
+      toJson(ctx.auth),
+      version,
+      BuildInfo.gitCommitId
+    )
 
   def logout() = Action { _ =>
     maybeOauth2Config match {

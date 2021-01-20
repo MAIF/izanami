@@ -8,12 +8,12 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
+import akka.stream.ActorAttributes
 import akka.stream.alpakka.sse.scaladsl.EventSource
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import izanami.{ClientConfig, IzanamiEvent}
-import play.api.libs.json.{JsValue, Json, Reads}
+import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.immutable
 import scala.concurrent.Future
@@ -58,11 +58,9 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
 
   import system.dispatcher
   implicit val actorSystem = system
-  implicit val mat         = ActorMaterializer(ActorMaterializerSettings(system).withDispatcher(config.dispatcher))
+  val dispatcherAttribute  = ActorAttributes.dispatcher(config.dispatcher)
 
   private val logger = Logging(system, this.getClass.getName)
-
-  private val uri = Uri(config.host)
 
   private val http = Http()
 
@@ -71,11 +69,10 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   private val headers = (for {
     clientId     <- config.clientId
     clientSecret <- config.clientSecret
-  } yield
-    immutable.Seq(
-      RawHeader(config.clientIdHeaderName, clientId),
-      RawHeader(config.clientSecretHeaderName, clientSecret)
-    )).getOrElse(immutable.Seq.empty[HttpHeader])
+  } yield immutable.Seq(
+    RawHeader(config.clientIdHeaderName, clientId),
+    RawHeader(config.clientSecretHeaderName, clientSecret)
+  )).getOrElse(immutable.Seq.empty[HttpHeader])
 
   private def buildUri(path: String, params: Seq[(String, String)]): Uri =
     Uri(config.host).withPath(Path(path)).withQuery(Query(params: _*))
@@ -84,7 +81,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
     response.entity.dataBytes
       .runFold(ByteString(""))(_ ++ _)
       .map(_.utf8String)
-      .map { (response.status, _) }
+      .map((response.status, _))
 
   def fetch(path: String, params: Seq[(String, String)] = Seq.empty, method: HttpMethod = HttpMethods.GET) = {
     logger.debug(s"GET ${config.host} $path, params = $params")
@@ -94,12 +91,14 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         uri = buildUri(path, params),
         headers = headers
       )
-    ).flatMap { parseResponse }
+    ).flatMap(parseResponse)
   }
 
-  private def fetchAllPages(uri: String,
-                            params: Seq[(String, String)] = Seq.empty,
-                            mayBeContext: Option[JsValue] = None) =
+  private def fetchAllPages(
+      uri: String,
+      params: Seq[(String, String)] = Seq.empty,
+      mayBeContext: Option[JsValue] = None
+  ) =
     Source
       .unfoldAsync(1) { pageNum =>
         if (pageNum == -1) {
@@ -117,10 +116,12 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
       }
       .runFold(Seq.empty[JsValue])(_ ++ _)
 
-  private def fetchOnePage(uri: String,
-                           pageNum: Long,
-                           params: Seq[(String, String)] = Seq.empty,
-                           mayBeContext: Option[JsValue] = None): Future[PagingResult] = {
+  private def fetchOnePage(
+      uri: String,
+      pageNum: Long,
+      params: Seq[(String, String)] = Seq.empty,
+      mayBeContext: Option[JsValue] = None
+  ): Future[PagingResult] = {
     val allParams = params ++ Seq("pageSize" -> s"${config.pageSize}", "page" -> s"$pageNum")
     val call = mayBeContext match {
       case None =>
@@ -157,9 +158,11 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
   def fetchPagesWithContext(uri: String, context: JsValue, params: Seq[(String, String)] = Seq.empty) =
     fetchAllPages(uri, params, Some(context))
 
-  def fetchWithContext(path: String,
-                       context: JsValue,
-                       params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
+  def fetchWithContext(
+      path: String,
+      context: JsValue,
+      params: Seq[(String, String)] = Seq.empty
+  ): Future[(StatusCode, String)] = {
     logger.debug(s"POST ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
@@ -168,15 +171,17 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(context)),
         headers = headers
       )
-    ).flatMap { parseResponse }
+    ).flatMap(parseResponse)
   }
 
   def post(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] =
     rawPost(path, HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)), params)
 
-  def rawPost(path: String,
-              entity: HttpEntity.Strict,
-              params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
+  def rawPost(
+      path: String,
+      entity: HttpEntity.Strict,
+      params: Seq[(String, String)] = Seq.empty
+  ): Future[(StatusCode, String)] = {
     logger.debug(s"POST ${config.host} $path, params = $params")
     singleRequest(
       HttpRequest(
@@ -185,7 +190,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         entity = entity,
         headers = headers
       )
-    ).flatMap { parseResponse }
+    ).flatMap(parseResponse)
   }
 
   def put(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
@@ -197,7 +202,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
         headers = headers
       )
-    ).flatMap { parseResponse }
+    ).flatMap(parseResponse)
   }
 
   def patch(path: String, payload: JsValue, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
@@ -209,7 +214,7 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         entity = HttpEntity(ContentTypes.`application/json`, Json.stringify(payload)),
         headers = headers
       )
-    ).flatMap { parseResponse }
+    ).flatMap(parseResponse)
   }
 
   def delete(path: String, params: Seq[(String, String)] = Seq.empty): Future[(StatusCode, String)] = {
@@ -220,18 +225,17 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
         uri = buildUri(path, params),
         headers = headers
       )
-    ).flatMap { parseResponse }
+    ).flatMap(parseResponse)
   }
 
   def eventStream(): Source[IzanamiEvent, NotUsed] =
     EventSource(
       uri = buildUri("/api/events", Seq("domains" -> "Config,Feature")),
-      send = { req =>
-        singleRequest(req.withHeaders(req.headers ++ headers))
-      },
+      send = { req => singleRequest(req.withHeaders(req.headers ++ headers)) },
       initialLastEventId = None,
       retryDelay = 2.seconds
-    ).map(sse => (sse.id, Json.parse(sse.data)))
+    ).withAttributes(dispatcherAttribute)
+      .map(sse => (sse.id, Json.parse(sse.data)))
       .mapConcat {
         case (id, json) =>
           logger.debug("new sse message {}", Json.stringify(json))
@@ -246,5 +250,5 @@ private[izanami] class HttpClient(system: ActorSystem, config: ClientConfig) {
               s => List(s)
             )
       }
-      .filter { _.`type` != "KEEP_ALIVE" }
+      .filter(_.`type` != "KEEP_ALIVE")
 }

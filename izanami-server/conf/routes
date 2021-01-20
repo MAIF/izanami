@@ -1748,9 +1748,11 @@ GET     /api/bo/loggers/:name/level         controllers.BackOfficeController.get
 PUT     /api/bo/loggers/:name/level         controllers.BackOfficeController.changeLogLevel(name, newLevel: Option[String])
 ### NoDocs ###
 GET     /api/bo/loggers                     controllers.BackOfficeController.getAllLoggers()
+### NoDocs ###
+GET     /api/bo/appinfo                     controllers.BackOfficeController.appInfo()
 
 ### NoDocs ###
-GET   /docs/swagger-ui/*file                controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
+GET     /docs/swagger-ui/*file              controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
 
 ### NoDocs ###
 GET     /assets/*file                       controllers.Assets.versioned(file: String)

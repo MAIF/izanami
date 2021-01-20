@@ -41,6 +41,11 @@ const pictos = {
 };
 
 export class LoggedApp extends Component {
+
+  state = {
+    version: ""
+  }
+
   decorate = (Component, props) => {
     const newProps = { ...props };
     const query =
@@ -62,6 +67,9 @@ export class LoggedApp extends Component {
 
   componentDidMount() {
     IzanamiEvents.start();
+    IzanamiServices.appInfo().then(appInfo => {
+      this.setState({ version: appInfo.version });
+    })
     this.props.history.listen(() => {
       $("#sidebar").collapse("hide");
       $("#navbar").collapse("hide");
@@ -181,29 +189,36 @@ export class LoggedApp extends Component {
                 <ul className="dropdown-menu dropdown-menu-right">
                   {userManagementEnabled &&
                     <li key="li-users" className="dropdown-item">
-                      <Link
-                        to="/users"
-                        className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        Users management
-                      </Link>
+                        <Link
+                          to="/users"
+                          className=""
+                          style={{ cursor: "pointer" }}
+                        >
+                          <i className="fas fa-user mr-2"></i> Users management
+                        </Link>
                     </li>}
                   {apikeyManagementEnabled &&
                     <li key="li-apikeys" className="dropdown-item">
-                      <Link
-                        to="/apikeys"
-                        className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        Api Keys management
-                      </Link>
+                        <Link
+                          to="/apikeys"
+                          className=""
+                          style={{ cursor: "pointer" }}
+                        >
+                          <i className="fas fa-key mr-2"></i> Api Keys management
+                        </Link>
                     </li>
                   }
                   <li className="dropdown-item">
                     <a href={this.props.logout} className="link-logout">
-                      {this.props.user ? this.props.user.email : ""}&nbsp;
-                        <i className="fas fa-power-off"></i>
+                      <i className="fas fa-power-off mr-2"></i> {this.props.user ? this.props.user.email : ""}
+                    </a>
+                  </li>
+                  <li>
+                    <div className="dropdown-divider" />
+                  </li>
+                  <li className="dropdown-item">
+                    <a href="#">
+                      <img src={`${window.__contextPath}/assets/images/izanami-inverse.png`} width="16" className="mr-2"/> version {this.state.version}
                     </a>
                   </li>
                 </ul>

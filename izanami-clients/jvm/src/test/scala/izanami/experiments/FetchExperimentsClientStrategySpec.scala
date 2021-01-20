@@ -1,7 +1,7 @@
 package izanami.experiments
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.TestKit
 import izanami.scaladsl.{ExperimentClient, IzanamiClient}
 import izanami._
@@ -13,13 +13,12 @@ import scala.util.{Failure, Success}
 
 class FetchExperimentsClientStrategySpec extends IzanamiSpec with BeforeAndAfterAll with ExperimentMockServer {
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
   import system.dispatcher
 
-  override def afterAll: Unit = {
+  override def afterAll: Unit =
     TestKit.shutdownActorSystem(system)
-  }
 
   "FetchExperimentStrategy" should {
 
