@@ -71,9 +71,7 @@ package object feature {
           .map {
             case (active, f) => FeatureInstances.graphWrites(active).writes(f)
           }
-          .fold(Json.obj()) { (acc, js) =>
-            acc.deepMerge(js.as[JsObject])
-          }
+          .fold(Json.obj())((acc, js) => acc.deepMerge(js.as[JsObject]))
       }
 
     def flat(context: JsObject): RIO[IsActiveContext, Flow[Feature, JsValue, NotUsed]] =
@@ -83,7 +81,7 @@ package object feature {
           .map {
             case (active, f) => f.toJson(active)
           }
-          .fold(Seq.empty[JsValue]) { _ :+ _ }
+          .fold(Seq.empty[JsValue])(_ :+ _)
           .map(JsArray(_))
       }
   }
@@ -108,31 +106,40 @@ package object feature {
       extends Feature
   case class ScriptFeature(id: FeatureKey, enabled: Boolean, description: Option[String], script: Script)
       extends Feature
-  case class DateRangeFeature(id: FeatureKey,
-                              enabled: Boolean,
-                              description: Option[String],
-                              from: LocalDateTime,
-                              to: LocalDateTime)
-      extends Feature
+  case class DateRangeFeature(
+      id: FeatureKey,
+      enabled: Boolean,
+      description: Option[String],
+      from: LocalDateTime,
+      to: LocalDateTime
+  ) extends Feature
   case class ReleaseDateFeature(id: FeatureKey, enabled: Boolean, description: Option[String], date: LocalDateTime)
       extends Feature
-  case class HourRangeFeature(id: FeatureKey,
-                              enabled: Boolean,
-                              description: Option[String],
-                              startAt: LocalTime,
-                              endAt: LocalTime)
-      extends Feature
+  case class HourRangeFeature(
+      id: FeatureKey,
+      enabled: Boolean,
+      description: Option[String],
+      startAt: LocalTime,
+      endAt: LocalTime
+  ) extends Feature
   case class PercentageFeature(id: FeatureKey, enabled: Boolean, description: Option[String], percentage: Int)
       extends Feature
+  case class CustomersFeature(
+      id: FeatureKey,
+      enabled: Boolean,
+      description: Option[String],
+      customers: List[String]
+  ) extends Feature
 
   object FeatureType {
-    val NO_STRATEGY   = "NO_STRATEGY"
-    val RELEASE_DATE  = "RELEASE_DATE"
-    val DATE_RANGE    = "DATE_RANGE"
-    val SCRIPT        = "SCRIPT"
-    val GLOBAL_SCRIPT = "GLOBAL_SCRIPT"
-    val PERCENTAGE    = "PERCENTAGE"
-    val HOUR_RANGE    = "HOUR_RANGE"
+    val NO_STRATEGY    = "NO_STRATEGY"
+    val RELEASE_DATE   = "RELEASE_DATE"
+    val DATE_RANGE     = "DATE_RANGE"
+    val SCRIPT         = "SCRIPT"
+    val GLOBAL_SCRIPT  = "GLOBAL_SCRIPT"
+    val PERCENTAGE     = "PERCENTAGE"
+    val HOUR_RANGE     = "HOUR_RANGE"
+    val CUSTOMERS_LIST = "CUSTOMERS_LIST"
   }
 
   type FeatureDataStore = zio.Has[FeatureDataStore.Service]
@@ -222,16 +229,16 @@ package object feature {
         parsedConfig = mayBeConfig.flatMap(_.validate[Feature].asOpt)
       } yield parsedConfig
 
-    def getByIdActive(context: JsObject,
-                      id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Option[(Feature, Boolean)]] =
+    def getByIdActive(
+        context: JsObject,
+        id: FeatureKey
+    ): ZIO[FeatureContext, IzanamiErrors, Option[(Feature, Boolean)]] =
       for {
         mayBeFeature <- getById(id)
         result <- mayBeFeature
                    .traverse { f =>
                      isActive(f, context)
-                       .map { active =>
-                         (f, active)
-                       }
+                       .map(active => (f, active))
                        .catchSome {
                          case _: IzanamiErrors => IO.succeed((f, false))
                        }
@@ -253,9 +260,7 @@ package object feature {
         pagesWithActive <- pages.results.toList
                             .traverse { f =>
                               isActive(f, context)
-                                .map { active =>
-                                  (f, active)
-                                }
+                                .map(active => (f, active))
                                 .catchSome {
                                   case _: IzanamiErrors => IO.succeed((f, false))
                                 }
@@ -276,17 +281,13 @@ package object feature {
             case (k, v) => (k, v.validate[Feature].get)
           }
         }
-        .flatMap { source =>
-          PlayModule.mat.flatMap { mat =>
-            ZIO.fromFuture { _ =>
-              source.runWith(Sink.seq)(mat)
-            }
-          }
-        }
-        .map { _.toList }
+        .flatMap(source => PlayModule.mat.flatMap(mat => ZIO.fromFuture(_ => source.runWith(Sink.seq)(mat))))
+        .map(_.toList)
 
-    def findByQueryActive(context: JsObject,
-                          query: Query): RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
+    def findByQueryActive(
+        context: JsObject,
+        query: Query
+    ): RIO[FeatureContext, Source[(FeatureKey, Feature, Boolean), NotUsed]] =
       for {
         runtime <- ZIO.runtime[FeatureContext]
         res <- ZIO.accessM[FeatureContext] { _ =>
@@ -301,9 +302,7 @@ package object feature {
                           case (k, f) =>
                             val testIfisActive: RIO[IsActiveContext, (FeatureKey, Feature, Boolean)] =
                               isActive(f, context)
-                                .map { active =>
-                                  (k, f, active)
-                                }
+                                .map(active => (k, f, active))
                                 .either
                                 .map {
                                   _.getOrElse((k, f, false))
@@ -336,10 +335,12 @@ package object feature {
       } yield features
     }
 
-    private def copyOne(from: Key,
-                        to: Key,
-                        feature: Feature,
-                        default: Boolean): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
+    private def copyOne(
+        from: Key,
+        to: Key,
+        feature: Feature,
+        default: Boolean
+    ): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
       val newId            = to / feature.id.drop(from.key)
       val featureToCreated = copyFeature(newId, feature, default)
       FeatureService
@@ -358,6 +359,7 @@ package object feature {
       case f: ReleaseDateFeature  => f.copy(id = id, enabled = default)
       case f: HourRangeFeature    => f.copy(id = id, enabled = default)
       case f: PercentageFeature   => f.copy(id = id, enabled = default)
+      case f: CustomersFeature    => f.copy(id = id, enabled = default)
     }
 
     private def validateKey(key: Key): Either[IzanamiErrors, Key] =

@@ -3,10 +3,9 @@ package izanami.javadsl
 import java.lang
 import java.util.function
 import java.util.function.Consumer
-
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
+import akka.stream.ActorAttributes
 import akka.stream.javadsl.{AsPublisher, Sink, Source}
 import io.vavr.{Function0, Tuple, Tuple2}
 import io.vavr.collection.List
@@ -90,8 +89,10 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
    * @return the [[izanami.javadsl.FeatureClient]]
    */
   def featureClient(strategy: izanami.Strategy, fallback: ClientConfig => Features): FeatureClient =
-    new FeatureClient(underlyingClient.actorSystem,
-                      underlyingClient.featureClient(strategy, fallback.andThen(_.underlying)))
+    new FeatureClient(
+      underlyingClient.actorSystem,
+      underlyingClient.featureClient(strategy, fallback.andThen(_.underlying))
+    )
 
   /**
    * Get a featureClient instance to interact with features.
@@ -110,11 +111,15 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
    * @param autocreate enable config autocreation taking value from fallback
    * @return the [[izanami.javadsl.FeatureClient]]
    */
-  def featureClient(strategy: izanami.Strategy,
-                    fallback: ClientConfig => Features,
-                    autocreate: Boolean): FeatureClient =
-    new FeatureClient(underlyingClient.actorSystem,
-                      underlyingClient.featureClient(strategy, fallback.andThen(_.underlying), autocreate = autocreate))
+  def featureClient(
+      strategy: izanami.Strategy,
+      fallback: ClientConfig => Features,
+      autocreate: Boolean
+  ): FeatureClient =
+    new FeatureClient(
+      underlyingClient.actorSystem,
+      underlyingClient.featureClient(strategy, fallback.andThen(_.underlying), autocreate = autocreate)
+    )
 
   /**
    *
@@ -154,9 +159,11 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
    * @return the [[izanami.javadsl.ConfigClient]]
    */
   def configClient(strategy: izanami.Strategy, fallback: Configs): ConfigClient =
-    new ConfigClient(underlyingClient.actorSystem,
-                     clientConfig,
-                     underlyingClient.configClient(strategy, fallback.underlying))
+    new ConfigClient(
+      underlyingClient.actorSystem,
+      clientConfig,
+      underlyingClient.configClient(strategy, fallback.underlying)
+    )
 
   /**
    * Get a configClient instance to interact with shared config.
@@ -176,9 +183,11 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
    * @return the [[izanami.javadsl.ConfigClient]]
    */
   def configClient(strategy: izanami.Strategy, fallback: Configs, autocreate: Boolean): ConfigClient =
-    new ConfigClient(underlyingClient.actorSystem,
-                     clientConfig,
-                     underlyingClient.configClient(strategy, fallback.underlying, autocreate = autocreate))
+    new ConfigClient(
+      underlyingClient.actorSystem,
+      clientConfig,
+      underlyingClient.configClient(strategy, fallback.underlying, autocreate = autocreate)
+    )
 
   /**
    * Get a experimentClient instance to interact with experiments.
@@ -263,8 +272,10 @@ class IzanamiClient(clientConfig: ClientConfig, underlyingClient: izanami.scalad
 ////////////////////////////   Proxy   ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-case class Proxy(underlying: izanami.scaladsl.Proxy)(implicit actorSystem: ActorSystem,
-                                                     izanamiDispatcher: IzanamiDispatcher) {
+case class Proxy(underlying: izanami.scaladsl.Proxy)(
+    implicit actorSystem: ActorSystem,
+    izanamiDispatcher: IzanamiDispatcher
+) {
 
   import izanamiDispatcher._
   import JsonConv._
@@ -364,7 +375,7 @@ object Features {
   }
 
   def features(features: java.lang.Iterable[Feature]): ClientConfig => Features = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     clientConfig =>
       Features(
         izanami.scaladsl
@@ -432,15 +443,19 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * @param parameters optional parameters (depends on activationStrategy)
    * @return
    */
-  def createJsonFeature(id: String,
-                        enabled: Boolean = true,
-                        activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
-                        parameters: Option[JsObject] = Option.none()): Future[Feature] =
+  def createJsonFeature(
+      id: String,
+      enabled: Boolean = true,
+      activationStrategy: FeatureType = FeatureType.NO_STRATEGY,
+      parameters: Option[JsObject] = Option.none()
+  ): Future[Feature] =
     underlying
-      .createJsonFeature(id,
-                         enabled,
-                         activationStrategy,
-                         parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject]))
+      .createJsonFeature(
+        id,
+        enabled,
+        activationStrategy,
+        parameters.toScala().map(_.toScala().as[play.api.libs.json.JsObject])
+      )
       .toJava
 
   def createFeature(feature: Feature): Future[Feature] =
@@ -474,9 +489,7 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
   def deleteFeature(id: String): Future[Done] =
     underlying
       .deleteFeature(id)
-      .map { _ =>
-        Done.done()
-      }
+      .map(_ => Done.done())
       .toJava
 
   /**
@@ -579,10 +592,12 @@ class FeatureClient(actorSystem: ActorSystem, val underlying: scaladsl.FeatureCl
    * @tparam T
    * @return
    */
-  def featureOrElseAsync[T](key: String,
-                            context: JsObject,
-                            ok: Function0[Future[T]],
-                            ko: Function0[Future[T]]): Future[T] =
+  def featureOrElseAsync[T](
+      key: String,
+      context: JsObject,
+      ok: Function0[Future[T]],
+      ko: Function0[Future[T]]
+  ): Future[T] =
     checkFeature(key, context).flatMap {
       new java.util.function.Function[java.lang.Boolean, Future[T]] {
         override def apply(t: lang.Boolean): Future[T] = t match {
@@ -672,15 +687,14 @@ case class Config(underlying: izanami.scaladsl.Config) {
 
 object Configs {
   import JsonConv._
-  import scala.collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
 
   @annotation.varargs
   def configs(configs: Config*): Configs = Configs(
     izanami.scaladsl.Configs(
-      configs.map(
-        c =>
-          izanami.scaladsl
-            .Config(c.id(), c.value().toScala())
+      configs.map(c =>
+        izanami.scaladsl
+          .Config(c.id(), c.value().toScala())
       )
     )
   )
@@ -730,9 +744,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   import ConfigEvent._
 
   import izanamiDispatcher.ec
-
-  private val materializer =
-    ActorMaterializer(ActorMaterializerSettings(actorSystem).withDispatcher(clientConfig.dispatcher))(actorSystem)
+  ActorAttributes.dispatcher(clientConfig.dispatcher)
 
   /**
    * Create a config
@@ -741,7 +753,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def createConfig(config: Config): Future[Config] =
     underlying
       .createConfig(config.underlying)
-      .map { Config.apply }
+      .map(Config.apply)
       .toJava
 
   /**
@@ -752,7 +764,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def createConfig(id: String, config: JsValue): Future[JsValue] =
     underlying
       .createConfig(id, config.toScala())
-      .map { _.toJava }
+      .map(_.toJava())
       .toJava
 
   /**
@@ -763,7 +775,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def updateConfig(id: String, config: Config): Future[Config] =
     underlying
       .updateConfig(id, config.underlying)
-      .map { Config.apply }
+      .map(Config.apply)
       .toJava
 
   /**
@@ -776,7 +788,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def updateConfig(oldId: String, id: String, config: JsValue): Future[JsValue] =
     underlying
       .updateConfig(oldId, id, config.toScala())
-      .map { _.toJava }
+      .map(_.toJava())
       .toJava
 
   /**
@@ -786,9 +798,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def deleteConfig(id: String): Future[Done] =
     underlying
       .deleteConfig(id)
-      .map { _ =>
-        Done.done()
-      }
+      .map(_ => Done.done())
       .toJava
 
   /**
@@ -799,9 +809,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def configs(pattern: String = "*"): Future[Configs] =
     underlying
       .configs(pattern)
-      .map { c =>
-        Configs(c)
-      }
+      .map(c => Configs(c))
       .toJava
 
   /**
@@ -812,9 +820,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def configs(pattern: io.vavr.collection.Seq[String]): Future[Configs] =
     underlying
       .configs(pattern.toScala())
-      .map { c =>
-        Configs(c)
-      }
+      .map(c => Configs(c))
       .toJava
 
   /**
@@ -825,9 +831,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def config(key: String): Future[JsValue] =
     underlying
       .config(key)
-      .map { c =>
-        c.toJava()
-      }
+      .map(c => c.toJava())
       .toJava
 
   /**
@@ -864,7 +868,7 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   def configsSource(pattern: String): Source[ConfigEvent, NotUsed] =
     underlying
       .configsSource(pattern)
-      .map { convertEvent }
+      .map(convertEvent)
       .asJava
 
   private def convertEvent(evt: izanami.scaladsl.ConfigEvent): ConfigEvent =
@@ -883,8 +887,8 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
    */
   def configsStream(pattern: String = "*"): Publisher[ConfigEvent] =
     configsSource(pattern)
-      .runWith(Sink.asPublisher(AsPublisher.WITH_FANOUT), materializer)
-
+      .withAttributes(ActorAttributes.dispatcher(clientConfig.dispatcher))
+      .runWith(Sink.asPublisher(AsPublisher.WITH_FANOUT), actorSystem)
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -896,7 +900,7 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
 ) {
   import izanamiDispatcher.ec
   import Vavr._
-  import scala.collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
   import JsonConv._
 
   /**
@@ -908,11 +912,10 @@ class ExperimentsClient(val underlying: izanami.scaladsl.ExperimentsClient)(
   def experiment(id: String): Future[Option[ExperimentClient]] =
     underlying
       .experiment(id)
-      .map(
-        mayBe =>
-          mayBe
-            .map(e => Option.of(new ExperimentClient(e)))
-            .getOrElse(Option.none())
+      .map(mayBe =>
+        mayBe
+          .map(e => Option.of(new ExperimentClient(e)))
+          .getOrElse(Option.none())
       )
       .toJava
 

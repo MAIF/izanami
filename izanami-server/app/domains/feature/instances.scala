@@ -238,6 +238,38 @@ object PercentageFeatureInstances {
   }
 }
 
+object CustomersFeatureInstances {
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json.Reads._
+  import play.api.libs.json._
+
+  val reads: Reads[CustomersFeature] = (
+    (__ \ "id").read[Key] and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
+    (__ \ "description").readNullable[String] and
+    (__ \ "parameters" \ "customers").read[List[String]]
+  )(CustomersFeature.apply _)
+
+  val writes: Writes[CustomersFeature] = (
+    FeatureInstances.commonWrite and
+    (__ \ "parameters" \ "customers").write[List[String]]
+  )(unlift(CustomersFeature.unapply)).transform { o: JsObject => o ++ Json.obj("activationStrategy" -> CUSTOMERS_LIST) }
+
+  implicit val format: Format[CustomersFeature] = Format(reads, writes)
+
+  def isActive: IsActive[CustomersFeature] = new IsActive[CustomersFeature] {
+    override def isActive(feature: CustomersFeature, context: JsObject): ZIO[IsActiveContext, IzanamiErrors, Boolean] =
+      ((context \ "id").asOpt[String], feature.enabled) match {
+        case (Some(theId), true) =>
+          ZIO.succeed(feature.customers.contains(theId))
+        case (None, true) =>println(context)
+          ZIO.fail(IzanamiErrors(ValidationError.error("context.id.missing")))
+        case _ =>println(context)
+          ZIO.succeed(false)
+      }
+  }
+}
+
 object HourRangeFeatureInstances {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.Reads._
@@ -297,6 +329,7 @@ object FeatureInstances {
         case f: DateRangeFeature    => DateRangeFeatureInstances.isActive.isActive(f, context)
         case f: ReleaseDateFeature  => ReleaseDateFeatureInstances.isActive.isActive(f, context)
         case f: PercentageFeature   => PercentageFeatureInstances.isActive.isActive(f, context)
+        case f: CustomersFeature    => CustomersFeatureInstances.isActive.isActive(f, context)
         case f: HourRangeFeature    => HourRangeFeatureInstances.isActive.isActive(f, context)
       }) >>= { checked => MetricsService.incFeatureCheckCount(feature.id.key, checked) *> ZIO.succeed(checked) }
     }
@@ -331,6 +364,8 @@ object FeatureInstances {
       GlobalScriptFeatureInstances.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(PERCENTAGE) =>
       PercentageFeatureInstances.format.reads(o)
+    case o if (o \ "activationStrategy").asOpt[String].contains(CUSTOMERS_LIST) =>
+      CustomersFeatureInstances.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(HOUR_RANGE) =>
       HourRangeFeatureInstances.format.reads(o)
     case _ =>
@@ -344,6 +379,7 @@ object FeatureInstances {
     case s: ScriptFeature       => Json.toJson(s)(ScriptFeatureInstances.format)
     case s: GlobalScriptFeature => Json.toJson(s)(GlobalScriptFeatureInstances.format)
     case s: PercentageFeature   => Json.toJson(s)(PercentageFeatureInstances.format)
+    case s: CustomersFeature    => Json.toJson(s)(CustomersFeatureInstances.format)
     case s: HourRangeFeature    => Json.toJson(s)(HourRangeFeatureInstances.format)
   }
 

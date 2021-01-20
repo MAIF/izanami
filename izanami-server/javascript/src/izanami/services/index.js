@@ -765,3 +765,16 @@ export function changeLogLevel(name, level) {
     }
   ).then(jsonBody);
 }
+
+export function appInfo() {
+  return fetch(
+    `${window.__contextPath}/api/bo/appinfo`,
+    {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "application/json"
+      },
+    }
+  ).then(jsonBody);
+}

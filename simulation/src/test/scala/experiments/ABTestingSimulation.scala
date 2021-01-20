@@ -19,11 +19,11 @@ class ABTestingSimulation extends Simulation {
   }
 
   private val headers = Map(
-    "Izanami-Client-Id"     -> "xxxx",
-    "Izanami-Client-Secret" -> "xxxx"
+    "Izanami-Client-Id"     -> "oltp5ly9slvpq34k",
+    "Izanami-Client-Secret" -> "5keh19tlsbxd1o97t5g6s7s5ouriqks15s7fmwbvtwde3bdzp7tlipglukbg7vi5"
   )
 
-  private val experimentId = "project:experiments:name"
+  private val experimentId = "mytvshows:gotoepisodes:button"
 
   private val host = "http://localhost:9000"
 
@@ -35,56 +35,25 @@ class ABTestingSimulation extends Simulation {
     .acceptLanguageHeader("en-US,en;q=0.5")
 
   val scn = scenario("A/B test")
-    .repeat(100, "n") {
+    .repeat(1000, "n") {
       randomSwitch(
-        50d ->
+        100d ->
         exec(
           http("Displayed A request ")
             .post(s"/api/experiments/$experimentId/displayed?id=A&clientId=user-$${n}@maif.fr")
             .body(StringBody("{}"))
             .headers(sentHeaders)
-        ).pause(1.second)
-          .randomSwitch(
-            30d -> exec(
-              http("Won A request")
-                .post(s"/api/experiments/$experimentId/won?id=A&clientId=user-$${n}@maif.fr")
-                .body(StringBody("{}"))
-                .headers(sentHeaders)
-            ).pause(1.second)
-          ),
-        30d ->
-        exec(
-          http("Displayed B request")
-            .post(s"/api/experiments/$experimentId/displayed?id=B&clientId=user-$${n}@maif.fr")
-            .body(StringBody("{}"))
-            .headers(sentHeaders)
-        ).pause(1.second)
-          .randomSwitch(
-            70d -> exec(
-              http("Won B request")
-                .post(s"/api/experiments/$experimentId/won?id=B&clientId=user-$${n}@gmail.com")
-                .body(StringBody("{}"))
-                .headers(sentHeaders)
-            ).pause(1.second)
-          ),
-        20d ->
-        exec(
-          http("Displayed C request")
-            .post(s"/api/experiments/$experimentId/displayed?id=C&clientId=user-$${n}@maif.fr")
-            .body(StringBody("{}"))
-            .headers(sentHeaders)
-        ).pause(1.second)
-          .randomSwitch(
-            70d -> exec(
-              http("Won C request")
-                .post(s"/api/experiments/$experimentId/won?id=C&clientId=user-$${n}@gmail.com")
-                .body(StringBody("{}"))
-                .headers(sentHeaders)
-            ).pause(1.second)
+        ).randomSwitch(
+          30d -> exec(
+            http("Won A request")
+              .post(s"/api/experiments/$experimentId/won?id=A&clientId=user-$${n}@maif.fr")
+              .body(StringBody("{}"))
+              .headers(sentHeaders)
           )
+        )
       )
     }
 
-  setUp(scn.inject(atOnceUsers(2)).protocols(httpConf))
+  setUp(scn.inject(atOnceUsers(50)).protocols(httpConf))
 
 }

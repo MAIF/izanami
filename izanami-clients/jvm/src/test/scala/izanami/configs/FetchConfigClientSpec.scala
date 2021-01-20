@@ -1,14 +1,14 @@
 package izanami.configs
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import izanami._
 import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import izanami.scaladsl.{Config, Configs, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.{JsValue, Json}
 
 import scala.concurrent.Future
@@ -23,7 +23,7 @@ class FetchConfigClientSpec
     with ConfigMockServer {
 
   implicit val system       = ActorSystem("test")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer.createMaterializer(system)
 
   import system.dispatcher
   import com.github.tomakehurst.wiremock.client.WireMock._
@@ -334,10 +334,12 @@ class FetchConfigClientSpec
 
         val expectedEvents = Seq(
           ConfigCreated(Some(1), "id1", Config("id1", Json.obj("config" -> 1))),
-          ConfigUpdated(Some(2),
-                        "filter:id2",
-                        Config("id1", Json.obj("config"                        -> 1)),
-                        Config("id1", Json.obj("config"                        -> 2))),
+          ConfigUpdated(
+            Some(2),
+            "filter:id2",
+            Config("id1", Json.obj("config" -> 1)),
+            Config("id1", Json.obj("config" -> 2))
+          ),
           ConfigCreated(Some(3), "filter:id3", Config("id1", Json.obj("config" -> 3))),
           ConfigDeleted(Some(4), "id4"),
           ConfigDeleted(Some(5), "id5")

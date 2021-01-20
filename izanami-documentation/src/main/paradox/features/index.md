@@ -59,9 +59,16 @@ In this example, the feature is active if the user sent in the context is `ragna
 You can go further following this @ref[link](./scripts.md).
 
 
-## GLOBAL SCRIPT 
+## GLOBAL SCRIPT
 
-Global script strategy is the same as script except that the script are shared between features. 
+Global script strategy is the same as script except that the script are shared between features.
 
 You can find more details about global scripts @ref[on this page](../ui.md#create-or-update-a-script).
+
+
+## CUSTOMERS LIST
+
+This kind of strategy allow you to enable a feature for set of customers. A use case can be to enable a feature for beta testers. In this strategy, the client need to send a context with an `id` field in order to check if the feature is enabled or not.
+
+<img src="../img/features/customers_list.png" width="60%" />
 

@@ -62,11 +62,13 @@ trait ConfigMockServer extends MockServer {
 
   import com.github.tomakehurst.wiremock.client.WireMock._
 
-  def registerPage(group: Seq[Config],
-                   page: Int = 1,
-                   pageSize: Int = 200,
-                   pattern: String = "*",
-                   count: Int = 5): Unit = {
+  def registerPage(
+      group: Seq[Config],
+      page: Int = 1,
+      pageSize: Int = 200,
+      pattern: String = "*",
+      count: Int = 5
+  ): Unit = {
     val url = s"/api/configs"
     mock.register(
       get(urlPathEqualTo(url))
@@ -176,11 +178,10 @@ trait ExperimentMockServer extends MockServer {
     val tree = experiments
       .filter(_.enabled)
       .map(_.id)
-      .map(
-        id =>
-          (id.split(":").foldLeft[JsPath](JsPath)(_ \ _) \ "variant")
-            .write[String]
-            .writes(variantId)
+      .map(id =>
+        (id.split(":").foldLeft[JsPath](JsPath)(_ \ _) \ "variant")
+          .write[String]
+          .writes(variantId)
       )
       .foldLeft(Json.obj())(_ deepMerge _)
 
@@ -252,13 +253,15 @@ trait ExperimentMockServer extends MockServer {
             .withBody(
               Json.stringify(
                 Json.toJson(
-                  ExperimentVariantWon(s"$id:${variant.id}:$client:1",
-                                       id,
-                                       client,
-                                       variant,
-                                       LocalDateTime.now(),
-                                       0,
-                                       variant.id)
+                  ExperimentVariantWon(
+                    s"$id:${variant.id}:$client:1",
+                    id,
+                    client,
+                    variant,
+                    LocalDateTime.now(),
+                    0,
+                    variant.id
+                  )
                 )
               )
             )
@@ -277,13 +280,15 @@ trait ExperimentMockServer extends MockServer {
             .withBody(
               Json.stringify(
                 Json.toJson(
-                  ExperimentVariantDisplayed(s"$id:${variant.id}:$client:1",
-                                             id,
-                                             client,
-                                             variant,
-                                             LocalDateTime.now(),
-                                             0,
-                                             variant.id)
+                  ExperimentVariantDisplayed(
+                    s"$id:${variant.id}:$client:1",
+                    id,
+                    client,
+                    variant,
+                    LocalDateTime.now(),
+                    0,
+                    variant.id
+                  )
                 )
               )
             )
@@ -393,12 +398,14 @@ trait FeatureMockServer extends MockServer {
     )
   }
 
-  def registerPage(group: Seq[Feature],
-                   page: Int = 1,
-                   pageSize: Int = 200,
-                   active: Boolean = true,
-                   pattern: String = "*",
-                   count: Int = 5): Unit = {
+  def registerPage(
+      group: Seq[Feature],
+      page: Int = 1,
+      pageSize: Int = 200,
+      active: Boolean = true,
+      pattern: String = "*",
+      count: Int = 5
+  ): Unit = {
     val url = s"/api/features"
     mock.register(
       get(urlPathEqualTo(url))
@@ -463,10 +470,12 @@ trait FeatureMockServer extends MockServer {
 
 }
 
-case class Context[T, Event](host: String,
-                             feature: ListBuffer[T],
-                             calls: ListBuffer[String],
-                             queue: SourceQueueWithComplete[Event]) {
+case class Context[T, Event](
+    host: String,
+    feature: ListBuffer[T],
+    calls: ListBuffer[String],
+    queue: SourceQueueWithComplete[Event]
+) {
   def setValues(f: Seq[T]): Unit =
     feature.appendAll(f)
 
@@ -504,180 +513,184 @@ trait ExperimentServer {
     var lastVariant = 1
 
     val route: Route =
-    path("api" / "tree" / "experiments") {
-      parameters('clientId.as[String]) { clientId =>
-        val tree = state
-          .map { experiment =>
-            val v = if (lastVariant == 1) {
-              lastVariant = 2
-              experiment.variants.head
-            } else {
-              lastVariant = 1
-              experiment.variants.tail.head
+      path("api" / "tree" / "experiments") {
+        parameters(Symbol("clientId").as[String]) { clientId =>
+          val tree = state
+            .map { experiment =>
+              val v = if (lastVariant == 1) {
+                lastVariant = 2
+                experiment.variants.head
+              } else {
+                lastVariant = 1
+                experiment.variants.tail.head
+              }
+              binding.put(BindingKey(experiment.id, clientId), v)
+              val jsPath = experiment.id.split(":").foldLeft[JsPath](JsPath)((p, s) => p \ s)
+              (jsPath \ "variant").write[String].writes(v.id)
             }
-            binding.put(BindingKey(experiment.id, clientId), v)
-            val jsPath = experiment.id.split(":").foldLeft[JsPath](JsPath) { (p, s) =>
-              p \ s
+            .foldLeft(Json.obj()) {
+              _ deepMerge _
             }
-            (jsPath \ "variant").write[String].writes(v.id)
+          complete(tree)
+        }
+      } ~ path("api" / "experiments" / Segment / "variant") { id =>
+        get {
+          parameters(Symbol("clientId").as[String]) { clientId =>
+            calls.append(s"api/experiments/$id/variant")
+            binding
+              .get(BindingKey(id, clientId))
+              .map(variant => complete(variant))
+              .getOrElse {
+                complete(StatusCodes.NotFound -> Json.obj())
+              }
           }
-          .foldLeft(Json.obj()) {
-            _ deepMerge _
+        }
+      } ~ path("api" / "experiments" / Segment / "displayed") { id =>
+        post {
+          parameters(Symbol("clientId").as[String]) { clientId =>
+            calls.append(s"api/experiments/$id/displayed")
+
+            binding
+              .get(BindingKey(id, clientId))
+              .map { variant =>
+                complete(
+                  ExperimentVariantDisplayed(
+                    s"$id:$clientId:${Random.nextInt(10)}",
+                    id,
+                    clientId,
+                    variant,
+                    LocalDateTime.now(),
+                    0,
+                    variant.id
+                  )
+                )
+              }
+              .getOrElse {
+                state
+                  .find(_.id == id)
+                  .map { experiment =>
+                    val v = if (lastVariant == 1) {
+                      lastVariant = 2
+                      experiment.variants.head
+                    } else {
+                      lastVariant = 1
+                      experiment.variants.tail.head
+                    }
+                    binding.put(BindingKey(id, clientId), v)
+                    complete(
+                      ExperimentVariantDisplayed(
+                        s"$id:$clientId:${Random.nextInt(10)}",
+                        id,
+                        clientId,
+                        v,
+                        LocalDateTime.now(),
+                        0,
+                        v.id
+                      )
+                    )
+                  }
+                  .getOrElse {
+                    complete(StatusCodes.BadRequest -> Json.obj())
+                  }
+              }
           }
-        complete(tree)
-      }
-    } ~ path("api" / "experiments" / Segment / "variant") { id =>
-      get {
-        parameters('clientId.as[String]) { clientId =>
-          calls.append(s"api/experiments/$id/variant")
-          binding
-            .get(BindingKey(id, clientId))
-            .map { variant =>
-              complete(variant)
-            }
+        }
+      } ~ path("api" / "experiments" / Segment / "won") { id =>
+        post {
+          parameters(Symbol("clientId").as[String]) { clientId =>
+            calls.append(s"api/experiments/$id")
+
+            binding
+              .get(BindingKey(id, clientId))
+              .map { variant =>
+                complete(
+                  ExperimentVariantWon(
+                    s"$id:$clientId:${Random.nextInt(10)}",
+                    id,
+                    clientId,
+                    variant,
+                    LocalDateTime.now(),
+                    0,
+                    variant.id
+                  )
+                )
+              }
+              .getOrElse {
+                state
+                  .find(_.id == id)
+                  .map { experiment =>
+                    val v = if (lastVariant == 1) {
+                      lastVariant = 2
+                      experiment.variants.head
+                    } else {
+                      lastVariant = 1
+                      experiment.variants.tail.head
+                    }
+                    binding.put(BindingKey(id, clientId), v)
+                    complete(
+                      ExperimentVariantWon(
+                        s"$id:$clientId:${Random.nextInt(10)}",
+                        id,
+                        clientId,
+                        v,
+                        LocalDateTime.now(),
+                        0,
+                        v.id
+                      )
+                    )
+                  }
+                  .getOrElse {
+                    complete(StatusCodes.BadRequest -> Json.obj())
+                  }
+              }
+          }
+        }
+      } ~
+      path("api" / "experiments" / Segment) { id =>
+        get {
+          calls.append(s"api/experiments/$id")
+          state
+            .find(_.id == id)
+            .map(c => complete(c))
             .getOrElse {
               complete(StatusCodes.NotFound -> Json.obj())
             }
         }
-      }
-    } ~ path("api" / "experiments" / Segment / "displayed") { id =>
-      post {
-        parameters('clientId.as[String]) { clientId =>
-          calls.append(s"api/experiments/$id/displayed")
+      } ~ path("api" / "experiments") {
+        parameters(
+          (
+            Symbol("pattern").as[String] ? "*",
+            Symbol("pageSize").as[Int] ? 2,
+            Symbol("page").as[Int] ? 1
+          )
+        ) { (p, pageSize, page) =>
+          calls.append(s"api/features")
+          val drop = (page - 1) * pageSize
 
-          binding
-            .get(BindingKey(id, clientId))
-            .map { variant =>
-              complete(
-                ExperimentVariantDisplayed(s"$id:$clientId:${Random.nextInt(10)}",
-                                           id,
-                                           clientId,
-                                           variant,
-                                           LocalDateTime.now(),
-                                           0,
-                                           variant.id)
-              )
-            }
-            .getOrElse {
-              state
-                .find(_.id == id)
-                .map { experiment =>
-                  val v = if (lastVariant == 1) {
-                    lastVariant = 2
-                    experiment.variants.head
-                  } else {
-                    lastVariant = 1
-                    experiment.variants.tail.head
-                  }
-                  binding.put(BindingKey(id, clientId), v)
-                  complete(
-                    ExperimentVariantDisplayed(s"$id:$clientId:${Random.nextInt(10)}",
-                                               id,
-                                               clientId,
-                                               v,
-                                               LocalDateTime.now(),
-                                               0,
-                                               v.id)
-                  )
-                }
-                .getOrElse {
-                  complete(StatusCodes.BadRequest -> Json.obj())
-                }
-            }
+          val jsons = state
+            .slice(drop, drop + pageSize)
+            .map(Experiment.format.writes)
+            .toSeq
+          val resp = Json.obj(
+            "results" -> JsArray(jsons),
+            "metadata" -> Json.obj(
+              "page"     -> page,
+              "pageSize" -> pageSize,
+              "count"    -> state.size,
+              "nbPages"  -> Math.ceil(state.size.toFloat / pageSize)
+            )
+          )
+          complete(resp)
         }
-      }
-    } ~ path("api" / "experiments" / Segment / "won") { id =>
-      post {
-        parameters('clientId.as[String]) { clientId =>
-          calls.append(s"api/experiments/$id")
-
-          binding
-            .get(BindingKey(id, clientId))
-            .map { variant =>
-              complete(
-                ExperimentVariantWon(s"$id:$clientId:${Random.nextInt(10)}",
-                                     id,
-                                     clientId,
-                                     variant,
-                                     LocalDateTime.now(),
-                                     0,
-                                     variant.id)
-              )
-            }
-            .getOrElse {
-              state
-                .find(_.id == id)
-                .map { experiment =>
-                  val v = if (lastVariant == 1) {
-                    lastVariant = 2
-                    experiment.variants.head
-                  } else {
-                    lastVariant = 1
-                    experiment.variants.tail.head
-                  }
-                  binding.put(BindingKey(id, clientId), v)
-                  complete(
-                    ExperimentVariantWon(s"$id:$clientId:${Random.nextInt(10)}",
-                                         id,
-                                         clientId,
-                                         v,
-                                         LocalDateTime.now(),
-                                         0,
-                                         v.id)
-                  )
-                }
-                .getOrElse {
-                  complete(StatusCodes.BadRequest -> Json.obj())
-                }
-            }
-        }
-      }
-    } ~
-    path("api" / "experiments" / Segment) { id =>
-      get {
-        calls.append(s"api/experiments/$id")
-        state
-          .find(_.id == id)
-          .map { c =>
-            complete(c)
-          }
-          .getOrElse {
-            complete(StatusCodes.NotFound -> Json.obj())
-          }
-      }
-    } ~ path("api" / "experiments") {
-      parameters(
-        (
-          'pattern.as[String] ? "*",
-          'pageSize.as[Int] ? 2,
-          'page.as[Int] ? 1
-        )
-      ) { (p, pageSize, page) =>
-        calls.append(s"api/features")
-        val drop = (page - 1) * pageSize
-
-        val jsons = state
-          .slice(drop, drop + pageSize)
-          .map(Experiment.format.writes)
-          .toSeq
-        val resp = Json.obj(
-          "results" -> JsArray(jsons),
-          "metadata" -> Json.obj(
-            "page"     -> page,
-            "pageSize" -> pageSize,
-            "count"    -> state.size,
-            "nbPages"  -> Math.ceil(state.size.toFloat / pageSize)
+      } ~ path(Remaining) { rest =>
+        val resp = Json.stringify(Json.obj("message" -> s"Unknow path $rest"))
+        complete(
+          HttpResponse(
+            StatusCodes.BadRequest,
+            entity = HttpEntity(string = resp, contentType = ContentTypes.`application/json`)
           )
         )
-        complete(resp)
       }
-    } ~ path(Remaining) { rest =>
-      val resp = Json.stringify(Json.obj("message" -> s"Unknow path $rest"))
-      complete(
-        HttpResponse(StatusCodes.BadRequest,
-                     entity = HttpEntity(string = resp, contentType = ContentTypes.`application/json`))
-      )
-    }
 
     val bindingFuture: Future[ServerBinding] =
       Http().bindAndHandle(route, host, port)
@@ -713,58 +726,58 @@ trait ConfigServer {
     val fakeConfig = ClientConfig("")
 
     val route: Route =
-    path("api" / "configs" / Segment) { id =>
-      get {
-        calls.append(s"api/configs/$id")
-        state
-          .find(_.id == id)
-          .map { c =>
-            complete(c)
-          }
-          .getOrElse {
-            complete(StatusCodes.NotFound -> Json.obj())
-          }
-      }
-    } ~ path("api" / "configs") {
-      parameters(
-        (
-          'pattern.as[String] ? "*",
-          'pageSize.as[Int] ? 2,
-          'page.as[Int] ? 1
-        )
-      ) { (p, pageSize, page) =>
-        calls.append(s"api/configs")
-        val drop = (page - 1) * pageSize
+      path("api" / "configs" / Segment) { id =>
+        get {
+          calls.append(s"api/configs/$id")
+          state
+            .find(_.id == id)
+            .map(c => complete(c))
+            .getOrElse {
+              complete(StatusCodes.NotFound -> Json.obj())
+            }
+        }
+      } ~ path("api" / "configs") {
+        parameters(
+          (
+            Symbol("pattern").as[String] ? "*",
+            Symbol("pageSize").as[Int] ? 2,
+            Symbol("page").as[Int] ? 1
+          )
+        ) { (p, pageSize, page) =>
+          calls.append(s"api/configs")
+          val drop = (page - 1) * pageSize
 
-        val jsons =
-          state.slice(drop, drop + pageSize).map(Config.format.writes).toSeq
-        val resp = Json.obj(
-          "results" -> JsArray(jsons),
-          "metadata" -> Json.obj(
-            "page"     -> page,
-            "pageSize" -> pageSize,
-            "count"    -> state.size,
-            "nbPages"  -> Math.ceil(state.size.toFloat / pageSize)
+          val jsons =
+            state.slice(drop, drop + pageSize).map(Config.format.writes).toSeq
+          val resp = Json.obj(
+            "results" -> JsArray(jsons),
+            "metadata" -> Json.obj(
+              "page"     -> page,
+              "pageSize" -> pageSize,
+              "count"    -> state.size,
+              "nbPages"  -> Math.ceil(state.size.toFloat / pageSize)
+            )
+          )
+          complete(resp)
+        }
+      } ~ path("api" / "events") {
+        get {
+          complete {
+            source
+              .map(serializeEvent)
+              .map(Json.stringify _)
+              .map(str => ServerSentEvent(str))
+          }
+        }
+      } ~ path(Remaining) { rest =>
+        val resp = Json.stringify(Json.obj("message" -> s"Unknow path $rest"))
+        complete(
+          HttpResponse(
+            StatusCodes.BadRequest,
+            entity = HttpEntity(string = resp, contentType = ContentTypes.`application/json`)
           )
         )
-        complete(resp)
       }
-    } ~ path("api" / "events") {
-      get {
-        complete {
-          source
-            .map(serializeEvent)
-            .map(Json.stringify _)
-            .map(str => ServerSentEvent(str))
-        }
-      }
-    } ~ path(Remaining) { rest =>
-      val resp = Json.stringify(Json.obj("message" -> s"Unknow path $rest"))
-      complete(
-        HttpResponse(StatusCodes.BadRequest,
-                     entity = HttpEntity(string = resp, contentType = ContentTypes.`application/json`))
-      )
-    }
 
     val bindingFuture: Future[ServerBinding] =
       Http().bindAndHandle(route, host, port)
@@ -833,22 +846,63 @@ trait FeatureServer {
     val fakeConfig = ClientConfig("")
 
     val route: Route =
-    path("api" / "features" / "_checks") {
-      post {
+      path("api" / "features" / "_checks") {
+        post {
+          parameters(
+            (
+              Symbol("pattern").as[String] ? "*",
+              Symbol("active").as[Boolean] ? false,
+              Symbol("pageSize").as[Int] ? 2,
+              Symbol("page").as[Int] ? 1
+            )
+          ) { (p, a, pageSize, page) =>
+            calls.append(s"POST /api/features")
+            val drop = (page - 1) * pageSize
+
+            val jsons = state
+              .slice(drop, drop + pageSize)
+              .map(f => Feature.format.writes(f).as[JsObject] ++ Json.obj("active" -> f.isActive(fakeConfig)))
+            val resp = Json.obj(
+              "results" -> JsArray(jsons),
+              "metadata" -> Json.obj(
+                "page"     -> page,
+                "pageSize" -> pageSize,
+                "count"    -> state.size,
+                "nbPages"  -> Math.ceil(state.size.toFloat / pageSize)
+              )
+            )
+            complete(resp)
+          }
+        }
+      } ~ path("api" / "features" / Segment / "check") { id =>
+        post {
+          entity(as[Option[JsValue]]) { mayBeBody =>
+            calls.append(s"POST /api/features/$id")
+            state
+              .find(_.id == id)
+              .map { f =>
+                val j = Json.toJson(f).as[JsObject] ++ Json.obj("active" -> f.isActive(fakeConfig))
+                complete(j)
+              }
+              .getOrElse {
+                complete(StatusCodes.NotFound -> Json.obj())
+              }
+          }
+        }
+      } ~ path("api" / "features") {
         parameters(
           (
-            'pattern.as[String] ? "*",
-            'active.as[Boolean] ? false,
-            'pageSize.as[Int] ? 2,
-            'page.as[Int] ? 1
+            Symbol("pattern").as[String] ? "*",
+            Symbol("active").as[Boolean] ? false,
+            Symbol("pageSize").as[Int] ? 2,
+            Symbol("page").as[Int] ? 1
           )
         ) { (p, a, pageSize, page) =>
-          calls.append(s"POST /api/features")
+          calls.append(s"GET /api/features")
           val drop = (page - 1) * pageSize
 
-          val jsons = state
-            .slice(drop, drop + pageSize)
-            .map(f => Feature.format.writes(f).as[JsObject] ++ Json.obj("active" -> f.isActive(fakeConfig)))
+          val jsons =
+            state.slice(drop, drop + pageSize).map(Feature.format.writes).toSeq
           val resp = Json.obj(
             "results" -> JsArray(jsons),
             "metadata" -> Json.obj(
@@ -860,63 +914,24 @@ trait FeatureServer {
           )
           complete(resp)
         }
-      }
-    } ~ path("api" / "features" / Segment / "check") { id =>
-      post {
-        entity(as[Option[JsValue]]) { mayBeBody =>
-          calls.append(s"POST /api/features/$id")
-          state
-            .find(_.id == id)
-            .map { f =>
-              val j = Json.toJson(f).as[JsObject] ++ Json.obj("active" -> f.isActive(fakeConfig))
-              complete(j)
-            }
-            .getOrElse {
-              complete(StatusCodes.NotFound -> Json.obj())
-            }
+      } ~ path("api" / "events") {
+        get {
+          complete {
+            source
+              .map(serializeEvent)
+              .map(Json.stringify _)
+              .map(str => ServerSentEvent(str))
+          }
         }
-      }
-    } ~ path("api" / "features") {
-      parameters(
-        (
-          'pattern.as[String] ? "*",
-          'active.as[Boolean] ? false,
-          'pageSize.as[Int] ? 2,
-          'page.as[Int] ? 1
-        )
-      ) { (p, a, pageSize, page) =>
-        calls.append(s"GET /api/features")
-        val drop = (page - 1) * pageSize
-
-        val jsons =
-          state.slice(drop, drop + pageSize).map(Feature.format.writes).toSeq
-        val resp = Json.obj(
-          "results" -> JsArray(jsons),
-          "metadata" -> Json.obj(
-            "page"     -> page,
-            "pageSize" -> pageSize,
-            "count"    -> state.size,
-            "nbPages"  -> Math.ceil(state.size.toFloat / pageSize)
+      } ~ path(Remaining) { rest =>
+        val resp = Json.stringify(Json.obj("message" -> s"Unknow path $rest"))
+        complete(
+          HttpResponse(
+            StatusCodes.BadRequest,
+            entity = HttpEntity(string = resp, contentType = ContentTypes.`application/json`)
           )
         )
-        complete(resp)
       }
-    } ~ path("api" / "events") {
-      get {
-        complete {
-          source
-            .map(serializeEvent)
-            .map(Json.stringify _)
-            .map(str => ServerSentEvent(str))
-        }
-      }
-    } ~ path(Remaining) { rest =>
-      val resp = Json.stringify(Json.obj("message" -> s"Unknow path $rest"))
-      complete(
-        HttpResponse(StatusCodes.BadRequest,
-                     entity = HttpEntity(string = resp, contentType = ContentTypes.`application/json`))
-      )
-    }
 
     val bindingFuture: Future[ServerBinding] =
       Http().bindAndHandle(route, host, port)
