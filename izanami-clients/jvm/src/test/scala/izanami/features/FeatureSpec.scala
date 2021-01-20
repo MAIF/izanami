@@ -1,11 +1,11 @@
 package izanami.features
 import izanami._
+import izanami.scaladsl.Features
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json._
-import java.time.LocalTime
 
-import izanami.scaladsl.Features
+import java.time.LocalTime
 
 class FeatureSpec
     extends IzanamiSpec
@@ -95,6 +95,43 @@ class FeatureSpec
                             """.stripMargin)
 
       val written = Json.toJson(HourRangeFeature("id", true, None, LocalTime.of(5, 25), LocalTime.of(16, 30)))
+      written must be(json)
+    }
+
+    "Feature customers serialization" in {
+
+      import izanami.Feature
+      import izanami.Feature._
+
+      val json = Json.parse("""
+                              |{
+                              |   "id": "id",
+                              |   "enabled": true,
+                              |   "activationStrategy": "CUSTOMERS_LIST",
+                              |   "parameters": { "customers": ["customer1", "customer2"] }
+                              |}
+                            """.stripMargin)
+
+      val jsResult = json.validate[Feature]
+      jsResult must be(
+        JsSuccess(CustomersFeature("id", true, None, List("customer1", "customer2")))
+      )
+    }
+
+    "Feature customers deserialization" in {
+
+      import izanami.Feature._
+
+      val json = Json.parse("""
+                              |{
+                              |   "id": "id",
+                              |   "enabled": true,
+                              |   "activationStrategy": "CUSTOMERS_LIST",
+                              |   "parameters": { "customers": ["customer1", "customer2"] }
+                              |}
+                            """.stripMargin)
+
+      val written = Json.toJson(CustomersFeature("id", true, None, List("customer1", "customer2")))
       written must be(json)
     }
   }

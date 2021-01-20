@@ -365,6 +365,8 @@ case class Proxy(underlying: izanami.scaladsl.Proxy)(
 
 object Features {
 
+  import scala.jdk.CollectionConverters._
+
   @annotation.varargs
   def features(features: Feature*): ClientConfig => Features = { clientConfig =>
     Features(izanami.scaladsl.Features(clientConfig, features, Seq.empty))
@@ -374,13 +376,11 @@ object Features {
     Features(izanami.scaladsl.Features(clientConfig, Seq.empty, Seq.empty))
   }
 
-  def features(features: java.lang.Iterable[Feature]): ClientConfig => Features = {
-    import scala.jdk.CollectionConverters._
-    clientConfig =>
-      Features(
-        izanami.scaladsl
-          .Features(clientConfig, features.asScala.toSeq, Seq.empty)
-      )
+  def features(features: java.lang.Iterable[Feature]): ClientConfig => Features = { clientConfig =>
+    Features(
+      izanami.scaladsl
+        .Features(clientConfig, features.asScala.toSeq, Seq.empty)
+    )
   }
 
   def feature(key: String, active: Boolean)                          = DefaultFeature(key, active)
@@ -391,6 +391,8 @@ object Features {
   def hourRange(key: String, active: Boolean, startAt: LocalTime, endAt: LocalTime) =
     HourRangeFeature(key, active, None, startAt, endAt)
   def percentage(key: String, active: Boolean, percentage: Int) = PercentageFeature(key, active, None, percentage)
+  def customers(key: String, active: Boolean, customers: List[String]) =
+    CustomersFeature(key, active, None, customers.asScala.toList)
   def script(key: String, active: Boolean, `type`: String, script: String) =
     ScriptFeature(key, active, None, Script(`type`, script))
   def globalScript(key: String, active: Boolean, ref: String) = GlobalScriptFeature(key, active, None, ref)
@@ -400,6 +402,7 @@ object Features {
   def dateRangeType(): FeatureType    = FeatureType.DATE_RANGE
   def hourRangeType(): FeatureType    = FeatureType.HOUR_RANGE
   def percentageType(): FeatureType   = FeatureType.PERCENTAGE
+  def customersType(): FeatureType    = FeatureType.CUSTOMERS_LIST
   def scriptType(): FeatureType       = FeatureType.SCRIPT
   def globalScriptType(): FeatureType = FeatureType.GLOBAL_SCRIPT
 
@@ -744,7 +747,6 @@ class ConfigClient(actorSystem: ActorSystem, clientConfig: ClientConfig, val und
   import ConfigEvent._
 
   import izanamiDispatcher.ec
-  ActorAttributes.dispatcher(clientConfig.dispatcher)
 
   /**
    * Create a config

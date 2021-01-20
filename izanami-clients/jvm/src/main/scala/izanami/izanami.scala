@@ -141,24 +141,27 @@ object Strategy {
   case class FetchStrategy(errorStrategy: ErrorStrategy = RecoverWithFallback) extends Strategy {
     def withErrorStrategy(strategy: ErrorStrategy) = copy(errorStrategy = strategy)
   }
-  case class FetchWithCacheStrategy(maxElement: Int,
-                                    duration: FiniteDuration,
-                                    errorStrategy: ErrorStrategy = RecoverWithFallback)
-      extends Strategy {
+  case class FetchWithCacheStrategy(
+      maxElement: Int,
+      duration: FiniteDuration,
+      errorStrategy: ErrorStrategy = RecoverWithFallback
+  ) extends Strategy {
     def withErrorStrategy(strategy: ErrorStrategy) = copy(errorStrategy = strategy)
   }
-  case class CacheWithSseStrategy(patterns: Seq[String],
-                                  pollingInterval: Option[FiniteDuration] = Some(1.minute),
-                                  errorStrategy: ErrorStrategy = RecoverWithFallback)
-      extends SmartCacheStrategy {
+  case class CacheWithSseStrategy(
+      patterns: Seq[String],
+      pollingInterval: Option[FiniteDuration] = Some(1.minute),
+      errorStrategy: ErrorStrategy = RecoverWithFallback
+  ) extends SmartCacheStrategy {
     def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = Some(interval))
     def withPollingDisabled()                         = copy(pollingInterval = None)
     def withErrorStrategy(strategy: ErrorStrategy)    = copy(errorStrategy = strategy)
   }
-  case class CacheWithPollingStrategy(patterns: Seq[String],
-                                      pollingInterval: FiniteDuration = 20.seconds,
-                                      errorStrategy: ErrorStrategy = RecoverWithFallback)
-      extends SmartCacheStrategy {
+  case class CacheWithPollingStrategy(
+      patterns: Seq[String],
+      pollingInterval: FiniteDuration = 20.seconds,
+      errorStrategy: ErrorStrategy = RecoverWithFallback
+  ) extends SmartCacheStrategy {
     def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = interval)
     def withErrorStrategy(strategy: ErrorStrategy)    = copy(errorStrategy = strategy)
   }
@@ -168,13 +171,15 @@ object Strategy {
 ///////////////////////////  Events   /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-case class IzanamiEvent(_id: Long,
-                        key: String,
-                        `type`: String,
-                        domain: String,
-                        payload: JsObject,
-                        oldValue: Option[JsObject],
-                        timestamp: LocalDateTime)
+case class IzanamiEvent(
+    _id: Long,
+    key: String,
+    `type`: String,
+    domain: String,
+    payload: JsObject,
+    oldValue: Option[JsObject],
+    timestamp: LocalDateTime
+)
 
 object IzanamiEvent {
   implicit val format = Json.format[IzanamiEvent]
@@ -189,7 +194,7 @@ trait Event
 case class Variant(id: String, name: String, description: Option[String])
 
 object Variant {
-  implicit val format                                                = Json.format[Variant]
+  implicit val format                                                        = Json.format[Variant]
   def create(id: String, name: String, description: Option[String]): Variant = Variant(id, name, description)
 }
 
@@ -199,27 +204,29 @@ sealed trait ExperimentVariantEvent {
   def date: LocalDateTime
 }
 
-case class ExperimentVariantDisplayed(id: String,
-                                      experimentId: String,
-                                      clientId: String,
-                                      variant: Variant,
-                                      date: LocalDateTime = LocalDateTime.now(),
-                                      transformation: Double,
-                                      variantId: String)
-    extends ExperimentVariantEvent
+case class ExperimentVariantDisplayed(
+    id: String,
+    experimentId: String,
+    clientId: String,
+    variant: Variant,
+    date: LocalDateTime = LocalDateTime.now(),
+    transformation: Double,
+    variantId: String
+) extends ExperimentVariantEvent
 
 object ExperimentVariantDisplayed {
   implicit val format = Json.format[ExperimentVariantDisplayed]
 }
 
-case class ExperimentVariantWon(id: String,
-                                experimentId: String,
-                                clientId: String,
-                                variant: Variant,
-                                date: LocalDateTime = LocalDateTime.now(),
-                                transformation: Double,
-                                variantId: String)
-    extends ExperimentVariantEvent
+case class ExperimentVariantWon(
+    id: String,
+    experimentId: String,
+    clientId: String,
+    variant: Variant,
+    date: LocalDateTime = LocalDateTime.now(),
+    transformation: Double,
+    variantId: String
+) extends ExperimentVariantEvent
 
 object ExperimentVariantWon {
   implicit val format = Json.format[ExperimentVariantWon]
@@ -247,7 +254,7 @@ case class Experiments(experiments: ExperimentFallback*)
 
 object Experiments {
 
-  import scala.collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
 
   def apply(experiments: java.lang.Iterable[ExperimentFallback]): Experiments =
     new Experiments(experiments.asScala.toSeq: _*)
@@ -279,8 +286,8 @@ object Feature {
   import FeatureType._
 
   private[izanami] val commonWrite =
-  (__ \ "id").write[String] and
-  (__ \ "enabled").write[Boolean]
+    (__ \ "id").write[String] and
+    (__ \ "enabled").write[Boolean]
 
   val reads = Reads[Feature] {
     case o if (o \ "activationStrategy").asOpt[String].contains(NO_STRATEGY.name) =>
@@ -295,6 +302,8 @@ object Feature {
       GlobalScriptFeature.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(PERCENTAGE.name) =>
       PercentageFeature.format.reads(o)
+    case o if (o \ "activationStrategy").asOpt[String].contains(CUSTOMERS_LIST.name) =>
+      CustomersFeature.format.reads(o)
     case o if (o \ "activationStrategy").asOpt[String].contains(HOUR_RANGE.name) =>
       HourRangeFeature.format.reads(o)
     case o if (o \ "enabled").asOpt[Boolean].isDefined && (o \ "id").asOpt[String].isDefined =>
@@ -315,6 +324,7 @@ object Feature {
     case s: ScriptFeature       => Json.toJsObject(s)(ScriptFeature.format)
     case s: GlobalScriptFeature => Json.toJsObject(s)(GlobalScriptFeature.format)
     case s: PercentageFeature   => Json.toJsObject(s)(PercentageFeature.format)
+    case s: CustomersFeature    => Json.toJsObject(s)(CustomersFeature.format)
     case s: HourRangeFeature    => Json.toJsObject(s)(HourRangeFeature.format)
   }
 
@@ -329,13 +339,14 @@ object Feature {
 sealed case class FeatureType(name: String)
 
 object FeatureType {
-  object NO_STRATEGY   extends FeatureType("NO_STRATEGY")
-  object RELEASE_DATE  extends FeatureType("RELEASE_DATE")
-  object DATE_RANGE    extends FeatureType("DATE_RANGE")
-  object SCRIPT        extends FeatureType("SCRIPT")
-  object GLOBAL_SCRIPT extends FeatureType("GLOBAL_SCRIPT")
-  object PERCENTAGE    extends FeatureType("PERCENTAGE")
-  object HOUR_RANGE    extends FeatureType("HOUR_RANGE")
+  object NO_STRATEGY    extends FeatureType("NO_STRATEGY")
+  object RELEASE_DATE   extends FeatureType("RELEASE_DATE")
+  object DATE_RANGE     extends FeatureType("DATE_RANGE")
+  object SCRIPT         extends FeatureType("SCRIPT")
+  object GLOBAL_SCRIPT  extends FeatureType("GLOBAL_SCRIPT")
+  object PERCENTAGE     extends FeatureType("PERCENTAGE")
+  object CUSTOMERS_LIST extends FeatureType("CUSTOMERS_LIST")
+  object HOUR_RANGE     extends FeatureType("HOUR_RANGE")
 }
 
 sealed trait Feature {
@@ -365,9 +376,7 @@ object GlobalScriptFeature {
     (__ \ "active").writeNullable[Boolean] and
     (__ \ "parameters" \ "ref").write[String]
   )(unlift(GlobalScriptFeature.unapply))
-    .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> FeatureType.GLOBAL_SCRIPT.name)
-    }
+    .transform { o: JsObject => o ++ Json.obj("activationStrategy" -> FeatureType.GLOBAL_SCRIPT.name) }
 
   private val reads: Reads[GlobalScriptFeature] = (
     (__ \ "id").read[String] and
@@ -410,9 +419,7 @@ object ScriptFeature {
     (__ \ "active").writeNullable[Boolean] and
     (__ \ "parameters" \ "script").write[Script]
   )(unlift(ScriptFeature.unapply))
-    .transform { o: JsObject =>
-      o ++ Json.obj("activationStrategy" -> FeatureType.SCRIPT.name)
-    }
+    .transform { o: JsObject => o ++ Json.obj("activationStrategy" -> FeatureType.SCRIPT.name) }
 
   private val reads: Reads[ScriptFeature] = (
     (__ \ "id").read[String] and
@@ -527,6 +534,36 @@ object PercentageFeature {
     (__ \ "parameters" \ "percentage").write[Int]
   )(unlift(PercentageFeature.unapply)).transform { o: JsObject =>
     o ++ Json.obj("activationStrategy" -> FeatureType.PERCENTAGE.name)
+  }
+
+  implicit val format = OFormat(reads, writes)
+}
+
+case class CustomersFeature(id: String, enabled: Boolean, active: Option[Boolean], customer: List[String])
+    extends Feature {
+
+  override def isActive(config: ClientConfig): Boolean =
+    active.getOrElse(false)
+}
+
+object CustomersFeature {
+  import play.api.libs.json._
+  import play.api.libs.json.Reads._
+  import play.api.libs.functional.syntax._
+
+  val reads: Reads[CustomersFeature] = (
+    (__ \ "id").read[String] and
+    (__ \ "enabled").read[Boolean] and
+    (__ \ "active").readNullable[Boolean] and
+    (__ \ "parameters" \ "customers").read[List[String]]
+  )(CustomersFeature.apply _)
+
+  val writes: OWrites[CustomersFeature] = (
+    Feature.commonWrite and
+    (__ \ "active").writeNullable[Boolean] and
+    (__ \ "parameters" \ "customers").write[List[String]]
+  )(unlift(CustomersFeature.unapply)).transform { o: JsObject =>
+    o ++ Json.obj("activationStrategy" -> FeatureType.CUSTOMERS_LIST.name)
   }
 
   implicit val format = OFormat(reads, writes)
