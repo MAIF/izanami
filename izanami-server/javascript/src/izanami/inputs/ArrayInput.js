@@ -70,7 +70,7 @@ export class ArrayInput extends Component {
                 className="btn btn-primary btn-sm"
                 onClick={this.addFirst}
               >
-                    <i className="fas fa-plus-circle" />" "}
+                    <i className="fas fa-plus-circle" />{" "}
               </button>
             </div>
           </div>

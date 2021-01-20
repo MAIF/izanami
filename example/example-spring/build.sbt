@@ -10,7 +10,7 @@ resolvers ++= Seq(
   ("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local").withAllowInsecureProtocol(true)
 )
 
-val springVersion = "2.4.1.RELEASE"
+val springVersion = "2.4.1"
 
 libraryDependencies ++= Seq(
   "org.springframework.boot"   % "spring-boot-starter-web"       % springVersion,
