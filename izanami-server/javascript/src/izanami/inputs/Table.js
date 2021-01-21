@@ -946,6 +946,7 @@ export class Table extends Component {
               flow={this.props.formFlow}
               schema={this.props.formSchema}
               errorReportKeys={this.state.errorList}
+              edit={this.state.showEditForm}
             />
             <hr />
             {this.state.error && (
