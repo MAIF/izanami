@@ -300,7 +300,6 @@ class Variants extends Component {
 const DATE_FORMAT2 = "YYYY-MM-DD HH:mm:ss";
 
 const Campaign = props => {
-  console.log(props);
   const value = props.value ? props.value : {};
   const disabled = !value.from;
   const from = value.from
@@ -372,6 +371,7 @@ export class ExperimentsPage extends Component {
       props: {
         label: "Id",
         placeholder: "The Experiment id",
+        disabledIfEdit: true,
         search(pattern) {
           return IzanamiServices.fetchExperiments({
             page: 1,

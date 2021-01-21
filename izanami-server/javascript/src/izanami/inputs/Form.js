@@ -219,10 +219,10 @@ export class Form extends Component {
               errorMessage={errorReport}
             >
               <KeyInputForm
-                disabled={disabled}
                 copyButton={true}
                 value={this.getValue(name, "")}
                 {...props}
+                disabled={!!disabled || (this.props.edit && !!props.disabledIfEdit)}
                 onChange={v => this.changeValue(name, v)}
               />
             </FieldError>
@@ -250,7 +250,7 @@ export class Form extends Component {
             >
               {React.createElement(type, {
                 ...props,
-                disabled,
+                  disabled,
                 key: name,
                 value: this.getValue(name ),
                 onChange: v => this.changeValue(name, v),
