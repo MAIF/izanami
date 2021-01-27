@@ -32,13 +32,11 @@ package object abtesting {
 
   case class Traffic(traffic: Double) extends AnyVal
 
-  case class Variant(
-      id: String,
-      name: String,
-      description: Option[String] = None,
-      traffic: Traffic,
-      currentPopulation: Option[Int] = None
-  ) {
+  case class Variant(id: String,
+                     name: String,
+                     description: Option[String] = None,
+                     traffic: Traffic,
+                     currentPopulation: Option[Int] = None) {
     def incrementPopulation: Variant =
       copy(currentPopulation = currentPopulation.map(_ + 1).orElse(Some(1)))
   }
@@ -50,14 +48,12 @@ package object abtesting {
   case class CurrentCampaign(from: LocalDateTime, to: LocalDateTime)             extends Campaign
   case class ClosedCampaign(from: LocalDateTime, to: LocalDateTime, won: String) extends Campaign
 
-  case class Experiment(
-      id: ExperimentKey,
-      name: String,
-      description: Option[String] = None,
-      enabled: Boolean,
-      campaign: Option[Campaign] = None,
-      variants: NonEmptyList[Variant]
-  ) {
+  case class Experiment(id: ExperimentKey,
+                        name: String,
+                        description: Option[String] = None,
+                        enabled: Boolean,
+                        campaign: Option[Campaign] = None,
+                        variants: NonEmptyList[Variant]) {
 
     def addOrReplaceVariant(variant: Variant): Experiment =
       copy(variants = variants.map {
@@ -93,7 +89,9 @@ package object abtesting {
       val validations: ValidatedResult[Experiment] = (
         validateTraffic(experiment),
         validateCampaign(experiment)
-      ).mapN((_, _) => experiment)
+      ).mapN { (_, _) =>
+        experiment
+      }
       validations.toEither.leftMap(err => IzanamiErrors(err))
     }
 
@@ -124,28 +122,26 @@ package object abtesting {
         .map { v =>
           data.variants
             .find(_.id === v.id)
-            .forall(v1 => v1.traffic =!= v.traffic)
+            .forall { v1 =>
+              v1.traffic =!= v.traffic
+            }
         }
-        .foldLeft(false)(_ || _)
+        .foldLeft(false) { _ || _ }
     }
   }
 
-  case class VariantResult(
-      variant: Option[Variant] = None,
-      displayed: Long = 0,
-      won: Long = 0,
-      transformation: Double = 0,
-      users: Double = 0,
-      events: Seq[ExperimentResultEvent] = Seq.empty
-  )
+  case class VariantResult(variant: Option[Variant] = None,
+                           displayed: Long = 0,
+                           won: Long = 0,
+                           transformation: Double = 0,
+                           users: Double = 0,
+                           events: Seq[ExperimentResultEvent] = Seq.empty)
 
-  case class ExperimentResultEvent(
-      experimentId: ExperimentKey,
-      variant: Variant,
-      date: LocalDateTime = LocalDateTime.now(),
-      transformation: Double,
-      variantId: String
-  )
+  case class ExperimentResultEvent(experimentId: ExperimentKey,
+                                   variant: Variant,
+                                   date: LocalDateTime = LocalDateTime.now(),
+                                   transformation: Double,
+                                   variantId: String)
 
   object VariantResult {
     def transformation(displayed: Long, won: Long): Double = displayed match {
@@ -209,15 +205,14 @@ package object abtesting {
       // format: on
     }
 
-    def update(
-        oldId: ExperimentKey,
-        id: ExperimentKey,
-        data: Experiment
-    ): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
+    def update(oldId: ExperimentKey,
+               id: ExperimentKey,
+               data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
       // format: off
       for {
         _           <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
         _           <- ZIO.fromEither(Experiment.validate(data))
+        _           <- ZIO.when(oldId =!= id)(ZIO.fail(IdMustBeTheSame(oldId, id).toErrors))      
         mayBe       <- getById(oldId)
         oldValue    <- ZIO.fromOption(mayBe).mapError(_ => DataShouldExists(oldId).toErrors)
         _           <- ZIO.when(Experiment.isTrafficChanged(oldValue, data)) {
@@ -227,12 +222,10 @@ package object abtesting {
       } yield experiment
       // format: on
 
-    def rawUpdate(
-        oldId: ExperimentKey,
-        oldValue: Experiment,
-        id: ExperimentKey,
-        data: Experiment
-    ): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
+    def rawUpdate(oldId: ExperimentKey,
+                  oldValue: Experiment,
+                  id: ExperimentKey,
+                  data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
       import ExperimentInstances._
       // format: off
       for {
@@ -298,7 +291,9 @@ package object abtesting {
             .write[String]
             .writes(variant.id)
         }
-        .fold(Json.obj())((acc, js) => acc.deepMerge(js.as[JsObject]))
+        .fold(Json.obj()) { (acc, js) =>
+          acc.deepMerge(js.as[JsObject])
+        }
 
     def variantFor(
         experimentKey: ExperimentKey,

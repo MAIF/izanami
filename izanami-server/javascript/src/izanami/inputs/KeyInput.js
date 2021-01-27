@@ -319,7 +319,8 @@ export class KeyInput extends Component {
                     value={this.state.textValue}
                     onFocus={this.onFocus}
                     ref={e => (this.inputRef = e)}
-                    placeholder={"Press space or : to separate key segments"}
+                    placeholder={this.props.disabled ? "" : "Press space or : to separate key segments"}
+                    disabled={this.props.disabled}
                   />
                 </div>
               </span>
