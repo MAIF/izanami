@@ -31,9 +31,6 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
     s"$baseURL${_env.izanamiConfig.logout.url}"
   }
 
-  private val p: Package      = getClass.getPackage
-  private val version: String = p.getImplementationVersion
-
   def index() = AuthAction { ctx =>
     ctx.auth match {
       case Some(_) =>
@@ -65,7 +62,7 @@ class HomeController(_env: Env, AuthAction: ActionBuilder[AuthContext, AnyConten
       userManagementMode,
       enabledApikeyManagement,
       toJson(ctx.auth),
-      version,
+      BuildInfo.version,
       BuildInfo.gitCommitId
     )
 
