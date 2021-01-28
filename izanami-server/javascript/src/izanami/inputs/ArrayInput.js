@@ -112,25 +112,27 @@ export class ArrayInput extends Component {
                     }
                   />
                 )}
-                <span className="input-group-append">
-                  <button
-                    disabled={this.props.disabled}
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={e => this.remove(e, idx)}
-                  >
-                    <i className="fas fa-trash-alt" />
-                  </button>
-                  {idx === values.length - 1 && (
+                <span className="ml-1 input-group-prepend align-items-center">
+                  <div>
                     <button
                       disabled={this.props.disabled}
                       type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={this.addNext}
+                      className="btn btn-danger btn-sm"
+                      onClick={e => this.remove(e, idx)}
                     >
-                          <i className="fas fa-plus-circle" />{" "}
+                      <i className="fas fa-trash-alt" />
                     </button>
-                  )}
+                    {idx === values.length - 1 && (
+                      <button
+                        disabled={this.props.disabled}
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={this.addNext}
+                      >
+                            <i className="fas fa-plus-circle" />{" "}
+                      </button>
+                    )}
+                  </div>
                 </span>
               </div>
             </div>
