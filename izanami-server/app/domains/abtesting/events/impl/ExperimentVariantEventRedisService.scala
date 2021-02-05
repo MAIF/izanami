@@ -3,7 +3,6 @@ package domains.abtesting.events.impl
 import java.time.temporal.ChronoUnit
 import java.time.{LocalDateTime, ZoneId}
 import java.util.concurrent.CompletionStage
-
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.util.FastFuture
@@ -20,7 +19,8 @@ import env.configuration.IzanamiConfigModule
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.{ScanArgs, ScanCursor, ScoredValue}
 import libs.database.Drivers.RedisDriver
-import play.api.libs.json.Json
+import libs.logs.IzanamiLogger
+import play.api.libs.json.{JsValue, Json}
 import store.datastore.DataStoreLayerContext
 import store.redis.RedisWrapper
 import zio.{RIO, Task, ZIO, ZLayer}
@@ -64,13 +64,13 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
 
   private def zioFromCs[T](cs: => CompletionStage[T]): Task[T] =
     Task.effectAsync { cb =>
-      cs.whenComplete((ok, e) => {
+      cs.whenComplete { (ok, e) =>
         if (e != null) {
           cb(Task.fail(e))
         } else {
           cb(Task.succeed(ok))
         }
-      })
+      }
     }
 
   private def findKeys(pattern: String): Source[String, NotUsed] =
@@ -108,9 +108,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
                        Json.stringify(ExperimentVariantEventInstances.format.writes(data))
                      )
                    )
-               }.orDie.map { _ =>
-                 data
-               } // add event
+               }.orDie.map(_ => data) // add event
       authInfo <- AuthInfo.authInfo
       _        <- EventStore.publish(ExperimentVariantEventCreated(id, data, authInfo = authInfo))
     } yield result
@@ -128,12 +126,14 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
             case Nil => Option.empty
             case res =>
               Option(
-                (nextPage,
-                 res
-                   .map { Json.parse }
-                   .map { value =>
-                     value.validate[ExperimentVariantEvent].get
-                   })
+                (
+                  nextPage,
+                  res
+                    .map(Json.parse)
+                    .map(validateEvent)
+                    .filter(value => value.isDefined)
+                    .map(value => value.get)
+                )
               )
           }
       }
@@ -145,10 +145,22 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
       .toFuture
       .map(_.asScala.headOption)
       .map {
-        _.map { evt =>
-          Json.parse(evt).validate[ExperimentVariantEvent].get
-        }
+        _.map(Json.parse)
+          .map(validateEvent)
+          .filter(value => value.isDefined)
+          .map(value => value.get)
       }
+
+  private def validateEvent(value: JsValue) =
+    value
+      .validate[ExperimentVariantEvent]
+      .fold(
+        error => {
+          IzanamiLogger.error(s"Value can't be parsed ${value}. Causes : ${error}");
+          None;
+        },
+        experimentVariantEvent => Some(experimentVariantEvent)
+      )
 
   private def interval(eventVariantKey: String): Future[ChronoUnit] =
     (for {
@@ -169,11 +181,10 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
           key =>
             Source
               .future(interval(key))
-              .flatMapConcat(
-                interval =>
-                  findEvents(key)
-                    .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
-            )
+              .flatMapConcat(interval =>
+                findEvents(key)
+                  .via(ExperimentVariantEvent.eventAggregation(experiment.id.key, experiment.variants.size, interval))
+              )
         )
     }
 
@@ -185,9 +196,7 @@ class ExperimentVariantEventRedisService(namespace: String, maybeRedis: Option[R
         .fromFuture { _ =>
           findKeys(s"$experimentseventsNamespace:${experiment.id.key}:*")
             .grouped(100)
-            .mapAsync(10) { keys =>
-              command().del(keys: _*).toFuture
-            }
+            .mapAsync(10)(keys => command().del(keys: _*).toFuture)
             .runWith(Sink.ignore)
         }
         .unit
