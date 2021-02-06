@@ -178,8 +178,8 @@ assemblyMergeStrategy in assembly := {
   case PathList(ps @ _*) if ps.contains("reference-overrides.conf")           => MergeStrategy.concat
   case PathList(ps @ _*) if ps.exists(_.endsWith(".kotlin_module"))           => MergeStrategy.first
   case PathList(ps @ _*) if ps.last endsWith ".conf"                          => MergeStrategy.concat
-  case PathList(ps @ _*) if ps.contains("buildinfo")                          => MergeStrategy.discard
-  case PathList(ps @ _*) if ps.last endsWith "reflection-config.json"         => MergeStrategy.first
+//  case PathList(ps @ _*) if ps.contains("buildinfo")                          => MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last endsWith "reflection-config.json" => MergeStrategy.first
   case o =>
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(o)
