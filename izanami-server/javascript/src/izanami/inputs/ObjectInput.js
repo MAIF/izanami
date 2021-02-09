@@ -130,7 +130,7 @@ export class ObjectInput extends Component {
                   value={value[1]}
                   onChange={e => this.changeValue(e, value[0], idx)}
                 />
-                <span className="input-group-prepend align-items-center">
+                <span className="ml-1 input-group-prepend align-items-center">
                   <div>
                     <button
                       disabled={this.props.disabled}

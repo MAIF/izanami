@@ -231,11 +231,12 @@ export class KeyInput extends Component {
   };
 
   setEditedIndex = (i, text) => e => {
-    if (this.state.segments.length - 1 === i) {
-      this.editLastSegment();
-    } else {
-      this.setState({ editedIndex: i, editedValue: text });
-    }
+    if(!this.props.disabled)
+      if (this.state.segments.length - 1 === i) {
+        this.editLastSegment();
+      } else {
+        this.setState({ editedIndex: i, editedValue: text });
+      }
   };
 
   changeEditedValue = i => e => {
@@ -268,7 +269,7 @@ export class KeyInput extends Component {
     const autoFocus = this.props.autoFocus || (this.state.segments.length === 0);
     return (
           <div
-            className="keypicker keypicker--multi flex-grow-1"
+            className={`keypicker keypicker--multi flex-grow-1 ${this.props.disabled ? "is-disabled" : ""}`} 
             ref={ref => (this.wrapper = ref)}
           >
             <div className="keypicker-control">
