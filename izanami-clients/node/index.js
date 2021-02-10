@@ -326,8 +326,8 @@ module.exports = {
       experimentsClient,
       app,
       sessionPath = '/api/me',
-      featureContextFromRequest = (req) => ({user: req.user_email}),
-      experimentsIdFromRequest = (req) => req.user_email,
+      featureContextFromRequest = (req) => ({id: req.user_email}),
+      experimentsClientIdFromRequest: experimentsClientIdFromRequest = (req) => req.user_email,
       experimentWonPath = '/api/experiments/won',
       experimentDisplayedPath = '/api/experiments/displayed',
       path
@@ -337,7 +337,7 @@ module.exports = {
     app.get(sessionPath, (req, res) => {
       Promise.all([
         (!!featureClient ? featureClient.features(path, featureContextFromRequest(req)) : {}),
-        (!!experimentsClient ? experimentsClient.experiments(path, experimentsIdFromRequest(req)) : {}),
+        (!!experimentsClient ? experimentsClient.experiments(path, experimentsClientIdFromRequest(req)) : {}),
         (!!configClient ? configClient.configs(path) : {})
       ]).then(([features, experiments, configurations]) => {
         res.send({experiments, features, configurations});
@@ -345,13 +345,13 @@ module.exports = {
     });
 
     app.post(experimentWonPath, (req, res) => {
-      experimentsClient.won(req.query.experiment, experimentsIdFromRequest(req)).then(() => {
+      experimentsClient.won(req.query.experiment, experimentsClientIdFromRequest(req)).then(() => {
         res.send({done: true});
       });
     });
 
     app.post(experimentDisplayedPath, (req, res) => {
-      experimentsClient.displayed(req.query.experiment, experimentsIdFromRequest(req)).then(() => {
+      experimentsClient.displayed(req.query.experiment, experimentsClientIdFromRequest(req)).then(() => {
         res.send({done: true});
       });
     });
