@@ -198,7 +198,7 @@ You use express as a proxy to expose Izanami to the client side.
 You can customize the api endpoints with the `sessionPath`, `experimentsDisplayedPath` and `experimentsWonPath`
 config options.
 
-The feature and experiments clients context and id are extracted from the request; you can extend it using your own methods with `featureContextFromRequest` and `experimentsIdFromRequest`.
+Context (optional) and clientId (require) are extracted from the request, and forward respectively at the feature and experiments api; you can customize extraction by using your own methods with `featureContextFromRequest` and `experimentsClientIdFromRequest`.
 
 ```javascript
 const app = express();
@@ -208,9 +208,9 @@ Izanami.expressProxy({
   experimentsDisplayedPath, // default: '/api/experiments/displayed'
   experimentsWonPath, // default: '/api/experiments/won'
   featureClient, // Optional
-  featureContextFromRequest, //default: (req) => ({user: req.user_email})
+  featureContextFromRequest, //default: (req) => ({id: req.user_email})
   experimentsClient, // Optional
-  experimentsIdFromRequest, //default: (req) => (req.user_email)
+  experimentsClientIdFromRequest, //default: (req) => (req.user_email)
   configClient, // Optional
   app, // Express app
   path: "my.namespace.*", // The pattern to filter experiments, configs and features

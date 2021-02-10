@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.8.5*
+1.8.6*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.8.5*
+1.8.6*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -213,148 +213,164 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <pre class="prettyprint"><code class="language-bash">npm install izanami-node
 </code></pre>
 <h2><a href="#import" name="import" class="anchor"><span class="anchor-link"></span></a>Import</h2>
-<pre class="prettyprint"><code class="language-javascript">const Izanami = require(&#39;izanami-node&#39;);
+<pre class="prettyprint"><code class="language-javascript">const Izanami = require(&quot;izanami-node&quot;);
 </code></pre>
 <h2><a href="#usage" name="usage" class="anchor"><span class="anchor-link"></span></a>Usage</h2>
-<p>The node client expose conveniant methods to call Izanami. </p>
+<p>The node client expose conveniant methods to call Izanami.</p>
 <h3><a href="#configure-the-client-" name="configure-the-client-" class="anchor"><span class="anchor-link"></span></a>Configure the client:</h3>
-<pre class="prettyprint"><code class="language-javascript">const izanamicConfig = Object.assign({}, Izanami.defaultConfig, {
-  host: &#39;http://localhost:9000&#39;,
-  clientId: process.env.CLIENT_ID || &#39;xxxx&#39;,
-  clientSecret: process.env.CLIENT_SECRET || &#39;xxxx&#39;,
+<pre class="prettyprint"><code class="language-javascript">const izanamiConfig = Object.assign({}, Izanami.defaultConfig, {
+  host: &quot;http://localhost:9000&quot;,
+  clientId: process.env.CLIENT_ID || &quot;xxxx&quot;,
+  clientSecret: process.env.CLIENT_SECRET || &quot;xxxx&quot;,
 });
 
 // Get a configs client
-const configClient = Izanami.configClient(izanamicConfig);
-// Get a feature client 
-const featureClient = Izanami.featureClient(izanamicConfig);
-// Get a experiments client 
-const experimentsClient = Izanami.experimentsClient(izanamicConfig);
+const configClient = Izanami.configClient(izanamiConfig);
+// Get a feature client
+const featureClient = Izanami.featureClient(izanamiConfig);
+// Get a experiments client
+const experimentsClient = Izanami.experimentsClient(izanamiConfig);
 </code></pre>
 <h3><a href="#configs" name="configs" class="anchor"><span class="anchor-link"></span></a>Configs</h3>
 <h3><a href="#get-a-config" name="get-a-config" class="anchor"><span class="anchor-link"></span></a>Get a config</h3>
-<pre class="prettyprint"><code class="language-javascript">configClient.config(&quot;my.config.id&quot;).then(config =&gt; {
-  console.log(&#39;The config is &#39;, config);
+<pre class="prettyprint"><code class="language-javascript">configClient.config(&quot;my.config.id&quot;).then((config) =&gt; {
+  console.log(&quot;The config is &quot;, config);
   tree.should.be.deep.equal({
-      &quot;value&quot;: &quot;test&quot;
-  })
+    value: &quot;test&quot;,
+  });
 });
 </code></pre>
 <h4><a href="#get-the-configs-tree" name="get-the-configs-tree" class="anchor"><span class="anchor-link"></span></a>Get the configs tree</h4>
-<pre class="prettyprint"><code class="language-javascript">configClient.configs(&quot;my.config.*&quot;).then(tree =&gt; {
+<pre class="prettyprint"><code class="language-javascript">configClient.configs(&quot;my.config.*&quot;).then((tree) =&gt; {
   tree.should.be.deep.equal({
-      &quot;my&quot;: {
-        &quot;config&quot;: {
-          &quot;id&quot;: {
-            &quot;value&quot;: &quot;test&quot;
+    my: {
+      config: {
+        id: {
+          value: &quot;test&quot;,
+        },
+        id2: {
+          another: {
+            value: &quot;a value&quot;,
           },
-          &quot;id2&quot;: {
-            &quot;another&quot;: {
-              &quot;value&quot;: &quot;a value&quot;
-            }
-          }
-        }
-      }
-    });
+        },
+      },
+    },
+  });
 });
 </code></pre>
 <h3><a href="#features" name="features" class="anchor"><span class="anchor-link"></span></a>Features</h3>
 <h4><a href="#check-a-feature" name="check-a-feature" class="anchor"><span class="anchor-link"></span></a>Check a feature</h4>
-<pre class="prettyprint"><code class="language-javascript">featureClient.checkFeature(&quot;my.feature.id&quot;).then(active =&gt; {
-  console.log(&#39;The feature is &#39;, active);
+<pre class="prettyprint"><code class="language-javascript">featureClient.checkFeature(&quot;my.feature.id&quot;).then((active) =&gt; {
+  console.log(&quot;The feature is &quot;, active);
 });
 </code></pre>
-<p>Or with a context: </p>
-<pre class="prettyprint"><code class="language-javascript">featureClient.checkFeature(&quot;my.feature.id&quot;, {client: &quot;ragnard.lodbrock@gmail.com&quot;}).then(active =&gt; {
-  console.log(&#39;The feature is &#39;, active);
-});
+<p>Or with a context:</p>
+<pre class="prettyprint"><code class="language-javascript">featureClient
+  .checkFeature(&quot;my.feature.id&quot;, { client: &quot;ragnard.lodbrock@gmail.com&quot; })
+  .then((active) =&gt; {
+    console.log(&quot;The feature is &quot;, active);
+  });
 </code></pre>
 <h4><a href="#get-the-features-tree" name="get-the-features-tree" class="anchor"><span class="anchor-link"></span></a>Get the features tree</h4>
-<pre class="prettyprint"><code class="language-javascript">featureClient.features(&quot;my.feature.*&quot;).then(tree =&gt; {
+<pre class="prettyprint"><code class="language-javascript">featureClient.features(&quot;my.feature.*&quot;).then((tree) =&gt; {
   tree.should.be.deep.equal({
-    &quot;my&quot;: {
-      &quot;feature&quot;: {
-        &quot;id&quot;: {
-          &quot;active&quot;: true
+    my: {
+      feature: {
+        id: {
+          active: true,
         },
-        &quot;id2&quot;: {
-          &quot;active&quot;: false
-        }
-      }
-    }
+        id2: {
+          active: false,
+        },
+      },
+    },
   });
 });
 </code></pre>
-<p>Or with a context: </p>
-<pre class="prettyprint"><code class="language-javascript">featureClient.features(&quot;my.feature.*&quot;, {client: &quot;ragnard.lodbrock@gmail.com&quot;}).then(tree =&gt; {
-  tree.should.be.deep.equal({
-    &quot;my&quot;: {
-      &quot;feature&quot;: {
-        &quot;id&quot;: {
-          &quot;active&quot;: true
+<p>Or with a context:</p>
+<pre class="prettyprint"><code class="language-javascript">featureClient
+  .features(&quot;my.feature.*&quot;, { client: &quot;ragnard.lodbrock@gmail.com&quot; })
+  .then((tree) =&gt; {
+    tree.should.be.deep.equal({
+      my: {
+        feature: {
+          id: {
+            active: true,
+          },
+          id2: {
+            active: false,
+          },
         },
-        &quot;id2&quot;: {
-          &quot;active&quot;: false
-        }
-      }
-    }
+      },
+    });
   });
-});
 </code></pre>
 <h3><a href="#experiments" name="experiments" class="anchor"><span class="anchor-link"></span></a>Experiments</h3>
 <h4><a href="#get-an-experiment" name="get-an-experiment" class="anchor"><span class="anchor-link"></span></a>Get an experiment</h4>
-<pre class="prettyprint"><code class="language-javascript">experimentsClient.experiment(&quot;my.experiment.id&quot;).then(experiment =&gt; {
-  //Empty json if the experiment doesn&#39;t exists 
-  console.log(&#39;The experiment is &#39;, experiment);
+<pre class="prettyprint"><code class="language-javascript">experimentsClient.experiment(&quot;my.experiment.id&quot;).then((experiment) =&gt; {
+  //Empty json if the experiment doesn&#39;t exists
+  console.log(&quot;The experiment is &quot;, experiment);
 });
 </code></pre>
 <h4><a href="#get-experiments-as-tree" name="get-experiments-as-tree" class="anchor"><span class="anchor-link"></span></a>Get experiments as tree</h4>
-<pre class="prettyprint"><code class="language-javascript">experimentsClient.experiments(&quot;my.experiment.*&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(tree =&gt; {
-  //Empty json if the experiment doesn&#39;t exists 
-  console.log(&#39;The experiment is &#39;, experiment);
-  tree.should.be.deep.equal({
-    &quot;my&quot;: {
-      &quot;experiment&quot;: {
-        &quot;id&quot;: {
-          &quot;variant&quot;: &quot;A&quot;
+<pre class="prettyprint"><code class="language-javascript">experimentsClient
+  .experiments(&quot;my.experiment.*&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
+  .then((tree) =&gt; {
+    //Empty json if the experiment doesn&#39;t exists
+    console.log(&quot;The experiment is &quot;, experiment);
+    tree.should.be.deep.equal({
+      my: {
+        experiment: {
+          id: {
+            variant: &quot;A&quot;,
+          },
+          id2: {
+            variant: &quot;B&quot;,
+          },
         },
-        &quot;id2&quot;: {
-          &quot;variant&quot;: &quot;B&quot;
-        }
-      }
-    }
-  })
-});
+      },
+    });
+  });
 </code></pre>
 <h4><a href="#get-a-variant" name="get-a-variant" class="anchor"><span class="anchor-link"></span></a>Get a variant</h4>
-<pre class="prettyprint"><code class="language-javascript">experimentsClient.variantFor(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(variant =&gt; {
-  //Empty json if the variant doesn&#39;t exists 
-  console.log(&#39;The variant is &#39;, variant);
-});
+<pre class="prettyprint"><code class="language-javascript">experimentsClient
+  .variantFor(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
+  .then((variant) =&gt; {
+    //Empty json if the variant doesn&#39;t exists
+    console.log(&quot;The variant is &quot;, variant);
+  });
 </code></pre>
 <h4><a href="#mark-variant-displayed" name="mark-variant-displayed" class="anchor"><span class="anchor-link"></span></a>Mark variant displayed</h4>
-<pre class="prettyprint"><code class="language-javascript">experimentsClient.displayed(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(__ =&gt; {
-  console.log(&#39;The variant is marked displayed&#39;);
-});
+<pre class="prettyprint"><code class="language-javascript">experimentsClient
+  .displayed(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
+  .then((__) =&gt; {
+    console.log(&quot;The variant is marked displayed&quot;);
+  });
 </code></pre>
 <h4><a href="#mark-variant-won" name="mark-variant-won" class="anchor"><span class="anchor-link"></span></a>Mark variant won</h4>
-<pre class="prettyprint"><code class="language-javascript">experimentsClient.won(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;).then(__ =&gt; {
-  console.log(&#39;The variant is marked won&#39;);
-});
+<pre class="prettyprint"><code class="language-javascript">experimentsClient
+  .won(&quot;my.experiment.id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;)
+  .then((__) =&gt; {
+    console.log(&quot;The variant is marked won&quot;);
+  });
 </code></pre>
 <h2><a href="#express-proxy" name="express-proxy" class="anchor"><span class="anchor-link"></span></a>Express proxy</h2>
-<p>You use express as a proxy to expose Izanami to the client side. </p>
+<p>You use express as a proxy to expose Izanami to the client side. You can customize the api endpoints with the <code>sessionPath</code>, <code>experimentsDisplayedPath</code> and <code>experimentsWonPath</code> config options.</p>
+<p>Context (optional) and clientId (require) are extracted from the request, and forward respectively at the feature and experiments api; you can customize extraction by using your own methods with <code>featureContextFromRequest</code> and <code>experimentsClientIdFromRequest</code>.</p>
 <pre class="prettyprint"><code class="language-javascript">const app = express();
 
 Izanami.expressProxy({
-  sessionPath: &#39;/api/izanami&#39;, // default &#39;/api/me&#39;
+  sessionPath: &quot;/api/izanami&quot;, // default &#39;/api/me&#39;
+  experimentsDisplayedPath, // default: &#39;/api/experiments/displayed&#39;
+  experimentsWonPath, // default: &#39;/api/experiments/won&#39;
   featureClient, // Optional
+  featureContextFromRequest, //default: (req) =&gt; ({id: req.user_email})
   experimentsClient, // Optional
+  experimentsClientIdFromRequest, //default: (req) =&gt; (req.user_email)
   configClient, // Optional
-  app, // Express app 
-  path: &#39;my.namespace.*&#39; // The pattern to filter experiments, configs and features
+  app, // Express app
+  path: &quot;my.namespace.*&quot;, // The pattern to filter experiments, configs and features
 });
-
 </code></pre>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/clients/node.md">here</a>.
