@@ -6,7 +6,7 @@
   "author": "MAIF Team",
   "license": "Apache-2.0",
   "scripts": {
-    "test": "mocha test.js"
+    "test": "mocha tests/test.js"
   },
   "repository": {
     "type": "git",
