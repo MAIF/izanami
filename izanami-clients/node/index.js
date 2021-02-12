@@ -100,8 +100,7 @@ class IzanamiConfigClient {
     }).then(r => {
       try {
         if (r.status === 200) {
-          return r.json().then(t => {
-            const value = t.value;
+          return r.json().then(value => {
             const mergedValue = deepmerge(get(this.conf.fallbackConfig, dottyKey), value);
             return mergedValue || {}
           });
@@ -170,8 +169,7 @@ class IzanamiExperimentsClient {
     }).then(r => {
       try {
         if (r.status === 200) {
-          return r.json().then(t => {
-            const value = JSON.parse(t.value);
+          return r.json().then(value => {
             const mergedValue = deepmerge(get(this.conf.fallbackConfig, dottyKey), value);
             return mergedValue || {}
           });
