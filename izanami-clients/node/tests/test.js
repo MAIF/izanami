@@ -1,4 +1,4 @@
-const Izanami = require("./index")
+const Izanami = require("../index")
 const express = require("express")
 const fetch = require("isomorphic-fetch");
 const should = require("chai").should();
