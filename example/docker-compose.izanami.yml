@@ -7,13 +7,14 @@ services:
     expose:
     - 6379
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.11.1
     ports:
     - 9200:9200
     expose:
     - 9200
     environment:
     - "xpack.security.enabled=false"
+    - "discovery.type=single-node"
     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
   zookeeper:
     image: confluentinc/cp-zookeeper:3.2.1

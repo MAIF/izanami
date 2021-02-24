@@ -79,7 +79,7 @@ libraryDependencies ++= Seq(
   "com.github.pureconfig"    %% "pureconfig"                          % "0.12.3", // Apache 2.0
   "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra"       % alpakkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"                   % "2.0.0", // Apache 2.0
-  "com.adelegue"             %% "elastic-scala-http"                  % "0.0.15", // Apache 2.0
+  "com.adelegue"             %% "elastic-scala-http"                  % "1.0.0", // Apache 2.0
   "com.datastax.cassandra"   % "cassandra-driver-core"                % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                         % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jvm"                          % metricsVersion, // Apache 2.0

@@ -64,7 +64,7 @@ sbt
 
 #### Elasticsearch 
 ```bash 
-docker rm elasticsearch && docker run --name elasticsearch -e "xpack.security.enabled=false" -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:5.5.3
+docker rm elasticsearch && docker run --name elasticsearch -e "xpack.security.enabled=false" -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" -e "discovery.type=single-node" -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:7.11.1
 ```
 
 

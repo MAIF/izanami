@@ -1,28 +1,30 @@
-package specs.elastic.abtesting
+package specs.elastic7.abtesting
 
-import domains.abtesting.events.impl.ExperimentVariantEventElasticService
+import controllers.Configs
+import domains.abtesting.events.impl.ExperimentVariantEventElastic7Service
 import domains.abtesting.AbstractExperimentServiceTest
 import domains.abtesting.events.ExperimentVariantEventService
-import elastic.api.Elastic
+import elastic.es7.api.{Elastic => Elastic7}
 import env.{DbDomainConfig, DbDomainConfigDetails, ElasticConfig}
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import play.api.libs.json.JsValue
-import store.elastic.ElasticClient
+import store.elastic.Elastic7Client
 
 class ExperimentVariantEventElasticServiceTest
     extends AbstractExperimentServiceTest("Elastic")
     with BeforeAndAfter
     with BeforeAndAfterAll {
 
-  private val config            = ElasticConfig("localhost", 9210, "http", None, None, true)
-  val elastic: Elastic[JsValue] = ElasticClient(config, system)
+  private val config             = ElasticConfig("localhost", Configs.elastic7HttpPort, "http", 7, None, None, true)
+  val elastic: Elastic7[JsValue] = Elastic7Client(config, system)
 
-  override def dataStore(name: String): ExperimentVariantEventService.Service = ExperimentVariantEventElasticService(
-    elastic,
-    config,
-    DbDomainConfig(env.Elastic, DbDomainConfigDetails(name, None), None)
-  )
+  override def dataStore(name: String): ExperimentVariantEventService.Service =
+    new ExperimentVariantEventElastic7Service(
+      elastic,
+      config,
+      DbDomainConfig(env.Elastic, DbDomainConfigDetails(name, None), None)
+    )
 
   override protected def before(fun: => Any)(implicit pos: Position): Unit = {
     cleanUpElastic
@@ -35,7 +37,7 @@ class ExperimentVariantEventElasticServiceTest
   }
 
   private def cleanUpElastic = {
-    import _root_.elastic.codec.PlayJson._
+    import _root_.elastic.es7.codec.PlayJson._
     elastic.deleteIndex("*").futureValue
   }
 

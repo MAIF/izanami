@@ -5,66 +5,57 @@ import domains.auth.AuthInfo
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.webhook.WebhookDataStore
-import elastic.api.Elastic
+import elastic.es6.api.{Elastic => Elastic6}
+import elastic.es7.api.{Elastic => Elastic7}
 import env.IzanamiConfig
 import libs.database.Drivers
-import libs.database.Drivers.{DriverLayerContext, ElasticDriver}
-import metrics.MetricsModules.AllMetricsModules
+import libs.database.Drivers.{DriverLayerContext, Elastic6Driver, Elastic7Driver}
+import metrics.MetricsModules.{AllMetricsModules, MetricsFiber, Service}
 import play.api.Mode
 import play.api.libs.json.JsValue
-import zio.{Has, Managed, Ref, URIO, ZLayer}
 import zio.blocking.Blocking
+import zio._
 
 import scala.util.Random
 
 package object metrics {
 
+  import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, ThreadStatesGaugeSet}
+  import com.codahale.metrics.{ConsoleReporter, Gauge, MetricRegistry, Slf4jReporter}
+  import com.fasterxml.jackson.databind.ObjectMapper
+  import domains.abtesting.ExperimentService
+  import domains.apikey.ApikeyService
+  import domains.config.{ConfigDataStore, ConfigService}
+  import domains.configuration._
+  import domains.events.EventStore
+  import domains.events.impl.KafkaSettings
+  import domains.feature.FeatureService
+  import domains.script.GlobalScriptService
+  import domains.user.{UserDataStore, UserService}
+  import domains.webhook.WebhookService
+  import env.MetricsConfig
+  import env.configuration.IzanamiConfigModule
+  import io.prometheus.client.{CollectorRegistry, Counter}
+  import io.prometheus.client.dropwizard.DropwizardExports
+  import io.prometheus.client.exporter.common.TextFormat
+  import libs.logs.ZLogger
+  import org.apache.kafka.clients.producer.{Callback, Producer, ProducerRecord, RecordMetadata}
+  import org.slf4j.LoggerFactory
+  import play.api.libs.json.{JsObject, Json}
+  import store.Query
+  import zio.Cause.{Die, Fail}
+  import zio.{Fiber, RIO, Task, UIO, ZIO}
+  import zio.clock.Clock
+  import zio.duration.Duration
+
   import java.io.StringWriter
   import java.text.SimpleDateFormat
   import java.time.LocalDateTime
   import java.time.format.DateTimeFormatter
-  import java.util
   import java.util.Date
   import java.util.concurrent.TimeUnit
-
-  import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, ThreadStatesGaugeSet}
-  import com.codahale.metrics.{ConsoleReporter, MetricRegistry, Slf4jReporter}
-  import com.fasterxml.jackson.databind.ObjectMapper
-  import env.configuration.IzanamiConfigModule
-  import domains.config.ConfigDataStore
-  import domains.events.EventStore
-  import domains.events.impl.KafkaSettings
-  import domains.user.UserDataStore
-  import env.MetricsConfig
-  import io.prometheus.client.dropwizard.DropwizardExports
-  import io.prometheus.client.exporter.common.TextFormat
-  import org.apache.kafka.clients.producer.{Callback, Producer, ProducerRecord, RecordMetadata}
-  import org.slf4j.LoggerFactory
-  import play.api.libs.json.{JsObject, Json}
-  import zio.Task
-  import zio.RIO
-  import domains.configuration._
-  import zio.ZIO
-  import libs.logs.ZLogger
-  import zio.duration.Duration
-  import zio.clock.Clock
-  import zio.Cause.Fail
-  import zio.Cause.Die
-  import zio.Fiber
-  import domains.apikey.{ApikeyService}
-  import domains.config.ConfigService
-  import store.Query
-  import com.codahale.metrics.Gauge
-  import domains.feature.FeatureService
-  import domains.user.UserService
-  import domains.script.GlobalScriptService
-  import domains.webhook.WebhookService
-  import domains.abtesting.ExperimentService
-  import io.prometheus.client.CollectorRegistry
+  import java.util
   import java.{util => ju}
-
-  import io.prometheus.client.Counter
-  import zio.UIO
 
   type MetricsModule = zio.Has[MetricsModule.Service]
 
@@ -106,11 +97,13 @@ package object metrics {
     with Blocking
     with Clock
 
-  case class Metrics(metricRegistry: MetricRegistry,
-                     prometheusRegistry: CollectorRegistry,
-                     prometheus: DropwizardExports,
-                     objectMapper: ObjectMapper,
-                     metricsConfig: MetricsConfig) {
+  case class Metrics(
+      metricRegistry: MetricRegistry,
+      prometheusRegistry: CollectorRegistry,
+      prometheus: DropwizardExports,
+      objectMapper: ObjectMapper,
+      metricsConfig: MetricsConfig
+  ) {
 
     def prometheusExport: String = {
       val writer             = new StringWriter()
@@ -180,20 +173,34 @@ package object metrics {
         value.passthrough
       }
 
-    private def elasticMetricsModule(
+    private def elastic6MetricsModule(
         metricsConfig: MetricsConfig
-    ): ZLayer[DriverLayerContext, Throwable, DriverLayerContext with Has[Option[ElasticMetricsModule]]] =
+    ): ZLayer[DriverLayerContext, Throwable, DriverLayerContext with Has[Option[Elastic6MetricsModule]]] =
       if (metricsConfig.elastic.enabled) {
-        val metricsEsModule: ZLayer[ElasticDriver, Throwable, Has[Option[ElasticMetricsModule]]] = ZLayer.fromFunction {
-          mix =>
-            val mayBeClient: Option[Elastic[JsValue]] = mix.get[Option[Elastic[JsValue]]]
-            mayBeClient.map { elastic =>
-              new ElasticMetricsModule(elastic, metricsConfig)
-            }
-        }
-        (Drivers.elasticClientLayer.passthrough >>> metricsEsModule).passthrough
+        val metricsEsModule: ZLayer[Elastic6Driver, Throwable, Has[Option[Elastic6MetricsModule]]] =
+          ZLayer.fromFunction { mix =>
+            val mayBeClient: Option[Elastic6[JsValue]] = mix.get[Option[Elastic6[JsValue]]]
+            mayBeClient.map(elastic => new Elastic6MetricsModule(elastic, metricsConfig))
+          }
+        (Drivers.elastic6ClientLayer.passthrough >>> metricsEsModule).passthrough
       } else {
-        val metricsEsModule: ZLayer[DriverLayerContext, Throwable, Has[Option[ElasticMetricsModule]]] =
+        val metricsEsModule: ZLayer[DriverLayerContext, Throwable, Has[Option[Elastic6MetricsModule]]] =
+          ZLayer.succeed(None)
+        metricsEsModule.passthrough
+      }
+
+    private def elastic7MetricsModule(
+        metricsConfig: MetricsConfig
+    ): ZLayer[DriverLayerContext, Throwable, DriverLayerContext with Has[Option[Elastic7MetricsModule]]] =
+      if (metricsConfig.elastic.enabled) {
+        val metricsEs7Module: ZLayer[Elastic7Driver, Throwable, Has[Option[Elastic7MetricsModule]]] =
+          ZLayer.fromFunction { mix =>
+            val mayBeClient: Option[Elastic7[JsValue]] = mix.get[Option[Elastic7[JsValue]]]
+            mayBeClient.map(elastic => new Elastic7MetricsModule(elastic, metricsConfig))
+          }
+        (Drivers.elastic7ClientLayer.passthrough >>> metricsEs7Module).passthrough
+      } else {
+        val metricsEsModule: ZLayer[DriverLayerContext, Throwable, Has[Option[Elastic7MetricsModule]]] =
           ZLayer.succeed(None)
         metricsEsModule.passthrough
       }
@@ -204,16 +211,19 @@ package object metrics {
         izanamiConfig: IzanamiConfig
     ): ZLayer[DriverLayerContext, Throwable, Has[AllMetricsModules]] = {
       val metricsConfig: MetricsConfig = izanamiConfig.metrics
-      (loggerMetricsModule(metricsConfig) ++ consoleMetricsModule(metricsConfig) ++ kafkaMetricsModule(metricsConfig) ++ elasticMetricsModule(
+      (loggerMetricsModule(metricsConfig) ++ consoleMetricsModule(metricsConfig) ++ kafkaMetricsModule(metricsConfig) ++ elastic6MetricsModule(
         metricsConfig
-      )) >>> ZLayer.fromFunctionManaged { mix =>
+      ) ++ elastic7MetricsModule(metricsConfig)) >>> ZLayer.fromFunctionManaged { mix =>
         Managed.make(
           Ref
             .make(
-              (Option.empty[MetricsFiber],
-               Option.empty[MetricsFiber],
-               Option.empty[MetricsFiber],
-               Option.empty[MetricsFiber])
+              (
+                Option.empty[MetricsFiber],
+                Option.empty[MetricsFiber],
+                Option.empty[MetricsFiber],
+                Option.empty[MetricsFiber],
+                Option.empty[MetricsFiber]
+              )
             )
             .map { ref =>
               new AllMetricsModules(
@@ -221,7 +231,8 @@ package object metrics {
                 mix.get[Option[LoggerMetricsModule]],
                 mix.get[Option[ConsoleMetricsModule]],
                 mix.get[Option[KafkaMetricsModule]],
-                mix.get[Option[ElasticMetricsModule]]
+                mix.get[Option[Elastic6MetricsModule]],
+                mix.get[Option[Elastic7MetricsModule]]
               )
             }
         )(_.stop.provide(mix))
@@ -230,21 +241,25 @@ package object metrics {
     }
 
     class AllMetricsModules(
-        r: Ref[(Option[MetricsFiber], Option[MetricsFiber], Option[MetricsFiber], Option[MetricsFiber])],
+        r: Ref[
+          (Option[MetricsFiber], Option[MetricsFiber], Option[MetricsFiber], Option[MetricsFiber], Option[MetricsFiber])
+        ],
         mayBeLoggerMetricsModule: Option[LoggerMetricsModule],
         mayBeConsoleMetricsModule: Option[ConsoleMetricsModule],
         mayBeKafkaMetricsModule: Option[KafkaMetricsModule],
-        mayBeElasticMetricsModule: Option[ElasticMetricsModule]
+        mayBeElastic6MetricsModule: Option[Elastic6MetricsModule],
+        mayBeElastic7MetricsModule: Option[Elastic7MetricsModule]
     ) {
 
       def stop: URIO[ZLogger, Unit] =
         for {
-          fibers           <- r.get
-          (f1, f2, f3, f4) = fibers
-          _                <- f1.map(_.interrupt.unit *> ZLogger.info("Logger metrics stopped")).getOrElse(UIO.unit)
-          _                <- f2.map(_.interrupt.unit *> ZLogger.info("Console metrics stopped")).getOrElse(UIO.unit)
-          _                <- f3.map(_.interrupt.unit *> ZLogger.info("Kafka metrics stopped")).getOrElse(UIO.unit)
-          _                <- f4.map(_.interrupt.unit *> ZLogger.info("Elastic metrics stopped")).getOrElse(UIO.unit)
+          fibers               <- r.get
+          (f1, f2, f3, f4, f5) = fibers
+          _                    <- f1.map(_.interrupt.unit *> ZLogger.info("Logger metrics stopped")).getOrElse(UIO.unit)
+          _                    <- f2.map(_.interrupt.unit *> ZLogger.info("Console metrics stopped")).getOrElse(UIO.unit)
+          _                    <- f3.map(_.interrupt.unit *> ZLogger.info("Kafka metrics stopped")).getOrElse(UIO.unit)
+          _                    <- f4.map(_.interrupt.unit *> ZLogger.info("Elastic 6 metrics stopped")).getOrElse(UIO.unit)
+          _                    <- f4.map(_.interrupt.unit *> ZLogger.info("Elastic 7 metrics stopped")).getOrElse(UIO.unit)
         } yield ()
 
       def start: RIO[MetricsContext, Unit] =
@@ -257,8 +272,9 @@ package object metrics {
           log            <- mayBeLoggerMetricsModule.map(_.run).getOrElse(Task.unit.fork)
           console        <- mayBeConsoleMetricsModule.map(_.run).getOrElse(Task.unit.fork)
           kafkaScheduler <- mayBeKafkaMetricsModule.map(_.run).getOrElse(Task.unit.fork)
-          esScheduler    <- mayBeElasticMetricsModule.map(_.run).getOrElse(Task.unit.fork)
-          _              <- r.set((Some(log), Some(console), Some(kafkaScheduler), Some(esScheduler)))
+          es6Scheduler   <- mayBeElastic6MetricsModule.map(_.run).getOrElse(Task.unit.fork)
+          es7Scheduler   <- mayBeElastic7MetricsModule.map(_.run).getOrElse(Task.unit.fork)
+          _              <- r.set((Some(log), Some(console), Some(kafkaScheduler), Some(es6Scheduler), Some(es7Scheduler)))
         } yield ()
 
     }
@@ -310,9 +326,11 @@ package object metrics {
         res.foldM(_ => Task.unit.fork, r => Task(r))
       }
 
-      private def sendToKafka(producer: Producer[String, String],
-                              metricsConfig: MetricsConfig,
-                              metrics: Metrics): ZIO[ZLogger, Throwable, Unit] = {
+      private def sendToKafka(
+          producer: Producer[String, String],
+          metricsConfig: MetricsConfig,
+          metrics: Metrics
+      ): ZIO[ZLogger, Throwable, Unit] = {
         val message = metrics.defaultFormat(metricsConfig.kafka.format)
         Task
           .effectAsync[Unit] { cb =>
@@ -330,18 +348,22 @@ package object metrics {
           }
           .onError {
             case Fail(exception) =>
-              ZLogger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
-                            exception)
+              ZLogger.error(
+                s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
+                exception
+              )
             case Die(exception) =>
-              ZLogger.error(s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
-                            exception)
+              ZLogger.error(
+                s"Error pushing metrics to kafka topic ${metricsConfig.kafka.topic} : \n$message",
+                exception
+              )
             case _ => ZIO.unit
           }
           .unit
       }
     }
 
-    class ElasticMetricsModule(client: Elastic[JsValue], metricsConfig: MetricsConfig) extends Service {
+    class Elastic6MetricsModule(client: Elastic6[JsValue], metricsConfig: MetricsConfig) extends Service {
 
       override def run: RIO[MetricsContext, MetricsFiber] = {
         import DateTimeFormatter._
@@ -351,12 +373,12 @@ package object metrics {
                     val message: String = metrics.jsonExport
                     val indexName       = new SimpleDateFormat(metricsConfig.elastic.index).format(new Date())
                     val jsonMessage = Json.parse(message).as[JsObject] ++ Json.obj(
-                      "@timestamp" -> ISO_DATE_TIME.format(LocalDateTime.now())
-                    )
+                        "@timestamp" -> ISO_DATE_TIME.format(LocalDateTime.now())
+                      )
                     Task
                       .fromFuture { implicit ec =>
+                        import elastic.es6.codec.PlayJson._
                         import elastic.implicits._
-                        import elastic.codec.PlayJson._
                         client.index(indexName / "type").index(jsonMessage)
                       }
                       .onError {
@@ -373,6 +395,37 @@ package object metrics {
       }
     }
 
+  }
+
+  class Elastic7MetricsModule(client: Elastic7[JsValue], metricsConfig: MetricsConfig) extends Service {
+
+    override def run: RIO[MetricsContext, MetricsFiber] = {
+      import DateTimeFormatter._
+      val res: ZIO[MetricsContext, Any, MetricsFiber] = for {
+        _ <- ZLogger.info("Enabling elastic metrics reporter")
+        fiber <- (MetricsService.metrics flatMap { (metrics: Metrics) =>
+                  val message: String = metrics.jsonExport
+                  val indexName       = new SimpleDateFormat(metricsConfig.elastic.index).format(new Date())
+                  val jsonMessage = Json.parse(message).as[JsObject] ++ Json.obj(
+                      "@timestamp" -> ISO_DATE_TIME.format(LocalDateTime.now())
+                    )
+                  Task
+                    .fromFuture { implicit ec =>
+                      import elastic.es7.codec.PlayJson._
+                      client.index(indexName).index(jsonMessage)
+                    }
+                    .onError {
+                      case Fail(exception) =>
+                        ZLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
+                      case Die(exception) =>
+                        ZLogger.error(s"Error pushing metrics to ES index $indexName : \n$jsonMessage", exception)
+                      case _ => ZIO.unit
+                    }
+                    .unit
+                }).delay(Duration.fromScala(metricsConfig.elastic.pushInterval)).forever.fork
+      } yield fiber
+      res.foldM(_ => Task.unit.fork, r => Task(r))
+    }
   }
 
   object MetricsService {
@@ -450,10 +503,12 @@ package object metrics {
     def incFeatureDeleted(key: String): UIO[Unit] =
       UIO(featureDeletedCount.labels(key).inc())
 
-    private def countAndStore[Ctx](enabled: Boolean,
-                                   count: => RIO[Ctx, Long],
-                                   name: String,
-                                   metricRegistry: MetricRegistry): RIO[Ctx, Unit] =
+    private def countAndStore[Ctx](
+        enabled: Boolean,
+        count: => RIO[Ctx, Long],
+        name: String,
+        metricRegistry: MetricRegistry
+    ): RIO[Ctx, Unit] =
       if (enabled) {
         count.map { c =>
           val gaugeName = s"domains.${name}.count"
