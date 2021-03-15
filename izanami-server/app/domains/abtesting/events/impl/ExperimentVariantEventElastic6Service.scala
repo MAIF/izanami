@@ -16,10 +16,10 @@ import domains.configuration.PlayModule
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.events.Events.{ExperimentVariantEventCreated, ExperimentVariantEventsDeleted}
-import elastic.api._
+import elastic.es6.api._
 import env.configuration.IzanamiConfigModule
 import env.{DbDomainConfig, ElasticConfig}
-import libs.database.Drivers.ElasticDriver
+import libs.database.Drivers.Elastic6Driver
 import libs.logs.{IzanamiLogger, ZLogger}
 import play.api.libs.json.{JsObject, JsValue, Json}
 import store.datastore.DataStoreLayerContext
@@ -30,34 +30,36 @@ import scala.concurrent.{ExecutionContext, Future}
 //////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////     ELASTIC      ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-object ExperimentVariantEventElasticService {
+object ExperimentVariantEventElastic6Service {
 
-  val live: ZLayer[ElasticDriver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
+  val live: ZLayer[Elastic6Driver with DataStoreLayerContext, Throwable, ExperimentVariantEventService] =
     ZLayer.fromFunction { mix =>
       implicit val sys: ActorSystem = mix.get[PlayModule.Service].system
       val izanamiConfig             = mix.get[IzanamiConfigModule.Service].izanamiConfig
       val configdb: DbDomainConfig  = izanamiConfig.experimentEvent.db
       val Some(elasticConfig)       = izanamiConfig.db.elastic
       val Some(elastic)             = mix.get[Option[Elastic[JsValue]]]
-      ExperimentVariantEventElasticService(elastic, elasticConfig, configdb)
+      ExperimentVariantEventElastic6Service(elastic, elasticConfig, configdb)
     }
 
   def apply(
       elastic: Elastic[JsValue],
       elasticConfig: ElasticConfig,
       config: DbDomainConfig
-  )(implicit actorSystem: ActorSystem): ExperimentVariantEventElasticService =
-    new ExperimentVariantEventElasticService(elastic, elasticConfig, config)
+  )(implicit actorSystem: ActorSystem): ExperimentVariantEventElastic6Service =
+    new ExperimentVariantEventElastic6Service(elastic, elasticConfig, config)
 }
 
-class ExperimentVariantEventElasticService(client: Elastic[JsValue],
-                                           elasticConfig: ElasticConfig,
-                                           dbDomainConfig: DbDomainConfig)(implicit actorSystem: ActorSystem)
+class ExperimentVariantEventElastic6Service(
+    client: Elastic[JsValue],
+    elasticConfig: ElasticConfig,
+    dbDomainConfig: DbDomainConfig
+)(implicit actorSystem: ActorSystem)
     extends ExperimentVariantEventService.Service {
 
   import cats.implicits._
   import ExperimentVariantEventInstances._
-  import elastic.codec.PlayJson._
+  import elastic.es6.codec.PlayJson._
   import elastic.implicits._
 
   private val esIndex        = dbDomainConfig.conf.namespace.replaceAll(":", "_")
@@ -156,9 +158,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
 
   private def incrWon(experimentId: String, variantId: String): Task[Unit] = {
     val id = s"$experimentId.$variantId"
-    Task.fromFuture { implicit ec =>
-      won.update(incrUpdateQuery, id, retry_on_conflict = Some(5))
-    }.unit
+    Task.fromFuture(implicit ec => won.update(incrUpdateQuery, id, retry_on_conflict = Some(5))).unit
   }
 
   private def incrDisplayed(experimentId: String, variantId: String): Task[Unit] = {
@@ -175,9 +175,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       .fromFuture { implicit ec =>
         won
           .get(id)
-          .map { resp =>
-            (resp._source \ "counter").as[Long]
-          }
+          .map(resp => (resp._source \ "counter").as[Long])
           .recover {
             case EsException(_, 404, _) => 0L
           }
@@ -191,9 +189,7 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       .fromFuture { implicit ec =>
         displayed
           .get(id)
-          .map { resp =>
-            (resp._source \ "counter").as[Long]
-          }
+          .map(resp => (resp._source \ "counter").as[Long])
           .recover {
             case EsException(_, 404, _) => 0L
           }
@@ -201,14 +197,10 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
   }
 
   private def incrAndGetDisplayed(experimentId: String, variantId: String): IO[IzanamiErrors, Long] =
-    incrDisplayed(experimentId, variantId).flatMap { _ =>
-      getDisplayed(experimentId, variantId)
-    }.orDie
+    incrDisplayed(experimentId, variantId).flatMap(_ => getDisplayed(experimentId, variantId)).orDie
 
   private def incrAndGetWon(experimentId: String, variantId: String): IO[IzanamiErrors, Long] =
-    incrWon(experimentId, variantId).flatMap { _ =>
-      getWon(experimentId, variantId)
-    }.orDie
+    incrWon(experimentId, variantId).flatMap(_ => getWon(experimentId, variantId)).orDie
 
   override def create(
       id: ExperimentVariantEventKey,
@@ -237,8 +229,10 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
         } yield result
     }
 
-  private def saveToEs(id: ExperimentVariantEventKey,
-                       data: ExperimentVariantEvent): IO[IzanamiErrors, ExperimentVariantEvent] =
+  private def saveToEs(
+      id: ExperimentVariantEventKey,
+      data: ExperimentVariantEvent
+  ): IO[IzanamiErrors, ExperimentVariantEvent] =
     Task
       .fromFuture { implicit ec =>
         index
@@ -258,7 +252,8 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       .fromFuture { implicit ec =>
         Source(experiment.variants.toList)
           .flatMapMerge(
-            4, { v =>
+            4,
+            v =>
               index.scroll(
                 Json.obj(
                   "query" -> Json.obj(
@@ -272,7 +267,6 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
                 ),
                 "1s"
               )
-            }
           )
           .mapConcat {
             _.hits.hits.map(doc => (doc._index, doc._id)).toList
@@ -292,8 +286,8 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
           .runWith(Sink.ignore)
       }
       .unit
-      .orDie <* (AuthInfo.authInfo flatMap (
-        authInfo => EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
+      .orDie <* (AuthInfo.authInfo flatMap (authInfo =>
+      EventStore.publish(ExperimentVariantEventsDeleted(experiment, authInfo = authInfo))
     ))
 
   private def countUsers(experimentId: String, variant: String)(implicit ec: ExecutionContext): Future[Long] =
@@ -360,8 +354,10 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
       )
     )
 
-  private def minOrMaxQuery(experimentId: String,
-                            order: String): RIO[ExperimentVariantEventServiceContext, Option[LocalDateTime]] = {
+  private def minOrMaxQuery(
+      experimentId: String,
+      order: String
+  ): RIO[ExperimentVariantEventServiceContext, Option[LocalDateTime]] = {
     val query = Json.obj(
       "size"    -> 1,
       "_source" -> Json.arr("date"),
@@ -483,13 +479,12 @@ class ExperimentVariantEventElasticService(client: Elastic[JsValue],
   override def listAll(
       patterns: Seq[String]
   ): RIO[ExperimentVariantEventServiceContext, Source[ExperimentVariantEvent, NotUsed]] =
-    Task.fromFuture(
-      implicit ec =>
-        FastFuture.successful(
-          index
-            .scroll(Json.obj("query" -> Json.obj("match_all" -> Json.obj())))
-            .mapConcat(s => s.hitsAs[ExperimentVariantEvent].toList)
-            .filter(e => e.id.key.matchAllPatterns(patterns: _*))
+    Task.fromFuture(implicit ec =>
+      FastFuture.successful(
+        index
+          .scroll(Json.obj("query" -> Json.obj("match_all" -> Json.obj())))
+          .mapConcat(s => s.hitsAs[ExperimentVariantEvent].toList)
+          .filter(e => e.id.key.matchAllPatterns(patterns: _*))
       )
     )
 
