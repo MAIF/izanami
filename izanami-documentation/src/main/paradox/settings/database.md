@@ -159,6 +159,8 @@ Other settings are available, consult the @ref[settings](settings.md) page.
 <a src="https://www.elastic.co/" target="_blanck">Elasticsearch</a> is an very scalable search engine.
 This database if well suited for storing A/B testing events.
 
+Only Elasticsearch 6 and 7 are supported.
+
 To run Izanami with elasticsearch :
 
 ```bash
