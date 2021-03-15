@@ -473,104 +473,24 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>http</code> </td>
     </tr>
     <tr>
-      <td><code>izanami.db.elastic.user</code> </td>
-      <td><code>ELASTIC_USER</code> </td>
-      <td>The user if elastic is secured </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.elastic.password</code> </td>
-      <td><code>ELASTIC_PASSWORD</code> </td>
-      <td>The password if elastic is secured </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.elastic.automaticRefresh</code> </td>
-      <td> </td>
-      <td>Force refresh on each insert, update or delete. For dev only </td>
-      <td>false </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.inMemoryWithDb.db</code> </td>
-      <td><code>IN_MEMORY_WITH_DB_DB</code> </td>
-      <td>The underlying store behind the cache </td>
-      <td><code>LevelDB</code> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.inMemoryWithDb.pollingInterval</code> </td>
-      <td><code>IN_MEMORY_WITH_DB_POLLING_INTERVAL</code> </td>
-      <td>The interval used to refresh the from the underlying store </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.tableName</code> </td>
-      <td><code>DYNAMO_TABLE_NAME</code> </td>
-      <td>The name of the AWS DynamoDB table </td>
-      <td>izanami </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.eventsTableName</code> </td>
-      <td><code>DYNAMO_EVENTS_TABLE_NAME</code> </td>
-      <td>The name of the AWS DynamoDB table for A/B testing events </td>
-      <td>izanami_experimentevents </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.region</code> </td>
-      <td><code>DYNAMO_REGION</code> </td>
-      <td>The AWS region </td>
-      <td>eu-west-1 </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.host</code> </td>
-      <td><code>DYNAMO_HOST</code> </td>
-      <td>The AWS host </td>
-      <td><code>&quot;dynamodb.&quot;${izanami.db.dynamo.region}&quot;.amazonaws.com&quot;</code> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.port</code> </td>
-      <td><code>DYNAMO_PORT</code> </td>
-      <td>The AWS port, https is used as default scheme </td>
-      <td>443 </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.parallelism</code> </td>
-      <td><code>DYNAMO_PARRALLELISM</code> </td>
-      <td>Max number of in flight requests from the AwsClient - must be a power of 2 </td>
-      <td>32 </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.accessKey</code> </td>
-      <td><code>DYNAMO_ACCESS_KEY</code> </td>
-      <td>Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.dynamo.secretKey</code> </td>
-      <td><code>DYNAMO_SECRET_KEY</code> </td>
-      <td>Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.postgresql.url</code> </td>
-      <td><code>JDBC_DATABASE_URL</code> </td>
-      <td>The postgresql url </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.postgresql.username</code> </td>
-      <td><code>POSTGRESQL_USER</code> </td>
-      <td>The postgresql username </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.postgresql.password</code> </td>
-      <td><code>POSTGRESQL_PASSWORD</code> </td>
-      <td>The postgresql password </td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.postgresql.connectionPoolSize</code> </td>
-      <td><code>POSTGRESQL_CONNECTION_POOL_SIZE</code> </td>
+      <td><code>izanami.db.elastic.version                                        |</code>ELASTIC_VERSION<code>| The version of the elastic server                                                                                                                                                                                                    |</code>6<code>|
+|</code>izanami.db.elastic.user<code>|</code>ELASTIC_USER<code>| The user if elastic is secured                                                                                                                                                                                                       |                                                                 |
+|</code>izanami.db.elastic.password<code>|</code>ELASTIC_PASSWORD<code>| The password if elastic is secured                                                                                                                                                                                                   |                                                                 |
+|</code>izanami.db.elastic.automaticRefresh<code>|                                          | Force refresh on each insert, update or delete. For dev only                                                                                                                                                                         | false                                                           |
+|</code>izanami.db.inMemoryWithDb.db<code>|</code>IN_MEMORY_WITH_DB_DB<code>| The underlying store behind the cache                                                                                                                                                                                                |</code>LevelDB<code>|
+|</code>izanami.db.inMemoryWithDb.pollingInterval<code>|</code>IN_MEMORY_WITH_DB_POLLING_INTERVAL<code>| The interval used to refresh the from the underlying store                                                                                                                                                                           |                                                                 |
+|</code>izanami.db.dynamo.tableName<code>|</code>DYNAMO_TABLE_NAME<code>| The name of the AWS DynamoDB table                                                                                                                                                                                                   | izanami                                                         |
+|</code>izanami.db.dynamo.eventsTableName<code>|</code>DYNAMO_EVENTS_TABLE_NAME<code>| The name of the AWS DynamoDB table for A/B testing events                                                                                                                                                                            | izanami_experimentevents                                        |
+|</code>izanami.db.dynamo.region<code>|</code>DYNAMO_REGION<code>| The AWS region                                                                                                                                                                                                                       | eu-west-1                                                       |
+|</code>izanami.db.dynamo.host<code>|</code>DYNAMO_HOST<code>| The AWS host                                                                                                                                                                                                                         |</code>&ldquo;dynamodb.&rdquo;${izanami.db.dynamo.region}&ldquo;.amazonaws.com&rdquo;<code>|
+|</code>izanami.db.dynamo.port<code>|</code>DYNAMO_PORT<code>| The AWS port, https is used as default scheme                                                                                                                                                                                        | 443                                                             |
+|</code>izanami.db.dynamo.parallelism<code>|</code>DYNAMO_PARRALLELISM<code>| Max number of in flight requests from the AwsClient - must be a power of 2                                                                                                                                                           | 32                                                              |
+|</code>izanami.db.dynamo.accessKey<code>|</code>DYNAMO_ACCESS_KEY<code>| Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain                                                                                                                       |                                                                 |
+|</code>izanami.db.dynamo.secretKey<code>|</code>DYNAMO_SECRET_KEY<code>| Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain                                                                                                                       |                                                                 |
+|</code>izanami.db.postgresql.url<code>|</code>JDBC_DATABASE_URL<code>| The postgresql url                                                                                                                                                                                                                   |                                                                 |
+|</code>izanami.db.postgresql.username<code>|</code>POSTGRESQL_USER<code>| The postgresql username                                                                                                                                                                                                              |                                                                 |
+|</code>izanami.db.postgresql.password<code>|</code>POSTGRESQL_PASSWORD<code>| The postgresql password                                                                                                                                                                                                              |                                                                 |
+|</code>izanami.db.postgresql.connectionPoolSize<code>|</code>POSTGRESQL_CONNECTION_POOL_SIZE` </td>
       <td>The postgresql poolsize </td>
       <td>32 </td>
     </tr>
