@@ -46,20 +46,6 @@
   },
   "appConfig": {
     "actorsystems": {
-      "cassandra": {
-        "default-dispatcher": {
-          "executor": "fork-join-executor",
-          "fork-join-executor": {
-            "parallelism-factor": 4,
-            "parallelism-max": 64,
-            "parallelism-min": 4,
-            "task-peeking-mode": "FIFO"
-          },
-          "throughput": 1,
-          "type": "Dispatcher"
-        },
-        "jvm-exit-on-fatal-error": false
-      },
       "gateway": {
         "akka": {
           "default-dispatcher": {
@@ -222,12 +208,6 @@
         "exp": 86400000
       },
       "subdomain": "otoroshi"
-    },
-    "cassandra": {
-      "host": "127.0.0.1",
-      "hosts": "127.0.0.1",
-      "port": 9042,
-      "windowSize": 99
     },
     "claim": {
       "sharedKey": "otoroshisharedkey"

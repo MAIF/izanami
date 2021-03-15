@@ -18,7 +18,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 sealed trait DbType
-case object Cassandra      extends DbType with Product with Serializable
 case object Redis          extends DbType with Product with Serializable
 case object LevelDB        extends DbType with Product with Serializable
 case object InMemory       extends DbType with Product with Serializable
@@ -30,7 +29,6 @@ case object Postgresql     extends DbType with Product with Serializable
 
 object DbType {
   def fromString(s: String): DbType = s match {
-    case "Cassandra"      => Cassandra
     case "Redis"          => Redis
     case "LevelDB"        => LevelDB
     case "InMemory"       => InMemory
@@ -284,7 +282,6 @@ case class DbConfig(
     default: String,
     redis: Option[RedisConfig] = None,
     leveldb: Option[LevelDbConfig] = None,
-    cassandra: Option[CassandraConfig] = None,
     kafka: Option[KafkaConfig] = None,
     elastic: Option[ElasticConfig] = None,
     mongo: Option[MongoConfig] = None,
@@ -317,15 +314,6 @@ case class Sentinel(
 case class RedisOneSentinelConfig(host: String, port: Int)
 
 case class LevelDbConfig(parentPath: String)
-
-case class CassandraConfig(
-    addresses: Seq[String],
-    clusterName: Option[String],
-    replicationFactor: Int,
-    keyspace: String,
-    username: Option[String] = None,
-    password: Option[String] = None
-)
 
 case class DynamoConfig(
     tableName: String,

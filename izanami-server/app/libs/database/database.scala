@@ -2,7 +2,6 @@ package libs
 
 import akka.actor.ActorSystem
 import akka.stream.alpakka.dynamodb.DynamoClient
-import com.datastax.driver.core.{Cluster, Session}
 import domains.configuration.PlayModule
 import elastic.es6.api.{Elastic => Elastic6}
 import elastic.es7.api.{Elastic => Elastic7}
@@ -13,7 +12,6 @@ import play.api.Configuration
 import play.api.libs.json.JsValue
 import play.modules.reactivemongo.{DefaultReactiveMongoApi, ReactiveMongoApi}
 import reactivemongo.api.MongoConnection
-import store.cassandra.CassandraClient
 import store.elastic.{Elastic6Client, Elastic7Client}
 import store.postgresql.PostgresqlClient
 import store.redis.{RedisClientBuilder, RedisWrapper}
@@ -33,16 +31,6 @@ package object database {
         val izanamiConfigModule: IzanamiConfigModule.Service = mix.get[IzanamiConfigModule.Service]
         implicit val actorSystem: ActorSystem                = playModule.system
         RedisClientBuilder.redisClient(izanamiConfigModule.izanamiConfig.db.redis, actorSystem)
-      }
-
-    type CassandraDriver = Has[Option[(Cluster, Session)]]
-
-    val cassandraClientLayer: ZLayer[DriverLayerContext, Throwable, CassandraDriver] =
-      ZLayer.fromFunctionManaged { mix =>
-        val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
-        val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
-        implicit val actorSystem: ActorSystem = playModule.system
-        CassandraClient.cassandraClient(izanamiConfig.db.cassandra).provide(Has(mix.get[ZLogger.Service]))
       }
 
     type Elastic6Driver = Has[Option[Elastic6[JsValue]]]

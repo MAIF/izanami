@@ -20,7 +20,6 @@ import play.api.mvc.Results
 import domains.errors.IzanamiErrors
 import env.configuration.IzanamiConfigModule
 import libs.database.Drivers.DriverLayerContext
-import store.cassandra.CassandraJsonDataStore
 import store.elastic.{Elastic6JsonDataStore, Elastic7JsonDataStore}
 import store.leveldb.LevelDBJsonDataStore
 import store.memory.InMemoryJsonDataStore
@@ -244,10 +243,9 @@ package object datastore {
     ): ZLayer[DriverLayerContext, Throwable, JsonDataStore] = {
       IzanamiLogger.info(s"Initializing store ${conf.conf.namespace} for $dbType")
       dbType match {
-        case InMemory  => ZLayer.succeed(InMemoryJsonDataStore(conf))
-        case Redis     => Drivers.redisClientLayer.passthrough >>> RedisJsonDataStore.live(conf)
-        case LevelDB   => LevelDBJsonDataStore.live(conf)
-        case Cassandra => Drivers.cassandraClientLayer.passthrough >>> CassandraJsonDataStore.live(conf)
+        case InMemory => ZLayer.succeed(InMemoryJsonDataStore(conf))
+        case Redis    => Drivers.redisClientLayer.passthrough >>> RedisJsonDataStore.live(conf)
+        case LevelDB  => LevelDBJsonDataStore.live(conf)
         case Elastic => {
           if (izanamiConfig.db.elastic.map(c => c.version <= 6).getOrElse(false))
             Drivers.elastic6ClientLayer.passthrough >>> Elastic6JsonDataStore.live(conf)
