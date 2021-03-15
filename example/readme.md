@@ -7,9 +7,7 @@ There is two backend :
  * example-play: a play scala app  
  * example-spring: a springboot java app
  
-And two frontend : 
- * javascript-angular: an ui written with angular   
- * javascript-react: an ui written with react
+A frontend is written with react
  
 To run the demo you have to choose your favorite backend and frontend. 
 The default frontend is react in both backend but you can change it in the configuration file: 
@@ -67,14 +65,6 @@ cd izanami/example/example-spring
 
 ```
 cd izanami/example/javascript-react
-yarn install 
-yarn start 
-```
-
-## Use the angular frontend
-
-```
-cd izanami/example/javascript-angular
 yarn install 
 yarn start 
 ```

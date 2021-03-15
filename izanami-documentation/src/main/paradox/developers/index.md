@@ -40,17 +40,6 @@ sbt
 
 You use a specific data base using docker 
 
-#### Cassandra 
-
-```bash 
-docker rm cassandra && docker run --name cassandra -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 -p 9042:9042 -p 7000:7000 cassandra:3.11
-```
-
-```sbtshell
-sbt 
-> ~izanami-server/run -Dizanami.db.default=Cassandra
-```
-
 #### Redis
 
 ```bash 

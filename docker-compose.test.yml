@@ -4,13 +4,6 @@ services:
     image: redis
     ports:
       - 6380:6379
-  cassandra:
-    image: cassandra:3.11
-    ports:
-      - 9042:9042
-      - 7000:7000
-    environment:
-      - "CASSANDRA_LISTEN_ADDRESS=127.0.0.1"
   elasticsearch7:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
     ports:
