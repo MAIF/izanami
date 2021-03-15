@@ -24,8 +24,6 @@ object Configs {
 
   val redisPort: Int = 6380
 
-  val cassandraPort: Int = 9042
-
   val elastic6HttpPort: Int = 9210
 
   val elastic7HttpPort: Int = 9220
@@ -106,33 +104,6 @@ object Configs {
          |    }
          |  }
          |}
-      """.stripMargin).resolve()
-  )
-
-  def cassandraConfiguration(keyspace: String): Configuration = Configuration(
-    ConfigFactory.parseString(s"""
-          |izanami.db.default="Cassandra"
-          |izanami.patchEnabled = false
-          |izanami.mode= "test"
-          |izanami.config.db.type=$${izanami.db.default}
-          |izanami.features.db.type=$${izanami.db.default}
-          |izanami.globalScript.db.type=$${izanami.db.default}
-          |izanami.experiment.db.type=$${izanami.db.default}
-          |izanami.experimentEvent.db.type=$${izanami.db.default}
-          |izanami.webhook.db.type=$${izanami.db.default}
-          |izanami.user.db.type=$${izanami.db.default}
-          |izanami.apikey.db.type=$${izanami.db.default}
-          |izanami.patch.db.type=$${izanami.db.default}
-          |
-          |izanami {
-          |  db {
-          |    cassandra {
-          |      addresses = ["127.0.0.1:$cassandraPort"]
-          |      replicationFactor = 1
-          |      keyspace: "$keyspace"
-          |    }
-          |  }
-          |}
       """.stripMargin).resolve()
   )
 

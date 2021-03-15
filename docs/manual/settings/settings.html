@@ -367,7 +367,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <tr>
       <td><code>izanami.db.default</code> </td>
       <td><code>IZANAMI_DATABASE</code> </td>
-      <td>Type of the default datastore. Could be <code>InMemory</code>, <code>LevelDb</code>, <code>Redis</code>, <code>Cassandra</code>, <code>Elastic</code>. </td>
+      <td>Type of the default datastore. Could be <code>InMemory</code>, <code>LevelDb</code>, <code>Redis</code>, <code>Elastic</code>. </td>
       <td><code>LevelDb</code> </td>
     </tr>
     <tr>
@@ -375,36 +375,6 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>LEVEL_DB_PARENT_PATH</code> </td>
       <td>The root folder when data are stored by level db </td>
       <td><code>target/leveldb</code> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.cassandra.host</code> </td>
-      <td><code>CASSANDRA_HOST</code> </td>
-      <td>The host name of the cassandra server </td>
-      <td><code>localhost</code> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.cassandra.port</code> </td>
-      <td><code>CASSANDRA_PORT</code> </td>
-      <td>The port of the cassandra server </td>
-      <td>9042 </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.cassandra.addresses</code> </td>
-      <td><code>CASSANDRA_HOSTS_AND_PORTS</code> </td>
-      <td>An array of host and port </td>
-      <td><code>[${izanami.db.cassandra.host}&quot;:&quot;${izanami.db.cassandra.port}]</code> </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.cassandra.replicationFactor</code> </td>
-      <td><code>CASSANDRA_REPLICATION_FACTOR</code> </td>
-      <td>The replication factor for the data </td>
-      <td>1 </td>
-    </tr>
-    <tr>
-      <td><code>izanami.db.cassandra.keyspace</code> </td>
-      <td><code>CASSANDRA_KEYSPACE</code> </td>
-      <td>the name of the keyspace for datas </td>
-      <td><code>izanami</code> </td>
     </tr>
     <tr>
       <td><code>izanami.db.redis.host</code> </td>

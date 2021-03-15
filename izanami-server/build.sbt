@@ -77,10 +77,8 @@ libraryDependencies ++= Seq(
   "com.github.krasserm"      %% "streamz-converter"                   % "0.11-RC1",
   "com.chuusai"              %% "shapeless"                           % "2.3.3", // Apache 2.0
   "com.github.pureconfig"    %% "pureconfig"                          % "0.12.3", // Apache 2.0
-  "com.lightbend.akka"       %% "akka-stream-alpakka-cassandra"       % alpakkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream-kafka"                   % "2.0.0", // Apache 2.0
   "com.adelegue"             %% "elastic-scala-http"                  % "1.0.0", // Apache 2.0
-  "com.datastax.cassandra"   % "cassandra-driver-core"                % "3.7.1", // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-core"                         % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jvm"                          % metricsVersion, // Apache 2.0
   "io.dropwizard.metrics"    % "metrics-jmx"                          % metricsVersion, // Apache 2.0
@@ -215,10 +213,6 @@ dockerCommands ++= Seq(
   Cmd("ENV", "LEVEL_DB_PARENT_PATH /leveldb"),
   Cmd("ENV", "REDIS_PORT 6379"),
   Cmd("ENV", "REDIS_HOST redis"),
-  Cmd("ENV", "CASSANDRA_HOST cassandra"),
-  Cmd("ENV", "CASSANDRA_PORT 9042"),
-  Cmd("ENV", "CASSANDRA_REPLICATION_FACTOR 1"),
-  Cmd("ENV", "CASSANDRA_KEYSPACE izanami"),
   Cmd("ENV", "KAFKA_HOST kafka"),
   Cmd("ENV", "KAFKA_PORT 9092"),
   Cmd("ENV", "HTTP_PORT 8080"),

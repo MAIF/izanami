@@ -269,7 +269,6 @@ package object events {
           case InMemory  => ExperimentVariantEventInMemoryService.live
           case Redis     => Drivers.redisClientLayer.passthrough >>> ExperimentVariantEventRedisService.live
           case LevelDB   => ExperimentVariantEventLevelDBService.live
-          case Cassandra => Drivers.cassandraClientLayer.passthrough >>> ExperimentVariantEventCassandraService.live
           case Elastic   => {
             if(izanamiConfig.db.elastic.map(c => c.version<=6).getOrElse(false))
               Drivers.elastic6ClientLayer.passthrough >>> ExperimentVariantEventElastic6Service.live

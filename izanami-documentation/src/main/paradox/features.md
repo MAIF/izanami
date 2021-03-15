@@ -19,7 +19,6 @@ Izanami provide a couple of features :
     * Redis
     * LevelDB
     * In-memory
-    * Cassandra
     * Elastic search 
     * AWS DynamoDB
     * Postgresql
