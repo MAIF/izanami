@@ -21,7 +21,7 @@ import domains.errors.IzanamiErrors
 import env.configuration.IzanamiConfigModule
 import libs.database.Drivers.DriverLayerContext
 import store.cassandra.CassandraJsonDataStore
-import store.elastic.ElasticJsonDataStore
+import store.elastic.{Elastic6JsonDataStore, Elastic7JsonDataStore}
 import store.leveldb.LevelDBJsonDataStore
 import store.memory.InMemoryJsonDataStore
 import store.memorywithdb.{CacheEvent, InMemoryWithDbStore}
@@ -244,11 +244,16 @@ package object datastore {
     ): ZLayer[DriverLayerContext, Throwable, JsonDataStore] = {
       IzanamiLogger.info(s"Initializing store ${conf.conf.namespace} for $dbType")
       dbType match {
-        case InMemory   => ZLayer.succeed(InMemoryJsonDataStore(conf))
-        case Redis      => Drivers.redisClientLayer.passthrough >>> RedisJsonDataStore.live(conf)
-        case LevelDB    => LevelDBJsonDataStore.live(conf)
-        case Cassandra  => Drivers.cassandraClientLayer.passthrough >>> CassandraJsonDataStore.live(conf)
-        case Elastic    => Drivers.elasticClientLayer.passthrough >>> ElasticJsonDataStore.live(conf)
+        case InMemory  => ZLayer.succeed(InMemoryJsonDataStore(conf))
+        case Redis     => Drivers.redisClientLayer.passthrough >>> RedisJsonDataStore.live(conf)
+        case LevelDB   => LevelDBJsonDataStore.live(conf)
+        case Cassandra => Drivers.cassandraClientLayer.passthrough >>> CassandraJsonDataStore.live(conf)
+        case Elastic => {
+          if (izanamiConfig.db.elastic.map(c => c.version <= 6).getOrElse(false))
+            Drivers.elastic6ClientLayer.passthrough >>> Elastic6JsonDataStore.live(conf)
+          else
+            Drivers.elastic7ClientLayer.passthrough >>> Elastic7JsonDataStore.live(conf)
+        }
         case Mongo      => Drivers.mongoApiLayer.passthrough >>> MongoJsonDataStore.live(conf)
         case Dynamo     => Drivers.dynamoClientLayer.passthrough >>> DynamoJsonDataStore.live(conf)
         case Postgresql => Drivers.postgresqldriverLayer.passthrough >>> PostgresqlJsonDataStore.live(conf)

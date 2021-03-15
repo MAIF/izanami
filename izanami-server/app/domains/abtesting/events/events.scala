@@ -1,8 +1,5 @@
 package domains.abtesting
 
-import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
-
 import akka.NotUsed
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.{Flow, Source}
@@ -21,15 +18,19 @@ import store.datastore.DataStoreLayerContext
 import zio.blocking.Blocking
 import zio.{Task, ZIO, ZLayer}
 
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import scala.collection.immutable.HashSet
 
 package object events {
 
-  case class ExperimentVariantEventKey(experimentId: ExperimentKey,
-                                       variantId: String,
-                                       clientId: String,
-                                       namespace: String,
-                                       id: String) {
+  case class ExperimentVariantEventKey(
+      experimentId: ExperimentKey,
+      variantId: String,
+      clientId: String,
+      namespace: String,
+      id: String
+  ) {
     def key: Key =
       Key.Empty / experimentId / variantId / clientId / namespace / id
   }
@@ -53,23 +54,25 @@ package object events {
     def date: LocalDateTime
   }
 
-  case class ExperimentVariantDisplayed(id: ExperimentVariantEventKey,
-                                        experimentId: ExperimentKey,
-                                        clientId: String,
-                                        variant: Variant,
-                                        date: LocalDateTime = LocalDateTime.now(),
-                                        transformation: Double,
-                                        variantId: String)
-      extends ExperimentVariantEvent
+  case class ExperimentVariantDisplayed(
+      id: ExperimentVariantEventKey,
+      experimentId: ExperimentKey,
+      clientId: String,
+      variant: Variant,
+      date: LocalDateTime = LocalDateTime.now(),
+      transformation: Double,
+      variantId: String
+  ) extends ExperimentVariantEvent
 
-  case class ExperimentVariantWon(id: ExperimentVariantEventKey,
-                                  experimentId: ExperimentKey,
-                                  clientId: String,
-                                  variant: Variant,
-                                  date: LocalDateTime = LocalDateTime.now(),
-                                  transformation: Double,
-                                  variantId: String)
-      extends ExperimentVariantEvent
+  case class ExperimentVariantWon(
+      id: ExperimentVariantEventKey,
+      experimentId: ExperimentKey,
+      clientId: String,
+      variant: Variant,
+      date: LocalDateTime = LocalDateTime.now(),
+      transformation: Double,
+      variantId: String
+  ) extends ExperimentVariantEvent
 
   object ExperimentVariantEvent {
 
@@ -101,56 +104,57 @@ package object events {
       IzanamiLogger.debug(s"Building event results for $experimentId, interval = $interval")
       Flow[ExperimentVariantEvent]
         .groupBy(nbVariant, _.variant.id)
-        .statefulMapConcat(() => {
+        .statefulMapConcat { () =>
           var first                                 = true
           var displayed                             = 0
           var won                                   = 0
           var ids                                   = HashSet.empty[String]
           var lastDateStored: Option[LocalDateTime] = None
-          evt =>
-            {
-              val (newEvent, transformation) = evt match {
-                case ExperimentVariantDisplayed(_, expId, clientId, variant, date, _, variantId) =>
-                  displayed += 1
-                  ids = ids + clientId
-                  val transformation = if (displayed != 0) {
-                    (won * 100.0) / displayed
-                  } else 0.0
+          evt => {
+            val (newEvent, transformation) = evt match {
+              case ExperimentVariantDisplayed(_, expId, clientId, variant, date, _, variantId) =>
+                displayed += 1
+                ids = ids + clientId
+                val transformation = if (displayed != 0) {
+                  (won * 100.0) / displayed
+                } else 0.0
 
-                  (ExperimentResultEvent(expId, variant, date, transformation, variantId), transformation)
-                case ExperimentVariantWon(_, expId, clientId, variant, date, _, variantId) =>
-                  won += 1
-                  ids = ids + clientId
-                  val transformation = if (displayed != 0) {
-                    (won * 100.0) / displayed
-                  } else 0.0
+                (ExperimentResultEvent(expId, variant, date, transformation, variantId), transformation)
+              case ExperimentVariantWon(_, expId, clientId, variant, date, _, variantId) =>
+                won += 1
+                ids = ids + clientId
+                val transformation = if (displayed != 0) {
+                  (won * 100.0) / displayed
+                } else 0.0
 
-                  (ExperimentResultEvent(expId, variant, date, transformation, variantId), transformation)
-              }
-
-              val lastDate = lastDateStored.getOrElse {
-                lastDateStored = Some(evt.date)
-                evt.date
-              }
-
-              val currentDate = evt.date
-
-              if (keepEvent(lastDate, currentDate, interval) || first) {
-                first = false
-                lastDateStored = Some(currentDate)
-                List(
-                  (displayed,
-                   won,
-                   transformation,
-                   Some(
-                     VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))
-                   ))
-                )
-              } else {
-                List((displayed, won, transformation, None))
-              }
+                (ExperimentResultEvent(expId, variant, date, transformation, variantId), transformation)
             }
-        })
+
+            val lastDate = lastDateStored.getOrElse {
+              lastDateStored = Some(evt.date)
+              evt.date
+            }
+
+            val currentDate = evt.date
+
+            if (keepEvent(lastDate, currentDate, interval) || first) {
+              first = false
+              lastDateStored = Some(currentDate)
+              List(
+                (
+                  displayed,
+                  won,
+                  transformation,
+                  Some(
+                    VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))
+                  )
+                )
+              )
+            } else {
+              List((displayed, won, transformation, None))
+            }
+          }
+        }
         .fold(VariantResult()) {
           case (acc, (d, w, t, Some(r))) =>
             r.copy(events = acc.events ++ r.events, displayed = d, won = w, transformation = t)
@@ -199,8 +203,8 @@ package object events {
       def start: RIO[ExperimentVariantEventServiceContext, Unit] = Task.succeed(())
 
       def importData: RIO[ExperimentVariantEventServiceContext, Flow[(String, JsValue), ImportResult, NotUsed]] = {
-        import cats.implicits._
         import ExperimentVariantEventInstances._
+        import cats.implicits._
         for {
           runtime <- ZIO.runtime[ExperimentVariantEventServiceContext]
           res <- Task(
@@ -214,7 +218,7 @@ package object events {
                       case (s, JsError(_)) =>
                         FastFuture.successful(ImportResult.error(ErrorMessage("json.parse.error", s)))
                     }
-                    .fold(ImportResult()) { _ |+| _ }
+                    .fold(ImportResult())(_ |+| _)
                 )
         } yield res
       }
@@ -229,12 +233,16 @@ package object events {
     def deleteEventsForExperiment(
         experiment: Experiment
     ): zio.ZIO[ExperimentVariantEventServiceModule, IzanamiErrors, Unit] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].deleteEventsForExperiment(experiment))
+      ZIO.accessM[ExperimentVariantEventServiceModule](
+        _.get[ExperimentVariantEventService.Service].deleteEventsForExperiment(experiment)
+      )
 
     def findVariantResult(
         experiment: Experiment
     ): zio.RIO[ExperimentVariantEventServiceModule, Source[VariantResult, NotUsed]] =
-      ZIO.accessM[ExperimentVariantEventServiceModule](_.get[ExperimentVariantEventService.Service].findVariantResult(experiment))
+      ZIO.accessM[ExperimentVariantEventServiceModule](
+        _.get[ExperimentVariantEventService.Service].findVariantResult(experiment)
+      )
 
     def listAll(
         patterns: Seq[String] = Seq("*")
@@ -262,7 +270,12 @@ package object events {
           case Redis     => Drivers.redisClientLayer.passthrough >>> ExperimentVariantEventRedisService.live
           case LevelDB   => ExperimentVariantEventLevelDBService.live
           case Cassandra => Drivers.cassandraClientLayer.passthrough >>> ExperimentVariantEventCassandraService.live
-          case Elastic   => Drivers.elasticClientLayer.passthrough >>> ExperimentVariantEventElasticService.live
+          case Elastic   => {
+            if(izanamiConfig.db.elastic.map(c => c.version<=6).getOrElse(false))
+              Drivers.elastic6ClientLayer.passthrough >>> ExperimentVariantEventElastic6Service.live
+            else
+              Drivers.elastic7ClientLayer.passthrough >>> ExperimentVariantEventElastic7Service.live
+          } 
           case Mongo    =>  Drivers.mongoApiLayer.passthrough >>> ExperimentVariantEventMongoService.live
           case Dynamo   =>  Drivers.dynamoClientLayer.passthrough >>> ExperimentVariantEventDynamoService.live
           case Postgresql   =>  Drivers.postgresqldriverLayer.passthrough >>> ExperimentVariantEventPostgresqlService.live

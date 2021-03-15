@@ -347,6 +347,7 @@ case class ElasticConfig(
     host: String,
     port: Int,
     scheme: String,
+    version: Int = 6,
     user: Option[String],
     password: Option[String],
     automaticRefresh: Boolean = false

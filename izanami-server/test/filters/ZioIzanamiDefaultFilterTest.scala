@@ -27,7 +27,6 @@ import domains.feature.FeatureDataStore
 import domains.script.{CacheService, GlobalScriptDataStore, RunnableScriptModule, Script, ScriptCache}
 import domains.user.UserDataStore
 import domains.webhook.WebhookDataStore
-import elastic.api.Elastic
 import env.configuration.IzanamiConfigModule
 import env.{
   ApiKeyHeaders,

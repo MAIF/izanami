@@ -36,13 +36,14 @@ services:
       - 6379:6379
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:5.5.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.11.1
     networks:
       - bench
     ports:
       - 9210:9200
     environment:
       - "xpack.security.enabled=false"
+      - "discovery.type=single-node"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 volumes:
   data:

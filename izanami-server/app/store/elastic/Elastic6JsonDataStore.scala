@@ -1,6 +1,6 @@
 package store.elastic
 
-import elastic.codec.PlayJson._
+import elastic.es6.codec.PlayJson._
 import elastic.implicits._
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
@@ -9,7 +9,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import cats.implicits._
 import domains.Key
 import domains.configuration.PlayModule
-import elastic.api.{Bulk, BulkOpDetail, BulkOpType, Elastic, EsException, GetResponse}
+import elastic.es6.api.{Bulk, BulkOpDetail, BulkOpType, Elastic, EsException, GetResponse}
 import env.{DbDomainConfig, ElasticConfig, IzanamiConfig}
 import libs.logs.IzanamiLogger
 import libs.logs.ZLogger
@@ -18,28 +18,28 @@ import play.api.libs.json._
 import scala.concurrent.ExecutionContext
 import store._
 import store.datastore._
-import store.elastic.ElasticJsonDataStore.EsDocument
+import store.elastic.Elastic6JsonDataStore.EsDocument
 import domains.errors.{DataShouldExists, DataShouldNotExists, IzanamiErrors}
 import env.configuration.IzanamiConfigModule
-import libs.database.Drivers.{DriverLayerContext, ElasticDriver}
+import libs.database.Drivers.{DriverLayerContext, Elastic6Driver}
 import zio.{Has, ZLayer}
 
-object ElasticJsonDataStore {
+object Elastic6JsonDataStore {
 
-  def live(dbDomainConfig: DbDomainConfig): ZLayer[ElasticDriver with DriverLayerContext, Throwable, JsonDataStore] =
+  def live(dbDomainConfig: DbDomainConfig): ZLayer[Elastic6Driver with DriverLayerContext, Throwable, JsonDataStore] =
     ZLayer.fromFunction { mix =>
       val playModule: PlayModule.Service    = mix.get[PlayModule.Service]
       val izanamiConfig: IzanamiConfig      = mix.get[IzanamiConfigModule.Service].izanamiConfig
       implicit val actorSystem: ActorSystem = playModule.system
       val Some(elasticConfig)               = izanamiConfig.db.elastic
       val Some(elastic)                     = mix.get[Option[Elastic[JsValue]]]
-      new ElasticJsonDataStore(elastic, elasticConfig, dbDomainConfig)
+      new Elastic6JsonDataStore(elastic, elasticConfig, dbDomainConfig)
     }
 
   def apply(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
       implicit actorSystem: ActorSystem
-  ): ElasticJsonDataStore =
-    new ElasticJsonDataStore(elastic, elasticConfig, dbDomainConfig)
+  ): Elastic6JsonDataStore =
+    new Elastic6JsonDataStore(elastic, elasticConfig, dbDomainConfig)
 
   case class EsDocument(key: Key, value: JsValue)
 
@@ -53,12 +53,12 @@ object ElasticJsonDataStore {
   }
 }
 
-class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
+class Elastic6JsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConfig, dbDomainConfig: DbDomainConfig)(
     implicit actorSystem: ActorSystem
 ) extends JsonDataStore.Service {
 
   import zio._
-  import store.elastic.ElasticJsonDataStore.EsDocument._
+  import store.elastic.Elastic6JsonDataStore.EsDocument._
   import IzanamiErrors._
 
   private val esIndex = dbDomainConfig.conf.namespace.replaceAll(":", "_")
@@ -104,13 +104,13 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
   private def genCreate(id: Key, data: JsValue): IO[IzanamiErrors, JsValue] =
     IO.fromFuture { implicit ec =>
         index
-          .index[EsDocument](EsDocument(id, data),
-                             id = Some(id.key),
-                             create = true,
-                             refresh = elasticConfig.automaticRefresh)
-          .map { _ =>
-            data
-          }
+          .index[EsDocument](
+            EsDocument(id, data),
+            id = Some(id.key),
+            create = true,
+            refresh = elasticConfig.automaticRefresh
+          )
+          .map(_ => data)
       }
       .catchAll {
         case EsException(_, 409, _) => IO.fail(DataShouldNotExists(id).toErrors)
@@ -126,7 +126,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
                                                                         id = Some(id.key),
                                                                         refresh = elasticConfig.automaticRefresh)
                   }
-                  .map { _ => data }
+                  .map (_ => data)
                   .orDie
       } yield data
       // format: on
@@ -195,14 +195,12 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
 
   override def findByQuery(q: Query, page: Int, nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] = {
     val query = buildSearchQuery(q) ++ Json.obj(
-      "from" -> (page - 1) * nbElementPerPage,
-      "size" -> nbElementPerPage
-    )
+        "from" -> (page - 1) * nbElementPerPage,
+        "size" -> nbElementPerPage
+      )
     ZLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}") *>
     Task
-      .fromFuture { implicit ec =>
-        index.search(query)
-      }
+      .fromFuture(implicit ec => index.search(query))
       .map { s =>
         val count   = s.hits.total
         val results = s.hitsAs[EsDocument].map(_.value).toList
@@ -220,9 +218,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
     IzanamiLogger.debug(s"Query to $esIndex : ${Json.prettyPrint(query)}")
     index
       .scroll(query = query, scroll = "1s", size = 50)
-      .mapConcat { s =>
-        s.hitsAs[EsDocument].map(d => (d.key.key, d.value)).toList
-      }
+      .mapConcat(s => s.hitsAs[EsDocument].map(d => (d.key.key, d.value)).toList)
   }
 
   override def deleteAll(query: Query): IO[IzanamiErrors, Unit] =
@@ -237,9 +233,7 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
       }
       .flatMap { _ =>
         if (elasticConfig.automaticRefresh) {
-          IO.fromFuture { implicit ec =>
-            elastic.refresh(esIndex)
-          }.unit
+          IO.fromFuture(implicit ec => elastic.refresh(esIndex)).unit
         } else {
           IO.succeed(())
         }
@@ -248,13 +242,9 @@ class ElasticJsonDataStore(elastic: Elastic[JsValue], elasticConfig: ElasticConf
 
   override def count(q: Query): Task[Long] = {
     val query = buildSearchQuery(q) ++ Json.obj(
-      "size" -> 0
-    )
-    Task.fromFuture { implicit ec =>
-      index.search(query).map { s =>
-        s.hits.total
-      }
-    }
+        "size" -> 0
+      )
+    Task.fromFuture(implicit ec => index.search(query).map(s => s.hits.total))
   }
 
 }
