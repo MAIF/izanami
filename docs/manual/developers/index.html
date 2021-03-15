@@ -232,12 +232,6 @@ yarn start
 </code></pre>
 <h3><a href="#use-a-specific-db" name="use-a-specific-db" class="anchor"><span class="anchor-link"></span></a>Use a specific DB</h3>
 <p>You use a specific data base using docker </p>
-<h4><a href="#cassandra" name="cassandra" class="anchor"><span class="anchor-link"></span></a>Cassandra</h4>
-<pre class="prettyprint"><code class="language-bash ">docker rm cassandra &amp;&amp; docker run --name cassandra -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 -p 9042:9042 -p 7000:7000 cassandra:3.11
-</code></pre>
-<pre class="prettyprint"><code class="language-sbtshell">sbt 
-&gt; ~izanami-server/run -Dizanami.db.default=Cassandra
-</code></pre>
 <h4><a href="#redis" name="redis" class="anchor"><span class="anchor-link"></span></a>Redis</h4>
 <pre class="prettyprint"><code class="language-bash ">docker rm redis-iznanami &amp;&amp; docker run --name redis-iznanami -v $(pwd)/redisdata:/data -p 6379:6379 redis
 </code></pre>
@@ -245,7 +239,7 @@ yarn start
 &gt; ~izanami-server/run -Dizanami.db.default=Redis
 </code></pre>
 <h4><a href="#elasticsearch" name="elasticsearch" class="anchor"><span class="anchor-link"></span></a>Elasticsearch</h4>
-<pre class="prettyprint"><code class="language-bash ">docker rm elasticsearch &amp;&amp; docker run --name elasticsearch -e &quot;xpack.security.enabled=false&quot; -e &quot;ES_JAVA_OPTS=-Xms512m -Xmx512m&quot; -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:5.5.3
+<pre class="prettyprint"><code class="language-bash ">docker rm elasticsearch &amp;&amp; docker run --name elasticsearch -e &quot;xpack.security.enabled=false&quot; -e &quot;ES_JAVA_OPTS=-Xms512m -Xmx512m&quot; -e &quot;discovery.type=single-node&quot; -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:7.11.1
 </code></pre>
 <pre class="prettyprint"><code class="language-sbtshell">sbt 
 &gt; ~izanami-server/run -Dizanami.db.default=Elastic

@@ -13,8 +13,6 @@ jobs:
         include:
           - name: "Run unit test"
             command: sbt -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/test;jvm/test"
-          - name: "Run integration that depends on cassandra"
-            command: ./scripts/runIt.sh "cassandra" "specs.cassandra.*"
           - name: "Run integration that depends on dynamo"
             command: ./scripts/runIt.sh "dynamodb" "specs.dynamo.*"
           - name: "Run integration that depends on elasticsearch6"

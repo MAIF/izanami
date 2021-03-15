@@ -10,8 +10,6 @@ import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import com.codahale.metrics.MetricRegistry
-import com.datastax.driver.core.{Cluster, Session}
 import domains.Key
 import domains.abtesting.ExperimentDataStore
 import domains.auth.AuthInfo
@@ -24,7 +22,7 @@ import domains.configuration.PlayModule.PlayModuleProd
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
-import domains.script.{CacheService, GlobalScriptDataStore, RunnableScriptModule, Script, ScriptCache}
+import domains.script.{CacheService, GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.user.UserDataStore
 import domains.webhook.WebhookDataStore
 import env.configuration.IzanamiConfigModule

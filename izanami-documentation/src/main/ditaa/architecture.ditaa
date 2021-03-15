@@ -6,9 +6,9 @@
  +-+      |        |     |          +--------------+     |           | In memory
  | |      +--------+     |          | Experiments  |     |           | Level Db
                          |   APIs   +--------------+-=-->| Datastore | Redis
-          +--------+     |          | ApiKeys      |     |           | Cassandra
-          |   μ    |     |          +--------------+     |           | Elasticsearch
-          |Services+-=-->|          | Users        |     |           | DynamoDB
+          +--------+     |          | ApiKeys      |     |           | Elasticsearch
+          |   μ    |     |          +--------------+     |           | DynamoDB
+          |Services+-=-->|          | Users        |     |           |
           |        |     |          +--------------+     +-----------+
           +--------+     |          | Webhooks     |
               ^          +----------+---------+----/
