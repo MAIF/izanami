@@ -15,7 +15,7 @@ object AppConfig {
   }
 
   implicit val dbTypeHint: ConfigConvert[IzanamiMode] =
-    viaString[IzanamiMode](catchReadError { IzanamiMode.fromString }, _.toString)
+    viaString[IzanamiMode](catchReadError(IzanamiMode.fromString), _.toString)
 
   def apply(configuration: Configuration): AppConfig =
     ConfigSource.fromConfig(configuration.underlying).at("tvdb").loadOrThrow[AppConfig]
@@ -33,18 +33,22 @@ object IzanamiMode {
   }
 }
 
-case class AppConfig(izanami: IzanamiConf,
-                     otoroshi: OtoroshiFilterConfig,
-                     betaSerie: BetaSerieConfig,
-                     tvdb: TvdbConfig,
-                     dbpath: String,
-                     front: String)
+case class AppConfig(
+    izanami: IzanamiConf,
+    otoroshi: OtoroshiFilterConfig,
+    betaSerie: BetaSerieConfig,
+    tvdb: TvdbConfig,
+    dbpath: String,
+    front: String
+)
 
 case class IzanamiConf(
     host: String,
     mode: IzanamiMode,
     clientId: Option[String],
     clientSecret: Option[String],
+    clientIdHeaderName: Option[String],
+    clientSecretHeaderName: Option[String],
     fallback: IzanamiFallbackConf
 )
 
@@ -59,11 +63,13 @@ case class FallbackConfig(conf: String) extends AnyVal
 case class BetaSerieConfig(url: String, apiKey: String)
 case class TvdbConfig(url: String, apiKey: String, baseUrl: String)
 
-case class OtoroshiFilterConfig(enabled: Boolean,
-                                mode: String,
-                                sharedKey: String,
-                                issuer: String,
-                                headerClaim: String,
-                                headerRequestId: String,
-                                headerGatewayState: String,
-                                headerGatewayStateResp: String)
+case class OtoroshiFilterConfig(
+    enabled: Boolean,
+    mode: String,
+    sharedKey: String,
+    issuer: String,
+    headerClaim: String,
+    headerRequestId: String,
+    headerGatewayState: String,
+    headerGatewayStateResp: String
+)
