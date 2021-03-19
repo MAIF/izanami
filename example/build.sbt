@@ -1,11 +1,8 @@
 lazy val `example` = (project in file("."))
   .aggregate(`example-spring`, `example-play`)
-  //.aggregate(`example-spring`, jvm)
-  .enablePlugins(NoPublish)
-  .disablePlugins(BintrayPlugin)
+  .settings(skip in publish := true)
 
 lazy val `example-spring` = project
-  .enablePlugins(NoPublish)
-  .disablePlugins(BintrayPlugin)
+  .settings(skip in publish := true)
 
 lazy val `example-play` = project

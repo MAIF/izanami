@@ -1,7 +1,7 @@
 organization := "fr.maif"
 name := "example-spring"
 
-scalaVersion := "2.13.3"
+scalaVersion := Dependencies.scalaVersion
 
 mainClass := Some("izanami.example.Application")
 

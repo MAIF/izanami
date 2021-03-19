@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: "Build server package and publish it to bintray"
+          - name: "Build server package and publish it to Central"
             command: ./scripts/build-javascript.sh && ./scripts/sbt-publish.sh
           - name: "Build js client and publish it to npm if needed"
             command: ./scripts/publish-npm.sh
@@ -40,9 +40,11 @@ jobs:
       - uses: ./.github/workflows/java-opts
       - run: ${{ matrix.command }}
         env:
-          BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
-          BINTRAY_PASS: ${{ secrets.BINTRAY_PASS }}
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
       - uses: ./.github/workflows/clean-cache

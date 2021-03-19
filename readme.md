@@ -7,8 +7,8 @@
 [release-badge]:        https://img.shields.io/github/v/release/MAIF/izanami
 [dist]:                 https://github.com/MAIF/izanami/releases/latest/download/izanami.zip
 [jar]:                  https://github.com/MAIF/izanami/releases/latest/download/izanami.jar
-[client]:               https://bintray.com/maif/maven/izanami-client/_latestVersion
-[client-badge]:         https://img.shields.io/bintray/v/maif/maven/izanami-client
+[client]:               https://repo1.maven.org/maven2/fr/maif/izanami-client
+[client-badge]:         https://maven-badges.herokuapp.com/maven-central/fr.maif/izanami-client/badge.svg
 [nodeclient]:           https://badge.fury.io/js/izanami-node
 [nodeclient-badge]:     https://badge.fury.io/js/izanami-node.svg
 [reactclient]:          https://badge.fury.io/js/react-izanami
@@ -26,7 +26,7 @@
 
 - Latest dist zip [![release-badge][]][dist]
 - Latest jar [![release-badge][]][jar]
-- Latest client [![Bintray][client-badge]][client]
+- Latest client [![Maven Central][client-badge]][client]
 - Latest docker image [![docker-badge][]][docker]
 - Latest node client [![nodeclient-badge][]][nodeclient]
 - Latest react client [![reactclient-badge][]][reactclient]
