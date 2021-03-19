@@ -1,17 +1,10 @@
-scalaVersion := "2.13.3"
+scalaVersion := Dependencies.scalaVersion
 
 val springbootVersion = "2.2.2.RELEASE"
-val akkaVersion       = "2.6.3"
 
-val disabledPlugins = if (sys.env.get("TAG_NAME").filterNot(_.isEmpty).isDefined) {
-  Seq()
-} else {
-  Seq(BintrayPlugin)
-}
+skip in publish := true
 
-disablePlugins(disabledPlugins: _*)
-
-organization := "fr.maif"
+organization := Publish.organization
 
 name := "izanami-spring"
 
@@ -25,11 +18,6 @@ libraryDependencies ++= Seq(
   "org.springframework.boot" % "spring-boot-starter-test"            % springbootVersion % Test,
   "org.assertj"              % "assertj-core"                        % "3.8.0" % Test,
   "com.novocode"             % "junit-interface"                     % "0.11" % Test
-)
-
-resolvers ++= Seq(
-  Resolver.jcenterRepo,
-  Resolver.bintrayRepo("larousso", "maven")
 )
 
 crossPaths := false

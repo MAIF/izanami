@@ -1,12 +1,10 @@
-import BintrayConfig.publishSettings
+scalaVersion := Dependencies.scalaVersion
 
 lazy val `izanami-clients` = (project in file("."))
   .aggregate(jvm, `izanami-spring`)
-  .enablePlugins(NoPublish)
-  .disablePlugins(BintrayPlugin)
+  .settings(skip in publish := true)
 
 lazy val jvm = project
 
 lazy val `izanami-spring` = project
   .dependsOn(jvm)
-  .settings(publishSettings: _*)
