@@ -10,6 +10,7 @@ spring:
       uri: "http://localhost:9000/api/config-server/raw"
       username: xxxx
       password: xxxx
+      enabled: false
 frontend:
   type: "REACT"
 leveldb:

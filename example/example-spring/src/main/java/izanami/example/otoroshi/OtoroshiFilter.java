@@ -80,11 +80,6 @@ public class OtoroshiFilter implements Filter {
                                     .acceptLeeway(JWT_VALIDATION_LEEWAY)
                                     .build();
                             verifier.verify(maybeClaim.get());
-                        } catch (UnsupportedEncodingException exception) {
-                            response.setContentType("application/json");
-                            response.setHeader(stateRespHeaderName, maybeState.get());
-                            response.sendError(400, Json.obj().with("error", "Bad Encoding ...").stringify());
-                            return;
                         } catch (JWTVerificationException exception) {
                             Logger.error("Failed to verify token: " + maybeClaim.get());
                             Logger.error("Got exception: " + exception.getMessage(), exception);
