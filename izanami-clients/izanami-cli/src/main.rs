@@ -10,6 +10,7 @@ extern crate frunk;
 #[macro_use] 
 extern crate serde_json;
 extern crate json_color;
+extern crate home;
 
 mod client;
 
@@ -26,6 +27,10 @@ use client::IzanamiSettings;
 use client::IzanamiClient;
 use json_color::Colorizer;
 use serde_json::{Value};
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+const AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
 
 static SETTINGS_REGEX: &str = r"(\w+)=(.+)";
 
@@ -101,12 +106,12 @@ impl Parsable<Setting> for Setting {
 }
 
 fn load_config() -> Settings {
-     match std::env::home_dir() {
-         Some(home) => {
-             let config_file = format!("{}/.izanami", home.display());
+     match home::home_dir() {
+         Some(home_dir) => {
+             let config_file = format!("{}/.izanami", home_dir.display());
              match File::open(config_file) {
                  Ok(f) => {
-                    let mut file = BufReader::new(&f);
+                    let file = BufReader::new(&f);
                     let mut settings = Settings::new();
                     for line in file.lines() {
                         let l = line.unwrap();
@@ -122,10 +127,10 @@ fn load_config() -> Settings {
 }
 
 fn save_config<'a>(settings: &'a Settings) -> &'a Settings {
-    match std::env::home_dir() {
-        Some(home) => {        
+    match home::home_dir() {
+        Some(home_dir) => {
             let strings: &String = &settings.settings.values().map(|v| v.print()).fold(String::new(), |acc, s| format!("{}{}\n", acc, s));
-            let config_file = home.join(".izanami");
+            let config_file = home_dir.join(".izanami");
             let display = config_file.display();
             let mut file = match File::create(&config_file) {
                 Err(_) => panic!("couldn't create {}", display),
@@ -200,8 +205,8 @@ fn build_feature<'b, 'c>(matches: &'b ArgMatches<'c>, key: &str, ) -> Value {
 
 fn main() {
     let matches = App::new("izanami")
-        .version("0.0.3")
-        .author("Alexandre Delègue <aadelegue@gmail.com>")
+        .version(VERSION)
+        .author(AUTHORS)
         .about(".___                                     .__ 
 |   |____________    ____ _____    _____ |__|
 |   \\___   /\\__  \\  /    \\__  \\  /     \\|  |
