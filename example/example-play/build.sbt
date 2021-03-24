@@ -11,7 +11,9 @@ PlayKeys.devSettings := Seq("play.server.http.port" -> "8080")
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,
-  ("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local").withAllowInsecureProtocol(true)
+  ("Artifactory Realm" at "https://s01.oss.sonatype.org/content/repositories/snapshots/").withAllowInsecureProtocol(
+    true
+  )
 )
 
 libraryDependencies ++= Seq(

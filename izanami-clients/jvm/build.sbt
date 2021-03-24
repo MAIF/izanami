@@ -5,9 +5,7 @@ val disabledPlugins = Seq(RevolverPlugin)
 
 scalaVersion := Dependencies.scalaVersion
 
-lazy val jvm = (project in file("."))
-  .disablePlugins(disabledPlugins: _*)
-  .settings(
+val settings = List(
     organization := Publish.organization,
     name := "izanami-client",
     libraryDependencies ++= Seq(
@@ -31,8 +29,11 @@ lazy val jvm = (project in file("."))
         "org.assertj"                % "assertj-core"             % "3.8.0" % Test
       ),
     resolvers += Resolver.jcenterRepo
-  )
-//  .settings(Publish.settings)
+  ) ++ Publish.settings
+
+lazy val jvm = (project in file("."))
+  .disablePlugins(disabledPlugins: _*)
+  .settings(settings)
 
 scalacOptions ++= Seq(
 //  "-Ypartial-unification",

@@ -36,8 +36,7 @@ resolvers ++= Seq(
   Resolver.jcenterRepo,
   Resolver.sonatypeRepo("releases"),
   Resolver.bintrayIvyRepo("sohoffice", "sbt-plugins"),
-  ("streamz at bintray" at "http://dl.bintray.com/streamz/maven").withAllowInsecureProtocol(true),
-  ("larousso at bintray" at "http://dl.bintray.com/larousso/maven").withAllowInsecureProtocol(true)
+  ("streamz at bintray" at "http://dl.bintray.com/streamz/maven").withAllowInsecureProtocol(true)
 )
 
 libraryDependencies ++= Seq(
