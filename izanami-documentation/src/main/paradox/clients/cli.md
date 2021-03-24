@@ -4,13 +4,11 @@ Izanami provide a command line interface to interact with Izanami server.
 
 ## Download 
 
-First, odwnload the cli : 
+First, download the cli : 
 
 ```bash 
-#if you use linux
-wget --show-progress https://dl.bintray.com/maif/binaries/linux-izanamicli/latest/izanami-cli
-#if you use osx 
-wget --show-progress https://dl.bintray.com/maif/binaries/osx-izanamicli/latest/izanami-cli
+#for linux
+wget --show-progress https://github.com/MAIF/izanami/releases/latest/download/izanami-cli
 ```
 
 And then 
@@ -19,7 +17,6 @@ And then
 chmod +x izanami-cli
 ```
 
-
 ## Usage 
 
 ```bash
@@ -27,8 +24,8 @@ chmod +x izanami-cli
 ```
 
 ```bash
-izanami 0.0.3
-Alexandre Delègue <aadelegue@gmail.com>
+izanami 1.9.0
+adelegue <https://github.com/larousso>
 .___                                     .__
 |   |____________    ____ _____    _____ |__|
 |   \___   /\__  \  /    \__  \  /     \|  |

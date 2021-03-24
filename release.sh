@@ -15,3 +15,6 @@ cd ${LOCATION}/izanami-clients/node
 npm version "${VERSION}"
 git add package.json
 
+cd ${LOCATION}/izanami-clients/izanami-cli
+sed -i "" "s/version = \".*\"/version = \"${VERSION}\"/g" Cargo.toml
+

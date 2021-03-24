@@ -53,8 +53,6 @@ jobs:
             ~/.coursier
             ~/.nvm
             ~/.yarn-cache
-            ~/.rustup
-            ~/.cargo
           key: ${{ runner.os }}-izanami
       - uses: ./.github/workflows/java-opts
       - run: ${{ matrix.command }}

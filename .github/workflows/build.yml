@@ -30,11 +30,25 @@ jobs:
             ~/.coursier
             ~/.nvm
             ~/.yarn-cache
-            ~/.rustup
-            ~/.cargo
           key: ${{ runner.os }}-izanami
       - uses: ./.github/workflows/java-opts
       - run: |
           ./scripts/build-javascript.sh
           sbt  -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;+jvm/publishLocal;izanami-spring/publishLocal"
       - uses: ./.github/workflows/clean-cache
+  build-rust:
+    runs-on: ubuntu-latest
+    name: "Build rust cli"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache multiple paths
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.rustup
+            ~/.cargo
+          key: ${{ runner.os }}-rust-izanami
+      - run: ./scripts/build-rust.sh
