@@ -8,3 +8,4 @@ lazy val jvm = project
 
 lazy val `izanami-spring` = project
   .dependsOn(jvm)
+  .settings(Publish.settings)

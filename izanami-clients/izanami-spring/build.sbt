@@ -2,8 +2,6 @@ scalaVersion := Dependencies.scalaVersion
 
 val springbootVersion = "2.2.2.RELEASE"
 
-skip in publish := true
-
 organization := Publish.organization
 
 name := "izanami-spring"
