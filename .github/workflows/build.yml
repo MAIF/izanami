@@ -39,6 +39,8 @@ jobs:
   build-rust:
     runs-on: ubuntu-latest
     name: "Build rust cli"
+    env:
+      OPENSSL_DIR: /opt/openssl
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
