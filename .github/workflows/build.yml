@@ -37,8 +37,11 @@ jobs:
           sbt  -Dsbt.color=always -Dsbt.supershell=false ";izanami-server/assembly;izanami-server/dist;izanami-server/docker:publishLocal;+jvm/publishLocal;izanami-spring/publishLocal"
       - uses: ./.github/workflows/clean-cache
   build-rust:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     name: "Build rust cli"
+    strategy:
+      matrix: 
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -50,5 +53,6 @@ jobs:
           path: |
             ~/.rustup
             ~/.cargo
-          key: ${{ runner.os }}-rust-izanami
+            ./izanami-clients/izanami-cli/target
+          key: ${{ runner.os }}-rust-izanami-${{ hashFiles('./izanami-clients/izanami-cli/Cargo.lock') }}
       - run: ./scripts/build-rust.sh

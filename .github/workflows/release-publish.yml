@@ -120,7 +120,10 @@ jobs:
           asset_content_type: application/zip
       - uses: ./.github/workflows/clean-cache
   build-publish-izanami-cli:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     name: "Build izanami-cli"
     needs: create-release
     steps:
@@ -140,7 +143,8 @@ jobs:
           path: |
             ~/.rustup
             ~/.cargo
-          key: ${{ runner.os }}-rust-izanami
+            ./izanami-clients/izanami-cli/target
+          key: ${{ runner.os }}-rust-izanami-${{ hashFiles('./izanami-clients/izanami-cli/Cargo.lock') }}
       - run: ./scripts/build-rust.sh
       - name: Upload izanami-cli in assets
         id: izanami-cli
@@ -150,5 +154,5 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./izanami-clients/izanami-cli/target/release/izanami-cli
-          asset_name: izanami-cli
+          asset_name: izanami-cli-${{ runner.os }}
           asset_content_type: application/octet-stream
