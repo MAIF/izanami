@@ -221,7 +221,7 @@ And the user is not able to create a feature with a pattern he is not allowed
 
 ### Generate certificates
 
-Izanami supports MTLS authentication. To do this we need to use keycloak with https et define un client certificate.
+Izanami supports MTLS authentication. To do this we need to use keycloak with https and define a client certificate.
 
 First run 
 
