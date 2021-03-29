@@ -5,7 +5,7 @@ const plugins = [
   new webpack.DefinePlugin({
     '__DEV__': process.env.NODE_ENV === 'production',
     'process.env': {
-      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'dev')
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
     }
   })
 ];
@@ -34,7 +34,7 @@ module.exports = {
     extensions: ['*', '.js']
   },
   devServer: {
-    port: process.env.DEV_SERVER_PORT || 3000,
+    port: process.env.DEV_SERVER_PORT || 3040,
     proxy: {
       '/api/*': {
         target: 'http://localhost:3200',
