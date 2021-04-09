@@ -506,8 +506,8 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "Hour range feature" must {
     "active" in {
 
-      val startAt = LocalTime.now().minus(Duration.ofHours(1))
-      val endAt   = LocalTime.now().plus(Duration.ofMinutes(30))
+      val startAt = LocalTime.now(ZoneId.of("Europe/Paris")).minus(Duration.ofHours(1))
+      val endAt   = LocalTime.now(ZoneId.of("Europe/Paris")).plus(Duration.ofMinutes(30))
       val feature = HourRangeFeature(Key("key"), true, None, startAt, endAt)
 
       runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
@@ -516,8 +516,8 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "inactive" in {
 
-      val startAt = LocalTime.now().plus(Duration.ofMinutes(1))
-      val endAt   = LocalTime.now().plus(Duration.ofMinutes(30))
+      val startAt = LocalTime.now(ZoneId.of("Europe/Paris")).plus(Duration.ofMinutes(1))
+      val endAt   = LocalTime.now(ZoneId.of("Europe/Paris")).plus(Duration.ofMinutes(30))
       val feature = HourRangeFeature(Key("key"), true, None, startAt, endAt)
 
       runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)

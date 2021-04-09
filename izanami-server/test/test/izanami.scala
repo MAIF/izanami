@@ -130,7 +130,7 @@ object FakeConfig {
     false,
     false,
     "X-Forwarded-For",
-    Some(ZoneId.systemDefault().getId),
+    Some("Europe/Paris"),
     Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
     None,
     DbConfig(""),
