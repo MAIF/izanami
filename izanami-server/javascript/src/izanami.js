@@ -3,8 +3,6 @@ import "whatwg-fetch";
 import Symbol from "es-symbol";
 import $ from "jquery";
 
-//import 'react-select/dist/react-select.css';
-
 import 'bootstrap/dist/css/bootstrap.css';
 import "react-table/react-table.css";
 
