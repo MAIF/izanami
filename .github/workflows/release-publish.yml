@@ -51,7 +51,7 @@ jobs:
       matrix:
         include:
           - name: "Build server package and publish"
-            command: ./scripts/build-javascript.sh && ./scripts/sbt-publish.sh
+            command: export GITHUB_REF="refs/tags" && ./scripts/build-javascript.sh && ./scripts/sbt-publish.sh
             with-sbt-assets: true
           - name: "Build js client and publish it to npm if needed"
             command: ./scripts/publish-npm.sh
