@@ -25,13 +25,6 @@ if [ -n "$BRANCH_NAME" ]; then
   cd ${LOCATION}/izanami-clients/node
   echo 'Installing dependencies ...'
   npm install
-
-  echo 'Building angular client ...'
-  cd ${LOCATION}/izanami-clients/angular
-  echo 'Installing dependencies ...'
-  npm install --unsafe-perm=true
-  echo 'Building package'
-  npm run packagr
 else
 
   TAG_NAME=`git describe --tags`
@@ -55,18 +48,6 @@ else
   npm version ${PACKAGE_VERSION}
   echo 'Publishing'
   npm publish
-
-  cd ${LOCATION}/izanami-clients/angular
-  echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >>.npmrc
-
-  echo "Setting version to ${PACKAGE_VERSION}"
-  npm version ${PACKAGE_VERSION}
-  echo 'Installing dependencies ...'
-  npm install
-  echo 'Building package'
-  npm run packagr
-  echo 'Publishing'
-  npm publish dist
 fi
 
 cd ${LOCATION}
