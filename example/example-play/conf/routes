@@ -1,6 +1,6 @@
 
 
-GET     /                                       controllers.HomeController.index
+GET     /                                       controllers.HomeController.index()
 POST    /api/login                              controllers.HomeController.login()
 
 GET     /api/me                                 controllers.MeController.me()
@@ -8,7 +8,7 @@ POST    /api/me/:showId                         controllers.MeController.addTvSh
 DELETE  /api/me/:showId                         controllers.MeController.removeTvShow(showId)
 POST    /api/me/:showId/episodes/:episodeId     controllers.MeController.markEpisode(showId, episodeId, watched: Boolean)
 POST    /api/me/:showId/seasons/:season         controllers.MeController.markSeason(showId, season: Int, watched: Boolean)
-GET     /api/izanami                            controllers.IzanamiController.izanamiProxy
+GET     /api/izanami                            controllers.IzanamiController.izanamiProxy()
 POST    /api/izanami/experiments/displayed      controllers.IzanamiController.markDisplayed(experiment: String)
 POST    /api/izanami/experiments/won            controllers.IzanamiController.markWon(experiment: String)
 GET     /api/shows/_search                      controllers.ShowsController.search(name)

@@ -364,7 +364,7 @@ class FetchConfigClientSpec
     }
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     _wireMockServer.stop()
     TestKit.shutdownActorSystem(system)
   }

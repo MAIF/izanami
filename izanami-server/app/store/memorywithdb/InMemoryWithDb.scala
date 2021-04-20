@@ -2,6 +2,7 @@ package store.memorywithdb
 
 import akka.{Done, NotUsed}
 import akka.actor.{ActorSystem, Cancellable}
+import akka.stream.RestartSettings
 import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
 import cats.implicits._
 import domains.Key
@@ -170,37 +171,39 @@ class InMemoryWithDbStore(
       case _       => ZIO.unit
     }
 
-  private val listenEvents: ZIO[DataStoreContext, Throwable, Unit] =
+  private val listenEvents: ZIO[DataStoreContext, Throwable, Unit] = {
+    val restartSettings = RestartSettings(1.second, 20.second, 1)
     for {
       events <- EventStore.events()
       res <- IO.fromFuture { _ =>
-              RestartSource
-                .onFailuresWithBackoff(1.second, 20.second, 1)(
-                  () =>
-                    events
-                      .via(eventAdapter)
-                      .map {
-                        case e @ Create(id, data) =>
-                          IzanamiLogger.debug(s"Applying create event $e")
-                          createSync(id, data)
-                          Done
-                        case e @ Update(oldId, id, data) =>
-                          IzanamiLogger.debug(s"Applying update event $e")
-                          updateSync(oldId, id, data)
-                          Done
-                        case e @ Delete(id) =>
-                          IzanamiLogger.debug(s"Applying delete event $e")
-                          deleteSync(id)
-                          Done
-                        case e @ DeleteAll(patterns) =>
-                          IzanamiLogger.debug(s"Applying delete all event $e")
-                          deleteAllSync(Query.oneOf(patterns))
-                          Done
-                    }
-                )
-                .runWith(Sink.ignore)
-            }.unit
+        RestartSource
+          .onFailuresWithBackoff(restartSettings)(
+            () =>
+              events
+                .via(eventAdapter)
+                .map {
+                  case e@Create(id, data) =>
+                    IzanamiLogger.debug(s"Applying create event $e")
+                    createSync(id, data)
+                    Done
+                  case e@Update(oldId, id, data) =>
+                    IzanamiLogger.debug(s"Applying update event $e")
+                    updateSync(oldId, id, data)
+                    Done
+                  case e@Delete(id) =>
+                    IzanamiLogger.debug(s"Applying delete event $e")
+                    deleteSync(id)
+                    Done
+                  case e@DeleteAll(patterns) =>
+                    IzanamiLogger.debug(s"Applying delete all event $e")
+                    deleteAllSync(Query.oneOf(patterns))
+                    Done
+                }
+          )
+          .runWith(Sink.ignore)
+      }.unit
     } yield res
+  }
 
   override def create(id: Key, data: JsValue): ZIO[DataStoreContext, IzanamiErrors, JsValue] =
     for {

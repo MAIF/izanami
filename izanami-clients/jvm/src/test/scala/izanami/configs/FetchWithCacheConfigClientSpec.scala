@@ -17,7 +17,7 @@ class FetchWithCacheConfigClientSpec extends IzanamiSpec with BeforeAndAfterAll 
   implicit val system       = ActorSystem("test")
   implicit val materializer = Materializer.createMaterializer(system)
 
-  override def afterAll: Unit =
+  override def afterAll(): Unit =
     TestKit.shutdownActorSystem(system)
 
   "FetchWithCacheFeatureStrategy" should {

@@ -10,7 +10,7 @@ import play.api.{Logger, Mode}
 import play.api.libs.json.Json
 import play.api.mvc.{Filter, RequestHeader, Result, Results}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 

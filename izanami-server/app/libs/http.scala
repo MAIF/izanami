@@ -1,4 +1,5 @@
 package libs
+
 import zio._
 import play.api.mvc._
 import domains.auth.AuthInfo
@@ -7,7 +8,7 @@ import controllers.actions.{AuthContext, SecuredAuthContext}
 
 import scala.concurrent.Future
 
-package object http {
+object http {
 
   type HttpContext[A] = ZLayer[ZEnv, Throwable, A]
 
