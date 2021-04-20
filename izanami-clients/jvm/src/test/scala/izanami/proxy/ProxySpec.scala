@@ -105,7 +105,7 @@ class ProxySpec extends IzanamiSpec with BeforeAndAfterAll {
     }
   }
 
-  override def afterAll: Unit =
+  override def afterAll(): Unit =
     TestKit.shutdownActorSystem(system)
 
 }
