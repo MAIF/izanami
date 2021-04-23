@@ -15,22 +15,22 @@ export class SelectInput extends Component {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.valuesFrom && nextProps.value !== this.props.value) {
+  componentDidUpdate(prevProps) {
+    if (this.props.valuesFrom && this.props.value !== prevProps.value) {
       this.reloadValues().then(() => {
-        this.setState({ value: nextProps.value });
+        this.setState({ value: this.props.value });
       });
     }
-    if (nextProps.possibleValues !== this.props.possibleValues) {
+    if (prevProps.possibleValues !== this.props.possibleValues) {
       this.setState({
-        values: (nextProps.possibleValues || []).map(a => ({
+        values: (this.props.possibleValues || []).map(a => ({
           label: a,
           value: a
         }))
       });
     }
-    if (!nextProps.valuesFrom && nextProps.value !== this.props.value) {
-      this.setState({ value: nextProps.value });
+    if (!this.props.valuesFrom && this.props.value !== prevProps.value) {
+      this.setState({ value: this.props.value });
     }
   }
 

@@ -1,7 +1,8 @@
-import React, { Component } from "react";
+import React, {PureComponent} from "react";
 
 function convert(values) {
   return values
+    .slice(0) // reverse change original value
     .reverse()
     .filter(([k]) => !!k)
     .reduce((acc, [k, v]) => {
@@ -9,30 +10,16 @@ function convert(values) {
     }, {});
 }
 
-export class ObjectInput extends Component {
+export class ObjectInput extends PureComponent {
   state = {
-    values: []
+    values: this.props.value ? Object.entries(this.props.value) : []
   };
-
-  componentDidMount() {
-    const values = Object.entries(this.props.value);
-    this.setState({ values });
-  }
-
-  componentWillReceiveProps(nextProps) {
-    const values = Object.entries(nextProps.value);
-    this.setState({ values });
-  }
 
   changeValue = (e, name, index) => {
     if (e && e.preventDefault) e.preventDefault();
 
     const values = this.state.values.map(([k, v], i) => {
-      if (i === index) {
-        return [k, e.target.value];
-      } else {
-        return [k, v];
-      }
+      return i === index ? [k, e.target.value] : [k, v];
     });
 
     this.setState({ values });
@@ -43,12 +30,9 @@ export class ObjectInput extends Component {
     if (e && e.preventDefault) e.preventDefault();
 
     const values = this.state.values.map(([k, v], i) => {
-      if (i === index) {
-        return [e.target.value, v];
-      } else {
-        return [k, v];
-      }
+      return i === index ? [e.target.value, v]: [k, v];
     });
+
     this.setState({ values });
     this.props.onChange(convert(values));
   };
