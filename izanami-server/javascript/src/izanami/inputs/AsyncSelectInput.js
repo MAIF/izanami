@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { customStyles } from "../../styles/reactSelect";
-import Async from "react-select/lib/Async";
+import Async from "react-select/async";
 
 export class AsyncSelectInput extends Component {
   state = {
@@ -8,10 +8,6 @@ export class AsyncSelectInput extends Component {
     value: this.props.value || null,
     loadedOptions: []
   };
-
-  componentDidMount() {}
-
-  componentWillReceiveProps(nextProps) {}
 
   loadOptions = query => {
     return fetch(this.props.computeUrl(query), {

@@ -881,7 +881,6 @@ export class Table extends Component {
                   copyNodes={this.props.copyNodes}
                   searchKeys={this.props.searchKeys}
                   itemLink={this.props.itemLink}
-                  search={this.search}
                   onSearchChange={ text => {
                     this.update({ filtered: [{ id: "key", value: text }] });
                   }}
