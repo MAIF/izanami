@@ -17,19 +17,14 @@ export class MultiSearch extends Component {
   state = {
     display: false,
     results: [],
-    filters: {},
+    filters: this.props.filters || {},
     inputStyle: {},
     query: ""
   };
 
   componentDidMount() {
-    this.setState({ filters: this.props.filters });
     this.toggleTouchOutsideEvent(true);
     document.addEventListener("keydown", this.listenToSlash, false);
-  }
-
-  componentWillReceiveProps(props) {
-    this.setState({ filters: props.filters });
   }
 
   applyFilter = name => value => {

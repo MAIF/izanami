@@ -10,8 +10,8 @@
     font-size: 12px;
 }
 .ant-calendar-picker-input{
-  background-color: transparent;
-  border: none;
+    background-color: transparent;
+    border: none;
     color: #fff;
 }
 
@@ -26,8 +26,8 @@
 }
 
 .ant-calendar-input {
-  background-color: transparent;
-  color: #e6e6e6;
+    background-color: transparent;
+    color: #e6e6e6;
 }
 .ant-calendar-picker {
     background-color: #494948;

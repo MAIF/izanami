@@ -1,9 +1,10 @@
-import React, { Component } from "react";
+import React, {Component, PureComponent} from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import Popover from "react-popover";
 import {KeyInput} from "./KeyInput";
 import {BooleanInput} from "./BooleanInput";
+import {search} from "../services";
 
 const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
@@ -271,7 +272,7 @@ class Node extends Component {
 
 }
 
-export class Tree extends Component {
+export class Tree extends PureComponent {
   static propTypes = {
     datas: PropTypes.array.isRequired,
     renderValue: PropTypes.func.isRequired,
@@ -279,7 +280,6 @@ export class Tree extends Component {
     openOnTable: PropTypes.func.isRequired,
     initialSearch: PropTypes.string,
     itemLink: PropTypes.func,
-    search: PropTypes.func,
     editAction: PropTypes.func,
     removeAction: PropTypes.func,
     copyNodeWindow: PropTypes.bool,
@@ -288,9 +288,9 @@ export class Tree extends Component {
   };
 
   state = {
-    nodes: []
+    nodes: [],
+    search: ""
   };
-
 
   search = e => {
     if (e && e.target) {
@@ -300,26 +300,32 @@ export class Tree extends Component {
   };
 
   componentDidMount() {
-    this.setState({
-      nodes: this.convertDatas(this.props.datas),
-      search: this.props.initialSearch
-    });
+    this.setState({nodes: Tree.convertDatas(this.props.datas)})
   }
 
-  componentWillReceiveProps(nextProps) {
-    this.setState({ nodes: this.convertDatas(nextProps.datas || []) });
+  componentDidUpdate(prevProp) {
+    const newNodes = Tree.convertDatas(this.props.datas || []);
+    const prevPropNodes = Tree.convertDatas(prevProp.datas || []);
+    if(!Tree.isEquals(newNodes, prevPropNodes)) {
+      this.setState({nodes: newNodes})
+    }
   }
 
-  convertDatas = (d = []) => {
-    return d.map(this.convertNode);
+  static isEquals(newNodes, prevPropNodes) {
+    return newNodes.length === prevPropNodes.length
+      && newNodes.filter(newNode => !prevPropNodes.filter(prevPropNode => prevPropNode.id === newNode.id)).length === 0;
+  }
+
+  static convertDatas = (d = []) => {
+    return d.map(Tree.convertNode);
   };
 
-  convertNode = (node, i) => {
+  static convertNode = (node, i) => {
     return {
       id: node.id,
       text: node.key,
       value: node.value,
-      nodes: (node.childs || []).map(this.convertNode)
+      nodes: (node.childs || []).map(Tree.convertNode)
     };
   };
   render() {

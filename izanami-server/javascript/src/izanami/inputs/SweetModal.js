@@ -1,29 +1,20 @@
-import React, { Component } from "react";
+import React, {Component} from "react";
 
 export class SweetModal extends Component {
-  constructor(props) {
-    super(props);
 
-    this.state = {
-      confirmToDelete: "",
-      errors: []
-    };
+  state = {
+    confirmToDelete: "",
+    errors: []
   }
 
-  componentDidMount() {
-    this.setState({
-      confirmToDelete: "",
-      errors: []
-    });
+  componentDidUpdate() {
+    if (this.state.confirmToDelete !== "" || this.state.errors.length != 0) {
+      this.setState({
+        confirmToDelete: "",
+        errors: []
+      });
+    }
     this.toggleModal(this.props.open);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    this.setState({
-      confirmToDelete: "",
-      errors: []
-    });
-    this.toggleModal(nextProps.open);
   }
 
   toggleModal = (open = false) => {
@@ -43,7 +34,7 @@ export class SweetModal extends Component {
     const value = target.type === "checkbox" ? target.checked : target.value;
     const name = target.name;
 
-    const nextState = Object.assign({}, this.state, { [name]: value });
+    const nextState = Object.assign({}, this.state, {[name]: value});
     this.setState(nextState);
   };
 
@@ -54,7 +45,7 @@ export class SweetModal extends Component {
       } else {
         const errors = [];
         errors.push("confirmToDelete.error");
-        this.setState({ errors });
+        this.setState({errors});
       }
     } else {
       this.props.confirm(e);
