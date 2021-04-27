@@ -47,6 +47,8 @@
     "webpack-dev-server": "4.0.0-beta.1"
   },
   "dependencies": {
+    "@popperjs/core": "2.9.2",
+    "@tippyjs/react": "4.2.5",
     "ace-builds": "1.4.12",
     "antd": "4.15.2",
     "bootstrap": "4.3.1",
@@ -61,12 +63,11 @@
     "lodash": "4.17.21",
     "moment": "2.21.0",
     "popper.js": "^1.16.0",
-    "prop-types": "15.6.0",
+    "prop-types": "15.7.2",
     "query-string": "^6.2.0",
     "react": "16.14.0",
     "react-ace": "7.0.5",
     "react-dom": "16.14.0",
-    "react-popover": "0.5.10",
     "react-router": "5.2.0",
     "react-router-dom": "5.2.0",
     "react-select": "4.3.0",

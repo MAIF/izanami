@@ -1,7 +1,6 @@
 import React, { Component } from "react";
 import moment from "moment";
 
-import LocaleProvider from "antd/lib/locale-provider";
 import ConfigProvider from "antd/lib/config-provider"
 import enUS from "antd/lib/locale-provider/en_US";
 
@@ -66,7 +65,7 @@ export class IzaDatePicker extends Component {
     const df = dateFormat || "YYYY-MM-DD";
     const tf = timeFormat || "HH:mm:ss";
     return (
-      <LocaleProvider locale={enUS}>
+      <ConfigProvider locale={enUS}>
         <DatePicker
           defaultValue={date}
           showTime={{ format: tf }}
@@ -75,7 +74,7 @@ export class IzaDatePicker extends Component {
           onChange={this.onChange}
           onOk={value => value}
         />
-      </LocaleProvider>
+      </ConfigProvider>
     );
   }
 }
