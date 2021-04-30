@@ -825,8 +825,7 @@ export class Table extends Component {
                       {this.props.uploadLinks && !this.props.disableAddButton &&
                         this.props.uploadLinks.map(({ title, link }, i) => (
                           <li key={`upload-${i}`}>
-                            <a
-                              href=""
+                            <div
                               style={{ cursor: "pointer" }}
                               onClick={e => {
                                 document.getElementById(`upload${i}`).click();
@@ -841,7 +840,7 @@ export class Table extends Component {
                                 onChange={this.uploadFile(link)}
                                 {...createTooltip(`${title}`)}
                               />
-                            </a>
+                            </div>
                           </li>
                         ))}
                       <li></li>
