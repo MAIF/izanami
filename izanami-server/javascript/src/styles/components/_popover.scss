@@ -1,7 +1,12 @@
 .popover {
 	color: $fondBody;
-	left:calc(50% - 135px)!important;
+	left:calc(50%)!important;
 	top: 60px!important;
+    transform: translateX(-50%)!important;
+
+	.arrow{
+		display: none;
+	}
 }
 
 .popover-title {
@@ -26,4 +31,14 @@
 	color: #FFF;
 	overflow: auto;
 	border-radius: 0 0 5px 5px;
+}
+
+.popover-body{
+	.btn {
+		color:$colorBleue;
+		margin-bottom: 10px;
+		&:hover{
+			background-color: #fff;
+		};
+	}
 }
