@@ -240,7 +240,7 @@ export class LoggedApp extends Component {
                 {...popover({
                   options: {
                     title:
-                      '<span><strong>Create a user</strong></span><button type="button" class="close cancel float-right" >&times;</button>',
+                      '<span><strong>Create a user</strong></span>',
                     html: true,
                     content:
                       '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary float-right click" href="/users/add">Create user</a>',
