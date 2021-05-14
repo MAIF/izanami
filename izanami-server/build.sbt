@@ -44,55 +44,55 @@ libraryDependencies ++= Seq(
   jdbc,
   javaWs,
   ehcache,
-  "de.svenkubiak"            % "jBCrypt"                              % "0.4.1", //  ISC/BSD
-  "com.auth0"                % "java-jwt"                             % "3.3.0", // MIT license
-  "com.nimbusds"             % "nimbus-jose-jwt"                      % "8.0",
-  "org.gnieh"                %% "diffson-play-json"                   % "4.0.2", //
-  "com.softwaremill.macwire" %% "macros"                              % "2.3.3" % "provided", // Apache 2.0
-  "org.scala-lang.modules"   %% "scala-collection-compat"             % "2.1.4",
-  "com.typesafe.akka"        %% "akka-actor"                          % Dependencies.akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-slf4j"                          % Dependencies.akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream"                         % Dependencies.akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-actor-typed"                    % Dependencies.akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-cluster"                        % Dependencies.akkaVersion, // Apache 2.0
-  "com.typesafe.akka"        %% "akka-cluster-tools"                  % Dependencies.akkaVersion, // Apache 2.0
-  "dev.zio"                  %% "zio"                                 % "1.0.1",
-  "dev.zio"                  %% "zio-interop-cats"                    % "2.1.4.0",
-  "org.reactivemongo"        %% "reactivemongo-akkastream"            % "0.20.3",
-  "org.reactivemongo"        %% "reactivemongo-play-json-compat"      % "0.20.3-play28",
-  "org.reactivemongo"        %% "play2-reactivemongo"                 % "0.20.3-play28",
-  "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"        % Dependencies.alpakkaVersion, // Apache 2.0
-  "io.lettuce"               % "lettuce-core"                         % "5.2.2.RELEASE", // Apache 2.0
-  "org.iq80.leveldb"         % "leveldb"                              % "0.12", // Apache 2.0
-  "org.typelevel"            %% "cats-core"                           % "2.2.0", // MIT license
-  "org.typelevel"            %% "cats-effect"                         % "2.2.0", // MIT license
-  "org.tpolecat"             %% "doobie-core"                         % doobieVersion,
-  "org.tpolecat"             %% "doobie-hikari"                       % doobieVersion,
-  "org.tpolecat"             %% "doobie-postgres"                     % doobieVersion,
-  "com.github.krasserm"      %% "streamz-converter"                   % "0.11-RC1",
-  "com.chuusai"              %% "shapeless"                           % "2.3.3", // Apache 2.0
-  "com.github.pureconfig"    %% "pureconfig"                          % "0.12.3", // Apache 2.0
-  "com.typesafe.akka"        %% "akka-stream-kafka"                   % "2.0.0", // Apache 2.0
-  "com.adelegue"             %% "elastic-scala-http"                  % "1.0.0", // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-core"                         % metricsVersion, // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-jvm"                          % metricsVersion, // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-jmx"                          % metricsVersion, // Apache 2.0
-  "io.dropwizard.metrics"    % "metrics-json"                         % metricsVersion, // Apache 2.0
-  "io.prometheus"            % "simpleclient_common"                  % prometheusVersion, // Apache 2.0
-  "io.prometheus"            % "simpleclient_dropwizard"              % prometheusVersion, // Apache 2.0
-  "org.scala-lang"           % "scala-compiler"                       % scalaVersion.value,
-  "org.scala-lang"           % "scala-library"                        % scalaVersion.value,
-  "net.java.dev.jna"         % "jna"                                  % "5.5.0",
-  "org.jetbrains.kotlin"     % "kotlin-stdlib-jdk8"                   % kotlinVersion,
-  "org.jetbrains.kotlin"     % "kotlin-script-runtime"                % kotlinVersion,
-  "org.jetbrains.kotlin"     % "kotlin-script-util"                   % kotlinVersion,
-  "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"           % kotlinVersion,
-  "org.jetbrains.kotlin"     % "kotlin-scripting-compiler-embeddable" % kotlinVersion,
-  "org.webjars"              % "swagger-ui"                           % "3.25.0",
-  "net.logstash.logback"     % "logstash-logback-encoder"             % "6.3",
-  "com.typesafe.akka"        %% "akka-http"                           % Dependencies.akkaHttpVersion % "it,test", // Apache 2.0
-  "com.typesafe.akka"        %% "akka-testkit"                        % Dependencies.akkaVersion % "it,test", // Apache 2.0
-  "de.heikoseeberger"        %% "akka-http-play-json"                 % "1.31.0" % "it,test" excludeAll ExclusionRule(
+  "de.svenkubiak"            % "jBCrypt"                         % "0.4.1", //  ISC/BSD
+  "com.auth0"                % "java-jwt"                        % "3.3.0", // MIT license
+  "com.nimbusds"             % "nimbus-jose-jwt"                 % "8.0",
+  "org.gnieh"                %% "diffson-play-json"              % "4.0.2", //
+  "com.softwaremill.macwire" %% "macros"                         % "2.3.3" % "provided", // Apache 2.0
+  "org.scala-lang.modules"   %% "scala-collection-compat"        % "2.1.4",
+  "com.typesafe.akka"        %% "akka-actor"                     % Dependencies.akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-slf4j"                     % Dependencies.akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-stream"                    % Dependencies.akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-actor-typed"               % Dependencies.akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-cluster"                   % Dependencies.akkaVersion, // Apache 2.0
+  "com.typesafe.akka"        %% "akka-cluster-tools"             % Dependencies.akkaVersion, // Apache 2.0
+  "dev.zio"                  %% "zio"                            % "1.0.1",
+  "dev.zio"                  %% "zio-interop-cats"               % "2.1.4.0",
+  "org.reactivemongo"        %% "reactivemongo-akkastream"       % "0.20.3",
+  "org.reactivemongo"        %% "reactivemongo-play-json-compat" % "0.20.3-play28",
+  "org.reactivemongo"        %% "play2-reactivemongo"            % "0.20.3-play28",
+  "com.lightbend.akka"       %% "akka-stream-alpakka-dynamodb"   % Dependencies.alpakkaVersion, // Apache 2.0
+  "io.lettuce"               % "lettuce-core"                    % "5.2.2.RELEASE", // Apache 2.0
+  "org.iq80.leveldb"         % "leveldb"                         % "0.12", // Apache 2.0
+  "org.typelevel"            %% "cats-core"                      % "2.2.0", // MIT license
+  "org.typelevel"            %% "cats-effect"                    % "2.2.0", // MIT license
+  "org.tpolecat"             %% "doobie-core"                    % doobieVersion,
+  "org.tpolecat"             %% "doobie-hikari"                  % doobieVersion,
+  "org.tpolecat"             %% "doobie-postgres"                % doobieVersion,
+//  "com.github.krasserm"      %% "streamz-converter"                   % "0.11-RC1",
+  "com.chuusai"           %% "shapeless"                           % "2.3.3", // Apache 2.0
+  "com.github.pureconfig" %% "pureconfig"                          % "0.12.3", // Apache 2.0
+  "com.typesafe.akka"     %% "akka-stream-kafka"                   % "2.0.0", // Apache 2.0
+  "com.adelegue"          %% "elastic-scala-http"                  % "1.0.0", // Apache 2.0
+  "io.dropwizard.metrics" % "metrics-core"                         % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics" % "metrics-jvm"                          % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics" % "metrics-jmx"                          % metricsVersion, // Apache 2.0
+  "io.dropwizard.metrics" % "metrics-json"                         % metricsVersion, // Apache 2.0
+  "io.prometheus"         % "simpleclient_common"                  % prometheusVersion, // Apache 2.0
+  "io.prometheus"         % "simpleclient_dropwizard"              % prometheusVersion, // Apache 2.0
+  "org.scala-lang"        % "scala-compiler"                       % scalaVersion.value,
+  "org.scala-lang"        % "scala-library"                        % scalaVersion.value,
+  "net.java.dev.jna"      % "jna"                                  % "5.5.0",
+  "org.jetbrains.kotlin"  % "kotlin-stdlib-jdk8"                   % kotlinVersion,
+  "org.jetbrains.kotlin"  % "kotlin-script-runtime"                % kotlinVersion,
+  "org.jetbrains.kotlin"  % "kotlin-script-util"                   % kotlinVersion,
+  "org.jetbrains.kotlin"  % "kotlin-compiler-embeddable"           % kotlinVersion,
+  "org.jetbrains.kotlin"  % "kotlin-scripting-compiler-embeddable" % kotlinVersion,
+  "org.webjars"           % "swagger-ui"                           % "3.25.0",
+  "net.logstash.logback"  % "logstash-logback-encoder"             % "6.3",
+  "com.typesafe.akka"     %% "akka-http"                           % Dependencies.akkaHttpVersion % "it,test", // Apache 2.0
+  "com.typesafe.akka"     %% "akka-testkit"                        % Dependencies.akkaVersion % "it,test", // Apache 2.0
+  "de.heikoseeberger"     %% "akka-http-play-json"                 % "1.31.0" % "it,test" excludeAll ExclusionRule(
     "com.typesafe.play",
     "play-json"
   ), // Apache 2.0
