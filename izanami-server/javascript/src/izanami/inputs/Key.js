@@ -4,7 +4,7 @@ const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
   return (
     <div
-      className="btn-group btn-breadcrumb breadcrumb-info"
+      className="btn-group btn-breadcrumb"
       data-toggle="tooltip"
       data-placement="top"
       title={props.value}
