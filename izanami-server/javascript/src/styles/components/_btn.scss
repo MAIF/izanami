@@ -176,12 +176,12 @@
     border-color: $savecolor;
     background-color: $savecolor;
   }
-  &[disabled] {
-    color: $colorGris;
-    text-shadow: none;
-    background-color: transparent;
-    border-color: $savecolor;
-  }
+  // &[disabled] {
+  //   color: $colorGris;
+  //   text-shadow: none;
+  //   background-color: transparent;
+  //   border-color: $savecolor;
+  // }
   &.disabled {
     color: $colorGris;
     text-shadow: none;
