@@ -966,7 +966,7 @@ export class Table extends Component {
                 title="Delete current item"
                 onClick={e => this.setState({ confirmDelete: true })}
               >
-                <i class="far fa-trash-alt"></i> Delete
+                <i className="far fa-trash-alt"></i> Delete
               </button>}
               <button
                 type="button"
