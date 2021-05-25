@@ -166,7 +166,7 @@ class Node extends Component {
           )}
 
           <div
-            className="btn-group btn-breadcrumb breadcrumb-info"
+            className="btn-group btn-breadcrumb"
           >
             <div className="key-value-value d-flex align-items-center">
               <span onClick={this.toggleChildOrEdit(id, this.props.node)}>{this.props.node.text}</span>
