@@ -59,6 +59,7 @@ export class ApikeyPage extends Component {
     {
       title: "Authorized patterns",
       notFilterable: true,
+      style: { textAlign: "center" },
       content: item => <AuthorizedPatterns value={item.authorizedPatterns} />
     }
   ];
