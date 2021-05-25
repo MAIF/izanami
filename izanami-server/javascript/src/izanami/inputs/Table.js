@@ -814,7 +814,7 @@ export class Table extends Component {
                     >
                       <i className="fas fa-cog" aria-hidden="true" />
                     </button>
-                    <ul className="dropdown-menu p-3">
+                    <ul className="dropdown-menu p-3" style={{width:'300px'}}>
                       {this.props.downloadLinks &&
                         this.props.downloadLinks.map(({ title, link }, i) => (
                           <li key={`download-${i}`}>
