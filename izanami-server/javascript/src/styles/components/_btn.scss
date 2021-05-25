@@ -92,6 +92,15 @@
   }
 }
 
+.input-group-btn.crud{
+  .btn:disabled{
+    cursor:not-allowed;
+  }
+  .btn-success:not(.active) {
+    background: none ;
+  }
+}
+
 .content-switch-button {
   width: 35px;
   height: 22px;
