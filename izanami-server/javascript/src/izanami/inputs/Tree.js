@@ -9,7 +9,7 @@ import * as IzanamiService from "../services/index";
 const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
   return (
-    <div className="btn-group btn-breadcrumb" style={{marginTop: '10px'}}>
+    <div className="btn-group btn-breadcrumb" >
       {values.map((part, i) => (
         <div className="key-value-value-big" key={`key-value-${props.value}-${i}`}>
           <span>{part}</span>
@@ -45,8 +45,8 @@ class CopyNodeWindow extends Component {
               <Key value={this.props.nodekey || ''}/>
             </div>
           </div>
-          <div className="form-group">
-            <label htmlFor={`input-From`} className="col-sm-2 control-label">
+          <div className="form-group row">
+            <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
               To
             </label>
             <div className="col-sm-10">
