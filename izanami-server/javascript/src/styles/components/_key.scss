@@ -63,6 +63,14 @@
 .btn-breadcrumb .btn-info{
     background-image: linear-gradient(to bottom, $fondBody 0, $fondBody 100%);
 }
+.letter-group .letter{
+  margin: 1px;
+  padding: 1px;
+  font-size: 14px;
+  font-weight: 300;
+  border : 1px solid #419641;
+  color: #fff
+}
 
 .closeKeypicker {
     margin-left: 5px;
