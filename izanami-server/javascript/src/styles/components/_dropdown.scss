@@ -1,19 +1,25 @@
-
 .dropdown-menu {
   background-color: $fondBody;
-}
 
-.dropdown-menu > li > a:focus, .dropdown-menu > li > a:hover,
-.dropdown-menu > li > div:focus, .dropdown-menu > li > div:hover{
-  background-image: none;
-  background-color: $fondGrisclairSurvolMenu;
-}
+  > li {
+    > a:focus,
+    > a:hover,
+    > div:focus,
+    > div:hover {
+      background-image: none;
+    }
+  }
 
-.dropdown-menu > li > a,
-.dropdown-menu > li > div{
-  color: $colorGris;
+  > li > a,
+  > li > div {
+    color: $colorGris;
+  }
 }
 
 .dropdown-menu-right i {
   min-width: 16px;
+}
+
+.dropdown-item {
+  transition-duration: 1s;
 }

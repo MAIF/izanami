@@ -732,7 +732,7 @@ export class Table extends Component {
       <div className="col-12">
         {!this.state.showEditForm && !this.state.showAddForm && (
           <div>
-            <div className="row" style={{ marginBottom: 10 }}>
+            <div className="row mb-2">
               <div className="col-md-12">
                 {this.state.error && (
                   <Alerts
@@ -751,13 +751,12 @@ export class Table extends Component {
                   )}
               </div>
             </div>
-            <div className="row" style={{ marginBottom: 10 }}>
+            <div className="row mb-2">
               <div className="col-md-12">
                 {this.props.treeModeEnabled && this.isTable() && (
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ marginLeft: 10 }}
+                    className="btn btn-primary ml-2"
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
@@ -767,9 +766,8 @@ export class Table extends Component {
                 {this.isTree() && (
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary ml-2"
                     onClick={this.toggleRender}
-                    style={{ marginLeft: 10 }}
                     {...createTooltip("Switch the view")}
                   >
                     <i className="fas fa-list" />
@@ -787,8 +785,7 @@ export class Table extends Component {
                 {this.props.showActions && !this.props.disableAddButton && (
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ marginLeft: 10 }}
+                    className="btn btn-primary ml-2"
                     onClick={this.showAddForm}
                     {...createTooltip(`Create a new ${this.props.itemName}`)}
                   >
@@ -797,12 +794,7 @@ export class Table extends Component {
                 )}
                 {this.props.showActions && this.props.user.admin && (
                   <div
-                    className="dropdown"
-                    style={{
-                      display: "inline-block",
-                      marginLeft: 10,
-                      height: 34
-                    }}
+                    className="dropdown menuActions"
                   >
                     <button
                       className="btn-dropdown"
@@ -810,11 +802,10 @@ export class Table extends Component {
                       type="button"
                       aria-haspopup="true"
                       aria-expanded="false"
-                      style={{ verticalAlign: "middle" }}
                     >
                       <i className="fas fa-cog" aria-hidden="true" />
                     </button>
-                    <ul className="dropdown-menu p-3" style={{width:'300px'}}>
+                    <ul className="dropdown-menu p-3" >
                       {this.props.downloadLinks &&
                         this.props.downloadLinks.map(({ title, link }, i) => (
                           <li key={`download-${i}`}>
@@ -827,8 +818,8 @@ export class Table extends Component {
                       {this.props.uploadLinks && !this.props.disableAddButton &&
                         this.props.uploadLinks.map(({ title, link }, i) => (
                           <li key={`upload-${i}`}>
-                            <div
-                              style={{ cursor: "pointer" }}
+                            <div 
+                              className="cursor-pointer"
                               onClick={e => {
                                 document.getElementById(`upload${i}`).click();
                               }}
@@ -838,7 +829,7 @@ export class Table extends Component {
                               <input
                                 id={`upload${i}`}
                                 type="file"
-                                style={{ display: "none" }}
+                                className="d-none"
                                 onChange={this.uploadFile(link)}
                                 {...createTooltip(`${title}`)}
                               />
