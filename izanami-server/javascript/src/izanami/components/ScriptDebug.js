@@ -134,7 +134,7 @@ export class ScriptDebug extends Component {
             </div>
           </div>
         </div>
-        <div className="row mt-2">
+        <div className="row mt-3">
           <Logs
             title="Logs"
             size={this.state.logsExpanded}

@@ -11,31 +11,22 @@
 }
 .keypicker.is-disabled > .keypicker-control {
   background-color: #9e9e9e;
-
+  &:hover {
+    box-shadow: none;
+  }
+  .keypicker-arrow-zone {
+    cursor: default;
+    pointer-events: none;
+    opacity: 0.35;
+  }
   button {
     background-color: #494948;
   }
 }
-.keypicker.is-disabled > .keypicker-control:hover {
-  box-shadow: none;
-}
-.keypicker.is-disabled .keypicker-arrow-zone {
-  cursor: default;
-  pointer-events: none;
-  opacity: 0.35;
-}
-
-
-.keypicker--multi .keypicker-multi-value-wrapper {
-  display: flex;
-  align-items: center;
-  flex-grow: 1;
-  margin-left: 5px;
-}
 
 .keypicker-control {
-  background: 	none;
-  border: 	none;
+  background: none;
+  border: none;
   background-color: $fondNavbar;
   border-color: #d9d9d9 #ccc #b3b3b3;
   border-radius: 4px;
@@ -50,94 +41,107 @@
   overflow: hidden;
   position: relative;
   width: 100%;
+  &:hover {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  }
+  .keypicker-input:focus {
+    outline: none;
+  }
+  &:not(.is-searchable) > .keypicker-input {
+    outline: none;
+  }
 }
 
-.keypicker-control:hover {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-}
+.keypicker--multi {
+  .keypicker-multi-value-wrapper {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    margin-left: 5px;
+  }
+  .keypicker-input {
+    vertical-align: middle;
+    margin-left: 3px;
+    padding: 0;
+  }
+  .keypicker-value-sep {
+    color: $primaryColor;
+    display: inline-block;
+    font-size: 0.9em;
+    line-height: 1.4;
+    margin-left: 2px;
+    margin-top: 6px;
+    vertical-align: top;
+  }
+  .keypicker-value-sep-label {
+    display: flex;
+    flex-grow: 1;
+    vertical-align: middle;
+    padding: 2px 5px;
+  }
+  .keypicker-value-icon,
+  .keypicker-value-label {
+    display: inline-block;
+    vertical-align: middle;
+  }
 
-.keypicker-control .keypicker-input:focus {
-  outline: none;
-}
+  .keypicker-value-label {
+    border-bottom-right-radius: 2px;
+    border-top-right-radius: 2px;
+    cursor: default;
+    padding: 2px 5px;
+  }
+  a.keypicker-value-label {
+    color: $primaryColor;
+    cursor: pointer;
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+  .keypicker-value-icon {
+    cursor: pointer;
+    border-bottom-left-radius: 2px;
+    border-top-left-radius: 2px;
+    border-left: 1px solid $primaryColor;
+    /* Fallback color for IE 8 */
+    border-right: 1px solid rgba(0, 126, 255, 0.24);
+    padding: 1px 5px 3px;
+    &:hover,
+    &:focus {
+      background-color: none;
+      /* Fallback color for IE 8 */
+      background-color: rgba(0, 113, 230, 0.08);
+      color: $primaryColor;
+    }
+    &:active {
+      background-color: none;
+      /* Fallback color for IE 8 */
+      background-color: rgba(0, 126, 255, 0.24);
+    }
+  }
+  &.has-value .keypicker-input {
+    margin-left: 3px;
+  }
 
-.keypicker--multi .keypicker-input {
-  vertical-align: middle;
-  margin-left: 3px;
-  padding: 0;
-}
-.keypicker--multi.has-value .keypicker-input {
-  margin-left: 3px;
-}
-.keypicker--multi .keypicker-value-sep {
-  color: $primaryColor;
-  display: inline-block;
-  font-size: 0.9em;
-  line-height: 1.4;
-  margin-left: 2px;
-  margin-top: 6px;
-  vertical-align: top;
-}
-.keypicker--multi .keypicker-value-sep-label {
-  display: flex;
-  flex-grow: 1;
-  vertical-align: middle;
-  padding: 2px 5px;
-}
-.keypicker--multi .keypicker-value-icon,
-.keypicker--multi .keypicker-value-label {
-  display: inline-block;
-  vertical-align: middle;
-}
-.keypicker--multi .keypicker-value-label {
-  border-bottom-right-radius: 2px;
-  border-top-right-radius: 2px;
-  cursor: default;
-  padding: 2px 5px;
-}
-.keypicker--multi a.keypicker-value-label {
-  color: $primaryColor;
-  cursor: pointer;
-  text-decoration: none;
-}
-.keypicker--multi a.keypicker-value-label:hover {
-  text-decoration: underline;
-}
-.keypicker--multi .keypicker-value-icon {
-  cursor: pointer;
-  border-bottom-left-radius: 2px;
-  border-top-left-radius: 2px;
-  border-left: 1px solid $primaryColor;
-  /* Fallback color for IE 8 */
-  border-right: 1px solid rgba(0, 126, 255, 0.24);
-  padding: 1px 5px 3px;
-}
-.keypicker--multi .keypicker-value-icon:hover,
-.keypicker--multi .keypicker-value-icon:focus {
-  background-color: none;
-  /* Fallback color for IE 8 */
-  background-color: rgba(0, 113, 230, 0.08);
-  color: $primaryColor;
-}
-.keypicker--multi .keypicker-value-icon:active {
-  background-color: none;
-  /* Fallback color for IE 8 */
-  background-color: rgba(0, 126, 255, 0.24);
-}
-.keypicker--multi.is-disabled .keypicker-value {
-  background-color: none;
-  //border: 1px solid #e3e3e3;
-  color: #d9d9d9;
-}
-.keypicker--multi.is-disabled .keypicker-value-icon {
-  cursor: not-allowed;
-  border-left: 1px solid $primaryColor;
-}
-.keypicker--multi.is-disabled .keypicker-value-icon:hover,
-.keypicker--multi.is-disabled .keypicker-value-icon:focus,
-.keypicker--multi.is-disabled .keypicker-value-icon:active {
-  background-color: none;
-}
+  &.is-disabled .keypicker-value {
+    background-color: none;
+    //border: 1px solid #e3e3e3;
+    color: #d9d9d9;
+  }
 
+  &.is-disabled {
+    .keypicker-value-icon {
+      cursor: not-allowed;
+      border-left: 1px solid $primaryColor;
+      &:hover,
+      &:focus,
+      &:active {
+        background-color: none;
+      }
+    }
+  }
+}
 
 .keypicker-input {
   height: 34px;
@@ -145,34 +149,32 @@
   padding-right: 10px;
   vertical-align: middle;
   flex-grow: 1;
-}
-.keypicker-input > input {
-  width: 100%;
-  background: none transparent;
-  border: 0 none;
-  box-shadow: none;
-  cursor: default;
-  display: inline-block;
-  color: white;
-  font-family: inherit;
-  font-size: inherit;
+  > input {
+    width: 100%;
+    background: none transparent;
+    border: 0 none;
+    box-shadow: none;
+    cursor: default;
+    display: inline-block;
+    color: white;
+    font-family: inherit;
+    font-size: inherit;
 
-  margin: 0;
-  outline: none;
-  line-height: 14px;
-  /* For IE 8 compatibility */
-  padding: 8px 0 12px;
-  /* For IE 8 compatibility */
-  -webkit-appearance: none;
+    margin: 0;
+    outline: none;
+    line-height: 14px;
+    /* For IE 8 compatibility */
+    padding: 8px 0 12px;
+    /* For IE 8 compatibility */
+    -webkit-appearance: none;
+  }
 }
+
 .is-focused .keypicker-input > input {
   cursor: text;
 }
 .has-value.is-pseudo-focused .keypicker-input {
   opacity: 0;
-}
-.keypicker-control:not(.is-searchable) > .keypicker-input {
-  outline: none;
 }
 
 .keypicker-menu-outer {
@@ -188,17 +190,28 @@
   width: 100%;
   z-index: 5;
   -webkit-overflow-scrolling: touch;
-}
-
-
-.keypicker-menu-outer .keypicker-multi-value-wrapper {
-  display: flex;
-  flex-grow: 1;
+  .keypicker-multi-value-wrapper {
+    display: flex;
+    flex-grow: 1;
+  }
+  .keypicker-result-value {
+    background-color: transparent;
+    color: white;
+    padding-top: 2px;
+    margin-right: 2px;
+    margin-bottom: 2px;
+    padding-bottom: 2px;
+    border-radius: 2px;
+    cursor: pointer;
+    &.result-active {
+      background-color: $fondGrisclairSurvolMenu;
+    }
+  }
 }
 
 .keypicker-result-control {
-  background: 	none;
-  border: 	none;
+  background: none;
+  border: none;
   background-color: $fondNavbar;
   border-color: #d9d9d9 #ccc #b3b3b3;
   border-radius: 4px;
@@ -218,28 +231,11 @@
   &:first-child {
     padding-top: 8px;
   }
-}
-
-.keypicker-result-control:hover {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-}
-
-.keypicker-result-control .keypicker-input:focus {
-  outline: none;
-}
-
-
-.keypicker-menu-outer .keypicker-result-value {
-  background-color: transparent;
-  color: white;
-  padding-top: 2px;
-  margin-right: 2px;
-  margin-bottom: 2px;
-  padding-bottom: 2px;
-  border-radius: 2px;
-  cursor: pointer;
-  &.result-active {
-    background-color: $fondGrisclairSurvolMenu;
+  &:hover {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  }
+  .keypicker-input:focus {
+    outline: none;
   }
 }
 
@@ -256,7 +252,6 @@
     outline-color: $fondNavbar;
   }
 }
-
 
 .keypicker-value {
   color: white;
