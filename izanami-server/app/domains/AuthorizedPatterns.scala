@@ -47,9 +47,7 @@ object PatternRight {
     case other => JsError(JsonValidationError("error.unexpected.type", other))
   }
 
-  val writes: Writes[PatternRight] = Writes[PatternRight] { r =>
-    JsString(stringValue(r))
-  }
+  val writes: Writes[PatternRight] = Writes[PatternRight](r => JsString(stringValue(r)))
 
   implicit val format: Format[PatternRight] = Format(reads, writes)
 
@@ -63,9 +61,7 @@ object PatternRight {
 
   implicit val eq: cats.Eq[PatternRight] = cats.Eq.fromUniversalEquals
 
-  implicit val ord: Order[PatternRight] = Order.from { (p1, p2) =>
-    index(p1) - index(p2)
-  }
+  implicit val ord: Order[PatternRight] = Order.from((p1, p2) => index(p1) - index(p2))
 }
 
 abstract case class PatternRights private[PatternRights] (rights: NonEmptySet[PatternRight]) {
@@ -102,9 +98,7 @@ object PatternRights {
 
   val reads: Reads[PatternRights] = __.read[List[PatternRight]].map(l => fromList(l))
 
-  val writes: Writes[PatternRights] = Writes[PatternRights] { rights =>
-    Json.toJson(rights.rights.toList)
-  }
+  val writes: Writes[PatternRights]          = Writes[PatternRights](rights => Json.toJson(rights.rights.toList))
   implicit val format: Format[PatternRights] = Format(reads, writes)
 
   def stringValue(r: PatternRights): String = r.rights.toList.map(PatternRight.stringValue).mkString("")
@@ -199,7 +193,7 @@ object AuthorizedPatterns {
 
   def parse(str: String): Option[AuthorizedPatterns] = {
     val mayBePatterns: Option[List[AuthorizedPattern]] =
-      str.split(",").toList.map { AuthorizedPattern.fromString }.sequence
+      str.split(",").toList.map(AuthorizedPattern.fromString).sequence
     mayBePatterns.map(AuthorizedPatterns.apply)
   }
 
@@ -225,9 +219,7 @@ object AuthorizedPatterns {
 
   val reads: Reads[AuthorizedPatterns] = objectReads.orElse(stringReads)
 
-  val writes: Writes[AuthorizedPatterns] = Writes[AuthorizedPatterns] { p =>
-    Json.toJson(p.patterns.toList)
-  }
+  val writes: Writes[AuthorizedPatterns] = Writes[AuthorizedPatterns](p => Json.toJson(p.patterns.toList))
 
   implicit val format: Format[AuthorizedPatterns] = Format(reads, writes)
 
@@ -248,11 +240,13 @@ object AuthorizedPatterns {
 
   def isAllowed(key: Key, patternRight: PatternRights): ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] =
     AuthInfo.authInfo.flatMap { authInfo =>
-      ZIO.when(!authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))) {
+      val bool = !authInfo.map(_.authorizedPatterns).exists(p => isAllowed(key, patternRight, p))
+      val value = ZIO.when(bool) {
         ZLogger.debug(s"${authInfo} is allowed to access $key with $patternRight") *> ZIO.fail(
           IzanamiErrors(Unauthorized(Some(key)))
         )
       }
+      value
     }
 
   def isAdminAllowed(key: Key, patternRight: PatternRights): ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] =

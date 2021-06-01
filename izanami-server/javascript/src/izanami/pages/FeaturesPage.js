@@ -556,6 +556,8 @@ export class FeaturesPage extends Component {
                 { title: "Upload - ignore if exists", link: "/api/features.ndjson?strategy=Keep" }
             ]}
             extractKey={item => item.id}
+            lockable={true}
+            lockType={"feature"}
           />
         </div>
       </div>

@@ -12,6 +12,7 @@ import domains.errors.{
   IzanamiError,
   IzanamiErrors,
   Unauthorized,
+  UnauthorizedByLock,
   ValidationError
 }
 
@@ -51,9 +52,10 @@ object ApiErrors {
       case InvalidCopyKey(id) => error("error.id.copy.invalid", id.key)
       case IdMustBeTheSame(fromObject, inParam) =>
         error("error.id.not.the.same", fromObject.key, inParam.key)
-      case DataShouldExists(id)    => error("error.data.missing", id.key)
-      case DataShouldNotExists(id) => error("error.data.exists", id.key)
-      case Unauthorized(id)        => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+      case DataShouldExists(id)         => error("error.data.missing", id.key)
+      case DataShouldNotExists(id)      => error("error.data.exists", id.key)
+      case Unauthorized(id)             => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+      case UnauthorizedByLock(id, lock) => error("error.data.unauthorized.locked", id.key, lock.key)
     }
 
   def toHttpResult(errors: IzanamiErrors): Result = {
@@ -63,6 +65,7 @@ object ApiErrors {
     } else {
       Results.Forbidden(Json.toJson(forbiddens.foldMap {
         case Unauthorized(id) => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+//        case UnauthorizedByLock(id, lock) => error("error.data.unauthorized.locked", id.key, lock.key)
       }))
     }
   }
