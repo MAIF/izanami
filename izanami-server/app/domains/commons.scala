@@ -16,6 +16,7 @@ import domains.config.ConfigDataStore
 import domains.auth.{AuthInfo, Oauth2Service}
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
+import domains.lock.LockDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.user.UserDataStore
 import domains.webhook.WebhookDataStore
@@ -122,6 +123,7 @@ package object configuration {
     with GlobalScriptDataStore
     with UserDataStore
     with WebhookDataStore
+    with LockDataStore
     with EventStore
     with ScriptCache
     with RunnableScriptModule
@@ -163,6 +165,7 @@ package object configuration {
       GlobalScriptDataStore.live(izanamiConfig) >+>
       UserDataStore.live(izanamiConfig) >+>
       WebhookDataStore.live(izanamiConfig) >+>
+      LockDataStore.live(izanamiConfig) >+>
       // Scripts
       ScriptCache.live >+>
       RunnableScriptModule.live >+>
@@ -253,6 +256,7 @@ object Domain {
   case object Config     extends Domain
   case object Feature    extends Domain
   case object User       extends Domain
+  case object Lock       extends Domain
   case object Script     extends Domain
   case object Webhook    extends Domain
   case object Unknown    extends Domain
@@ -263,6 +267,7 @@ object Domain {
     case JsString(s) if s === "Config"     => JsSuccess(Config)
     case JsString(s) if s === "Feature"    => JsSuccess(Feature)
     case JsString(s) if s === "User"       => JsSuccess(User)
+    case JsString(s) if s === "Lock"       => JsSuccess(Lock)
     case JsString(s) if s === "Webhook"    => JsSuccess(Webhook)
     case JsString(s) if s === "Unknown"    => JsSuccess(Unknown)
     case _                                 => JsError("domain.invalid")
@@ -274,6 +279,7 @@ object Domain {
     case Config     => JsString("Config")
     case Feature    => JsString("Feature")
     case User       => JsString("User")
+    case Lock       => JsString("Lock")
     case Script     => JsString("Script")
     case Webhook    => JsString("Webhook")
     case Unknown    => JsString("Unknown")

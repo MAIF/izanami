@@ -4,6 +4,7 @@ import {Link} from "react-router-dom";
 import {KeyInput} from "./KeyInput";
 import {BooleanInput} from "./BooleanInput";
 import Tippy from '@tippyjs/react/headless';
+import * as IzanamiService from "../services/index";
 
 const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
@@ -130,6 +131,13 @@ class Node extends Component {
     const id = `node-${this.props.node.id}-${this.props.index}`;
     const link = this.props.itemLink(this.props.node);
     const styleDisplay = this.state.openMenu ? {display: 'inline-block'} : {};
+    let lockTile = "Add lock";
+    if(this.props.node.lock.locked) {
+      lockTile = "Remove lock"
+      if(!this.props.node.lock.owner) {
+        lockTile = "The element is locked by a sub element"
+      }
+    }
     return (
       <li className="node-tree" key={`node-${this.props.node.text}-${this.props.index}`} id={id}>
         <div className="content ">
@@ -165,17 +173,22 @@ class Node extends Component {
               <div className={`btn-group btn-group-xs btn-submenu`}
                    style={styleDisplay}
                    onMouseOver={_ => this.setState({openMenu: true})}
-                   onMouseOut={_ => this.setState({openMenu: false})}
-              >
-                <Link
+                   onMouseOut={_ => this.setState({openMenu: false})}>
+                {!this.props.node.lock.locked && <Link
                   to={link}
                   type="button"
                   className={`btn btn-sm btn-primary`}
                   onMouseOver={_ => this.setState({openCopy: false})}
-                  title="Add childnote"
-                >
+                  title="Add childnote">
                   + child
-                </Link>
+                </Link>}
+                <button
+                  type="button"
+                  className={`btn btn-sm btn-primary`}
+                  disabled={this.props.node.lock.locked && !this.props.node.lock.owner}
+                  onClick={_ => this.props.changeLock(this.props.node.id)}
+                  title={lockTile}>{this.props.node.lock.locked ? "unlock" : "lock"}
+                </button>
                 {this.props.copyNodeWindow &&
                 <Tippy interactive={true}
                        offset={[0, 0]}
@@ -196,8 +209,6 @@ class Node extends Component {
                     title="Duplicate">
                     <i className={"fas fa-copy"}/>
                   </button>
-
-
                 </Tippy>
 
                 }
@@ -208,7 +219,7 @@ class Node extends Component {
                   className="btn btn-sm btn-success"
                   title="Open on table view"
                 >
-                  <i className="fas fa-list"></i>
+                  <i className="fas fa-list"/>
                 </button>
 
                 {this.props.node.value && (
@@ -220,7 +231,7 @@ class Node extends Component {
                       className="btn btn-sm btn-success"
                       title="Edit this Configuration"
                     >
-                      <i className="fas fa-pencil-alt"></i>
+                      <i className="fas fa-pencil-alt"/>
                     </button>
                   </div>
                 )}
@@ -261,6 +272,7 @@ class Node extends Component {
                   itemLink={this.props.itemLink}
                   onSearchChange={this.props.onSearchChange}
                   openOnTable={this.props.openOnTable}
+                  changeLock={this.props.changeLock}
             />)
           }
           </ul>
@@ -283,12 +295,15 @@ export class Tree extends PureComponent {
     removeAction: PropTypes.func,
     copyNodeWindow: PropTypes.bool,
     copyNodes: PropTypes.func,
-    searchKeys: PropTypes.func
+    searchKeys: PropTypes.func,
+    lockable: PropTypes.bool,
+    lockType: PropTypes.string
   };
 
   state = {
     nodes: [],
-    search: ""
+    search: "",
+    locks: []
   };
 
   search = e => {
@@ -299,12 +314,22 @@ export class Tree extends PureComponent {
   };
 
   componentDidMount() {
-    this.setState({nodes: Tree.convertDatas(this.props.datas)})
+    this.fetchData();
+  }
+
+  fetchData = () => {
+    console.log("fetch")
+    const promises = []
+    if (this.props.lockable) {
+      promises.push(IzanamiService.fetchLocks(this.props.lockType)
+        .then(locks => new Promise((resolve) => this.setState({locks}, resolve))));
+    }
+    return Promise.all(promises).then(() => this.setState({nodes: this.convertDatas(this.props.datas)}))
   }
 
   componentDidUpdate(prevProp) {
-    const newNodes = Tree.convertDatas(this.props.datas || []);
-    const prevPropNodes = Tree.convertDatas(prevProp.datas || []);
+    const newNodes = this.convertDatas(this.props.datas || []);
+    const prevPropNodes = this.convertDatas(prevProp.datas || []);
     if (!Tree.isEquals(newNodes, prevPropNodes)) {
       this.setState({nodes: newNodes})
     }
@@ -315,18 +340,39 @@ export class Tree extends PureComponent {
       && newNodes.filter(newNode => !prevPropNodes.filter(prevPropNode => prevPropNode.id === newNode.id)).length === 0;
   }
 
-  static convertDatas = (d = []) => {
-    return d.map(Tree.convertNode);
+  convertDatas = (d = []) => {
+    return d.map(this.convertNode);
   };
 
-  static convertNode = (node, i) => {
-    return {
+  convertNode = (node, i) => {
+    const childs = (node.childs || []).map(this.convertNode);
+
+    let locked = false;
+    const mayBeChildLocked = childs.find(child => child.lock.locked)
+    const mayBeOwner = this.state.locks.find(lock => lock.id === `${this.props.lockType}:${node.id}`);
+    let lockedAndOwner = mayBeOwner && mayBeOwner.locked;
+    if (lockedAndOwner || mayBeChildLocked) locked = true;
+    let any = {
       id: node.id,
       text: node.key,
       value: node.value,
-      nodes: (node.childs || []).map(Tree.convertNode)
+      lock: {locked, owner: lockedAndOwner},
+      nodes: childs
     };
+    return any;
   };
+
+  changeLock = (id) => {
+    const lockId = `${this.props.lockType}:${id}`
+    return IzanamiService.fetchLock(lockId).then(mayBeLock => {
+      console.log(mayBeLock)
+      if (mayBeLock) {
+        return IzanamiService.updateLock(mayBeLock.id, {id: mayBeLock.id, locked: !mayBeLock.locked})
+      } else {;
+        return IzanamiService.createLock({id: lockId, locked: true})
+      }
+    }).then(() => this.fetchData())
+  }
 
   render() {
     return (
@@ -336,7 +382,7 @@ export class Tree extends PureComponent {
             <div className="input-group dark-input">
               <span className="input-group-prepend back-intermediate-color">
                 <span className="input-group-text">
-                  <i className="back-color fas fa-search"></i>
+                  <i className="back-color fas fa-search"/>
                 </span>
               </span>
               <input
@@ -365,6 +411,7 @@ export class Tree extends PureComponent {
                       searchKeys={this.props.searchKeys}
                       onSearchChange={this.props.onSearchChange}
                       openOnTable={this.props.openOnTable}
+                      changeLock={this.changeLock}
                 />
               )}
             </ul>

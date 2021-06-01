@@ -1612,6 +1612,19 @@ DELETE  /api/apikeys/:id                    controllers.ApikeyController.delete(
 ###
 GET     /api/counts/apikeys                 controllers.ApikeyController.count()
 
+#########################################################################
+#                               Lock                                    #
+#########################################################################
+
+GET     /api/locks/:id                      controllers.LockController.get(id)
+
+GET     /api/locks                          controllers.LockController.list(pattern: String ?= "*")
+
+DELETE  /api/locks/:id                      controllers.LockController.delete(id)
+
+POST    /api/locks/:id                      controllers.LockController.update(id)
+
+PUT     /api/locks                          controllers.LockController.create()
 
 #########################################################################
 #                              Events                                   #

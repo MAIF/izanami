@@ -159,6 +159,7 @@ case class IzanamiConfig(
     experimentEvent: ExperimentEventConfig,
     webhook: WebhookConfig,
     user: UserConfig,
+    lock: LockConfig,
     apikey: ApikeyConfig,
     events: EventsConfig,
     patch: PatchConfig,
@@ -256,6 +257,7 @@ case class ExperimentEventConfig(db: DbDomainConfig)
 case class WebhookConfig(db: DbDomainConfig, events: WebhookEventsConfig)
 case class WebhookEventsConfig(group: Int, within: FiniteDuration, nbMaxErrors: Int, errorReset: FiniteDuration)
 case class UserConfig(db: DbDomainConfig, initialize: InitialUserConfig)
+case class LockConfig(db: DbDomainConfig)
 case class InitializeApiKey(clientId: Option[String], clientSecret: Option[String], authorizedPatterns: String)
 case class ApikeyConfig(db: DbDomainConfig, initialize: InitializeApiKey) {
 

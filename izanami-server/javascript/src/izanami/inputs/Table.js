@@ -66,7 +66,9 @@ export class Table extends Component {
     searchColumnName: PropTypes.string,
     copyNodeWindow: PropTypes.bool,
     copyNodes: PropTypes.func,
-    searchKeys: PropTypes.func
+    searchKeys: PropTypes.func,
+    lockable: PropTypes.bool,
+    lockType: PropTypes.string
   };
 
   static defaultProps = {
@@ -893,6 +895,8 @@ export class Table extends Component {
                   removeAction={(e, item) =>
                     this.setState({ confirmDeleteTable: true, toDelete: item })
                   }
+                  lockable={this.props.lockable}
+                  lockType={this.props.lockType}
                 />
               </div>
             )}

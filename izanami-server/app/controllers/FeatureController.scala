@@ -61,15 +61,17 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
                   )
                 )
               }
-              .mapError { ApiErrors.toHttpResult }
+              .mapError(ApiErrors.toHttpResult)
           } else {
             FeatureService
               .findByQuery(query, page, nbElementPerPage)
               .map { pagingResult =>
                 Ok(
                   Json.toJson(
-                    FeatureListResult(pagingResult.results.toList,
-                                      Metadata(page, nbElementPerPage, pagingResult.count, pagingResult.nbPages))
+                    FeatureListResult(
+                      pagingResult.results.toList,
+                      Metadata(page, nbElementPerPage, pagingResult.count, pagingResult.nbPages)
+                    )
                   )
                 )
               }
@@ -80,19 +82,16 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
             FeatureService
               .findByQueryActive(Json.obj(), query)
               .flatMap { source =>
-                ZIO.fromFuture(
-                  _ =>
-                    source
-                      .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
-                      .map {
-                        _.map { case (k, f, a) => (k, f.toJson(a)) }
-                      }
-                      .map { Node.valuesToNodes }
-                      .map { v =>
-                        Json.toJson(v)
-                      }
-                      .map(json => Ok(json))
-                      .runWith(Sink.head)
+                ZIO.fromFuture(_ =>
+                  source
+                    .fold(List.empty[(FeatureKey, Feature, Boolean)])(_ :+ _)
+                    .map {
+                      _.map { case (k, f, a) => (k, f.toJson(a)) }
+                    }
+                    .map(Node.valuesToNodes)
+                    .map(v => Json.toJson(v))
+                    .map(json => Ok(json))
+                    .runWith(Sink.head)
                 )
               }
               .mapError(_ => InternalServerError)
@@ -100,16 +99,13 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
             FeatureService
               .findByQuery(query)
               .flatMap { source =>
-                ZIO.fromFuture(
-                  _ =>
-                    source
-                      .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
-                      .map { Node.valuesToNodes[Feature] }
-                      .map { v =>
-                        Json.toJson(v)
-                      }
-                      .map(json => Ok(json))
-                      .runWith(Sink.head)
+                ZIO.fromFuture(_ =>
+                  source
+                    .fold(List.empty[(FeatureKey, Feature)])(_ :+ _)
+                    .map(Node.valuesToNodes[Feature])
+                    .map(v => Json.toJson(v))
+                    .map(json => Ok(json))
+                    .runWith(Sink.head)
                 )
               }
               .mapError(_ => InternalServerError)
@@ -147,7 +143,7 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
                 )
               )
             }
-            .mapError { ApiErrors.toHttpResult }
+            .mapError(ApiErrors.toHttpResult)
         case _ =>
           ZIO.succeed(BadRequest(Json.toJson(ApiErrors.error("error.json.invalid"))))
       }
@@ -169,9 +165,7 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
       case context: JsObject =>
         FeatureService
           .getFeatureTree(query, flat, context)
-          .flatMap { source =>
-            ZIO.fromFuture(_ => source.map(graph => Ok(graph)).runWith(Sink.head))
-          }
+          .flatMap(source => ZIO.fromFuture(_ => source.map(graph => Ok(graph)).runWith(Sink.head)))
       case _ =>
         ZIO.succeed(BadRequest(Json.toJson(ApiErrors.error("error.json.invalid"))))
     }
@@ -181,7 +175,7 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
     import FeatureInstances._
     for {
       feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
-      _       <- FeatureService.create(feature.id, feature).mapError { ApiErrors.toHttpResult }
+      _       <- FeatureService.create(feature.id, feature).mapError(ApiErrors.toHttpResult)
     } yield Created(Json.toJson(feature))
   }
 
@@ -189,7 +183,7 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
     import FeatureInstances._
     val key = Key(id)
     for {
-      mayBeFeature <- FeatureService.getById(key).mapError { ApiErrors.toHttpResult }
+      mayBeFeature <- FeatureService.getById(key).mapError(ApiErrors.toHttpResult)
       feature      <- ZIO.fromOption(mayBeFeature).mapError(_ => NotFound)
     } yield Ok(Json.toJson(feature))
   }
@@ -199,15 +193,13 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
   }
 
   def checkWithContext(id: String): Action[JsValue] =
-    AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
-      checkFeatureWithcontext(id, ctx.auth, ctx.body)
-    }
+    AuthAction.asyncZio[FeatureContext](parse.json)(ctx => checkFeatureWithcontext(id, ctx.auth, ctx.body))
 
   private def checkFeatureWithcontext(id: String, user: Option[AuthInfo.Service], contextJson: JsValue) = {
     val key = Key(id)
     for {
       context   <- jsResultToHttpResponse(contextJson.validate[JsObject])
-      mayBePair <- FeatureService.getByIdActive(context, key).mapError { ApiErrors.toHttpResult }
+      mayBePair <- FeatureService.getByIdActive(context, key).mapError(ApiErrors.toHttpResult)
       pair      <- ZIO.fromOption(mayBePair).mapError(_ => NotFound)
     } yield Ok(Json.obj("active" -> (pair._2 && pair._1.enabled)))
   }
@@ -216,7 +208,7 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
     import FeatureInstances._
     for {
       feature <- jsResultToHttpResponse(ctx.request.body.validate[Feature])
-      _       <- FeatureService.update(Key(id), feature.id, feature).mapError { ApiErrors.toHttpResult }
+      _       <- FeatureService.update(Key(id), feature.id, feature).mapError(ApiErrors.toHttpResult)
     } yield Ok(Json.toJson(feature))
   }
 
@@ -224,19 +216,19 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
     import FeatureInstances._
     val key = Key(id)
     for {
-      mayBe   <- FeatureService.getById(key).mapError { ApiErrors.toHttpResult }
+      mayBe   <- FeatureService.getById(key).mapError(ApiErrors.toHttpResult)
       current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       updated <- jsResultToHttpResponse(Patch.patch(ctx.request.body, current))
-      _       <- FeatureService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
+      _       <- FeatureService.update(key, current.id, updated).mapError(ApiErrors.toHttpResult)
     } yield Ok(Json.toJson(updated))
   }
 
   def delete(id: String): Action[AnyContent] = AuthAction.asyncZio[FeatureContext] { ctx =>
     val key = Key(id)
     for {
-      mayBe   <- FeatureService.getById(key).mapError { ApiErrors.toHttpResult }
+      mayBe   <- FeatureService.getById(key).mapError(ApiErrors.toHttpResult)
       feature <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _       <- FeatureService.delete(key).mapError { ApiErrors.toHttpResult }
+      _       <- FeatureService.delete(key).mapError(ApiErrors.toHttpResult)
     } yield Ok(FeatureInstances.format.writes(feature))
   }
 
@@ -244,24 +236,20 @@ class FeatureController(AuthAction: ActionBuilder[SecuredAuthContext, AnyContent
     val query: Query = Query.oneOf(ctx.authorizedPatterns).and(pattern.split(",").toList)
     FeatureService
       .deleteAll(query)
-      .mapError { ApiErrors.toHttpResult }
-      .map { _ =>
-        Ok
-      }
+      .mapError(ApiErrors.toHttpResult)
+      .map(_ => Ok)
   }
 
   def count(): Action[Unit] = AuthAction.asyncTask[FeatureContext](parse.empty) { ctx =>
     val query: Query = Query.oneOf(ctx.authorizedPatterns)
-    FeatureService.count(query).map { count =>
-      Ok(Json.obj("count" -> count))
-    }
+    FeatureService.count(query).map(count => Ok(Json.obj("count" -> count)))
   }
 
   def copyNode(): Action[JsValue] = AuthAction.asyncZio[FeatureContext](parse.json) { ctx =>
     import controllers.dto.feature.CopyNodeResponse
     for {
       request <- jsResultToHttpResponse(ctx.request.body.validate[CopyRequest])
-      f       <- FeatureService.copyNode(request.from, request.to, request.default).mapError { ApiErrors.toHttpResult }
+      f       <- FeatureService.copyNode(request.from, request.to, request.default).mapError(ApiErrors.toHttpResult)
     } yield {
       Ok(Json.toJson(CopyNodeResponse(f)))
     }

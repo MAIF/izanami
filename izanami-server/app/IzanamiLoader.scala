@@ -9,6 +9,7 @@ import domains.apikey.{ApikeyDataStore, ApikeyService}
 import domains.config.{ConfigDataStore, ConfigService}
 import domains.configuration.GlobalContext
 import domains.feature.{FeatureDataStore, FeatureService}
+import domains.lock.{LockDataStore, LockService}
 import domains.script.{GlobalScriptDataStore, GlobalScriptService}
 import domains.user.{UserDataStore, UserService}
 import domains.webhook.{WebhookDataStore, WebhookService}
@@ -53,7 +54,7 @@ package object modules {
     lazy val izanamiConfig: IzanamiConfig            = IzanamiConfig.fromConfig(configuration)
     lazy val mayBeOauth2Config: Option[Oauth2Config] = izanamiConfig.oauth2.filter(_.enabled)
 
-    implicit val system: ActorSystem        = actorSystem
+    implicit val system: ActorSystem    = actorSystem
     implicit val runtime: Runtime[ZEnv] = Runtime.default
     import zio.interop.catz._
 
@@ -75,42 +76,48 @@ package object modules {
       case _         => cacheApi("izanami")
     }
 
-    private implicit val  (globalContextLayer: ZLayer[zio.ZEnv, Throwable, GlobalContext], release: ZIO[zio.ZEnv, Throwable, Unit])  =
+    private implicit val (
+      globalContextLayer: ZLayer[zio.ZEnv, Throwable, GlobalContext],
+      release: ZIO[zio.ZEnv, Throwable, Unit]
+    ) =
       Runtime.default.unsafeRun(
-        GlobalContext.live(actorSystem,
-        materializer,
-        izanamiCache,
-        configuration,
-        environment,
-        wsClient,
-        system.dispatcher,
-        izanamiConfig,
-        applicationLifecycle)
-      .memoize
-      .toResource
-      .allocated)
+        GlobalContext
+          .live(
+            actorSystem,
+            materializer,
+            izanamiCache,
+            configuration,
+            environment,
+            wsClient,
+            system.dispatcher,
+            izanamiConfig,
+            applicationLifecycle
+          )
+          .memoize
+          .toResource
+          .allocated
+      )
 
-    applicationLifecycle.addStopHook { () =>
-      runtime.unsafeRunToFuture(release)
-    }
+    applicationLifecycle.addStopHook(() => runtime.unsafeRunToFuture(release))
 
     // Start stores
     val globalScriptStart: ZIO[GlobalContext, Throwable, Unit] = GlobalScriptDataStore.>.start
     val initIzanami: ZIO[GlobalContext, Throwable, Unit] = (globalScriptStart
-    *> ConfigDataStore.>.start *> FeatureDataStore.>.start
-    *> UserDataStore.>.start *> ApikeyDataStore.>.start
-    *> WebhookDataStore.>.start *> ExperimentDataStore.>.start
-    *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook).unit
-    *> MetricsService.start
-    // Import files
-    *> Import.importFile(_.globalScript.db, GlobalScriptService.importData())
-    *> Import.importFile(_.config.db, ConfigService.importData())
-    *> Import.importFile(_.features.db, FeatureService.importData())
-    *> Import.importFile(_.apikey.db, ApikeyService.importData())
-    *> Import.importFile(_.user.db, UserService.importData())
-    *> Import.importFile(_.webhook.db, WebhookService.importData())
-    *> Import.importFile(_.experiment.db, ExperimentService.importData())
-    *> Import.importFile(_.experimentEvent.db, ExperimentVariantEventService.importData()))
+      *> ConfigDataStore.>.start *> FeatureDataStore.>.start
+      *> UserDataStore.>.start *> ApikeyDataStore.>.start
+      *> WebhookDataStore.>.start *> ExperimentDataStore.>.start
+      *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook).unit
+      *> MetricsService.start *> LockDataStore.>.start
+      // Import files
+      *> Import.importFile(_.globalScript.db, GlobalScriptService.importData())
+      *> Import.importFile(_.config.db, ConfigService.importData())
+      *> Import.importFile(_.features.db, FeatureService.importData())
+      *> Import.importFile(_.apikey.db, ApikeyService.importData())
+      *> Import.importFile(_.user.db, UserService.importData())
+      *> Import.importFile(_.webhook.db, WebhookService.importData())
+      *> Import.importFile(_.experiment.db, ExperimentService.importData())
+      *> Import.importFile(_.experimentEvent.db, ExperimentVariantEventService.importData())
+      *> Import.importFile(_.lock.db, LockService.importData()))
 
     runtime.unsafeRun(initIzanami.provideLayer(globalContextLayer))
 
@@ -130,6 +137,7 @@ package object modules {
     lazy val backOfficeController: BackOfficeController     = wire[BackOfficeController]
     lazy val metricsController: MetricController            = wire[MetricController]
     lazy val oicController: OAuthController                 = wire[OAuthController]
+    lazy val lockController: LockController                 = wire[LockController]
 
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) =>
@@ -138,11 +146,13 @@ package object modules {
       case env.Default(config) =>
         IzanamiLogger.info("Using default filter")
         Seq(
-          new ZioIzanamiDefaultFilter(_env.env,
-                                      izanamiConfig.contextPath,
-                                      izanamiConfig.metrics,
-                                      config,
-                                      izanamiConfig.apikey)
+          new ZioIzanamiDefaultFilter(
+            _env.env,
+            izanamiConfig.contextPath,
+            izanamiConfig.metrics,
+            config,
+            izanamiConfig.apikey
+          )
         )
     }
 

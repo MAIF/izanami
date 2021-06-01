@@ -3,6 +3,7 @@ import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.ApikeyDataStore
 import domains.auth.AuthInfo
 import domains.feature.FeatureDataStore
+import domains.lock.LockContext
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.webhook.WebhookDataStore
 import elastic.es6.api.{Elastic => Elastic6}
@@ -96,6 +97,7 @@ package object metrics {
     with ZLogger
     with Blocking
     with Clock
+    with LockContext
 
   case class Metrics(
       metricRegistry: MetricRegistry,

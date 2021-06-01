@@ -1,7 +1,6 @@
 package domains
 
 import java.time.LocalDateTime
-
 import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 import domains.Domain.Domain
@@ -22,6 +21,8 @@ import domains.script.GlobalScript.GlobalScriptKey
 import domains.script.{GlobalScript, GlobalScriptInstances}
 import domains.user.User.UserKey
 import domains.user.{User, UserInstances}
+import domains.lock.Lock.LockKey
+import domains.lock.{IzanamiLock, Lock, LockInstances}
 import domains.webhook.Webhook.WebhookKey
 import domains.webhook.{Webhook, WebhookInstances}
 import env._
@@ -552,6 +553,46 @@ package object events {
       import UserInstances._
       implicit val userCreated = Json.format[UserCreated]
       implicit val userUpdated = Json.format[UserUpdated]
+    }
+
+    /////////////////////////////////////// LOCK ////////////////////////////////////////
+
+    sealed trait LockEvent extends IzanamiEvent {
+      override def domain = Domain.Lock
+    }
+
+    case class LockCreated(
+        key: LockKey,
+        lock: IzanamiLock,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends LockEvent {
+      val `type`: String   = "LOCK_CREATED"
+      val payload: JsValue = LockInstances.format.writes(lock)
+    }
+
+    case class LockUpdated(
+        key: LockKey,
+        oldLock: IzanamiLock,
+        lock: IzanamiLock,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends LockEvent {
+      val `type`: String   = "LOCK_UPDATED"
+      val payload: JsValue = LockInstances.format.writes(lock)
+    }
+
+    case class LockDeleted(
+        key: LockKey,
+        lock: IzanamiLock,
+        _id: Long = gen.nextId(),
+        timestamp: LocalDateTime = LocalDateTime.now(),
+        authInfo: Option[AuthInfo.Service]
+    ) extends LockEvent {
+      val `type`: String   = "LOCK_DELETED"
+      val payload: JsValue = LockInstances.format.writes(lock)
     }
 
     /////////////////////////////////////// WEBHOOK ////////////////////////////////////////
