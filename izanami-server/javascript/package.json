@@ -50,7 +50,7 @@
     "@tippyjs/react": "4.2.5",
     "ace-builds": "1.4.12",
     "antd": "4.15.2",
-    "bootstrap": "4.3.1",
+    "bootstrap": "5.0.1",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.3",
     "faker": "4.1.0",
