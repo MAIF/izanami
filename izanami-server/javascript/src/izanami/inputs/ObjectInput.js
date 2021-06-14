@@ -114,7 +114,7 @@ export class ObjectInput extends PureComponent {
                   value={value[1]}
                   onChange={e => this.changeValue(e, value[0], idx)}
                 />
-                <span className="ms-1 input-group-prepend align-items-center">
+                <span className="ms-1 d-flex input-group-prepend align-items-center">
                   <div>
                     <button
                       disabled={this.props.disabled}
