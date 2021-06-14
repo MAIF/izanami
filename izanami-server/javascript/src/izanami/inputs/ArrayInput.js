@@ -112,7 +112,7 @@ export class ArrayInput extends Component {
                     }
                   />
                 )}
-                <span className="ms-1 input-group-prepend align-items-center">
+                <span className="ms-1 d-flex input-group-prepend align-items-center">
                   <div>
                     <button
                       disabled={this.props.disabled}
