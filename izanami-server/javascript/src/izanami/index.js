@@ -174,20 +174,25 @@ export class LoggedApp extends Component {
       />
       </div>
       </form>
-
+        <div
+          className="collapse navbar-collapse"
+          id="navbarNavDarkDropdown"
+        >
             <ul key="admin-menu" className="navbar-nav ms-auto">
-              <li className="dropdown userManagement">
+              <li className="nav-item dropdown userManagement">
                 <a
+                  className="nav-link"
                   href="#"
+                  id="navbarDarkDropdownMenuLink"
                   data-toggle="dropdown"
                   role="button"
-                  aria-haspopup="true"
                   aria-expanded="false"
+                  data-bs-toggle="dropdown"
                 >
                   <i className="fas fa-cog" aria-hidden="true" />
                 </a>
-                <ul className="dropdown-menu dropdown-menu-right">
-                  {userManagementEnabled &&
+                <ul className="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDarkDropdownMenuLink">
+                  {userManagementEnabled && (
                     <li key="li-users" className="dropdown-item">
                         <Link
                           to="/users"
@@ -196,8 +201,9 @@ export class LoggedApp extends Component {
                         >
                           <i className="fas fa-user me-2"></i> Users management
                         </Link>
-                    </li>}
-                  {apikeyManagementEnabled &&
+                    </li>
+                    )}
+                  {apikeyManagementEnabled && (
                     <li key="li-apikeys" className="dropdown-item">
                         <Link
                           to="/apikeys"
@@ -207,10 +213,10 @@ export class LoggedApp extends Component {
                           <i className="fas fa-key me-2"></i> Api Keys management
                         </Link>
                     </li>
-                  }
+                  )}
                   <li className="dropdown-item">
                     <a href={this.props.logout} className="link-logout">
-                      <i className="fas fa-power-off me-2"></i> {this.props.user ? this.props.user.email : ""}
+                      <i className="fas fa-power-off me-2"></i> {" "}{this.props.user ? this.props.user.email : ""}
                     </a>
                   </li>
                   <li>
@@ -224,6 +230,7 @@ export class LoggedApp extends Component {
                 </ul>
               </li>
             </ul>
+            </div>
             {/* {changeme && (
               <a
                 data-toggle="popover"

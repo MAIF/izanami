@@ -16,8 +16,12 @@
   }
 }
 
-.dropdown-menu-right i {
-  min-width: 16px;
+.dropdown-menu-right {
+  right: 0;
+  left: auto !important;
+  i {
+    min-width: 16px;
+  }
 }
 
 .dropdown-item {
