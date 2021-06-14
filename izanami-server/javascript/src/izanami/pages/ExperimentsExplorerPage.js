@@ -46,20 +46,19 @@ export class ExperimentsExplorerPage extends Component {
     return (
       <div className="col-md-12">
         <div
-          className="form-inline"
-          style={{ marginBottom: 20, marginLeft: -15 }}
+          className="d-flex align-items-center mb-3"
         >
-          <div className="mb-3">
+          <div className="row me-3">
             <input
               type="text"
-              className="form-control col-xs-12"
+              className="form-control col-12"
               placeholder="feature query (ie. project:env:*, mcf:preprod:frontend:*)"
               value={this.state.query}
               onChange={e => this.setState({ query: e.target.value })}
             />
             <input
               type="text"
-              className="form-control col-xs-12"
+              className="form-control col-12"
               placeholder="client id (ie. john.doe@maif.fr)"
               value={this.state.clientId}
               onChange={e => this.setState({ clientId: e.target.value })}
@@ -75,7 +74,7 @@ export class ExperimentsExplorerPage extends Component {
             {this.state.searching && "Searching ..."}
           </button>
         </div>
-        <div className="row" style={{ marginTop: 20 }}>
+        <div className="row mt-3">
           <AceEditor
             mode="javascript"
             theme="monokai"

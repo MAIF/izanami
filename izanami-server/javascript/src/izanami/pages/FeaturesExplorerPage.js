@@ -40,10 +40,10 @@ export class FeaturesExplorerPage extends Component {
     return (
       <div className="col-md-12">
         <div
-          className="form-inline"
-          style={{ marginBottom: 20, marginLeft: -15 }}
+          className="d-flex align-items-center mb-3"
+          style={{ marginLeft: -15 }}
         >
-          <div className="mb-3">
+          <div>
             <input
               type="text"
               className="form-control col-xs-12"
