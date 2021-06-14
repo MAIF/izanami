@@ -426,7 +426,7 @@ export class ExperimentsPage extends Component {
     {
       title: "Active",
       notFilterable: true,
-      style: { textAlign: "center", width: 40 },
+      style: { textAlign: "center", width: 100 },
       content: this.activeComponent
     },
     {
