@@ -24,7 +24,7 @@ export class OptionalField extends Component {
       <div>
         <div className="row mb-3">
           <label className="col-sm-2 col-form-label">{this.props.label}</label>
-          <div className="col-sm-1">
+          <div className="col-sm-1 d-flex align-items-center">
             {!this.state.disabled && <OnSwitch onChange={this.toggleOff} />}
             {this.state.disabled && <OffSwitch onChange={this.toggleOn} />}
           </div>
