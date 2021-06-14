@@ -755,7 +755,7 @@ export class Table extends Component {
                 {this.props.treeModeEnabled && this.isTable() && (
                   <button
                     type="button"
-                    className="btn btn-primary ml-2"
+                    className="btn btn-primary ms-2"
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
@@ -765,7 +765,7 @@ export class Table extends Component {
                 {this.isTree() && (
                   <button
                     type="button"
-                    className="btn btn-primary ml-2"
+                    className="btn btn-primary ms-2"
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
@@ -784,11 +784,11 @@ export class Table extends Component {
                 {this.props.showActions && !this.props.disableAddButton && (
                   <button
                     type="button"
-                    className="btn btn-primary ml-2"
+                    className="btn btn-primary ms-2"
                     onClick={this.showAddForm}
                     {...createTooltip(`Create a new ${this.props.itemName}`)}
                   >
-                    <i className="fas fa-plus-circle mr-2"/>Add item
+                    <i className="fas fa-plus-circle me-2" />Add item
                   </button>
                 )}
                 {this.props.showActions && this.props.user.admin && (
