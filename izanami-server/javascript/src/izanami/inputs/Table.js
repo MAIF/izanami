@@ -800,16 +800,16 @@ export class Table extends Component {
                     }}
                   >
                     <button
-                      className="btn-dropdown"
+                      className="btn"
                       data-toggle="dropdown"
                       type="button"
-                      aria-haspopup="true"
+                      data-bs-toggle="dropdown" 
                       aria-expanded="false"
-                      style={{ verticalAlign: "middle" }}
+                      id="dropdownMenu2"
                     >
                       <i className="fas fa-cog" aria-hidden="true" />
                     </button>
-                    <ul className="dropdown-menu p-3">
+                    <ul className="dropdown-menu p-3" aria-labelledby="dropdownMenu2">
                       {this.props.downloadLinks &&
                         this.props.downloadLinks.map(({ title, link }, i) => (
                           <li key={`download-${i}`}>
