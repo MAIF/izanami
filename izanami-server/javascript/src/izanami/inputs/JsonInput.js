@@ -20,7 +20,7 @@ export class JsonInput extends Component {
       }
     }
     return (
-      <div className="form-group row">
+      <div className="row mb-3">
         <label
           htmlFor={`input-${this.props.label}`}
           className="col-sm-2 col-form-label"

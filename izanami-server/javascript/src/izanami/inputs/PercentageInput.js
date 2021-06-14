@@ -8,7 +8,7 @@ export class PercentageInput extends Component {
 
   render() {
     return (
-      <div className="form-group row">
+      <div className="row mb-3">
         <label htmlFor="exampleInputAmount" className="col-sm-2 col-form-label">
           {this.props.label} (%)
         </label>
