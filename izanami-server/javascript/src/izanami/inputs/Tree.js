@@ -59,7 +59,7 @@ class CopyNodeWindow extends Component {
                         onChange={defaultValue => this.setState({defaultValue})}/>
           <div className="form-group">
             <div className="col-sm-12">
-              <div className="btn-group float-right">
+                <div className="btn-group float-end">
                 <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
                 <button type="button" className="btn btn-primary"
                         onClick={_ => this.clone()}>

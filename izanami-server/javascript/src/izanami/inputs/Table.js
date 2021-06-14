@@ -911,7 +911,7 @@ export class Table extends Component {
                 />
               </div>
             )}
-            <div className="form-buttons float-right">
+            <div className="form-buttons float-end">
               <button
                 type="button"
                 className="btn btn-danger"
@@ -949,7 +949,7 @@ export class Table extends Component {
                 />
               </div>
             )}
-            <div className="form-buttons float-right updateConfig">
+            <div className="form-buttons float-end updateConfig">
               {this.isDeleteAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-danger"

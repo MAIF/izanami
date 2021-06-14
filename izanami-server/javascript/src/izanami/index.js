@@ -243,7 +243,7 @@ export class LoggedApp extends Component {
                       '<span><strong>Create a user</strong></span>',
                     html: true,
                     content:
-                      '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary float-right click" href="/users/add">Create user</a>',
+                      '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary float-end click" href="/users/add">Create user</a>',
                     container: "body"
                   },
                   state: "show",

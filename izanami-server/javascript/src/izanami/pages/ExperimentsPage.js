@@ -28,7 +28,7 @@ class Variant extends Component {
       <div className="col-xs-12 col-sm-4">
         <div className="panel variant-panel">
           <div className="panel-heading variant-panel">
-            <h3 className="panel-title float-left">Traffic</h3>
+            <h3 className="panel-title float-start">Traffic</h3>
             <span className="input-group-btn">
               <button
                 type="button"
