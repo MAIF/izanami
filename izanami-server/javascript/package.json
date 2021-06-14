@@ -46,8 +46,9 @@
     "webpack-dev-server": "4.0.0-beta.1"
   },
   "dependencies": {
+    "@popperjs/core": "^2.9.2",
     "antd": "^3.4.3",
-    "bootstrap": "4.3.1",
+    "bootstrap": "5.0.1",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.3",
     "faker": "4.1.0",
@@ -58,7 +59,6 @@
     "js-cookie": "^2.2.0",
     "lodash": "4.17.21",
     "moment": "2.21.0",
-    "popper.js": "^1.16.0",
     "prop-types": "15.6.0",
     "query-string": "^6.2.0",
     "react": "16.6.3",
