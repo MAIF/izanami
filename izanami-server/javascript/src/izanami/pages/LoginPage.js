@@ -89,7 +89,7 @@ export class LoginPage extends Component {
                   />
                 </div>
               )}
-              <div className="form-buttons float-right">
+              <div className="d-flex justify-content-end">
                 <button
                   type="button"
                   className="btn btn-danger"
