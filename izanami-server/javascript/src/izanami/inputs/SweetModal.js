@@ -111,8 +111,8 @@ export class SweetModal extends Component {
                   <div
                     className={
                       this.state.errors.indexOf("confirmToDelete.error") !== -1
-                        ? "form-group row has-error"
-                        : "form-group row"
+                        ? "row mb-3 has-error"
+                        : "row mb-3"
                     }
                   >
                     <label

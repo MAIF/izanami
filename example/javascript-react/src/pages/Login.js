@@ -48,7 +48,7 @@ export default class Login extends React.Component {
               <div className="jumbotron">
                 <h2>Signin and manage your lovelly shows</h2>
                 <form onSubmit={this.doLogin}>
-                  <div className={`form-group ${this.state.error ? "has-error" : ""}`}>
+                  <div className={`mb-3 ${this.state.error ? "has-error" : ""}`}>
                     <label htmlFor="email">Email address</label>
                     <input type="email" className="form-control" id="exampleInputEmail1" placeholder="foo@gmail.com"
                            onChange={this.setEmail}/>

@@ -67,7 +67,7 @@ export class ObjectInput extends PureComponent {
     return (
       <div>
         {this.state.values.length === 0 && (
-          <div className="form-group row">
+          <div className="row mb-3">
             <label
               htmlFor={`input-${this.props.label}`}
               className="col-sm-2 col-form-label"
@@ -87,7 +87,7 @@ export class ObjectInput extends PureComponent {
           </div>
         )}
         {this.state.values.map((value, idx) => (
-          <div className="form-group row" key={`obj-${idx}`}>
+          <div className="row mb-3" key={`obj-${idx}`}>
             {idx === 0 && (
               <label className="col-sm-2 col-form-label">
                 {this.props.label}

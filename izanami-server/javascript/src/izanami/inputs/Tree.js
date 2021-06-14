@@ -37,7 +37,7 @@ class CopyNodeWindow extends Component {
     return (
       <div className={'copy-node-window'} onClick={_ => false}>
         <form className="form-horizontal" style={this.props.style}>
-          <div className="form-group row">
+            <div className="row mb-3">
             <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
               From
             </label>
@@ -45,8 +45,8 @@ class CopyNodeWindow extends Component {
               <Key value={this.props.nodekey || ''}/>
             </div>
           </div>
-          <div className="form-group row">
-            <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
+          <div className="mb-3">
+            <label htmlFor={`input-From`} className="col-sm-2 control-label">
               To
             </label>
             <div className="col-sm-10">
@@ -57,7 +57,7 @@ class CopyNodeWindow extends Component {
           <BooleanInput label={'Active'}
                         value={this.state.defaultValue}
                         onChange={defaultValue => this.setState({defaultValue})}/>
-          <div className="form-group">
+            <div className="mb-3">
             <div className="col-sm-12">
                 <div className="btn-group float-end">
                 <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
@@ -362,7 +362,7 @@ export class Tree extends PureComponent {
     return (
       <div className="col-xs-12">
         <form className="form-horizontal">
-          <div className="form-group">
+          <div className="mb-3">
             <div className="input-group dark-input">
               <span className="input-group-prepend back-intermediate-color">
                 <span className="input-group-text">
