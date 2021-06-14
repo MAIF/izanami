@@ -22,4 +22,4 @@ export * from "./MultiSearch";
 export * from "./OptionalField";
 export * from "./AuthorizedPatternsInput"
 export * from "./AuthorizedPatterns"
-//export * from './popover';
+export * from "./TextInputAnimated"

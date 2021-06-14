@@ -6,9 +6,9 @@ import Cookies from "js-cookie";
 
 export class LoginPage extends Component {
   formSchema = {
-    userId: { type: "string", props: { label: "Login", placeholder: "Login" } },
+    userId: { type: "stringAnimated", props: { label: "Login", placeholder: "Login" } },
     password: {
-      type: "string",
+      type: "stringAnimated",
       props: { label: "Password", placeholder: "Password", type: "password" }
     }
   };
