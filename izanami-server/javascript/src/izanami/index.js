@@ -23,7 +23,6 @@ import {
   UserPage,
   WebHooksPage
 } from "./pages";
-import { popover } from "./inputs/popover";
 import queryString from "query-string";
 import isEmpty from "lodash/isEmpty";
 import "../styles/main.scss";
@@ -128,7 +127,8 @@ export class LoggedApp extends Component {
     return (
       <div className="container-fluid">
         <nav className="navbar navbar-expand-lg fixed-top p-0">
-          <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex ">
+          <div className="container-fluid">
+            <div className="navbar-header justify-content-lg-center col-12 col-lg-2 d-flex ">
               <a className="navbar-brand"  href="/">
                 <div className="d-flex flex-column justify-content-center align-items-center"><span>イザナミ</span> Izanami</div>
               </a>
@@ -175,7 +175,7 @@ export class LoggedApp extends Component {
       </div>
       </form>
 
-            <ul key="admin-menu" className="navbar-nav ml-auto">
+            <ul key="admin-menu" className="navbar-nav ms-auto">
               <li className="dropdown userManagement">
                 <a
                   href="#"
@@ -224,7 +224,7 @@ export class LoggedApp extends Component {
                 </ul>
               </li>
             </ul>
-            {changeme && (
+            {/* {changeme && (
               <a
                 data-toggle="popover"
                 data-trigger="focus"
@@ -251,8 +251,8 @@ export class LoggedApp extends Component {
                   onClose: this.onChangemeClosed
                 })}
               />
-            )}
-
+            )} */}
+          </div>
         </nav>
 
         <div className="container-fluid">
