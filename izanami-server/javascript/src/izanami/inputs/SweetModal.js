@@ -1,41 +1,35 @@
-import React, { Component } from "react";
+import React, {Component} from "react";
+import { Modal } from 'bootstrap';
 
 export class SweetModal extends Component {
-  constructor(props) {
-    super(props);
 
-    this.state = {
-      confirmToDelete: "",
-      errors: []
-    };
+  state = {
+    confirmToDelete: "",
+    errors: []
   }
 
-  componentDidMount() {
-    this.setState({
-      confirmToDelete: "",
-      errors: []
-    });
+  componentDidUpdate() {
+    if (this.state.confirmToDelete !== "" || this.state.errors.length != 0) {
+      this.setState({
+        confirmToDelete: "",
+        errors: []
+      });
+    }
     this.toggleModal(this.props.open);
   }
 
-  componentWillReceiveProps(nextProps) {
-    this.setState({
-      confirmToDelete: "",
-      errors: []
-    });
-    this.toggleModal(nextProps.open);
-  }
-
   toggleModal = (open = false) => {
+    let myModal = new Modal(document.getElementById(`${this.props.id}`));    
     if (open) {
-      $(`#${this.props.id}`).modal("show");
+      myModal.show();
     } else {
-      $(`#${this.props.id}`).modal("hide");
+      myModal.hide();
     }
   };
 
   componentWillUnmount() {
-    $(`#${this.props.id}`).modal("hide");
+    let myModal = new Modal(document.getElementById(`${this.props.id}`));  
+    myModal.hide()
   }
 
   handleInputChange = event => {
@@ -43,7 +37,7 @@ export class SweetModal extends Component {
     const value = target.type === "checkbox" ? target.checked : target.value;
     const name = target.name;
 
-    const nextState = Object.assign({}, this.state, { [name]: value });
+    const nextState = Object.assign({}, this.state, {[name]: value});
     this.setState(nextState);
   };
 
@@ -54,7 +48,7 @@ export class SweetModal extends Component {
       } else {
         const errors = [];
         errors.push("confirmToDelete.error");
-        this.setState({ errors });
+        this.setState({errors});
       }
     } else {
       this.props.confirm(e);
@@ -89,7 +83,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
-                  data-dismiss="modal"
+                  data-bs-dismiss="modal"
                 >
                   Ok
                 </button>
@@ -148,7 +142,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-danger"
-                  data-dismiss="modal"
+                  data-bs-dismiss="modal"
                   onClick={this.onDismiss}
                 >
                   Cancel
@@ -157,6 +151,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
+                  data-bs-dismiss="modal"
                   onClick={this.confirm}
                 >
                   {this.props.labelValid || "Confirm"}
@@ -186,7 +181,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
-                  data-dismiss="modal"
+                  data-bs-dismiss="modal"
                 >
                   Ok
                 </button>
