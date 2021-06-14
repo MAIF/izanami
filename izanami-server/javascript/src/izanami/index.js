@@ -23,6 +23,7 @@ import {
   UserPage,
   WebHooksPage
 } from "./pages";
+// import { SweetModal } from "./inputs/SweetModal";
 import queryString from "query-string";
 import isEmpty from "lodash/isEmpty";
 import "../styles/main.scss";
@@ -101,6 +102,10 @@ export class LoggedApp extends Component {
   gotoService = e => {
     window.location.href = `/${e.type}/edit/${e.value}`;
   };
+
+  gotoCreateUser = () => {
+    window.location.href = "/users/add";
+  }
 
   onChangemeClosed = () => {
     Cookies.remove("notifyuser");
@@ -230,34 +235,6 @@ export class LoggedApp extends Component {
               </li>
             </ul>
             </div>
-            {/* {changeme && (
-              <a
-                data-toggle="popover"
-                data-trigger="focus"
-                tabIndex="0"
-                role="button"
-                style={{
-                  paddingLeft: 0,
-                  paddingRight: 0,
-                  marginLeft: 0,
-                  marginRight: 0,
-                  width: 0
-                }}
-                {...popover({
-                  options: {
-                    title:
-                      '<span><strong>Create a user</strong></span>',
-                    html: true,
-                    content:
-                      '<p>You\'re using a temporary user, please create a dedicated one here</p><a class="btn btn-primary float-end click" href="/users/add">Create user</a>',
-                    container: "body"
-                  },
-                  state: "show",
-                  onClick: this.onChangemeClosed,
-                  onClose: this.onChangemeClosed
-                })}
-              />
-            )} */}
           </div>
         </nav>
 
@@ -537,6 +514,21 @@ export class LoggedApp extends Component {
                           }
                         />
                       </Switch>
+                    {/* {changeme && (
+                      <SweetModal
+                        type="confirm"
+                        id={"createUser"}
+                        confirm={e => this.gotoCreateUser()}
+                        open={true}
+                        labelValid="Create a user"
+                        title="Create a user"
+                        >
+                          <div>
+                            <p>You're using a temporary user, please create a dedicated one here</p>
+                          </div>
+                        </SweetModal>
+                    )
+                    } */}
                     </div>
                   </div>
                 </div>
