@@ -328,7 +328,7 @@ export class Tree extends Component {
         <form className="form-horizontal">
           <div className="mb-3">
             <div className="input-group dark-input">
-              <span className="input-group-prepend back-intermediate-color">
+              <span className="d-flex input-group-prepend back-intermediate-color">
                 <span className="input-group-text">
                   <i className="back-color fas fa-search"></i>
                 </span>
