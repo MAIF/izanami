@@ -43,7 +43,7 @@ export class FeaturesExplorerPage extends Component {
           className="form-inline"
           style={{ marginBottom: 20, marginLeft: -15 }}
         >
-          <div className="form-group">
+          <div className="mb-3">
             <input
               type="text"
               className="form-control col-xs-12"

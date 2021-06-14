@@ -148,7 +148,7 @@ export class LoggedApp extends Component {
       <form className="form-inline ms-4 p-2 p-lg-0">
           {selected && (
           <div
-              className="form-group"
+              className="mb-3"
               style={{ marginRight: 10, display: "inline" }}
           >
           <span

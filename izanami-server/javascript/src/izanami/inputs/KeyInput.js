@@ -59,7 +59,7 @@ const keys = {
 
 export class KeyInputForm extends Component {
   render() {
-    return <div className="form-group row">
+    return <div className="row mb-3">
       <label
           htmlFor={`input-${this.props.label}`}
           className="col-sm-2 col-form-label"

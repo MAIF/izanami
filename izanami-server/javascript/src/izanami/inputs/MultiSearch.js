@@ -135,7 +135,7 @@ export class MultiSearch extends Component {
   render() {
     return (
       <div className="" ref={ref => (this.wrapper = ref)}>
-          <div className="form-group has-feedback">
+          <div className="d-flex align-items-center mb-0 has-feedback">
             <input
               type="text"
               className="form-control search-input"
