@@ -145,11 +145,10 @@ export class LoggedApp extends Component {
               </button>
            </div>
 
-      <form className="form-inline ms-4 p-2 p-lg-0">
+      <form className="ms-4 p-2 p-lg-0">
           {selected && (
           <div
-              className="mb-3"
-              style={{ marginRight: 10, display: "inline" }}
+              className="mb-3 mr-2 d-inline"
           >
           <span
               title="Current line"
