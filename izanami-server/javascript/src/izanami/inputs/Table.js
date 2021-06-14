@@ -749,13 +749,12 @@ export class Table extends Component {
                   )}
               </div>
             </div>
-            <div className="row" style={{ marginBottom: 10 }}>
+            <div className="row mb-2">
               <div className="col-md-12">
                 {this.props.treeModeEnabled && this.isTable() && (
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ marginLeft: 10 }}
+                    className="btn btn-primary ms-2"
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
@@ -765,9 +764,8 @@ export class Table extends Component {
                 {this.isTree() && (
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary ms-2"
                     onClick={this.toggleRender}
-                    style={{ marginLeft: 10 }}
                     {...createTooltip("Switch the view")}
                   >
                     <i className="fas fa-list" />
@@ -785,12 +783,11 @@ export class Table extends Component {
                 {this.props.showActions && !this.props.disableAddButton && (
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ marginLeft: 10 }}
+                    className="btn btn-primary ms-2" 
                     onClick={this.showAddForm}
                     {...createTooltip(`Create a new ${this.props.itemName}`)}
                   >
-                    <i className="fas fa-plus-circle mr-2" />Add item
+                    <i className="fas fa-plus-circle me-2" />Add item
                   </button>
                 )}
                 {this.props.showActions && this.props.user.admin && (

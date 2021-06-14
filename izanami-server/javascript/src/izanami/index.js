@@ -93,7 +93,7 @@ export class LoggedApp extends Component {
   lineRenderer = option => {
     return (
       <label style={{ cursor: "pointer" }} className="justify-content-start">
-        <i className={`mr-2 ${pictos[option.type]}`} /> {option.label}
+        <i className={`me-2 ${pictos[option.type]}`} /> {option.label}
       </label>
     );
   };
@@ -145,7 +145,7 @@ export class LoggedApp extends Component {
               </button>
            </div>
 
-      <form className="form-inline ml-4 p-2 p-lg-0">
+      <form className="form-inline ms-4 p-2 p-lg-0">
           {selected && (
           <div
               className="form-group"
@@ -194,7 +194,7 @@ export class LoggedApp extends Component {
                           className=""
                           style={{ cursor: "pointer" }}
                         >
-                          <i className="fas fa-user mr-2"></i> Users management
+                          <i className="fas fa-user me-2"></i> Users management
                         </Link>
                     </li>}
                   {apikeyManagementEnabled &&
@@ -204,13 +204,13 @@ export class LoggedApp extends Component {
                           className=""
                           style={{ cursor: "pointer" }}
                         >
-                          <i className="fas fa-key mr-2"></i> Api Keys management
+                          <i className="fas fa-key me-2"></i> Api Keys management
                         </Link>
                     </li>
                   }
                   <li className="dropdown-item">
                     <a href={this.props.logout} className="link-logout">
-                      <i className="fas fa-power-off mr-2"></i> {this.props.user ? this.props.user.email : ""}
+                      <i className="fas fa-power-off me-2"></i> {this.props.user ? this.props.user.email : ""}
                     </a>
                   </li>
                   <li>
@@ -218,7 +218,7 @@ export class LoggedApp extends Component {
                   </li>
                   <li className="dropdown-item">
                     <a href="#">
-                      <img src={`${window.__contextPath}/assets/images/izanami-inverse.png`} width="16" className="mr-2"/> version {this.state.version}
+                      <img src={`${window.__contextPath}/assets/images/izanami-inverse.png`} width="16" className="me-2"/> version {this.state.version}
                     </a>
                   </li>
                 </ul>
