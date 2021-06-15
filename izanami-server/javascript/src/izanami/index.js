@@ -23,7 +23,7 @@ import {
   UserPage,
   WebHooksPage,
 } from "./pages";
-// import { SweetModal } from "./inputs/SweetModal";
+// #πR import { SweetModal } from "./inputs/SweetModal"; ≈
 import queryString from "query-string";
 import isEmpty from "lodash/isEmpty";
 import "../styles/main.scss";
@@ -513,7 +513,7 @@ export class LoggedApp extends Component {
                         }
                       />
                     </Switch>
-                    {/* {changeme && (
+                    {/* #πR {changeme && (
                       <SweetModal
                         type="confirm"
                         id={"createUser"}

@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { Form, Alerts } from ".";
 import isEqual from "lodash/isEqual";
 import { createTooltip } from "./tooltips";
-// import { SweetModal } from "./SweetModal";
+//#πR import { SweetModal } from "./SweetModal";
 import * as Events from "../services/events";
 import { Tree } from "./Tree";
 import * as TreeHelper from "../helpers/TreeData";
@@ -976,7 +976,7 @@ export class Table extends Component {
               > <i className="fas fa-hdd" /> Update{" "}
                 {this.props.itemName}
               </button>}
-              {/* <SweetModal
+              {/* #πR <SweetModal
                 type="confirm"
                 confirm={e => this.deleteItem(e, this.state.currentItem)}
                 id={"confirmDelete"}
@@ -989,7 +989,7 @@ export class Table extends Component {
             </div>
           </div>
         )}
-        {/* <SweetModal
+        {/* #πR <SweetModal
           type="confirm"
           confirm={e => this.deleteItem(e, this.state.toDelete)}
           id={"confirmDeleteTable"}
