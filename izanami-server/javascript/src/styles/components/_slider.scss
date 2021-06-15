@@ -1,11 +1,31 @@
+.bar {
+  position: relative;
+  background: $primaryColor;
+}
+
 .horizontal-slider {
   width: 100%;
   max-width: 500px;
   height: 50px;
   border: 0;
   margin: 20px 10px;
-}
+  .bar {
+    top: 20px;
+    height: 10px;
+  }
+  .handle {
+    top: 1px;
+    width: 50px;
+    height: 48px;
+    line-height: 48px;
+    border-radius: 25px;
+    border: 1px solid $primaryColor;
 
+    &:focus-visible {
+      outline: none !important;
+    }
+  }
+}
 
 .handle {
   font-size: 0.9em;
@@ -13,24 +33,7 @@
   background-color: $fondBody;
   color: white;
   cursor: pointer;
-}
-.handle.active {
-  background-color: grey;
-}
-.bar {
-  position: relative;
-  background: $primaryColor;
-}
-
-.horizontal-slider .bar {
-  top: 20px;
-  height: 10px;
-}
-.horizontal-slider .handle {
-  top: 1px;
-  width: 50px;
-  height: 48px;
-  line-height: 48px;
-  border-radius: 25px;
-  border: 1px solid $primaryColor;
+  &.active {
+    background-color: lighten($color: $primaryColor, $amount: 10);
+  }
 }

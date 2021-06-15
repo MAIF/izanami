@@ -28,7 +28,7 @@ export class OptionalField extends Component {
             {!this.state.disabled && <OnSwitch onChange={this.toggleOff} />}
             {this.state.disabled && <OffSwitch onChange={this.toggleOn} />}
           </div>
-          <div className="col-sm-9">
+          <div className="col-sm-9 d-flex align-items-center">
             {!this.state.disabled &&
               React.cloneElement(this.props.children, {
                 ...this.props,
