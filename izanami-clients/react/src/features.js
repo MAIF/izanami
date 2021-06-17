@@ -92,9 +92,9 @@ export class Feature extends Component {
     const isActive = getIsActive(features, arrayPath);
     const path = arrayPathToString(arrayPath)
     const childrenArray = Array.isArray(children) ? children : [children];
-    const enabledChildren = childrenArray.filter(c => c && c.type === Enabled);
-    const disabledChildren = childrenArray.filter(c => c && c.type === Disabled);
-    const pendingChildren = childrenArray.filter(c => c && c.type === Pending);
+    const enabledChildren = childrenArray.filter(c => c && c.type.toString() === Enabled.toString());
+    const disabledChildren = childrenArray.filter(c => c && c.type.toString() === Disabled.toString());
+    const pendingChildren = childrenArray.filter(c => c && c.type.toString() === Pending.toString());
     const debug = !!this.state.debug || this.props.debug;
     if (this.props.render && isFunction(this.props.render)) {
       if (debug) {
