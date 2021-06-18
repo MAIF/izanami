@@ -1,42 +1,40 @@
 package domains
 
-import java.time.LocalDateTime
-
-import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import cats.data.NonEmptyList
+import cats.data.Validated._
+import cats.implicits._
 import domains.abtesting.Experiment.ExperimentKey
-import domains.events.EventStore
-import domains.configuration.PlayModule
+import domains.abtesting.events.ExperimentVariantEventService
 import domains.auth.AuthInfo
-import libs.logs.ZLogger
-import play.api.libs.json._
+import domains.configuration.PlayModule
 import domains.errors.{IzanamiErrors, ValidatedResult, ValidationError}
+import domains.events.EventStore
+import env.IzanamiConfig
+import libs.logs.ZLogger
+import libs.ziohelper.JsResults.jsResultToError
+import play.api.libs.json._
 import store._
 import store.datastore.{JsonDataStoreHelper, _}
-import cats.implicits._
-import cats.data.Validated._
-import domains.abtesting.events.ExperimentVariantEventService
-import domains.script.GlobalScriptDataStore
-import env.IzanamiConfig
-import env.configuration.IzanamiConfigModule
-import libs.database.Drivers
-import libs.ziohelper.JsResults.jsResultToError
 import store.memorywithdb.InMemoryWithDbStore
 import zio.blocking.Blocking
-import zio.{Has, RIO, URIO, ZIO, ZLayer}
+import zio._
 
+import java.time.LocalDateTime
 import scala.util.hashing.MurmurHash3
 
 package object abtesting {
 
   case class Traffic(traffic: Double) extends AnyVal
 
-  case class Variant(id: String,
-                     name: String,
-                     description: Option[String] = None,
-                     traffic: Traffic,
-                     currentPopulation: Option[Int] = None) {
+  case class Variant(
+      id: String,
+      name: String,
+      description: Option[String] = None,
+      traffic: Traffic,
+      currentPopulation: Option[Int] = None
+  ) {
     def incrementPopulation: Variant =
       copy(currentPopulation = currentPopulation.map(_ + 1).orElse(Some(1)))
   }
@@ -48,12 +46,14 @@ package object abtesting {
   case class CurrentCampaign(from: LocalDateTime, to: LocalDateTime)             extends Campaign
   case class ClosedCampaign(from: LocalDateTime, to: LocalDateTime, won: String) extends Campaign
 
-  case class Experiment(id: ExperimentKey,
-                        name: String,
-                        description: Option[String] = None,
-                        enabled: Boolean,
-                        campaign: Option[Campaign] = None,
-                        variants: NonEmptyList[Variant]) {
+  case class Experiment(
+      id: ExperimentKey,
+      name: String,
+      description: Option[String] = None,
+      enabled: Boolean,
+      campaign: Option[Campaign] = None,
+      variants: NonEmptyList[Variant]
+  ) {
 
     def addOrReplaceVariant(variant: Variant): Experiment =
       copy(variants = variants.map {
@@ -89,14 +89,12 @@ package object abtesting {
       val validations: ValidatedResult[Experiment] = (
         validateTraffic(experiment),
         validateCampaign(experiment)
-      ).mapN { (_, _) =>
-        experiment
-      }
+      ).mapN((_, _) => experiment)
       validations.toEither.leftMap(err => IzanamiErrors(err))
     }
 
     private def validateTraffic(experiment: Experiment): ValidatedResult[Experiment] = {
-      val allTraffic = experiment.variants.map(_.traffic.traffic).reduceLeft(_ + _)
+      val allTraffic = (math floor experiment.variants.map(_.traffic.traffic).reduceLeft(_ + _) * 100) / 100
       Either.cond(allTraffic === 1, experiment, ValidationError.error("error.traffic.not.cent.percent")).toValidated
     }
 
@@ -122,26 +120,28 @@ package object abtesting {
         .map { v =>
           data.variants
             .find(_.id === v.id)
-            .forall { v1 =>
-              v1.traffic =!= v.traffic
-            }
+            .forall(v1 => v1.traffic =!= v.traffic)
         }
-        .foldLeft(false) { _ || _ }
+        .foldLeft(false)(_ || _)
     }
   }
 
-  case class VariantResult(variant: Option[Variant] = None,
-                           displayed: Long = 0,
-                           won: Long = 0,
-                           transformation: Double = 0,
-                           users: Double = 0,
-                           events: Seq[ExperimentResultEvent] = Seq.empty)
+  case class VariantResult(
+      variant: Option[Variant] = None,
+      displayed: Long = 0,
+      won: Long = 0,
+      transformation: Double = 0,
+      users: Double = 0,
+      events: Seq[ExperimentResultEvent] = Seq.empty
+  )
 
-  case class ExperimentResultEvent(experimentId: ExperimentKey,
-                                   variant: Variant,
-                                   date: LocalDateTime = LocalDateTime.now(),
-                                   transformation: Double,
-                                   variantId: String)
+  case class ExperimentResultEvent(
+      experimentId: ExperimentKey,
+      variant: Variant,
+      date: LocalDateTime = LocalDateTime.now(),
+      transformation: Double,
+      variantId: String
+  )
 
   object VariantResult {
     def transformation(displayed: Long, won: Long): Double = displayed match {
@@ -187,9 +187,9 @@ package object abtesting {
 
     import Experiment._
     import ExperimentInstances._
-    import domains.events.Events.{ExperimentCreated, ExperimentDeleted, ExperimentUpdated}
     import domains.errors._
     import IzanamiErrors._
+    import domains.events.Events.{ExperimentCreated, ExperimentDeleted, ExperimentUpdated}
 
     def create(id: ExperimentKey, data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
       import ExperimentInstances._
@@ -205,9 +205,11 @@ package object abtesting {
       // format: on
     }
 
-    def update(oldId: ExperimentKey,
-               id: ExperimentKey,
-               data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
+    def update(
+        oldId: ExperimentKey,
+        id: ExperimentKey,
+        data: Experiment
+    ): ZIO[ExperimentContext, IzanamiErrors, Experiment] =
       // format: off
       for {
         _           <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
@@ -222,10 +224,12 @@ package object abtesting {
       } yield experiment
       // format: on
 
-    def rawUpdate(oldId: ExperimentKey,
-                  oldValue: Experiment,
-                  id: ExperimentKey,
-                  data: Experiment): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
+    def rawUpdate(
+        oldId: ExperimentKey,
+        oldValue: Experiment,
+        id: ExperimentKey,
+        data: Experiment
+    ): ZIO[ExperimentContext, IzanamiErrors, Experiment] = {
       import ExperimentInstances._
       // format: off
       for {
@@ -291,9 +295,7 @@ package object abtesting {
             .write[String]
             .writes(variant.id)
         }
-        .fold(Json.obj()) { (acc, js) =>
-          acc.deepMerge(js.as[JsObject])
-        }
+        .fold(Json.obj())((acc, js) => acc.deepMerge(js.as[JsObject]))
 
     def variantFor(
         experimentKey: ExperimentKey,

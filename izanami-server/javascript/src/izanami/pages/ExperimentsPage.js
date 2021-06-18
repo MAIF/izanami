@@ -74,7 +74,7 @@ const round = v => {
 };
 
 const trafficSum = variants => {
-  return variants.reduce((acc, e) => acc + e.traffic, 0);
+  return variants.reduce((acc, e) => round(acc + e.traffic), 0);
 };
 
 class Variants extends Component {
@@ -92,6 +92,7 @@ class Variants extends Component {
     "K",
     "L",
     "M",
+    "N",
     "O",
     "P",
     "Q",
@@ -127,7 +128,7 @@ class Variants extends Component {
 
   getNextTraffic = () => {
     const traffic = 1 / (this.props.source.variants.length + 1);
-    return round(traffic);
+    return Math.trunc(traffic * 100) / 100;
   };
 
   reaffectTraffic = variants => {
@@ -250,13 +251,14 @@ class Variants extends Component {
             <button
               type="button"
               className="btn btn-sm btn-block btn-primary btn-addTraffic"
+              disabled={this.props.value.length >= Variants.letters.length}
               onClick={() => {
                 const id = this.nextLetter();
                 const traffic = this.getNextTraffic();
                 const updated = this.props.value.map(v => ({ ...v, traffic }));
                 const allTraffic = updated
                   .map(v => v.traffic)
-                  .reduce((acc, e) => acc + e, 0);
+                  .reduce((acc, e) => round(acc + e), 0);
                 const remainingTraffic = round(1 - allTraffic);
                 return this.props.onChange([
                   ...updated,
