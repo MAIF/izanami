@@ -6,7 +6,7 @@ import Symbol from "es-symbol";
 import 'bootstrap/dist/css/bootstrap.css';
 import "react-table/react-table.css";
 
-import 'bootstrap/dist/js/bootstrap';
+import 'bootstrap';
 
 if (!window.Symbol) {
   window.Symbol = Symbol;
