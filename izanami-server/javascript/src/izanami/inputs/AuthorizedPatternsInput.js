@@ -57,7 +57,7 @@ class AuthorizedPattern extends Component {
                     search={this.searchKey}
                     onChange={e => this.changeKey(e)}
                 />
-                <div className="input-group-btn ps-sm-2 crud" role="group">
+                <div className="input-group-btn crud ps-sm-2 crud" role="group">
                     <Right letter={"C"} selected={this.props.value.rights.includes("C")} onChange={v => this.set("C", v)}/>
                     <Right letter={"R"} selected={true} disabled={true} />
                     <Right letter={"U"} selected={this.props.value.rights.includes("U")} onChange={v => this.set("U", v)}/>
