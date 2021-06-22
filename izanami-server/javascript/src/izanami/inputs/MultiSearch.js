@@ -72,7 +72,7 @@ export class MultiSearch extends Component {
         filters,
         query
       })
-      .then(results => this.setState({ results, loading: true }));
+      .then(results => this.setState({ results, loading: false }));
   };
 
   onElementSelected = elt => e => {
