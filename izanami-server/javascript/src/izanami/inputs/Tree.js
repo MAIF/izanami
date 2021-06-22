@@ -8,7 +8,7 @@ import {BooleanInput} from "./BooleanInput";
 const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
   return (
-        <div className="btn-group btn-breadcrumb" style={{marginTop:'10px'}}>
+        <div className="btn-group btn-breadcrumb">
           {values.map((part, i) => (
               <div className="key-value-value-big" key={`key-value-${props.value}-${i}`}>
                 <span>{part}</span>
