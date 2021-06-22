@@ -79,17 +79,29 @@
     border-color: $savecolor;
     background-color: $savecolor;
   }
-  &[disabled] {
-    color: $colorGris;
-    text-shadow: none;
-    background-color: transparent;
-    border-color: $savecolor;
-  }
+  // &[disabled] {
+  //   color: $colorGris;
+  //   text-shadow: none;
+  //   background-color: transparent;
+  //   border-color: $savecolor;
+  // }
   &.disabled {
     color: $colorGris;
     text-shadow: none;
     background-color: transparent;
     border-color: $colorGris;
+  }
+  &.active {
+    background: $savecolor !important;
+}
+}
+
+.input-group-btn.crud{
+  .btn:disabled{
+    cursor:not-allowed;
+  }
+  .btn-success:not(.active) {
+    background: none ;
   }
 }
 
