@@ -70,8 +70,7 @@ export class LoggedApp extends Component {
       this.setState({ version: appInfo.version });
     });
     this.props.history.listen(() => {
-      $("#navbarSupportedContent").collapse("hide");
-      $("#navbar").collapse("hide");
+      document.getElementById("navbarSupportedContent").classList.remove("show");
     });
   }
 
