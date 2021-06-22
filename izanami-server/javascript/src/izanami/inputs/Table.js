@@ -960,7 +960,7 @@ export class Table extends Component {
                 title="Delete current item"
                 onClick={e => this.setState({ confirmDelete: true })}
               >
-                <i className="glyphicon glyphicon-trash" /> Delete
+                <i className="fas fa-trash-alt" /> Delete
               </button>}
               <button
                 type="button"
