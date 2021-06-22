@@ -8,47 +8,14 @@ class Metric extends Component {
       <div
         className="metric"
         style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          borderRadius: 4,
-          backgroundColor: "rgb(73, 73, 72)",
-          width: props.width || 400,
-          height: 100,
-          margin: 10,
-          fontFamily: "Roboto",
-          fontSize: 23,
-          fontWeight: "bold",
-          color: "white"
+          width: props.width || 400
         }}
       >
-        <div
-          style={{
-            zIndex: 103,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center"
-          }}
-        >
-          <span
-            style={{
-              textShadow:
-                "rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px"
-            }}
-          >
+        <div>
+          <span>
             {props.value}
           </span>
-          <span
-            style={{
-              textShadow:
-                "rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px",
-              fontSize: 22,
-              fontWeight: "normal",
-              textAlign: "center"
-            }}
-          >
+          <span>
             <i className={this.props.picto}/> {props.legend}
           </span>
         </div>
@@ -98,12 +65,7 @@ export class HomePage extends Component {
       <div className="col-md-12">
         <div className="row">
           <div
-            style={{
-              width: "100%",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center"
-            }}
+            className="d-flex align-items-center justify-content-center"
           >
             <img
               className="logo_izanami_dashboard"
@@ -113,12 +75,7 @@ export class HomePage extends Component {
         </div>
         <div style={{marginTop: 80}}>
           <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              flexWrap: "wrap",
-              marginTop: 20
-            }}
+            className="d-flex align-items-center justify-content-center mt-3"
           >
             <Metric
               value={this.state.configsCount}
@@ -132,12 +89,7 @@ export class HomePage extends Component {
             />
           </div>
           <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              flexWrap: "wrap",
-              marginTop: 20
-            }}
+            className="d-flex align-items-center justify-content-center mt-3"
           >
             <Metric
               value={this.state.experimentsCount}
