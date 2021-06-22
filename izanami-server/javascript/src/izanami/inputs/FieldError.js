@@ -20,7 +20,7 @@ export class FieldError extends Component {
             <div>
               <label
                 className="col-form-label offset-sm-2"
-                for="inputError1"
+                htmlFor="inputError1"
                 key={index}
               >
                 {TranslateService.translate(err)}
