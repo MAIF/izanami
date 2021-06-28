@@ -45,12 +45,12 @@ export class Alerts extends Component {
     if (display) {
       return (
         <div className={`panel panel-${type}`}>
-          <div className="panel-heading">
+          <div className="panel-heading d-flex justify-content-between align-items-center">
             <span>{title} </span>
             <button
               type="button"
               onClick={this.close}
-              className="close cancel float-end"
+              className="btn close cancel"
             >
               &times;
             </button>
