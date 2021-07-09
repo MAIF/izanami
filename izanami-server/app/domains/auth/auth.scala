@@ -108,34 +108,30 @@ package object auth {
     import play.api.libs.functional.syntax._
 
     implicit val format: Format[Service] = Format(
-      {
-        (
-          (__ \ "id").read[String] and
-          (__ \ "authorizedPattern").read[AuthorizedPatterns] and
-          (__ \ "name").read[String] and
-          (__ \ "mayBeEmail").readNullable[String] and
-          (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
-        )(
-          (anId: String, aPattern: AuthorizedPatterns, aName: String, anEmail: Option[String], anAdmin: Boolean) =>
-            new AuthInfo.Service {
-              def authorizedPatterns: AuthorizedPatterns = aPattern
-              def id: String                             = anId
-              def name: String                           = aName
-              def mayBeEmail: Option[String]             = anEmail
-              def admin: Boolean                         = anAdmin
-          }
-        )
-      }, {
-        (
-          (__ \ "id").write[String] and
-          (__ \ "authorizedPattern").write[AuthorizedPatterns] and
-          (__ \ "name").write[String] and
-          (__ \ "mayBeEmail").writeNullable[String] and
-          (__ \ "admin").write[Boolean]
-        )(unlift[AuthInfo.Service, (String, AuthorizedPatterns, String, Option[String], Boolean)] { info =>
-          Some((info.id, info.authorizedPatterns, info.name, info.mayBeEmail, info.admin))
-        })
-      }
+      (
+        (__ \ "id").read[String] and
+        (__ \ "authorizedPattern").read[AuthorizedPatterns] and
+        (__ \ "name").read[String] and
+        (__ \ "mayBeEmail").readNullable[String] and
+        (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
+      )((anId: String, aPattern: AuthorizedPatterns, aName: String, anEmail: Option[String], anAdmin: Boolean) =>
+        new AuthInfo.Service {
+          def authorizedPatterns: AuthorizedPatterns = aPattern
+          def id: String                             = anId
+          def name: String                           = aName
+          def mayBeEmail: Option[String]             = anEmail
+          def admin: Boolean                         = anAdmin
+        }
+      ),
+      (
+        (__ \ "id").write[String] and
+        (__ \ "authorizedPattern").write[AuthorizedPatterns] and
+        (__ \ "name").write[String] and
+        (__ \ "mayBeEmail").writeNullable[String] and
+        (__ \ "admin").write[Boolean]
+      )(unlift[AuthInfo.Service, (String, AuthorizedPatterns, String, Option[String], Boolean)] { info =>
+        Some((info.id, info.authorizedPatterns, info.name, info.mayBeEmail, info.admin))
+      })
     )
 
     def isAdmin(): ZIO[ZLogger with AuthInfo, IzanamiErrors, Unit] =
@@ -199,9 +195,7 @@ package object auth {
           .filter(_.enabled)
           .flatMap(_.mtls.filter(_.enabled))
           .map(c => loadCertificate(system, configuration))
-      val connectionContext: Option[HttpsConnectionContext] = sslContext.map { c =>
-        ConnectionContext.httpsClient(c)
-      }
+      val connectionContext: Option[HttpsConnectionContext] = sslContext.map(c => ConnectionContext.https(c))
 
       val http: HttpExt = Http()
 
@@ -224,8 +218,10 @@ package object auth {
           _             <- logger.debug(s"Oauth user logged with $endUser")
         } yield endUser
 
-      def createOrUpdateUserIfNeeded(authConfig: Oauth2Config,
-                                     effectiveUser: OauthUser): ZIO[UserContext, IzanamiErrors, User] =
+      def createOrUpdateUserIfNeeded(
+          authConfig: Oauth2Config,
+          effectiveUser: OauthUser
+      ): ZIO[UserContext, IzanamiErrors, User] =
         if (authConfig.izanamiManagedUser) {
           val id = Key(effectiveUser.id)
           UserService.getByIdWithoutPermissions(id).orDie.flatMap {
@@ -275,11 +271,11 @@ package object auth {
         val buildRequest: UIO[HttpRequest] = UIO {
           if (authConfig.useJson) {
             val body = Json.obj(
-              "code"         -> code,
-              "grant_type"   -> "authorization_code",
-              "client_id"    -> clientId,
-              "redirect_uri" -> redirectUri
-            ) ++ clientSecret.map(s => Json.obj("client_secret" -> s)).getOrElse(Json.obj())
+                "code"         -> code,
+                "grant_type"   -> "authorization_code",
+                "client_id"    -> clientId,
+                "redirect_uri" -> redirectUri
+              ) ++ clientSecret.map(s => Json.obj("client_secret" -> s)).getOrElse(Json.obj())
             HttpRequest(
               method = HttpMethods.POST,
               uri = Uri(authConfig.tokenUrl),
@@ -307,8 +303,10 @@ package object auth {
         } yield json
       }
 
-      def decodeToken(response: JsValue,
-                      authConfig: Oauth2Config): ZIO[OAuthModule, IzanamiErrors, (JsValue, JsValue)] = {
+      def decodeToken(
+          response: JsValue,
+          authConfig: Oauth2Config
+      ): ZIO[OAuthModule, IzanamiErrors, (JsValue, JsValue)] = {
 
         val rawToken: JsValue = response
 
@@ -363,9 +361,11 @@ package object auth {
         }
       }
 
-      def findAlgorithm(algoSettings: AlgoSettingsConfig,
-                        alg: String,
-                        kid: Option[String]): ZIO[OAuthModule, IzanamiErrors, Algorithm] = {
+      def findAlgorithm(
+          algoSettings: AlgoSettingsConfig,
+          alg: String,
+          kid: Option[String]
+      ): ZIO[OAuthModule, IzanamiErrors, Algorithm] = {
         import cats.implicits._
         import zio.interop.catz._
         algoSettings match {
@@ -459,11 +459,10 @@ package object auth {
                               val jwk = JWK.parse(Json.stringify(k))
                               (jwk.getKeyID, jwk)
                             }.toMap
-                            kid.flatMap(
-                              k =>
-                                keys.get(k) match {
-                                  case Some(jwk) => algoFromJwk(alg, jwk)
-                                  case None      => None
+                            kid.flatMap(k =>
+                              keys.get(k) match {
+                                case Some(jwk) => algoFromJwk(alg, jwk)
+                                case None      => None
                               }
                             )
                           }
@@ -512,16 +511,15 @@ package object auth {
       def getPublicKey(keyBytes: Array[Byte], algorithm: String): ZIO[OAuthModule, IzanamiErrors, PublicKey] =
         for {
           kf <- ZIO(KeyFactory.getInstance(algorithm))
-                 .onError(
-                   _ =>
-                     ZLogger("izanami.oauth2")
-                       .flatMap(_.error("Could not reconstruct the public key, the given algorithm could not be found"))
+                 .onError(_ =>
+                   ZLogger("izanami.oauth2")
+                     .flatMap(_.error("Could not reconstruct the public key, the given algorithm could not be found"))
                  )
                  .orDie
           keySpec <- ZIO(new X509EncodedKeySpec(keyBytes)).orDie
           publicKey <- ZIO(kf.generatePublic(keySpec))
-                        .onError(
-                          _ => ZLogger("izanami.oauth2").flatMap(_.error("Could not reconstruct the public key"))
+                        .onError(_ =>
+                          ZLogger("izanami.oauth2").flatMap(_.error("Could not reconstruct the public key"))
                         )
                         .orDie
         } yield publicKey
@@ -529,24 +527,25 @@ package object auth {
       def getPrivateKey(keyBytes: Array[Byte], algorithm: String): ZIO[OAuthModule, IzanamiErrors, PrivateKey] =
         for {
           kf <- ZIO(KeyFactory.getInstance(algorithm))
-                 .onError(
-                   _ =>
-                     ZLogger("izanami.oauth2")
-                       .flatMap(
-                         _.error("Could not reconstruct the private key, the given algorithm could not be found")
+                 .onError(_ =>
+                   ZLogger("izanami.oauth2")
+                     .flatMap(
+                       _.error("Could not reconstruct the private key, the given algorithm could not be found")
                      )
                  )
                  .orDie
           keySpec <- ZIO(new PKCS8EncodedKeySpec(keyBytes)).orDie
           publicKey <- ZIO(kf.generatePrivate(keySpec))
-                        .onError(
-                          _ => ZLogger("izanami.oauth2").flatMap(_.error("Could not reconstruct the private key"))
+                        .onError(_ =>
+                          ZLogger("izanami.oauth2").flatMap(_.error("Could not reconstruct the private key"))
                         )
                         .orDie
         } yield publicKey
 
-      private def httpCallAndParse(httpRequest: HttpRequest,
-                                   expectedCode: StatusCode = StatusCodes.OK): ZIO[ZLogger, IzanamiErrors, JsValue] =
+      private def httpCallAndParse(
+          httpRequest: HttpRequest,
+          expectedCode: StatusCode = StatusCodes.OK
+      ): ZIO[ZLogger, IzanamiErrors, JsValue] =
         for {
           response    <- httpCall(httpRequest)
           strResponse <- parseResponse(response)
@@ -562,9 +561,7 @@ package object auth {
       private def httpCall(httpRequest: HttpRequest): ZIO[ZLogger, IzanamiErrors, HttpResponse] =
         connectionContext
           .fold(
-            ZLogger.debug(s"Calling $httpRequest") *> ZIO.fromFuture { implicit ec =>
-              http.singleRequest(httpRequest)
-            }
+            ZLogger.debug(s"Calling $httpRequest") *> ZIO.fromFuture(implicit ec => http.singleRequest(httpRequest))
           ) { ctx =>
             ZLogger.debug(s"Calling $httpRequest with MTLS") *> ZIO.fromFuture { implicit ec =>
               http.singleRequest(httpRequest, connectionContext = ctx)
@@ -575,9 +572,7 @@ package object auth {
       private def parseResponse(httpResponse: HttpResponse): IO[IzanamiErrors, (StatusCode, String)] =
         httpResponse match {
           case HttpResponse(code, _, entity, _) =>
-            ZIO.fromFuture { implicit ec =>
-              stringBody(entity).map(b => (code, b))
-            }.orDie
+            ZIO.fromFuture(implicit ec => stringBody(entity).map(b => (code, b))).orDie
         }
 
       private def stringBody(entity: HttpEntity): Future[String] =
