@@ -72,7 +72,7 @@ package object modules {
     val securedSecuredAuthContext: ActionBuilder[SecuredAuthContext, AnyContent] = wire[SecuredAction]
 
     private val izanamiCache: AsyncCacheApi = environment.mode match {
-      case Mode.Test => cacheApi("izanami" + Random.nextInt(10000))
+      case Mode.Test => cacheApi("izanami" + System.nanoTime())
       case _         => cacheApi("izanami")
     }
 
