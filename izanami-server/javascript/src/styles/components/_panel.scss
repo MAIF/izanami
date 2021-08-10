@@ -14,15 +14,16 @@
   margin-bottom: 20px;
   border: 1px solid transparent;
   border-radius: 4px;
-  -webkit-box-shadow: 0 1px 1px rgba(0,0,0,.05);
-  box-shadow: 0 1px 1px rgba(0,0,0,.05);
+  -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
 }
 
 .panel,
 .panel-heading {
   background-color: $fondBody;
 
-  h3,h4 {
+  h3,
+  h4 {
     color: #fff;
     line-height: 2em;
   }
@@ -38,16 +39,30 @@
   padding: 15px;
 }
 
-
 .panel-success > .panel-heading {
-  background-image: -webkit-linear-gradient(top,$savecolor 0,$savecolor 100%);
-  background-image: -o-linear-gradient(top,$savecolor 0,$savecolor 100%);
-  background-image: -webkit-gradient(linear,left top,left bottom,from($savecolor),to($savecolor));
-  background-image: linear-gradient(to bottom,$savecolor 0,$savecolor 100%);
+  background-image: -webkit-linear-gradient(top, $savecolor 0, $savecolor 100%);
+  background-image: -o-linear-gradient(top, $savecolor 0, $savecolor 100%);
+  background-image: -webkit-gradient(
+    linear,
+    left top,
+    left bottom,
+    from($savecolor),
+    to($savecolor)
+  );
+  background-image: linear-gradient(to bottom, $savecolor 0, $savecolor 100%);
   filter: progid:DXImageTransform.Microsoft.gradient(startColorstr= '$savecolor', endColorstr='$savecolor', GradientType=0);
-  color:#fff;
+  color: #fff;
+}
+
+.panel-danger {
+  border-color: #ebccd1;
+  > .panel-heading {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+  }
 }
 
 .variant-panel {
-  border-color: $primaryColor
+  border-color: $primaryColor;
 }

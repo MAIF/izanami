@@ -1,21 +1,22 @@
-import React, { Component } from "react";
+import React, {Component, PureComponent} from "react";
 import PropTypes from "prop-types";
-import { Link } from "react-router-dom";
-import Popover from "react-popover";
+import {Link} from "react-router-dom";
 import {KeyInput} from "./KeyInput";
 import {BooleanInput} from "./BooleanInput";
+import Tippy from '@tippyjs/react/headless';
+import * as IzanamiService from "../services/index";
 
 const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
   return (
-        <div className="btn-group btn-breadcrumb" style={{marginTop:'10px'}}>
-          {values.map((part, i) => (
-              <div className="key-value-value-big" key={`key-value-${props.value}-${i}`}>
-                <span>{part}</span>
-                {i < values.length - 1 && <i className="fas fa-caret-right" />}
-              </div>
-          ))}
+    <div className="btn-group btn-breadcrumb" >
+      {values.map((part, i) => (
+        <div className="key-value-value-big" key={`key-value-${props.value}-${i}`}>
+          <span>{part}</span>
+          {i < values.length - 1 && <i className="fas fa-caret-right"/>}
         </div>
+      ))}
+    </div>
   );
 };
 
@@ -28,47 +29,47 @@ class CopyNodeWindow extends Component {
   clone = () => {
     if (this.props.copyNodes) {
       this.props.copyNodes(this.props.nodekey, this.state.key, this.state.defaultValue)
-          .then(_ => this.props.close());
+        .then(_ => this.props.close());
     }
   };
 
   render() {
     return (
-        <div onMouseOut={_ => this.props.close() }
-             className={'copy-node-window'} onClick={_ => false}>
-          <form className="form-horizontal" style={this.props.style}>
-            <div className="form-group row">
-              <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
-                From
-              </label>
-              <div className="col-sm-10 d-flex align-items-center">
-                <Key value={this.props.nodekey || ''} />
-              </div>
+      <div className={'copy-node-window'} onClick={_ => false}>
+        <form className="form-horizontal" style={this.props.style}>
+          <div className="form-group row">
+            <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
+              From
+            </label>
+            <div className="col-sm-10 d-flex align-items-center">
+              <Key value={this.props.nodekey || ''}/>
             </div>
-           <div className="form-group">
-              <label htmlFor={`input-From`} className="col-sm-2 control-label">
+          </div>
+          <div className="form-group row">
+            <label htmlFor={`input-From`} className="col-sm-2 col-form-label">
               To
-              </label>
-              <div className="col-sm-10">
-                <KeyInput label={'To'} autoFocus={true} search={this.props.searchKeys} value={''} onChange={key => this.setState({key})} />
+            </label>
+            <div className="col-sm-10">
+              <KeyInput label={'To'} autoFocus={true} search={this.props.searchKeys} value={''}
+                        onChange={key => this.setState({key})}/>
+            </div>
+          </div>
+          <BooleanInput label={'Active'}
+                        value={this.state.defaultValue}
+                        onChange={defaultValue => this.setState({defaultValue})}/>
+          <div className="form-group">
+            <div className="col-sm-12">
+              <div className="btn-group float-right">
+                <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
+                <button type="button" className="btn btn-primary"
+                        onClick={_ => this.clone()}>
+                  Clone
+                </button>
               </div>
             </div>
-            <BooleanInput label={'Active'}
-                          value={this.state.defaultValue}
-                          onChange={defaultValue => this.setState({defaultValue})} />
-            <div className="form-group">
-              <div className="col-sm-12">
-                <div className="btn-group float-right">
-                  <button type="button" className="btn btn-danger" onClick={_ => this.props.close()}>Cancel</button>
-                  <button type="button" className="btn btn-primary"
-                          onClick={_ => this.clone()}>
-                    Clone
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
+          </div>
+        </form>
+      </div>
     );
   }
 }
@@ -76,8 +77,7 @@ class CopyNodeWindow extends Component {
 
 class Node extends Component {
 
-  state = {
-  };
+  state = {};
 
   openOnTable = id => {
     if (id) {
@@ -91,9 +91,9 @@ class Node extends Component {
       for (let i = 0; i < e.childNodes.length; i++) {
         const childNode = e.childNodes[i];
         if (
-            childNode.classList &&
-            (childNode.classList.contains("open-close") ||
-                childNode.classList.contains("content"))
+          childNode.classList &&
+          (childNode.classList.contains("open-close") ||
+            childNode.classList.contains("content"))
         ) {
           childNode.classList.add("open");
         }
@@ -131,147 +131,159 @@ class Node extends Component {
     const id = `node-${this.props.node.id}-${this.props.index}`;
     const link = this.props.itemLink(this.props.node);
     const styleDisplay = this.state.openMenu ? {display: 'inline-block'} : {};
+    let lockTile = "Add lock";
+    if(this.props.node.lock.locked) {
+      lockTile = "Remove lock"
+      if(!this.props.node.lock.owner) {
+        lockTile = "The element is locked by a sub element"
+      }
+    }
     return (
-        <li className="node-tree" key={`node-${this.props.node.text}-${this.props.index}`} id={id}>
-          <div className="content ">
-            {this.props.node.nodes && this.props.node.nodes.length > 0 && (
-                <div className={`btn-group btn-group-xs open-close`}>
-                  <button
-                      type="button"
-                      className={`btn  openbtn`}
-                      title="Expand / collapse"
-                      onClick={this.toggleChild(id)}
-                  >
-                    <i className="fas fa-caret-down" />
-                  </button>
-                  <button
-                      type="button"
-                      className={`btn open-all`}
-                      title="Expand / collapse"
-                      onClick={e => this.toggleChilds(document.getElementById(id))}
-                  >
-                    <i className="fas fa-caret-right" />
-                  </button>
-                </div>
-            )}
-            {(!this.props.node.nodes || this.props.node.nodes.length === 0) && (
-                <div className="tree--marginLeftUniqueKey" />
-            )}
-
-            <div
-                className="btn-group btn-breadcrumb breadcrumb-info"
-            >
-              <div className="key-value-value d-flex align-items-center">
-                <span onClick={this.toggleChildOrEdit(id, this.props.node)}>{this.props.node.text}</span>
-                <div className={`btn-group btn-group-xs btn-submenu`}
-                     style={styleDisplay}
-                     onMouseOver={ _ => this.setState({openMenu: true}) }
-                     onMouseOut={ _ => this.setState({openMenu: false}) }
-                >
-                  <Link
-                      to={link}
-                      type="button"
-                      className={`btn btn-sm btn-primary`}
-                      onMouseOver={ _ => this.setState({openCopy:false})}
-                      title="Add childnote"
-                  >
-                    + child
-                  </Link>
-                  {this.props.copyNodeWindow &&
-                  <button
-                      onMouseOver={_ => this.setState({ openCopy: true})}
-                      onMouseOut={_ => this.setState({ openCopy: false})}
-                      type="button"
-                      className="btn btn-sm btn-success"
-                      title="Duplicate">
-
-                    <Popover isOpen={this.state.openCopy}
-                             preferPlace={'below'}
-                             refreshIntervalMs={0}
-                             enterExitTransitionDurationMs={0}
-                             onOuterAction={_ => this.setState({openCopy:false})}
-                             body={
-                               <CopyNodeWindow nodekey={this.props.node.id}
-                                               copyNodes={this.props.copyNodes}
-                                               searchKeys={this.props.searchKeys}
-                                               close={_ => this.setState({openCopy:false})}
-                                               open={_ => this.setState({openCopy:true})}
-                               />
-                             } >
-                      <i className="fas fa-copy"></i>
-                    </Popover>
-                  </button>}
-                  <button
-                      onClick={_ => this.openOnTable(this.props.node.id)}
-                      onMouseOver={ _ => this.setState({openCopy:false}) }
-                      type="button"
-                      className="btn btn-sm btn-success"
-                      title="Open on table view"
-                  >
-                    <i className="fas fa-list"></i>
-                  </button>
-
-                  {this.props.node.value && (
-                      <div className="action-button btn-group btn-group-xs">
-                        <button
-                            onClick={e => this.props.editAction(e, this.props.node.value)}
-                            onMouseOver={ _ => this.setState({openCopy:false})}
-                            type="button"
-                            className="btn btn-sm btn-success"
-                            title="Edit this Configuration"
-                        >
-                          <i className="fas fa-pencil-alt"></i>
-                        </button>
-                      </div>
-                  )}
-                  {this.props.node.value && (
-                      <div className="action-button btn-group btn-group-xs">
-                        <button
-                            onClick={e => this.props.removeAction(e, this.props.node.value)}
-                            onMouseOver={ _ => this.setState({openCopy:false})}
-                            type="button"
-                            className="btn btn-sm btn-danger"
-                            title="Delete this Configuration"
-                        >
-                                <i className="fas fa-trash-alt" />
-                        </button>
-                      </div>
-                  )}
-                </div>
-              </div>
+      <li className="node-tree" key={`node-${this.props.node.text}-${this.props.index}`} id={id}>
+        <div className="content ">
+          {this.props.node.nodes && this.props.node.nodes.length > 0 && (
+            <div className={`btn-group btn-group-xs open-close`}>
+              <button
+                type="button"
+                className={`btn  openbtn`}
+                title="Expand / collapse"
+                onClick={this.toggleChild(id)}
+              >
+                <i className="fas fa-caret-down"/>
+              </button>
+              <button
+                type="button"
+                className={`btn open-all`}
+                title="Expand / collapse"
+                onClick={e => this.toggleChilds(document.getElementById(id))}
+              >
+                <i className="fas fa-caret-right"/>
+              </button>
             </div>
+          )}
+          {(!this.props.node.nodes || this.props.node.nodes.length === 0) && (
+            <div className="tree--marginLeftUniqueKey"/>
+          )}
 
-            <div className="main-content">
-              <div className="content-value">
-                {this.props.node.value && this.props.renderValue(this.props.node.value)}
+          <div
+            className="btn-group btn-breadcrumb"
+          >
+            <div className="key-value-value d-flex align-items-center">
+              <span onClick={this.toggleChildOrEdit(id, this.props.node)}>{this.props.node.text}</span>
+              <div className={`btn-group btn-group-xs btn-submenu`}
+                   style={styleDisplay}
+                   onMouseOver={_ => this.setState({openMenu: true})}
+                   onMouseOut={_ => this.setState({openMenu: false})}>
+                {!this.props.node.lock.locked && <Link
+                  to={link}
+                  type="button"
+                  className={`btn btn-sm btn-primary`}
+                  onMouseOver={_ => this.setState({openCopy: false})}
+                  title="Add childnote">
+                  + child
+                </Link>}
+                <button
+                  type="button"
+                  className={`btn btn-sm btn-primary`}
+                  disabled={this.props.node.lock.locked && !this.props.node.lock.owner}
+                  onClick={_ => this.props.changeLock(this.props.node.id)}
+                  title={lockTile}>{this.props.node.lock.locked ? "unlock" : "lock"}
+                </button>
+                {this.props.copyNodeWindow &&
+                <Tippy interactive={true}
+                       offset={[0, 0]}
+                       onCreate={(tippy) => {
+                         if (!this.tippy) this.tippy = []
+                         this.tippy[id] = tippy
+                       }}
+                       placement={"bottom"}
+                       render={() => {
+                         return (<CopyNodeWindow nodekey={this.props.node.id}
+                                                 copyNodes={this.props.copyNodes}
+                                                 searchKeys={this.props.searchKeys}
+                                                 close={() => this.tippy[id].hide()}/>)
+                       }}>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-success"
+                    title="Duplicate">
+                    <i className={"fas fa-copy"}/>
+                  </button>
+                </Tippy>
+
+                }
+                <button
+                  onClick={_ => this.openOnTable(this.props.node.id)}
+                  onMouseOver={_ => this.setState({openCopy: false})}
+                  type="button"
+                  className="btn btn-sm btn-success"
+                  title="Open on table view"
+                >
+                  <i className="fas fa-list"/>
+                </button>
+
+                {this.props.node.value && (
+                  <div className="action-button btn-group btn-group-xs">
+                    <button
+                      onClick={e => this.props.editAction(e, this.props.node.value)}
+                      onMouseOver={_ => this.setState({openCopy: false})}
+                      type="button"
+                      className="btn btn-sm btn-success"
+                      title="Edit this Configuration"
+                    >
+                      <i className="fas fa-pencil-alt"/>
+                    </button>
+                  </div>
+                )}
+                {this.props.node.value && (
+                  <div className="action-button btn-group btn-group-xs">
+                    <button
+                      onClick={e => this.props.removeAction(e, this.props.node.value)}
+                      onMouseOver={_ => this.setState({openCopy: false})}
+                      type="button"
+                      className="btn btn-sm btn-danger"
+                      title="Delete this Configuration"
+                    >
+                      <i className="fas fa-trash-alt"/>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-          {this.props.node.nodes && this.props.node.nodes.length > 0 && (
-              <ul className="root-node">{this.props.node.nodes.map( (n, i) =>
-                  <Node key={`node-${this.props.index}-${i}`}
-                        node={n}
-                        index={i}
-                        copyNodeWindow={this.props.copyNodeWindow}
-                        copyNodes={this.props.copyNodes}
-                        searchKeys={this.props.searchKeys}
-                        renderValue={this.props.renderValue}
-                        removeAction={this.props.removeAction}
-                        editAction={this.props.editAction}
-                        itemLink={this.props.itemLink}
-                        onSearchChange={this.props.onSearchChange}
-                        openOnTable={this.props.openOnTable}
-                  />)
-                }
-              </ul>
-          )}
-        </li>
+
+          <div className="main-content">
+            <div className="content-value">
+              {this.props.node.value && this.props.renderValue(this.props.node.value)}
+            </div>
+          </div>
+        </div>
+        {this.props.node.nodes && this.props.node.nodes.length > 0 && (
+          <ul className="root-node">{this.props.node.nodes.map((n, i) =>
+            <Node key={`node-${this.props.index}-${i}`}
+                  node={n}
+                  index={i}
+                  copyNodeWindow={this.props.copyNodeWindow}
+                  copyNodes={this.props.copyNodes}
+                  searchKeys={this.props.searchKeys}
+                  renderValue={this.props.renderValue}
+                  removeAction={this.props.removeAction}
+                  editAction={this.props.editAction}
+                  itemLink={this.props.itemLink}
+                  onSearchChange={this.props.onSearchChange}
+                  openOnTable={this.props.openOnTable}
+                  changeLock={this.props.changeLock}
+            />)
+          }
+          </ul>
+        )}
+      </li>
     );
   }
 
 }
 
-export class Tree extends Component {
+export class Tree extends PureComponent {
   static propTypes = {
     datas: PropTypes.array.isRequired,
     renderValue: PropTypes.func.isRequired,
@@ -279,35 +291,53 @@ export class Tree extends Component {
     openOnTable: PropTypes.func.isRequired,
     initialSearch: PropTypes.string,
     itemLink: PropTypes.func,
-    search: PropTypes.func,
     editAction: PropTypes.func,
     removeAction: PropTypes.func,
     copyNodeWindow: PropTypes.bool,
     copyNodes: PropTypes.func,
-    searchKeys: PropTypes.func
+    searchKeys: PropTypes.func,
+    lockable: PropTypes.bool,
+    lockType: PropTypes.string
   };
 
   state = {
-    nodes: []
+    nodes: [],
+    search: "",
+    locks: []
   };
-
 
   search = e => {
     if (e && e.target) {
-      this.setState({ search: e.target.value });
+      this.setState({search: e.target.value});
       this.props.onSearchChange && this.props.onSearchChange(e.target.value);
     }
   };
 
   componentDidMount() {
-    this.setState({
-      nodes: this.convertDatas(this.props.datas),
-      search: this.props.initialSearch
-    });
+    this.fetchData();
   }
 
-  componentWillReceiveProps(nextProps) {
-    this.setState({ nodes: this.convertDatas(nextProps.datas || []) });
+  fetchData = () => {
+    console.log("fetch")
+    const promises = []
+    if (this.props.lockable) {
+      promises.push(IzanamiService.fetchLocks(this.props.lockType)
+        .then(locks => new Promise((resolve) => this.setState({locks}, resolve))));
+    }
+    return Promise.all(promises).then(() => this.setState({nodes: this.convertDatas(this.props.datas)}))
+  }
+
+  componentDidUpdate(prevProp) {
+    const newNodes = this.convertDatas(this.props.datas || []);
+    const prevPropNodes = this.convertDatas(prevProp.datas || []);
+    if (!Tree.isEquals(newNodes, prevPropNodes)) {
+      this.setState({nodes: newNodes})
+    }
+  }
+
+  static isEquals(newNodes, prevPropNodes) {
+    return newNodes.length === prevPropNodes.length
+      && newNodes.filter(newNode => !prevPropNodes.filter(prevPropNode => prevPropNode.id === newNode.id)).length === 0;
   }
 
   convertDatas = (d = []) => {
@@ -315,13 +345,34 @@ export class Tree extends Component {
   };
 
   convertNode = (node, i) => {
-    return {
+    const childs = (node.childs || []).map(this.convertNode);
+
+    let locked = false;
+    const mayBeChildLocked = childs.find(child => child.lock.locked)
+    const mayBeOwner = this.state.locks.find(lock => lock.id === `${this.props.lockType}:${node.id}`);
+    let lockedAndOwner = mayBeOwner && mayBeOwner.locked;
+    if (lockedAndOwner || mayBeChildLocked) locked = true;
+    let any = {
       id: node.id,
       text: node.key,
       value: node.value,
-      nodes: (node.childs || []).map(this.convertNode)
+      lock: {locked, owner: lockedAndOwner},
+      nodes: childs
     };
+    return any;
   };
+
+  changeLock = (id) => {
+    const lockId = `${this.props.lockType}:${id}`
+    return IzanamiService.fetchLock(lockId).then(mayBeLock => {
+      if (mayBeLock) {
+        return IzanamiService.updateLock(mayBeLock.id, {id: mayBeLock.id, locked: !mayBeLock.locked})
+      } else {;
+        return IzanamiService.createLock({id: lockId, locked: true})
+      }
+    }).then(() => this.fetchData())
+  }
+
   render() {
     return (
       <div className="col-xs-12">
@@ -330,7 +381,7 @@ export class Tree extends Component {
             <div className="input-group dark-input">
               <span className="input-group-prepend back-intermediate-color">
                 <span className="input-group-text">
-                  <i className="back-color fas fa-search"></i>
+                  <i className="back-color fas fa-search"/>
                 </span>
               </span>
               <input
@@ -347,20 +398,21 @@ export class Tree extends Component {
           <div className="root-node">
             <ul className="root-node-tree">
               {this.state.nodes.map((n, i) =>
-                  <Node key={`node-0-${i}`}
-                        node={n}
-                        index={i}
-                        renderValue={this.props.renderValue}
-                        removeAction={this.props.removeAction}
-                        editAction={this.props.editAction}
-                        itemLink={this.props.itemLink}
-                        copyNodeWindow={this.props.copyNodeWindow}
-                        copyNodes={this.props.copyNodes}
-                        searchKeys={this.props.searchKeys}
-                        onSearchChange={this.props.onSearchChange}
-                        openOnTable={this.props.openOnTable}
-                  />
-                )}
+                <Node key={`node-0-${i}`}
+                      node={n}
+                      index={i}
+                      renderValue={this.props.renderValue}
+                      removeAction={this.props.removeAction}
+                      editAction={this.props.editAction}
+                      itemLink={this.props.itemLink}
+                      copyNodeWindow={this.props.copyNodeWindow}
+                      copyNodes={this.props.copyNodes}
+                      searchKeys={this.props.searchKeys}
+                      onSearchChange={this.props.onSearchChange}
+                      openOnTable={this.props.openOnTable}
+                      changeLock={this.changeLock}
+                />
+              )}
             </ul>
           </div>
         </div>

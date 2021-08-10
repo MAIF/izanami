@@ -3,7 +3,6 @@ package controllers
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import akka.testkit.SocketUtil
 import com.typesafe.config.ConfigFactory
 import org.scalatest.concurrent.IntegrationPatience
@@ -16,8 +15,6 @@ import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.DurationDouble
 import scala.concurrent.{Await, Future}
-import scala.util.Random
-import org.scalatest.BeforeAndAfterAll
 
 abstract class WebhookControllerSpec(name: String, configurationSpec: Configuration)
     extends PlaySpec
@@ -73,8 +70,10 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
       (getById.json.as[JsObject] - "created") must be(webhook)
 
       formatResults(ws.url(s"$rootPath/api/webhooks").get().futureValue.json) must be(
-        Json.obj("results"  -> Json.arr(webhook),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
+        Json.obj(
+          "results"  -> Json.arr(webhook),
+          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1)
+        )
       )
 
       /* Update */
@@ -98,8 +97,10 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
       (getByIdUpdated.json.as[JsObject] - "created") must be(webhookUpdated)
 
       formatResults(ws.url(s"$rootPath/api/webhooks").get().futureValue.json) must be(
-        Json.obj("results"  -> Json.arr(webhookUpdated),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
+        Json.obj(
+          "results"  -> Json.arr(webhookUpdated),
+          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1)
+        )
       )
 
       /* Delete */
@@ -111,8 +112,10 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
       ws.url(s"$rootPath/api/webhooks/$key").get().futureValue must beAStatus(404)
       ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(
         200,
-        Json.obj("results"  -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+        Json.obj(
+          "results"  -> Json.arr(),
+          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0)
+        )
       )
 
       /* Delete all */
@@ -121,8 +124,10 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
         .delete()
       ws.url(s"$rootPath/api/webhooks").get().futureValue must beAResponse(
         200,
-        Json.obj("results"  -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
+        Json.obj(
+          "results"  -> Json.arr(),
+          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0)
+        )
       )
     }
 
@@ -151,8 +156,10 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
       (getById.json.as[JsObject] - "created") must be(webhook)
 
       formatResults(ws.url(s"$rootPath/api/webhooks").get().futureValue.json) must be(
-        Json.obj("results"  -> Json.arr(webhook),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
+        Json.obj(
+          "results"  -> Json.arr(webhook),
+          "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1)
+        )
       )
 
       /* Update */
@@ -224,10 +231,12 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
 
       withServer(buildBasicServer()) { ctx =>
         val key = "my:webhook:test4"
-        val webhook: JsObject = Json.obj("clientId" -> key,
-                                         "callbackUrl" -> s"http://localhost:${ctx.port}/api/v1/events",
-                                         "domains"     -> Json.arr("Config"),
-                                         "headers"     -> Json.obj())
+        val webhook: JsObject = Json.obj(
+          "clientId"    -> key,
+          "callbackUrl" -> s"http://localhost:${ctx.port}/api/v1/events",
+          "domains"     -> Json.arr("Config"),
+          "headers"     -> Json.obj()
+        )
 
         ws.url(s"$rootPath/api/webhooks")
           .post(webhook)
@@ -248,12 +257,8 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
 
         val strings: List[String] = ctx.state
           .map(_.as[JsObject])
-          .flatMap { obj =>
-            (obj \ "objectsEdited").as[Seq[JsValue]]
-          }
-          .map { json =>
-            (json \ "type").as[String]
-          }
+          .flatMap(obj => (obj \ "objectsEdited").as[Seq[JsValue]])
+          .map(json => (json \ "type").as[String])
           .toList
         strings must be(Seq("CONFIG_CREATED"))
       }
@@ -267,9 +272,7 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
       val results: List[JsValue] = (o \ "results")
         .as[JsArray]
         .value
-        .map { r =>
-          r.as[JsObject] - "created"
-        }
+        .map(r => r.as[JsObject] - "created")
         .toList
       o ++ Json.obj("results" -> JsArray(results))
     case _ => jsValue
@@ -300,24 +303,23 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
     import akka.http.scaladsl.model._
     import akka.http.scaladsl.server.Directives._
     import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport._
-    () =>
-      {
-        val state = ListBuffer.empty[JsValue]
+    () => {
+      val state = ListBuffer.empty[JsValue]
 
-        val route =
-          path("api" / "v1" / "events") {
-            pathEnd {
-              post {
-                entity(as[JsValue]) { json =>
-                  state.append(json)
-                  complete(HttpResponse(OK))
-                }
+      val route =
+        path("api" / "v1" / "events") {
+          pathEnd {
+            post {
+              entity(as[JsValue]) { json =>
+                state.append(json)
+                complete(HttpResponse(OK))
               }
             }
           }
+        }
 
-        (route, state)
-      }
+      (route, state)
+    }
   }
 
 }

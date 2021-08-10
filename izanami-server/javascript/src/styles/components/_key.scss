@@ -8,67 +8,64 @@
   cursor: pointer;
 }
 
-
-.btn-breadcrumb>.btn:after {
-  content: " ";
-  display: block;
-  width: 0;
-  height: 0;
-  border-top: 13px solid transparent;
-  border-bottom: 14px solid transparent;
-  border-left: 10px solid white;
-  position: absolute;
-  top: 50%;
-  margin-top: -14px;
-  margin-left: 0px;
-  left: 100%;
-  z-index: 3;
-}
-.btn-breadcrumb>.btn:before {
-  content: " ";
-  display: block;
-  width: 0;
-  height: 0;
-  border-top: 13px solid transparent;
-  border-bottom: 14px solid transparent;
-  border-left: 10px solid rgb(173, 173, 173);
-  position: absolute;
-  top: 50%;
-  margin-top: -14px;
-  margin-left: 1px;
-  left: 100%;
-  z-index: 3;
-}
-.btn-breadcrumb>.btn.btn-info:hover:before, .btn-breadcrumb>.btn.btn-info:before {
-    border-left: 10px solid $primaryColor;
-}
-.btn-breadcrumb>.btn.btn-info:after {
-    border-left: 7px solid #373735;
-}
-
-.btn-breadcrumb .fa-caret-right {
-  margin-left: 5px;
-}
-.btn-breadcrumb>.btn {
-    padding: 6px 12px 6px 24px;
-    margin-right: 0px;
-}
-
-.btn-breadcrumb>.btn {
-    border-color: $primaryColor;
-    border-right: 1px solid transparent !important;
-    font-size: 11px;
-}
-
-.btn-breadcrumb .btn-info{
-    background-image: linear-gradient(to bottom, $fondBody 0, $fondBody 100%);
-}
-
-.closeKeypicker {
+.btn-breadcrumb {
+  .fa-caret-right {
     margin-left: 5px;
-    border: 1px solid $primaryColor;
-    padding: 1px 3px;
-    &:hover{
-      background-color: $primaryColor;
-    }
+  }
+  .btn-info {
+    background-image: linear-gradient(to bottom, $fondBody 0, $fondBody 100%);
+  }
+}
+.btn-breadcrumb > .btn {
+  padding: 6px 12px 6px 24px;
+  margin-right: 0px;
+  border-color: $primaryColor;
+  border-right: 1px solid transparent !important;
+  font-size: 11px;
+  &:after {
+    content: " ";
+    display: block;
+    width: 0;
+    height: 0;
+    border-top: 13px solid transparent;
+    border-bottom: 14px solid transparent;
+    border-left: 10px solid white;
+    position: absolute;
+    top: 50%;
+    margin-top: -14px;
+    margin-left: 0px;
+    left: 100%;
+    z-index: 3;
+  }
+  &:before {
+    content: " ";
+    display: block;
+    width: 0;
+    height: 0;
+    border-top: 13px solid transparent;
+    border-bottom: 14px solid transparent;
+    border-left: 10px solid rgb(173, 173, 173);
+    position: absolute;
+    top: 50%;
+    margin-top: -14px;
+    margin-left: 1px;
+    left: 100%;
+    z-index: 3;
+  }
+  &.btn-info:after {
+    border-left: 7px solid #373735;
+  }
+  &.btn-info:hover:before,
+  &.btn-info:before {
+    border-left: 10px solid $primaryColor;
+  }
+}
+
+.letter-group .letter {
+  margin: 1px;
+  padding: 1px;
+  font-size: 14px;
+  font-weight: 300;
+  border: 1px solid #419641;
+  color: #fff;
 }

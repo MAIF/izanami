@@ -53,7 +53,10 @@ const translateObject = {
   error: {
     data: {
       exists: "The data with id {0} already exist",
-      missing: "Data is missing"
+      missing: "Data is missing",
+      unauthorized: {
+        locked: "The path {0} is locked by {1}"
+      }
     },
     forbidden: "Forbidden action : Invalid authorized pattern",
     forbiddenaction: "You're not allowed to perform this action",

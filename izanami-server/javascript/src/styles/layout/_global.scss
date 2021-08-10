@@ -87,11 +87,7 @@ hr {
   width: 240px;
 }
 
-.panel-danger {
-  border-color: #ebccd1;
-  > .panel-heading {
-    color: #a94442;
-    background-color: #f2dede;
-    border-color: #ebccd1;
-  }
+.cursor-pointer{
+  cursor: pointer;
 }
+

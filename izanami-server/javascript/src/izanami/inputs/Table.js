@@ -1,13 +1,12 @@
-import React, { Component } from "react";
+import React, {Component} from "react";
 import PropTypes from "prop-types";
-import { Form, Alerts } from ".";
+import {Alerts, Form} from ".";
 import isEqual from "lodash/isEqual";
-import { createTooltip } from "./tooltips";
-import { SweetModal } from "./SweetModal";
+import {createTooltip} from "./tooltips";
+import {SweetModal} from "./SweetModal";
 import * as Events from "../services/events";
-import { Tree } from "./Tree";
+import {Tree} from "./Tree";
 import * as TreeHelper from "../helpers/TreeData";
-import Cookies from "js-cookie";
 import * as Persistence from "../helpers/persistence";
 import * as Abilitations from "../helpers/Abilitations"
 
@@ -66,7 +65,9 @@ export class Table extends Component {
     searchColumnName: PropTypes.string,
     copyNodeWindow: PropTypes.bool,
     copyNodes: PropTypes.func,
-    searchKeys: PropTypes.func
+    searchKeys: PropTypes.func,
+    lockable: PropTypes.bool,
+    lockType: PropTypes.string
   };
 
   static defaultProps = {
@@ -106,7 +107,7 @@ export class Table extends Component {
   componentDidMount() {
     this.update().then(() => {
       if (this.props.search) {
-        this.search({ target: { value: this.props.search } });
+        this.search({target: {value: this.props.search}});
       }
     });
     this.readRoute();
@@ -155,7 +156,7 @@ export class Table extends Component {
         items = this.state.items;
     }
 
-    this.setState({ items, justUpdated: true });
+    this.setState({items, justUpdated: true});
   };
 
   handleEventInTree = e => {
@@ -183,7 +184,7 @@ export class Table extends Component {
       default:
         tree = this.state.tree;
     }
-    this.setState({ tree, justUpdated: true });
+    this.setState({tree, justUpdated: true});
   };
 
   componentWillUnmount() {
@@ -212,9 +213,9 @@ export class Table extends Component {
       const searched = this.props.parentProps.location.query.search;
       const defaultFiltered = this.props.columns
         .filter(c => !c.notFilterable)
-        .map(c => ({ id: c.title, value: searched }));
-      this.setState({ defaultFiltered, searchQuery: searched }, () =>
-        this.update({ filtered: defaultFiltered })
+        .map(c => ({id: c.title, value: searched}));
+      this.setState({defaultFiltered, searchQuery: searched}, () =>
+        this.update({filtered: defaultFiltered})
       );
     }
   };
@@ -240,8 +241,8 @@ export class Table extends Component {
   };
 
   onFetchData = (initialArgs = {}) => {
-    const { filtered, pageSize, page } = initialArgs;
-    const args = { filtered, pageSize, page };
+    const {filtered, pageSize, page} = initialArgs;
+    const args = {filtered, pageSize, page};
     if (!isEqual(this.lastSearchArgs, args)) {
       this.lastSearchArgs = args;
       this.update(initialArgs);
@@ -257,7 +258,7 @@ export class Table extends Component {
   };
 
   update = (initialArgs = {}) => {
-    this.setState({ loading: true });
+    this.setState({loading: true});
     const args = {
       search: initialArgs.filtered,
       pageSize: initialArgs.pageSize || this.props.pageSize,
@@ -280,24 +281,24 @@ export class Table extends Component {
     }
     if (this.isTable()) {
       return this.props.fetchItems(args).then(
-        ({ nbPages, results }) => {
+        ({nbPages, results}) => {
           this.setState({
             items: results || [],
             nbPages: nbPages === 0 ? 1 : nbPages,
             loading: false
           });
         },
-        () => this.setState({ loading: false })
+        () => this.setState({loading: false})
       );
     } else {
       return this.props.fetchItemsTree
-        ? this.props.fetchItemsTree({ search: initialArgs.filtered }).then(
-            tree => {
-              this.setState({ tree, loading: false });
-            },
-            () => this.setState({ loading: false })
-          )
-        : this.setState({ loading: false });
+        ? this.props.fetchItemsTree({search: initialArgs.filtered}).then(
+          tree => {
+            this.setState({tree, loading: false});
+          },
+          () => this.setState({loading: false})
+        )
+        : this.setState({loading: false});
     }
   };
 
@@ -322,10 +323,10 @@ export class Table extends Component {
     });
     this.props.backToUrl
       ? window.history.pushState(
-          {},
-          "",
-          `${window.__contextPath}/${this.props.backToUrl}`
-        )
+        {},
+        "",
+        `${window.__contextPath}/${this.props.backToUrl}`
+      )
       : window.history.back();
   };
 
@@ -361,10 +362,10 @@ export class Table extends Component {
     });
     this.props.backToUrl
       ? window.history.pushState(
-          {},
-          "",
-          `${window.__contextPath}/${this.props.backToUrl}`
-        )
+        {},
+        "",
+        `${window.__contextPath}/${this.props.backToUrl}`
+      )
       : window.history.back();
   };
 
@@ -394,16 +395,18 @@ export class Table extends Component {
     //if (confirm('Are you sure you want to delete that item ?')) {
     this.props.deleteItem(item).then(res => {
       if (res.status === 403) {
-        this.setState({
-          items: this.state.items,
-          showEditForm: false,
-          showAddForm: false,
-          confirmDelete: false,
-          confirmDeleteTable: false,
-          toDelete: null,
-          error: true,
-          errorList: [{message: `error.forbiddenaction`}]
-        });
+        res.json().then(data => {
+          this.setState({
+            items: this.state.items,
+            showEditForm: false,
+            showAddForm: false,
+            confirmDelete: false,
+            confirmDeleteTable: false,
+            toDelete: null,
+            error: true,
+            errorList: data.errors ? data.errors : [{message: `error.forbiddenaction`}]
+          });
+        })
       } else {
         const items = this.state.items.filter(i => !isEqual(i, item));
         this.setState({
@@ -417,10 +420,10 @@ export class Table extends Component {
         this.props.parentProps.setTitle(this.props.defaultTitle);
         this.props.backToUrl
           ? window.history.pushState(
-              {},
-              "",
-              `${window.__contextPath}/${this.props.backToUrl}`
-            )
+            {},
+            "",
+            `${window.__contextPath}/${this.props.backToUrl}`
+          )
           : window.history.back();
       }
     });
@@ -431,34 +434,34 @@ export class Table extends Component {
     if (e && e.preventDefault) e.preventDefault();
     this.props.parentProps.setTitle(this.props.defaultTitle);
 
-    this.setState({ error: false, errorList: [] });
+    this.setState({error: false, errorList: []});
 
     this.props
       .createItem(this.state.currentItem)
       .then(res => {
-        if (res.status === 403) {
-          this.setState({
-            error: true,
-            errorList: [{message: `error.forbiddenaction`}]
-          });
-        } else if (res.status === 201) {
-          this.setState({
-            currentItem: null,
-            currentItemOriginal: null,
-            showAddForm: false
-          });
-          return res.json().then(elt => ({
-            data: elt,
-            error: false
-          }));
-        } else {
-          return res.json().then(errorList => {
+        return res.json().then(data => {
+          if (res.status === 403) {
+            this.setState({
+              error: true,
+              errorList: data.errors ? data.errors : [{message: `error.forbiddenaction`}]
+            });
+          } else if (res.status === 201) {
+            this.setState({
+              currentItem: null,
+              currentItemOriginal: null,
+              showAddForm: false
+            });
+            return {
+              data: data,
+              error: false
+            };
+          } else {
             return {
               error: true,
-              errorList
+              errorList: data
             };
-          });
-        }
+          }
+        })
       })
       .then(res => {
         if (res && res.error) {
@@ -476,13 +479,13 @@ export class Table extends Component {
               this.props.pageSize
             );
           }
-          this.setState({ error: false, items, justUpdated: true });
+          this.setState({error: false, items, justUpdated: true});
           this.props.backToUrl
             ? window.history.pushState(
-                {},
-                "",
-                `${window.__contextPath}/${this.props.backToUrl}`
-              )
+              {},
+              "",
+              `${window.__contextPath}/${this.props.backToUrl}`
+            )
             : window.history.back();
         }
       });
@@ -492,31 +495,31 @@ export class Table extends Component {
     if (e && e.preventDefault) e.preventDefault();
     this.props.parentProps.setTitle(this.props.defaultTitle);
 
-    this.setState({ error: false, errorList: [] });
+    this.setState({error: false, errorList: []});
 
     const currentItem = this.state.currentItem;
     const currentItemOriginal = this.state.currentItemOriginal;
     this.props
       .updateItem(currentItem, currentItemOriginal)
       .then(res => {
-        if (res.status === 403) {
-          this.setState({
-            error: true,
-            errorList: [{message: `error.forbiddenaction`}]
-          });
-        } else if (res.status === 200) {
-          return res.json().then(elt => ({
-            data: elt,
-            error: false
-          }));
-        } else {
-          return res.json().then(j => {
+        return res.json().then(data => {
+          if (res.status === 403) {
+            this.setState({
+              error: true,
+              errorList: data.errors ? data.errors : [{message: `error.forbiddenaction`}]
+            });
+          } else if (res.status === 200) {
+            return {
+              data: data,
+              error: false
+            };
+          } else {
             return {
               error: true,
-              errorList: j
+              errorList: data
             };
-          });
-        }
+          }
+        })
       })
       .then(res => {
         if (res && res.error) {
@@ -532,13 +535,13 @@ export class Table extends Component {
               return i;
             }
           });
-          this.setState({ items, showEditForm: false, justUpdated: true });
+          this.setState({items, showEditForm: false, justUpdated: true});
           this.props.backToUrl
             ? window.history.pushState(
-                {},
-                "",
-                `${window.__contextPath}/${this.props.backToUrl}`
-              )
+              {},
+              "",
+              `${window.__contextPath}/${this.props.backToUrl}`
+            )
             : window.history.back();
         }
       });
@@ -551,7 +554,7 @@ export class Table extends Component {
     } else {
       Persistence.set("table-render", "tree");
     }
-    this.setState({ table }, () => this.update());
+    this.setState({table}, () => this.update());
   };
 
   renderLeaf = value => {
@@ -569,15 +572,15 @@ export class Table extends Component {
         body: e.currentTarget.result
       }).then(res => {
         if (res.status === 200) {
-          return res.json().then(({ success }) => {
+          return res.json().then(({success}) => {
             this.setState({
               successMessages: [
-                { message: "file.import.success", args: [success] }
+                {message: "file.import.success", args: [success]}
               ]
             });
           });
         } else {
-          return res.json().then(({ errors }) => {
+          return res.json().then(({errors}) => {
             this.setState({
               error: true,
               errorList: this.buildErrorList(errors)
@@ -592,10 +595,10 @@ export class Table extends Component {
     reader.readAsText(e.target.files[0]);
   };
 
-  buildErrorList = ({ errors = {}, fieldErrors = {} }) => {
+  buildErrorList = ({errors = {}, fieldErrors = {}}) => {
     const errorsOnFields = Object.keys(fieldErrors).flatMap(k => {
       const messages = fieldErrors[k] || [];
-      return messages.map(({ message = "", args = [] }) => ({
+      return messages.map(({message = "", args = []}) => ({
         message: `${k}.${message}`,
         args
       }));
@@ -605,15 +608,15 @@ export class Table extends Component {
 
   search = text => {
     this.props.backToUrl &&
-      window.history.pushState(
-        {},
-        "",
-        `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`
-      );
+    window.history.pushState(
+      {},
+      "",
+      `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`
+    );
     const defaultFiltered = this.props.columns
       .filter(c => !c.notFilterable)
-      .map(c => ({ id: c.title, value: text }));
-    this.setState({ defaultFiltered, table: true });
+      .map(c => ({id: c.title, value: text}));
+    this.setState({defaultFiltered, table: true});
   };
 
   isAllowed = (item, letter) => {
@@ -639,7 +642,7 @@ export class Table extends Component {
       id: c.title,
       headerStyle: c.style,
       width: c.style && c.style.width ? c.style.width : undefined,
-      style: { height: 30, ...c.style },
+      style: {height: 30, ...c.style},
       sortable: !c.notSortable,
       filterable: !c.notFilterable,
       accessor: d => (c.content ? c.content(d) : d),
@@ -664,7 +667,7 @@ export class Table extends Component {
                 this.gotoItem(e, original);
               }
             }}
-            style={{ cursor: "pointer", width: "100%" }}
+            style={{cursor: "pointer", width: "100%"}}
           >
             {value}
           </div>
@@ -676,12 +679,12 @@ export class Table extends Component {
         Header: "Actions",
         id: "actions",
         width: 140,
-        style: { textAlign: "center" },
+        style: {textAlign: "center"},
         filterable: false,
         accessor: (item, ___, index) => (
-          <div style={{ width: 140, textAlign: "right" }}>
+          <div style={{width: 140, textAlign: "right"}}>
             <div className="displayGroupBtn">
-             <button
+              <button
                 type="button"
                 className="btn btn-sm btn-success"
                 {...createTooltip(
@@ -691,7 +694,7 @@ export class Table extends Component {
                 )}
                 onClick={e => this.showEditForm(e, item)}
               >
-                  <i className="fas fa-pencil-alt" />
+                <i className="fas fa-pencil-alt"/>
               </button>
               {this.props.showLink && (
                 <button
@@ -704,7 +707,7 @@ export class Table extends Component {
                   )}
                   onClick={e => this.gotoItem(e, item)}
                 >
-                  <i className="fas fa-link" />
+                  <i className="fas fa-link"/>
                 </button>
               )}
               {this.isDeleteAllowed(item) && <button
@@ -716,10 +719,10 @@ export class Table extends Component {
                   true
                 )}
                 onClick={e =>
-                  this.setState({ confirmDeleteTable: true, toDelete: item })
+                  this.setState({confirmDeleteTable: true, toDelete: item})
                 }
               >
-                <i className="fas fa-trash-alt" />
+                <i className="fas fa-trash-alt"/>
               </button>}
             </div>
           </div>
@@ -730,7 +733,7 @@ export class Table extends Component {
       <div className="col-12">
         {!this.state.showEditForm && !this.state.showAddForm && (
           <div>
-            <div className="row" style={{ marginBottom: 10 }}>
+            <div className="row mb-2">
               <div className="col-md-12">
                 {this.state.error && (
                   <Alerts
@@ -739,38 +742,36 @@ export class Table extends Component {
                   />
                 )}
                 {this.state.successMessages &&
-                  this.state.successMessages.length > 0 && (
-                    <Alerts
-                      type="success"
-                      display={true}
-                      messages={this.state.successMessages}
-                      onClose={() => this.setState({ successMessages: [] })}
-                    />
-                  )}
+                this.state.successMessages.length > 0 && (
+                  <Alerts
+                    type="success"
+                    display={true}
+                    messages={this.state.successMessages}
+                    onClose={() => this.setState({successMessages: []})}
+                  />
+                )}
               </div>
             </div>
-            <div className="row" style={{ marginBottom: 10 }}>
+            <div className="row mb-2">
               <div className="col-md-12">
                 {this.props.treeModeEnabled && this.isTable() && (
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ marginLeft: 10 }}
+                    className="btn btn-primary ml-2"
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
-                    <i className="fas fa-signal" style={{ transform: "rotate(90deg)" }} />
+                    <i className="fas fa-signal" style={{transform: "rotate(90deg)"}}/>
                   </button>
                 )}
                 {this.isTree() && (
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary ml-2"
                     onClick={this.toggleRender}
-                    style={{ marginLeft: 10 }}
                     {...createTooltip("Switch the view")}
                   >
-                    <i className="fas fa-list" />
+                    <i className="fas fa-list"/>
                   </button>
                 )}
                 <button
@@ -779,28 +780,22 @@ export class Table extends Component {
                   {...createTooltip("Reload the current table")}
                   onClick={this.update}
                 >
-                      <i className="fas fa-sync-alt" />
+                  <i className="fas fa-sync-alt"/>
                 </button>
 
                 {this.props.showActions && !this.props.disableAddButton && (
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ marginLeft: 10 }}
+                    className="btn btn-primary ml-2"
                     onClick={this.showAddForm}
                     {...createTooltip(`Create a new ${this.props.itemName}`)}
                   >
-                    <i className="fas fa-plus-circle mr-2" />Add item
+                    <i className="fas fa-plus-circle mr-2"/>Add item
                   </button>
                 )}
                 {this.props.showActions && this.props.user.admin && (
                   <div
-                    className="dropdown"
-                    style={{
-                      display: "inline-block",
-                      marginLeft: 10,
-                      height: 34
-                    }}
+                    className="dropdown menuActions"
                   >
                     <button
                       className="btn-dropdown"
@@ -808,41 +803,40 @@ export class Table extends Component {
                       type="button"
                       aria-haspopup="true"
                       aria-expanded="false"
-                      style={{ verticalAlign: "middle" }}
                     >
-                      <i className="fas fa-cog" aria-hidden="true" />
+                      <i className="fas fa-cog" aria-hidden="true"/>
                     </button>
                     <ul className="dropdown-menu p-3">
                       {this.props.downloadLinks &&
-                        this.props.downloadLinks.map(({ title, link }, i) => (
-                          <li key={`download-${i}`}>
-                            <a href={link} {...createTooltip(`${title}`)}>
-                                  <i className="fas fa-file-download" />{" "}
-                              {title}
-                            </a>
-                          </li>
-                        ))}
+                      this.props.downloadLinks.map(({title, link}, i) => (
+                        <li key={`download-${i}`}>
+                          <a href={link} {...createTooltip(`${title}`)}>
+                            <i className="fas fa-file-download"/>{" "}
+                            {title}
+                          </a>
+                        </li>
+                      ))}
                       {this.props.uploadLinks && !this.props.disableAddButton &&
-                        this.props.uploadLinks.map(({ title, link }, i) => (
-                          <li key={`upload-${i}`}>
-                            <div
-                              style={{ cursor: "pointer" }}
-                              onClick={e => {
-                                document.getElementById(`upload${i}`).click();
-                              }}
-                            >
-                              <i className="fas fa-file-upload" />{" "}
-                              {title}
-                              <input
-                                id={`upload${i}`}
-                                type="file"
-                                style={{ display: "none" }}
-                                onChange={this.uploadFile(link)}
-                                {...createTooltip(`${title}`)}
-                              />
-                            </div>
-                          </li>
-                        ))}
+                      this.props.uploadLinks.map(({title, link}, i) => (
+                        <li key={`upload-${i}`}>
+                          <div
+                            className="cursor-pointer"
+                            onClick={e => {
+                              document.getElementById(`upload${i}`).click();
+                            }}
+                          >
+                            <i className="fas fa-file-upload"/>{" "}
+                            {title}
+                            <input
+                              id={`upload${i}`}
+                              type="file"
+                              className="d-none"
+                              onChange={this.uploadFile(link)}
+                              {...createTooltip(`${title}`)}
+                            />
+                          </div>
+                        </li>
+                      ))}
                       <li></li>
                     </ul>
                   </div>
@@ -860,7 +854,7 @@ export class Table extends Component {
                   filterable={true}
                   filterAll={true}
                   defaultSorted={[
-                    { id: this.props.columns[0].title, desc: false }
+                    {id: this.props.columns[0].title, desc: false}
                   ]}
                   manual
                   pages={this.state.nbPages}
@@ -881,19 +875,20 @@ export class Table extends Component {
                   copyNodes={this.props.copyNodes}
                   searchKeys={this.props.searchKeys}
                   itemLink={this.props.itemLink}
-                  search={this.search}
-                  onSearchChange={ text => {
-                    this.update({ filtered: [{ id: "key", value: text }] });
+                  onSearchChange={text => {
+                    this.update({filtered: [{id: "key", value: text}]});
                   }}
                   openOnTable={id => {
                     this.setState(
-                        { table: !this.state.table },
-                        () => this.update({ filtered: [{ id: "key", value: id }] }));
+                      {table: !this.state.table},
+                      () => this.update({filtered: [{id: "key", value: id}]}));
                   }}
                   editAction={(e, item) => this.showEditForm(e, item)}
                   removeAction={(e, item) =>
-                    this.setState({ confirmDeleteTable: true, toDelete: item })
+                    this.setState({confirmDeleteTable: true, toDelete: item})
                   }
+                  lockable={this.props.lockable}
+                  lockType={this.props.lockType}
                 />
               </div>
             )}
@@ -904,12 +899,12 @@ export class Table extends Component {
           <div className="" role="dialog">
             <Form
               value={this.state.currentItem}
-              onChange={currentItem => this.setState({ currentItem })}
+              onChange={currentItem => this.setState({currentItem})}
               flow={this.props.formFlow}
               schema={this.props.formSchema}
               errorReportKeys={this.state.errorList}
             />
-            <hr />
+            <hr/>
             {this.state.error && (
               <div className="offset-sm-2 panel-group">
                 <Alerts
@@ -931,7 +926,7 @@ export class Table extends Component {
                 className="btn btn-success"
                 onClick={this.createItem}
               >
-                    <i className="fas fa-hdd" /> Create{" "}
+                <i className="fas fa-hdd"/> Create{" "}
                 {this.props.itemName}
               </button>
             </div>
@@ -941,13 +936,13 @@ export class Table extends Component {
           <div className="" role="dialog">
             <Form
               value={this.state.currentItem}
-              onChange={currentItem => this.setState({ currentItem })}
+              onChange={currentItem => this.setState({currentItem})}
               flow={this.props.formFlow}
               schema={this.props.formSchema}
               errorReportKeys={this.state.errorList}
               edit={this.state.showEditForm}
             />
-            <hr />
+            <hr/>
             {this.state.error && (
               <div className="offset-sm-2 panel-group">
                 <Alerts
@@ -961,9 +956,9 @@ export class Table extends Component {
                 type="button"
                 className="btn btn-danger"
                 title="Delete current item"
-                onClick={e => this.setState({ confirmDelete: true })}
+                onClick={e => this.setState({confirmDelete: true})}
               >
-                <i className="glyphicon glyphicon-trash" /> Delete
+                <i className="far fa-trash-alt"></i> Delete
               </button>}
               <button
                 type="button"
@@ -976,7 +971,7 @@ export class Table extends Component {
                 type="button"
                 className="btn btn-success"
                 onClick={this.updateItem}
-              > <i className="fas fa-hdd" /> Update{" "}
+              ><i className="fas fa-hdd"/> Update{" "}
                 {this.props.itemName}
               </button>}
               <SweetModal
@@ -984,7 +979,7 @@ export class Table extends Component {
                 confirm={e => this.deleteItem(e, this.state.currentItem)}
                 id={"confirmDelete"}
                 open={this.state.confirmDelete}
-                onDismiss={__ => this.setState({ confirmDelete: false })}
+                onDismiss={__ => this.setState({confirmDelete: false})}
                 labelValid="Delete"
               >
                 <div>Are you sure you want to delete that item ?</div>
@@ -998,7 +993,7 @@ export class Table extends Component {
           id={"confirmDeleteTable"}
           open={this.state.confirmDeleteTable}
           onDismiss={__ =>
-            this.setState({ confirmDeleteTable: false, toDelete: null })
+            this.setState({confirmDeleteTable: false, toDelete: null})
           }
           labelValid="Delete"
         >

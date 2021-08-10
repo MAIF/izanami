@@ -32,7 +32,7 @@ class SearchResult extends Component {
     const values = this.props.value.split(":").filter(e => !!e);
     return (
       <div className="keypicker-result-control ">
-        <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
+        <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb">
           {values.map((part, i) => [
             <div
               className={`${this.classOfElt(i)} `}
@@ -273,13 +273,12 @@ export class KeyInput extends Component {
             ref={ref => (this.wrapper = ref)}
           >
             <div className="keypicker-control">
-              <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb breadcrumb-info">
+              <span className="keypicker-multi-value-wrapper btn-group btn-breadcrumb">
                 {this.state.segments.map((part, i) => {
                   if (i === this.state.editedIndex) {
                     return (
                       <span
-                        className="keypicker-value"
-                        style={{ marginLeft: "0px" }}
+                        className="keypicker-value ml-0"
                         key={`value-${i}`}
                       >
                         <input
@@ -299,8 +298,7 @@ export class KeyInput extends Component {
                   } else {
                     return (
                       <span
-                        className="keypicker-value"
-                        style={{ marginLeft: "0px" }}
+                        className="keypicker-value ml-2"
                         key={`value-${i}`}
                         onDoubleClick={this.setEditedIndex(i, part)}
                       >

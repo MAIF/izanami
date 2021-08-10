@@ -33,7 +33,11 @@ const commons = {
   },
   devServer: {
     port: process.env.DEV_SERVER_PORT || 3333,
-    firewall: !isDev
+    firewall: !isDev,
+    client: {
+      host: "localhost",
+      port: process.env.DEV_SERVER_PORT || 3333
+    }
   },
   module: {
     rules: [

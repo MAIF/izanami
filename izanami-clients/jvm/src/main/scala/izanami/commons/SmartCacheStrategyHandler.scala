@@ -1,14 +1,15 @@
 package izanami.commons
 
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.{ActorSystem, Cancellable}
 import akka.event.Logging
 import akka.http.scaladsl.util.FastFuture
 import izanami.{IzanamiDispatcher, SmartCacheStrategy}
 import izanami.Strategy._
+
+import java.time.Duration
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.Future
+import scala.concurrent.{duration, Future}
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
@@ -34,20 +35,10 @@ class SmartCacheStrategyHandler[T](
   def init(): Unit = {
     val scheduler: Option[Cancellable] = config match {
       case CacheWithPollingStrategy(_, pollingInterval, _) =>
-        Some(
-          system.scheduler
-            .schedule(pollingInterval, pollingInterval, new Runnable {
-              override def run(): Unit = refreshCache()
-            })
-        )
+        scheduleRefreshCache(pollingInterval)
 
       case CacheWithSseStrategy(_, Some(pollingInterval), _) =>
-        Some(
-          system.scheduler
-            .schedule(pollingInterval, pollingInterval, new Runnable {
-              override def run(): Unit = refreshCache()
-            })
-        )
+        scheduleRefreshCache(pollingInterval)
       case _ => None
     }
     pollingScheduler.set(scheduler)
@@ -62,6 +53,21 @@ class SmartCacheStrategyHandler[T](
       case Success(r) =>
         setValues(r, None, triggerEvent = true)
     }
+  }
+
+  private def scheduleRefreshCache(pollingInterval: duration.Duration) = {
+    val jPollingInteval = Duration.ofNanos(pollingInterval.toNanos)
+    Some(
+      system.scheduler
+        .scheduleAtFixedRate(
+          jPollingInteval,
+          jPollingInteval,
+          new Runnable {
+            override def run(): Unit = refreshCache()
+          },
+          system.dispatcher
+        )
+    )
   }
 
   def refreshCache(): Unit = {

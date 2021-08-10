@@ -7,7 +7,7 @@ import izanami.Strategy._
 import izanami.commons.{IzanamiException, PatternsUtil}
 import play.api.libs.json._
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration._
 import java.time.LocalTime
 
 ///////////////////////////////////////////////////////////////////////
@@ -150,16 +150,16 @@ object Strategy {
   }
   case class CacheWithSseStrategy(
       patterns: Seq[String],
-      pollingInterval: Option[FiniteDuration] = Some(1.minute),
+      pollingInterval: Option[Duration] = Some(1.minute),
       errorStrategy: ErrorStrategy = RecoverWithFallback
   ) extends SmartCacheStrategy {
-    def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = Some(interval))
+    def withPollingInterval(interval: Duration) = copy(pollingInterval = Some(interval))
     def withPollingDisabled()                         = copy(pollingInterval = None)
     def withErrorStrategy(strategy: ErrorStrategy)    = copy(errorStrategy = strategy)
   }
   case class CacheWithPollingStrategy(
       patterns: Seq[String],
-      pollingInterval: FiniteDuration = 20.seconds,
+      pollingInterval: Duration = 20.seconds,
       errorStrategy: ErrorStrategy = RecoverWithFallback
   ) extends SmartCacheStrategy {
     def withPollingInterval(interval: FiniteDuration) = copy(pollingInterval = interval)

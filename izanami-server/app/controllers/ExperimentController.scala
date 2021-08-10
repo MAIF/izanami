@@ -52,12 +52,8 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
             .flatMap { s =>
               ZIO.fromFuture { _ =>
                 s.fold(List.empty[(ExperimentKey, Experiment)])(_ :+ _)
-                  .map { v =>
-                    Node.valuesToNodes[Experiment](v)(ExperimentInstances.format)
-                  }
-                  .map { v =>
-                    Json.toJson(v)
-                  }
+                  .map(v => Node.valuesToNodes[Experiment](v)(ExperimentInstances.format))
+                  .map(v => Json.toJson(v))
                   .map(json => Ok(json))
                   .runWith(Sink.head)
               }
@@ -73,15 +69,12 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
       val query: Query = Query.oneOf(ctx.authorizedPatterns).and(patterns.split(",").toList)
       for {
         s <- ExperimentService.findByQuery(query)
-        r <- ZIO.fromFuture(
-              _ =>
-                s.map(_._2)
-                  .via(ExperimentService.toGraph(clientId))
-                  .map { graph =>
-                    Ok(graph)
-                  }
-                  .orElse(Source.single(Ok(Json.obj())))
-                  .runWith(Sink.head)
+        r <- ZIO.fromFuture(_ =>
+              s.map(_._2)
+                .via(ExperimentService.toGraph(clientId))
+                .map(graph => Ok(graph))
+                .orElse(Source.single(Ok(Json.obj())))
+                .runWith(Sink.head)
             )
       } yield r
     }
@@ -91,7 +84,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
     val body = ctx.request.body
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
-      _          <- ExperimentService.create(experiment.id, experiment).mapError { ApiErrors.toHttpResult }
+      _          <- ExperimentService.create(experiment.id, experiment).mapError(ApiErrors.toHttpResult)
     } yield Created(Json.toJson(experiment))
   }
 
@@ -100,7 +93,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
       import ExperimentInstances._
       val key = Key(id)
       for {
-        mayBe      <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
+        mayBe      <- ExperimentService.getById(key).mapError(ApiErrors.toHttpResult)
         experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
       } yield Ok(Json.toJson(experiment))
     }
@@ -110,7 +103,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
     val body = ctx.request.body
     for {
       experiment <- jsResultToHttpResponse(body.validate[Experiment])
-      _          <- ExperimentService.update(Key(id), experiment.id, experiment).mapError { ApiErrors.toHttpResult }
+      _          <- ExperimentService.update(Key(id), experiment.id, experiment).mapError(ApiErrors.toHttpResult)
     } yield Ok(Json.toJson(experiment))
   }
 
@@ -118,11 +111,12 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe   <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
-      current <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      mayBe   <- ExperimentService.getById(key).mapError(ApiErrors.toHttpResult)
+      value   = ZIO.fromOption(mayBe).mapError(_ => NotFound)
+      current <- value
       body    = ctx.request.body
       updated <- jsResultToHttpResponse(Patch.patch(body, current))
-      _       <- ExperimentService.update(key, current.id, updated).mapError { ApiErrors.toHttpResult }
+      _       <- ExperimentService.update(key, current.id, updated).mapError(ApiErrors.toHttpResult)
     } yield Ok(Json.toJson(updated))
   }
 
@@ -130,9 +124,9 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
     import ExperimentInstances._
     val key = Key(id)
     for {
-      mayBe      <- ExperimentService.getById(key).mapError { ApiErrors.toHttpResult }
+      mayBe      <- ExperimentService.getById(key).mapError(ApiErrors.toHttpResult)
       experiment <- ZIO.fromOption(mayBe).mapError(_ => NotFound)
-      _          <- ExperimentService.delete(key).mapError { ApiErrors.toHttpResult }
+      _          <- ExperimentService.delete(key).mapError(ApiErrors.toHttpResult)
       _ <- ExperimentVariantEventService.deleteEventsForExperiment(experiment).mapError {
             ApiErrors.toHttpResult
           }
@@ -160,11 +154,9 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
                   .runWith(Sink.ignore)
               }
             }
-            .mapError { _ =>
-              InternalServerError("")
-            }
+            .mapError(_ => InternalServerError(""))
 
-      _ <- ExperimentService.deleteAll(query).mapError { ApiErrors.toHttpResult }
+      _ <- ExperimentService.deleteAll(query).mapError(ApiErrors.toHttpResult)
     } yield Ok
   }
 
@@ -174,7 +166,7 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
     AuthAction.asyncZio[ExperimentContext](parse.empty) { _ =>
       import ExperimentInstances._
       for {
-        variant <- ExperimentService.variantFor(Key(experimentId), clientId).mapError { ApiErrors.toHttpResult }
+        variant <- ExperimentService.variantFor(Key(experimentId), clientId).mapError(ApiErrors.toHttpResult)
       } yield Ok(Json.toJson(variant))
     }
 
@@ -184,18 +176,22 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
 
       val experimentKey = Key(experimentId)
       for {
-        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { ApiErrors.toHttpResult }
-        key = ExperimentVariantEventKey(experimentKey,
-                                        variant.id,
-                                        clientId,
-                                        "displayed",
-                                        ExperimentVariantEventKey.generateId)
-        variantDisplayed = ExperimentVariantDisplayed(key,
-                                                      experimentKey,
-                                                      clientId,
-                                                      variant,
-                                                      transformation = 0,
-                                                      variantId = variant.id)
+        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError(ApiErrors.toHttpResult)
+        key = ExperimentVariantEventKey(
+          experimentKey,
+          variant.id,
+          clientId,
+          "displayed",
+          ExperimentVariantEventKey.generateId
+        )
+        variantDisplayed = ExperimentVariantDisplayed(
+          key,
+          experimentKey,
+          clientId,
+          variant,
+          transformation = 0,
+          variantId = variant.id
+        )
         eventCreated <- ExperimentVariantEventService.create(key, variantDisplayed).mapError {
                          ApiErrors.toHttpResult
                        }
@@ -208,19 +204,23 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
       val experimentKey = Key(experimentId)
 
       for {
-        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError { ApiErrors.toHttpResult }
-        key = ExperimentVariantEventKey(experimentKey,
-                                        variant.id,
-                                        clientId,
-                                        "won",
-                                        ExperimentVariantEventKey.generateId)
-        variantWon = ExperimentVariantWon(key,
-                                          experimentKey,
-                                          clientId,
-                                          variant,
-                                          transformation = 0,
-                                          variantId = variant.id)
-        eventCreated <- ExperimentVariantEventService.create(key, variantWon).mapError { ApiErrors.toHttpResult }
+        variant <- ExperimentService.variantFor(experimentKey, clientId).mapError(ApiErrors.toHttpResult)
+        key = ExperimentVariantEventKey(
+          experimentKey,
+          variant.id,
+          clientId,
+          "won",
+          ExperimentVariantEventKey.generateId
+        )
+        variantWon = ExperimentVariantWon(
+          key,
+          experimentKey,
+          clientId,
+          variant,
+          transformation = 0,
+          variantId = variant.id
+        )
+        eventCreated <- ExperimentVariantEventService.create(key, variantWon).mapError(ApiErrors.toHttpResult)
       } yield Ok(Json.toJson(Json.toJson(eventCreated)))
     }
 
@@ -230,17 +230,13 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
       val experimentKey = Key(experimentId)
       ExperimentService
         .experimentResult(experimentKey)
-        .mapError { ApiErrors.toHttpResult }
-        .map { r =>
-          Ok(Json.toJson(r))
-        }
+        .mapError(ApiErrors.toHttpResult)
+        .map(r => Ok(Json.toJson(r)))
     }
 
   def count(): Action[Unit] = AuthAction.asyncTask[ExperimentContext](parse.empty) { ctx =>
     val patterns: Seq[String] = ctx.authorizedPatterns
-    ExperimentService.count(Query.oneOf(patterns)).map { count =>
-      Ok(Json.obj("count" -> count))
-    }
+    ExperimentService.count(Query.oneOf(patterns)).map(count => Ok(Json.obj("count" -> count)))
   }
 
   def downloadExperiments(): Action[AnyContent] = AuthAction.asyncTask[ExperimentContext] { ctx =>
@@ -292,20 +288,19 @@ class ExperimentController(AuthAction: ActionBuilder[SecuredAuthContext, AnyCont
   def uploadEvents() = AuthAction.asyncTask[ExperimentContext](Import.ndJson) { ctx =>
     for {
       flow <- ExperimentVariantEventService.importData()
-      res <- ZIO.fromFuture(
-              _ =>
-                ctx.body
-                  .via(flow)
-                  .map {
-                    case r if r.isError => BadRequest(Json.toJson(ImportResultDto.fromImportResult(r)))
-                    case r              => Ok(Json.toJson(ImportResultDto.fromImportResult(r)))
-                  }
-                  .recover {
-                    case e: Throwable =>
-                      IzanamiLogger.error("Error importing file", e)
-                      InternalServerError
-                  }
-                  .runWith(Sink.head)
+      res <- ZIO.fromFuture(_ =>
+              ctx.body
+                .via(flow)
+                .map {
+                  case r if r.isError => BadRequest(Json.toJson(ImportResultDto.fromImportResult(r)))
+                  case r              => Ok(Json.toJson(ImportResultDto.fromImportResult(r)))
+                }
+                .recover {
+                  case e: Throwable =>
+                    IzanamiLogger.error("Error importing file", e)
+                    InternalServerError
+                }
+                .runWith(Sink.head)
             )
     } yield res
   }
