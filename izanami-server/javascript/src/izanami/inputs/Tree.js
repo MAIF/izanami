@@ -365,7 +365,6 @@ export class Tree extends PureComponent {
   changeLock = (id) => {
     const lockId = `${this.props.lockType}:${id}`
     return IzanamiService.fetchLock(lockId).then(mayBeLock => {
-      console.log(mayBeLock)
       if (mayBeLock) {
         return IzanamiService.updateLock(mayBeLock.id, {id: mayBeLock.id, locked: !mayBeLock.locked})
       } else {;
