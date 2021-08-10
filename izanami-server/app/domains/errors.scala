@@ -35,9 +35,10 @@ object errors {
   }
 
   sealed trait IzanamiError
+  sealed trait AuthorizeError extends IzanamiError
 
-  case class Unauthorized(id: Option[Key])                  extends IzanamiError
-  case class UnauthorizedByLock(id: Key, lock: Key)         extends IzanamiError
+  case class Unauthorized(id: Option[Key])                  extends AuthorizeError
+  case class UnauthorizedByLock(id: Key, lock: Key)         extends AuthorizeError
   case class InvalidCopyKey(id: Key)                        extends IzanamiError
   case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiError
   case class DataShouldExists(id: Key)                      extends IzanamiError
