@@ -19,8 +19,8 @@ export default class MyTvShows extends React.Component {
   render() {
     return (
       <Layout user={this.props.user} rootPath={this.props.rootPath}>
-        <div className="row" >
-          <div className="col-md-12" >
+        <div className="row">
+          <div className="col-md-12">
             <div className="row">
               <div className="col-md-12">
                 <h2>My Tv Shows</h2>
@@ -28,20 +28,27 @@ export default class MyTvShows extends React.Component {
                 {this.props.user.shows.map(({image, title, description, id}) =>
                   <div className="media" key={`shows-${id}`}>
                     <div className="media-left media-middle">
-                        <img className="media-object" width="540px" src={`${image}`} />
+                      {image ?
+                      <img className="media-object" width="540px" src={`${image}`}/> :
+                        <i className="fas fa-image fa-2x" style={{marginLeft: 5}}/>
+                      }
                     </div>
                     <div className="media-body">
                       <h3 className="media-heading">{title}</h3>
-                      <Experiment path={"mytvshows:gotoepisodes:button"} notifyDisplay="/api/izanami/experiments/displayed" >
+                      <Experiment path={"mytvshows:gotoepisodes:button"}
+                                  notifyDisplay="/api/izanami/experiments/displayed">
                         <Variant id={"A"}>
-                          <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right" alt="consulter"><i className="fas fa-eye"></i></Link>
+                          <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right"
+                                alt="consulter"><i className="fas fa-eye"></i></Link>
                         </Variant>
                         <Variant id={"B"}>
-                          <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right" alt="consulter"><i className="glyphicon glyphicon-chevron-right"></i></Link>
+                          <Link to={`/tvshow/${id}`} onClick={this.markAsWon} className="btn pull-right"
+                                alt="consulter"><i className="glyphicon glyphicon-chevron-right"></i></Link>
                         </Variant>
                       </Experiment>
-                      <button type="button" className="btn pull-right" onClick={this.remove(id)} alt="supprimer"><i className="glyphicon glyphicon-trash"/></button>
-                      <p className="description">{_.truncate(description, {length:350})}</p>
+                      <button type="button" className="btn pull-right" onClick={this.remove(id)} alt="supprimer"><i
+                        className="glyphicon glyphicon-trash"/></button>
+                      <p className="description">{_.truncate(description, {length: 350})}</p>
                     </div>
                   </div>
                 )}

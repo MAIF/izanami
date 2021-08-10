@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, {Component, PureComponent} from "react";
 import {KeyInput} from "./KeyInput";
 import * as IzanamiServices from "../services";
 import PropTypes from "prop-types";
@@ -57,7 +57,7 @@ class AuthorizedPattern extends Component {
                     search={this.searchKey}
                     onChange={e => this.changeKey(e)}
                 />
-                <div className="input-group-btn" role="group" style={{paddingLeft:'10px'}}>
+                <div className="input-group-btn crud" role="group">
                     <Right letter={"C"} selected={this.props.value.rights.includes("C")} onChange={v => this.set("C", v)}/>
                     <Right letter={"R"} selected={true} disabled={true} />
                     <Right letter={"U"} selected={this.props.value.rights.includes("U")} onChange={v => this.set("U", v)}/>
@@ -69,23 +69,15 @@ class AuthorizedPattern extends Component {
 }
 
 
-export class AuthorizedPatternsInput extends Component {
+export class AuthorizedPatternsInput extends PureComponent {
 
     static propTypes = {
         value: PropTypes.array.isRequired
     };
 
     state = {
-        values: []
+        values:  this.props.value || []
     };
-
-    componentDidMount() {
-        this.setState({ values: this.props.value || [] });
-    }
-
-    componentWillReceiveProps(nextProps) {
-        this.setState({ values: nextProps.value || [] });
-    }
 
     changeValue = (value, index) => {
         const values = this.state.values.map((v, i) => {

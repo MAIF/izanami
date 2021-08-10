@@ -2,7 +2,6 @@ package filters
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
-
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.alpakka.dynamodb.DynamoClient
@@ -22,6 +21,7 @@ import domains.configuration.PlayModule.PlayModuleProd
 import domains.errors.IzanamiErrors
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
+import domains.lock.LockDataStore
 import domains.script.{CacheService, GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.user.UserDataStore
 import domains.webhook.WebhookDataStore
@@ -101,6 +101,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
     ExperimentDataStore.value(fake) ++
     ExperimentVariantEventService.value(new ExperimentVariantEventInMemoryService("test")) ++
     EventStore.value(new TestEventStore()) ++
+    LockDataStore.value(new InMemoryJsonDataStore("lock-test")) ++
     ZLogger.live ++
     Blocking.live ++
     Clock.live

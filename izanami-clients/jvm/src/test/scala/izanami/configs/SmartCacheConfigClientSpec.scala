@@ -26,7 +26,7 @@ class SmartCacheConfigClientSpec
 
   import system.dispatcher
 
-  override def afterAll: Unit =
+  override def afterAll(): Unit =
     TestKit.shutdownActorSystem(system)
 
   "SmartCacheConfigStrategy" should {

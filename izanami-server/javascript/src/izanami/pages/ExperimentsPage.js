@@ -147,20 +147,6 @@ class Variants extends Component {
     }
   };
 
-  componentDidMount() {
-    //if (trafficSum(this.props.value) < 1) {
-    //const variants = this.reaffectTraffic(this.props.value);
-    //this.props.onChange([...variants]);
-    //}
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (trafficSum(nextProps.value) < 1) {
-      const variants = this.reaffectTraffic(nextProps.value);
-      this.props.onChange([...variants]);
-    }
-  }
-
   trafficStack = () => {
     let stack = this.props.value.reduce(
       ([s, acc], e) => {
@@ -277,10 +263,11 @@ class Variants extends Component {
                   key={`variants-${i}`}
                   variant={v}
                   deletable={i !== 0 && i !== 1}
-                  remove={() =>
-                    this.props.onChange([
-                      ...this.props.value.filter((_, idx) => idx !== i)
-                    ])
+                  remove={() => {
+                    const newVariants = this.props.value.filter((_, idx) => idx !== i)
+                    const variantsBalanced = this.reaffectTraffic(newVariants);
+                    this.props.onChange([...variantsBalanced])
+                  }
                   }
                   onChange={variant => {
                     const toUpdate = [...this.props.value];

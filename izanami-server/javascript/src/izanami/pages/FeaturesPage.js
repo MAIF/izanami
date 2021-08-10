@@ -27,35 +27,35 @@ const DATE_FORMAT2 = "YYYY-MM-DD HH:mm:ss";
 const TIME_FORMAT = "HH:mm"
 
 class FeatureParameters extends Component {
-  componentWillReceiveProps(nextProps) {
-    const oldStrategy = this.props.source.activationStrategy;
-    const nextStrategy = nextProps.source.activationStrategy;
-    if (nextStrategy !== oldStrategy) {
-      if (oldStrategy === "RELEASE_DATE") {
+  componentDidUpdate(prevProps) {
+    const currentStrategy = this.props.source.activationStrategy;
+    const prevStrategy = prevProps.source.activationStrategy;
+    if (currentStrategy !== prevStrategy) {
+      if (prevStrategy === "RELEASE_DATE") {
         this.props.onChange({ releaseDate: undefined });
-      } else if (oldStrategy === "SCRIPT") {
+      } else if (prevStrategy === "SCRIPT") {
         this.props.onChange({ script: undefined, type: undefined });
-      } else if (oldStrategy === "GLOBAL_SCRIPT") {
+      } else if (prevStrategy === "GLOBAL_SCRIPT") {
         this.props.onChange({ ref: undefined });
-      } else if (nextStrategy === "PERCENTAGE") {
+      } else if (currentStrategy === "PERCENTAGE") {
         this.props.onChange({ percentage: undefined });
-      } else if (nextStrategy === "CUSTOMERS_LIST") {
+      } else if (currentStrategy === "CUSTOMERS_LIST") {
         this.props.onChange({ customers: undefined });
       }
-      if (nextStrategy === "SCRIPT") {
+      if (currentStrategy === "SCRIPT") {
         this.props.onChange({
           type: "javascript",
           script: ScriptsTemplate.javascriptDefaultScript
         });
-      } else if (nextStrategy === "RELEASE_DATE") {
+      } else if (currentStrategy === "RELEASE_DATE") {
         this.props.onChange({ releaseDate: moment().format(DATE_FORMAT) });
-      } else if (nextStrategy === "HOUR_RANGE") {
+      } else if (currentStrategy === "HOUR_RANGE") {
         this.props.onChange({ startAt: moment().format(TIME_FORMAT), endAt: moment().add(1, "hour").format(TIME_FORMAT)});
-      } else if (nextStrategy === "PERCENTAGE") {
+      } else if (currentStrategy === "PERCENTAGE") {
         this.props.onChange({ percentage: 50 });
-      } else if (nextStrategy === "NO_STRATEGY") {
+      } else if (currentStrategy === "NO_STRATEGY") {
         this.props.onChange({});
-      } else if (nextStrategy === "CUSTOMERS_LIST") {
+      } else if (currentStrategy === "CUSTOMERS_LIST") {
         this.props.onChange({});
       }
     }
@@ -173,6 +173,7 @@ class FeatureParameters extends Component {
       );
     }
     if (this.props.source.activationStrategy === "PERCENTAGE") {
+      console.log(this.props.value)
       return (
         <PercentageInput
           placeholder={"50"}
@@ -555,6 +556,8 @@ export class FeaturesPage extends Component {
                 { title: "Upload - ignore if exists", link: "/api/features.ndjson?strategy=Keep" }
             ]}
             extractKey={item => item.id}
+            lockable={true}
+            lockType={"feature"}
           />
         </div>
       </div>

@@ -35,15 +35,18 @@ object errors {
   }
 
   sealed trait IzanamiError
+  sealed trait AuthorizeError extends IzanamiError
 
-  case class Unauthorized(id: Option[Key])                  extends IzanamiError
+  case class Unauthorized(id: Option[Key])                  extends AuthorizeError
+  case class UnauthorizedByLock(id: Key, lock: Key)         extends AuthorizeError
   case class InvalidCopyKey(id: Key)                        extends IzanamiError
   case class IdMustBeTheSame(fromObject: Key, inParam: Key) extends IzanamiError
   case class DataShouldExists(id: Key)                      extends IzanamiError
   case class DataShouldNotExists(id: Key)                   extends IzanamiError
-  case class ValidationError(errors: Seq[ErrorMessage] = Seq.empty,
-                             fieldErrors: Map[String, List[ErrorMessage]] = Map.empty)
-      extends IzanamiError {
+  case class ValidationError(
+      errors: Seq[ErrorMessage] = Seq.empty,
+      fieldErrors: Map[String, List[ErrorMessage]] = Map.empty
+  ) extends IzanamiError {
     def ++(s: ValidationError): ValidationError =
       this.copy(errors = errors ++ s.errors, fieldErrors = fieldErrors ++ s.fieldErrors)
     def addFieldError(field: String, errors: List[ErrorMessage]): ValidationError =

@@ -1,32 +1,28 @@
 package domains
 
-import java.time.LocalDateTime
-
-import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.NotUsed
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import cats.data.NonEmptyList
+import domains.auth.AuthInfo
+import domains.configuration.PlayModule
+import domains.errors.{IzanamiErrors, _}
 import domains.events.EventStore
 import domains.feature.Feature.FeatureKey
 import domains.feature.FeatureInstances.isActive
-import domains.script.{GlobalScriptContext, GlobalScriptDataStore, RunnableScriptModule, Script, ScriptCache}
-import domains.configuration.PlayModule
-import domains.{AuthorizedPatterns, ImportData, ImportResult, ImportStrategy, Key, PatternRights}
-import domains.auth.AuthInfo
-import libs.logs.ZLogger
-import play.api.libs.json._
-import domains.errors.{IzanamiErrors, _}
-import store._
-import store.datastore._
-import zio.{Has, RIO, URIO, ZIO, ZLayer}
-import java.time.LocalTime
-
-import cats.data.NonEmptyList
-import domains.feature.FeatureDataStore
+import domains.lock.{LockContext, LockInfo, LockType}
+import domains.script.{GlobalScriptDataStore, RunnableScriptModule, Script, ScriptCache}
 import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
-import libs.database.Drivers
+import libs.logs.ZLogger
 import metrics.MetricsService
+import play.api.libs.json._
+import store._
+import store.datastore._
 import store.memorywithdb.InMemoryWithDbStore
 import zio.blocking.Blocking
+import zio._
+
+import java.time.{LocalDateTime, LocalTime}
 
 package object feature {
 
@@ -176,19 +172,22 @@ package object feature {
     with AuthInfo
     with Blocking
     with IzanamiConfigModule
+    with LockContext
 
   object FeatureService {
+    import FeatureInstances._
+    import IzanamiErrors._
+    import cats.implicits._
+    import domains.events.Events._
+    import libs.ziohelper.JsResults._
     import zio._
     import zio.interop.catz._
-    import cats.implicits._
-    import libs.ziohelper.JsResults._
-    import FeatureInstances._
-    import domains.events.Events._
-    import IzanamiErrors._
 
     def create(id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
       for {
         _        <- AuthorizedPatterns.isAllowed(id, PatternRights.C)
+        store    <- FeatureDataStore.>.getStore
+        _        <- LockInfo.isCreationAllowed(data.id, LockType.FEATURE, store)
         _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
         created  <- FeatureDataStore.>.create(id, format.writes(data))
         feature  <- jsResultToError(created.validate[Feature])
@@ -200,6 +199,8 @@ package object feature {
     def update(oldId: FeatureKey, id: FeatureKey, data: Feature): ZIO[FeatureContext, IzanamiErrors, Feature] =
       for {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
+        store        <- FeatureDataStore.>.getStore
+        _            <- LockInfo.isMoveAllowed(id, LockType.FEATURE, oldId, store)
         mayBeFeature <- getById(oldId)
         oldValue     <- ZIO.fromOption(mayBeFeature).mapError(_ => DataShouldExists(oldId).toErrors)
         updated      <- FeatureDataStore.>.update(oldId, id, format.writes(data))
@@ -212,6 +213,8 @@ package object feature {
     def delete(id: FeatureKey): ZIO[FeatureContext, IzanamiErrors, Feature] =
       for {
         _        <- AuthorizedPatterns.isAllowed(id, PatternRights.D)
+        store    <- FeatureDataStore.>.getStore
+        _        <- LockInfo.isDeletionAllowed(id, LockType.FEATURE, store)
         deleted  <- FeatureDataStore.>.delete(id)
         feature  <- jsResultToError(deleted.validate[Feature])
         authInfo <- AuthInfo.authInfo
@@ -324,11 +327,13 @@ package object feature {
       } yield s.map(_._2).via(flow)
 
     def copyNode(from: Key, to: Key, default: Boolean): ZIO[FeatureContext, IzanamiErrors, List[Feature]] = {
-      import zio.interop.catz._
-      import cats.implicits._
       import IzanamiErrors._
+      import cats.implicits._
+      import zio.interop.catz._
       for {
         _        <- AuthorizedPatterns.isAllowed(from -> PatternRights.R, to -> PatternRights.C)
+        store    <- FeatureDataStore.>.getStore
+        _        <- LockInfo.isCreationAllowed(to, LockType.FEATURE, store)
         _        <- ZIO.fromEither((validateKey(from), validateKey(to)).parTupled)
         values   <- findAllByQuery(Query.oneOf(from.key, (from / "*").key)).orDie
         features <- values.parTraverse { case (_, v) => copyOne(from, to, v, default) }.mapError(_.reduce)
@@ -343,12 +348,22 @@ package object feature {
     ): ZIO[FeatureContext, NonEmptyList[IzanamiErrors], Feature] = {
       val newId            = to / feature.id.drop(from.key)
       val featureToCreated = copyFeature(newId, feature, default)
-      FeatureService
-        .create(newId, featureToCreated)
-        .catchSome {
-          case NonEmptyList(DataShouldNotExists(_), Nil) => IO.succeed(featureToCreated)
-        }
-        .mapError(NonEmptyList.one)
+      for {
+        store <- FeatureDataStore.>.getStore
+        _ <- LockInfo
+              .isCreationAllowed(to, LockType.FEATURE, store)
+              .catchSome {
+                case NonEmptyList(DataShouldNotExists(_), Nil) => IO.succeed(featureToCreated)
+              }
+              .mapError(NonEmptyList.one)
+        feature <- FeatureService
+                    .create(newId, featureToCreated)
+                    .catchSome {
+                      case NonEmptyList(DataShouldNotExists(_), Nil) => IO.succeed(featureToCreated)
+                    }
+                    .mapError(NonEmptyList.one)
+      } yield feature
+
     }
 
     def copyFeature(id: FeatureKey, feature: Feature, default: Boolean): Feature = feature match {

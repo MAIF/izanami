@@ -1,18 +1,15 @@
 package izanami
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.sse.ServerSentEvent
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, StatusCodes}
-import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.stream.scaladsl.{BroadcastHub, Keep, Source, SourceQueueWithComplete}
 import akka.stream.{Materializer, OverflowStrategy}
 import akka.testkit.SocketUtil
-
 import izanami.FeatureEvent.{FeatureCreated, FeatureDeleted, FeatureUpdated}
 import izanami.scaladsl.ConfigEvent.{ConfigCreated, ConfigDeleted, ConfigUpdated}
 import izanami.scaladsl.{Config, ConfigEvent}
@@ -495,7 +492,6 @@ trait ExperimentServer {
 
   def runServer(test: Context[Experiment, AnyRef] => Unit)(implicit s: ActorSystem, m: Materializer): Unit = {
     import izanami.PlayJsonSupport._
-    import s.dispatcher
 
     val state = ListBuffer.empty[Experiment]
     val calls = ListBuffer.empty[String]
@@ -658,11 +654,9 @@ trait ExperimentServer {
         }
       } ~ path("api" / "experiments") {
         parameters(
-          (
-            Symbol("pattern").as[String] ? "*",
-            Symbol("pageSize").as[Int] ? 2,
-            Symbol("page").as[Int] ? 1
-          )
+          Symbol("pattern").as[String] ? "*",
+          Symbol("pageSize").as[Int] ? 2,
+          Symbol("page").as[Int] ? 1
         ) { (p, pageSize, page) =>
           calls.append(s"api/features")
           val drop = (page - 1) * pageSize
@@ -710,7 +704,6 @@ trait ConfigServer {
 
   def runServer(test: Context[Config, ConfigEvent] => Unit)(implicit s: ActorSystem, m: Materializer): Unit = {
     import izanami.PlayJsonSupport._
-    import s.dispatcher
 
     val state = ListBuffer.empty[Config]
     val calls = ListBuffer.empty[String]
@@ -738,11 +731,9 @@ trait ConfigServer {
         }
       } ~ path("api" / "configs") {
         parameters(
-          (
-            Symbol("pattern").as[String] ? "*",
-            Symbol("pageSize").as[Int] ? 2,
-            Symbol("page").as[Int] ? 1
-          )
+          Symbol("pattern").as[String] ? "*",
+          Symbol("pageSize").as[Int] ? 2,
+          Symbol("page").as[Int] ? 1
         ) { (p, pageSize, page) =>
           calls.append(s"api/configs")
           val drop = (page - 1) * pageSize
@@ -830,7 +821,6 @@ trait FeatureServer {
 
   def runServer(test: Context[Feature, FeatureEvent] => Unit)(implicit s: ActorSystem, m: Materializer): Unit = {
     import izanami.PlayJsonSupport._
-    import s.dispatcher
 
     val state = ListBuffer.empty[Feature]
     val calls = ListBuffer.empty[String]
@@ -849,12 +839,10 @@ trait FeatureServer {
       path("api" / "features" / "_checks") {
         post {
           parameters(
-            (
-              Symbol("pattern").as[String] ? "*",
-              Symbol("active").as[Boolean] ? false,
-              Symbol("pageSize").as[Int] ? 2,
-              Symbol("page").as[Int] ? 1
-            )
+            Symbol("pattern").as[String] ? "*",
+            Symbol("active").as[Boolean] ? false,
+            Symbol("pageSize").as[Int] ? 2,
+            Symbol("page").as[Int] ? 1
           ) { (p, a, pageSize, page) =>
             calls.append(s"POST /api/features")
             val drop = (page - 1) * pageSize
@@ -891,12 +879,10 @@ trait FeatureServer {
         }
       } ~ path("api" / "features") {
         parameters(
-          (
-            Symbol("pattern").as[String] ? "*",
-            Symbol("active").as[Boolean] ? false,
-            Symbol("pageSize").as[Int] ? 2,
-            Symbol("page").as[Int] ? 1
-          )
+          Symbol("pattern").as[String] ? "*",
+          Symbol("active").as[Boolean] ? false,
+          Symbol("pageSize").as[Int] ? 2,
+          Symbol("page").as[Int] ? 1
         ) { (p, a, pageSize, page) =>
           calls.append(s"GET /api/features")
           val drop = (page - 1) * pageSize

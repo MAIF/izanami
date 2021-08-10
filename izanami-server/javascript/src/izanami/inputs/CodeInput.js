@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, {PureComponent} from "react";
 import AceEditor from "react-ace";
 import "brace/mode/javascript";
 import "brace/mode/scala";
@@ -8,15 +8,13 @@ import Select from "react-select";
 import { customStyles } from "../../styles/reactSelect";
 import { ScriptDebug } from "../components/ScriptDebug";
 
-export class CodeInput extends Component {
-  state = {
-    languages: {}
-  };
+export class CodeInput extends PureComponent {
+  state = {}
 
   selectValues = () => {
-    return Object.keys(this.state.languages).map(k => ({
+    return Object.keys(this.props.languages).map(k => ({
       value: k,
-      label: this.state.languages[k].label
+      label: this.props.languages[k].label
     }));
   };
 
@@ -26,23 +24,19 @@ export class CodeInput extends Component {
   };
 
   componentDidMount() {
-    this.applyProps(this.props);
+    this.setState(CodeInput.applyProps(this.props));
   }
 
-  applyProps = props => {
+  static applyProps(props) {
     const { languages } = props;
-    if (props.value) {
-      const { type = props.default, script } = props.value;
-      const code = script || languages[type].snippet;
-      this.setState({ languages, language: type, code });
-    } else {
-      const code = languages[props.default].snippet;
-      this.setState({ languages, language: props.default, code });
-    }
+    const language = props.value && props.value.type ? props.value.type : props.default
+    const defaultCode = languages[language].snippet;
+    const code = props.value && props.value.script ? props.value.script : defaultCode;
+    return { language, code };
   };
 
-  componentWillReceiveProps(nextProps) {
-    this.applyProps(nextProps);
+  static getDerivedStateFromProps(nextProps) {
+    return CodeInput.applyProps(nextProps);
   }
 
   onLanguageChange = e => {

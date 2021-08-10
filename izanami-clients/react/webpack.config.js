@@ -35,6 +35,10 @@ module.exports = {
   },
   devServer: {
     port: process.env.DEV_SERVER_PORT || 3040,
+    client: {
+      host: "localhost",
+      port: process.env.DEV_SERVER_PORT || 3040
+    },
     proxy: {
       '/api/*': {
         target: 'http://localhost:3200',

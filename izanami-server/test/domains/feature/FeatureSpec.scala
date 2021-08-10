@@ -43,6 +43,7 @@ import java.time.Duration
 import cats.data.NonEmptyList
 import domains.configuration.PlayModule
 import domains.configuration.PlayModule.PlayModuleProd
+import domains.lock.LockDataStore
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
 import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
@@ -1053,6 +1054,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
     playModule ++ ZLogger.live ++ Blocking.live ++
     ScriptCache.value(scriptCache) ++ EventStore.value(new TestEventStore(events)) ++ AuthInfo
       .optValue(user) ++ GlobalScriptDataStore.value(globalScriptDataStore) ++ FeatureDataStore.value(featureDataStore) ++
+    LockDataStore.value(new InMemoryJsonDataStore("lock-test")) ++
     runnableScriptModule >+> IzanamiConfigModule.value(FakeConfig.config)
 
   private def runIsActive[T](t: ZIO[IsActiveContext, IzanamiErrors, T]): T =

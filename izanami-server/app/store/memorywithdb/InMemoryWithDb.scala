@@ -175,27 +175,26 @@ class InMemoryWithDbStore(
       events <- EventStore.events()
       res <- IO.fromFuture { _ =>
               RestartSource
-                .onFailuresWithBackoff(1.second, 20.second, 1)(
-                  () =>
-                    events
-                      .via(eventAdapter)
-                      .map {
-                        case e @ Create(id, data) =>
-                          IzanamiLogger.debug(s"Applying create event $e")
-                          createSync(id, data)
-                          Done
-                        case e @ Update(oldId, id, data) =>
-                          IzanamiLogger.debug(s"Applying update event $e")
-                          updateSync(oldId, id, data)
-                          Done
-                        case e @ Delete(id) =>
-                          IzanamiLogger.debug(s"Applying delete event $e")
-                          deleteSync(id)
-                          Done
-                        case e @ DeleteAll(patterns) =>
-                          IzanamiLogger.debug(s"Applying delete all event $e")
-                          deleteAllSync(Query.oneOf(patterns))
-                          Done
+                .onFailuresWithBackoff(1.second, 20.second, 1)(() =>
+                  events
+                    .via(eventAdapter)
+                    .map {
+                      case e @ Create(id, data) =>
+                        IzanamiLogger.debug(s"Applying create event $e")
+                        createSync(id, data)
+                        Done
+                      case e @ Update(oldId, id, data) =>
+                        IzanamiLogger.debug(s"Applying update event $e")
+                        updateSync(oldId, id, data)
+                        Done
+                      case e @ Delete(id) =>
+                        IzanamiLogger.debug(s"Applying delete event $e")
+                        deleteSync(id)
+                        Done
+                      case e @ DeleteAll(patterns) =>
+                        IzanamiLogger.debug(s"Applying delete all event $e")
+                        deleteAllSync(Query.oneOf(patterns))
+                        Done
                     }
                 )
                 .runWith(Sink.ignore)
@@ -229,9 +228,11 @@ class InMemoryWithDbStore(
   override def getById(id: Key): RIO[DataStoreContext, Option[JsValue]] =
     Task(getByIdSync(id))
 
-  override def findByQuery(query: Query,
-                           page: Int,
-                           nbElementPerPage: Int): RIO[DataStoreContext, PagingResult[JsValue]] =
+  override def findByQuery(
+      query: Query,
+      page: Int,
+      nbElementPerPage: Int
+  ): RIO[DataStoreContext, PagingResult[JsValue]] =
     Task(findByQuerySync(query, page, nbElementPerPage))
 
   override def findByQuery(query: Query): RIO[DataStoreContext, Source[(Key, JsValue), NotUsed]] =

@@ -778,3 +778,66 @@ export function appInfo() {
     }
   ).then(jsonBody);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export function fetchLocks(lockType) {
+  const pattern = `${lockType}*`;
+  return fetch(
+    `${window.__contextPath}/api/locks?pattern=${pattern}`,
+    {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "application/json"
+      }
+    }
+  ).then(jsonBody);
+}
+
+export function fetchLock(id) {
+  return fetch(`${window.__contextPath}/api/locks/${id}`, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      Accept: "application/json"
+    }
+  }).then(r => {
+    if(r.status === 404) return undefined
+    return jsonBody(r)
+  });
+}
+
+export function createLock(lock) {
+  return fetch(`${window.__contextPath}/api/locks`, {
+    method: "PUT",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(lock)
+  }).then(rawResponse);
+}
+
+export function updateLock(id, lock) {
+  return fetch(`${window.__contextPath}/api/locks/${id}`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(lock)
+  }).then(rawResponse);
+}
+
+export function deleteLock(id) {
+  return fetch(`${window.__contextPath}/api/locks/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      Accept: "application/json"
+    }
+  }).then(rawResponse);
+}

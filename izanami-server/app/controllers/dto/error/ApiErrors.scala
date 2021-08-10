@@ -4,6 +4,7 @@ import cats.kernel.Monoid
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Result, Results}
 import domains.errors.{
+  AuthorizeError,
   DataShouldExists,
   DataShouldNotExists,
   ErrorMessage,
@@ -12,6 +13,7 @@ import domains.errors.{
   IzanamiError,
   IzanamiErrors,
   Unauthorized,
+  UnauthorizedByLock,
   ValidationError
 }
 
@@ -51,18 +53,20 @@ object ApiErrors {
       case InvalidCopyKey(id) => error("error.id.copy.invalid", id.key)
       case IdMustBeTheSame(fromObject, inParam) =>
         error("error.id.not.the.same", fromObject.key, inParam.key)
-      case DataShouldExists(id)    => error("error.data.missing", id.key)
-      case DataShouldNotExists(id) => error("error.data.exists", id.key)
-      case Unauthorized(id)        => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+      case DataShouldExists(id)         => error("error.data.missing", id.key)
+      case DataShouldNotExists(id)      => error("error.data.exists", id.key)
+      case Unauthorized(id)             => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+      case UnauthorizedByLock(id, lock) => error("error.data.unauthorized.locked", id.key, lock.key)
     }
 
   def toHttpResult(errors: IzanamiErrors): Result = {
-    val forbiddens: List[Unauthorized] = errors.toList.collect { case u: Unauthorized => u }
+    val forbiddens: List[AuthorizeError] = errors.toList.collect { case u: AuthorizeError => u }
     if (forbiddens.isEmpty) {
       Results.BadRequest(Json.toJson(fromErrors(errors.toList)))
     } else {
       Results.Forbidden(Json.toJson(forbiddens.foldMap {
-        case Unauthorized(id) => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+        case Unauthorized(id)             => error("error.data.unauthorized", id.map(_.key).toSeq: _*)
+        case UnauthorizedByLock(id, lock) => error("error.data.unauthorized.locked", id.key, lock.key)
       }))
     }
   }
