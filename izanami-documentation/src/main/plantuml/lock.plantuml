@@ -1,0 +1,9 @@
+@startuml
+usecase a #red
+usecase b #blue;text:white
+usecase b1 #green
+usecase c #green
+a --> (b)
+a --> (b1)
+b --> (c)
+@enduml

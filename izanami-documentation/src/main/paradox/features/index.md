@@ -6,6 +6,7 @@
  * [UI](ui.md)
  * [Scripts](scripts.md)
  * [APIs](api.md)
+ * [Lock](lock.md)
 
 @@@ 
 

@@ -36,6 +36,8 @@ On the tree mode, an action menu appear with the mouse is over the name of a fea
  
 * add a node
 * edit a node
+* lock / unlock a node
+* copy a node
 * switch to the flat for a feature 
 
 #### Copy nodes 
