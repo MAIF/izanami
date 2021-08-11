@@ -16,17 +16,18 @@ export class FieldError extends Component {
       return (
         <div className="has-error">
           {this.props.children}
-          {this.props.errorMessage.map((err, index) => (
-            <div>
-              <label
-                className="col-form-label offset-sm-2"
-                for="inputError1"
-                key={index}
-              >
-                {TranslateService.translate(err)}
-              </label>
-            </div>
-          ))}
+          {this.props.errorMessage.map((err, index) => {
+            return (
+              <div key={`FieldError-${index}`}>
+                <label
+                  className="col-form-label offset-sm-2"
+                  htmlFor="inputError1"
+                  key={`FieldError-label-${index}`}>
+                  {TranslateService.translate(err)}
+                </label>
+              </div>
+            )
+          })}
         </div>
       );
     }
