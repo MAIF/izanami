@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, {Component} from "react";
 import * as IzanamiServices from "../services/index";
 
 class Metric extends Component {
@@ -49,7 +49,7 @@ class Metric extends Component {
               textAlign: "center"
             }}
           >
-            <i className={this.props.picto} /> {props.legend}
+            <i className={this.props.picto}/> {props.legend}
           </span>
         </div>
       </div>
@@ -72,21 +72,25 @@ export class HomePage extends Component {
     this.update();
   }
 
+  componentWillUnmount() {
+    if (this.timeout) {
+      clearTimeout(this.timeout)
+      this.timeout = null
+    }
+  }
+
   update = () => {
-    IzanamiServices.fetchConfigsCount().then(configsCount => {
-      IzanamiServices.fetchFeaturesCount().then(featuresCount => {
-        IzanamiServices.fetchWebHooksCount().then(webHooksCount => {
-          IzanamiServices.fetchExperimentsCount().then(experimentsCount => {
-            this.setState(
-              { configsCount, featuresCount, webHooksCount, experimentsCount },
-              () => {
-                setTimeout(this.update, 60000);
-              }
-            );
-          });
-        });
-      });
-    });
+    Promise.all([IzanamiServices.fetchConfigsCount(),
+      IzanamiServices.fetchFeaturesCount(),
+      IzanamiServices.fetchWebHooksCount(),
+      IzanamiServices.fetchExperimentsCount()])
+      .then(([configsCount, featuresCount, webHooksCount, experimentsCount]) => {
+        this.setState(
+          {configsCount, featuresCount, webHooksCount, experimentsCount},
+          () => {
+            this.timeout = setTimeout(this.update, 60000);
+          })
+      })
   };
 
   render() {
@@ -107,7 +111,7 @@ export class HomePage extends Component {
             />
           </div>
         </div>
-        <div style={{ marginTop: 80 }}>
+        <div style={{marginTop: 80}}>
           <div
             style={{
               display: "flex",
