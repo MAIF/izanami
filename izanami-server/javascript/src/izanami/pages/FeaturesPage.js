@@ -173,7 +173,6 @@ class FeatureParameters extends Component {
       );
     }
     if (this.props.source.activationStrategy === "PERCENTAGE") {
-      console.log(this.props.value)
       return (
         <PercentageInput
           placeholder={"50"}

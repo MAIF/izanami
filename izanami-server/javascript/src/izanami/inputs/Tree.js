@@ -301,7 +301,6 @@ export class Tree extends PureComponent {
   };
 
   state = {
-    nodes: [],
     search: "",
     locks: []
   };
@@ -314,31 +313,12 @@ export class Tree extends PureComponent {
   };
 
   componentDidMount() {
-    this.fetchData();
+    this.fetchLocks();
   }
 
-  fetchData = () => {
-    console.log("fetch")
-    const promises = []
-    if (this.props.lockable) {
-      promises.push(IzanamiService.fetchLocks(this.props.lockType)
-        .then(locks => new Promise((resolve) => this.setState({locks}, resolve))));
-    }
-    return Promise.all(promises).then(() => this.setState({nodes: this.convertDatas(this.props.datas)}))
-  }
+  fetchLocks = () =>
+    this.props.lockable && IzanamiService.fetchLocks(this.props.lockType).then(locks =>  this.setState({locks}));
 
-  componentDidUpdate(prevProp) {
-    const newNodes = this.convertDatas(this.props.datas || []);
-    const prevPropNodes = this.convertDatas(prevProp.datas || []);
-    if (!Tree.isEquals(newNodes, prevPropNodes)) {
-      this.setState({nodes: newNodes})
-    }
-  }
-
-  static isEquals(newNodes, prevPropNodes) {
-    return newNodes.length === prevPropNodes.length
-      && newNodes.filter(newNode => !prevPropNodes.filter(prevPropNode => prevPropNode.id === newNode.id)).length === 0;
-  }
 
   convertDatas = (d = []) => {
     return d.map(this.convertNode);
@@ -367,13 +347,14 @@ export class Tree extends PureComponent {
     return IzanamiService.fetchLock(lockId).then(mayBeLock => {
       if (mayBeLock) {
         return IzanamiService.updateLock(mayBeLock.id, {id: mayBeLock.id, locked: !mayBeLock.locked})
-      } else {;
+      } else {
         return IzanamiService.createLock({id: lockId, locked: true})
       }
-    }).then(() => this.fetchData())
+    }).then(() => this.fetchLocks())
   }
 
   render() {
+    const nodes = this.convertDatas(this.props.datas || []);
     return (
       <div className="col-xs-12">
         <form className="form-horizontal">
@@ -397,7 +378,7 @@ export class Tree extends PureComponent {
         <div className="treeview">
           <div className="root-node">
             <ul className="root-node-tree">
-              {this.state.nodes.map((n, i) =>
+              {nodes.map((n, i) =>
                 <Node key={`node-0-${i}`}
                       node={n}
                       index={i}
