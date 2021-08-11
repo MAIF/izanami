@@ -56,5 +56,5 @@ export function addCallback(cb) {
 }
 
 export function removeCallback(cb) {
-  callback = callback.filter(c => c === cb);
+  callback = callback.filter(c => c !== cb);
 }
