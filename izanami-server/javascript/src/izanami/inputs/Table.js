@@ -441,10 +441,12 @@ export class Table extends Component {
       .then(res => {
         return res.json().then(data => {
           if (res.status === 403) {
-            this.setState({
+            const errorData = {
               error: true,
               errorList: data.errors ? data.errors : [{message: `error.forbiddenaction`}]
-            });
+            };
+            this.setState(errorData);
+            return errorData
           } else if (res.status === 201) {
             this.setState({
               currentItem: null,
@@ -456,20 +458,16 @@ export class Table extends Component {
               error: false
             };
           } else {
-            return {
+            const errorData = {
               error: true,
-              errorList: data
+              errorList: this.buildErrorList(data)
             };
+            return errorData;
           }
         })
       })
       .then(res => {
-        if (res && res.error) {
-          this.setState({
-            error: true,
-            errorList: this.buildErrorList(res.errorList)
-          });
-        } else {
+        if (res && !res.error) {
           let items;
           if (this.state.items.find(i => this.props.compareItem(i, res.data))) {
             items = [...this.state.items];
@@ -504,30 +502,29 @@ export class Table extends Component {
       .then(res => {
         return res.json().then(data => {
           if (res.status === 403) {
-            this.setState({
+            const errorData = {
               error: true,
               errorList: data.errors ? data.errors : [{message: `error.forbiddenaction`}]
-            });
+            };
+            this.setState(errorData);
+            return errorData;
           } else if (res.status === 200) {
             return {
               data: data,
               error: false
             };
           } else {
-            return {
+            const errorData = {
               error: true,
-              errorList: data
+              errorList: this.buildErrorList(data)
             };
+            this.setState(errorData);
+            return errorData;
           }
         })
       })
       .then(res => {
-        if (res && res.error) {
-          this.setState({
-            error: true,
-            errorList: this.buildErrorList(res.errorList)
-          });
-        } else {
+        if (res && !res.error) {
           const items = this.state.items.map(i => {
             if (isEqual(i, currentItemOriginal)) {
               return res.data;
