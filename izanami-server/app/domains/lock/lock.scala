@@ -80,8 +80,7 @@ package object lock {
 
     def update(id: LockKey, data: IzanamiLock): ZIO[LockContext, IzanamiErrors, IzanamiLock] =
       for {
-        _ <- AuthInfo.isAdmin()
-//        _         <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
+        _         <- AuthInfo.isAdmin()
         mayBeLock <- getBy(id)
         oldLock   <- ZIO.fromOption(mayBeLock).mapError(_ => DataShouldExists(id).toErrors)
         updated   <- LockDataStore.>.update(id, data.id, format.writes(data))

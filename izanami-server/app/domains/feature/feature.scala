@@ -200,7 +200,7 @@ package object feature {
       for {
         _            <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
         store        <- FeatureDataStore.>.getStore
-        _            <- LockInfo.isMoveAllowed(id, LockType.FEATURE, oldId, store)
+        _            <- ZIO.when(id != oldId)(LockInfo.isMoveAllowed(id, LockType.FEATURE, oldId, store))
         mayBeFeature <- getById(oldId)
         oldValue     <- ZIO.fromOption(mayBeFeature).mapError(_ => DataShouldExists(oldId).toErrors)
         updated      <- FeatureDataStore.>.update(oldId, id, format.writes(data))
