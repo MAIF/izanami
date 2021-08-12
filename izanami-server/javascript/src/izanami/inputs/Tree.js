@@ -9,7 +9,7 @@ import * as IzanamiService from "../services/index";
 const Key = props => {
   const values = props.value.split(":").filter(e => !!e);
   return (
-    <div className="btn-group btn-breadcrumb" >
+    <div className="btn-group btn-breadcrumb">
       {values.map((part, i) => (
         <div className="key-value-value-big" key={`key-value-${props.value}-${i}`}>
           <span>{part}</span>
@@ -132,12 +132,13 @@ class Node extends Component {
     const link = this.props.itemLink(this.props.node);
     const styleDisplay = this.state.openMenu ? {display: 'inline-block'} : {};
     let lockTile = "Add lock";
-    if(this.props.node.lock.locked) {
+    if (this.props.node.lock.locked) {
       lockTile = "Remove lock"
-      if(!this.props.node.lock.owner) {
+      if (!this.props.node.lock.owner) {
         lockTile = "The element is locked by a sub element"
       }
     }
+    const isLockUpdateAllow = this.props.node.lock.locked && !this.props.node.lock.owner;
     return (
       <li className="node-tree" key={`node-${this.props.node.text}-${this.props.index}`} id={id}>
         <div className="content ">
@@ -165,16 +166,14 @@ class Node extends Component {
             <div className="tree--marginLeftUniqueKey"/>
           )}
 
-          <div
-            className="btn-group btn-breadcrumb"
-          >
+          <div className="btn-group btn-breadcrumb">
             <div className="key-value-value d-flex align-items-center">
               <span onClick={this.toggleChildOrEdit(id, this.props.node)}>{this.props.node.text}</span>
               <div className={`btn-group btn-group-xs btn-submenu`}
                    style={styleDisplay}
                    onMouseOver={_ => this.setState({openMenu: true})}
                    onMouseOut={_ => this.setState({openMenu: false})}>
-                {!this.props.node.lock.locked && <Link
+                {!isLockUpdateAllow && <Link
                   to={link}
                   type="button"
                   className={`btn btn-sm btn-primary`}
@@ -185,8 +184,9 @@ class Node extends Component {
                 <button
                   type="button"
                   className={`btn btn-sm btn-primary`}
-                  disabled={this.props.node.lock.locked && !this.props.node.lock.owner}
-                  onClick={_ => this.props.changeLock(this.props.node.id)}
+                  disabled={isLockUpdateAllow}
+                  onClick={_ => this.props.changeLock(this.props.node.id,
+                    this.props.node.lock ? !this.props.node.lock.locked : true)}
                   title={lockTile}>{this.props.node.lock.locked ? "unlock" : "lock"}
                 </button>
                 {this.props.copyNodeWindow &&
@@ -342,15 +342,21 @@ export class Tree extends PureComponent {
     return any;
   };
 
-  changeLock = (id) => {
-    const lockId = `${this.props.lockType}:${id}`
-    return IzanamiService.fetchLock(lockId).then(mayBeLock => {
+  changeLock = (id, locked) => {
+    const lock = {id: `${this.props.lockType}:${id}`, locked};
+    return IzanamiService.fetchLock(lock.id).then(mayBeLock => {
+      const promises = []
       if (mayBeLock) {
-        return IzanamiService.updateLock(mayBeLock.id, {id: mayBeLock.id, locked: !mayBeLock.locked})
+        promises.push(IzanamiService.updateLock(lock.id, lock))
       } else {
-        return IzanamiService.createLock({id: lockId, locked: true})
+        promises.push(IzanamiService.createLock(lock))
       }
-    }).then(() => this.fetchLocks())
+      return Promise.all(promises).then(() => {
+        const locksUpdated = this.state.locks.filter(l => l.id !== lock.id)
+        locksUpdated.push(lock)
+        this.setState({locks: locksUpdated})
+      })
+    })
   }
 
   render() {
