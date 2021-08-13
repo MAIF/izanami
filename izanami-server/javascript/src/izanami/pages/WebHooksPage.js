@@ -145,6 +145,11 @@ export class WebHooksPage extends Component {
             updateItem={this.updateItem}
             deleteItem={this.deleteItem}
             createItem={this.createItem}
+            convertItem={(item) => {
+              const convertedItem = item
+              convertedItem.patterns = (convertedItem.patterns || "").join(",")
+              return convertedItem
+            }}
             downloadLinks={[
               { title: "Download", link: "/api/webhooks.ndjson" }
             ]}
