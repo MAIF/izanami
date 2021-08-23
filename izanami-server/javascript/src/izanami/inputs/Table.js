@@ -462,6 +462,7 @@ export class Table extends Component {
               error: true,
               errorList: this.buildErrorList(data)
             };
+            this.setState(errorData);
             return errorData;
           }
         })
