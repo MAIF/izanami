@@ -181,14 +181,14 @@ class Node extends Component {
                   title="Add childnote">
                   + child
                 </Link>}
-                <button
+                {this.props.lockable && <button
                   type="button"
                   className={`btn btn-sm btn-primary`}
                   disabled={isLockUpdateAllow}
                   onClick={_ => this.props.changeLock(this.props.node.id,
                     this.props.node.lock ? !this.props.node.lock.locked : true)}
                   title={lockTile}>{this.props.node.lock.locked ? "unlock" : "lock"}
-                </button>
+                </button>}
                 {this.props.copyNodeWindow &&
                 <Tippy interactive={true}
                        offset={[0, 0]}
@@ -217,8 +217,7 @@ class Node extends Component {
                   onMouseOver={_ => this.setState({openCopy: false})}
                   type="button"
                   className="btn btn-sm btn-success"
-                  title="Open on table view"
-                >
+                  title="Open on table view">
                   <i className="fas fa-list"/>
                 </button>
 
@@ -229,8 +228,7 @@ class Node extends Component {
                       onMouseOver={_ => this.setState({openCopy: false})}
                       type="button"
                       className="btn btn-sm btn-success"
-                      title="Edit this Configuration"
-                    >
+                      title="Edit this Configuration">
                       <i className="fas fa-pencil-alt"/>
                     </button>
                   </div>
@@ -242,8 +240,7 @@ class Node extends Component {
                       onMouseOver={_ => this.setState({openCopy: false})}
                       type="button"
                       className="btn btn-sm btn-danger"
-                      title="Delete this Configuration"
-                    >
+                      title="Delete this Configuration">
                       <i className="fas fa-trash-alt"/>
                     </button>
                   </div>
@@ -273,6 +270,7 @@ class Node extends Component {
                   onSearchChange={this.props.onSearchChange}
                   openOnTable={this.props.openOnTable}
                   changeLock={this.props.changeLock}
+                  lockable={this.props.lockable}
             />)
           }
           </ul>
@@ -398,6 +396,7 @@ export class Tree extends PureComponent {
                       onSearchChange={this.props.onSearchChange}
                       openOnTable={this.props.openOnTable}
                       changeLock={this.changeLock}
+                      lockable={this.props.lockable}
                 />
               )}
             </ul>
