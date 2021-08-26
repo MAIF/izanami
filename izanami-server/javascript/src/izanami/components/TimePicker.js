@@ -28,6 +28,7 @@ export class TimePicker extends Component {
                     CLOCK_HAND_INTERMEDIATE_CIRCLE_BACKGROUND: '#b5b3b3',
                 }}
                 time={this.props.hourOfDay}
+                hour24Mode
                 onChange={this.onChange}
             />
         </div>

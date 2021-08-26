@@ -10,8 +10,8 @@ When a node is locked :
 
 Lock and _authorized patterns_ ( @ref[cf. UI guide ](../ui.md#edit-a-user) ) does not have a same target :
 
-- lock : freeze a branch of tree
-- authorized patterns : grant permissions (CRUD) to features 
+- lock : freeze a part of tree. All the features can be changed but the creation of new branch can be forbidden.
+- authorized patterns : grant permissions (CRUD) to features,  
 
 ## UI
 

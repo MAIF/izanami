@@ -17,12 +17,12 @@ import domains.events.Events.IzanamiEvent
 import domains.events.impl.{BasicEventStore, DistributedPubSubEventStore, KafkaEventStore, RedisEventStore}
 import domains.feature.Feature.FeatureKey
 import domains.feature.{Feature, FeatureInstances}
+import domains.lock.Lock.LockKey
 import domains.script.GlobalScript.GlobalScriptKey
 import domains.script.{GlobalScript, GlobalScriptInstances}
 import domains.user.User.UserKey
 import domains.user.{User, UserInstances}
-import domains.lock.Lock.LockKey
-import domains.lock.{IzanamiLock, Lock, LockInstances}
+import domains.lock.{IzanamiLock, LockInstances}
 import domains.webhook.Webhook.WebhookKey
 import domains.webhook.{Webhook, WebhookInstances}
 import env._
@@ -319,6 +319,32 @@ package object events {
             payload  <- (o \ "payload").validate[Experiment](ExperimentInstances.format)
             authInfo <- (o \ "authInfo").validate[Option[AuthInfo.Service]](Reads.optionWithNull(AuthInfo.format))
           } yield ExperimentVariantEventsDeleted(payload, _id, ts, authInfo)
+        // LOCK EVENT
+        case o: JsObject if (o \ "type").as[String] == "LOCK_CREATED" =>
+          for {
+            _id      <- (o \ "_id").validate[Long]
+            ts       <- (o \ "timestamp").validate[LocalDateTime]
+            key      <- (o \ "key").validate[Key]
+            payload  <- (o \ "payload").validate[IzanamiLock](LockInstances.format)
+            authInfo <- (o \ "authInfo").validate[Option[AuthInfo.Service]](Reads.optionWithNull(AuthInfo.format))
+          } yield LockCreated(key, payload, _id, ts, authInfo)
+        case o: JsObject if (o \ "type").as[String] == "LOCK_UPDATED" =>
+          for {
+            _id      <- (o \ "_id").validate[Long]
+            ts       <- (o \ "timestamp").validate[LocalDateTime]
+            key      <- (o \ "key").validate[Key]
+            payload  <- (o \ "payload").validate[IzanamiLock](LockInstances.format)
+            oldValue <- (o \ "oldValue").validate[IzanamiLock](LockInstances.format)
+            authInfo <- (o \ "authInfo").validate[Option[AuthInfo.Service]](Reads.optionWithNull(AuthInfo.format))
+          } yield LockUpdated(key, oldValue, payload, _id, ts, authInfo)
+        case o: JsObject if (o \ "type").as[String] == "LOCK_DELETED" =>
+          for {
+            _id      <- (o \ "_id").validate[Long]
+            ts       <- (o \ "timestamp").validate[LocalDateTime]
+            key      <- (o \ "key").validate[Key]
+            payload  <- (o \ "payload").validate[IzanamiLock](LockInstances.format)
+            authInfo <- (o \ "authInfo").validate[Option[AuthInfo.Service]](Reads.optionWithNull(AuthInfo.format))
+          } yield LockDeleted(key, payload, _id, ts, authInfo)
         case _ =>
           JsError("events.unknow.type")
       }
@@ -574,7 +600,7 @@ package object events {
 
     case class LockUpdated(
         key: LockKey,
-        oldLock: IzanamiLock,
+        oldValue: IzanamiLock,
         lock: IzanamiLock,
         _id: Long = gen.nextId(),
         timestamp: LocalDateTime = LocalDateTime.now(),
@@ -582,6 +608,9 @@ package object events {
     ) extends LockEvent {
       val `type`: String   = "LOCK_UPDATED"
       val payload: JsValue = LockInstances.format.writes(lock)
+
+      override def toJson: JsValue =
+        super.toJson.as[JsObject] ++ Json.obj("oldValue" -> LockInstances.format.writes(oldValue))
     }
 
     case class LockDeleted(

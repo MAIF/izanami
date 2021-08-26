@@ -10,7 +10,7 @@ import domains.errors.IzanamiErrors.ToErrorsOps
 import domains.errors.{DataShouldExists, UnauthorizedByLock}
 import domains.events.Events.{LockCreated, LockDeleted, LockUpdated}
 import domains.events.{EventStore, Events}
-import domains.feature.{DefaultFeature, FeatureContext, FeatureDataStore, FeatureService}
+import domains.feature._
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
 import domains.script.{CacheService, GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
 import domains.{AuthorizedPatterns, Key}
@@ -638,6 +638,30 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         run(ctxFeature)(FeatureService.update(featureA1B1.id, featureA2B2.id, featureA2B2).either)
         featuresStore.inMemoryStore.contains(featureA1B1.id) must be(false)
         featuresStore.inMemoryStore.contains(featureA2B2.id) must be(true)
+      }
+    }
+
+    "update feature without change id" in {
+      val locksStore       = new InMemoryJsonDataStore("lock-test")
+      val featuresStore    = new InMemoryJsonDataStore("feature-test")
+      val ctxLock          = testLockContext(lockDataStore = locksStore)
+      val ctxFeature       = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
+      val id               = Key("a:b")
+      val featureABDisable = DefaultFeature(id, false, None)
+
+      { // initial state
+        val lock = IzanamiLock(Key(s"feature:${id.key}"), true)
+
+        run(ctxFeature)(FeatureService.create(featureABDisable.id, featureABDisable))
+        run(ctxLock)(LockService.create(lock.id, lock))
+      }
+
+      { // activate feature
+        import FeatureInstances._
+        val featureABEnable = DefaultFeature(id, true, None)
+        run(ctxFeature)(FeatureService.update(featureABDisable.id, featureABEnable.id, featureABEnable).either)
+        val maybeValue =
+          featuresStore.inMemoryStore.get(featureABEnable.id).get.validate[Feature].get.enabled must be(true)
       }
     }
 

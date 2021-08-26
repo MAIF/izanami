@@ -5,8 +5,8 @@ import ConfigProvider from "antd/lib/config-provider"
 import enUS from "antd/lib/locale-provider/en_US";
 
 import DatePicker from "antd/lib/date-picker";
-import "antd/lib/date-picker/style/index.css";
-//import '../style/datepicker.css';
+import "antd/dist/antd.css";
+
 
 export class IzaDateRangePicker extends Component {
   static defaultProps = {
