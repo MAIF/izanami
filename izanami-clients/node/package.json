@@ -1,6 +1,6 @@
 {
   "name": "izanami-node",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "description": "Client for Izanami",
   "main": "index.js",
   "author": "MAIF Team",
