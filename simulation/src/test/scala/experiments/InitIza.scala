@@ -4,17 +4,17 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 
 import scala.collection.immutable
-import scala.concurrent.{Future}
+import scala.concurrent.Future
 
 object InitIza extends App {
 
   implicit val system: ActorSystem             = ActorSystem()
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: Materializer      = Materializer.createMaterializer(system)
   import system.dispatcher
 
   private val http = Http()
@@ -25,7 +25,7 @@ object InitIza extends App {
   Source(0 to 2000)
     .mapAsyncUnordered(10) { postFeature }
     .alsoTo(Sink.foreach {
-      case (c, s) if c == StatusCodes.Created =>
+      case (c, _) if c == StatusCodes.Created =>
       case (c, s) =>
         println(s"Oups $c $s")
     })
