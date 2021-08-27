@@ -7,8 +7,8 @@
 [release-badge]:        https://img.shields.io/github/v/release/MAIF/izanami
 [dist]:                 https://github.com/MAIF/izanami/releases/latest/download/izanami.zip
 [jar]:                  https://github.com/MAIF/izanami/releases/latest/download/izanami.jar
-[client]:               https://repo1.maven.org/maven2/fr/maif/izanami-client
-[client-badge]:         https://maven-badges.herokuapp.com/maven-central/fr.maif/izanami-client/badge.svg
+[client]:               https://repo1.maven.org/maven2/fr/maif/izanami-client_2.13
+[client-badge]:         https://maven-badges.herokuapp.com/maven-central/fr.maif/izanami-client_2.13/badge.svg
 [nodeclient]:           https://badge.fury.io/js/izanami-node
 [nodeclient-badge]:     https://badge.fury.io/js/izanami-node.svg
 [reactclient]:          https://badge.fury.io/js/react-izanami
