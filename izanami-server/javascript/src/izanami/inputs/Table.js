@@ -30,6 +30,17 @@ function LoadingComponent(props) {
   );
 }
 
+const SearchInput = ({filter, onChange}) => {
+  return (
+    <input
+      type="text"
+      className="form-control input-sm"
+      value={filter ? filter.value : ""}
+      onChange={e => onChange(e.target.value)}
+      placeholder="Search ..." />
+  );
+};
+
 export class Table extends Component {
   static propTypes = {
     parentProps: PropTypes.object,
@@ -644,15 +655,7 @@ export class Table extends Component {
       sortable: !c.notSortable,
       filterable: !c.notFilterable,
       accessor: d => (c.content ? c.content(d) : d),
-      Filter: d => (
-        <input
-          type="text"
-          className="form-control input-sm"
-          value={d.filter ? d.filter.value : ""}
-          onChange={e => d.onChange(e.target.value)}
-          placeholder="Search ..."
-        />
-      ),
+      Filter: SearchInput,
       Cell: r => {
         const value = r.value;
         const original = r.original;
