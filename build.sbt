@@ -34,9 +34,9 @@ val setVersionToNpmProject = ReleaseStep(action = st => {
   val regex = "(.*)-SNAPSHOT".r
   version match {
     case regex(v) =>
-      s"sh release.sh $v" !
+      s"bash release.sh $v" !
     case _ =>
-      s"sh release.sh $version" !
+      s"bash release.sh $version" !
   }
 
   st
