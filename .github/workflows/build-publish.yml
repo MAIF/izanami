@@ -1,0 +1,123 @@
+name: Publish NPM, Docker, etc
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+    branches: [ master ]
+
+jobs:
+  publish-job:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: "Build server package and publish"
+            command: ./scripts/build-javascript.sh && ./scripts/sbt-publish.sh
+            with-sbt-assets: true
+          - name: "Build js client and publish it to npm if needed"
+            command: ./scripts/publish-npm.sh
+            with-sbt-assets: false
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/workflows/load-versions
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Cache multiple paths
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt/boot
+            ~/.sbt
+            ~/.coursier
+            ~/.nvm
+            ~/.yarn-cache
+          key: ${{ matrix.name }}
+      - uses: ./.github/workflows/java-opts
+      - run: ${{ matrix.command }}
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+      - name: Prepare upload
+        if: ${{ matrix.with-sbt-assets }}
+        run: |
+          mkdir upload
+          cp izanami-server/target/scala-2.13/izanami.jar upload/
+          cp izanami-server/target/universal/izanami.zip upload/
+      - name: Upload sbt artifacts
+        if: ${{ matrix.with-sbt-assets }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: sbt-artifacts
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            upload/izanami.jar
+            upload/izanami.zip
+      - uses: ./.github/workflows/clean-cache
+  build-publish-izanami-cli:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    name: "Build Rust izanami-cli"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache multiple paths
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.rustup
+            ~/.cargo
+            ./izanami-clients/izanami-cli/target
+          key: ${{ runner.os }}-rust-izanami-${{ hashFiles('./izanami-clients/izanami-cli/Cargo.lock') }}
+      - run: |
+          ./scripts/build-rust.sh
+          mv ./izanami-clients/izanami-cli/target/release/izanami-cli ./izanami-clients/izanami-cli/target/release/izanami-cli-${{ runner.os }}
+      - name: Upload Rust artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: rust-${{ runner.os }}-artifact
+          if-no-files-found: error
+          retention-days: 1
+          path: ./izanami-clients/izanami-cli/target/release/izanami-cli-${{ runner.os }}
+
+  create-release:
+    name: Create release
+    needs:
+      - publish-job
+      - build-publish-izanami-cli
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        name: Download all artifacts
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          prerelease: true
+          draft: true
+          files: |
+            sbt-artifacts/izanami.jar
+            sbt-artifacts/izanami.zip
+            rust-Linux-artifact/izanami-cli-Linux
+            rust-macOS-artifact/izanami-cli-macOS

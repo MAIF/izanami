@@ -16,5 +16,10 @@ npm version "${VERSION}"
 git add package.json
 
 cd ${LOCATION}/izanami-clients/izanami-cli
-sed -i "" "s/version = \".*\"/version = \"${VERSION}\"/g" Cargo.toml
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i "" "s/version = \".*\"/version = \"${VERSION}\"/g" Cargo.toml
+else
+  sed -i "s/version = \".*\"/version = \"${VERSION}\"/g" Cargo.toml
+fi
 
