@@ -54,6 +54,7 @@ jobs:
       - name: Prepare upload
         if: ${{ matrix.with-sbt-assets }}
         run: |
+          ls -laR izanami-server/target/
           mkdir upload
           cp izanami-server/target/scala-2.13/izanami.jar upload/
           cp izanami-server/target/universal/izanami.zip upload/
