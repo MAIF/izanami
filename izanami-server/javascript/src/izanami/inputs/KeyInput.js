@@ -59,7 +59,7 @@ const keys = {
 
 export class KeyInputForm extends Component {
   render() {
-    return <div className="form-group row">
+    return <div className="row mb-3">
       <label
           htmlFor={`input-${this.props.label}`}
           className="col-sm-2 col-form-label"
@@ -269,7 +269,7 @@ export class KeyInput extends Component {
     const autoFocus = this.props.autoFocus || (this.state.segments.length === 0);
     return (
           <div
-            className={`keypicker keypicker--multi flex-grow-1 ${this.props.disabled ? "is-disabled" : ""}`} 
+            className={`keypicker keypicker--multi flex-grow-1 mb-2 ${this.props.disabled ? "is-disabled" : ""}`} 
             ref={ref => (this.wrapper = ref)}
           >
             <div className="keypicker-control">
@@ -278,7 +278,7 @@ export class KeyInput extends Component {
                   if (i === this.state.editedIndex) {
                     return (
                       <span
-                        className="keypicker-value ml-0"
+                        className="keypicker-value ms-0"
                         key={`value-${i}`}
                       >
                         <input
@@ -298,7 +298,7 @@ export class KeyInput extends Component {
                   } else {
                     return (
                       <span
-                        className="keypicker-value ml-2"
+                        className="keypicker-value ms-2"
                         key={`value-${i}`}
                         onDoubleClick={this.setEditedIndex(i, part)}
                       >

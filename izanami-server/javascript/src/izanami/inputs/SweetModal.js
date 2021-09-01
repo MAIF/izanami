@@ -1,4 +1,5 @@
 import React, {Component} from "react";
+import { Modal } from 'bootstrap';
 
 export class SweetModal extends Component {
 
@@ -18,15 +19,17 @@ export class SweetModal extends Component {
   }
 
   toggleModal = (open = false) => {
+    let myModal = new Modal(document.getElementById(`${this.props.id}`));
     if (open) {
-      $(`#${this.props.id}`).modal("show");
+      myModal.show();
     } else {
-      $(`#${this.props.id}`).modal("hide");
+      myModal.hide();
     }
   };
 
   componentWillUnmount() {
-    $(`#${this.props.id}`).modal("hide");
+    let myModal = new Modal(document.getElementById(`${this.props.id}`));
+    myModal.hide()
   }
 
   handleInputChange = event => {
@@ -80,7 +83,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
-                  data-dismiss="modal"
+                  data-bs-dismiss="modal"
                 >
                   Ok
                 </button>
@@ -111,8 +114,8 @@ export class SweetModal extends Component {
                   <div
                     className={
                       this.state.errors.indexOf("confirmToDelete.error") !== -1
-                        ? "form-group row has-error"
-                        : "form-group row"
+                        ? "row mb-3 has-error"
+                        : "row mb-3"
                     }
                   >
                     <label
@@ -139,7 +142,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-danger"
-                  data-dismiss="modal"
+                  data-bs-dismiss="modal"
                   onClick={this.onDismiss}
                 >
                   Cancel
@@ -148,6 +151,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
+                  data-bs-dismiss="modal"
                   onClick={this.confirm}
                 >
                   {this.props.labelValid || "Confirm"}
@@ -177,7 +181,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
-                  data-dismiss="modal"
+                  data-bs-dismiss="modal"
                 >
                   Ok
                 </button>

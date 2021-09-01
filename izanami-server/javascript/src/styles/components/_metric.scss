@@ -1,0 +1,24 @@
+.metric{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    background-color: rgb(73, 73, 72);
+    height: 100px;
+    margin: 10px;
+    font-family: Roboto;
+    font-size: 23px;
+    font-weight: bold;
+    color: white;
+    >div{
+        z-index: 103;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        span{
+            text-shadow: rgb(0, 0, 0) 1px 1px, rgb(0, 0, 0) -1px 1px, rgb(0, 0, 0) -1px -1px, rgb(0, 0, 0) 1px -1px;
+        }
+    }
+}

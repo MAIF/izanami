@@ -1,43 +1,4 @@
-.nav-tabs {
-  border-bottom: 1px solid $primaryColor;
-  position: fixed;
-  top: 179px;
-  width: 100%;
-  background-color: $fondBody;
-  z-index: 10;
-}
 
-.nav-tabs > li.active > a,
-.nav-tabs > li.active > a:focus,
-.nav-tabs > li.active > a:hover {
-  color: $colorGris;
-  cursor: default;
-  background-color: $primaryColor;
-  border: 1px solid $primaryColor;
-  border-bottom-color: transparent;
-}
-
-.nav-tabs > li > a {
-  margin-right: 5px;
-  border: 1px solid $primaryColor;
-}
-
-
-.nav-tabs.nav > li > a:focus,
-.nav-tabs.nav > li > a:hover {
-  background-color: $primaryColor;
-  cursor: pointer;
-}
-
-
-.tab-content {
-  margin-top: 200px;
-}
-
-.tab-content a,
-.tab-content a:hover {
-  color: $grisTexte;
-}
 
 .nav > li > a {
   transition-duration: 1s;
@@ -81,18 +42,4 @@
   border-color: #fff;
   height: 30px;
   margin-top: 10px;
-}
-
-.form-inline .form-group {
-
-  display: -ms-flexbox;
-  display: flex;
-  -ms-flex: 0 0 auto;
-  flex: 0 0 auto;
-  -ms-flex-flow: row wrap;
-  flex-flow: row wrap;
-  -ms-flex-align: center;
-  align-items: center;
-  margin-bottom: 0;
-
 }

@@ -4,12 +4,12 @@
   .navbar-nav > li {
     > a {
       color: $colorGris;
-      padding: 17px;
+      // padding: 17px;
     }
 
     .dropdown-menu {
       position: absolute;
-      margin-top: 15px;
+      // margin-top: 15px;
       li:hover,
       li:focus {
         background-color: $fondGrisclairSurvolMenu;
@@ -20,11 +20,11 @@
       }
     }
 
-    > a:hover,
-    > a:focus {
-      color: $primaryColor;
-      text-decoration: none;
-    }
+    // > a:hover,
+    // > a:focus {
+    //   color: $primaryColor;
+    //   text-decoration: none;
+    // }
   }
 
   .navbar-nav > .active > a,
@@ -52,6 +52,7 @@
   color: #fff;
   font-size: 18px;
   line-height: 20px;
+  // margin-left: -0.75rem;
 }
 
 .navbar-inverse .navbar-nav > li > a {

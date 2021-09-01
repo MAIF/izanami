@@ -28,7 +28,7 @@ class Variant extends Component {
       <div className="col-xs-12 col-sm-4">
         <div className="panel variant-panel">
           <div className="panel-heading variant-panel">
-            <h3 className="panel-title float-left">Traffic</h3>
+            <h3 className="panel-title float-start">Traffic</h3>
             <span className="input-group-btn">
               <button
                 type="button"
@@ -200,7 +200,7 @@ class Variants extends Component {
           </div>
         )}
 
-      <div className="form-group row">
+      <div className="row mb-3">
         <label
           htmlFor="input-Name"
           className="col-sm-2 col-form-label slider-label"
@@ -426,7 +426,7 @@ export class ExperimentsPage extends Component {
     {
       title: "Active",
       notFilterable: true,
-      style: { textAlign: "center", width: 40 },
+      style: { textAlign: "center", width: 100 },
       content: this.activeComponent
     },
     {

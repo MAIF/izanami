@@ -67,7 +67,7 @@ export class ObjectInput extends PureComponent {
     return (
       <div>
         {this.state.values.length === 0 && (
-          <div className="form-group row">
+          <div className="row mb-3">
             <label
               htmlFor={`input-${this.props.label}`}
               className="col-sm-2 col-form-label"
@@ -87,7 +87,7 @@ export class ObjectInput extends PureComponent {
           </div>
         )}
         {this.state.values.map((value, idx) => (
-          <div className="form-group row" key={`obj-${idx}`}>
+          <div className="row mb-3" key={`obj-${idx}`}>
             {idx === 0 && (
               <label className="col-sm-2 col-form-label">
                 {this.props.label}
@@ -114,7 +114,7 @@ export class ObjectInput extends PureComponent {
                   value={value[1]}
                   onChange={e => this.changeValue(e, value[0], idx)}
                 />
-                <span className="ml-1 input-group-prepend align-items-center">
+                <span className="ms-1 d-flex input-group-prepend align-items-center">
                   <div>
                     <button
                       disabled={this.props.disabled}
