@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import {Alerts, Form} from ".";
 import isEqual from "lodash/isEqual";
 import {createTooltip} from "./tooltips";
-import {SweetModal} from "./SweetModal";
+import { SweetModal } from "./SweetModal";
 import * as Events from "../services/events";
 import {Tree} from "./Tree";
 import * as TreeHelper from "../helpers/TreeData";
@@ -29,6 +29,17 @@ function LoadingComponent(props) {
     </div>
   );
 }
+
+const SearchInput = ({filter, onChange}) => {
+  return (
+    <input
+      type="text"
+      className="form-control input-sm"
+      value={filter ? filter.value : ""}
+      onChange={e => onChange(e.target.value)}
+      placeholder="Search ..." />
+  );
+};
 
 export class Table extends Component {
   static propTypes = {
@@ -644,15 +655,7 @@ export class Table extends Component {
       sortable: !c.notSortable,
       filterable: !c.notFilterable,
       accessor: d => (c.content ? c.content(d) : d),
-      Filter: d => (
-        <input
-          type="text"
-          className="form-control input-sm"
-          value={d.filter ? d.filter.value : ""}
-          onChange={e => d.onChange(e.target.value)}
-          placeholder="Search ..."
-        />
-      ),
+      Filter: SearchInput,
       Cell: r => {
         const value = r.value;
         const original = r.original;
@@ -680,7 +683,7 @@ export class Table extends Component {
         style: {textAlign: "center"},
         filterable: false,
         accessor: (item, ___, index) => (
-          <div style={{width: 140, textAlign: "right"}}>
+          <div style={{ width: 140, display: "flex", justifyContent:"center" }}>
             <div className="displayGroupBtn">
               <button
                 type="button"
@@ -755,7 +758,7 @@ export class Table extends Component {
                 {this.props.treeModeEnabled && this.isTable() && (
                   <button
                     type="button"
-                    className="btn btn-primary ml-2"
+                    className="btn btn-primary ms-2"
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
@@ -765,7 +768,7 @@ export class Table extends Component {
                 {this.isTree() && (
                   <button
                     type="button"
-                    className="btn btn-primary ml-2"
+                    className="btn btn-primary ms-2"
                     onClick={this.toggleRender}
                     {...createTooltip("Switch the view")}
                   >
@@ -784,11 +787,11 @@ export class Table extends Component {
                 {this.props.showActions && !this.props.disableAddButton && (
                   <button
                     type="button"
-                    className="btn btn-primary ml-2"
+                    className="btn btn-primary ms-2"
                     onClick={this.showAddForm}
                     {...createTooltip(`Create a new ${this.props.itemName}`)}
                   >
-                    <i className="fas fa-plus-circle mr-2"/>Add item
+                    <i className="fas fa-plus-circle me-2" />Add item
                   </button>
                 )}
                 {this.props.showActions && this.props.user.admin && (
@@ -796,15 +799,15 @@ export class Table extends Component {
                     className="dropdown menuActions"
                   >
                     <button
-                      className="btn-dropdown"
+                      className="btn"
                       data-toggle="dropdown"
                       type="button"
-                      aria-haspopup="true"
+                      data-bs-toggle="dropdown"
                       aria-expanded="false"
                     >
                       <i className="fas fa-cog" aria-hidden="true"/>
                     </button>
-                    <ul className="dropdown-menu p-3">
+                    <ul className="dropdown-menu p-3" aria-labelledby="dropdownMenu2">
                       {this.props.downloadLinks &&
                       this.props.downloadLinks.map(({title, link}, i) => (
                         <li key={`download-${i}`}>
@@ -911,7 +914,7 @@ export class Table extends Component {
                 />
               </div>
             )}
-            <div className="form-buttons float-right">
+            <div className="form-buttons float-end">
               <button
                 type="button"
                 className="btn btn-danger"
@@ -949,7 +952,7 @@ export class Table extends Component {
                 />
               </div>
             )}
-            <div className="form-buttons float-right updateConfig">
+            <div className="form-buttons float-end updateConfig">
               {this.isDeleteAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-danger"

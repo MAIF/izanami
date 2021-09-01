@@ -4,21 +4,6 @@
   margin-right: 5px;
 }
 
-.btnsService {
-  position: fixed;
-  width: 100%;
-  z-index: 1000;
-  background-color: $fondBody;
-  padding-bottom: 16px;
-}
-
-.btnsService + .form-group {
-  padding-top: 50px;
-}
-
-.btnsOtoroshi {
-  margin-top: 10px;
-}
 .displayGroupBtn {
   text-align: right;
   button.btn {
@@ -29,53 +14,21 @@
   }
 }
 
-.btn-info:hover {
-  color: #fff;
-  background-color: $colorBleue;
-  border-color: $colorBleue;
-}
-
-.btn-info,
-.btn_info:focus,
-.fa-plus-circle {
-  color: #fff;
-  background-color: transparent;
-  background-image: none;
-  border-color: $colorBleue;
-}
-
-.btn-save {
-  color: #fff;
-  border-color: $savecolor;
-  background-color: $savecolor;
-  &[disabled] {
-    color: $colorGris;
-    border-color: $colorGris;
-    background: none;
-  }
-}
-
-// izanami begin
-.btn-active {
-  border: 1px solid #5cb85c;
-  background: #5cb85c !important;
-}
-
 .btn-search {
   border: 1px solid #5cb85c;
   background: none;
   margin: 2px 2px 2px 2px;
-}
-.buttonsBar {
-  padding-top: 5px;
+  &.active {
+      background: #5cb85c !important;
+  }
 }
 
-.btn-dropdown {
-  background: none;
-  color: #48b9db;
-  border: none;
-}
-// izanami end
+
+// .btn-dropdown {
+//   background: none;
+//   color: #48b9db;
+//   border: none;
+// }
 
 .input-group-btn:last-child > .btn,
 .input-group-btn:last-child > .btn-group {
@@ -88,56 +41,6 @@
   &:not(:last-child):not(.dropdown-toggle) {
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
-  }
-}
-
-.input-group-btn.crud {
-  padding-left: 10px;
-  .btn:disabled {
-    cursor: not-allowed;
-  }
-  .btn-success:not(.active) {
-    background: none;
-  }
-}
-
-.content-switch-button {
-  width: 35px;
-  height: 22px;
-  border-radius: 20px;
-  display: flex;
-  &-on {
-    @extend .content-switch-button;
-    background-color: $savecolor;
-    border: 1px solid $savecolor;
-    justify-content: flex-end;
-  }
-  &-off {
-    @extend .content-switch-button;
-    background-color: #fff;
-    border: 1px solid #dfdfdf;
-    justify-content: flex-start;
-  }
-}
-
-.switch-button {
-  background-color: #fff;
-  border-radius: 20px;
-  &-on {
-    @extend .switch-button;
-    width: 20px;
-    height: 20px;
-    background-color: #fff;
-    border-radius: 20px;
-  }
-  &-off {
-    @extend .switch-button;
-    width: 22px;
-    height: 22px;
-    margin-top: -1px;
-    margin-left: -1px;
-    border: 1px solid #dfdfdf;
-    box-shadow: 1px 0px 5px 0px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -188,6 +91,18 @@
     text-shadow: none;
     background-color: transparent;
     border-color: $colorGris;
+  }
+  &.active {
+    background: $savecolor !important;
+}
+}
+
+.input-group-btn.crud{
+  .btn:disabled{
+    cursor:not-allowed;
+  }
+  .btn-success:not(.active) {
+    background: none ;
   }
 }
 

@@ -1,68 +1,75 @@
-.search-zone {
-  position: absolute;
-  background:$fondNavbar;
-  width: 400px;
-  border: 1px solid $fondBody;
-  border-top:0;
-  margin-top: -2px;
-  z-index: 1;
-  margin-left: -15px;
-  .btn {
-    color:white;
+.multisearch {
+  .search-input {
+    @media screen and (min-width: 480px) {
+      width: 400px !important;
+    }
+    width: 330px !important;
   }
-  .btn:focus{
-    outline: $savecolor;
+
+  .has-feedback .form-control-feedback {
+    top: 4px;
+    cursor: pointer;
+    pointer-events: initial;
   }
-}
 
-.search-input {
-  @media screen and  (min-width: 480px) {
-    width: 400px !important;
+  .Select-loading {
+    width: 16px;
+    height: 16px;
+    left: 10px;
+    -webkit-animation: Select-animation-spin 400ms infinite linear;
+    -o-animation: Select-animation-spin 400ms infinite linear;
+    animation: Select-animation-spin 400ms infinite linear;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+    border-right-color: #333;
+    display: inline-block;
+    position: relative;
+    vertical-align: middle;
   }
-  width: 330px !important;
-}
 
-.navbar-form .has-feedback .form-control-feedback{
-  top:4px;
-  cursor: pointer;
-  pointer-events: initial;
-}
+  .search-zone {
+    display: none;
+    position: absolute;
+    background: $fondNavbar;
+    width: 400px;
+    border: 1px solid $fondBody;
+    border-top: 0;
+    margin-top: -2px;
+    z-index: 1;
+    
+    .btn {
+      color: white;
+    }
 
-i.search-loading {
-  right: 25px;
-  top: 10px !important;
-}
+    .btn:focus {
+      outline: $savecolor;
+    }
 
-.search-loading-zone {
-  right: 25px!important;
-}
+    .buttonsBar {
+      padding-top: 5px;
+    }
 
-.results {
-    padding: 10px;
-    overflow: auto;
-    border: 1px solid #40403f;
-    margin: 5px 5px 10px 5px;
-    background-color: #585856;
-}
-
-.Select-loading {
-  width: 16px;
-  height: 16px;
-  -webkit-animation: Select-animation-spin 400ms infinite linear;
-  -o-animation: Select-animation-spin 400ms infinite linear;
-  animation: Select-animation-spin 400ms infinite linear;
-  box-sizing: border-box;
-  border-radius: 50%;
-  border: floor((16 / 8)) solid #ccc;
-  border-right-color: #333;
-  display: inline-block;
-  position: relative;
-  vertical-align: middle;
+    .results {
+      padding: 10px;
+      overflow: auto;
+      border: 1px solid #40403f;
+      margin: 5px 5px 10px 5px;
+      background-color: #585856;
+    }
+  }
+  .search-zone-display {
+    display: block;
+  }
 }
 
 @keyframes Select-animation-spin {
-  to { transform: rotate(1turn); }
+  to {
+    transform: rotate(1turn);
+  }
 }
 @-webkit-keyframes Select-animation-spin {
-  to { -webkit-transform: rotate(1turn); }
+  to {
+    -webkit-transform: rotate(1turn);
+  }
 }

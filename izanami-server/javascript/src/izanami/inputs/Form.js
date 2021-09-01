@@ -11,7 +11,8 @@ import {
   LabelInput,
   CodeInput,
   FieldError,
-  JsonInput, AuthorizedPatternsInput, KeyInputForm
+  JsonInput, AuthorizedPatternsInput, KeyInputForm, 
+  TextInputAnimated
 } from ".";
 
 import isFunction from "lodash/isFunction";
@@ -156,6 +157,21 @@ export class Form extends Component {
               />
             </FieldError>
           );
+        } else if (type === "stringAnimated") {
+            return (
+              <FieldError
+                key={name}
+                error={fieldOnError}
+                errorMessage={errorReport}
+              >
+                <TextInputAnimated
+                  disabled={disabled}
+                  value={this.getValue(name, "")}
+                  {...props}
+                  onChange={v => this.changeValue(name, v)}
+                />
+              </FieldError>
+            );
         } else if (type === "code") {
           return (
             <FieldError

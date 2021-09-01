@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 
 const PressedButton = props => {
-  const moreClass = props.active ? "btn-active" : "";
+  const moreClass = props.active ? "active" : "";
   return (
     <button
       className={`btn btn-sm btn-search ${moreClass}`}
@@ -134,8 +134,8 @@ export class MultiSearch extends Component {
 
   render() {
     return (
-      <div className="" ref={ref => (this.wrapper = ref)}>
-          <div className="form-group row has-feedback">
+      <div className="multisearch" ref={ref => (this.wrapper = ref)}>
+          <div className="d-flex align-items-center mb-0 has-feedback">
             <input
               type="text"
               className="form-control search-input"
@@ -186,7 +186,6 @@ export class MultiSearch extends Component {
             className={`search-zone ${
               this.state.display ? "search-zone-display" : ""
             }`}
-            style={this.state.display ? {} : { display: "none" }}
           >
             {this.state.display && (
               <div className="buttonsBar">
