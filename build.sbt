@@ -58,7 +58,7 @@ releaseProcess := Seq[ReleaseStep](
   pushChanges        // : ReleaseStep, also checks that an upstream branch is properly configured
 )
 
-lazy val githubRepo = "maif/izanami"
+lazy val githubRepo = "MAIF/izanami"
 inThisBuild(
   List(
     homepage := Some(url(s"https://github.com/$githubRepo")),
