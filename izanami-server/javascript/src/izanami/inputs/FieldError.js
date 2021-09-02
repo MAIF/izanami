@@ -5,7 +5,7 @@ import * as TranslateService from "../services/TranslateService";
 export class FieldError extends Component {
   static propTypes = {
     error: PropTypes.bool,
-    errorMessage: PropTypes.array
+    errorMessage: PropTypes.array,
   };
 
   render() {
@@ -18,15 +18,20 @@ export class FieldError extends Component {
           {this.props.children}
           {this.props.errorMessage.map((err, index) => {
             return (
-              <div key={`FieldError-${index}`}>
+              <div
+                class="offset-sm-2 "
+                style={{marginTop: -16}}
+                key={`FieldError-${index}`}
+              >
                 <label
-                  className="col-form-label offset-sm-2"
+                  className="col-form-label ms-2"
                   htmlFor="inputError1"
-                  key={`FieldError-label-${index}`}>
+                  key={`FieldError-label-${index}`}
+                >
                   {TranslateService.translate(err)}
                 </label>
               </div>
-            )
+            );
           })}
         </div>
       );
