@@ -63,28 +63,32 @@ export class FeaturesExplorerPage extends Component {
           </button>
         </div>
         <div className="row">
-          <h5>User context</h5>
-          <AceEditor
-            mode="javascript"
-            theme="monokai"
-            onChange={c => this.setState({ context: c })}
-            value={codeContext}
-            name="contextParam"
-            editorProps={{ $blockScrolling: true }}
-            height="100px"
-            width="100%"
-          />
+          <div className="col-12">
+            <h5>User context</h5>
+            <AceEditor
+              mode="javascript"
+              theme="monokai"
+              onChange={c => this.setState({ context: c })}
+              value={codeContext}
+              name="contextParam"
+              editorProps={{ $blockScrolling: true }}
+              height="100px"
+              width="100%"
+            />
+          </div>
         </div>
-        <div className="row" style={{ marginTop: 20 }}>
-          <AceEditor
-            mode="javascript"
-            theme="monokai"
-            value={code}
-            name="scriptParam"
-            editorProps={{ $blockScrolling: true }}
-            height="400px"
-            width="100%"
-          />
+        <div className="row mt-3">
+          <div className="col-12">
+            <AceEditor
+              mode="javascript"
+              theme="monokai"
+              value={code}
+              name="scriptParam"
+              editorProps={{ $blockScrolling: true }}
+              height="400px"
+              width="100%"
+            />
+          </div>
         </div>
       </div>
     );
