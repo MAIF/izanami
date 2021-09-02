@@ -38,6 +38,11 @@ h3,
 h4 {
   color: $primaryColor;
 }
+
+h5 {
+  color: inherit;
+}
+
 hr {
   border-top: 1px solid #eee;
 }
