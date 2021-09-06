@@ -173,7 +173,7 @@
 display: block;
 }
 
-@media only screen and (max-width: 767px) {
+@media only screen and (max-width: $screen-sm) {
   .updateConfig > .btn {
     margin-bottom: 10px;
   }
