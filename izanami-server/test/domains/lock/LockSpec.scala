@@ -71,9 +71,13 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val lock          = IzanamiLock(id, true)
       val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
-      val ctx           = testLockContext(events = events, lockDataStore = lockDataStore)
+      val featuresStore = new InMemoryJsonDataStore("feature-test")
+      val ctxLock       = testLockContext(events = events, featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val featureCreate = DefaultFeature(Key("create"), false, None)
 
-      val created = run(ctx)(LockService.create(id, lock))
+      run(ctxFeature)(FeatureService.create(featureCreate.id, featureCreate))
+      val created = run(ctxLock)(LockService.create(id, lock))
 
       created must be(lock)
 
@@ -93,14 +97,19 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val newLock       = IzanamiLock(id, true)
       val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
-      val ctx           = testLockContext(events = events, lockDataStore = lockDataStore)
+      val featuresStore = new InMemoryJsonDataStore("feature-test")
+      val ctxLock       = testLockContext(events = events, featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val featureUpdate = DefaultFeature(Key("update"), false, None)
+
+      run(ctxFeature)(FeatureService.create(featureUpdate.id, featureUpdate))
 
       val u = for {
         _       <- LockService.create(id, lock)
         updated <- LockService.update(id, newLock)
       } yield updated
 
-      val updated = run(ctx)(u)
+      val updated = run(ctxLock)(u)
       updated must be(newLock)
       lockDataStore.inMemoryStore.contains(id) must be(true)
       events must have size 2
@@ -120,14 +129,19 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val newLock       = IzanamiLock(newId, false)
       val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
-      val ctx           = testLockContext(events = events, lockDataStore = lockDataStore)
+      val featuresStore = new InMemoryJsonDataStore("feature-test")
+      val ctxLock       = testLockContext(events = events, featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val featureUpdate = DefaultFeature(Key("update1"), false, None)
+
+      run(ctxFeature)(FeatureService.create(featureUpdate.id, featureUpdate))
 
       val test = for {
         _       <- LockService.create(id, lock)
         updated <- LockService.update(id, newLock)
       } yield updated
 
-      run(ctx)(test)
+      run(ctxLock)(test)
       lockDataStore.inMemoryStore.contains(id) must be(false)
       lockDataStore.inMemoryStore.contains(newId) must be(true)
 
@@ -145,14 +159,19 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val lock          = IzanamiLock(id, true)
       val events        = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
-      val ctx           = testLockContext(events = events, lockDataStore = lockDataStore)
+      val featuresStore = new InMemoryJsonDataStore("feature-test")
+      val ctxLock       = testLockContext(events = events, featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val featureDelete = DefaultFeature(Key("delete"), false, None)
+
+      run(ctxFeature)(FeatureService.create(featureDelete.id, featureDelete))
 
       val test = for {
         _       <- LockService.create(id, lock)
         deleted <- LockService.delete(id)
       } yield deleted
 
-      run(ctx)(test)
+      run(ctxLock)(test)
       lockDataStore.inMemoryStore.contains(id) must be(false)
       events must have size 2
       inside(events.last) {
@@ -179,14 +198,19 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val id            = Key("feature:getbyid")
       val lock          = IzanamiLock(id, true)
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
-      val ctx           = testLockContext(lockDataStore = lockDataStore)
+      val featuresStore = new InMemoryJsonDataStore("feature-test")
+      val ctxLock       = testLockContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val featureGetById = DefaultFeature(Key("getbyid"), false, None)
+
+      run(ctxFeature)(FeatureService.create(featureGetById.id, featureGetById))
 
       val test = for {
         _   <- LockService.create(id, lock)
         get <- LockService.getBy(id)
       } yield get
 
-      val get = run(ctx)(test)
+      val get = run(ctxLock)(test)
 
       get must contain(lock)
     }
@@ -196,7 +220,14 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       val lock1         = IzanamiLock(Key("feature:find:a:b:c"), true)
       val lock2         = IzanamiLock(Key("feature:find:a:b:c:d"), true)
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
-      val ctx           = testLockContext(lockDataStore = lockDataStore)
+      val featuresStore = new InMemoryJsonDataStore("feature-test")
+      val ctxLock       = testLockContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val featureFind1  = DefaultFeature(Key("find:a:b:c:d"), false, None)
+      val featureFind2  = DefaultFeature(Key("find:a:f"), false, None)
+
+      run(ctxFeature)(FeatureService.create(featureFind1.id, featureFind1))
+      run(ctxFeature)(FeatureService.create(featureFind2.id, featureFind2))
 
       val test = for {
         _    <- LockService.create(Key("feature:find:a:b"), IzanamiLock(Key("feature:find:a:b"), true))
@@ -206,7 +237,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         find <- LockService.findByQuery(Query.oneOf("feature:find:a:b:*"))
       } yield find
 
-      val find = run(ctx)(test)
+      val find = run(ctxLock)(test)
 
       find.filter(l => l.id.key.equals("feature:find:a:b:c")) must be(List(lock1))
       find.filter(l => l.id.key.equals("feature:find:a:b:c:d")) must be(List(lock2))
@@ -221,7 +252,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "create feature forbidden on the root if lock exist (1)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureAB     = DefaultFeature(Key("a:b"), false, None)
 
@@ -243,7 +274,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "create feature forbidden on the locked path (2) & (4)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureAB     = DefaultFeature(Key("a:b"), false, None)
 
@@ -273,7 +304,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "create feature after locked feature (3)" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
 
       { // initial state
@@ -295,7 +326,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "create feature in another branch of lock (5)" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val id            = Key("a:b")
 
@@ -327,7 +358,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "delete feature forbidden on the root if lock exist (1)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureAB     = DefaultFeature(Key("a:b"), false, None)
       val featureA1     = DefaultFeature(Key("a1"), false, None)
@@ -349,7 +380,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "delete feature forbidden on the locked path (2) & (4)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureA      = DefaultFeature(Key("a"), false, None)
       val featureAB     = DefaultFeature(Key("a:b"), false, None)
@@ -381,7 +412,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "delete feature after locked feature (3)" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
 
       { // initial state
@@ -403,7 +434,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "delete last feature after locked feature forbidden" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val featureABC    = DefaultFeature(Key("a:b:c"), false, None)
 
@@ -426,7 +457,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "delete feature in another branch of lock (5)" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val featureA1B1   = DefaultFeature(Key("a1:b1"), false, None)
 
@@ -451,7 +482,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update feature forbidden from the root if lock exist (1)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureAB     = DefaultFeature(Key("a:b"), false, None)
       val featureA1     = DefaultFeature(Key("a1"), false, None)
@@ -475,7 +506,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update feature forbidden to the root if lock exist (1)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureABC    = DefaultFeature(Key("a:b:c"), false, None)
 
@@ -500,7 +531,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update feature forbidden from the locked path (2) & (4)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureA      = DefaultFeature(Key("a"), false, None)
       val featureAB     = DefaultFeature(Key("a:b"), false, None)
@@ -533,7 +564,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update feature forbidden to the locked path (2) & (4)" in {
       val lockDataStore = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = lockDataStore)
+      val ctxLock       = testLockContext(lockDataStore = lockDataStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureA      = DefaultFeature(Key("a"), false, None)
       val featureAB     = DefaultFeature(Key("a:b"), false, None)
@@ -566,7 +597,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update feature after locked feature (3)" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val id            = Key("a:b")
       val featureAB     = DefaultFeature(id, false, None)
@@ -593,7 +624,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update last feature after locked feature forbidden" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val featureABC    = DefaultFeature(Key("a:b:c"), false, None)
       val featureA1     = DefaultFeature(Key("a1"), false, None)
@@ -619,7 +650,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update feature in another branch of lock (5)" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val featureA1B1   = DefaultFeature(Key("a1:b1"), false, None)
 
@@ -644,7 +675,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "update feature without change id" in {
       val locksStore       = new InMemoryJsonDataStore("lock-test")
       val featuresStore    = new InMemoryJsonDataStore("feature-test")
-      val ctxLock          = testLockContext(lockDataStore = locksStore)
+      val ctxLock          = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature       = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val id               = Key("a:b")
       val featureABDisable = DefaultFeature(id, false, None)
@@ -668,7 +699,7 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     "copy feature forbidden" in {
       val locksStore    = new InMemoryJsonDataStore("lock-test")
       val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(lockDataStore = locksStore)
+      val ctxLock       = testLockContext(lockDataStore = locksStore, featureDataStore = featuresStore)
       val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = locksStore)
       val featureABC    = DefaultFeature(Key("a:b:c"), false, None)
 
@@ -697,10 +728,11 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
   def testLockContext(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
       user: Option[AuthInfo.Service] = authInfo,
-      lockDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("lock-test")
+      lockDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("lock-test"),
+      featureDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("feature-test")
   ): ZLayer[Any, Throwable, LockContext] =
     playModule ++ ZLogger.live ++ Blocking.live ++ EventStore.value(new TestEventStore(events)) ++
-    AuthInfo.optValue(user) ++ LockDataStore.value(lockDataStore) >+> IzanamiConfigModule.value(FakeConfig.config)
+    AuthInfo.optValue(user) ++ LockDataStore.value(lockDataStore) ++ FeatureDataStore.value(featureDataStore) >+> IzanamiConfigModule.value(FakeConfig.config)
 
   val testScript: RunnableScriptModuleProd                             = RunnableScriptModuleProd(env.classLoader)
   val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = RunnableScriptModule.value(testScript)
