@@ -256,9 +256,11 @@ export class KeyInput extends Component {
       );
     } else {
       datas[i] = text;
+      let computedValue = datas.join(":");
+      this.props.onChange(computedValue)
       this.setState({
         segments: [...datas],
-        computedValue: datas.join(":"),
+        computedValue: computedValue,
         open: false,
         editedValue: text
       });
