@@ -316,21 +316,19 @@ module.exports = {
   featureClient: (config) => new IzanamiFeatureClient(config),
   configClient: (config) => new IzanamiConfigClient(config),
   experimentsClient: (config) => new IzanamiExperimentsClient(config),
-  expressProxy(config) {
-
+  expressProxy: (config) => {
     const {
       featureClient,
       configClient,
       experimentsClient,
       app,
       sessionPath = '/api/me',
-      featureContextFromRequest = (req) => ({id: req.user_email}),
+      featureContextFromRequest = (req) => req.user_email,
       experimentsClientIdFromRequest: experimentsClientIdFromRequest = (req) => req.user_email,
       experimentWonPath = '/api/experiments/won',
       experimentDisplayedPath = '/api/experiments/displayed',
       path
     } = config;
-
 
     app.get(sessionPath, (req, res) => {
       Promise.all([
