@@ -9,9 +9,8 @@ npm install izanami-node
 ## Import 
 
 ```javascript
-const Izanami = require('izanami');
+const Izanami = require('izanami-node');
 ```
-
 
 ## Usage 
 
@@ -196,7 +195,6 @@ Izanami.expressProxy({
   app, // Express app 
   path: 'my.namespace.*' // The pattern to filter experiments, configs and features
 });
-
 ```
 
 

@@ -86,7 +86,10 @@ describe("Izanami Node.js", function () {
       featureClient, // Optional
       experimentsClient, // Optional
       configClient, // Optional
-      app, // Express app
+      app, // Express app,
+      experimentsClientIdFromRequest : (req) => "userId",
+      experimentWonPath : '/api/izanami/experiments/won',
+      experimentDisplayedPath : '/api/izanami/experiments/displayed',
     });
     server = app.listen(3000)
     return server
@@ -172,5 +175,26 @@ describe("Izanami Node.js", function () {
       should.equal(resultOtherVariant, undefined)
     })
 
+  })
+
+  describe("Test proxy", async function () {
+    it("Proxy must return features / experiments / configs", async function () {
+      const datas = await fetch(`http://localhost:3000/api/izanami`)
+      const json = await datas.json()
+      should.exist(json.features[featureId])
+      should.exist(json.experiments[experimentId])
+      should.exist(json.configurations[configurationId])
+    })
+
+    it("Proxy must forward won / displayed", async function (){
+      await fetch(`http://localhost:3000/api/izanami/experiments/displayed?experiment=${experimentId}`, {method: "POST"})
+      await fetch(`http://localhost:3000/api/izanami/experiments/won?experiment=${experimentId}`, {method: "POST"})
+      const result = await fetch(`${config.host}/api/experiments/${experimentId}/results`, {method: "GET", headers});
+      const resultJson = await result.json()
+      const variant = await experimentsClient.variantFor(experimentId, "userId");
+      const resultVariant = resultJson.results.find(r => r.variant.id === variant.id);
+      resultVariant.displayed.should.be.equal(1)
+      resultVariant.won.should.be.equal(1)
+    })
   })
 })
