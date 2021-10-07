@@ -141,11 +141,14 @@ class InMemoryWithDbStore(
                                 _.map {
                                   case (k, v) =>
                                     inMemoryStore.put(k, v)
-                                    Done
+                                    k
                                 }
                               }
-      _ <- ZIO.fromFuture(_ => refreshCacheProcess.runWith(Sink.ignore))
-    } yield ()
+      updatedKeys <- ZIO.fromFuture(_ => refreshCacheProcess.runWith(Sink.seq))
+    } yield {
+      val toDelete = inMemoryStore.keySet.filter(!updatedKeys.contains(_))
+      toDelete.foreach(inMemoryStore.remove(_))
+    }
 
   private val polling: ZIO[DataStoreContext with Clock, Throwable, Option[Cancellable]] =
     dbConfig.pollingInterval match {
