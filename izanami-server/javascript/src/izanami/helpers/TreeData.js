@@ -27,20 +27,21 @@ export function addOrUpdateInTree(segments, value, tree) {
       }
     });
   } else {
-    return [...tree, createTree(head, segments, value)];
+    return [...tree, createTree(head, rest, value)];
   }
 }
 
-function createTree(key, segments, value) {
+function createTree(startKey, segments, value) {
   const [head, ...rest] = segments || [];
-  const id = `${key}:${head}`;
+  const id = head ? `${startKey}:${head}` : startKey;
+  const key = head ? head : startKey;
   if (rest.length > 0) {
     return {
-      key: head,
+      key: key,
       childs: [createTree(id, rest, value)]
     };
   } else {
-    return { key: head, value, id };
+    return { key: key, value, id , childs: []};
   }
 }
 
