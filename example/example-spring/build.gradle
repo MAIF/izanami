@@ -25,7 +25,7 @@ dependencies {
     implementation('org.springframework.boot:spring-boot-starter-validation')
     implementation('org.springframework.cloud:spring-cloud-starter-config:3.0.3')
     implementation('com.auth0:java-jwt:3.11.0')
-    implementation("fr.maif:izanami-spring:1.9.0-SNAPSHOT")
+    implementation("fr.maif:izanami-spring:1.10.1")
     implementation("io.vavr:vavr-jackson:0.9.2")
     implementation("org.iq80.leveldb:leveldb:0.10")
 }
