@@ -130,7 +130,7 @@ class Node extends Component {
   render() {
     const id = `node-${this.props.node.id}-${this.props.index}`;
     const link = this.props.itemLink(this.props.node);
-    const styleDisplay = this.state.openMenu ? {display: 'inline-block'} : {};
+    const styleDisplay = this.state.openMenu ? {display: 'inline-flex'} : {};
     let lockTile = "Add lock";
     if (this.props.node.lock.locked) {
       lockTile = "Remove lock"
@@ -179,7 +179,7 @@ class Node extends Component {
                   className={`btn btn-sm btn-primary`}
                   onMouseOver={_ => this.setState({openCopy: false})}
                   title="Add childnote">
-                  + child
+                  +&nbsp;child
                 </Link>}
                 {this.props.lockable && <button
                   type="button"
