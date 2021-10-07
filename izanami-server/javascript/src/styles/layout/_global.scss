@@ -52,14 +52,14 @@ hr {
   width: 100%;
   z-index: 110;
   margin-left: -25px;
-  margin-top: -10px;
+  margin-top: -12px;
 }
 
-.fixedH3 {
+.header-fixed {
   @include h3fixed;
 }
 
-.fixedH3+.row {
+.header-fixed+.row {
   padding-top: 88px;
 }
 
@@ -74,7 +74,7 @@ hr {
     margin-right: -10px;
   }
 
-  @media only screen and (max-width: 1002px) {
+  @media only screen and (max-width: $screen-lg) {
     margin-top: 66px;
   }
 }
