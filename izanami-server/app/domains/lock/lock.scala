@@ -6,6 +6,7 @@ import domains.auth.AuthInfo
 import domains.configuration.PlayModule
 import domains.errors.{DataShouldExists, IdMustBeTheSame, IzanamiErrors, UnauthorizedByLock}
 import domains.events.EventStore
+import domains.feature.FeatureDataStore
 import domains.lock.Lock.LockKey
 import env.IzanamiConfig
 import libs.logs.ZLogger
@@ -58,7 +59,7 @@ package object lock {
         .map(s => Has(LockDataStoreProd(s.get)))
   }
 
-  type LockContext = LockDataStore with ZLogger with AuthInfo with EventStore with PlayModule with DataStoreContext
+  type LockContext = LockDataStore with ZLogger with AuthInfo with EventStore with PlayModule with DataStoreContext with FeatureDataStore
 
   object LockService {
     import IzanamiErrors._
@@ -70,23 +71,34 @@ package object lock {
 
     def create(id: LockKey, data: IzanamiLock): ZIO[LockContext, IzanamiErrors, IzanamiLock] =
       for {
-        _        <- AuthInfo.isAdmin()
-        _        <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
-        created  <- LockDataStore.>.create(id, format.writes(data))
-        lock     <- jsResultToError(created.validate[IzanamiLock])
-        authInfo <- AuthInfo.authInfo
-        _        <- EventStore.publish(LockCreated(id, lock, authInfo = authInfo))
+        _                   <- AuthInfo.isAdmin()
+        _                   <- IO.when(data.id =!= id)(IO.fail(IdMustBeTheSame(data.id, id).toErrors))
+        _                   <- isOnFeaturePath(id)
+        created             <- LockDataStore.>.create(id, format.writes(data))
+        lock                <- jsResultToError(created.validate[IzanamiLock])
+        authInfo            <- AuthInfo.authInfo
+        _                   <- EventStore.publish(LockCreated(id, lock, authInfo = authInfo))
       } yield lock
+
+    def isOnFeaturePath(id: Key) = {
+      val key = id.drop(LockType.FEATURE)
+      for {
+        mayBeFeature    <- FeatureDataStore.>.getById(key).orDie
+        mayBeSubFeature <- FeatureDataStore.>.findByQuery(Query.oneOf(List(s"${key.key}:*")), 1, 1).orDie
+        -               <- IO.when(mayBeFeature.isEmpty && mayBeSubFeature.results.isEmpty)(IO.fail(DataShouldExists(key).toErrors))
+      } yield ()
+    }
 
     def update(id: LockKey, data: IzanamiLock): ZIO[LockContext, IzanamiErrors, IzanamiLock] =
       for {
-        _         <- AuthInfo.isAdmin()
-        mayBeLock <- getBy(id)
-        oldLock   <- ZIO.fromOption(mayBeLock).mapError(_ => DataShouldExists(id).toErrors)
-        updated   <- LockDataStore.>.update(id, data.id, format.writes(data))
-        lock      <- jsResultToError(updated.validate[IzanamiLock])
-        authInfo  <- AuthInfo.authInfo
-        _         <- EventStore.publish(LockUpdated(id, oldLock, lock, authInfo = authInfo))
+        _                   <- AuthInfo.isAdmin()
+        mayBeLock           <- getBy(id)
+        oldLock             <- ZIO.fromOption(mayBeLock).mapError(_ => DataShouldExists(id).toErrors)
+        _                   <- isOnFeaturePath(id)
+        updated             <- LockDataStore.>.update(id, data.id, format.writes(data))
+        lock                <- jsResultToError(updated.validate[IzanamiLock])
+        authInfo            <- AuthInfo.authInfo
+        _                   <- EventStore.publish(LockUpdated(id, oldLock, lock, authInfo = authInfo))
       } yield lock
 
     def delete(id: LockKey): ZIO[LockContext, IzanamiErrors, IzanamiLock] =

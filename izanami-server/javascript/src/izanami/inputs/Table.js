@@ -404,30 +404,24 @@ export class Table extends Component {
   deleteItem = (e, item, i) => {
     if (e && e.preventDefault) e.preventDefault();
     //if (confirm('Are you sure you want to delete that item ?')) {
-    this.props.deleteItem(item).then(res => {
+    this.setState({
+      showEditForm: false,
+      showAddForm: false,
+      confirmDelete: false,
+      confirmDeleteTable: false,
+      toDelete: null
+    }, () => this.props.deleteItem(item).then(res => {
       if (res.status === 403) {
         res.json().then(data => {
           this.setState({
             items: this.state.items,
-            showEditForm: false,
-            showAddForm: false,
-            confirmDelete: false,
-            confirmDeleteTable: false,
-            toDelete: null,
             error: true,
             errorList: data.errors ? data.errors : [{message: `error.forbiddenaction`}]
           });
         })
       } else {
         const items = this.state.items.filter(i => !isEqual(i, item));
-        this.setState({
-          items,
-          showEditForm: false,
-          showAddForm: false,
-          confirmDelete: false,
-          confirmDeleteTable: false,
-          toDelete: null
-        });
+        this.setState({ items });
         this.props.parentProps.setTitle(this.props.defaultTitle);
         this.props.backToUrl
           ? window.history.pushState(
@@ -437,7 +431,7 @@ export class Table extends Component {
           )
           : window.history.back();
       }
-    });
+    }));
     //}
   };
 
@@ -719,10 +713,10 @@ export class Table extends Component {
                   "top",
                   true
                 )}
-                onClick={e =>
+                onClick={e => {
                   this.setState({confirmDeleteTable: true, toDelete: item})
                 }
-              >
+                }>
                 <i className="fas fa-trash-alt"/>
               </button>}
             </div>
@@ -779,8 +773,7 @@ export class Table extends Component {
                   type="button"
                   className="btn btn-primary"
                   {...createTooltip("Reload the current table")}
-                  onClick={this.update}
-                >
+                  onClick={this.update}>
                   <i className="fas fa-sync-alt"/>
                 </button>
 
@@ -789,22 +782,19 @@ export class Table extends Component {
                     type="button"
                     className="btn btn-primary ms-2"
                     onClick={this.showAddForm}
-                    {...createTooltip(`Create a new ${this.props.itemName}`)}
-                  >
+                    {...createTooltip(`Create a new ${this.props.itemName}`)}>
                     <i className="fas fa-plus-circle me-2" />Add item
                   </button>
                 )}
                 {this.props.showActions && this.props.user.admin && (
                   <div
-                    className="dropdown menuActions"
-                  >
+                    className="dropdown menuActions">
                     <button
                       className="btn"
                       data-toggle="dropdown"
                       type="button"
                       data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
+                      aria-expanded="false">
                       <i className="fas fa-cog" aria-hidden="true"/>
                     </button>
                     <ul className="dropdown-menu p-3" aria-labelledby="dropdownMenu2">
@@ -824,8 +814,7 @@ export class Table extends Component {
                             className="cursor-pointer"
                             onClick={e => {
                               document.getElementById(`upload${i}`).click();
-                            }}
-                          >
+                            }}>
                             <i className="fas fa-file-upload"/>{" "}
                             {title}
                             <input
@@ -918,15 +907,13 @@ export class Table extends Component {
               <button
                 type="button"
                 className="btn btn-danger"
-                onClick={this.closeAddForm}
-              >
+                onClick={this.closeAddForm}>
                 Cancel
               </button>
               <button
                 type="button"
                 className="btn btn-success"
-                onClick={this.createItem}
-              >
+                onClick={this.createItem}>
                 <i className="fas fa-hdd"/> Create{" "}
                 {this.props.itemName}
               </button>
@@ -957,22 +944,19 @@ export class Table extends Component {
                 type="button"
                 className="btn btn-danger"
                 title="Delete current item"
-                onClick={e => this.setState({confirmDelete: true})}
-              >
+                onClick={e => this.setState({confirmDelete: true})}>
                 <i className="far fa-trash-alt"></i> Delete
               </button>}
               <button
                 type="button"
                 className="btn btn-danger"
-                onClick={this.closeEditForm}
-              >
+                onClick={this.closeEditForm}>
                 Cancel
               </button>
               {this.isUpdateAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-success"
-                onClick={this.updateItem}
-              ><i className="fas fa-hdd"/> Update{" "}
+                onClick={this.updateItem}><i className="fas fa-hdd"/> Update{" "}
                 {this.props.itemName}
               </button>}
               <SweetModal
@@ -981,8 +965,7 @@ export class Table extends Component {
                 id={"confirmDelete"}
                 open={this.state.confirmDelete}
                 onDismiss={__ => this.setState({confirmDelete: false})}
-                labelValid="Delete"
-              >
+                labelValid="Delete">
                 <div>Are you sure you want to delete that item ?</div>
               </SweetModal>
             </div>
@@ -996,11 +979,10 @@ export class Table extends Component {
           onDismiss={__ =>
             this.setState({confirmDeleteTable: false, toDelete: null})
           }
-          labelValid="Delete"
-        >
+          labelValid="Delete">
           <div>Are you sure you want to delete that item ?</div>
         </SweetModal>
       </div>
-    );
-  }
+    )
+  };
 }

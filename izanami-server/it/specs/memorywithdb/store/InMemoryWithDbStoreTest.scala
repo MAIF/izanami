@@ -5,7 +5,7 @@ import domains.events.Events.{FeatureCreated, FeatureUpdated}
 import domains.Key
 import domains.feature.{DefaultFeature, FeatureInstances}
 import env.{InMemory, InMemoryEventsConfig, InMemoryWithDbConfig}
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.PlaySpec
 import store.memory.InMemoryJsonDataStore
 import cats.syntax.option._
@@ -15,16 +15,21 @@ import libs.logs.ZLogger
 import store.datastore.DataStoreContext
 import zio.{Runtime, ZLayer}
 
-import scala.concurrent.duration.DurationDouble
+import scala.concurrent.duration._
 import domains.auth.AuthInfo
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.time.{Millis, Seconds, Span}
 import store.memorywithdb.{InMemoryWithDbStore, OpenResources}
 import zio.clock.Clock
 
 import scala.collection.concurrent.TrieMap
 
-class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with IntegrationPatience {
+class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with IntegrationPatience with Eventually {
 
   implicit val actorSystem: ActorSystem = ActorSystem()
+
+  implicit override val patienceConfig =
+    PatienceConfig(timeout = scaled(Span(1100, Millis)), interval = scaled(Span(50, Millis)))
 
   implicit class RunOps[T](t: zio.RIO[DataStoreContext with Clock, T]) {
     def unsafeRunSync(): T = Runtime.default.unsafeRun(t.provideLayer(context))
@@ -34,13 +39,16 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     "update his cache on event" in {
       import domains.feature.FeatureInstances
 
-      val name         = "test"
-      val key1         = Key("key:1")
-      val key2         = Key("key:2")
-      val feature1     = DefaultFeature(key1, false, None)
-      val feature1Json = FeatureInstances.format.writes(feature1)
+      val name             = "test"
+      val key1             = Key("key:1")
+      val key2             = Key("key:2")
+      val keyAlive         = Key("key:alive")
+      val feature1         = DefaultFeature(key1, false, None)
+      val feature1Json     = FeatureInstances.format.writes(feature1)
+      val featureAlive     = DefaultFeature(keyAlive, false, None)
+      val featureAliveJson = FeatureInstances.format.writes(featureAlive)
 
-      val underlyingStore = new InMemoryJsonDataStore(name, TrieMap(key1 -> feature1Json))
+      val underlyingStore = new InMemoryJsonDataStore(name, TrieMap(key1 -> feature1Json, keyAlive -> featureAliveJson))
 
       val inMemoryWithDb = new InMemoryWithDbStore(
         InMemoryWithDbConfig(db = InMemory, None),
@@ -50,7 +58,12 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
         Runtime.default.unsafeRun(zio.Ref.make(Option.empty[OpenResources]))
       )
       inMemoryWithDb.start.unsafeRunSync()
-      Thread.sleep(800)
+
+      val featureAliveUpdated    = featureAlive.copy(enabled = true)
+      eventually(timeout(scaled(Span(2, Seconds)))) { // wait until InMemoryWithDb / EventStream is not started
+        actorSystem.eventStream.publish(FeatureUpdated(keyAlive, featureAlive, featureAliveUpdated, authInfo = None))
+        inMemoryWithDb.getById(keyAlive).option.unsafeRunSync().flatten mustBe FeatureInstances.format.writes(featureAliveUpdated).some
+      }
 
       val feature1Updated    = feature1.copy(enabled = true)
       val feature2           = DefaultFeature(key2, false, None)
@@ -60,10 +73,11 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
       actorSystem.eventStream.publish(FeatureUpdated(key1, feature1, feature1Updated, authInfo = None))
       actorSystem.eventStream.publish(FeatureCreated(key2, feature2, authInfo = None))
 
-      Thread.sleep(800)
-      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe featureUpdatedJson.some
-      inMemoryWithDb.getById(key2).option.unsafeRunSync().flatten mustBe feature2Json.some
-
+      eventually {
+        Thread.`yield`()
+        inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe featureUpdatedJson.some
+        inMemoryWithDb.getById(key2).option.unsafeRunSync().flatten mustBe feature2Json.some
+      }
     }
   }
 
@@ -85,16 +99,25 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
     )
     inMemoryWithDb.start.unsafeRunSync()
 
-    Thread.sleep(800)
-
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
+    eventually {
+      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
+    }
     val feature1Updated = feature1.copy(enabled = true)
+    val featuer1UpdatedJson = FeatureInstances.format.writes(feature1Updated).some
     underlyingStore.update(key1, key1, FeatureInstances.format.writes(feature1Updated)).either.unsafeRunSync()
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe feature1Json.some
-    Thread.sleep(1000)
-    inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe FeatureInstances.format
-      .writes(feature1Updated)
-      .some
+    List(feature1Json.some, featuer1UpdatedJson) must contain (inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten)
+
+    eventually {
+      Thread.`yield`()
+      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe featuer1UpdatedJson
+    }
+
+    underlyingStore.delete(key1).either.unsafeRunSync()
+
+    eventually {
+      Thread.`yield`()
+      inMemoryWithDb.getById(key1).option.unsafeRunSync().flatten mustBe None
+    }
   }
   val context: ZLayer[Any, Throwable, DataStoreContext with Clock] =
     ZLogger.live ++ EventStore.value(new BasicEventStore(new InMemoryEventsConfig(500))) ++ AuthInfo.empty ++ Clock.live

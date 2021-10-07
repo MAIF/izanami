@@ -1,7 +1,7 @@
-import React, {Component} from "react";
+import React, {Component, PureComponent} from "react";
 import { Modal } from 'bootstrap';
 
-export class SweetModal extends Component {
+export class SweetModal extends PureComponent {
 
   state = {
     confirmToDelete: "",
@@ -21,8 +21,10 @@ export class SweetModal extends Component {
   toggleModal = (open = false) => {
     let myModal = new Modal(document.getElementById(`${this.props.id}`));
     if (open) {
+      console.log(`show ${this.props.id}`)
       myModal.show();
     } else {
+      console.log(`hide ${this.props.id}`)
       myModal.hide();
     }
   };
@@ -69,8 +71,7 @@ export class SweetModal extends Component {
           className="modal fade"
           tabIndex="-1"
           role="dialog"
-          id={this.props.id}
-        >
+          id={this.props.id}>
           <div className="modal-dialog" role="document">
             <div className="modal-content">
               <div className="modal-header">
@@ -83,8 +84,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
-                  data-bs-dismiss="modal"
-                >
+                  data-bs-dismiss="modal">
                   Ok
                 </button>
               </div>
@@ -100,8 +100,7 @@ export class SweetModal extends Component {
           className="modal fade"
           tabIndex="-1"
           role="dialog"
-          id={this.props.id}
-        >
+          id={this.props.id}>
           <div className="modal-dialog" role="document">
             <div className="modal-content">
               <div className="modal-header">
@@ -116,12 +115,10 @@ export class SweetModal extends Component {
                       this.state.errors.indexOf("confirmToDelete.error") !== -1
                         ? "row mb-3 has-error"
                         : "row mb-3"
-                    }
-                  >
+                    }>
                     <label
                       htmlFor="serviceName"
-                      className="col-xs-12 col-sm-2 col-form-label"
-                    >
+                      className="col-xs-12 col-sm-2 col-form-label">
                       {this.props.labelRemove || "App name to delete"}
                     </label>
                     <div className="col-sm-10 input-group">
@@ -143,8 +140,7 @@ export class SweetModal extends Component {
                   type="button"
                   className="btn btn-danger"
                   data-bs-dismiss="modal"
-                  onClick={this.onDismiss}
-                >
+                  onClick={this.onDismiss}>
                   Cancel
                 </button>
 
@@ -152,8 +148,7 @@ export class SweetModal extends Component {
                   type="button"
                   className="btn btn-success"
                   data-bs-dismiss="modal"
-                  onClick={this.confirm}
-                >
+                  onClick={this.confirm}>
                   {this.props.labelValid || "Confirm"}
                 </button>
               </div>
@@ -168,8 +163,7 @@ export class SweetModal extends Component {
         className="modal fade"
         tabIndex="-1"
         role="dialog"
-        id={this.props.id}
-      >
+        id={this.props.id}>
         <div className="modal-dialog" role="document">
           <div className="modal-content">
             <div className="modal-header">
@@ -181,8 +175,7 @@ export class SweetModal extends Component {
                 <button
                   type="button"
                   className="btn btn-success"
-                  data-bs-dismiss="modal"
-                >
+                  data-bs-dismiss="modal">
                   Ok
                 </button>
               </div>
