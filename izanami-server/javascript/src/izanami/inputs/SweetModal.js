@@ -21,10 +21,8 @@ export class SweetModal extends PureComponent {
   toggleModal = (open = false) => {
     let myModal = new Modal(document.getElementById(`${this.props.id}`));
     if (open) {
-      console.log(`show ${this.props.id}`)
       myModal.show();
     } else {
-      console.log(`hide ${this.props.id}`)
       myModal.hide();
     }
   };

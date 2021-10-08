@@ -9,7 +9,7 @@ export function addOrUpdateInTree(segments, value, tree) {
     return tree.map(n => {
       if (n.key === head) {
         if (rest.length === 0) {
-          return { ...n, value };
+          return {...n, value};
         }
         if (n.childs) {
           return {
@@ -31,17 +31,22 @@ export function addOrUpdateInTree(segments, value, tree) {
   }
 }
 
-function createTree(startKey, segments, value) {
-  const [head, ...rest] = segments || [];
-  const id = head ? `${startKey}:${head}` : startKey;
-  const key = head ? head : startKey;
-  if (rest.length > 0) {
-    return {
-      key: key,
-      childs: [createTree(id, rest, value)]
-    };
+function createTree(subId, segments, value) {
+  if(segments.length > 0) {
+    const childs = segments.map((k) => ({key: k}))
+      .reduceRight((acc, curr, index) => {
+      curr.childs = [].concat(acc)
+      let isLastItem = index === segments.length - 1;
+      if (isLastItem) {
+        curr.id = value.id
+        curr.value = value
+      }
+      return curr
+    }, []);
+
+    return {key: subId, childs: [childs]}
   } else {
-    return { key: key, value, id , childs: []};
+    return {key: subId, value, id: value.id, childs: []};
   }
 }
 
@@ -55,9 +60,9 @@ export function deleteInTree(segments, tree) {
     .filter(n => !(n.key === head && (!n.childs || n.childs.length === 0)))
     .map(n => {
       if (n.key === head && !next) {
-        return { key: n.key, childs: n.childs };
+        return {key: n.key, childs: n.childs};
       } else if (n.key === head && next && n.childs) {
-        return { ...n, childs: this.deleteInTree([next, ...rest], n.childs) };
+        return {...n, childs: this.deleteInTree([next, ...rest], n.childs)};
       } else {
         return n;
       }
