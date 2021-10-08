@@ -62,7 +62,7 @@ export function deleteInTree(segments, tree) {
       if (n.key === head && !next) {
         return {key: n.key, childs: n.childs};
       } else if (n.key === head && next && n.childs) {
-        return {...n, childs: this.deleteInTree([next, ...rest], n.childs)};
+        return {...n, childs: deleteInTree([next, ...rest], n.childs)};
       } else {
         return n;
       }
