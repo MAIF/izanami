@@ -300,7 +300,8 @@ case class Master(
     port: Int,
     poolSize: Int,
     password: Option[String] = None,
-    databaseId: Option[Int] = None
+    databaseId: Option[Int] = None,
+    tls: Boolean = false
 ) extends RedisConfig
 
 case class Sentinel(
@@ -310,7 +311,8 @@ case class Sentinel(
     masterId: String,
     password: Option[String],
     sentinels: Option[Seq[RedisOneSentinelConfig]] = None,
-    databaseId: Option[Int] = None
+    databaseId: Option[Int] = None,
+    tls: Boolean = false
 ) extends RedisConfig
 
 case class RedisOneSentinelConfig(host: String, port: Int)
