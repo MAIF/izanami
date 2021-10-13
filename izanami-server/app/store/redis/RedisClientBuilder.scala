@@ -20,17 +20,16 @@ object RedisClientBuilder {
     configuration
       .map {
 
-        case Master(host, port, poolSize, password, databaseId) =>
+        case Master(host, port, poolSize, password, databaseId, tls) =>
           Managed
             .make(Task {
               val builder = RedisURI
                 .builder()
                 .withHost(host)
                 .withPort(port)
-
-              val builderWithPassword =
-                password.fold(builder)(builder.withPassword)
-
+                .withSsl(tls)
+                
+              val builderWithPassword = password.fold(builder)(builder.withPassword)
               val builderWithDbId = databaseId.fold(builderWithPassword)(builderWithPassword.withDatabase)
 
               RedisClient.create(builderWithDbId.build())
@@ -39,11 +38,12 @@ object RedisClientBuilder {
             })
             .map(client => Some(RedisWrapper(client, poolSize)))
 
-        case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId) =>
+        case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId, tls) =>
           Managed
             .make(Task {
               val builder: RedisURI.Builder = RedisURI.Builder
                 .sentinel(host, port, masterId)
+                .withSsl(tls)
 
               val builderWithPassword = password.fold(builder)(builder.withPassword)
               val builderWithDbId     = databaseId.fold(builderWithPassword)(builderWithPassword.withDatabase)
