@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.9.1*
+1.10.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -125,7 +125,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.9.1*
+1.10.3*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -412,6 +412,30 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>izanami.db.redis.databaseId</code> </td>
       <td><code>REDIS_DATABASE_ID</code> </td>
       <td>the id of the redis database. </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.tls</code> </td>
+      <td><code>REDIS_TLS</code> </td>
+      <td>If TLS should be enabled for the Redis connection. </td>
+      <td>false </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.keyPass</code> </td>
+      <td><code>REDIS_KEYPASS</code> </td>
+      <td>The password for ssl certificate </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.keystore</code> </td>
+      <td><code>REDIS_KEYSTORE_LOCATION</code> </td>
+      <td>The absolute location of the keystore if ssl is used </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.redis.truststore</code> </td>
+      <td><code>REDIS_TRUSTSTORE_LOCATION</code> </td>
+      <td>The absolute location of the truststore,if ssl is used </td>
       <td> </td>
     </tr>
     <tr>
@@ -1191,7 +1215,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </table>
 <p>You can find more option about the <code>ssl-config</code> part on this link: <a href="https://lightbend.github.io/ssl-config/index.html">https://lightbend.github.io/ssl-config/index.html</a>.</p>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/maif/izanami/tree/master/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
 </div>
 
 <div class="nav-next">

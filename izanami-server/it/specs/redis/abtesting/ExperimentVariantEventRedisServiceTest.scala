@@ -1,11 +1,10 @@
 package specs.redis.abtesting
 
 import java.time.Duration
-
 import domains.abtesting.events.impl.ExperimentVariantEventRedisService
 import domains.abtesting.AbstractExperimentServiceTest
 import domains.abtesting.events.ExperimentVariantEventService
-import env.{DbDomainConfig, DbDomainConfigDetails, Master}
+import env.{DbDomainConfig, DbDomainConfigDetails, Location, Master}
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.redis.{RedisClientBuilder, RedisWrapper}
@@ -24,7 +23,7 @@ class ExperimentVariantEventRedisServiceTest
   val redisWrapper: Reservation[Any, Throwable, Option[RedisWrapper]] = runtime.unsafeRun(
     RedisClientBuilder
       .redisClient(
-        Some(Master("localhost", 6380, 5)),
+        Some(Master("localhost", 6380, 5, None, None, false, None, Location(None), Location(None))),
         system
       )
       .reserve

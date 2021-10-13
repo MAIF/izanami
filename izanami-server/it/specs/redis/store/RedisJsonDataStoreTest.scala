@@ -1,8 +1,7 @@
 package specs.redis.store
 
 import java.time.Duration
-
-import env.Master
+import env.{Location, Master}
 import org.scalactic.source.Position
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import store.AbstractJsonDataStoreTest
@@ -19,7 +18,7 @@ class RedisJsonDataStoreTest extends AbstractJsonDataStoreTest("Redis") with Bef
   val redisWrapper: Reservation[Any, Throwable, Option[RedisWrapper]] = runtime.unsafeRun(
     RedisClientBuilder
       .redisClient(
-        Some(Master("localhost", 6380, 5)),
+        Some(Master("localhost", 6380, 5, None, None, false, None, Location(None), Location(None))),
         system
       )
       .reserve

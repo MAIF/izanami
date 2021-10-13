@@ -1,14 +1,14 @@
 package store.redis
 
 import akka.actor.ActorSystem
-import env.{Master, RedisConfig, Sentinel}
+import env.{Location, Master, RedisConfig, Sentinel}
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
-import io.lettuce.core.{RedisClient, RedisURI}
-import play.api.inject.ApplicationLifecycle
+import io.lettuce.core.{ClientOptions, RedisClient, RedisURI, SslOptions}
 import zio.{Managed, Task, UIO}
 
-import scala.concurrent.{ExecutionContext, Future}
+import java.io.File
+import scala.concurrent.ExecutionContext
 
 object RedisClientBuilder {
 
@@ -19,8 +19,7 @@ object RedisClientBuilder {
 
     configuration
       .map {
-
-        case Master(host, port, poolSize, password, databaseId, tls) =>
+        case Master(host, port, poolSize, password, databaseId, tls, keyPass, keyStorePath, trustStorePath) =>
           Managed
             .make(Task {
               val builder = RedisURI
@@ -28,22 +27,21 @@ object RedisClientBuilder {
                 .withHost(host)
                 .withPort(port)
                 .withSsl(tls)
-                
+
               val builderWithPassword = password.fold(builder)(builder.withPassword)
               val builderWithDbId = databaseId.fold(builderWithPassword)(builderWithPassword.withDatabase)
 
-              RedisClient.create(builderWithDbId.build())
+              createClient(keyStorePath, trustStorePath, keyPass, builderWithDbId)
             })({ client =>
               UIO(client.shutdown())
             })
             .map(client => Some(RedisWrapper(client, poolSize)))
 
-        case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId, tls) =>
+        case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId) =>
           Managed
             .make(Task {
               val builder: RedisURI.Builder = RedisURI.Builder
                 .sentinel(host, port, masterId)
-                .withSsl(tls)
 
               val builderWithPassword = password.fold(builder)(builder.withPassword)
               val builderWithDbId     = databaseId.fold(builderWithPassword)(builderWithPassword.withDatabase)
@@ -58,6 +56,30 @@ object RedisClientBuilder {
       }
       .getOrElse(Managed.effectTotal(None))
   }
+
+  private def createClient(keyStorePath: Location, trustStorePath: Location, keyPass: Option[String], builder: RedisURI.Builder) = {
+    val client = RedisClient.create(builder.build())
+    for {
+      sslOptions <- getSslOptions(keyStorePath, trustStorePath, keyPass)
+    } yield {
+      val clientOptions = ClientOptions.builder.sslOptions(sslOptions).build()
+      client.setOptions(clientOptions)
+    }
+    client
+  }
+
+  private def getSslOptions(mayBeKeyStorePath: Location, mayBeTrustStorePath: Location, mayBeKeyPass: Option[String]) =
+    for {
+      trustStorePath <- mayBeTrustStorePath.location
+      keyStorePath <- mayBeKeyStorePath.location
+      keyPass <- mayBeKeyPass
+    } yield {
+      SslOptions.builder()
+        .jdkSslProvider()
+        .keystore(new File(keyStorePath), keyPass.toCharArray)
+        .truststore(new File(trustStorePath), keyPass)
+        .build();
+    }
 
 }
 
