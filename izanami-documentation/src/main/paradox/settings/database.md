@@ -87,7 +87,7 @@ Level DB store should be used for trial purpose and is not suited for production
 @@@
 
 ```bash
-bin/izanami -Dizanami.db.default=LevelDB -D-Dizanami.db.leveldb.parentPath=/datas
+bin/izanami -Dizanami.db.default=LevelDB -Dizanami.db.leveldb.parentPath=/datas
 ```
 
 Or
@@ -107,9 +107,9 @@ To run Izanami with redis :
 ```bash
 bin/izanami \ 
     -Dizanami.db.default=Redis \
-    -D-Dizanami.db.redis.host=localhost \
-    -D-Dizanami.db.redis.port=6379 \  
-    -D-Dizanami.db.redis.password=xxxx 
+    -Dizanami.db.redis.host=localhost \
+    -Dizanami.db.redis.port=6379 \  
+    -Dizanami.db.redis.password=xxxx 
 ```
 
 Or
@@ -129,7 +129,7 @@ bin/izanami
 bin/izanami \ 
     -Dizanami.db.default=Redis \
     -Dizanami.db.redis.type=sentinel \
-    -D-Dizanami.db.redis.host=localhost \    
+    -Dizanami.db.redis.host=localhost \    
     -Dizanami.db.redis.port=26379 \
     -Dizanami.db.redis.masterId=redismaster \
     -Dizanami.db.redis.sentinels.0.host=localhost \
@@ -166,10 +166,10 @@ To run Izanami with elasticsearch :
 ```bash
 bin/izanami \ 
     -Dizanami.db.default=Elastic \
-    -D-Dizanami.db.elastic.host=localhost \
-    -D-Dizanami.db.elastic.port=9200 \  
-    -D-Dizanami.db.elastic.user=xxxx \
-    -D-Dizanami.db.elastic.password=xxxx
+    -Dizanami.db.elastic.host=localhost \
+    -Dizanami.db.elastic.port=9200 \  
+    -Dizanami.db.elastic.user=xxxx \
+    -Dizanami.db.elastic.password=xxxx
 ```
 
 Or
@@ -406,9 +406,9 @@ This event store could be useful if you run multiple instance of izanami and alr
 ```bash
 bin/izanami \ 
     -Dizanami.events.store=Redis
-    -D-Dizanami.db.redis.host=localhost \
-    -D-Dizanami.db.redis.port=6379 \  
-    -D-Dizanami.db.redis.password=xxxx 
+    -Dizanami.db.redis.host=localhost \
+    -Dizanami.db.redis.port=6379 \  
+    -Dizanami.db.redis.password=xxxx 
 ```
 
 Or
@@ -432,8 +432,8 @@ The <a href="https://kafka.apache.org/" target="_blanck">Kafka</a> event store i
 ```bash
 bin/izanami \ 
     -Dizanami.events.store=Kafka
-    -D-Dizanami.db.kafka.host=localhost \
-    -D-Dizanami.db.kafka.port=9092 \      
+    -Dizanami.db.kafka.host=localhost \
+    -Dizanami.db.kafka.port=9092 \      
 ```
 
 Or
