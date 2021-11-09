@@ -46,5 +46,8 @@ scalacOptions ++= Seq(
   "-Yrangepos",
   "-deprecation"
 )
+
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
+
 //addCompilerPlugin(scalafixSemanticdb)
 scalafixDependencies in ThisBuild += "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.2"
