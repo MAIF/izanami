@@ -99,8 +99,8 @@ libraryDependencies ++= Seq(
   "org.scalatestplus.play"   %% "scalatestplus-play" % "4.0.3"  % "it,test", // Apache 2.0
   "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
   "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-api"           % "2.8.2"  % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-core"          % "2.8.2"  % "it,test"  // MIT license
+  "org.apache.logging.log4j" % "log4j-api"           % "2.15.0"  % "it,test", // MIT license
+  "org.apache.logging.log4j" % "log4j-core"          % "2.15.0"  % "it,test"  // MIT license
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
