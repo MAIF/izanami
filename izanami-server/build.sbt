@@ -100,8 +100,8 @@ libraryDependencies ++= Seq(
   "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
   "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
 //  "org.apache.logging.log4j" % "log4j-api"           % "2.16.0"  % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-api"           % "2.16.0",              // MIT license // Enforce 2.16 for the bundle
-  "org.apache.logging.log4j" % "log4j-core"          % "2.16.0"  % "it,test"  // MIT license
+  "org.apache.logging.log4j" % "log4j-api"           % "2.17.0",              // MIT license // Enforce 2.17 for the bundle
+  "org.apache.logging.log4j" % "log4j-core"          % "2.17.0"  % "it,test"  // MIT license
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
