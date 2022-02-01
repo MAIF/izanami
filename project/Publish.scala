@@ -1,9 +1,11 @@
 import xerial.sbt.Sonatype.autoImport.{sonatypeCredentialHost, sonatypeRepository}
 
 object Publish {
-  val organization = "fr.maif"
+  val organization                = "fr.maif"
+  val sonatypeRepositoryValue     = "https://s01.oss.sonatype.org/service/local"
+  val sonatypeCredentialHostValue = "s01.oss.sonatype.org"
   val settings = List(
-    sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
-    sonatypeCredentialHost := "s01.oss.sonatype.org"
+    sonatypeRepository := sonatypeRepositoryValue,
+    sonatypeCredentialHost := sonatypeCredentialHostValue
   )
 }
