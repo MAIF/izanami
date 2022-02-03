@@ -1,0 +1,34 @@
+name: Publish Izanami server jar into GitHub Packages
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  publish-job:
+    runs-on: ubuntu-latest
+    name: Publish
+    steps:
+      - name: Download Izanami Server
+        run: |
+          wget https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/izanami.jar
+      - name: Set release version (remove "v" of "vX.Y.Z")
+        run: |
+          export VERSION=$(echo ${{ github.event.release.tag_name }} | sed 's/v//')
+          echo "MAVEN_VERSION=$VERSION" >> $GITHUB_ENV
+      - uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+      - name: Publish to GitHub Packages
+        run: |
+          mvn org.apache.maven.plugins:maven-deploy-plugin:3.0.0-M2:deploy-file \
+               -DartifactId=izanami-server \
+               -DgroupId=fr.maif \
+               -Dversion=${{ env.MAVEN_VERSION }} \
+               -Dfile=./izanami.jar \
+               -Dtype=jar \
+               -Durl='https://maven.pkg.github.com/${{ github.repository }}' \
+               -DrepositoryId=github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
