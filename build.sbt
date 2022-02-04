@@ -7,8 +7,7 @@ scalaVersion := Dependencies.scalaVersion
 lazy val root = (project in file("."))
   .aggregate(
     `izanami-server`,
-    `izanami-clients`,
-    `publishUberJar`
+    `izanami-clients`
   )
   .enablePlugins(GitVersioning, GitBranchPrompt)
   .settings(skip in publish := true, scalaVersion := Dependencies.scalaVersion)
@@ -21,8 +20,6 @@ lazy val `izanami-server` = project
 lazy val `izanami-clients` = project
 
 lazy val `example` = project
-
-lazy val `publishUberJar` = project
 
 lazy val simulation = project
   .settings(skip in publish := true)
@@ -85,3 +82,5 @@ inThisBuild(
 )
 
 usePgpKeyHex("4CFAF84EA6075473D68FA7D9590BEB09DDA3F0B7")
+sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+sonatypeCredentialHost := "s01.oss.sonatype.org"

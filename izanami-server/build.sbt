@@ -96,12 +96,12 @@ libraryDependencies ++= Seq(
     "com.typesafe.play",
     "play-json"
   ), // Apache 2.0
-  "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.3"  % "it,test", // Apache 2.0
-  "com.github.kstyrc"      % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
-  "org.slf4j"              % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
-//  "org.apache.logging.log4j" % "log4j-api"           % "2.17.1"  % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-api"  % "2.17.1", // MIT license // Enforce 2.17 for the bundle
-  "org.apache.logging.log4j" % "log4j-core" % "2.17.1" % "it,test" // MIT license
+  "org.scalatestplus.play"   %% "scalatestplus-play" % "4.0.3"  % "it,test", // Apache 2.0
+  "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
+  "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
+//  "org.apache.logging.log4j" % "log4j-api"           % "2.16.0"  % "it,test", // MIT license
+  "org.apache.logging.log4j" % "log4j-api"           % "2.17.0",              // MIT license // Enforce 2.17 for the bundle
+  "org.apache.logging.log4j" % "log4j-core"          % "2.17.0"  % "it,test"  // MIT license
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
@@ -236,13 +236,3 @@ generateDoc := {
   IO.delete(targetDoc)
   IO.copyDirectory(swaggerFile, targetDoc)
 }
-
-lazy val publishUberJarSettings = List(
-    organization := Publish.organization,
-    name := "izanami-server",
-    Compile / packageBin := (`izanami-server` / assembly).value,
-    scalaVersion := Dependencies.scalaVersion
-  ) ++ Publish.settings
-
-lazy val `publishUberJar` = project
-  .settings(publishUberJarSettings)
