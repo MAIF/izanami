@@ -281,8 +281,7 @@ export class KeyInput extends Component {
                     return (
                       <span
                         className="keypicker-value ms-0"
-                        key={`value-${i}`}
-                      >
+                        key={`value-${i}`}>
                         <input
                           type="text"
                           ref={e => {
@@ -302,8 +301,7 @@ export class KeyInput extends Component {
                       <span
                         className="keypicker-value ms-2"
                         key={`value-${i}`}
-                        onDoubleClick={this.setEditedIndex(i, part)}
-                      >
+                        onDoubleClick={this.setEditedIndex(i, part)}>
                         { part==="*" &&  <span style={{ fontSize: "24px" }}>{part}</span>}
                         { part!=="*" &&  <span>{part}</span>}
                         <i className="fas fa-caret-right" />

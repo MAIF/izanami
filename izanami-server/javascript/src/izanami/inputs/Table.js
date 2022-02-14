@@ -56,6 +56,7 @@ export class Table extends Component {
     updateItem: PropTypes.func,
     deleteItem: PropTypes.func,
     createItem: PropTypes.func,
+    confirmUpdate: PropTypes.bool,
     navigateTo: PropTypes.func,
     showActions: PropTypes.bool.isRequired,
     showLink: PropTypes.bool.isRequired,
@@ -88,6 +89,7 @@ export class Table extends Component {
     pageSize: 20,
     firstSort: null,
     disableAddButton: false,
+    confirmUpdate: false,
     convertItem: e => e,
     compareItem: (a, b) => isEqual(a, b)
   };
@@ -110,6 +112,7 @@ export class Table extends Component {
     nbPages: 1,
     justUpdated: false,
     confirmDelete: false,
+    confirmUpdate: false,
     toDelete: null
   };
 
@@ -499,7 +502,7 @@ export class Table extends Component {
     if (e && e.preventDefault) e.preventDefault();
     this.props.parentProps.setTitle(this.props.defaultTitle);
 
-    this.setState({error: false, errorList: []});
+    this.setState({error: false, errorList: [], confirmUpdate: false});
 
     const currentItem = this.state.currentItem;
     const currentItemOriginal = this.state.currentItemOriginal;
@@ -956,7 +959,8 @@ export class Table extends Component {
               {this.isUpdateAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-success"
-                onClick={this.updateItem}><i className="fas fa-hdd"/> Update{" "}
+                onClick={e => this.props.confirmUpdate ? this.setState({confirmUpdate: true}) : this.updateItem(e)}>
+                <i className="fas fa-hdd"/> Update{" "}
                 {this.props.itemName}
               </button>}
               <SweetModal
@@ -967,6 +971,16 @@ export class Table extends Component {
                 onDismiss={__ => this.setState({confirmDelete: false})}
                 labelValid="Delete">
                 <div>Are you sure you want to delete that item ?</div>
+              </SweetModal>
+              <SweetModal
+                type="confirm"
+                confirm={e => this.updateItem(e, this.state.currentItem)}
+                id={"confirmUpdate"}
+                title={"Confirm this changes"}
+                open={this.state.confirmUpdate}
+                onDismiss={__ => this.setState({confirmUpdate: false})}
+                labelValid="Update">
+                {this.props.summarizeUpdate(this.state.currentItem, this.state.currentItemOriginal)}
               </SweetModal>
             </div>
           </div>
