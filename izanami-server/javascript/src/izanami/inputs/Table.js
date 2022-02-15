@@ -980,7 +980,7 @@ export class Table extends Component {
                 open={this.state.confirmUpdate}
                 onDismiss={__ => this.setState({confirmUpdate: false})}
                 labelValid="Update">
-                {this.props.summarizeUpdate(this.state.currentItem, this.state.currentItemOriginal)}
+                {this.props.summarizeUpdate && this.props.summarizeUpdate(this.state.currentItem, this.state.currentItemOriginal)}
               </SweetModal>
             </div>
           </div>
