@@ -35,7 +35,7 @@ const commons = {
     },
     devServer: {
         port: process.env.DEV_SERVER_PORT || 3334,
-        firewall: !isDev
+        // allowedHosts: !isDev
     },
     module: {
         rules: [
@@ -46,16 +46,16 @@ const commons = {
             },
             {
                 test: /\.scss$/,
-                use: [ "style-loader", "css-loader?url=false", "sass-loader" ]
+                use: [ "style-loader", {loader: "css-loader", options: {url: false}}, "sass-loader" ]
             },
             {
                 test: /\.css$/,
                 exclude: /\.useable\.css$/,
-                use: [ "style-loader", "css-loader?url=false" ],
+                use: [ "style-loader", {loader: "css-loader", options: {url: false}} ],
             },
             {
                 test: /\.useable\.css$/,
-                use: [ "style-loader/useable", "css-loader?url=false" ],
+                use: [ "style-loader/useable", {loader: "css-loader", options: {url: false}} ],
             }
         ]
     },
