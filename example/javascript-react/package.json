@@ -61,7 +61,7 @@
     "react-router": "5.2.0",
     "react-router-dom": "5.2.0",
     "react-select": "3.1.0",
-    "showdown": "1.9.1",
+    "showdown": "2.0.0",
     "whatwg-fetch": "2.0.3"
   }
 }
