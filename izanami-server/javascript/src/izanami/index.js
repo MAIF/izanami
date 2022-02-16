@@ -1,12 +1,5 @@
-import React, { Component } from "react";
-import {
-  Router,
-  Link,
-  Redirect,
-  Route,
-  Switch,
-  withRouter,
-} from "react-router-dom";
+import React, {Component} from "react";
+import {Link, Navigate, Route, BrowserRouter as Router, Routes, useLocation, useParams,} from "react-router-dom";
 import {
   ApikeyPage,
   ConfigExplorerPage,
@@ -23,15 +16,16 @@ import {
   UserPage,
   WebHooksPage,
 } from "./pages";
-import { SweetModal } from "./inputs/SweetModal";
+import {SweetModal} from "./inputs/SweetModal";
 import queryString from "query-string";
 import isEmpty from "lodash/isEmpty";
 import "../styles/main.scss";
-import { MultiSearch } from "./inputs";
-import { DynamicTitle } from "./components/DynamicTitle";
-import { IzanamiEvents } from "./services/events";
+import {MultiSearch} from "./inputs";
+import {DynamicTitle} from "./components/DynamicTitle";
+import {IzanamiEvents} from "./services/events";
 import * as IzanamiServices from "./services";
 import Cookies from "js-cookie";
+
 const pictos = {
   configurations: "fas fa-wrench",
   features: "fas fa-toggle-on",
@@ -40,34 +34,37 @@ const pictos = {
   webhooks: "fas fa-plug",
 };
 
+
+function Decorate(props) {
+  //console.log(props)
+  const { component: Component } = props;
+  const newProps = {...props};
+  const query =
+    queryString.parse((props.location || {search: ""}).search) || {};
+  newProps.location.query = query;
+  newProps.params = newProps.params || {};
+  return (
+    <Component
+      setTitle={(t) => DynamicTitle.setContent(t)}
+      getTitle={() => DynamicTitle.getContent()}
+      user={props.user}
+      userManagementMode={props.userManagementMode}
+      confirmationDialog={props.confirmationDialog}
+      setSidebarContent={(c) => DynamicSidebar.setContent(c)}
+      {...newProps}
+    />
+  );
+};
+
 export class LoggedApp extends Component {
   state = {
     version: "",
   };
 
-  decorate = (Component, props) => {
-    const newProps = { ...props };
-    const query =
-      queryString.parse((props.location || { search: "" }).search) || {};
-    newProps.location.query = query;
-    newProps.params = newProps.match.params || {};
-    return (
-      <Component
-        setTitle={(t) => DynamicTitle.setContent(t)}
-        getTitle={() => DynamicTitle.getContent()}
-        user={this.props.user}
-        userManagementMode={this.props.userManagementMode}
-        confirmationDialog={this.props.confirmationDialog}
-        setSidebarContent={(c) => DynamicSidebar.setContent(c)}
-        {...newProps}
-      />
-    );
-  };
-
   componentDidMount() {
     IzanamiEvents.start();
     IzanamiServices.appInfo().then((appInfo) => {
-      this.setState({ version: appInfo.version });
+      this.setState({version: appInfo.version});
     });
     this.props.history.listen(() => {
       document.getElementById("navbarSupportedContent").classList.remove("show");
@@ -78,8 +75,8 @@ export class LoggedApp extends Component {
     IzanamiEvents.stop();
   }
 
-  searchServicesOptions = ({ query, filters }) => {
-    return IzanamiServices.search({ query, filters }).then((results) => {
+  searchServicesOptions = ({query, filters}) => {
+    return IzanamiServices.search({query, filters}).then((results) => {
       return results.map((v) => ({
         label: `${v.id}`,
         type: v.type,
@@ -90,8 +87,8 @@ export class LoggedApp extends Component {
 
   lineRenderer = (option) => {
     return (
-      <label style={{ cursor: "pointer" }} className="justify-content-start">
-        <i className={`me-2 ${pictos[option.type]}`} /> {option.label}
+      <label style={{cursor: "pointer"}} className="justify-content-start">
+        <i className={`me-2 ${pictos[option.type]}`}/> {option.label}
       </label>
     );
   };
@@ -130,109 +127,107 @@ export class LoggedApp extends Component {
       <div className="container-fluid">
         <nav className="navbar navbar-expand-lg fixed-top p-0">
           {/* <div className="container-fluid"> */}
-            <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
-              <a className="navbar-brand" href="/">
-                <div className="d-flex flex-column justify-content-center align-items-center">
-                  <span>イザナミ</span> Izanami
-                </div>
-              </a>
-              <button
-              className="navbar-toggler menu" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"
-              >
-                <span className="sr-only">Toggle sidebar</span>
-                <span>Menu</span>
-              </button>
-            </div>
+          <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
+            <a className="navbar-brand" href="/">
+              <div className="d-flex flex-column justify-content-center align-items-center">
+                <span>イザナミ</span> Izanami
+              </div>
+            </a>
+            <button
+              className="navbar-toggler menu" type="button" data-bs-toggle="collapse"
+              data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+              aria-label="Toggle navigation"
+            >
+              <span className="sr-only">Toggle sidebar</span>
+              <span>Menu</span>
+            </button>
+          </div>
 
-            <form className="ms-4 p-2 p-lg-0">
-              {selected && (
-                <div className="mb-3 mr-2 d-inline">
+          <form className="ms-4 p-2 p-lg-0">
+            {selected && (
+              <div className="mb-3 mr-2 d-inline">
                   <span
                     title="Current line"
                     className="label label-success"
-                    style={{ fontSize: 20, cursor: "pointer" }}
+                    style={{fontSize: 20, cursor: "pointer"}}
                   >
                     {selected}
                   </span>
-                </div>
-              )}
-              <div>
-                <MultiSearch
-                  filters={[
-                    { name: "features", label: "Features", active: true },
-                    { name: "configs", label: "Configurations", active: true },
-                    { name: "experiments", label: "Experiments", active: true },
-                    { name: "scripts", label: "Scripts", active: true },
-                  ]}
-                  query={this.searchServicesOptions}
-                  lineRenderer={this.lineRenderer}
-                  onElementSelected={this.gotoService}
-                />
               </div>
-            </form>
-            <ul key="admin-menu" className="navbar-nav ms-auto">
-              <li className="nav-item dropdown userManagement me-2">
-                <a
-                  className="nav-link"
-                  href="#"
-                  id="navbarDarkDropdownMenuLink"
-                  data-toggle="dropdown"
-                  role="button"
-                  aria-expanded="false"
-                  data-bs-toggle="dropdown"
-                >
-                  <i className="fas fa-cog" aria-hidden="true" />
-                </a>
-                <ul
-                  className="dropdown-menu dropdown-menu-right"
-                  aria-labelledby="navbarDarkDropdownMenuLink"
-                >
-                  {userManagementEnabled && (
-                    <li key="li-users" className="dropdown-item">
-                      <Link
-                        to="/users"
-                        className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        <i className="fas fa-user me-2" /> Users management
-                      </Link>
-                    </li>
-                  )}
-                  {apikeyManagementEnabled && (
-                    <li key="li-apikeys" className="dropdown-item">
-                      <Link
-                        to="/apikeys"
-                        className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        <i className="fas fa-key me-2" /> Api Keys management
-                      </Link>
-                    </li>
-                  )}
-                  <li className="dropdown-item">
-                    <a href={this.props.logout} className="link-logout">
-                      <i className="fas fa-power-off me-2" />{" "}
-                      {this.props.user ? this.props.user.email : ""}
-                    </a>
+            )}
+            <div>
+              <MultiSearch
+                filters={[
+                  {name: "features", label: "Features", active: true},
+                  {name: "configs", label: "Configurations", active: true},
+                  {name: "experiments", label: "Experiments", active: true},
+                  {name: "scripts", label: "Scripts", active: true},
+                ]}
+                query={this.searchServicesOptions}
+                lineRenderer={this.lineRenderer}
+                onElementSelected={this.gotoService}
+              />
+            </div>
+          </form>
+          <ul key="admin-menu" className="navbar-nav ms-auto">
+            <li className="nav-item dropdown userManagement me-2">
+              <a
+                className="nav-link"
+                href="#"
+                id="navbarDarkDropdownMenuLink"
+                data-toggle="dropdown"
+                role="button"
+                aria-expanded="false"
+                data-bs-toggle="dropdown">
+                <i className="fas fa-cog" aria-hidden="true"/>
+              </a>
+              <ul
+                className="dropdown-menu dropdown-menu-right"
+                aria-labelledby="navbarDarkDropdownMenuLink">
+                {userManagementEnabled && (
+                  <li key="li-users" className="dropdown-item">
+                    <Link
+                      to="/users"
+                      className=""
+                      style={{cursor: "pointer"}}>
+                      <i className="fas fa-user me-2"/> Users management
+                    </Link>
                   </li>
-                  <li>
-                    <div className="dropdown-divider" />
+                )}
+                {apikeyManagementEnabled && (
+                  <li key="li-apikeys" className="dropdown-item">
+                    <Link
+                      to="/apikeys"
+                      className=""
+                      style={{cursor: "pointer"}}>
+                      <i className="fas fa-key me-2"/> Api Keys management
+                    </Link>
                   </li>
-                  <li className="dropdown-item">
-                    <a href="#">
-                      <img
-                        src={`${
-                          window.__contextPath
-                        }/assets/images/izanami-inverse.png`}
-                        width="16"
-                        className="me-2"
-                      />{" "}
-                      version {this.state.version}
-                    </a>
-                  </li>
-                </ul>
-              </li>
-            </ul>
+                )}
+                <li className="dropdown-item">
+                  <a href={this.props.logout} className="link-logout">
+                    <i className="fas fa-power-off me-2"/>{" "}
+                    {this.props.user ? this.props.user.email : ""}
+                  </a>
+                </li>
+                <li>
+                  <div className="dropdown-divider"/>
+                </li>
+                <li className="dropdown-item">
+                  <a href="#">
+                    <img
+                      src={`${
+                        window.__contextPath
+                      }/assets/images/izanami-inverse.png`}
+                      width="16"
+                      className="me-2"
+                    />{" "}
+                    version {this.state.version}
+                  </a>
+                </li>
+              </ul>
+            </li>
+          </ul>
           {/* </div> */}
         </nav>
 
@@ -245,13 +240,13 @@ export class LoggedApp extends Component {
                     <li className={className("/")}>
                       <h3>
                         <Link to="/">
-                          <i className="fas fa-tachometer-alt" /> Home
+                          <i className="fas fa-tachometer-alt"/> Home
                         </Link>
                       </h3>
                     </li>
                     <li className={className("/features")}>
-                      <Link to="/features" style={{ cursor: "pointer" }}>
-                        <i className="fas fa-toggle-on" />
+                      <Link to="/features" style={{cursor: "pointer"}}>
+                        <i className="fas fa-toggle-on"/>
                         Features
                       </Link>
                     </li>
@@ -259,9 +254,8 @@ export class LoggedApp extends Component {
                       <Link
                         to="/configurations"
                         className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        <i className="fas fa-wrench" />
+                        style={{cursor: "pointer"}}>
+                        <i className="fas fa-wrench"/>
                         Configurations
                       </Link>
                     </li>
@@ -269,9 +263,8 @@ export class LoggedApp extends Component {
                       <Link
                         to="/experiments"
                         className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        <i className="fas fa-flask" />
+                        style={{cursor: "pointer"}}>
+                        <i className="fas fa-flask"/>
                         Experiments
                       </Link>
                     </li>
@@ -279,9 +272,8 @@ export class LoggedApp extends Component {
                       <Link
                         to="/scripts"
                         className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        <i className="far fa-file-alt" />
+                        style={{cursor: "pointer"}}>
+                        <i className="far fa-file-alt"/>
                         Global Scripts
                       </Link>
                     </li>
@@ -289,25 +281,23 @@ export class LoggedApp extends Component {
                       <Link
                         to="/webhooks"
                         className=""
-                        style={{ cursor: "pointer" }}
-                      >
-                        <i className="fas fa-plug" />
+                        style={{cursor: "pointer"}}>
+                        <i className="fas fa-plug"/>
                         WebHooks
                       </Link>
                     </li>
                   </ul>
                   <ul className="nav nav-sidebar  flex-column">
                     <li className={className("/")}>
-                      <h3 style={{ marginTop: 0 }}>
-                        <i className="fas fa-tachometer-alt" /> Explore
+                      <h3 style={{marginTop: 0}}>
+                        <i className="fas fa-tachometer-alt"/> Explore
                       </h3>
                     </li>
                     <li className={className("/explorer/features")}>
                       <Link
                         to="/explorer/features"
                         className=""
-                        style={{ cursor: "pointer" }}
-                      >
+                        style={{cursor: "pointer"}}>
                         Features Explorer
                       </Link>
                     </li>
@@ -315,8 +305,7 @@ export class LoggedApp extends Component {
                       <Link
                         to="/explorer/configs"
                         className=""
-                        style={{ cursor: "pointer" }}
-                      >
+                        style={{cursor: "pointer"}}>
                         Configurations Explorer
                       </Link>
                     </li>
@@ -324,8 +313,7 @@ export class LoggedApp extends Component {
                       <Link
                         to="/explorer/experiments"
                         className=""
-                        style={{ cursor: "pointer" }}
-                      >
+                        style={{cursor: "pointer"}}>
                         Experiments Explorer
                       </Link>
                     </li>
@@ -336,182 +324,208 @@ export class LoggedApp extends Component {
             <div className="col-lg-10 offset-lg-2 main">
               <div className="row">
                 <div className="col-12 izanami-container">
-                  <DynamicTitle />
+                  <DynamicTitle/>
                   <div className="row">
-                    <Switch>
+                    <Routes>
                       <Route
                         exact
                         path="/"
-                        component={(props) => this.decorate(HomePage, props)}
+                        element={<Decorate component={HomePage} {...this.props}/>}
                       />
 
                       <Route
                         path="/features/:taction/:titem"
-                        component={(props) =>
-                          this.decorate(FeaturesPage, props)
-                        }
+                        element={<Decorate component={FeaturesPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(FeaturesPage, props)
+                        // }
                       />
                       <Route
                         path="/features/:taction"
-                        component={(props) =>
-                          this.decorate(FeaturesPage, props)
-                        }
+                        element={<Decorate component={FeaturesPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(FeaturesPage, props)
+                        // }
                       />
                       <Route
                         path="/features"
-                        component={(props) =>
-                          this.decorate(FeaturesPage, props)
-                        }
+                        element={<Decorate component={FeaturesPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(FeaturesPage, props)
+                        // }
                       />
 
                       <Route
                         path="/configurations/:taction/:titem"
+                        element={<Decorate component={ConfigurationsPage} {...this.props}/>}
                         component={(props) =>
                           this.decorate(ConfigurationsPage, props)
                         }
                       />
                       <Route
                         path="/configurations/:taction"
-                        component={(props) =>
-                          this.decorate(ConfigurationsPage, props)
-                        }
+                        element={<Decorate component={ConfigurationsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(ConfigurationsPage, props)
+                        // }
                       />
                       <Route
                         path="/configurations"
-                        component={(props) =>
-                          this.decorate(ConfigurationsPage, props)
-                        }
+                        element={<Decorate component={ConfigurationsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(ConfigurationsPage, props)
+                        //}
                       />
 
                       <Route
                         path="/webhooks/:taction/:titem"
-                        component={(props) =>
-                          this.decorate(WebHooksPage, props)
-                        }
+                        element={<Decorate component={WebHooksPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(WebHooksPage, props)
+                        // }
                       />
                       <Route
                         path="/webhooks/:taction"
-                        component={(props) =>
-                          this.decorate(WebHooksPage, props)
-                        }
+                        element={<Decorate component={WebHooksPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(WebHooksPage, props)
+                        // }
                       />
                       <Route
                         path="/webhooks"
-                        component={(props) =>
-                          this.decorate(WebHooksPage, props)
-                        }
+                        element={<Decorate component={WebHooksPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(WebHooksPage, props)
+                        // }
                       />
 
                       <Route
                         path="/scripts/:taction/:titem"
-                        component={(props) =>
-                          this.decorate(GlobalScriptsPage, props)
-                        }
+                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(GlobalScriptsPage, props)
+                        // }
                       />
                       <Route
                         path="/scripts/:taction"
-                        component={(props) =>
-                          this.decorate(GlobalScriptsPage, props)
-                        }
+                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(GlobalScriptsPage, props)
+                        // }
                       />
                       <Route
                         path="/scripts"
-                        component={(props) =>
-                          this.decorate(GlobalScriptsPage, props)
-                        }
+                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(GlobalScriptsPage, props)
+                        // }
                       />
 
                       <Route
                         path="/experiments/:taction/:titem"
-                        component={(props) =>
-                          this.decorate(ExperimentsPage, props)
-                        }
+                        element={<Decorate component={ExperimentsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(ExperimentsPage, props)
+                        // }
                       />
                       <Route
                         path="/experiments/:taction"
-                        component={(props) =>
-                          this.decorate(ExperimentsPage, props)
-                        }
+                        element={<Decorate component={ExperimentsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(ExperimentsPage, props)
+                        // }
                       />
                       <Route
                         path="/experiments"
-                        component={(props) =>
-                          this.decorate(ExperimentsPage, props)
-                        }
+                        element={<Decorate component={ExperimentsPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(ExperimentsPage, props)
+                        // }
                       />
                       <Route
                         path="/loggers"
-                        component={(props) => this.decorate(LoggersPage, props)}
+                        element={<Decorate component={LoggersPage} {...this.props}/>}
+                        // component={(props) => this.decorate(LoggersPage, props)}
                       />
 
                       {userManagementEnabled && (
                         <Route
                           path="/users/:taction/:titem"
-                          component={(props) => this.decorate(UserPage, props)}
+                          element={<Decorate component={UserPage} {...this.props}/>}
+                          // component={(props) => this.decorate(UserPage, props)}
                         />
                       )}
                       {userManagementEnabled && (
                         <Route
                           path="/users/:taction"
-                          component={(props) => this.decorate(UserPage, props)}
+                          element={<Decorate component={UserPage} {...this.props}/>}
+                          // component={(props) => this.decorate(UserPage, props)}
                         />
                       )}
                       {userManagementEnabled && (
                         <Route
                           path="/users"
-                          component={(props) => this.decorate(UserPage, props)}
+                          element={<Decorate component={UserPage} {...this.props}/>}
+                          // component={(props) => this.decorate(UserPage, props)}
                         />
                       )}
 
                       {apikeyManagementEnabled && (
                         <Route
                           path="/apikeys/:taction/:titem"
-                          component={(props) =>
-                            this.decorate(ApikeyPage, props)
-                          }
+                          element={<Decorate component={ApikeyPage} {...this.props}/>}
+                          // component={(props) =>
+                          //   this.decorate(ApikeyPage, props)
+                          // }
                         />
                       )}
                       {apikeyManagementEnabled && (
                         <Route
                           path="/apikeys/:taction"
-                          component={(props) =>
-                            this.decorate(ApikeyPage, props)
-                          }
+                          element={<Decorate component={ApikeyPage} {...this.props}/>}
+                          // component={(props) =>
+                          //   this.decorate(ApikeyPage, props)
+                          // }
                         />
                       )}
                       {apikeyManagementEnabled && (
                         <Route
                           path="/apikeys"
-                          component={(props) =>
-                            this.decorate(ApikeyPage, props)
-                          }
+                          element={<Decorate component={ApikeyPage} {...this.props}/>}
+                          // component={(props) =>
+                          //   this.decorate(ApikeyPage, props)
+                          // }
                         />
                       )}
 
                       <Route
                         path="/explorer/configs"
-                        component={(props) =>
-                          this.decorate(ConfigExplorerPage, props)
-                        }
+                        element={<Decorate component={ConfigExplorerPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(ConfigExplorerPage, props)
+                        // }
                       />
                       <Route
                         path="/explorer/features"
-                        component={(props) =>
-                          this.decorate(FeaturesExplorerPage, props)
-                        }
+                        element={<Decorate component={FeaturesExplorerPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(FeaturesExplorerPage, props)
+                        // }
                       />
                       <Route
                         path="/explorer/experiments"
-                        component={(props) =>
-                          this.decorate(ExperimentsExplorerPage, props)
-                        }
+                        element={<Decorate component={ExperimentsExplorerPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(ExperimentsExplorerPage, props)
+                        // }
                       />
                       <Route
-                        component={(props) =>
-                          this.decorate(NotFoundPage, props)
-                        }
+                        element={<Decorate component={NotFoundPage} {...this.props}/>}
+                        // component={(props) =>
+                        //   this.decorate(NotFoundPage, props)
+                        // }
                       />
-                    </Switch>
+                    </Routes>
                     {changeme && (
                       <SweetModal
                         type="confirm"
@@ -519,12 +533,11 @@ export class LoggedApp extends Component {
                         confirm={e => this.gotoCreateUser()}
                         open={true}
                         labelValid="Create a user"
-                        title="Create a user"
-                        >
-                          <div>
-                            <p>You're using a temporary user, please create a dedicated one here</p>
-                          </div>
-                        </SweetModal>
+                        title="Create a user">
+                        <div>
+                          <p>You're using a temporary user, please create a dedicated one here</p>
+                        </div>
+                      </SweetModal>
                     )
                     }
                   </div>
@@ -540,55 +553,48 @@ export class LoggedApp extends Component {
 
 export class IzanamiApp extends Component {
   render() {
+    // console.log(this.props)
     return (
-      <Switch>
-        <Route key="route-login" path="/login" component={LoginPage} />,
-        <PrivateRoute
-          key="private-route"
-          path="/"
-          component={LoggedApp}
-          {...this.props}
-        />
-      </Switch>
+      <Routes>
+        <Route key="route-login" path="/login" element={<LoginPage />}/>,
+        <Route key="private-route" path="*" element={<PrivateRoute component={LoggedApp} {...this.props}/>}/>
+      </Routes>
     );
   }
 }
 
-const PrivateRoute = ({ component: Component, ...rest }) => {
-  return (
-    <Route
-      {...rest}
-      render={(props) => {
-        //User is passed from the LoginPage or send by the app in the page.
-        const user =
-          rest.user && !isEmpty(rest.user)
-            ? rest.user
-            : props.location.user || {};
-        return user.email ? (
-          <Component {...rest} {...props} user={user} />
-        ) : (
-          <Redirect
-            to={{
-              pathname: `${window.__contextPath}/login`,
-              state: { from: props.location },
-            }}
-          />
-        );
-      }}
-    />
-  );
+const PrivateRoute = ({component: Component, ...rest}) => {
+  //User is passed from the LoginPage or send by the app in the page.
+  const user =
+    rest.user && !isEmpty(rest.user)
+      ? rest.user
+      : rest.location.user || {};
+  return user.email ? (
+    <Component {...rest} user={user}/>
+  ) : (
+    <Navigate to={`${window.__contextPath}/login`} replace/>
+  )
 };
 
 const IzanamiAppRouter = withRouter(IzanamiApp);
 
-export function buildRoutedApp(browserHistory) {
-  return class RoutedIzanamiApp extends Component {
-    render() {
-      return (
-        <Router history={browserHistory}>
-          <IzanamiAppRouter {...this.props} />
-        </Router>
-      );
-    }
-  };
+function withRouter(Component) {
+  function ComponentWithRouterProp(props) {
+    const location = useLocation();
+    const params = useParams();
+    return (
+      <Component location={location} params={params} {...props}/>
+    );
+  }
+
+  return ComponentWithRouterProp;
+}
+
+export function RoutedIzanamiApp(props) {
+  const { history } = props;
+  return (
+    <Router navigator={history} location={history.location}>
+      <IzanamiAppRouter {...props} />
+     </Router>
+  );
 }
