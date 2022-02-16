@@ -11,18 +11,22 @@ export default class TvShow extends React.Component {
   };
 
   componentDidMount() {
-    this.initShow(this.props);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    this.initShow(nextProps);
-  }
-
-  initShow = props => {
-    const { match: { params: name}, user: {shows = []} } = props;
-    const id = name.id;
-    const show = shows.find(show => show.id === id) || {};
+    const show = TvShow.generateShow(this.props);
     this.setState({show});
+  }
+
+  static getDerivedStateFromProps(props, state) {
+    const show = TvShow.generateShow(props);
+    if(JSON.stringify(show) !== JSON.stringify(state.show)) {
+      return {show}
+    }
+    return null
+  }
+
+  static generateShow = props => {
+    const { params: { id }, user: {shows = []} } = props;
+    return shows.find(show => show.id === id) || {};
+
   };
 
   markEpisodeWatched = (id, bool) => e => {

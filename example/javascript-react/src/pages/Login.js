@@ -1,7 +1,7 @@
 import * as Service from "../services";
 import React from "react";
 import {Api as IzanamiApi} from 'react-izanami';
-import { Redirect } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 
 export default class Login extends React.Component {
 
@@ -32,10 +32,7 @@ export default class Login extends React.Component {
   render() {
     if (this.state.ok) {
       return (
-        <Redirect to={{
-          pathname: '/',
-          state: {from: this.props.location}
-        }}/>
+        <Navigate to="/"/>
       )
     } else {
       return (
