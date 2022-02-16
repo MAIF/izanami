@@ -43,6 +43,7 @@ export class HomePage extends Component {
     if (this.timeout) {
       clearTimeout(this.timeout)
       this.timeout = null
+      console.log("")
     }
   }
 
@@ -65,8 +66,7 @@ export class HomePage extends Component {
       <div className="col-md-12">
         <div className="row">
           <div
-            className="d-flex align-items-center justify-content-center"
-          >
+            className="d-flex align-items-center justify-content-center">
             <img
               className="logo_izanami_dashboard"
               src={`${window.__contextPath}/assets/images/izanami.png`}
@@ -75,8 +75,7 @@ export class HomePage extends Component {
         </div>
         <div style={{marginTop: 80}}>
           <div
-            className="d-flex align-items-center justify-content-center mt-3"
-          >
+            className="d-flex align-items-center justify-content-center mt-3">
             <Metric
               value={this.state.configsCount}
               legend="Registered Configurations"
@@ -89,8 +88,7 @@ export class HomePage extends Component {
             />
           </div>
           <div
-            className="d-flex align-items-center justify-content-center mt-3"
-          >
+            className="d-flex align-items-center justify-content-center mt-3">
             <Metric
               value={this.state.experimentsCount}
               legend="Registered Experiments"
