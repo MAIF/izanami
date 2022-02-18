@@ -65,6 +65,7 @@ export class LoggersPage extends Component {
         extractKey={item => item.name}
         pageSize={40}
         search="otoroshi-"
+        navigate={this.props.navigate}
       />
     );
   }

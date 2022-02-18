@@ -163,6 +163,7 @@ export class UserPage extends Component {
               return isEqual(rest1, rest2);
             }}
             extractKey={item => item.id}
+            navigate={this.props.navigate}
           />
         </div>
       </div>
