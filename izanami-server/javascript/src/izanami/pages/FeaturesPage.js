@@ -521,8 +521,7 @@ export class FeaturesPage extends Component {
       <div
         key={`content-strategy-${value.id}`}
         className="content-value-items"
-        style={{width: 300}}
-      >
+        style={{width: 300}}>
         <div>{this.renderStrategy(value)}</div>
       </div>,
       <div
@@ -598,6 +597,7 @@ export class FeaturesPage extends Component {
             extractKey={item => item.id}
             lockable={true}
             lockType={"feature"}
+            navigate={this.props.navigate}
           />
         </div>
       </div>

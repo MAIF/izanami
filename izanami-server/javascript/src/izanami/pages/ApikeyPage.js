@@ -134,6 +134,7 @@ export class ApikeyPage extends Component {
               updated: "APIKEY_UPDATED",
               deleted: "APIKEY_DELETED"
             }}
+            navigate={this.props.navigate}
           />
         </div>
       </div>

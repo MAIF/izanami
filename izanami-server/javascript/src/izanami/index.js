@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {Link, Navigate, Route, BrowserRouter as Router, Routes, useLocation, useParams,} from "react-router-dom";
+import {Link, Navigate, Route, BrowserRouter as Router, Routes, useLocation, useParams,useNavigate} from "react-router-dom";
 import {
   ApikeyPage,
   ConfigExplorerPage,
@@ -36,13 +36,14 @@ const pictos = {
 
 
 function Decorate(props) {
-  //console.log(props)
   const { component: Component } = props;
-  const newProps = {...props};
+  const params = useParams() || {};
+  const location = useLocation();
+  const navigate = useNavigate();
+  const newProps = {...props, location, navigate, params};
   const query =
-    queryString.parse((props.location || {search: ""}).search) || {};
+    queryString.parse((location || {search: ""}).search) || {};
   newProps.location.query = query;
-  newProps.params = newProps.params || {};
   return (
     <Component
       setTitle={(t) => DynamicTitle.setContent(t)}
@@ -149,8 +150,7 @@ export class LoggedApp extends Component {
                   <span
                     title="Current line"
                     className="label label-success"
-                    style={{fontSize: 20, cursor: "pointer"}}
-                  >
+                    style={{fontSize: 20, cursor: "pointer"}}>
                     {selected}
                   </span>
               </div>
@@ -551,18 +551,6 @@ export class LoggedApp extends Component {
   }
 }
 
-export class IzanamiApp extends Component {
-  render() {
-    // console.log(this.props)
-    return (
-      <Routes>
-        <Route key="route-login" path="/login" element={<LoginPage />}/>,
-        <Route key="private-route" path="*" element={<PrivateRoute component={LoggedApp} {...this.props}/>}/>
-      </Routes>
-    );
-  }
-}
-
 const PrivateRoute = ({component: Component, ...rest}) => {
   //User is passed from the LoginPage or send by the app in the page.
   const user =
@@ -576,25 +564,14 @@ const PrivateRoute = ({component: Component, ...rest}) => {
   )
 };
 
-const IzanamiAppRouter = withRouter(IzanamiApp);
-
-function withRouter(Component) {
-  function ComponentWithRouterProp(props) {
-    const location = useLocation();
-    const params = useParams();
-    return (
-      <Component location={location} params={params} {...props}/>
-    );
-  }
-
-  return ComponentWithRouterProp;
-}
-
 export function RoutedIzanamiApp(props) {
   const { history } = props;
   return (
-    <Router navigator={history} location={history.location}>
-      <IzanamiAppRouter {...props} />
+    <Router>
+      <Routes>
+        <Route key="route-login" path="/login" element={<LoginPage />} />,
+        <Route key="private-route" path="*" element={<PrivateRoute component={LoggedApp} location={history.location} {...props}/>}/>
+      </Routes>
      </Router>
   );
 }

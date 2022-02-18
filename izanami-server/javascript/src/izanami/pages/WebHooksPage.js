@@ -165,6 +165,7 @@ export class WebHooksPage extends Component {
               deleted: "WEBHOOK_DELETED"
             }}
             extractKey={item => (item ? item.clientId : null)}
+            navigate={this.props.navigate}
           />
         </div>
       </div>
