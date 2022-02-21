@@ -41,11 +41,10 @@ const pictos = {
 function Decorate(props) {
   const { component: Component } = props;
   const params = useParams() || {};
-  const location = useLocation();
   const navigate = useNavigate();
-  const newProps = {...props, location, navigate, params};
+  const newProps = {...props, navigate, params};
   const query =
-    queryString.parse((location || {search: ""}).search) || {};
+    queryString.parse((props.location || {search: ""}).search) || {};
   newProps.location.query = query;
   return (
     <Component
@@ -110,8 +109,8 @@ export class LoggedApp extends Component {
   };
 
   render() {
-    const pathname = window.location.pathname;
-    const className = (part) => (part === pathname ? "active" : "inactive");
+    const pathname = this.props.location.pathname;
+    const className = (part) => (pathname.startsWith(part) ? "active" : "inactive");
 
     const userManagementEnabled =
       this.props.userManagementMode !== "None" &&
@@ -140,8 +139,7 @@ export class LoggedApp extends Component {
             <button
               className="navbar-toggler menu" type="button" data-bs-toggle="collapse"
               data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
-              aria-label="Toggle navigation"
-            >
+              aria-label="Toggle navigation">
               <span className="sr-only">Toggle sidebar</span>
               <span>Menu</span>
             </button>
@@ -555,25 +553,25 @@ export class LoggedApp extends Component {
 }
 
 const PrivateRoute = ({component: Component, ...rest}) => {
+  const location = useLocation();
   //User is passed from the LoginPage or send by the app in the page.
   const user =
     rest.user && !isEmpty(rest.user)
       ? rest.user
       : rest.location.user || {};
   return user.email ? (
-    <Component {...rest} user={user}/>
+    <Component {...rest} user={user} location={location}/>
   ) : (
     <Navigate to={`${window.__contextPath}/login`} replace/>
   )
 };
 
 export function RoutedIzanamiApp(props) {
-  const { history } = props;
   return (
     <Router>
       <Routes>
         <Route key="route-login" path="/login" element={<LoginPage />} />,
-        <Route key="private-route" path="*" element={<PrivateRoute component={LoggedApp} location={history.location} {...props}/>}/>
+        <Route key="private-route" path="*" element={<PrivateRoute component={LoggedApp} {...props}/>}/>
       </Routes>
      </Router>
   );
