@@ -36,7 +36,6 @@ const commons = {
     devServer: {
         static: { directory: path.resolve(__dirname) },
         port: process.env.DEV_SERVER_PORT || 3334,
-        allowedHosts: !isDev
     },
     module: {
         rules: [
