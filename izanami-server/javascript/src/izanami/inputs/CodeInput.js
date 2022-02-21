@@ -1,9 +1,9 @@
 import React, {PureComponent} from "react";
 import AceEditor from "react-ace";
-import "brace/mode/javascript";
-import "brace/mode/scala";
-import "brace/mode/kotlin";
-import "brace/theme/monokai";
+import "ace-builds/src-noconflict/mode-javascript";
+import "ace-builds/src-noconflict/mode-scala";
+import "ace-builds/src-noconflict/mode-kotlin";
+import "ace-builds/src-noconflict/theme-monokai";
 import Select from "react-select";
 import { customStyles } from "../../styles/reactSelect";
 import { ScriptDebug } from "../components/ScriptDebug";

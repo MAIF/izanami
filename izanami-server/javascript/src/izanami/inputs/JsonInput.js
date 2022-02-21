@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import AceEditor from "react-ace";
-import "brace/mode/javascript";
-import "brace/theme/monokai";
+import "ace-builds/src-noconflict/mode-javascript";
+import "ace-builds/src-noconflict/theme-monokai";
 
 export class JsonInput extends Component {
   onChange = e => {
