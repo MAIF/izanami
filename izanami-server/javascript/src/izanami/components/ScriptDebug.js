@@ -1,9 +1,9 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import AceEditor from "react-ace";
-import "brace/mode/javascript";
-import "brace/mode/plain_text";
-import "brace/theme/monokai";
+import "ace-builds/src-noconflict/mode-javascript";
+import "ace-builds/src-noconflict/mode-plain_text";
+import "ace-builds/src-noconflict/theme-monokai";
 import { debugScript } from "../services";
 
 const Logs = props => {

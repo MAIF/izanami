@@ -1,5 +1,8 @@
 import React, {Component} from "react";
 import {Link, Navigate, Route, BrowserRouter as Router, Routes, useLocation, useParams,useNavigate} from "react-router-dom";
+import javascriptWorkerUrl from "file-loader!ace-builds/src-noconflict/worker-javascript";
+const ace = require('ace-builds/src-noconflict/ace');
+ace.config.setModuleUrl("ace/mode/javascript_worker", javascriptWorkerUrl)
 import {
   ApikeyPage,
   ConfigExplorerPage,
