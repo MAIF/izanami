@@ -246,7 +246,10 @@ export class LoggedApp extends Component {
                       </h3>
                     </li>
                     <li className={className("/features")}>
-                      <Link to="/features" style={{cursor: "pointer"}}>
+                      <Link
+                        to="/features"
+                        className=""
+                        style={{cursor: "pointer"}}>
                         <i className="fas fa-toggle-on"/>
                         Features
                       </Link>
