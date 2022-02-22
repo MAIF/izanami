@@ -56,6 +56,7 @@ export class Table extends Component {
     updateItem: PropTypes.func,
     deleteItem: PropTypes.func,
     createItem: PropTypes.func,
+    confirmUpdate: PropTypes.bool,
     navigateTo: PropTypes.func,
     showActions: PropTypes.bool.isRequired,
     showLink: PropTypes.bool.isRequired,
@@ -88,6 +89,7 @@ export class Table extends Component {
     pageSize: 20,
     firstSort: null,
     disableAddButton: false,
+    confirmUpdate: false,
     convertItem: e => e,
     compareItem: (a, b) => isEqual(a, b)
   };
@@ -110,10 +112,24 @@ export class Table extends Component {
     nbPages: 1,
     justUpdated: false,
     confirmDelete: false,
+    confirmUpdate: false,
     toDelete: null
   };
 
   lastSearchArgs = {};
+
+  componentDidUpdate(prevProps, prevState) {
+    const location = prevProps.parentProps.location;
+    const locationInit = this.props.parentProps.location;
+    if(location.pathname !== locationInit.pathname && locationInit.pathname === `/${this.props.backToUrl}`) {
+      this.setState({
+        currentItem: null,
+        currentItemOriginal: null,
+        showAddForm: false,
+        showEditForm: false
+      })
+    }
+  }
 
   componentDidMount() {
     this.update().then(() => {
@@ -284,11 +300,11 @@ export class Table extends Component {
     if (s) {
       const url = new URL(window.location);
       url.searchParams.set("search", s);
-      window.history.pushState({}, "", url);
+      this.props.navigate(url);
     } else {
       const url = new URL(window.location);
       url.searchParams.delete("search");
-      window.history.pushState({}, "", url);
+      this.props.navigate(url);
     }
     if (this.isTable()) {
       return this.props.fetchItems(args).then(
@@ -333,11 +349,7 @@ export class Table extends Component {
       errorList: []
     });
     this.props.backToUrl
-      ? window.history.pushState(
-        {},
-        "",
-        `${window.__contextPath}/${this.props.backToUrl}`
-      )
+      ? this.props.navigate(`${window.__contextPath}/${this.props.backToUrl}`)
       : window.history.back();
   };
 
@@ -346,11 +358,7 @@ export class Table extends Component {
     this.mountShortcuts();
     this.props.parentProps.setTitle(`Create a new ${this.props.itemName}`);
     const id = initialId ? `/${initialId}` : "";
-    window.history.pushState(
-      {},
-      "",
-      `${window.__contextPath}/${this.props.selfUrl}/add${id}`
-    );
+    this.props.navigate(`${window.__contextPath}/${this.props.selfUrl}/add${id}`);
     this.setState({
       currentItem: this.props.defaultValue(initialId),
       currentItemOriginal: this.props.defaultValue(),
@@ -372,24 +380,14 @@ export class Table extends Component {
       errorList: []
     });
     this.props.backToUrl
-      ? window.history.pushState(
-        {},
-        "",
-        `${window.__contextPath}/${this.props.backToUrl}`
-      )
+      ? this.props.navigate(`${window.__contextPath}/${this.props.backToUrl}`)
       : window.history.back();
   };
 
   showEditForm = (e, item) => {
     if (e && e.preventDefault) e.preventDefault();
     this.mountShortcuts();
-    window.history.pushState(
-      {},
-      "",
-      `${window.__contextPath}/${
-        this.props.selfUrl
-      }/edit/${this.props.extractKey(item)}`
-    );
+    this.props.navigate(`${window.__contextPath}/${this.props.selfUrl}/edit/${this.props.extractKey(item)}`);
     this.props.parentProps.setTitle(`Update a ${this.props.itemName}`);
     const currentItem = this.props.convertItem(item);
     this.setState({
@@ -424,15 +422,10 @@ export class Table extends Component {
         this.setState({ items });
         this.props.parentProps.setTitle(this.props.defaultTitle);
         this.props.backToUrl
-          ? window.history.pushState(
-            {},
-            "",
-            `${window.__contextPath}/${this.props.backToUrl}`
-          )
+          ? this.props.navigate(`${window.__contextPath}/${this.props.backToUrl}`)
           : window.history.back();
       }
     }));
-    //}
   };
 
   createItem = e => {
@@ -485,11 +478,7 @@ export class Table extends Component {
           }
           this.setState({error: false, items, justUpdated: true});
           this.props.backToUrl
-            ? window.history.pushState(
-              {},
-              "",
-              `${window.__contextPath}/${this.props.backToUrl}`
-            )
+            ? this.props.navigate(`${window.__contextPath}/${this.props.backToUrl}`)
             : window.history.back();
         }
       });
@@ -499,7 +488,7 @@ export class Table extends Component {
     if (e && e.preventDefault) e.preventDefault();
     this.props.parentProps.setTitle(this.props.defaultTitle);
 
-    this.setState({error: false, errorList: []});
+    this.setState({error: false, errorList: [], confirmUpdate: false});
 
     const currentItem = this.state.currentItem;
     const currentItemOriginal = this.state.currentItemOriginal;
@@ -540,11 +529,7 @@ export class Table extends Component {
           });
           this.setState({items, showEditForm: false, justUpdated: true});
           this.props.backToUrl
-            ? window.history.pushState(
-              {},
-              "",
-              `${window.__contextPath}/${this.props.backToUrl}`
-            )
+            ? this.props.navigate(`${window.__contextPath}/${this.props.backToUrl}`)
             : window.history.back();
         }
       });
@@ -611,11 +596,7 @@ export class Table extends Component {
 
   search = text => {
     this.props.backToUrl &&
-    window.history.pushState(
-      {},
-      "",
-      `${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`
-    );
+    this.props.navigate(`${window.__contextPath}/${this.props.backToUrl}?search=${text || ""}`);
     const defaultFiltered = this.props.columns
       .filter(c => !c.notFilterable)
       .map(c => ({id: c.title, value: text}));
@@ -956,7 +937,8 @@ export class Table extends Component {
               {this.isUpdateAllowed(this.state.currentItem) && <button
                 type="button"
                 className="btn btn-success"
-                onClick={this.updateItem}><i className="fas fa-hdd"/> Update{" "}
+                onClick={e => this.props.confirmUpdate ? this.setState({confirmUpdate: true}) : this.updateItem(e)}>
+                <i className="fas fa-hdd"/> Update{" "}
                 {this.props.itemName}
               </button>}
               <SweetModal
@@ -967,6 +949,17 @@ export class Table extends Component {
                 onDismiss={__ => this.setState({confirmDelete: false})}
                 labelValid="Delete">
                 <div>Are you sure you want to delete that item ?</div>
+              </SweetModal>
+              <SweetModal
+                type="confirm"
+                confirm={e => this.updateItem(e, this.state.currentItem)}
+                id={"confirmUpdate"}
+                title={"Confirm this changes"}
+                open={this.state.confirmUpdate}
+                onDismiss={__ => this.setState({confirmUpdate: false})}
+                labelValid="Update">
+                {this.props.summarizeUpdate &&
+                  this.props.summarizeUpdate(this.state.currentItem, this.state.currentItemOriginal)}
               </SweetModal>
             </div>
           </div>

@@ -629,6 +629,7 @@ export class ExperimentsPage extends Component {
               showActions={true}
               showLink={false}
               extractKey={item => item.id}
+              navigate={this.props.navigate}
             />
           </div>
         )}

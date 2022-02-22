@@ -218,3 +218,10 @@ Here, you can find the settings to configure the security filter.
 | `izanami.oauth2.mtls.ssl-config.keyManager.stores.0.password`     | `OAUTH2_KEYSTORE_PASSWORD`     | The password  |
 
 You can find more option about the `ssl-config` part on this link: https://lightbend.github.io/ssl-config/index.html.
+
+
+## UI
+
+| Config property                           | Env variable                 | Description                              | 
+|-------------------------------------------|------------------------------|------------------------------------------|
+| `izanami.confirmationDialog`              | `IZANAMI_CONFIRMATIONDIALOG` | Ask confirmation before update a feature |

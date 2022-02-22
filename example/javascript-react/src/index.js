@@ -2,7 +2,7 @@ import 'es6-shim';
 import 'whatwg-fetch';
 import Symbol from 'es-symbol';
 import $ from 'jquery';
-import {BrowserRouter as Router, Redirect, Route, Switch} from 'react-router-dom';
+import {BrowserRouter as Router, Redirect, Route, Routes, useParams, Navigate} from 'react-router-dom';
 import * as Service from './services';
 import {Api as IzanamiApi, IzanamiProvider} from 'react-izanami';
 import './styles.scss'
@@ -24,8 +24,12 @@ Array.prototype.flatMap = function (lambda) {
   return Array.prototype.concat.apply([], this.map(lambda));
 };
 
+function PrivateRoute(props) {
+  const params = useParams();
+  return (<InternalPrivateRoute {...props} params={params} />)
+}
 
-class PrivateRoute extends React.Component {
+class InternalPrivateRoute extends React.Component {
 
   state = {
     loaded: false,
@@ -54,46 +58,23 @@ class PrivateRoute extends React.Component {
     if (locationChanged) {
       //Reload izanami data on route change
       console.log("Izanami reload")
-      IzanamiApi.izanamiReload("/api/izanami");
+      IzanamiApi.izanamiReload("mytvshows");
     }
   }
 
   render() {
     if (this.state.loaded) {
-      const {component: Component, ...rest} = this.props;
-      return (
-        <Route {...rest} render={props => {
-          return (
-            this.state.user ? (
-              <Component user={this.state.user} rootPath={this.props.rootPath}/>
-            ) : (
-              <Redirect to={{
-                pathname: '/login',
-                state: {from: this.props.location}
-              }}/>
-            )
+      const { component: Component} = this.props;
+        return (
+          this.state.user ? (
+            <Component user={this.state.user} rootPath= {this.props.rootPath} params={this.props.params} />
+          ) : (
+            <Navigate to="/login" replace/>
           )
-        }}/>
-      );
+        )
     } else {
       return <div/>
     }
-
-  }
-}
-
-const withprops = (Component, props, props2) => {
-  return <Component {...props} {...props2} />
-}
-
-class MainApp extends React.PureComponent {
-  render() {
-    return (
-      <Switch>
-        <Route exact path="/" component={p => withprops(MyTvShows, this.props, p)}/>
-        <Route path="/tvshow/:id" component={p => withprops(TvShow, this.props, p)}/>
-      </Switch>
-    );
   }
 }
 
@@ -106,10 +87,11 @@ class IzanamiApp extends React.PureComponent {
       })
     }>
       <Router basename="/">
-        <Switch>
-          <Route path="/login" component={Login} rootPath={this.props.rootPath}/>
-          <PrivateRoute path="/" component={MainApp} rootPath={this.props.rootPath}/>
-        </Switch>
+        <Routes>
+          <Route path="/login" element={<Login />} rootPath={this.props.rootPath}/>
+          <Route exact path="/" element={<PrivateRoute rootPath={this.props.rootPath} component={MyTvShows} />} />
+          <Route path="/tvshow/:id" element={<PrivateRoute rootPath={this.props.rootPath} component={TvShow}/>} />
+        </Routes>
       </Router>
     </IzanamiProvider>)
   }

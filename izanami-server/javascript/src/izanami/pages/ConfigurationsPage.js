@@ -170,6 +170,7 @@ export class ConfigurationsPage extends Component {
               id,
               value: JSON.stringify(value)
             })}
+            navigate={this.props.navigate}
           />
         </div>
       </div>

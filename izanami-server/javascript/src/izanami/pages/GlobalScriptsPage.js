@@ -175,6 +175,7 @@ export class GlobalScriptsPage extends Component {
             }}
             showLink={false}
             extractKey={item => item.id}
+            navigate={this.props.navigate}
           />
         </div>
       </div>

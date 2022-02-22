@@ -1,6 +1,6 @@
-import React, { Component } from "react";
+import React, {Component} from "react";
 import * as IzanamiServices from "../services/index";
-import { Link } from "react-router-dom";
+import {Link} from "react-router-dom";
 import {
   Key,
   Table,
@@ -8,7 +8,6 @@ import {
   ObjectInput,
   SimpleBooleanInput,
   AsyncSelectInput,
-  TextInput,
   PercentageInput,
   ArrayInput
 } from "../inputs";
@@ -19,7 +18,7 @@ import {
 } from "../components/IzanamiDatePicker";
 import {TimePicker} from "../components/TimePicker"
 import * as ScriptsTemplate from "../helpers/ScriptTemplates";
-import { JsLogo, KotlinLogo, ScalaLogo } from "../components/Logos";
+import {JsLogo, KotlinLogo, ScalaLogo} from "../components/Logos";
 import * as Abilitations from "../helpers/Abilitations";
 
 const DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
@@ -32,15 +31,15 @@ class FeatureParameters extends Component {
     const prevStrategy = prevProps.source.activationStrategy;
     if (currentStrategy !== prevStrategy) {
       if (prevStrategy === "RELEASE_DATE") {
-        this.props.onChange({ releaseDate: undefined });
+        this.props.onChange({releaseDate: undefined});
       } else if (prevStrategy === "SCRIPT") {
-        this.props.onChange({ script: undefined, type: undefined });
+        this.props.onChange({script: undefined, type: undefined});
       } else if (prevStrategy === "GLOBAL_SCRIPT") {
-        this.props.onChange({ ref: undefined });
+        this.props.onChange({ref: undefined});
       } else if (currentStrategy === "PERCENTAGE") {
-        this.props.onChange({ percentage: undefined });
+        this.props.onChange({percentage: undefined});
       } else if (currentStrategy === "CUSTOMERS_LIST") {
-        this.props.onChange({ customers: undefined });
+        this.props.onChange({customers: undefined});
       }
       if (currentStrategy === "SCRIPT") {
         this.props.onChange({
@@ -48,11 +47,14 @@ class FeatureParameters extends Component {
           script: ScriptsTemplate.javascriptDefaultScript
         });
       } else if (currentStrategy === "RELEASE_DATE") {
-        this.props.onChange({ releaseDate: moment().format(DATE_FORMAT) });
+        this.props.onChange({releaseDate: moment().format(DATE_FORMAT)});
       } else if (currentStrategy === "HOUR_RANGE") {
-        this.props.onChange({ startAt: moment().format(TIME_FORMAT), endAt: moment().add(1, "hour").format(TIME_FORMAT)});
+        this.props.onChange({
+          startAt: moment().format(TIME_FORMAT),
+          endAt: moment().add(1, "hour").format(TIME_FORMAT)
+        });
       } else if (currentStrategy === "PERCENTAGE") {
-        this.props.onChange({ percentage: 50 });
+        this.props.onChange({percentage: 50});
       } else if (currentStrategy === "NO_STRATEGY") {
         this.props.onChange({});
       } else if (currentStrategy === "CUSTOMERS_LIST") {
@@ -84,7 +86,7 @@ class FeatureParameters extends Component {
         <IzaDatePicker
           date={date}
           updateDate={d =>
-            this.props.onChange({ releaseDate: d.format(DATE_FORMAT) })
+            this.props.onChange({releaseDate: d.format(DATE_FORMAT)})
           }
         />
       );
@@ -110,16 +112,16 @@ class FeatureParameters extends Component {
         />
       );
     }
-    if (this.props.source.activationStrategy === "HOUR_RANGE") {      
-      label = "Hour range";            
+    if (this.props.source.activationStrategy === "HOUR_RANGE") {
+      label = "Hour range";
       content = (
         <div className="row">
           <div className="col-md-6">
             <TimePicker
               label='Start at'
               hourOfDay={this.props.value.startAt}
-              onChange={(timeOfDay) =>           
-                  this.props.onChange({...this.props.value, startAt: timeOfDay})
+              onChange={(timeOfDay) =>
+                this.props.onChange({...this.props.value, startAt: timeOfDay})
               }
             />
           </div>
@@ -127,10 +129,10 @@ class FeatureParameters extends Component {
             <TimePicker
               label='End at'
               hourOfDay={this.props.value.endAt}
-              onChange={(timeOfDay) =>           
+              onChange={(timeOfDay) =>
                 this.props.onChange({...this.props.value, endAt: timeOfDay})
               }
-            />          
+            />
           </div>
         </div>
       );
@@ -157,7 +159,7 @@ class FeatureParameters extends Component {
           }}
           default={"javascript"}
           value={this.props.value}
-          onChange={value => this.props.onChange({ ...value })}
+          onChange={value => this.props.onChange({...value})}
         />
       );
     }
@@ -168,7 +170,7 @@ class FeatureParameters extends Component {
           computeUrl={query => `/api/scripts?name_only=true&pattern=${query}*`}
           value={this.props.value.ref}
           extractResponse={r => r.results}
-          onChange={r => this.props.onChange({ ref: r })}
+          onChange={r => this.props.onChange({ref: r})}
         />
       );
     }
@@ -178,7 +180,7 @@ class FeatureParameters extends Component {
           placeholder={"50"}
           value={this.props.value.percentage}
           label={"Percentage"}
-          onChange={r => this.props.onChange({ percentage: r })}
+          onChange={r => this.props.onChange({percentage: r})}
         />
       );
     }
@@ -188,7 +190,7 @@ class FeatureParameters extends Component {
           value={this.props.value.customers}
           label={"Customers"}
           placeholder={"customerId"}
-          onChange={c => this.props.onChange({ customers: c })}
+          onChange={c => this.props.onChange({customers: c})}
         />
       );
     }
@@ -218,10 +220,10 @@ export class FeaturesPage extends Component {
             page: 1,
             pageSize: 20,
             search: pattern
-          }).then(({ results }) => results.map(({ id }) => id));
+          }).then(({results}) => results.map(({id}) => id));
         }
       },
-      error: { key: "obj.id" }
+      error: {key: "obj.id"}
     },
     activationStrategy: {
       type: "select",
@@ -239,17 +241,17 @@ export class FeaturesPage extends Component {
           "CUSTOMERS_LIST"
         ]
       },
-      error: { key: "obj.activationStrategy" }
+      error: {key: "obj.activationStrategy"}
     },
     description: {
-      type: "string", 
-      props: { label: "Feature description", placeholder: `Description` },
-      error: { key: "obj.description" }
+      type: "string",
+      props: {label: "Feature description", placeholder: `Description`},
+      error: {key: "obj.description"}
     },
     enabled: {
       type: "bool",
-      props: { label: "Feature active", placeholder: `Feature active` },
-      error: { key: "obj.enabled" }
+      props: {label: "Feature active", placeholder: `Feature active`},
+      error: {key: "obj.enabled"}
     },
     parameters: {
       type: FeatureParameters,
@@ -258,16 +260,53 @@ export class FeaturesPage extends Component {
         placeholderKey: "Parameter name",
         placeholderValue: "Parameter value"
       },
-      error: { key: "obj.parameters" }
+      error: {key: "obj.parameters"}
     }
   };
+
+  summarizeUpdate = (current, initial) => {
+    const hasChangeId = current.id !== initial.id;
+    const hasChangeEnabled = current.enabled !== initial.enabled;
+    const hasChangeDescription = current.description !== initial.description;
+    const hasChangeParameters = JSON.stringify(current.parameters) !== JSON.stringify(initial.parameters);
+    const hasChangeActivationStrategy = current.activationStrategy !== initial.activationStrategy;
+    return (
+      <div>
+        {hasChangeId && (
+          <div className="row">
+            <label className="col-sm-4 col-form-label">identifier</label>
+            <div className="col-sm-8">{current.id.split(":").map(l => (<><span> {l} </span><i className="fas fa-caret-right" /></>))}</div>
+          </div>)}
+        {hasChangeEnabled && (
+          <div className="row">
+            <label className="col-sm-4 col-form-label">activate</label>
+            <div className="col-sm-8">{current.enabled ? "enable" : "disable"}</div>
+          </div>)}
+        {hasChangeDescription && (
+          <div className="row">
+            <label className="col-sm-4 col-form-label">description</label>
+            <div className="col-sm-8">{current.description}</div>
+          </div>)}
+        {hasChangeParameters && (
+          <div className="row">
+            <label className="col-sm-4 col-form-label">parameters</label>
+            <div className="col-sm-8"><i>no detail</i></div>
+          </div>)}
+        {hasChangeActivationStrategy && (
+          <div className="row">
+            <label className="col-sm-4 col-form-label">strategy</label>
+            <div className="col-sm-8">{current.activationStrategy}</div>
+          </div>)}
+      </div>
+    )
+  }
 
   searchKey = pattern => {
     return IzanamiServices.fetchFeatures({
       page: 1,
       pageSize: 20,
       search: pattern
-    }).then(({ results }) => results.map(({ id }) => id));
+    }).then(({results}) => results.map(({id}) => id));
   };
 
   editSchema = {
@@ -289,21 +328,21 @@ export class FeaturesPage extends Component {
         if (params.type === "javascript") {
           return (
             <span>
-              <JsLogo width={"20px"} />
+              <JsLogo width={"20px"}/>
               {` Script`}
             </span>
           );
         } else if (params.type === "scala") {
           return (
             <span>
-              <ScalaLogo width={"20px"} />
+              <ScalaLogo width={"20px"}/>
               {` Script`}
             </span>
           );
         } else if (params.type === "kotlin") {
           return (
             <span>
-              <KotlinLogo width={"20px"} />
+              <KotlinLogo width={"20px"}/>
               {` Script`}
             </span>
           );
@@ -328,7 +367,7 @@ export class FeaturesPage extends Component {
       case "DATE_RANGE":
         return (
           <span
-            style={{ textAlign: "center" }}
+            style={{textAlign: "center"}}
             data-toggle="tooltip"
             data-placement="top"
             title={`Enabled between ${params.from} and ${params.to}`}
@@ -343,7 +382,7 @@ export class FeaturesPage extends Component {
             </time>
             <span>
               {" "}
-              <i className="fas fa-arrow-right" />{" "}
+              <i className="fas fa-arrow-right"/>{" "}
             </span>
             <time
               dateTime={`${moment(params.to).format("YYYY-MM-DD")}`}
@@ -358,7 +397,7 @@ export class FeaturesPage extends Component {
       case "HOUR_RANGE":
         return (
           <span
-            style={{ textAlign: "center" }}
+            style={{textAlign: "center"}}
             data-toggle="tooltip"
             data-placement="top"
             title={`Enabled between ${params.startAt} and ${params.endAt}`}
@@ -369,7 +408,7 @@ export class FeaturesPage extends Component {
       case "GLOBAL_SCRIPT":
         return (
           <span>
-            <i className="far fa-file-alt" aria-hidden="true" />
+            <i className="far fa-file-alt" aria-hidden="true"/>
             {` Script based on '${params.ref}'`}
           </span>
         );
@@ -389,28 +428,28 @@ export class FeaturesPage extends Component {
   renderIsActive = item => {
     const allowed = Abilitations.isUpdateAllowed(this.props.user, item.id);
     return (<SimpleBooleanInput
-              disabled={!allowed}
-              value={item.enabled}
-              onChange={(v, input) => {
-                let confirmRes = true;
-                if (this.props.confirmationDialog) {
-                  confirmRes = window.confirm("Are you sure you want to toggle " + item.id);
-                }
+      disabled={!allowed}
+      value={item.enabled}
+      onChange={(v, input) => {
+        let confirmRes = true;
+        if (this.props.confirmationDialog) {
+          confirmRes = window.confirm(`Are you sure you want to ${v ? "activate" : "deactivate"} ${item.id} ?`);
+        }
 
-                if (confirmRes === true) {
-                  IzanamiServices.fetchFeature(item.id).then(feature => {
-                    IzanamiServices.updateFeature(item.id, { ...feature, enabled: v })
-                        .then(res => {
-                          if (res.status === 403) {
-                            input.setState({ enabled: !v });
-                          }
-                        });
-                  });
-                } else {
-                  input.setState({ enabled: !v });
+        if (confirmRes === true) {
+          IzanamiServices.fetchFeature(item.id).then(feature => {
+            IzanamiServices.updateFeature(item.id, {...feature, enabled: v})
+              .then(res => {
+                if (res.status === 403) {
+                  input.setState({enabled: !v});
                 }
-              }}
-            />)
+              });
+          });
+        } else {
+          input.setState({enabled: !v});
+        }
+      }}
+    />)
   };
 
   columns = [
@@ -419,19 +458,19 @@ export class FeaturesPage extends Component {
       search: (s, item) => item.id.indexOf(s) > -1,
       content: item => (
         <Link to={`/features/edit/${item.id}`}>
-          <Key value={item.id} />
+          <Key value={item.id}/>
         </Link>
       )
-    },    
+    },
     {
       title: "Strategy",
       notFilterable: true,
-      style: { textAlign: "center", width: 300 },
+      style: {textAlign: "center", width: 300},
       content: this.renderStrategy
     },
     {
       title: "Active",
-      style: { textAlign: "center", width: 60 },
+      style: {textAlign: "center", width: 60},
       notFilterable: true,
       content: this.renderIsActive
     }
@@ -440,21 +479,21 @@ export class FeaturesPage extends Component {
   formFlow = ["id", "enabled", "description", "---", "activationStrategy", "parameters"];
 
   fetchItems = args => {
-    const { search = [], page, pageSize } = args;
+    const {search = [], page, pageSize} = args;
     const pattern =
       search.length > 0
-        ? search.map(({ id, value }) => `*${value}*`).join(",")
+        ? search.map(({id, value}) => `*${value}*`).join(",")
         : "*";
-    return IzanamiServices.fetchFeatures({ page, pageSize, search: pattern });
+    return IzanamiServices.fetchFeatures({page, pageSize, search: pattern});
   };
 
   fetchItemsTree = args => {
-    const { search = [] } = args;
+    const {search = []} = args;
     const pattern =
       search.length > 0
-        ? search.map(({ id, value }) => `*${value}*`).join(",")
+        ? search.map(({id, value}) => `*${value}*`).join(",")
         : "*";
-    return IzanamiServices.fetchFeaturesTree({ search: pattern });
+    return IzanamiServices.fetchFeaturesTree({search: pattern});
   };
 
   fetchItem = id => {
@@ -482,14 +521,13 @@ export class FeaturesPage extends Component {
       <div
         key={`content-strategy-${value.id}`}
         className="content-value-items"
-        style={{ width: 300 }}
-      >
+        style={{width: 300}}>
         <div>{this.renderStrategy(value)}</div>
       </div>,
       <div
         key={`active-strategy-${value.id}`}
         className="content-value-items"
-        style={{ width: 60 }}
+        style={{width: 60}}
       >
         {this.renderIsActive(value)}
       </div>
@@ -539,6 +577,8 @@ export class FeaturesPage extends Component {
             updateItem={this.updateItem}
             deleteItem={this.deleteItem}
             createItem={this.createItem}
+            confirmUpdate={this.props.confirmationDialog}
+            summarizeUpdate={this.summarizeUpdate}
             onEvent={this.onEvent}
             showActions={true}
             showLink={false}
@@ -548,15 +588,16 @@ export class FeaturesPage extends Component {
               deleted: "FEATURE_DELETED"
             }}
             downloadLinks={[
-              { title: "Download", link: "/api/features.ndjson" }
+              {title: "Download", link: "/api/features.ndjson"}
             ]}
             uploadLinks={[
-                { title: "Upload - replace if exists", link: "/api/features.ndjson?strategy=Replace" },
-                { title: "Upload - ignore if exists", link: "/api/features.ndjson?strategy=Keep" }
+              {title: "Upload - replace if exists", link: "/api/features.ndjson?strategy=Replace"},
+              {title: "Upload - ignore if exists", link: "/api/features.ndjson?strategy=Keep"}
             ]}
             extractKey={item => item.id}
             lockable={true}
             lockType={"feature"}
+            navigate={this.props.navigate}
           />
         </div>
       </div>
