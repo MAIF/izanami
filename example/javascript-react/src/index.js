@@ -58,7 +58,7 @@ class InternalPrivateRoute extends React.Component {
     if (locationChanged) {
       //Reload izanami data on route change
       console.log("Izanami reload")
-      IzanamiApi.izanamiReload("/api/izanami");
+      IzanamiApi.izanamiReload("mytvshows");
     }
   }
 

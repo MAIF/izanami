@@ -1,5 +1,5 @@
 import React from "react";
-import {Feature, Enabled, Disabled} from 'react-izanami';
+import {Feature, Enabled, Disabled, Api} from 'react-izanami';
 import * as Service from "../services";
 import Layout from './Layout';
 import {Link} from 'react-router-dom';
@@ -96,8 +96,7 @@ export default class TvShow extends React.Component {
                           data-parent="#accordion"
                           href={`#collapse-${s.number}`}
                           aria-controls={`collapse-${s.number}`}
-                          { ...(idx === expandId ? {'aria-expanded':"true"} :  {'aria-expanded':"false"} ) }
-                        >
+                          { ...(idx === expandId ? {'aria-expanded':"true"} :  {'aria-expanded':"false"} ) }>
                             {`Season ${s.number}`}
                         </a>
                         <Feature path={"mytvshows:season:markaswatched"}>
