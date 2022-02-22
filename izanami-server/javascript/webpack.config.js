@@ -32,12 +32,7 @@ const commons = {
     extensions: ["*", ".js", ".css", ".scss"]
   },
   devServer: {
-    port: process.env.DEV_SERVER_PORT || 3333,
-    firewall: !isDev,
-    client: {
-      host: "localhost",
-      port: process.env.DEV_SERVER_PORT || 3333
-    }
+    port: process.env.DEV_SERVER_PORT || 3333
   },
   module: {
     rules: [

@@ -34,8 +34,8 @@ const commons = {
         extensions: ['*', '.js', '.css', '.scss']
     },
     devServer: {
+        static: { directory: path.resolve(__dirname) },
         port: process.env.DEV_SERVER_PORT || 3334,
-        firewall: !isDev
     },
     module: {
         rules: [
@@ -46,16 +46,16 @@ const commons = {
             },
             {
                 test: /\.scss$/,
-                use: [ "style-loader", "css-loader?url=false", "sass-loader" ]
+                use: [ "style-loader", {loader: "css-loader", options: {url: false}}, "sass-loader" ]
             },
             {
                 test: /\.css$/,
                 exclude: /\.useable\.css$/,
-                use: [ "style-loader", "css-loader?url=false" ],
+                use: [ "style-loader", {loader: "css-loader", options: {url: false}} ],
             },
             {
                 test: /\.useable\.css$/,
-                use: [ "style-loader/useable", "css-loader?url=false" ],
+                use: [ "style-loader/useable", {loader: "css-loader", options: {url: false}} ],
             }
         ]
     },

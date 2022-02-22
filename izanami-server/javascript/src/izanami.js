@@ -19,7 +19,7 @@ Array.prototype.flatMap = function(lambda) {
 };
 
 import React from "react";
-import { buildRoutedApp } from "./izanami/index";
+import { RoutedIzanamiApp } from "./izanami/index";
 import ReactDOM from "react-dom";
 import { createBrowserHistory } from "history";
 
@@ -30,15 +30,14 @@ export function init(node, logout, confirmationDialog, userManagementMode, enabl
   } else {
     history = createBrowserHistory();
   }
-  const RoutedIzanamiApp = buildRoutedApp(history);
   ReactDOM.render(
     <RoutedIzanamiApp
+      history={history}
       user={user}
       logout={logout}
       confirmationDialog={confirmationDialog}
       userManagementMode={userManagementMode}
-      enabledApikeyManagement={enabledApikeyManagement}
-    />,
+      enabledApikeyManagement={enabledApikeyManagement}/>,
     node
   );
 }
