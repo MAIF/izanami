@@ -216,8 +216,6 @@ export class FeaturesPage extends Component {
         label: "Feature Id",
         placeholder: "The Feature id",
         search(pattern) {
-          console.log("pattern")
-          console.log(pattern)
           return IzanamiServices.fetchFeatures({
             page: 1,
             pageSize: 20,
