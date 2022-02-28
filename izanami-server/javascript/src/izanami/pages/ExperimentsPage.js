@@ -532,36 +532,38 @@ export class ExperimentsPage extends Component {
       <div
         key={`experiment-label-${item.id}`}
         className="content-value-items"
-        style={{ width: 150 }}
-      >
+        style={{ width: 150 }}>
         {item.name}
       </div>,
       <div
         key={`experiment-description-${item.id}`}
         className="content-value-items"
-        style={{ width: 200 }}
-      >
+        style={{ width: 200 }}>
         {truncate(item.description, { length: 25 })}
       </div>,
       <div
         key={`experiment-active-${item.id}`}
         className="content-value-items"
-        style={{ width: 100 }}
-      >
+        style={{ width: 100 }}>
         {this.activeComponent(item)}
       </div>,
       <div
         key={`experiment-results-${item.id}`}
         className="content-value-items"
-        style={{ width: 100 }}
-      >
+        style={{ width: 100 }}>
         {this.showResultsComponent(item)}
       </div>
     ];
   };
 
-  itemLink = item => {
-    return item && `/experiments/edit/${item.id}`;
+  itemLink = node => {
+    if (node && node.value) {
+      return `/experiments/edit/${node.id}`;
+    } else if (node && node.id) {
+      return `/experiments/add/${node.id}`;
+    } else {
+      return `/experiments/add`;
+    }
   };
 
   render() {
@@ -574,8 +576,8 @@ export class ExperimentsPage extends Component {
         {!this.state.results && (
           <div className="row">
             <Table
-              defaultValue={() => ({
-                id: "project:experiments:name",
+              defaultValue={id => ({
+                id: id || "project:experiments:name",
                 name: "My First experiment",
                 description: "See what people like the most about ...",
                 enabled: true,
@@ -682,8 +684,7 @@ export class ExperimentsPage extends Component {
               width={800}
               height={400}
               data={this.state.data}
-              margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
-            >
+              margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
               {this.state.serieNames.map(([k, s], i) => (
                 <Area
                   type="monotone"
@@ -704,15 +705,13 @@ export class ExperimentsPage extends Component {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={e => this.showResults(e, this.state.item)}
-              >
+                onClick={e => this.showResults(e, this.state.item)}>
                 <i className="fas fa-sync" /> Reload
               </button>
               <button
                 type="button"
                 className="btn btn-danger"
-                onClick={this.closeResults}
-              >
+                onClick={this.closeResults}>
                 Close
               </button>
             </div>
