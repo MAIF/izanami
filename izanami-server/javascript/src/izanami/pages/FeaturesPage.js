@@ -216,6 +216,8 @@ export class FeaturesPage extends Component {
         label: "Feature Id",
         placeholder: "The Feature id",
         search(pattern) {
+          console.log("pattern")
+          console.log(pattern)
           return IzanamiServices.fetchFeatures({
             page: 1,
             pageSize: 20,
@@ -355,8 +357,7 @@ export class FeaturesPage extends Component {
           <span
             data-toggle="tooltip"
             data-placement="top"
-            title={`Released on ${params.releaseDate}`}
-          >
+            title={`Released on ${params.releaseDate}`}>
             <time dateTime={`${params.releaseDate}`} className="icon">
               <span>{mDate.format("DD")}</span>
               <span>{mDate.format("MMM")}</span>
@@ -370,12 +371,10 @@ export class FeaturesPage extends Component {
             style={{textAlign: "center"}}
             data-toggle="tooltip"
             data-placement="top"
-            title={`Enabled between ${params.from} and ${params.to}`}
-          >
+            title={`Enabled between ${params.from} and ${params.to}`}>
             <time
               dateTime={`${moment(params.from).format("YYYY-MM-DD")}`}
-              className="icon"
-            >
+              className="icon">
               <span>{moment(params.from).format("DD")}</span>
               <span>{moment(params.from).format("MMM")}</span>
               <span>{moment(params.from).format("YYYY")}</span>
@@ -386,8 +385,7 @@ export class FeaturesPage extends Component {
             </span>
             <time
               dateTime={`${moment(params.to).format("YYYY-MM-DD")}`}
-              className="icon"
-            >
+              className="icon">
               <span>{moment(params.to).format("DD")}</span>
               <span>{moment(params.to).format("MMM")}</span>
               <span>{moment(params.to).format("YYYY")}</span>

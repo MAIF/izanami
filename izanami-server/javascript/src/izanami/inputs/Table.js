@@ -119,15 +119,10 @@ export class Table extends Component {
   lastSearchArgs = {};
 
   componentDidUpdate(prevProps, prevState) {
-    const location = prevProps.parentProps.location;
-    const locationInit = this.props.parentProps.location;
-    if(location.pathname !== locationInit.pathname && locationInit.pathname === `/${this.props.backToUrl}`) {
-      this.setState({
-        currentItem: null,
-        currentItemOriginal: null,
-        showAddForm: false,
-        showEditForm: false
-      })
+    const location = this.props.parentProps.location;
+    const prevLocation = prevProps.parentProps.location;
+    if(location.pathname !== prevLocation.pathname) {
+      this.readRoute()
     }
   }
 
@@ -245,6 +240,14 @@ export class Table extends Component {
         this.update({filtered: defaultFiltered})
       );
     }
+    if(this.props.parentProps.location.pathname === `/${this.props.backToUrl}`) {
+      this.setState({
+        currentItem: null,
+        currentItemOriginal: null,
+        showAddForm: false,
+        showEditForm: false
+      })
+    }
   };
 
   mountShortcuts = () => {
@@ -359,6 +362,7 @@ export class Table extends Component {
     this.props.parentProps.setTitle(`Create a new ${this.props.itemName}`);
     const id = initialId ? `/${initialId}` : "";
     this.props.navigate(`${window.__contextPath}/${this.props.selfUrl}/add${id}`);
+    console.log(this.props.defaultValue(initialId))
     this.setState({
       currentItem: this.props.defaultValue(initialId),
       currentItemOriginal: this.props.defaultValue(),
