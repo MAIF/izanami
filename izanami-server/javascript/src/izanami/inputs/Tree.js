@@ -148,16 +148,14 @@ class Node extends Component {
                 type="button"
                 className={`btn  openbtn`}
                 title="Expand / collapse"
-                onClick={this.toggleChild(id)}
-              >
+                onClick={this.toggleChild(id)}>
                 <i className="fas fa-caret-down"/>
               </button>
               <button
                 type="button"
                 className={`btn open-all`}
                 title="Expand / collapse"
-                onClick={e => this.toggleChilds(document.getElementById(id))}
-              >
+                onClick={e => this.toggleChilds(document.getElementById(id))}>
                 <i className="fas fa-caret-right"/>
               </button>
             </div>
