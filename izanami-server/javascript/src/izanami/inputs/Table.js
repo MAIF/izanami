@@ -362,7 +362,6 @@ export class Table extends Component {
     this.props.parentProps.setTitle(`Create a new ${this.props.itemName}`);
     const id = initialId ? `/${initialId}` : "";
     this.props.navigate(`${window.__contextPath}/${this.props.selfUrl}/add${id}`);
-    console.log(this.props.defaultValue(initialId))
     this.setState({
       currentItem: this.props.defaultValue(initialId),
       currentItemOriginal: this.props.defaultValue(),
