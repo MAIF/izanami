@@ -35,7 +35,7 @@ else
   echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >>.npmrc
 
   echo "Setting version to ${PACKAGE_VERSION}"
-  npm version ${PACKAGE_VERSION}
+  npm version ${PACKAGE_VERSION} --allow-same-version
   echo 'Installing dependencies ...'
   npm-install-peers
   echo 'Publishing'
@@ -45,7 +45,7 @@ else
   echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >>.npmrc
 
   echo "Setting version to ${PACKAGE_VERSION}"
-  npm version ${PACKAGE_VERSION}
+  npm version ${PACKAGE_VERSION} --allow-same-version
   echo 'Publishing'
   npm publish
 fi
