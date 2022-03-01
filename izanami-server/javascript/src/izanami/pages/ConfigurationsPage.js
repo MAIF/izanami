@@ -121,18 +121,14 @@ export class ConfigurationsPage extends Component {
     ];
   };
 
-  itemLink = item => {
-    return item && `/configurations/edit/${item.id}`;
-  };
-
   render() {
     return (
       <div className="col-md-12">
         <div className="row">
           <Table
-            defaultValue={() => ({
+            defaultValue={(id) => ({
               value: '{"key":"value"}',
-              id: ""
+              id: id || ""
             })}
             treeModeEnabled={true}
             renderTreeLeaf={this.renderTreeLeaf}

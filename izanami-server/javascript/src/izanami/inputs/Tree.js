@@ -1,6 +1,5 @@
 import React, {Component, PureComponent} from "react";
 import PropTypes from "prop-types";
-import {Link} from "react-router-dom";
 import {KeyInput} from "./KeyInput";
 import {BooleanInput} from "./BooleanInput";
 import Tippy from '@tippyjs/react/headless';
@@ -129,7 +128,6 @@ class Node extends Component {
 
   render() {
     const id = `node-${this.props.node.id}-${this.props.index}`;
-    const link = this.props.itemLink(this.props.node);
     const styleDisplay = this.state.openMenu ? {display: 'inline-flex'} : {};
     let lockTile = "Add lock";
     if (this.props.node.lock.locked) {
@@ -171,14 +169,14 @@ class Node extends Component {
                    style={styleDisplay}
                    onMouseOver={_ => this.setState({openMenu: true})}
                    onMouseOut={_ => this.setState({openMenu: false})}>
-                {!isLockUpdateAllow && <Link
-                  to={link}
-                  type="button"
-                  className={`btn btn-sm btn-primary`}
-                  onMouseOver={_ => this.setState({openCopy: false})}
-                  title="Add childnote">
-                  +&nbsp;child
-                </Link>}
+                {!isLockUpdateAllow && <button
+                    onClick={e => this.props.addAction(e, this.props.node.id)}
+                    onMouseOver={_ => this.setState({openCopy: false})}
+                    type="button"
+                    className="btn btn-sm btn-success"
+                    title="Add childnote">
+                    +&nbsp;child
+                  </button>}
                 {this.props.lockable && <button
                   type="button"
                   className={`btn btn-sm btn-primary`}
@@ -264,7 +262,7 @@ class Node extends Component {
                   renderValue={this.props.renderValue}
                   removeAction={this.props.removeAction}
                   editAction={this.props.editAction}
-                  itemLink={this.props.itemLink}
+                  addAction={this.props.addAction}
                   onSearchChange={this.props.onSearchChange}
                   openOnTable={this.props.openOnTable}
                   changeLock={this.props.changeLock}
@@ -286,8 +284,8 @@ export class Tree extends PureComponent {
     onSearchChange: PropTypes.func.isRequired,
     openOnTable: PropTypes.func.isRequired,
     initialSearch: PropTypes.string,
-    itemLink: PropTypes.func,
     editAction: PropTypes.func,
+    addAction: PropTypes.func,
     removeAction: PropTypes.func,
     copyNodeWindow: PropTypes.bool,
     copyNodes: PropTypes.func,
@@ -387,7 +385,7 @@ export class Tree extends PureComponent {
                       renderValue={this.props.renderValue}
                       removeAction={this.props.removeAction}
                       editAction={this.props.editAction}
-                      itemLink={this.props.itemLink}
+                      addAction={this.props.addAction}
                       copyNodeWindow={this.props.copyNodeWindow}
                       copyNodes={this.props.copyNodes}
                       searchKeys={this.props.searchKeys}
