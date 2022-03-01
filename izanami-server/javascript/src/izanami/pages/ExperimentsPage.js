@@ -556,16 +556,6 @@ export class ExperimentsPage extends Component {
     ];
   };
 
-  itemLink = node => {
-    if (node && node.value) {
-      return `/experiments/edit/${node.id}`;
-    } else if (node && node.id) {
-      return `/experiments/add/${node.id}`;
-    } else {
-      return `/experiments/add`;
-    }
-  };
-
   render() {
     const results = (this.state.results || { results: [] }).results;
     results.sort((a, b) => a.variant.id.localeCompare(b.variant.id));

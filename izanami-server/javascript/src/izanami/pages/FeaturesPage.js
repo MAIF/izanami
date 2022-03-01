@@ -530,16 +530,6 @@ export class FeaturesPage extends Component {
     ];
   };
 
-  itemLink = node => {
-    if (node && node.value) {
-      return `/features/edit/${node.id}`;
-    } else if (node && node.id) {
-      return `/features/add/${node.id}`;
-    } else {
-      return `/features/add`;
-    }
-  };
-
   render() {
     return (
       <div className="col-md-12">

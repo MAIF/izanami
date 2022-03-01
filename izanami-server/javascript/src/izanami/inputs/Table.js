@@ -23,8 +23,7 @@ function LoadingComponent(props) {
           props.loadingText.trim().length > 0
             ? "flex"
             : "none"
-      }}
-    >
+      }}>
       {props.loadingText}
     </div>
   );
@@ -73,7 +72,6 @@ export class Table extends Component {
     convertItem: PropTypes.func,
     treeModeEnabled: PropTypes.bool,
     renderTreeLeaf: PropTypes.func,
-    itemLink: PropTypes.func,
     searchColumnName: PropTypes.string,
     copyNodeWindow: PropTypes.bool,
     copyNodes: PropTypes.func,
@@ -121,8 +119,13 @@ export class Table extends Component {
   componentDidUpdate(prevProps, prevState) {
     const location = this.props.parentProps.location;
     const prevLocation = prevProps.parentProps.location;
-    if(location.pathname !== prevLocation.pathname) {
-      this.readRoute()
+    if(location.pathname !== prevLocation.pathname && this.props.parentProps.location.pathname === `/${this.props.backToUrl}`) {
+      this.setState({
+        currentItem: null,
+        currentItemOriginal: null,
+        showAddForm: false,
+        showEditForm: false
+      })
     }
   }
 
@@ -239,14 +242,6 @@ export class Table extends Component {
       this.setState({defaultFiltered, searchQuery: searched}, () =>
         this.update({filtered: defaultFiltered})
       );
-    }
-    if(this.props.parentProps.location.pathname === `/${this.props.backToUrl}`) {
-      this.setState({
-        currentItem: null,
-        currentItemOriginal: null,
-        showAddForm: false,
-        showEditForm: false
-      })
     }
   };
 
@@ -848,7 +843,6 @@ export class Table extends Component {
                   copyNodeWindow={this.props.copyNodeWindow || false}
                   copyNodes={this.props.copyNodes}
                   searchKeys={this.props.searchKeys}
-                  itemLink={this.props.itemLink}
                   onSearchChange={text => {
                     this.update({filtered: [{id: "key", value: text}]});
                   }}
@@ -858,6 +852,7 @@ export class Table extends Component {
                       () => this.update({filtered: [{id: "key", value: id}]}));
                   }}
                   editAction={(e, item) => this.showEditForm(e, item)}
+                  addAction={(e, item) => this.showAddForm(e, item)}
                   removeAction={(e, item) =>
                     this.setState({confirmDeleteTable: true, toDelete: item})
                   }
