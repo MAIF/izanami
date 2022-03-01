@@ -32,19 +32,27 @@ export function addOrUpdateInTree(segments, value, tree) {
 }
 
 function createTree(subId, segments, value) {
-  if(segments.length > 0) {
-    const childs = segments.map((k) => ({key: k}))
+  if (segments.length > 0) {
+    const childs = segments
+      .map((k, i) => {
+        const id = i ===0 ? `${subId}:${k}` : `${subId}:${segments.slice(1, i).join(":")}:${k}`
+        return ({
+          key: k,
+          id: id
+        })
+      })
       .reduceRight((acc, curr, index) => {
-      curr.childs = [].concat(acc)
-      let isLastItem = index === segments.length - 1;
-      if (isLastItem) {
-        curr.id = value.id
-        curr.value = value
-      }
-      return curr
-    }, []);
+        curr.childs = [].concat(acc)
 
-    return {key: subId, childs: [childs]}
+        let isLastItem = index === segments.length - 1;
+        if (isLastItem) {
+          curr.id = value.id
+          curr.value = value
+        }
+        return curr
+      }, []);
+
+    return {key: subId, id: subId, childs: [childs]}
   } else {
     return {key: subId, value, id: value.id, childs: []};
   }
