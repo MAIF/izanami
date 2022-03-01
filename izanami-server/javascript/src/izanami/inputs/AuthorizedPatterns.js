@@ -13,7 +13,7 @@ const Letter = props => (
 export const AuthorizedPatterns = (props) => {
 
     return intersperse(props.value.map( (p, i) =>
-        <span key={`pattern-${i}-${p.pattern}`}>
+        <span className="d-flex align-items-center justify-content-center" key={`pattern-${i}-${p.pattern}`}>
             <Key value={p.pattern}/>
             <span>  </span>
             <div className="btn-group btn-group-xs letter-group" role="group" >
