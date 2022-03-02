@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 BRANCH_NAME=`git branch --show-current`
 
