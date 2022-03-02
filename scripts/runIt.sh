@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 DOCKER=$1
 TEST=$2
