@@ -10,10 +10,10 @@ lazy val root = (project in file("."))
     `izanami-clients`
   )
   .enablePlugins(GitVersioning, GitBranchPrompt)
-  .settings(skip in publish := true, scalaVersion := Dependencies.scalaVersion)
+  .settings(publish / skip := true, scalaVersion := Dependencies.scalaVersion)
 
 lazy val `izanami-documentation` = project
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
 
 lazy val `izanami-server` = project
 
@@ -22,7 +22,7 @@ lazy val `izanami-clients` = project
 lazy val `example` = project
 
 lazy val simulation = project
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
 
 val setVersionToNpmProject = ReleaseStep(action = st => {
   import sys.process._
@@ -77,10 +77,12 @@ inThisBuild(
       ),
     releaseCrossBuild := true,
     publishMavenStyle := true,
-    publishArtifact in Test := false
+    Test / publishArtifact := false
   )
 )
 
 usePgpKeyHex("4CFAF84EA6075473D68FA7D9590BEB09DDA3F0B7")
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 sonatypeCredentialHost := "s01.oss.sonatype.org"
+
+scalacOptions ++= Seq("-deprecation", "-feature")
