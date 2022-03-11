@@ -18,7 +18,7 @@ import env.configuration.IzanamiConfigModule
 import libs.logs.ZLogger
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import play.api.Environment
+import play.api.{Environment, Mode}
 import play.api.libs.json.{JsSuccess, Json}
 import store.Query
 import store.memory.InMemoryJsonDataStore
@@ -195,12 +195,12 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
     }
 
     "get by id" in {
-      val id            = Key("feature:getbyid")
-      val lock          = IzanamiLock(id, true)
-      val lockDataStore = new InMemoryJsonDataStore("lock-test")
-      val featuresStore = new InMemoryJsonDataStore("feature-test")
-      val ctxLock       = testLockContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
-      val ctxFeature    = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val id             = Key("feature:getbyid")
+      val lock           = IzanamiLock(id, true)
+      val lockDataStore  = new InMemoryJsonDataStore("lock-test")
+      val featuresStore  = new InMemoryJsonDataStore("feature-test")
+      val ctxLock        = testLockContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
+      val ctxFeature     = testFeatureContext(featureDataStore = featuresStore, lockDataStore = lockDataStore)
       val featureGetById = DefaultFeature(Key("getbyid"), false, None)
 
       run(ctxFeature)(FeatureService.create(featureGetById.id, featureGetById))
@@ -732,9 +732,10 @@ class LockSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
       featureDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("feature-test")
   ): ZLayer[Any, Throwable, LockContext] =
     playModule ++ ZLogger.live ++ Blocking.live ++ EventStore.value(new TestEventStore(events)) ++
-    AuthInfo.optValue(user) ++ LockDataStore.value(lockDataStore) ++ FeatureDataStore.value(featureDataStore) >+> IzanamiConfigModule.value(FakeConfig.config)
+    AuthInfo.optValue(user) ++ LockDataStore.value(lockDataStore) ++ FeatureDataStore.value(featureDataStore) >+> IzanamiConfigModule
+      .value(FakeConfig.config)
 
-  val testScript: RunnableScriptModuleProd                             = RunnableScriptModuleProd(env.classLoader)
+  val testScript: RunnableScriptModuleProd                             = RunnableScriptModuleProd(env.classLoader, Mode.Test)
   val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = RunnableScriptModule.value(testScript)
 
   def fakeCache: CacheService[String] = new CacheService[String] {

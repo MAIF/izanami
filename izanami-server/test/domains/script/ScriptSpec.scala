@@ -9,7 +9,14 @@ import org.scalatestplus.play.components.OneServerPerSuiteWithComponents
 import play.api.ApplicationLoader.Context
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.{BuiltInComponents, BuiltInComponentsFromContext, Configuration, Environment, NoHttpFiltersComponents}
+import play.api.{
+  BuiltInComponents,
+  BuiltInComponentsFromContext,
+  Configuration,
+  Environment,
+  Mode,
+  NoHttpFiltersComponents
+}
 import play.libs.ws.ahc.AhcWSClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 import zio.blocking.Blocking
@@ -35,7 +42,7 @@ import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Sink
 import cats.data.NonEmptyList
 import domains.apikey.Apikey
-import domains.configuration.{PlayModule}
+import domains.configuration.PlayModule
 import domains.configuration.PlayModule.PlayModuleProd
 import domains.errors.{DataShouldExists, IdMustBeTheSame, Unauthorized, ValidationError}
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
@@ -149,9 +156,11 @@ class ScriptSpec
       val globalScript          = GlobalScript(id, "name", "description", JavascriptScript(script))
       val events                = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val globalScriptDataStore = new InMemoryJsonDataStore("globalScript-test")
-      val ctx = testGlobalScriptContext(events,
-                                        globalScriptDataStore,
-                                        authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+      val ctx = testGlobalScriptContext(
+        events,
+        globalScriptDataStore,
+        authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R))
+      )
 
       val value = run(ctx)(GlobalScriptService.create(id, globalScript).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
@@ -212,9 +221,11 @@ class ScriptSpec
       val globalScript          = GlobalScript(id, "name", "description", JavascriptScript(script))
       val events                = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val globalScriptDataStore = new InMemoryJsonDataStore("globalScript-test")
-      val ctx = testGlobalScriptContext(events,
-                                        globalScriptDataStore,
-                                        authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+      val ctx = testGlobalScriptContext(
+        events,
+        globalScriptDataStore,
+        authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R))
+      )
 
       val value = run(ctx)(GlobalScriptService.update(id, id, globalScript).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
@@ -274,9 +285,11 @@ class ScriptSpec
       val id                    = Key("test")
       val events                = mutable.ArrayBuffer.empty[Events.IzanamiEvent]
       val globalScriptDataStore = new InMemoryJsonDataStore("globalScript-test")
-      val ctx = testGlobalScriptContext(events,
-                                        globalScriptDataStore,
-                                        authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R)))
+      val ctx = testGlobalScriptContext(
+        events,
+        globalScriptDataStore,
+        authInfo(patterns = AuthorizedPatterns.of("*" -> PatternRights.R))
+      )
 
       val value = run(ctx)(GlobalScriptService.delete(id).either)
       value mustBe Left(NonEmptyList.of(Unauthorized(Some(Key("test")))))
@@ -361,7 +374,7 @@ class ScriptSpec
   def testGlobalScriptContext(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty,
       globalScriptDataStore: InMemoryJsonDataStore = new InMemoryJsonDataStore("globalScript-test"),
-      user: Option[AuthInfo.Service] = authInfo,
+      user: Option[AuthInfo.Service] = authInfo
   ): ZLayer[Any, Throwable, GlobalScriptContext] =
     playModule ++
     ZLogger.live ++
@@ -459,12 +472,12 @@ class ScriptSpec
     )
   )
 
-  val testScript: RunnableScriptModuleProd                             = RunnableScriptModuleProd(environment.classLoader)
+  val testScript: RunnableScriptModuleProd                             = RunnableScriptModuleProd(environment.classLoader, Mode.Test)
   val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = RunnableScriptModule.value(testScript)
 
-  val runnableScriptContext
-    : ZLayer[Any, Nothing, RunnableScriptContext] = playModule ++ runnableScriptModule ++ ZLogger.live ++ Blocking.live ++ ScriptCache
-    .value(fakeCache)
+  val runnableScriptContext: ZLayer[Any, Nothing, RunnableScriptContext] =
+    playModule ++ runnableScriptModule ++ ZLogger.live ++ Blocking.live ++ ScriptCache
+      .value(fakeCache)
 
   def fakeCache: CacheService[String] = new CacheService[String] {
     override def get[T: ClassTag](id: String): Task[Option[T]]      = Task.succeed(None)
