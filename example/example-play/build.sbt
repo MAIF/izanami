@@ -3,7 +3,7 @@ name := "example-play"
 
 lazy val `example-play` = (project in file("."))
   .enablePlugins(PlayScala)
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
 
 scalaVersion := Dependencies.scalaVersion
 

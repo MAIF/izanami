@@ -19,6 +19,6 @@ libraryDependencies ++= Seq(
   "com.novocode"             % "junit-interface"                     % "0.11" % Test
 )
 
-javacOptions in (Compile, compile) ++= Seq("-source", "1.8", "-target", "1.8")
+Compile / compile / javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 crossPaths := false
