@@ -2,6 +2,7 @@ package store.memorywithdb
 
 import akka.{Done, NotUsed}
 import akka.actor.{ActorSystem, Cancellable}
+import akka.stream.RestartSettings
 import akka.stream.scaladsl.{Flow, RestartSource, Sink, Source}
 import cats.implicits._
 import domains.Key
@@ -178,7 +179,9 @@ class InMemoryWithDbStore(
       events <- EventStore.events()
       res <- IO.fromFuture { _ =>
               RestartSource
-                .onFailuresWithBackoff(1.second, 20.second, 1)(() =>
+                .onFailuresWithBackoff(RestartSettings(
+                  minBackoff = 1.second, maxBackoff = 20.second, randomFactor = 1
+                ))(() =>
                   events
                     .via(eventAdapter)
                     .map {
