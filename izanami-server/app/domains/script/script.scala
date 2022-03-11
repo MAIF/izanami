@@ -89,11 +89,12 @@ package object script {
       def kotlinScriptEngine: ScriptEngine
     }
 
-    case class RunnableScriptModuleProd(scriptEngineManager: ScriptEngineManager,
-                                        javascriptScriptEngine: ScriptEngine with Invocable,
-                                        scalaScriptEngine: Option[ScriptEngine with Invocable],
-                                        kotlinScriptEngine: ScriptEngine)
-        extends Service
+    case class RunnableScriptModuleProd(
+        scriptEngineManager: ScriptEngineManager,
+        javascriptScriptEngine: ScriptEngine with Invocable,
+        scalaScriptEngine: Option[ScriptEngine with Invocable],
+        kotlinScriptEngine: ScriptEngine
+    ) extends Service
 
     object RunnableScriptModuleProd {
       def apply(classLoader: ClassLoader, mode: Mode): RunnableScriptModuleProd = {
@@ -101,11 +102,11 @@ package object script {
         val javascriptScriptEngine =
           scriptEngineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable]
         val scalaScriptEngine: Option[ScriptEngine with Invocable] = mode match {
-          case Mode.Prod =>
+          case Mode.Dev => None
+          case _ =>
             Option(
               scriptEngineManager.getEngineByName("scala").asInstanceOf[ScriptEngine with Invocable]
             )
-          case _ => None
         }
         lazy val kotlinScriptEngine: ScriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
         RunnableScriptModuleProd(scriptEngineManager, javascriptScriptEngine, scalaScriptEngine, kotlinScriptEngine)
@@ -212,9 +213,11 @@ package object script {
         _        <- EventStore.publish(GlobalScriptCreated(id, apikey, authInfo = authInfo))
       } yield apikey
 
-    def update(oldId: GlobalScriptKey,
-               id: GlobalScriptKey,
-               data: GlobalScript): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
+    def update(
+        oldId: GlobalScriptKey,
+        id: GlobalScriptKey,
+        data: GlobalScript
+    ): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
       // format: off
       for {
         _           <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
@@ -248,9 +251,11 @@ package object script {
         parsedScript = mayBeScript.flatMap(_.validate[GlobalScript].asOpt)
       } yield parsedScript
 
-    def findByQuery(query: Query,
-                    page: Int = 1,
-                    nbElementPerPage: Int = 15): RIO[GlobalScriptContext, PagingResult[GlobalScript]] =
+    def findByQuery(
+        query: Query,
+        page: Int = 1,
+        nbElementPerPage: Int = 15
+    ): RIO[GlobalScriptContext, PagingResult[GlobalScript]] =
       GlobalScriptDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
 

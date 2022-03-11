@@ -31,11 +31,10 @@ import zio.blocking.Blocking
 import zio.internal.Executor
 import org.scalatest.BeforeAndAfterAll
 import akka.testkit.TestKit
-import play.api.Environment
+import play.api.{Configuration, Environment, Mode}
 
 import scala.concurrent.ExecutionContext
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.Configuration
 import play.api.libs.json.JsArray
 
 import java.time.LocalTime
@@ -1040,7 +1039,7 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
   val env: Environment                     = Environment.simple()
   val playModule: ULayer[PlayModule]       = FakeConfig.playModule(actorSystem, env)
-  val testScript: RunnableScriptModuleProd = RunnableScriptModuleProd(env.classLoader)
+  val testScript: RunnableScriptModuleProd = RunnableScriptModuleProd(env.classLoader, Mode.Test)
 
   val runnableScriptModule: ZLayer[Any, Nothing, RunnableScriptModule] = RunnableScriptModule.value(testScript)
 
