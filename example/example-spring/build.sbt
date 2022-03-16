@@ -3,7 +3,7 @@ name := "example-spring"
 
 scalaVersion := Dependencies.scalaVersion
 
-mainClass in (Compile, run) := Some("izanami.example.Application")
+Compile / run / mainClass := Some("izanami.example.Application")
 
 resolvers ++= Seq(
   Resolver.jcenterRepo,

@@ -2,7 +2,7 @@ scalaVersion := Dependencies.scalaVersion
 
 lazy val `izanami-clients` = (project in file("."))
   .aggregate(jvm, `izanami-spring`)
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
 
 lazy val jvm = project
 

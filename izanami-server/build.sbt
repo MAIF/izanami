@@ -2,9 +2,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 name := """izanami"""
 
-packageName in Universal := "izanami"
-
-name in Universal := "izanami"
+Universal / packageName := "izanami"
+Universal / name := "izanami"
 
 scalaVersion := Dependencies.scalaVersion
 
@@ -17,7 +16,7 @@ lazy val `izanami-server` = (project in file("."))
   .configs(ITest)
   .settings(Defaults.itSettings: _*)
   .enablePlugins(PlayScala, SwaggerPlugin, DockerPlugin, BuildInfoPlugin)
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
   .settings(
     buildInfoKeys := Seq[BuildInfoKey](
         version,
@@ -50,6 +49,7 @@ libraryDependencies ++= Seq(
   "org.gnieh"                %% "diffson-play-json"              % "4.0.2", //
   "com.softwaremill.macwire" %% "macros"                         % "2.3.3" % "provided", // Apache 2.0
   "org.scala-lang.modules"   %% "scala-collection-compat"        % "2.1.4",
+  "com.typesafe.akka"        %% "akka-http"                      % Dependencies.akkaHttpVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-actor"                     % Dependencies.akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-slf4j"                     % Dependencies.akkaVersion, // Apache 2.0
   "com.typesafe.akka"        %% "akka-stream"                    % Dependencies.akkaVersion, // Apache 2.0
@@ -90,7 +90,6 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"  % "kotlin-scripting-compiler-embeddable" % kotlinVersion,
   "org.webjars"           % "swagger-ui"                           % "3.25.0",
   "net.logstash.logback"  % "logstash-logback-encoder"             % "6.3",
-  "com.typesafe.akka"     %% "akka-http"                           % Dependencies.akkaHttpVersion % "it,test", // Apache 2.0
   "com.typesafe.akka"     %% "akka-testkit"                        % Dependencies.akkaVersion % "it,test", // Apache 2.0
   "de.heikoseeberger"     %% "akka-http-play-json"                 % "1.31.0" % "it,test" excludeAll ExclusionRule(
     "com.typesafe.play",
@@ -106,8 +105,8 @@ libraryDependencies ++= Seq(
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
 
-scalaSource in ITest := baseDirectory.value / "it"
-resourceDirectory in ITest := (baseDirectory apply { baseDir: File => baseDir / "it/resources" }).value
+ITest / scalaSource  := baseDirectory.value / "it"
+ITest / resourceDirectory := (baseDirectory apply { baseDir: File => baseDir / "it/resources" }).value
 
 scalacOptions ++= Seq(
   "-feature",
@@ -123,11 +122,11 @@ scalacOptions ++= Seq(
 
 coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
-sources in (Compile, doc) := Seq.empty
+Compile / doc / sources  := Seq.empty
 
-publishArtifact in (Compile, packageDoc) := false
+Compile / packageDoc / publishArtifact := false
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
 swaggerDomainNameSpaces := Seq(
   "domains.abtesting.events.ExperimentVariantEventKey",
@@ -156,11 +155,11 @@ swaggerDomainNameSpaces := Seq(
 swaggerV3 := true
 
 /// ASSEMBLY CONFIG
-mainClass in assembly := Some("play.core.server.ProdServerStart")
-test in assembly := {}
-assemblyJarName in assembly := "izanami.jar"
-fullClasspath in assembly += Attributed.blank(PlayKeys.playPackageAssets.value)
-assemblyMergeStrategy in assembly := {
+assembly / mainClass := Some("play.core.server.ProdServerStart")
+assembly / test := {}
+assembly / assemblyJarName := "izanami.jar"
+assembly / fullClasspath += Attributed.blank(PlayKeys.playPackageAssets.value)
+assembly / assemblyMergeStrategy := {
   case PathList("javax", xs @ _*)                                             => MergeStrategy.first
   case PathList("net", "jpountz", xs @ _*)                                    => MergeStrategy.first
   case PathList("org", "jetbrains", xs @ _*)                                  => MergeStrategy.first
@@ -175,14 +174,14 @@ assemblyMergeStrategy in assembly := {
 //  case PathList(ps @ _*) if ps.contains("buildinfo")                          => MergeStrategy.discard
   case PathList(ps @ _*) if ps.last endsWith "reflection-config.json" => MergeStrategy.first
   case o =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    val oldStrategy = (assembly / assemblyMergeStrategy).value
     oldStrategy(o)
 }
 
 lazy val packageAll = taskKey[Unit]("PackageAll")
 packageAll := {
-  (dist in Compile).value
-  (assembly in Compile).value
+  (Compile / dist).value
+  (Compile / assembly).value
 }
 
 /// DOCKER CONFIG
@@ -190,11 +189,11 @@ dockerExposedPorts := Seq(
   2551,
   8080
 )
-packageName in Docker := "izanami"
+Docker / packageName := "izanami"
 
-dockerPackageMappings in Docker += (baseDirectory.value / "docker" / "start.sh") -> "/opt/docker/bin/start.sh"
+Docker / dockerPackageMappings += (baseDirectory.value / "docker" / "start.sh") -> "/opt/docker/bin/start.sh"
 
-maintainer in Docker := "MAIF Team <maif@maif.fr>"
+Docker / maintainer := "MAIF Team <maif@maif.fr>"
 
 dockerBaseImage := "openjdk:11-jre-slim"
 
@@ -230,7 +229,7 @@ lazy val generateDoc = taskKey[Unit]("Copy api doc")
 
 generateDoc := {
   val p = project
-  (swagger in Compile).value
+  (Compile / swagger).value
   val swaggerFile = target.value / "swagger" / "swagger.json"
   val targetDoc   = p.base.getParentFile / "docs" / "swagger" / "swagger.json"
   IO.delete(targetDoc)
