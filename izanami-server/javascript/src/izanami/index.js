@@ -534,7 +534,8 @@ export class LoggedApp extends Component {
                       <SweetModal
                         type="confirm"
                         id={"createUser"}
-                        confirm={e => this.gotoCreateUser()}
+                        confirm={() => this.gotoCreateUser()}
+                        onDismiss={() => this.onChangemeClosed()}
                         open={true}
                         labelValid="Create a user"
                         title="Create a user">

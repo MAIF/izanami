@@ -8,7 +8,7 @@ lazy val `izanami-documentation` = (project in file("."))
     name := "Izanami",
     paradoxTheme := Some(builtinParadoxTheme("generic")),
     paradoxGroups := Map("Language" -> Seq("Scala", "Java")),
-    paradoxProperties in Compile ++= Map(
+    Compile / paradoxProperties ++= Map(
         "version"                 -> version.value,
         "scalaVersion"            -> scalaVersion.value,
         "scalaBinaryVersion"      -> scalaBinaryVersion.value,
@@ -28,8 +28,8 @@ lazy val generateDoc = taskKey[Unit]("Copy doc")
 generateDoc := {
   val p = project
   //IO.delete(ditaaDestination.value)
-  (ditaa in Compile).value
-  (paradox in Compile).value
+  (Compile / ditaa).value
+  (Compile / paradox).value
   val paradoxFile = target.value / "paradox" / "site" / "main"
   val targetDocs  = p.base.getParentFile / "docs" / "manual"
   IO.delete(targetDocs)

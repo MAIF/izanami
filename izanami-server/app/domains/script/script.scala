@@ -18,9 +18,11 @@ import domains.script.{GlobalScriptDataStore, PlayScriptCache}
 import domains.script.RunnableScriptModule.RunnableScriptModuleProd
 import env.IzanamiConfig
 import env.configuration.IzanamiConfigModule
+
 import javax.script.{Invocable, ScriptEngine, ScriptEngineManager}
 import libs.database.Drivers
 import org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory
+import play.api.Mode
 import store.memorywithdb.InMemoryWithDbStore
 import zio.blocking.Blocking
 
@@ -87,20 +89,25 @@ package object script {
       def kotlinScriptEngine: ScriptEngine
     }
 
-    case class RunnableScriptModuleProd(scriptEngineManager: ScriptEngineManager,
-                                        javascriptScriptEngine: ScriptEngine with Invocable,
-                                        scalaScriptEngine: Option[ScriptEngine with Invocable],
-                                        kotlinScriptEngine: ScriptEngine)
-        extends Service
+    case class RunnableScriptModuleProd(
+        scriptEngineManager: ScriptEngineManager,
+        javascriptScriptEngine: ScriptEngine with Invocable,
+        scalaScriptEngine: Option[ScriptEngine with Invocable],
+        kotlinScriptEngine: ScriptEngine
+    ) extends Service
 
     object RunnableScriptModuleProd {
-      def apply(classLoader: ClassLoader): RunnableScriptModuleProd = {
+      def apply(classLoader: ClassLoader, mode: Mode): RunnableScriptModuleProd = {
         val scriptEngineManager = new ScriptEngineManager(classLoader)
         val javascriptScriptEngine =
           scriptEngineManager.getEngineByName("nashorn").asInstanceOf[ScriptEngine with Invocable]
-        val scalaScriptEngine: Option[ScriptEngine with Invocable] = Option(
-          scriptEngineManager.getEngineByName("scala").asInstanceOf[ScriptEngine with Invocable]
-        )
+        val scalaScriptEngine: Option[ScriptEngine with Invocable] = mode match {
+          case Mode.Dev => None
+          case _ =>
+            Option(
+              scriptEngineManager.getEngineByName("scala").asInstanceOf[ScriptEngine with Invocable]
+            )
+        }
         lazy val kotlinScriptEngine: ScriptEngine = new KotlinJsr223JvmLocalScriptEngineFactory().getScriptEngine
         RunnableScriptModuleProd(scriptEngineManager, javascriptScriptEngine, scalaScriptEngine, kotlinScriptEngine)
       }
@@ -116,7 +123,7 @@ package object script {
       ZIO.access[RunnableScriptModule](_.get.kotlinScriptEngine)
 
     val live: ZLayer[PlayModule, Nothing, RunnableScriptModule] = ZLayer.fromFunction { mix =>
-      RunnableScriptModuleProd(mix.get.environment.classLoader)
+      RunnableScriptModuleProd(mix.get.environment.classLoader, mix.get.environment.mode)
     }
     def value(runnableScriptModule: RunnableScriptModuleProd): ULayer[RunnableScriptModule] =
       ZLayer.succeed(runnableScriptModule)
@@ -206,9 +213,11 @@ package object script {
         _        <- EventStore.publish(GlobalScriptCreated(id, apikey, authInfo = authInfo))
       } yield apikey
 
-    def update(oldId: GlobalScriptKey,
-               id: GlobalScriptKey,
-               data: GlobalScript): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
+    def update(
+        oldId: GlobalScriptKey,
+        id: GlobalScriptKey,
+        data: GlobalScript
+    ): ZIO[GlobalScriptContext, IzanamiErrors, GlobalScript] =
       // format: off
       for {
         _           <- AuthorizedPatterns.isAllowed(id, PatternRights.U)
@@ -242,9 +251,11 @@ package object script {
         parsedScript = mayBeScript.flatMap(_.validate[GlobalScript].asOpt)
       } yield parsedScript
 
-    def findByQuery(query: Query,
-                    page: Int = 1,
-                    nbElementPerPage: Int = 15): RIO[GlobalScriptContext, PagingResult[GlobalScript]] =
+    def findByQuery(
+        query: Query,
+        page: Int = 1,
+        nbElementPerPage: Int = 15
+    ): RIO[GlobalScriptContext, PagingResult[GlobalScript]] =
       GlobalScriptDataStore.>.findByQuery(query, page, nbElementPerPage)
         .map(jsons => JsonPagingResult(jsons))
 
