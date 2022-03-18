@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.3*
+1.10.14*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -80,7 +80,6 @@
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
     <li><a href="../clients/react.html" class="page">React client</a></li>
-    <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
     <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
@@ -125,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.3*
+1.10.14*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -175,7 +174,6 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../clients/jvm.html" class="page">Java &amp; Scala</a></li>
     <li><a href="../clients/react.html" class="page">React client</a></li>
-    <li><a href="../clients/angular.html" class="page">Angular client</a></li>
     <li><a href="../clients/node.html" class="page">Node js client</a></li>
     <li><a href="../clients/cli.html" class="page">CLI</a></li>
     <li><a href="../clients/spring-starter.html" class="page">Spring starter</a></li>
@@ -211,7 +209,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#all-the-settings" name="all-the-settings" class="anchor"><span class="anchor-link"></span></a>All the settings</h1><div class="callout note "><div class="callout-title">Note</div>
-<p>Izanami is written with play and akka. You can fin additional configuration information here <a href="https://www.playframework.com/documentation/2.6.x/Configuration">https://www.playframework.com/documentation/2.6.x/Configuration</a>. </p></div>
+<p>Izanami is written with play and akka. You can find additional configuration information here <a href="https://www.playframework.com/documentation/2.8.x/Configuration">https://www.playframework.com/documentation/2.8.x/Configuration</a>. </p></div>
 <h2><a href="#plays-settings" name="plays-settings" class="anchor"><span class="anchor-link"></span></a>Plays settings</h2>
 <table>
   <thead>
@@ -230,16 +228,88 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>izanamiSecret</code> </td>
     </tr>
     <tr>
-      <td><code>http.port</code> </td>
-      <td><code>HTTP_PORT</code> </td>
-      <td>The port used </td>
-      <td><code>9000</code> </td>
-    </tr>
-    <tr>
       <td><code>play.http.context</code> </td>
       <td><code>APPLICATION_BASE_URL</code> </td>
       <td>The context used </td>
       <td><code>/</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.http.port</code> </td>
+      <td><code>HTTP_PORT</code> </td>
+      <td>The port used for HTTP exposition </td>
+      <td><code>9000</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.http.address</code> </td>
+      <td><code>HTTP_ADDRESS</code> </td>
+      <td>The interface address to bind to </td>
+      <td><code>0.0.0.0</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.http.idleTimeout</code> </td>
+      <td><code>HTTP_IDLE_TIMEOUT</code> </td>
+      <td>The idle timeout for an open connection </td>
+      <td><code>null</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.port</code> </td>
+      <td><code>HTTPS_PORT</code> </td>
+      <td>The port used for HTTPS exposition </td>
+      <td><code>disabled</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.address</code> </td>
+      <td><code>HTTPS_ADDRESS</code> </td>
+      <td>The interface address to bind to </td>
+      <td><code>0.0.0.0</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.engineProvider</code> </td>
+      <td><code>HTTPS_SSL_ENGINE_PROVIDER</code> </td>
+      <td>The SSL engine provider </td>
+      <td><code>play.core.server.ssl.DefaultSSLEngineProvider</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.keyStore.path</code> </td>
+      <td><code>HTTPS_KEYSTORE_PATH</code> </td>
+      <td>The path to the keystore </td>
+      <td><code>null</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.keyStore.type</code> </td>
+      <td><code>HTTPS_KEYSTORE_TYPE</code> </td>
+      <td>The type of the keystore </td>
+      <td><code>JKS</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.keyStore.password</code> </td>
+      <td><code>HTTPS_KEYSTORE_PASSWORD</code> </td>
+      <td>The password for the keystore </td>
+      <td><code>&quot;&quot;</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.keyStore.algorithm</code> </td>
+      <td><code>HTTPS_KEYSTORE_ALGORITHM</code> </td>
+      <td>The algorithm to use. If not set, uses the platform default algorithm </td>
+      <td><code>null</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.trustStore.noCaVerification</code> </td>
+      <td><code>HTTPS_TRUSTSTORE_NO_CA_VERIFICATION</code> </td>
+      <td>If true, does not do CA verification on client side certificates </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.wantClientAuth</code> </td>
+      <td><code>HTTPS_WANT_CLIENT_AUTH</code> </td>
+      <td>Whether JSSE want client auth mode should be used. The server will request a client certificate, but won&rsquo;t fail if one isn&rsquo;t provided </td>
+      <td><code>false</code> </td>
+    </tr>
+    <tr>
+      <td><code>play.server.https.needClientAuth</code> </td>
+      <td><code>HTTPS_NEED_CLIENT_AUTH</code> </td>
+      <td>Whether JSSE need client auth mode should be used. The server will request a client certificate, and will fail and terminate the session if one isn&rsquo;t provided </td>
+      <td><code>false</code> </td>
     </tr>
     <tr>
       <td><code>izanami.zoneId</code> </td>
@@ -1214,6 +1284,23 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </tbody>
 </table>
 <p>You can find more option about the <code>ssl-config</code> part on this link: <a href="https://lightbend.github.io/ssl-config/index.html">https://lightbend.github.io/ssl-config/index.html</a>.</p>
+<h2><a href="#ui" name="ui" class="anchor"><span class="anchor-link"></span></a>UI</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Config property </th>
+      <th>Env variable </th>
+      <th>Description </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>izanami.confirmationDialog</code> </td>
+      <td><code>IZANAMI_CONFIRMATIONDIALOG</code> </td>
+      <td>Ask confirmation before update a feature </td>
+    </tr>
+  </tbody>
+</table>
 <div class="source-github">
 The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
 </div>
@@ -1238,6 +1325,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
     <li><a href="../settings/settings.html#domains" class="header">Domains</a></li>
     <li><a href="../settings/settings.html#metrics" class="header">Metrics</a></li>
     <li><a href="../settings/settings.html#oauth2" class="header">Oauth2</a></li>
+    <li><a href="../settings/settings.html#ui" class="header">UI</a></li>
   </ul></li>
 </ul>
 </div>
@@ -1280,7 +1368,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 
 <!--
 <div class="copyright">
-<span class="text">&copy; 2021</span>
+<span class="text">&copy; 2022</span>
 <a href="https://www.example.com" class="logo">logo</a>
 </div>
 -->
