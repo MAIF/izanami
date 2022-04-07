@@ -44,7 +44,10 @@ public class StrategyProperties {
                     String[] patterns = Option.of(this.patterns)
                             .map(p -> io.vavr.collection.List.ofAll(p).toJavaArray(String[]::new))
                             .getOrElse(new String[]{"*"});
-                    return Strategies.smartCacheWithSseStrategy(patterns).withErrorStrategy(errorStrategy);
+                    return Strategies.smartCacheWithSseStrategy(
+                        scala.Option.apply(pollingInterval),
+                        patterns
+                    ).withErrorStrategy(errorStrategy);
                 }),
                 Case($("CacheWithPollingStrategy"), () -> {
                     String[] patterns = Option.of(this.patterns)
