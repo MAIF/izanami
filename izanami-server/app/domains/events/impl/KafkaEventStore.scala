@@ -26,8 +26,8 @@ import zio.{IO, RIO, Task, ZLayer}
 
 import scala.collection.mutable
 import libs.logs.ZLogger
-import domains.events.EventStoreContext
 import env.configuration.IzanamiConfigModule
+import org.apache.kafka.common.config.SaslConfigs
 import store.datastore.DataStoreLayerContext
 
 object KafkaSettings {
@@ -44,20 +44,33 @@ object KafkaSettings {
       .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
       .withBootstrapServers(config.servers)
 
-    val s = for {
-      ks <- config.keystore.location
-      ts <- config.truststore.location
-      kp <- config.keyPass
-    } yield {
-      settings
-        .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
-        .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
-        .withProperty(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, null)
-        .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
-        .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
-        .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)
-        .withProperty(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, ts)
-        .withProperty(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kp)
+    val s = config.protocol match {
+      case "SASL_SSL" =>
+        for {
+          m   <- config.saslMechanism
+          sjc <- config.saslJaasConfig
+        } yield {
+          settings
+            .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, config.protocol)
+            .withProperty(SaslConfigs.SASL_MECHANISM, m)
+            .withProperty(SaslConfigs.SASL_JAAS_CONFIG, sjc)
+        }
+      case _ =>
+        for {
+          ks <- config.keystore.location
+          ts <- config.truststore.location
+          kp <- config.keyPass
+        } yield {
+          settings
+            .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
+            .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
+            .withProperty(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, null)
+            .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
+            .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
+            .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)
+            .withProperty(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, ts)
+            .withProperty(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kp)
+        }
     }
 
     s.getOrElse(settings)
@@ -68,20 +81,33 @@ object KafkaSettings {
       .create(system, new StringSerializer(), new StringSerializer())
       .withBootstrapServers(config.servers)
 
-    val s = for {
-      ks <- config.keystore.location
-      ts <- config.truststore.location
-      kp <- config.keyPass
-    } yield {
-      settings
-        .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
-        .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
-        .withProperty(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, null)
-        .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
-        .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
-        .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)
-        .withProperty(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, ts)
-        .withProperty(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kp)
+    val s = config.protocol match {
+      case "SASL_SSL" =>
+        for {
+          m   <- config.saslMechanism
+          sjc <- config.saslJaasConfig
+        } yield {
+          settings
+            .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, config.protocol)
+            .withProperty(SaslConfigs.SASL_MECHANISM, m)
+            .withProperty(SaslConfigs.SASL_JAAS_CONFIG, sjc)
+        }
+      case _ =>
+        for {
+          ks <- config.keystore.location
+          ts <- config.truststore.location
+          kp <- config.keyPass
+        } yield {
+          settings
+            .withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
+            .withProperty(BrokerSecurityConfigs.SSL_CLIENT_AUTH_CONFIG, "required")
+            .withProperty(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, null)
+            .withProperty(SslConfigs.SSL_KEY_PASSWORD_CONFIG, kp)
+            .withProperty(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, ks)
+            .withProperty(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, kp)
+            .withProperty(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, ts)
+            .withProperty(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kp)
+        }
     }
 
     s.getOrElse(settings)
@@ -135,9 +161,11 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
       .orDie
   }
 
-  override def events(domains: Seq[Domain],
-                      patterns: Seq[String],
-                      lastEventId: Option[Long]): Source[IzanamiEvent, NotUsed] = {
+  override def events(
+      domains: Seq[Domain],
+      patterns: Seq[String],
+      lastEventId: Option[Long]
+  ): Source[IzanamiEvent, NotUsed] = {
 
     val kafkaConsumer: KConsumer[String, String] =
       settings.createKafkaConsumer()
@@ -147,15 +175,11 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
     val subscription: ManualSubscription = lastEventId.map { _ =>
       val lastDate: Long = System.currentTimeMillis() - (1000 * 60 * 60 * 24)
       val topicsInfo: Seq[(TopicPartition, Long)] =
-        partitionSeq.map { t =>
-          new TopicPartition(eventsConfig.topic, t.partition()) -> lastDate
-        }
+        partitionSeq.map(t => new TopicPartition(eventsConfig.topic, t.partition()) -> lastDate)
       Subscriptions.assignmentOffsetsForTimes(topicsInfo: _*)
     } getOrElse {
       val topicsInfo: Seq[TopicPartition] =
-        partitionSeq.map { t =>
-          new TopicPartition(eventsConfig.topic, t.partition())
-        }
+        partitionSeq.map(t => new TopicPartition(eventsConfig.topic, t.partition()))
       Subscriptions.assignment(topicsInfo: _*)
     }
 
@@ -163,16 +187,15 @@ class KafkaEventStore(system: ActorSystem, clusterConfig: KafkaConfig, eventsCon
       .plainSource[String, String](settings, subscription)
       .map(_.value())
       .map(Json.parse)
-      .mapConcat(
-        json =>
-          json
-            .validate[IzanamiEvent]
-            .fold(
-              err => {
-                logger.error(s"Error deserializing event of type ${json \ "type"} : $err")
-                List.empty[IzanamiEvent]
-              },
-              e => List(e)
+      .mapConcat(json =>
+        json
+          .validate[IzanamiEvent]
+          .fold(
+            err => {
+              logger.error(s"Error deserializing event of type ${json \ "type"} : $err")
+              List.empty[IzanamiEvent]
+            },
+            e => List(e)
           )
       )
       .watchTermination() {
