@@ -302,9 +302,9 @@ case class Master(
     password: Option[String] = None,
     databaseId: Option[Int] = None,
     tls: Boolean = false,
-    keyPass : Option[String] = None,
+    keyPass: Option[String] = None,
     keystore: Location,
-    truststore: Location,
+    truststore: Location
 ) extends RedisConfig
 
 case class Sentinel(
@@ -314,7 +314,7 @@ case class Sentinel(
     masterId: String,
     password: Option[String],
     sentinels: Option[Seq[RedisOneSentinelConfig]] = None,
-    databaseId: Option[Int] = None,
+    databaseId: Option[Int] = None
 ) extends RedisConfig
 
 case class RedisOneSentinelConfig(host: String, port: Int)
@@ -333,7 +333,15 @@ case class DynamoConfig(
     secretKey: Option[String] = None
 )
 
-case class KafkaConfig(servers: String, keyPass: Option[String], keystore: Location, truststore: Location)
+case class KafkaConfig(
+    servers: String,
+    protocol: String,
+    keyPass: Option[String],
+    keystore: Location,
+    truststore: Location,
+    saslMechanism: Option[String],
+    saslJaasConfig: Option[String]
+)
 
 case class Location(location: Option[String])
 
