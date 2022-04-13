@@ -27,7 +27,7 @@ lazy val `izanami-server` = (project in file("."))
 
 val metricsVersion    = "4.0.2"
 val kotlinVersion     = "1.3.70"
-val doobieVersion     = "0.8.8"
+val doobieVersion     = "0.13.4"
 val silencerVersion   = "1.4.4"
 val prometheusVersion = "0.8.1"
 
@@ -69,6 +69,7 @@ libraryDependencies ++= Seq(
   "org.tpolecat"             %% "doobie-core"                    % doobieVersion,
   "org.tpolecat"             %% "doobie-hikari"                  % doobieVersion,
   "org.tpolecat"             %% "doobie-postgres"                % doobieVersion,
+  "org.postgresql"           % "postgresql"                      % "42.2.25", // remove this lib when doobie support postgresql >= 42.2.25 (CVE-2022-21724)
 //  "com.github.krasserm"      %% "streamz-converter"                   % "0.11-RC1",
   "com.chuusai"           %% "shapeless"                           % "2.3.3", // Apache 2.0
   "com.github.pureconfig" %% "pureconfig"                          % "0.12.3", // Apache 2.0
@@ -95,17 +96,17 @@ libraryDependencies ++= Seq(
     "com.typesafe.play",
     "play-json"
   ), // Apache 2.0
-  "org.scalatestplus.play"   %% "scalatestplus-play" % "4.0.3"  % "it,test", // Apache 2.0
-  "com.github.kstyrc"        % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
-  "org.slf4j"                % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
+  "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.3"  % "it,test", // Apache 2.0
+  "com.github.kstyrc"      % "embedded-redis"      % "0.6"    % "it,test", // Apache 2.0
+  "org.slf4j"              % "slf4j-api"           % "1.7.25" % "it,test", // MIT license
 //  "org.apache.logging.log4j" % "log4j-api"           % "2.16.0"  % "it,test", // MIT license
-  "org.apache.logging.log4j" % "log4j-api"           % "2.17.0",              // MIT license // Enforce 2.17 for the bundle
-  "org.apache.logging.log4j" % "log4j-core"          % "2.17.0"  % "it,test"  // MIT license
+  "org.apache.logging.log4j" % "log4j-api"  % "2.17.0", // MIT license // Enforce 2.17 for the bundle
+  "org.apache.logging.log4j" % "log4j-core" % "2.17.0" % "it,test" // MIT license
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
 
-ITest / scalaSource  := baseDirectory.value / "it"
+ITest / scalaSource := baseDirectory.value / "it"
 ITest / resourceDirectory := (baseDirectory apply { baseDir: File => baseDir / "it/resources" }).value
 
 scalacOptions ++= Seq(
@@ -122,7 +123,7 @@ scalacOptions ++= Seq(
 
 coverageExcludedPackages := "<empty>;Reverse.*;router\\.*"
 
-Compile / doc / sources  := Seq.empty
+Compile / doc / sources := Seq.empty
 
 Compile / packageDoc / publishArtifact := false
 
