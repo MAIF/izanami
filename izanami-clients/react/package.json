@@ -30,10 +30,10 @@
     "react-dom": "16.x"
   },
   "devDependencies": {
-    "@babel/cli": "7.17.3",
-    "@babel/core": "7.17.5",
+    "@babel/cli": "7.17.6",
+    "@babel/core": "7.17.9",
     "@babel/plugin-proposal-class-properties": "7.16.7",
-    "@babel/plugin-proposal-decorators": "7.17.2",
+    "@babel/plugin-proposal-decorators": "7.17.9",
     "@babel/plugin-proposal-do-expressions": "7.16.7",
     "@babel/plugin-proposal-export-default-from": "7.16.7",
     "@babel/plugin-proposal-export-namespace-from": "7.16.7",
@@ -45,17 +45,17 @@
     "@babel/plugin-proposal-numeric-separator": "7.16.7",
     "@babel/plugin-proposal-object-rest-spread": "7.17.3",
     "@babel/plugin-proposal-optional-chaining": "7.16.7",
-    "@babel/plugin-proposal-pipeline-operator": "7.16.7",
+    "@babel/plugin-proposal-pipeline-operator": "7.17.6",
     "@babel/plugin-proposal-throw-expressions": "7.16.7",
     "@babel/plugin-syntax-dynamic-import": "7.8.3",
     "@babel/plugin-syntax-import-meta": "7.10.4",
     "@babel/plugin-transform-runtime": "7.17.0",
     "@babel/preset-env": "7.16.11",
     "@babel/preset-react": "7.16.7",
-    "babel-loader": "8.2.3",
+    "babel-loader": "8.2.4",
     "cross-env": "7.0.3",
-    "webpack": "5.69.1",
+    "webpack": "5.72.0",
     "webpack-cli": "4.9.2",
-    "webpack-dev-server": "4.7.4"
+    "webpack-dev-server": "4.8.1"
   }
 }

@@ -815,6 +815,17 @@ package object events {
         Json.toJson("experimentId" -> experiment.id.key)
     }
 
+    /////////////////////////////////////// HEART BEAT ////////////////////////////////////////
+    case class KeepAliveEvent() extends IzanamiEvent {
+      val _id: Long                          = gen.nextId()
+      val domain: Domain                     = domains.Domain.Unknown
+      val authInfo: Option[AuthInfo.Service] = None
+      val key: Key                           = Key("na")
+      def timestamp: LocalDateTime           = LocalDateTime.now()
+      val `type`: String                     = "KEEP_ALIVE"
+      val payload: JsValue                   = Json.obj()
+    }
+
   }
 
   object EventLogger {

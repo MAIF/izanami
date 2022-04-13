@@ -19,9 +19,11 @@ import scala.concurrent.duration.DurationDouble
 import domains.auth.AuthInfo
 import domains.Key
 
-class EventsController(system: ActorSystem,
-                       AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
-                       cc: ControllerComponents)(implicit r: HttpContext[EventStoreContext])
+class EventsController(
+    system: ActorSystem,
+    AuthAction: ActionBuilder[SecuredAuthContext, AnyContent],
+    cc: ControllerComponents
+)(implicit r: HttpContext[EventStoreContext])
     extends AbstractController(cc) {
 
   import libs.http._
@@ -40,19 +42,7 @@ class EventsController(system: ActorSystem,
   def eventsForADomain(domain: String, patterns: String) =
     events(domain.split(",").toIndexedSeq, patterns)
 
-  val logEvent = Flow[IzanamiEvent].map { event =>
-    event
-  }
-
-  case class KeepAliveEvent() extends IzanamiEvent {
-    val _id: Long                          = 0
-    val domain: Domain                     = domains.Domain.Unknown
-    val authInfo: Option[AuthInfo.Service] = None
-    val key: Key                           = Key("na")
-    def timestamp: LocalDateTime           = LocalDateTime.now()
-    val `type`: String                     = "KEEP_ALIVE"
-    val payload: JsValue                   = Json.obj()
-  }
+  val logEvent = Flow[IzanamiEvent].map(event => event)
 
   val keepAlive = Flow[IzanamiEvent].keepAlive(30.seconds, () => KeepAliveEvent())
 
@@ -60,8 +50,8 @@ class EventsController(system: ActorSystem,
   private def events[T <: IzanamiEvent](domains: Seq[String], patterns: String) =
     AuthAction.asyncTask[EventStoreContext] { ctx =>
       val allPatterns: Seq[String] = ctx.authorizedPatterns ++ patterns
-        .split(",")
-        .toList
+          .split(",")
+          .toList
 
       val lastEventId = ctx.request.headers.get("Last-Event-ID").map(_.toLong)
       val allDomains  = domains.map(JsString).flatMap(_.validate[Domain].asOpt)

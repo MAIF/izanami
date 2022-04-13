@@ -1,6 +1,6 @@
 resolvers += Resolver.jcenterRepo
 
-addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.8.13") // Apache 2.0
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.8.15") // Apache 2.0
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.3.2") // Apache 2.0
 
