@@ -111,8 +111,8 @@ object Strategies {
   def smartCacheWithPollingStrategy(pollingInterval: FiniteDuration, patterns: String*) =
     CacheWithPollingStrategy(patterns, pollingInterval)
   @annotation.varargs
-  def smartCacheWithSseStrategy(patterns: String*) =
-    CacheWithSseStrategy(patterns)
+  def smartCacheWithSseStrategy(pollingInterval: Option[Duration], patterns: String*) =
+    CacheWithSseStrategy(patterns, pollingInterval)
 }
 
 trait Strategy
@@ -153,9 +153,9 @@ object Strategy {
       pollingInterval: Option[Duration] = Some(1.minute),
       errorStrategy: ErrorStrategy = RecoverWithFallback
   ) extends SmartCacheStrategy {
-    def withPollingInterval(interval: Duration) = copy(pollingInterval = Some(interval))
-    def withPollingDisabled()                         = copy(pollingInterval = None)
-    def withErrorStrategy(strategy: ErrorStrategy)    = copy(errorStrategy = strategy)
+    def withPollingInterval(interval: Duration)    = copy(pollingInterval = Some(interval))
+    def withPollingDisabled()                      = copy(pollingInterval = None)
+    def withErrorStrategy(strategy: ErrorStrategy) = copy(errorStrategy = strategy)
   }
   case class CacheWithPollingStrategy(
       patterns: Seq[String],
