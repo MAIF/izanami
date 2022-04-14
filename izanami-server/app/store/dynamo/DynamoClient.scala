@@ -24,7 +24,7 @@ object DynamoClient {
   def createClient(
       config: DynamoConfig
   )(implicit actorSystem: ActorSystem): ZIO[ZLogger, Throwable, AlpakkaClient] =
-    ZLogger.info(s"Initializing Dynamo cluster for $config") *> Task {
+    ZLogger.info(s"Initializing Dynamo cluster for ${config.host}:${config.port}") *> Task {
       implicit val ec: ExecutionContext = actorSystem.dispatcher
 
       val credentials = for {
@@ -48,33 +48,33 @@ object DynamoClient {
       .map { config =>
         createClient(config).flatMap { client =>
           val value: ZIO[ZLogger, Throwable, Option[AlpakkaClient]] = ZLogger.info(
-            s"Initialization json data store table creation"
-          ) *>
-          createIfNotExist(
-            client,
-            config.tableName,
-            List(
-              new AttributeDefinition().withAttributeName("store").withAttributeType(ScalarAttributeType.S),
-              new AttributeDefinition().withAttributeName("id").withAttributeType(ScalarAttributeType.S)
-            ),
-            List(
-              new KeySchemaElement().withAttributeName("store").withKeyType(KeyType.HASH),
-              new KeySchemaElement().withAttributeName("id").withKeyType(KeyType.RANGE)
-            )
-          ) *>
-          ZLogger.info(s"Initialization experiment events table creation") *>
-          createIfNotExist(
-            client,
-            config.eventsTableName,
-            List(
-              new AttributeDefinition().withAttributeName(experimentId).withAttributeType(ScalarAttributeType.S),
-              new AttributeDefinition().withAttributeName(variantId).withAttributeType(ScalarAttributeType.S),
-            ),
-            List(
-              new KeySchemaElement().withAttributeName(experimentId).withKeyType(KeyType.HASH),
-              new KeySchemaElement().withAttributeName(variantId).withKeyType(KeyType.RANGE)
-            )
-          ) *> zio.Task(Option(client))
+              s"Initialization json data store table creation"
+            ) *>
+            createIfNotExist(
+              client,
+              config.tableName,
+              List(
+                new AttributeDefinition().withAttributeName("store").withAttributeType(ScalarAttributeType.S),
+                new AttributeDefinition().withAttributeName("id").withAttributeType(ScalarAttributeType.S)
+              ),
+              List(
+                new KeySchemaElement().withAttributeName("store").withKeyType(KeyType.HASH),
+                new KeySchemaElement().withAttributeName("id").withKeyType(KeyType.RANGE)
+              )
+            ) *>
+            ZLogger.info(s"Initialization experiment events table creation") *>
+            createIfNotExist(
+              client,
+              config.eventsTableName,
+              List(
+                new AttributeDefinition().withAttributeName(experimentId).withAttributeType(ScalarAttributeType.S),
+                new AttributeDefinition().withAttributeName(variantId).withAttributeType(ScalarAttributeType.S)
+              ),
+              List(
+                new KeySchemaElement().withAttributeName(experimentId).withKeyType(KeyType.HASH),
+                new KeySchemaElement().withAttributeName(variantId).withKeyType(KeyType.RANGE)
+              )
+            ) *> zio.Task(Option(client))
           value
         }
       }
