@@ -86,12 +86,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
   private val allowedPath: Seq[String] = contextPath match {
     case "/" => config.allowedPaths
     case path =>
-      val buildPath = if (path.endsWith("/")) {
-        path.dropRight(1)
-      } else {
-        path
-      }
-      buildPath +: config.allowedPaths.map(p => s"$buildPath$p")
+      path +: config.allowedPaths.map(p => s"$path$p")
   }
 
   override def filter(

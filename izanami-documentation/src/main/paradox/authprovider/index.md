@@ -20,6 +20,7 @@ izanami {
   filter {
     type = "Otoroshi"
     otoroshi  {
+      allowedPaths = [${?OTOROSHI_FILTER_EXCLUSION}, ${?OTOROSHI_FILTER_EXCLUSION_1}, ${?OTOROSHI_FILTER_EXCLUSION_2}, ${?OTOROSHI_FILTER_EXCLUSION_3}]
       issuer = "Otoroshi"
       issuer = ${?OTOROSHI_ISSUER}
       sharedKey = "none"
