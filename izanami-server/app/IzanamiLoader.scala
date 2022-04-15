@@ -60,11 +60,15 @@ package object modules {
 
     IzanamiLogger.info(s"Configuration: \n$izanamiConfig")
 
-    lazy val _env: Env = izanamiConfig.baseURL match {
+    val _env: Env = izanamiConfig.baseURL match {
       case "/" => wire[Env]
       case c =>
-        val aFinder: AssetsFinder = assetsFinder
-          .withUrlPrefix(s"$c/assets")
+        val formattedURL =
+          if (c.endsWith("/")) c.dropRight(1)
+          else c
+        val aFinder: AssetsFinder =
+          assetsFinder
+            .withUrlPrefix(s"$formattedURL/assets")
         wire[Env].copy(assetsFinder = aFinder)
     }
 
@@ -142,13 +146,13 @@ package object modules {
     lazy val httpFilters: Seq[EssentialFilter] = izanamiConfig.filter match {
       case env.Otoroshi(config) =>
         IzanamiLogger.info("Using otoroshi filter")
-        Seq(new ZioOtoroshiFilter(_env.env, config))
+        Seq(new ZioOtoroshiFilter(_env.env, _env.contextPath, config))
       case env.Default(config) =>
         IzanamiLogger.info("Using default filter")
         Seq(
           new ZioIzanamiDefaultFilter(
             _env.env,
-            izanamiConfig.contextPath,
+            _env.contextPath,
             izanamiConfig.metrics,
             config,
             izanamiConfig.apikey
@@ -157,7 +161,12 @@ package object modules {
     }
 
     lazy val router: Router = {
-      lazy val prefix: String = izanamiConfig.contextPath
+      val prefix: String = izanamiConfig.contextPath match {
+        case "/" => izanamiConfig.contextPath
+        case path => if (path.endsWith("/"))
+          path.dropRight(1)
+        else path
+      }
       IzanamiLogger.info(s"Initializing play router with prefix $prefix")
       wire[Routes].withPrefix(prefix)
     }

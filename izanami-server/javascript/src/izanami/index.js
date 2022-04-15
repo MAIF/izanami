@@ -97,11 +97,11 @@ export class LoggedApp extends Component {
   };
 
   gotoService = (e) => {
-    window.location.href = `/${e.type}/edit/${e.value}`;
+    window.location.href = `${window.__contextPath}/${e.type}/edit/${e.value}`;
   };
 
   gotoCreateUser = () => {
-    window.location.href = "/users/add";
+    window.location.href = `${window.__contextPath}/users/add`;
   };
 
   onChangemeClosed = () => {
@@ -131,7 +131,7 @@ export class LoggedApp extends Component {
         <nav className="navbar navbar-expand-lg fixed-top p-0">
           {/* <div className="container-fluid"> */}
           <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
-            <a className="navbar-brand" href="/">
+            <a className="navbar-brand" href={window.__contextPath}>
               <div className="d-flex flex-column justify-content-center align-items-center">
                 <span>イザナミ</span> Izanami
               </div>
@@ -188,7 +188,7 @@ export class LoggedApp extends Component {
                 {userManagementEnabled && (
                   <li key="li-users" className="dropdown-item">
                     <Link
-                      to="/users"
+                      to={`${window.__contextPath}/users`}
                       className=""
                       style={{cursor: "pointer"}}>
                       <i className="fas fa-user me-2"/> Users management
@@ -198,7 +198,7 @@ export class LoggedApp extends Component {
                 {apikeyManagementEnabled && (
                   <li key="li-apikeys" className="dropdown-item">
                     <Link
-                      to="/apikeys"
+                      to={`${window.__contextPath}/apikeys`}
                       className=""
                       style={{cursor: "pointer"}}>
                       <i className="fas fa-key me-2"/> Api Keys management
@@ -240,14 +240,14 @@ export class LoggedApp extends Component {
                   <ul className="nav nav-sidebar flex-column">
                     <li className={className("/")}>
                       <h3>
-                        <Link to="/">
+                        <Link to={`${window.__contextPath}`}>
                           <i className="fas fa-tachometer-alt"/> Home
                         </Link>
                       </h3>
                     </li>
                     <li className={className("/features")}>
                       <Link
-                        to="/features"
+                        to={`${window.__contextPath}/features`}
                         className=""
                         style={{cursor: "pointer"}}>
                         <i className="fas fa-toggle-on"/>
@@ -256,7 +256,7 @@ export class LoggedApp extends Component {
                     </li>
                     <li className={className("/configurations")}>
                       <Link
-                        to="/configurations"
+                        to={`${window.__contextPath}/configurations`}
                         className=""
                         style={{cursor: "pointer"}}>
                         <i className="fas fa-wrench"/>
@@ -265,7 +265,7 @@ export class LoggedApp extends Component {
                     </li>
                     <li className={className("/experiments")}>
                       <Link
-                        to="/experiments"
+                        to={`${window.__contextPath}/experiments`}
                         className=""
                         style={{cursor: "pointer"}}>
                         <i className="fas fa-flask"/>
@@ -274,7 +274,7 @@ export class LoggedApp extends Component {
                     </li>
                     <li className={className("/scripts")}>
                       <Link
-                        to="/scripts"
+                        to={`${window.__contextPath}/scripts`}
                         className=""
                         style={{cursor: "pointer"}}>
                         <i className="far fa-file-alt"/>
@@ -283,7 +283,7 @@ export class LoggedApp extends Component {
                     </li>
                     <li className={className("/webhooks")}>
                       <Link
-                        to="/webhooks"
+                        to={`${window.__contextPath}/webhooks`}
                         className=""
                         style={{cursor: "pointer"}}>
                         <i className="fas fa-plug"/>
@@ -299,7 +299,7 @@ export class LoggedApp extends Component {
                     </li>
                     <li className={className("/explorer/features")}>
                       <Link
-                        to="/explorer/features"
+                        to={`${window.__contextPath}/explorer/features`}
                         className=""
                         style={{cursor: "pointer"}}>
                         Features Explorer
@@ -307,7 +307,7 @@ export class LoggedApp extends Component {
                     </li>
                     <li className={className("/explorer/configs")}>
                       <Link
-                        to="/explorer/configs"
+                        to={`${window.__contextPath}/explorer/configs`}
                         className=""
                         style={{cursor: "pointer"}}>
                         Configurations Explorer
@@ -315,7 +315,7 @@ export class LoggedApp extends Component {
                     </li>
                     <li className={className("/explorer/experiments")}>
                       <Link
-                        to="/explorer/experiments"
+                        to={`${window.__contextPath}/explorer/experiments`}
                         className=""
                         style={{cursor: "pointer"}}>
                         Experiments Explorer
@@ -333,26 +333,26 @@ export class LoggedApp extends Component {
                     <Routes>
                       <Route
                         exact
-                        path="/"
+                        path={`${window.__contextPath}/`}
                         element={<Decorate component={HomePage} {...this.props}/>}
                       />
 
                       <Route
-                        path="/features/:taction/:titem"
+                        path={`${window.__contextPath}/features/:taction/:titem`}
                         element={<Decorate component={FeaturesPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(FeaturesPage, props)
                         // }
                       />
                       <Route
-                        path="/features/:taction"
+                        path={`${window.__contextPath}/features/:taction`}
                         element={<Decorate component={FeaturesPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(FeaturesPage, props)
                         // }
                       />
                       <Route
-                        path="/features"
+                        path={`${window.__contextPath}/features`}
                         element={<Decorate component={FeaturesPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(FeaturesPage, props)
@@ -360,21 +360,21 @@ export class LoggedApp extends Component {
                       />
 
                       <Route
-                        path="/configurations/:taction/:titem"
+                        path={`${window.__contextPath}/configurations/:taction/:titem`}
                         element={<Decorate component={ConfigurationsPage} {...this.props}/>}
                         component={(props) =>
                           this.decorate(ConfigurationsPage, props)
                         }
                       />
                       <Route
-                        path="/configurations/:taction"
+                        path={`${window.__contextPath}/configurations/:taction`}
                         element={<Decorate component={ConfigurationsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(ConfigurationsPage, props)
                         // }
                       />
                       <Route
-                        path="/configurations"
+                        path={`${window.__contextPath}/configurations`}
                         element={<Decorate component={ConfigurationsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(ConfigurationsPage, props)
@@ -382,21 +382,21 @@ export class LoggedApp extends Component {
                       />
 
                       <Route
-                        path="/webhooks/:taction/:titem"
+                        path={`${window.__contextPath}/webhooks/:taction/:titem`}
                         element={<Decorate component={WebHooksPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(WebHooksPage, props)
                         // }
                       />
                       <Route
-                        path="/webhooks/:taction"
+                        path={`${window.__contextPath}/webhooks/:taction`}
                         element={<Decorate component={WebHooksPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(WebHooksPage, props)
                         // }
                       />
                       <Route
-                        path="/webhooks"
+                        path={`${window.__contextPath}/webhooks`}
                         element={<Decorate component={WebHooksPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(WebHooksPage, props)
@@ -404,21 +404,21 @@ export class LoggedApp extends Component {
                       />
 
                       <Route
-                        path="/scripts/:taction/:titem"
+                        path={`${window.__contextPath}/scripts/:taction/:titem`}
                         element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(GlobalScriptsPage, props)
                         // }
                       />
                       <Route
-                        path="/scripts/:taction"
+                        path={`${window.__contextPath}/scripts/:taction`}
                         element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(GlobalScriptsPage, props)
                         // }
                       />
                       <Route
-                        path="/scripts"
+                        path={`${window.__contextPath}/scripts`}
                         element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(GlobalScriptsPage, props)
@@ -426,49 +426,49 @@ export class LoggedApp extends Component {
                       />
 
                       <Route
-                        path="/experiments/:taction/:titem"
+                        path={`${window.__contextPath}/experiments/:taction/:titem`}
                         element={<Decorate component={ExperimentsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(ExperimentsPage, props)
                         // }
                       />
                       <Route
-                        path="/experiments/:taction"
+                        path={`${window.__contextPath}/experiments/:taction`}
                         element={<Decorate component={ExperimentsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(ExperimentsPage, props)
                         // }
                       />
                       <Route
-                        path="/experiments"
+                        path={`${window.__contextPath}/experiments`}
                         element={<Decorate component={ExperimentsPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(ExperimentsPage, props)
                         // }
                       />
                       <Route
-                        path="/loggers"
+                        path={`${window.__contextPath}/loggers`}
                         element={<Decorate component={LoggersPage} {...this.props}/>}
                         // component={(props) => this.decorate(LoggersPage, props)}
                       />
 
                       {userManagementEnabled && (
                         <Route
-                          path="/users/:taction/:titem"
+                          path={`${window.__contextPath}/users/:taction/:titem`}
                           element={<Decorate component={UserPage} {...this.props}/>}
                           // component={(props) => this.decorate(UserPage, props)}
                         />
                       )}
                       {userManagementEnabled && (
                         <Route
-                          path="/users/:taction"
+                          path={`${window.__contextPath}/users/:taction`}
                           element={<Decorate component={UserPage} {...this.props}/>}
                           // component={(props) => this.decorate(UserPage, props)}
                         />
                       )}
                       {userManagementEnabled && (
                         <Route
-                          path="/users"
+                          path={`${window.__contextPath}/:taction/:titem`}
                           element={<Decorate component={UserPage} {...this.props}/>}
                           // component={(props) => this.decorate(UserPage, props)}
                         />
@@ -476,7 +476,7 @@ export class LoggedApp extends Component {
 
                       {apikeyManagementEnabled && (
                         <Route
-                          path="/apikeys/:taction/:titem"
+                          path={`${window.__contextPath}/apikeys/:taction/:titem`}
                           element={<Decorate component={ApikeyPage} {...this.props}/>}
                           // component={(props) =>
                           //   this.decorate(ApikeyPage, props)
@@ -485,7 +485,7 @@ export class LoggedApp extends Component {
                       )}
                       {apikeyManagementEnabled && (
                         <Route
-                          path="/apikeys/:taction"
+                          path={`${window.__contextPath}/apikeys/:taction`}
                           element={<Decorate component={ApikeyPage} {...this.props}/>}
                           // component={(props) =>
                           //   this.decorate(ApikeyPage, props)
@@ -494,7 +494,7 @@ export class LoggedApp extends Component {
                       )}
                       {apikeyManagementEnabled && (
                         <Route
-                          path="/apikeys"
+                          path={`${window.__contextPath}/apikeys`}
                           element={<Decorate component={ApikeyPage} {...this.props}/>}
                           // component={(props) =>
                           //   this.decorate(ApikeyPage, props)
@@ -503,21 +503,21 @@ export class LoggedApp extends Component {
                       )}
 
                       <Route
-                        path="/explorer/configs"
+                        path={`${window.__contextPath}/explorer/configs`}
                         element={<Decorate component={ConfigExplorerPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(ConfigExplorerPage, props)
                         // }
                       />
                       <Route
-                        path="/explorer/features"
+                        path={`${window.__contextPath}/explorer/features`}
                         element={<Decorate component={FeaturesExplorerPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(FeaturesExplorerPage, props)
                         // }
                       />
                       <Route
-                        path="/explorer/experiments"
+                        path={`${window.__contextPath}/explorer/experiments`}
                         element={<Decorate component={ExperimentsExplorerPage} {...this.props}/>}
                         // component={(props) =>
                         //   this.decorate(ExperimentsExplorerPage, props)
@@ -574,7 +574,7 @@ export function RoutedIzanamiApp(props) {
   return (
     <Router>
       <Routes>
-        <Route key="route-login" path="/login" element={<LoginPage />} />,
+        <Route key="route-login" path={`${window.__contextPath}/login`} element={<LoginPage />} />,
         <Route key="private-route" path="*" element={<PrivateRoute component={LoggedApp} {...props}/>}/>
       </Routes>
      </Router>
