@@ -29,8 +29,6 @@ import play.api.routing.Router
 import router.Routes
 import zio.{Runtime, ZEnv, ZIO, ZLayer}
 
-import scala.util.Random
-
 class IzanamiLoader extends ApplicationLoader {
 
   def load(context: Context): Application = {
@@ -58,7 +56,8 @@ package object modules {
     implicit val runtime: Runtime[ZEnv] = Runtime.default
     import zio.interop.catz._
 
-    IzanamiLogger.info(s"Configuration: \n$izanamiConfig")
+    IzanamiLogger.info(s"Configuration: \n${IzanamiConfig.toStringWithoutSecrets(izanamiConfig)}")
+    IzanamiLogger.debug(s"Configuration with secrets: \n${izanamiConfig}")
 
     lazy val _env: Env = izanamiConfig.baseURL match {
       case "/" => wire[Env]
