@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
 import {AuthorizedPatterns, Table} from "../inputs";
-import faker from "faker";
+import faker from "@faker-js/faker";
 
 export class ApikeyPage extends Component {
   formSchema = {

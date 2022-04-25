@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
 import {Table, TextInput} from "../inputs";
 import isEqual from "lodash/isEqual";
-import {AuthorizedPatterns} from "../inputs/AuthorizedPatterns";
+import {AuthorizedPatterns} from "../inputs";
 
 
 class StringOrDisabled extends Component {
