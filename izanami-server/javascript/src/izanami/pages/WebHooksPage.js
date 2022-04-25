@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import * as IzanamiServices from "../services/index";
 import {Table, SimpleBooleanInput, TextInput} from "../inputs";
-import faker from "faker";
+import faker from "@faker-js/faker";
 
 export class WebHooksPage extends Component {
   formSchema = {
