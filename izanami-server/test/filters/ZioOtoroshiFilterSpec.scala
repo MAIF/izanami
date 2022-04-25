@@ -20,19 +20,22 @@ class ZioOtoroshiFilterSpec extends IzanamiSpec {
   implicit val httpContext: HttpContext[ZLogger] = ZLogger.live
 
   implicit val r = Runtime.default
-  private val config = OtoroshiFilterConfig("key",
-                                            "Otoroshi",
-                                            "Otoroshi-Claim",
-                                            "Otoroshi-Request-Id",
-                                            "Otoroshi-State",
-                                            "Otoroshi-State-Resp")
+  private val config = OtoroshiFilterConfig(
+    Seq("/api/_health"),
+    "key",
+    "Otoroshi",
+    "Otoroshi-Claim",
+    "Otoroshi-Request-Id",
+    "Otoroshi-State",
+    "Otoroshi-State-Resp"
+  )
   def run(z: ZIO[ZLogger, Throwable, Result]): Result =
     r.unsafeRun(z.provideLayer(httpContext))
 
   "ZioOtoroshiFilter" must {
 
     "Test or dev mode" in {
-      val filter         = new ZioOtoroshiFilter(Mode.Dev, config)
+      val filter         = new ZioOtoroshiFilter(Mode.Dev, "/", config)
       val result: Result = run(filter.filter(h => Task(Results.Ok("Done")))(FakeRequest()))
 
       val expected = Results
@@ -55,7 +58,7 @@ class ZioOtoroshiFilterSpec extends IzanamiSpec {
         .withClaim("izanami_authorized_patterns", "*")
         .withClaim("izanami_admin", "false")
         .sign(algorithm)
-      val filter = new ZioOtoroshiFilter(Mode.Prod, config)
+      val filter = new ZioOtoroshiFilter(Mode.Prod, "/", config)
 
       val result: Result = run(
         filter.filter(_ => Task(Results.Ok("Done")))(
@@ -75,6 +78,20 @@ class ZioOtoroshiFilterSpec extends IzanamiSpec {
     }
   }
 
+  "filter OK if no claim but target url is in allowed paths" in {
+    val filter = new ZioOtoroshiFilter(Mode.Prod, "/", config)
+
+    val result: Result = run(
+      filter.filter(_ => Task(Results.Ok("Done")))(
+        FakeRequest.apply("GET", "/api/_health")
+      )
+    )
+
+    val expected = Results
+      .Ok("Done")
+    result must be(expected)
+  }
+
   "filter KO shared key is different in prod mode" in {
     val algorithm: Algorithm = Algorithm.HMAC512("otherkey")
     val token: String = JWT
@@ -86,7 +103,7 @@ class ZioOtoroshiFilterSpec extends IzanamiSpec {
       .withClaim("izanami_authorized_patterns", "*")
       .withClaim("izanami_admin", "false")
       .sign(algorithm)
-    val filter = new ZioOtoroshiFilter(Mode.Prod, config)
+    val filter = new ZioOtoroshiFilter(Mode.Prod, "/", config)
 
     val result: Result = run(
       filter.filter(_ => Task(Results.Ok("Done")))(

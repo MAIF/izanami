@@ -57,7 +57,7 @@ class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: Co
     mayBeOauth2Config match {
       case Some(openIdConnectConfig) =>
         Oauth2Service
-          .paCallback(_env.baseURL, openIdConnectConfig)
+          .paCallback(s"${_env.baseURL}/", openIdConnectConfig)
           .map { user =>
             Redirect(controllers.routes.HomeController.index())
               .withCookies(Cookie(name = _env.cookieName, value = User.buildToken(user, _config.issuer, algorithm)))

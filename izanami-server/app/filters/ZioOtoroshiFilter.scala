@@ -12,9 +12,10 @@ import play.api.libs.json.Json
 import play.api.mvc.{RequestHeader, Result, Results}
 import zio.{Runtime, Task, ZEnv, ZIO, ZLayer}
 
-class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r: HttpContext[ZLogger],
-                                                                 override val mat: Materializer)
-    extends ZioFilter[ZLogger] {
+class ZioOtoroshiFilter(env: Mode, contextPath: String, config: OtoroshiFilterConfig)(
+    implicit val r: HttpContext[ZLogger],
+    override val mat: Materializer
+) extends ZioFilter[ZLogger] {
 
   private val algorithm: Algorithm = Algorithm.HMAC512(config.sharedKey)
   private val verifier: JWTVerifier = JWT
@@ -25,6 +26,12 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
 
   private val getLogger: ZIO[ZLogger, Nothing, ZLogger.Service] = ZLogger("filter")
 
+  private val allowedPath: Seq[String] = contextPath match {
+    case "/" => config.allowedPaths
+    case path =>
+      path +: config.allowedPaths.map(p => s"$path$p")
+  }
+
   override def filter(
       nextFilter: RequestHeader => Task[Result]
   )(requestHeader: RequestHeader): ZIO[ZLogger, Throwable, Result] = {
@@ -33,6 +40,8 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
     val t = (env, maybeClaim) match {
       case (Mode.Dev, _) | (Mode.Test, _) => filterDevOrTest(nextFilter)(requestHeader)
       case (_, Some(claim))               => filterProdWithClaim(claim, nextFilter)(requestHeader)
+      case (_, _) if allowedPath.exists(path => requestHeader.path.matches(path)) =>
+        handleExclusionWithoutClaims(nextFilter)(requestHeader)
       case _ =>
         ZIO(
           Results
@@ -81,10 +90,9 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
       _ <- logger.debug(
             s"Request => ${requestHeader.method} ${requestHeader.uri} took ${requestTime}ms and returned ${result.header.status}"
           )
-    } yield
-      result.withHeaders(
-        config.headerGatewayStateResp -> maybeState.getOrElse("--")
-      )
+    } yield result.withHeaders(
+      config.headerGatewayStateResp -> maybeState.getOrElse("--")
+    )
   }
 
   private def filterProdWithClaim(claim: String, nextFilter: RequestHeader => Task[Result])(
@@ -114,12 +122,23 @@ class ZioOtoroshiFilter(env: Mode, config: OtoroshiFilterConfig)(implicit val r:
               .map(h => s"""   "${h._1}": "${h._2}"\n""")
               .mkString(",")} took ${requestTime} ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}, auth $maybeUser"
           )
-    } yield
-      result.withHeaders(
-        config.headerGatewayStateResp -> maybeState.getOrElse("--")
-      )
+    } yield result.withHeaders(
+      config.headerGatewayStateResp -> maybeState.getOrElse("--")
+    )
 
     res.either.map(_.merge)
   }
 
+  private def handleExclusionWithoutClaims(nextFilter: RequestHeader => Task[Result])(requestHeader: RequestHeader) = {
+    val startTime: Long = System.currentTimeMillis
+    for {
+      result <- nextFilter(requestHeader.addAttr(FilterAttrs.Attrs.AuthInfo, None))
+      logger <- getLogger
+      _ <- logger.debug(
+            s"Request no claim with exclusion => ${requestHeader.method} ${requestHeader.uri} with request headers ${requestHeader.headers.headers
+              .map(h => s"""   "${h._1}": "${h._2}"\n""")
+              .mkString(",")} took ${System.currentTimeMillis - startTime}ms and returned ${result.header.status} hasBody ${requestHeader.hasBody}"
+          )
+    } yield result
+  }
 }
