@@ -138,6 +138,34 @@ object IzanamiConfig {
     for {
       izanamiConfig <- IzanamiConfigModule.izanamiConfig
     } yield IzanamiConfig.zoneId(izanamiConfig)
+
+  def toStringWithoutSecrets(izanamiConfig: IzanamiConfig): String = {
+    val secrets: List[String] = (List(
+      izanamiConfig.db.kafka.flatMap(_.keyPass),
+      izanamiConfig.db.postgresql.map(_.password),
+      izanamiConfig.db.elastic.flatMap(_.password),
+      izanamiConfig.db.postgresql.map(_.password),
+      izanamiConfig.oauth2.flatMap(_.clientSecret),
+      izanamiConfig.oauth2.flatMap(_.mtls.flatMap(_.config.flatMap(_.keystorePassword))),
+      izanamiConfig.oauth2.flatMap(_.mtls.flatMap(_.config.flatMap(_.truststorePassword))),
+      Some(izanamiConfig.filter match {
+        case Otoroshi(otoroshi: OtoroshiFilterConfig) => otoroshi.sharedKey
+        case Default(default: DefaultFilter)          => default.sharedKey
+      })
+    )
+    ++ izanamiConfig.db.dynamo.map(d => List(d.accessKey, d.secretKey)).getOrElse(List.empty[Option[String]])
+    ++ izanamiConfig.db.redis
+      .map {
+        case Master(host, port, poolSize, password, databaseId, tls, keyPass, keyStorePath, trustStorePath) =>
+          List(password, keyPass)
+        case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId) => List(password)
+      }
+      .getOrElse(List.empty[Option[String]]))
+      .filter(_.isDefined)
+      .map(_.get)
+
+    secrets.foldLeft(izanamiConfig.toString)((a, b) => a.replace(b, "***<secret>***"))
+  }
 }
 
 case class IzanamiConfig(
