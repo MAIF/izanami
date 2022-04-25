@@ -334,201 +334,111 @@ export class LoggedApp extends Component {
                       <Route
                         exact
                         path={`${window.__contextPath}/`}
-                        element={<Decorate component={HomePage} {...this.props}/>}
-                      />
+                        element={<Decorate component={HomePage} {...this.props}/>}/>
 
                       <Route
                         path={`${window.__contextPath}/features/:taction/:titem`}
-                        element={<Decorate component={FeaturesPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(FeaturesPage, props)
-                        // }
-                      />
+                        element={<Decorate component={FeaturesPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/features/:taction`}
-                        element={<Decorate component={FeaturesPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(FeaturesPage, props)
-                        // }
-                      />
+                        element={<Decorate component={FeaturesPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/features`}
-                        element={<Decorate component={FeaturesPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(FeaturesPage, props)
-                        // }
-                      />
+                        element={<Decorate component={FeaturesPage} {...this.props}/>}/>
 
                       <Route
                         path={`${window.__contextPath}/configurations/:taction/:titem`}
                         element={<Decorate component={ConfigurationsPage} {...this.props}/>}
                         component={(props) =>
                           this.decorate(ConfigurationsPage, props)
-                        }
-                      />
+                        }/>
                       <Route
                         path={`${window.__contextPath}/configurations/:taction`}
-                        element={<Decorate component={ConfigurationsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(ConfigurationsPage, props)
-                        // }
-                      />
+                        element={<Decorate component={ConfigurationsPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/configurations`}
-                        element={<Decorate component={ConfigurationsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(ConfigurationsPage, props)
-                        //}
-                      />
+                        element={<Decorate component={ConfigurationsPage} {...this.props}/>}/>
 
                       <Route
                         path={`${window.__contextPath}/webhooks/:taction/:titem`}
-                        element={<Decorate component={WebHooksPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(WebHooksPage, props)
-                        // }
-                      />
+                        element={<Decorate component={WebHooksPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/webhooks/:taction`}
-                        element={<Decorate component={WebHooksPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(WebHooksPage, props)
-                        // }
-                      />
+                        element={<Decorate component={WebHooksPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/webhooks`}
-                        element={<Decorate component={WebHooksPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(WebHooksPage, props)
-                        // }
-                      />
+                        element={<Decorate component={WebHooksPage} {...this.props}/>}/>
 
                       <Route
                         path={`${window.__contextPath}/scripts/:taction/:titem`}
-                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(GlobalScriptsPage, props)
-                        // }
-                      />
+                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/scripts/:taction`}
-                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(GlobalScriptsPage, props)
-                        // }
-                      />
+                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/scripts`}
-                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(GlobalScriptsPage, props)
-                        // }
-                      />
+                        element={<Decorate component={GlobalScriptsPage} {...this.props}/>}/>
 
                       <Route
                         path={`${window.__contextPath}/experiments/:taction/:titem`}
-                        element={<Decorate component={ExperimentsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(ExperimentsPage, props)
-                        // }
-                      />
+                        element={<Decorate component={ExperimentsPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/experiments/:taction`}
-                        element={<Decorate component={ExperimentsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(ExperimentsPage, props)
-                        // }
-                      />
+                        element={<Decorate component={ExperimentsPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/experiments`}
-                        element={<Decorate component={ExperimentsPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(ExperimentsPage, props)
-                        // }
-                      />
+                        element={<Decorate component={ExperimentsPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/loggers`}
-                        element={<Decorate component={LoggersPage} {...this.props}/>}
-                        // component={(props) => this.decorate(LoggersPage, props)}
-                      />
+                        element={<Decorate component={LoggersPage} {...this.props}/>}/>
 
                       {userManagementEnabled && (
                         <Route
                           path={`${window.__contextPath}/users/:taction/:titem`}
-                          element={<Decorate component={UserPage} {...this.props}/>}
-                          // component={(props) => this.decorate(UserPage, props)}
-                        />
+                          element={<Decorate component={UserPage} {...this.props}/>}/>
                       )}
                       {userManagementEnabled && (
                         <Route
                           path={`${window.__contextPath}/users/:taction`}
-                          element={<Decorate component={UserPage} {...this.props}/>}
-                          // component={(props) => this.decorate(UserPage, props)}
-                        />
+                          element={<Decorate component={UserPage} {...this.props}/>}/>
+                      )}
+                      {userManagementEnabled && (
+                        <Route
+                          path={`${window.__contextPath}/users`}
+                          element={<Decorate component={UserPage} {...this.props}/>}/>
                       )}
                       {userManagementEnabled && (
                         <Route
                           path={`${window.__contextPath}/:taction/:titem`}
-                          element={<Decorate component={UserPage} {...this.props}/>}
-                          // component={(props) => this.decorate(UserPage, props)}
-                        />
+                          element={<Decorate component={UserPage} {...this.props}/>}/>
                       )}
 
                       {apikeyManagementEnabled && (
                         <Route
                           path={`${window.__contextPath}/apikeys/:taction/:titem`}
-                          element={<Decorate component={ApikeyPage} {...this.props}/>}
-                          // component={(props) =>
-                          //   this.decorate(ApikeyPage, props)
-                          // }
-                        />
+                          element={<Decorate component={ApikeyPage} {...this.props}/>}/>
                       )}
                       {apikeyManagementEnabled && (
                         <Route
                           path={`${window.__contextPath}/apikeys/:taction`}
-                          element={<Decorate component={ApikeyPage} {...this.props}/>}
-                          // component={(props) =>
-                          //   this.decorate(ApikeyPage, props)
-                          // }
-                        />
+                          element={<Decorate component={ApikeyPage} {...this.props}/>}/>
                       )}
                       {apikeyManagementEnabled && (
                         <Route
                           path={`${window.__contextPath}/apikeys`}
-                          element={<Decorate component={ApikeyPage} {...this.props}/>}
-                          // component={(props) =>
-                          //   this.decorate(ApikeyPage, props)
-                          // }
-                        />
+                          element={<Decorate component={ApikeyPage} {...this.props}/>}/>
                       )}
 
                       <Route
                         path={`${window.__contextPath}/explorer/configs`}
-                        element={<Decorate component={ConfigExplorerPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(ConfigExplorerPage, props)
-                        // }
-                      />
+                        element={<Decorate component={ConfigExplorerPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/explorer/features`}
-                        element={<Decorate component={FeaturesExplorerPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(FeaturesExplorerPage, props)
-                        // }
-                      />
+                        element={<Decorate component={FeaturesExplorerPage} {...this.props}/>}/>
                       <Route
                         path={`${window.__contextPath}/explorer/experiments`}
-                        element={<Decorate component={ExperimentsExplorerPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(ExperimentsExplorerPage, props)
-                        // }
-                      />
-                      <Route
-                        element={<Decorate component={NotFoundPage} {...this.props}/>}
-                        // component={(props) =>
-                        //   this.decorate(NotFoundPage, props)
-                        // }
-                      />
+                        element={<Decorate component={ExperimentsExplorerPage} {...this.props}/>}/>
+                      <Route element={<Decorate component={NotFoundPage} {...this.props}/>}/>
                     </Routes>
                     {changeme && (
                       <SweetModal
