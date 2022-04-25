@@ -213,6 +213,7 @@ case class MetricsElasticConfig(enabled: Boolean, index: String, pushInterval: F
 case class LogoutConfig(url: String)
 case class ApiKeyHeaders(headerClientId: String, headerClientSecret: String)
 case class OtoroshiFilterConfig(
+    allowedPaths: Seq[String],
     sharedKey: String,
     issuer: String,
     headerClaim: String,
