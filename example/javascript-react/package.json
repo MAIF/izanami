@@ -49,7 +49,6 @@
     "bootstrap": "3.4.1",
     "es-symbol": "1.1.2",
     "es6-shim": "0.35.6",
-    "faker": "6.6.6",
     "font-awesome": "4.7.0",
     "jquery": "3.6.0",
     "lodash": "4.17.21",
