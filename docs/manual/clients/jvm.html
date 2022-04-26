@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.14*
+1.10.17*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.14*
+1.10.17*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -286,12 +286,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 )
 </code></pre></dd>
 </dl>
-<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "1.10.14-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
+<p>Add the following dependency to your project </p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "fr.maif" %% "izanami-client" % "1.10.17-SNAPSHOT"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
   &lt;groupId&gt;fr.maif&lt;/groupId&gt;
   &lt;artifactId&gt;izanami-client_2.13&lt;/artifactId&gt;
-  &lt;version&gt;1.10.14-SNAPSHOT&lt;/version&gt;
+  &lt;version&gt;1.10.17-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  compile group: 'fr.maif', name: 'izanami-client_2.13', version: '1.10.14-SNAPSHOT'
+  compile group: 'fr.maif', name: 'izanami-client_2.13', version: '1.10.17-SNAPSHOT'
 }</code></pre></dd></dl>
 <p>The client can be used in java or scala. There is two distinct dsl. Be sure to import the correct one : </p>
 <dl>
@@ -328,16 +328,16 @@ import izanami.scaladsl._
   <dt>Java</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L57-L68" target="_blank" title="Go to snippet source"></a><code class="language-java">izanamiClient = IzanamiClient.client(
-        system,
-        ClientConfig.create(&quot;http://localhost:8089&quot;)
-                .withClientId(&quot;xxxx&quot;)
-                .withClientIdHeaderName(&quot;Another-Client-Id-Header&quot;)
-                .withClientSecret(&quot;xxxx&quot;)
-                .withClientSecretHeaderName(&quot;Another-Client-Secret-Header&quot;)
-                .sseBackend()
-                .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;)
-                .withPageSize(50)
-                .withZoneId(ZoneId.of(&quot;Europe/Paris&quot;))
+    system,
+    ClientConfig.create(&quot;http://localhost:8089&quot;)
+        .withClientId(&quot;xxxx&quot;)
+        .withClientIdHeaderName(&quot;Another-Client-Id-Header&quot;)
+        .withClientSecret(&quot;xxxx&quot;)
+        .withClientSecretHeaderName(&quot;Another-Client-Secret-Header&quot;)
+        .sseBackend()
+        .withDispatcher(&quot;izanami-example.blocking-io-dispatcher&quot;)
+        .withPageSize(50)
+        .withZoneId(ZoneId.of(&quot;Europe/Paris&quot;))
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -417,13 +417,13 @@ val client = IzanamiClient(
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L182-L189" target="_blank" title="Go to snippet source"></a><code class="language-java">ConfigClient configClient = izanamiClient.configClient(
-        Strategies.fetchStrategy(),
-        Configs.configs(
-                Config.config(&quot;my:config&quot;, Json.obj(
-                        Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
-                ))
-        )
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L183-L190" target="_blank" title="Go to snippet source"></a><code class="language-java">ConfigClient configClient = izanamiClient.configClient(
+    Strategies.fetchStrategy(),
+    Configs.configs(
+        Config.config(&quot;my:config&quot;, Json.obj(
+            Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
+        ))
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -467,12 +467,12 @@ val client = IzanamiClient(
   <dt>Java</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L89-L96" target="_blank" title="Go to snippet source"></a><code class="language-java">ConfigClient configFetchStrategy = izanamiClient.configClient(
-        Strategies.fetchStrategy(),
-        Configs.configs(
-                Config.config(&quot;my:config&quot;, Json.obj(
-                        Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
-                ))
-        )
+    Strategies.fetchStrategy(),
+    Configs.configs(
+        Config.config(&quot;my:config&quot;, Json.obj(
+            Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
+        ))
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -491,12 +491,12 @@ val client = IzanamiClient(
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L106-L115" target="_blank" title="Go to snippet source"></a><code class="language-java">Integer maxElementInCache = 100;
 FiniteDuration ttl = FiniteDuration.create(20, TimeUnit.MINUTES);
 ConfigClient fetchWithCacheStrategy = izanamiClient.configClient(
-        Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
-        Configs.configs(
-                Config.config(&quot;my:config&quot;, Json.obj(
-                        Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
-                ))
-        )
+    Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
+    Configs.configs(
+        Config.config(&quot;my:config&quot;, Json.obj(
+            Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
+        ))
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -515,15 +515,15 @@ ConfigClient fetchWithCacheStrategy = izanamiClient.configClient(
   <dt>Java</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L119-L129" target="_blank" title="Go to snippet source"></a><code class="language-java">ConfigClient configClient = izanamiClient.configClient(
-        Strategies.smartCacheWithPollingStrategy(
-                FiniteDuration.create(20, TimeUnit.SECONDS),
-                &quot;my:configs:*&quot;, &quot;other:pattern&quot;
-        ),
-        Configs.configs(
-                Config.config(&quot;my:config&quot;, Json.obj(
-                        Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
-                ))
-        )
+    Strategies.smartCacheWithPollingStrategy(
+        FiniteDuration.create(20, TimeUnit.SECONDS),
+        &quot;my:configs:*&quot;, &quot;other:pattern&quot;
+    ),
+    Configs.configs(
+        Config.config(&quot;my:config&quot;, Json.obj(
+            Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
+        ))
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -551,7 +551,7 @@ ConfigClient fetchWithCacheStrategy = izanamiClient.configClient(
   <dt>Java</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L100-L102" target="_blank" title="Go to snippet source"></a><code class="language-java">ConfigClient configErrorStrategy = izanamiClient.configClient(
-        Strategies.fetchStrategy(ErrorStrategies.crash())        
+    Strategies.fetchStrategy(ErrorStrategies.crash())
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -567,10 +567,10 @@ ConfigClient fetchWithCacheStrategy = izanamiClient.configClient(
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L193-L197" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Configs&gt; futureConfigs = configClient.configs(&quot;my:*&quot;);
-futureConfigs.onSuccess( (Configs configs) -&gt; {
-    JsValue config = configs.config(&quot;my:config&quot;);
-    System.out.println(config.field(&quot;value&quot;).asString());
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L194-L198" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Configs&gt; futureConfigs = configClient.configs(&quot;my:*&quot;);
+futureConfigs.onSuccess((Configs configs) -&gt; {
+  JsValue config = configs.config(&quot;my:config&quot;);
+  System.out.println(config.field(&quot;value&quot;).asString());
 });</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -584,9 +584,9 @@ configs.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L201-L204" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;JsValue&gt; futureConfig = configClient.config(&quot;my:config&quot;);
-futureConfig.onSuccess( (JsValue config) -&gt; {
-    System.out.println(config.field(&quot;value&quot;).asString());
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L202-L205" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;JsValue&gt; futureConfig = configClient.config(&quot;my:config&quot;);
+futureConfig.onSuccess((JsValue config) -&gt; {
+  System.out.println(config.field(&quot;value&quot;).asString());
 });</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -601,7 +601,7 @@ futureConfig.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L260" target="_blank" title="Go to snippet source"></a><code class="language-java">JsValue createdJson = configClient.createConfig(&quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;))).get();</code></pre></dd>
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L261" target="_blank" title="Go to snippet source"></a><code class="language-java">JsValue createdJson = configClient.createConfig(&quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;))).get();</code></pre></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L75" target="_blank" title="Go to snippet source"></a><code class="language-scala">val configCreated = client.createConfig(&quot;test&quot;, Json.obj(&quot;value&quot; -&gt; 1))</code></pre></dd>
@@ -610,7 +610,7 @@ futureConfig.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L266" target="_blank" title="Go to snippet source"></a><code class="language-java">Config created = configClient.createConfig(Config.config(&quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;)))).get();</code></pre></dd>
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L267" target="_blank" title="Go to snippet source"></a><code class="language-java">Config created = configClient.createConfig(Config.config(&quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;)))).get();</code></pre></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L49" target="_blank" title="Go to snippet source"></a><code class="language-scala">val jsoncreated = client.createConfig(Config(&quot;test&quot;, Json.obj(&quot;value&quot; -&gt; 1)))</code></pre></dd>
@@ -619,7 +619,7 @@ futureConfig.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L272" target="_blank" title="Go to snippet source"></a><code class="language-java">JsValue updatedJson = configClient.updateConfig(&quot;my:previous:config&quot;, &quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;))).get();</code></pre></dd>
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L273" target="_blank" title="Go to snippet source"></a><code class="language-java">JsValue updatedJson = configClient.updateConfig(&quot;my:previous:config&quot;, &quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;))).get();</code></pre></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L131" target="_blank" title="Go to snippet source"></a><code class="language-scala">val configUpdated = client.updateConfig(&quot;test&quot;, &quot;newtest&quot;, Json.obj(&quot;value&quot; -&gt; 1))</code></pre></dd>
@@ -628,7 +628,7 @@ futureConfig.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L278" target="_blank" title="Go to snippet source"></a><code class="language-java">Config updated = configClient.updateConfig(&quot;my:previous:config&quot;, Config.config(&quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;)))).get();</code></pre></dd>
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L279" target="_blank" title="Go to snippet source"></a><code class="language-java">Config updated = configClient.updateConfig(&quot;my:previous:config&quot;, Config.config(&quot;my:config&quot;, Json.obj(Syntax.$(&quot;value&quot;, &quot;A configuration&quot;)))).get();</code></pre></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L104" target="_blank" title="Go to snippet source"></a><code class="language-scala">val configUpdated = client.updateConfig(&quot;test&quot;, Config(&quot;newtest&quot;, Json.obj(&quot;value&quot; -&gt; 1)))</code></pre></dd>
@@ -637,7 +637,7 @@ futureConfig.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L285" target="_blank" title="Go to snippet source"></a><code class="language-java">Done deleted = configClient.deleteConfig(&quot;my:config&quot;).get();</code></pre></dd>
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L286" target="_blank" title="Go to snippet source"></a><code class="language-java">Done deleted = configClient.deleteConfig(&quot;my:config&quot;).get();</code></pre></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/configs/FetchConfigClientSpec.scala#L160" target="_blank" title="Go to snippet source"></a><code class="language-scala">val configDeleted = client.deleteConfig(&quot;test&quot;)</code></pre></dd>
@@ -647,15 +647,15 @@ futureConfig.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L247-L256" target="_blank" title="Go to snippet source"></a><code class="language-java">Boolean autocreate = true;
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L248-L257" target="_blank" title="Go to snippet source"></a><code class="language-java">Boolean autocreate = true;
 ConfigClient configClient = izanamiClient.configClient(
-        Strategies.fetchStrategy(),
-        Configs.configs(
-                Config.config(&quot;my:config&quot;, Json.obj(
-                        Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
-                ))
-        ),
-        autocreate
+    Strategies.fetchStrategy(),
+    Configs.configs(
+        Config.config(&quot;my:config&quot;, Json.obj(
+            Syntax.$(&quot;value&quot;, &quot;Fallback value&quot;)
+        ))
+    ),
+    autocreate
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -673,11 +673,11 @@ ConfigClient configClient = izanamiClient.configClient(
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L306-L311" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
-        Strategies.fetchStrategy(),
-        Features.features(
-                Features.feature(&quot;my:feature&quot;, false)
-        )
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L307-L312" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.fetchStrategy(),
+    Features.features(
+        Features.feature(&quot;my:feature&quot;, false)
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -720,11 +720,11 @@ ConfigClient configClient = izanamiClient.configClient(
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L306-L311" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
-        Strategies.fetchStrategy(),
-        Features.features(
-                Features.feature(&quot;my:feature&quot;, false)
-        )
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L307-L312" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.fetchStrategy(),
+    Features.features(
+        Features.feature(&quot;my:feature&quot;, false)
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -739,13 +739,13 @@ ConfigClient configClient = izanamiClient.configClient(
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L321-L328" target="_blank" title="Go to snippet source"></a><code class="language-java">Integer maxElementInCache = 100;
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L322-L329" target="_blank" title="Go to snippet source"></a><code class="language-java">Integer maxElementInCache = 100;
 FiniteDuration ttl = FiniteDuration.create(20, TimeUnit.MINUTES);
 FeatureClient featureClientWithCache = izanamiClient.featureClient(
-        Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
-        Features.features(
-                Features.feature(&quot;my:feature&quot;, false)
-        )
+    Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
+    Features.features(
+        Features.feature(&quot;my:feature&quot;, false)
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -763,13 +763,14 @@ FeatureClient featureClientWithCache = izanamiClient.featureClient(
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L133-L140" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
-        Strategies.smartCacheWithSseStrategy(
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L133-L141" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.smartCacheWithSseStrategy(
+        scala.Option.apply(FiniteDuration.create(1, TimeUnit.MINUTES)),
         &quot;my:features:*&quot;, &quot;other:pattern&quot;
-        ),
-        Features.features(
-                Features.feature(&quot;my:feature&quot;, false)
-        )
+    ),
+    Features.features(
+        Features.feature(&quot;my:feature&quot;, false)
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -797,8 +798,8 @@ FeatureClient featureClientWithCache = izanamiClient.featureClient(
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L315-L317" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClientWithErrorHandling = izanamiClient.featureClient(
-        Strategies.fetchStrategy(ErrorStrategies.crash())
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L316-L318" target="_blank" title="Go to snippet source"></a><code class="language-java">FeatureClient featureClientWithErrorHandling = izanamiClient.featureClient(
+    Strategies.fetchStrategy(ErrorStrategies.crash())
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -814,14 +815,14 @@ FeatureClient featureClientWithCache = izanamiClient.featureClient(
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L496-L507" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Features&gt; futureFeatures = featureClient.features(&quot;my:feature:*&quot;);
 
 futureFeatures.onSuccess(features -&gt; {
-    boolean active = features.isActive(&quot;my:feature:test&quot;);
-    if (active) {
-        System.out.println(&quot;Feature my:feature:test is active&quot;);
-    } else {
-        System.out.println(&quot;Feature my:feature:test is active&quot;);
-    }
-    JsObject tree = features.tree();
-    System.out.println(&quot;Tree is &quot; + Json.prettyPrint(tree));
+  boolean active = features.isActive(&quot;my:feature:test&quot;);
+  if (active) {
+    System.out.println(&quot;Feature my:feature:test is active&quot;);
+  } else {
+    System.out.println(&quot;Feature my:feature:test is active&quot;);
+  }
+  JsObject tree = features.tree();
+  System.out.println(&quot;Tree is &quot; + Json.prettyPrint(tree));
 });</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -845,7 +846,7 @@ futureFeatures.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L332" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Boolean&gt; futureCheck = featureClient.checkFeature(&quot;my:feature&quot;);</code></pre></dd>
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L333" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Boolean&gt; futureCheck = featureClient.checkFeature(&quot;my:feature&quot;);</code></pre></dd>
   <dt>Scala</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/scala/izanami/features/FetchFeatureClientSpec.scala#L337" target="_blank" title="Go to snippet source"></a><code class="language-scala">val futureCheck: Future[Boolean] = featureClient.checkFeature(&quot;test&quot;)</code></pre></dd>
@@ -854,8 +855,8 @@ futureFeatures.onComplete {
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L336-L338" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Boolean&gt; futureCheckContext = featureClient.checkFeature(&quot;my:feature&quot;, Json.obj(
-        Syntax.$(&quot;context&quot;, true)
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L337-L339" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Boolean&gt; futureCheckContext = featureClient.checkFeature(&quot;my:feature&quot;, Json.obj(
+    Syntax.$(&quot;context&quot;, true)
 ));</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -867,9 +868,9 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L342-L345" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;String&gt; conditonal = featureClient.featureOrElse(&quot;my:feature&quot;,
-        () -&gt; &quot;Feature is active&quot;,
-        () -&gt; &quot;Feature is not active&quot;
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L343-L346" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;String&gt; conditonal = featureClient.featureOrElse(&quot;my:feature&quot;,
+    () -&gt; &quot;Feature is active&quot;,
+    () -&gt; &quot;Feature is not active&quot;
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -883,11 +884,11 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L349-L354" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;String&gt; conditonalContext = featureClient.featureOrElse(
-        &quot;my:feature&quot;,
-        Json.obj(Syntax.$(&quot;context&quot;, true)),
-        () -&gt; &quot;Feature is active&quot;,
-        () -&gt; &quot;Feature is not active&quot;
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L350-L355" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;String&gt; conditonalContext = featureClient.featureOrElse(
+    &quot;my:feature&quot;,
+    Json.obj(Syntax.$(&quot;context&quot;, true)),
+    () -&gt; &quot;Feature is active&quot;,
+    () -&gt; &quot;Feature is not active&quot;
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -904,13 +905,13 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   <dt>Java</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L416-L424" target="_blank" title="Go to snippet source"></a><code class="language-java">Feature createdJson = featureClient.createJsonFeature(
-        &quot;my:feature&quot;, 
-        true, 
-        Features.hourRangeType(),
-        Option.of(Json.obj(
-                Syntax.$(&quot;startAt&quot;, &quot;05:25&quot;), 
-                Syntax.$(&quot;endAt&quot;, &quot;16:30&quot;) 
-        ))
+    &quot;my:feature&quot;,
+    true,
+    Features.hourRangeType(),
+    Option.of(Json.obj(
+        Syntax.$(&quot;startAt&quot;, &quot;05:25&quot;),
+        Syntax.$(&quot;endAt&quot;, &quot;16:30&quot;)
+    ))
 ).get();</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -924,7 +925,7 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
   </dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L430-L432" target="_blank" title="Go to snippet source"></a><code class="language-java">Feature created = featureClient.createFeature(
-        Features.hourRange(&quot;my:feature&quot;, true, LocalTime.of(5, 25), LocalTime.of(16, 30))
+    Features.hourRange(&quot;my:feature&quot;, true, LocalTime.of(5, 25), LocalTime.of(16, 30))
 ).get();</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -967,13 +968,13 @@ val checkWithContext: Future[Boolean] = featureClient.checkFeature(&quot;test&qu
 <dl>
   <dt>Java</dt>
   <dd>
-  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L405-L412" target="_blank" title="Go to snippet source"></a><code class="language-java">Boolean autocreate = true; 
+  <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L405-L412" target="_blank" title="Go to snippet source"></a><code class="language-java">Boolean autocreate = true;
 FeatureClient featureClient = izanamiClient.featureClient(
-        Strategies.fetchStrategy(),
-        Features.features(
-                Features.feature(&quot;my:feature&quot;, false)
-        ),
-        autocreate
+    Strategies.fetchStrategy(),
+    Features.features(
+        Features.feature(&quot;my:feature&quot;, false)
+    ),
+    autocreate
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -1004,18 +1005,18 @@ FeatureClient featureClient = izanamiClient.featureClient(
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L646-L660" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Option&lt;Variant&gt;&gt; futureVariant = experimentsClient.getVariantFor(&quot;my:experiment&quot;, &quot;clientId&quot;);
 futureVariant.onSuccess(mayBeVariant -&gt;
-        Match(mayBeVariant).of(
-                Case($Some($()), exist -&gt; {
-                    String phrase = &quot;Variant is &quot; + exist;
-                    System.out.println(phrase);
-                    return phrase;
-                }),
-                Case($None(), __ -&gt; {
-                    String phrase = &quot;Variant not found&quot;;
-                    System.out.println(phrase);
-                    return phrase;
-                })
-        )
+    Match(mayBeVariant).of(
+        Case($Some($()), exist -&gt; {
+          String phrase = &quot;Variant is &quot; + exist;
+          System.out.println(phrase);
+          return phrase;
+        }),
+        Case($None(), __ -&gt; {
+          String phrase = &quot;Variant not found&quot;;
+          System.out.println(phrase);
+          return phrase;
+        })
+    )
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -1031,7 +1032,7 @@ mayBeFutureVariant.onComplete {
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L667-L670" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;ExperimentVariantDisplayed&gt; futureDisplayed = experimentsClient.markVariantDisplayed(&quot;my:experiment&quot;, &quot;clientId&quot;);
 futureDisplayed.onSuccess(event -&gt;
-        System.out.println(event)
+    System.out.println(event)
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -1048,7 +1049,7 @@ futureDisplayed.onComplete {
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L678-L681" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;ExperimentVariantWon&gt; futureWon = experimentsClient.markVariantWon(&quot;my:experiment&quot;, &quot;clientId&quot;);
 futureWon.onSuccess(event -&gt;
-        System.out.println(event)
+    System.out.println(event)
 );</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -1066,16 +1067,16 @@ futureWon.onComplete {
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L619-L633" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;Option&lt;ExperimentClient&gt;&gt; futureExperiment = experimentsClient.experiment(&quot;my:experiment&quot;);
 futureExperiment.onSuccess(mayBeExperiment -&gt;
     Match(mayBeExperiment).of(
-            Case($Some($()), exist -&gt; {
-                String phrase = &quot;Experiment is &quot; + exist;
-                System.out.println(phrase);
-                return phrase;
-            }),
-            Case($None(), __ -&gt; {
-                String phrase = &quot;Experiment not found&quot;;
-                System.out.println(phrase);
-                return phrase;
-            })
+        Case($Some($()), exist -&gt; {
+          String phrase = &quot;Experiment is &quot; + exist;
+          System.out.println(phrase);
+          return phrase;
+        }),
+        Case($None(), __ -&gt; {
+          String phrase = &quot;Experiment not found&quot;;
+          System.out.println(phrase);
+          return phrase;
+        })
     )
 );</code></pre></dd>
   <dt>Scala</dt>
@@ -1109,15 +1110,15 @@ val won: Future[ExperimentVariantWon]             = experiment.markVariantWon(&q
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L688-L699" target="_blank" title="Go to snippet source"></a><code class="language-java">Future&lt;JsValue&gt; futureTree = experimentsClient.tree(&quot;*&quot;, &quot;clientId&quot;);
 futureTree.onSuccess(tree -&gt; {
-    assertThat(tree).isEqualTo(
-            Json.obj(
-                    Syntax.$(&quot;my&quot;, Json.obj(
-                            Syntax.$(&quot;experiment&quot;, Json.obj(
-                                    Syntax.$(&quot;variant&quot;, &quot;A&quot;)
-                            ))
-                    ))
-            )
-    );
+  assertThat(tree).isEqualTo(
+      Json.obj(
+          Syntax.$(&quot;my&quot;, Json.obj(
+              Syntax.$(&quot;experiment&quot;, Json.obj(
+                  Syntax.$(&quot;variant&quot;, &quot;A&quot;)
+              ))
+          ))
+      )
+  );
 });</code></pre></dd>
   <dt>Scala</dt>
   <dd>
@@ -1145,47 +1146,47 @@ experimentsTree must be(
   <dt>Java</dt>
   <dd>
   <pre class="prettyprint"><a class="icon go-to-source" href="https://github.com/MAIF/izanami/tree/master/izanami-clients/jvm/src/test/java/izanami/javadsl/IzanamiTest.java#L706-L753" target="_blank" title="Go to snippet source"></a><code class="language-java">ConfigClient configClient = izanamiClient.configClient(
-        Strategies.dev(),
-        Configs.configs(
-                Config.config(&quot;configs:test&quot;, Json.obj(
-                        Syntax.$(&quot;value&quot;, 2)
-                ))
-        )
+    Strategies.dev(),
+    Configs.configs(
+        Config.config(&quot;configs:test&quot;, Json.obj(
+            Syntax.$(&quot;value&quot;, 2)
+        ))
+    )
 );
 FeatureClient featureClient = izanamiClient.featureClient(
-        Strategies.dev(),
-        Features.features(
-                Features.feature(&quot;features:test1&quot;, true)
-        )
+    Strategies.dev(),
+    Features.features(
+        Features.feature(&quot;features:test1&quot;, true)
+    )
 );
 ExperimentsClient experimentsClient = izanamiClient.experimentClient(
-        Strategies.dev(),
-        Experiments.create(
-                ExperimentFallback.create(
-                        &quot;experiments:id&quot;,
-                        &quot;Experiment&quot;,
-                        &quot;An Experiment&quot;,
-                        true,
-                        Variant.create(&quot;A&quot;, &quot;Variant A&quot;, scala.Option.apply(&quot;Variant A&quot;))
-                )));
+    Strategies.dev(),
+    Experiments.create(
+        ExperimentFallback.create(
+            &quot;experiments:id&quot;,
+            &quot;Experiment&quot;,
+            &quot;An Experiment&quot;,
+            true,
+            Variant.create(&quot;A&quot;, &quot;Variant A&quot;, scala.Option.apply(&quot;Variant A&quot;))
+        )));
 
 Proxy proxy = izanamiClient.proxy()
-        .withConfigClient(configClient)
-        .withConfigPattern(&quot;configs:*&quot;)
-        .withFeatureClient(featureClient)
-        .withFeaturePattern(&quot;features:*&quot;)
-        .withExperimentsClient(experimentsClient)
-        .withExperimentPattern(&quot;experiments:*&quot;);
+    .withConfigClient(configClient)
+    .withConfigPattern(&quot;configs:*&quot;)
+    .withFeatureClient(featureClient)
+    .withFeaturePattern(&quot;features:*&quot;)
+    .withExperimentsClient(experimentsClient)
+    .withExperimentPattern(&quot;experiments:*&quot;);
 
 Future&lt;Tuple2&lt;Integer, JsValue&gt;&gt; fJsonResponse = proxy.statusAndJsonResponse();
 fJsonResponse.onSuccess(t -&gt;
-        System.out.println(&quot;Code = &quot;+t._1+&quot;, json body = &quot;+t._2)
+    System.out.println(&quot;Code = &quot; + t._1 + &quot;, json body = &quot; + t._2)
 );
 
 //Or with string response and additional infos :
 Future&lt;Tuple2&lt;Integer, String&gt;&gt; fStringResponse = proxy.statusAndStringResponse(Json.obj().with(&quot;id&quot;, &quot;ragnard.lodbrock@gmail.com&quot;), &quot;ragnard.lodbrock@gmail.com&quot;);
 fStringResponse.onSuccess(t -&gt;
-        System.out.println(&quot;Code = &quot;+t._1+&quot;, string body = &quot;+t._2)
+    System.out.println(&quot;Code = &quot; + t._1 + &quot;, string body = &quot; + t._2)
 );
 // Experiment proxy
 

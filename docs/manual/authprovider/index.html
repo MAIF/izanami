@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.14*
+1.10.17*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.14*
+1.10.17*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -218,6 +218,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   filter {
     type = &quot;Otoroshi&quot;
     otoroshi  {
+      allowedPaths = [${?OTOROSHI_FILTER_EXCLUSION}, ${?OTOROSHI_FILTER_EXCLUSION_1}, ${?OTOROSHI_FILTER_EXCLUSION_2}, ${?OTOROSHI_FILTER_EXCLUSION_3}]
       issuer = &quot;Otoroshi&quot;
       issuer = ${?OTOROSHI_ISSUER}
       sharedKey = &quot;none&quot;

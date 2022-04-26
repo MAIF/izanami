@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.14*
+1.10.17*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.14*
+1.10.17*
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -439,7 +439,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <tr>
       <td><code>izanami.db.default</code> </td>
       <td><code>IZANAMI_DATABASE</code> </td>
-      <td>Type of the default datastore. Could be <code>InMemory</code>, <code>LevelDb</code>, <code>Redis</code>, <code>Elastic</code>. </td>
+      <td>Type of the default datastore. Could be <code>InMemory</code>, <code>LevelDb</code>, <code>Redis</code>, <code>Elastic</code>, <code>Postgresql</code>. </td>
       <td><code>LevelDb</code> </td>
     </tr>
     <tr>
@@ -527,6 +527,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td>9092 </td>
     </tr>
     <tr>
+      <td><code>izanami.db.kafka.protocol</code> </td>
+      <td><code>KAFKA_PROTOCOL</code> </td>
+      <td>Authentication protocol. Could be <code>SASL_SSL</code>, <code>SSL</code>. </td>
+      <td><code>SSL</code> </td>
+    </tr>
+    <tr>
       <td><code>izanami.db.kafka.servers</code> </td>
       <td><code>KAFKA_HOSTS_AND_PORTS</code> </td>
       <td>A string with host and port separated by &lsquo;,&rsquo; </td>
@@ -548,6 +554,18 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>izanami.db.kafka.truststore.location</code> </td>
       <td><code>KAFKA_TRUSTORE_LOCATION</code> </td>
       <td>The absolute location of the truststore,if ssl is used </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.saslMechanism</code> </td>
+      <td><code>KAFKA_SASL_MECHANISM</code> </td>
+      <td>The SASL mechanism </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code>izanami.db.kafka.saslJaasConfig</code> </td>
+      <td><code>KAFKA_SASL_JAAS_CONFIG</code> </td>
+      <td>The SASL Jaas configuration </td>
       <td> </td>
     </tr>
     <tr>
@@ -722,6 +740,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>Default</code> </td>
     </tr>
     <tr>
+      <td><code>izanami.filter.otoroshi.allowedPaths</code> </td>
+      <td><code>OTOROSHI_FILTER_EXCLUSION</code>, <code>OTOROSHI_FILTER_EXCLUSION_1</code>, <code>OTOROSHI_FILTER_EXCLUSION_2</code>, <code>OTOROSHI_FILTER_EXCLUSION_3</code> </td>
+      <td>A list of endpoint that bypass Otoroshi&rsquo;s security filter. The env variable allow to add more than one exclusion </td>
+      <td> </td>
+    </tr>
+    <tr>
       <td><code>izanami.filter.otoroshi.sharedKey</code> </td>
       <td><code>CLAIM_SHAREDKEY</code> </td>
       <td>Shared key used to encrypt jwt token </td>
@@ -783,8 +807,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     </tr>
     <tr>
       <td><code>izanami.filter.default.allowedPaths</code> </td>
-      <td><code>FILTER_EXLUSION</code> </td>
-      <td>A list of endpoint that pass the security filter. The env variable allow to add on more exclusion </td>
+      <td><code>FILTER_EXLUSION</code>, <code>FILTER_EXLUSION_1</code>, <code>FILTER_EXLUSION_2</code>, <code>FILTER_EXLUSION_3</code> </td>
+      <td>A list of endpoint that pass the security filter. The env variable allow to add more than one exclusion </td>
       <td> </td>
     </tr>
     <tr>
