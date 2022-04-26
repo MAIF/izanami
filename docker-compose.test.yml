@@ -23,7 +23,7 @@ services:
       - "cluster.routing.allocation.disk.threshold_enabled=false"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
   mongo:
-    image: mongo:3.6
+    image: mongo:4.0.3
     ports:
       - 27017:27017
   dynamodb:
