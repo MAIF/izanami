@@ -1,21 +1,17 @@
 package env
 
-import java.net.{InetAddress, InetSocketAddress}
-import java.nio.file.{Path, Paths}
-import java.time.ZoneId
-
-import com.nimbusds.jose.jwk.{ECKey, JWK, KeyType, RSAKey}
+import com.nimbusds.jose.jwk.KeyType
 import domains.AuthorizedPatterns
 import domains.configuration.PlayModule
 import env.configuration.IzanamiConfigModule
-import play.api.{Configuration, Environment, Mode}
-import play.api.libs.ws.WSProxyServer
+import play.api.{Configuration, Mode}
 import pureconfig._
-import pureconfig.error.ConfigReaderFailures
-import zio.{Has, Layer, Managed, ULayer, URIO, ZIO, ZLayer, ZManaged}
+import zio.{ULayer, URIO, ZIO, ZLayer}
 
+import java.net.{InetAddress, InetSocketAddress}
+import java.nio.file.{Path, Paths}
+import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
 
 sealed trait DbType
 case object Redis          extends DbType with Product with Serializable
@@ -139,32 +135,54 @@ object IzanamiConfig {
       izanamiConfig <- IzanamiConfigModule.izanamiConfig
     } yield IzanamiConfig.zoneId(izanamiConfig)
 
-  def toStringWithoutSecrets(izanamiConfig: IzanamiConfig): String = {
-    val secrets: List[String] = (List(
-      izanamiConfig.db.kafka.flatMap(_.keyPass),
-      izanamiConfig.db.postgresql.map(_.password),
-      izanamiConfig.db.elastic.flatMap(_.password),
-      izanamiConfig.db.postgresql.map(_.password),
-      izanamiConfig.oauth2.flatMap(_.clientSecret),
-      izanamiConfig.oauth2.flatMap(_.mtls.flatMap(_.config.flatMap(_.keystorePassword))),
-      izanamiConfig.oauth2.flatMap(_.mtls.flatMap(_.config.flatMap(_.truststorePassword))),
-      Some(izanamiConfig.filter match {
-        case Otoroshi(otoroshi: OtoroshiFilterConfig) => otoroshi.sharedKey
-        case Default(default: DefaultFilter)          => default.sharedKey
-      })
+  def withoutSecrets(izanamiConfig: IzanamiConfig) = {
+    val hide = "***<secret>***"
+    izanamiConfig.db.kafka.map(k => k.keyPass.map(_ => hide))
+    val kafka      = izanamiConfig.db.kafka.flatMap(k => k.keyPass.map(_ => k.copy(keyPass = Some(hide))))
+    val postgresql = izanamiConfig.db.postgresql.map(p => p.copy(password = hide))
+    val elastic    = izanamiConfig.db.elastic.flatMap(e => e.password.map(_ => e.copy(password = Some(hide))))
+    val dynamo = izanamiConfig.db.dynamo
+      .flatMap(d => d.accessKey.map(_ => d.copy(accessKey = Some(hide))))
+      .flatMap(d => d.secretKey.map(_ => d.copy(secretKey = Some(hide))))
+    val redis = izanamiConfig.db.redis.map {
+      case Master(host, port, poolSize, password, databaseId, tls, keyPass, keyStorePath, trustStorePath) =>
+        Master(
+          host,
+          port,
+          poolSize,
+          password = password.map(_ => hide),
+          databaseId,
+          tls,
+          keyPass,
+          keyStorePath,
+          trustStorePath
+        )
+      case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId) =>
+        Sentinel(host, port, poolSize, masterId, password.map(_ => hide), sentinels, databaseId)
+    }
+    val oauth = izanamiConfig.oauth2.map(o =>
+      o.copy(
+        clientSecret = o.clientSecret.map(_ => hide),
+        mtls = o.mtls.map(mtls =>
+          mtls.copy(config =
+            mtls.config
+              .map(certificate => certificate.copy(keystorePassword = certificate.keystorePassword.map(_ => hide)))
+              .map(certificate => certificate.copy(keystorePassword = certificate.truststorePassword.map(_ => hide)))
+          )
+        )
+      )
     )
-    ++ izanamiConfig.db.dynamo.map(d => List(d.accessKey, d.secretKey)).getOrElse(List.empty[Option[String]])
-    ++ izanamiConfig.db.redis
-      .map {
-        case Master(host, port, poolSize, password, databaseId, tls, keyPass, keyStorePath, trustStorePath) =>
-          List(password, keyPass)
-        case Sentinel(host, port, poolSize, masterId, password, sentinels, databaseId) => List(password)
-      }
-      .getOrElse(List.empty[Option[String]]))
-      .filter(_.isDefined)
-      .map(_.get)
+    val filter: IzanamiFilter = izanamiConfig.filter match {
+      case Otoroshi(otoroshi: OtoroshiFilterConfig) => Otoroshi(otoroshi.copy(sharedKey = hide))
+      case Default(default: DefaultFilter)          => Default(default.copy(sharedKey = hide))
+    }
+    izanamiConfig.copy(
+      db = izanamiConfig.db
+        .copy(kafka = kafka, postgresql = postgresql, elastic = elastic, dynamo = dynamo, redis = redis),
+      oauth2 = oauth,
+      filter = filter
+    )
 
-    secrets.foldLeft(izanamiConfig.toString)((a, b) => a.replace(b, "***<secret>***"))
   }
 }
 

@@ -56,7 +56,7 @@ package object modules {
     implicit val runtime: Runtime[ZEnv] = Runtime.default
     import zio.interop.catz._
 
-    IzanamiLogger.info(s"Configuration: \n${IzanamiConfig.toStringWithoutSecrets(izanamiConfig)}")
+    IzanamiLogger.info(s"Configuration: \n${IzanamiConfig.withoutSecrets(izanamiConfig)}")
     IzanamiLogger.debug(s"Configuration with secrets: \n${izanamiConfig}")
 
     val _env: Env = izanamiConfig.baseURL match {
@@ -162,9 +162,10 @@ package object modules {
     lazy val router: Router = {
       val prefix: String = izanamiConfig.contextPath match {
         case "/" => izanamiConfig.contextPath
-        case path => if (path.endsWith("/"))
-          path.dropRight(1)
-        else path
+        case path =>
+          if (path.endsWith("/"))
+            path.dropRight(1)
+          else path
       }
       IzanamiLogger.info(s"Initializing play router with prefix $prefix")
       wire[Routes].withPrefix(prefix)
