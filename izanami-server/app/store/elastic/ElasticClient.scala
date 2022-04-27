@@ -12,9 +12,7 @@ import play.api.libs.json.JsValue
 object Elastic6Client {
 
   def apply(elasticConfig: ElasticConfig, actorSystem: ActorSystem): Elastic6[JsValue] = {
-    if (elasticConfig.version != 6)
-      IzanamiLogger.info(s"Warning: ${elasticConfig.version} configured but Elasticsearch 6 client will be used")
-    IzanamiLogger.info(s"Creating elastic client $elasticConfig for Elasticsearch 6")
+    ElasticCommons.logConfiguration(elasticConfig, 6)
     (
       for {
         user     <- elasticConfig.user
@@ -34,9 +32,7 @@ object Elastic6Client {
 object Elastic7Client {
 
   def apply(elasticConfig: ElasticConfig, actorSystem: ActorSystem): Elastic7[JsValue] = {
-    if (elasticConfig.version != 7)
-      IzanamiLogger.info(s"Warning: ${elasticConfig.version} configured but Elasticsearch 7 client will be used")
-    IzanamiLogger.info(s"Creating elastic client $elasticConfig for Elasticsearch 7")
+    ElasticCommons.logConfiguration(elasticConfig, 6)
     (
       for {
         user     <- elasticConfig.user
@@ -51,4 +47,15 @@ object Elastic7Client {
     ) getOrElse AkkaClient7[JsValue](elasticConfig.host, elasticConfig.port, elasticConfig.scheme)(actorSystem)
   }
 
+}
+
+object ElasticCommons {
+  def logConfiguration(elasticConfig: ElasticConfig, expectedVersion: Int): Unit = {
+    if (elasticConfig.version != expectedVersion)
+      IzanamiLogger.info(
+        s"Warning: ${elasticConfig.version} configured but Elasticsearch ${expectedVersion} client will be used"
+      )
+    val withoutSecret = elasticConfig.password.map(_ => elasticConfig.copy(password = Some("***<secret>***")))
+    IzanamiLogger.info(s"Creating elastic client ${withoutSecret} for Elasticsearch ${expectedVersion}")
+  }
 }
