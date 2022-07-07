@@ -129,11 +129,11 @@ In the attributes panel, add two attributes
 
 Create an simple user 
 
-![Users](../img/tutorial/oauth/users_admin_1.png)
+![Users](../img/tutorial/oauth/users_random_1.png)
 
 In the attributes panel, add the restriction pattern 
 
-![Users](../img/tutorial/oauth/users_admin_2_attributes.png)
+![Users](../img/tutorial/oauth/users_random_2_settings.png)
 
 
 ## Configure izanami 
