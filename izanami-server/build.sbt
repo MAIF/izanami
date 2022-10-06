@@ -200,7 +200,7 @@ Docker / dockerPackageMappings += (baseDirectory.value / "docker" / "start.sh") 
 
 Docker / maintainer := "MAIF Team <maif@maif.fr>"
 
-dockerBaseImage := "openjdk:11-jre-slim"
+dockerBaseImage := "eclipse-temurin:11"
 
 dockerCommands := dockerCommands.value.filterNot {
   case ExecCmd("CMD", args @ _*) => true
