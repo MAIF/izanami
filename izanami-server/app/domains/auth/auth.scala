@@ -263,7 +263,7 @@ package object auth {
         val clientSecret = authConfig.clientSecret.map(_.trim).filterNot(_.isEmpty)
         val queryParam   = if (authConfig.useCookie) "" else s"?desc=izanami"
         val redirectUri = if (baseURL.startsWith("http")) {
-          s"${baseURL}/${controllers.routes.OAuthController.appCallback().url}${queryParam}"
+          s"${baseURL}${controllers.routes.OAuthController.appCallback().url}${queryParam}"
         } else {
           s"${controllers.routes.OAuthController.appCallback().absoluteURL()}${queryParam}"
         }
