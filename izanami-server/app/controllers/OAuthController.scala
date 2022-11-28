@@ -49,7 +49,7 @@ class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: Co
       case Some(redirectTo) =>
         Redirect(redirectTo).discardingCookies()
       case _ =>
-        BadRequest(Json.toJson(ApiErrors.error("Missing parameters")))
+        Redirect(s"${_env.baseURL}/login").withCookies(Cookie(name = _env.cookieName, value = "", maxAge = Some(0)))
     }
   }
 
