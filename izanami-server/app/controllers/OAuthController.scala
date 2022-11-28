@@ -32,7 +32,7 @@ class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: Co
         val claims       = Option(openIdConnectConfig.claims).filterNot(_.isEmpty).map(v => s"claims=$v&").getOrElse("")
         val queryParam   = if (openIdConnectConfig.useCookie) "" else s"?desc=izanami"
         val redirectUri = if (_env.baseURL.startsWith("http")) {
-          s"${_env.baseURL}/${controllers.routes.OAuthController.appCallback().url}${queryParam}"
+          s"${_env.baseURL}${controllers.routes.OAuthController.appCallback().url}${queryParam}"
         } else {
           s"${controllers.routes.OAuthController.appCallback().absoluteURL()}${queryParam}"
         }
@@ -57,7 +57,7 @@ class OAuthController(_env: Env, mayBeOauth2Config: Option[Oauth2Config], cc: Co
     mayBeOauth2Config match {
       case Some(openIdConnectConfig) =>
         Oauth2Service
-          .paCallback(s"${_env.baseURL}/", openIdConnectConfig)
+          .paCallback(s"${_env.baseURL}", openIdConnectConfig)
           .map { user =>
             Redirect(controllers.routes.HomeController.index())
               .withCookies(Cookie(name = _env.cookieName, value = User.buildToken(user, _config.issuer, algorithm)))
