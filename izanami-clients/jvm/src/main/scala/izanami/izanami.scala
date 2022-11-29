@@ -249,7 +249,6 @@ object ExperimentFallback {
     ExperimentFallback(id, name, description, enabled, variant)
 }
 
-@annotation.varargs
 case class Experiments(experiments: ExperimentFallback*)
 
 object Experiments {

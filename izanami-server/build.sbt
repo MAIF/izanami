@@ -108,7 +108,7 @@ dependencyOverrides ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.7.36"
 ) // avoid slf4j-api >= 2. Remove this override when doobie >= 1.0.0
 
-addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.2" cross CrossVersion.full)
 
 ITest / scalaSource := baseDirectory.value / "it"
 ITest / resourceDirectory := (baseDirectory apply { baseDir: File => baseDir / "it/resources" }).value

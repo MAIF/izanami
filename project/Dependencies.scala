@@ -1,5 +1,5 @@
 object Dependencies {
-  val scalaVersion = "2.13.3"
+  val scalaVersion = "2.13.10"
 
   val akkaVersion     = "2.6.19"
   val akkaHttpVersion = "10.1.15"
