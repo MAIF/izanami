@@ -2,6 +2,7 @@ package libs.dynamo
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import play.api.libs.json._
+
 import scala.jdk.CollectionConverters._
 
 object DynamoMapper {
@@ -13,6 +14,8 @@ object DynamoMapper {
     case JsBoolean(value)     => new AttributeValue().withBOOL(value)
     case JsArray(values)      => new AttributeValue().withL(values.toSeq.map(fromJsValue): _*)
     case JsObject(attributes) => new AttributeValue().withM(attributes.view.mapValues(fromJsValue).toMap.asJava)
+    case JsTrue               => new AttributeValue().withBOOL(true)
+    case JsFalse              => new AttributeValue().withBOOL(false)
   }
 
   def toJsValue(map: java.util.Map[String, AttributeValue]): JsValue =
