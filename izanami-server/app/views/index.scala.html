@@ -21,7 +21,11 @@
     }
     <div id="app"></div>
     <script type="application/javascript">
+        @if(_env.baseURL.startsWith("http")) {
+        window.__contextPath = '';
+        } else {
         window.__contextPath = '@_env.baseURL';
+        }
         Izanami.init(document.getElementById("app"), '@logout', @confirmationDialog, '@userManagementMode', @enabledApikeyManagement, JSON.parse('@Html(Json.stringify(user))'));
     </script>
     <script>'Version: @version - Commit Id: @gitCommitId'</script>
