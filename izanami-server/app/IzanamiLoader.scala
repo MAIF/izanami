@@ -2,7 +2,7 @@ import akka.actor.ActorSystem
 import com.softwaremill.macwire._
 import controllers._
 import controllers.actions.{AuthAction, AuthContext, SecuredAction, SecuredAuthContext}
-import domains.Import
+import domains.{AuthorizedPatterns, Import, Key}
 import domains.abtesting._
 import domains.abtesting.events.ExperimentVariantEventService
 import domains.apikey.{ApikeyDataStore, ApikeyService}
@@ -11,15 +11,15 @@ import domains.configuration.GlobalContext
 import domains.feature.{FeatureDataStore, FeatureService}
 import domains.lock.{LockDataStore, LockService}
 import domains.script.{GlobalScriptDataStore, GlobalScriptService}
-import domains.user.{UserDataStore, UserService}
+import domains.user.{IzanamiUser, User, UserDataStore, UserService}
 import domains.webhook.{WebhookDataStore, WebhookService}
 import env._
 import filters.{ZioIzanamiDefaultFilter, ZioOtoroshiFilter}
 import handlers.ErrorHandler
 import libs.logs.IzanamiLogger
 import metrics.MetricsService
+import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext, LoggerConfigurator, Mode}
 import play.api.ApplicationLoader.Context
-import play.api._
 import play.api.cache.AsyncCacheApi
 import play.api.cache.ehcache.EhCacheComponents
 import play.api.http.HttpErrorHandler
@@ -27,15 +27,37 @@ import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.{ActionBuilder, AnyContent, EssentialFilter}
 import play.api.routing.Router
 import router.Routes
-import zio.{Runtime, ZEnv, ZIO, ZLayer}
+import zio.{RIO, Runtime, ZEnv, ZIO, ZLayer}
 
 class IzanamiLoader extends ApplicationLoader {
+
+  def logBadDefaultValue(key: String, envVar: String, shutdown: Boolean): Unit = {
+    IzanamiLogger.error("")
+    IzanamiLogger.error("#########################################################")
+    IzanamiLogger.error("")
+    IzanamiLogger.error(s"You are using the default value for config. '${key}' (or env. variable '${envVar}') is using the default value")
+    IzanamiLogger.error(s"You MUST change the value in production with a secure random value to avoid severe security issues !")
+    if (shutdown) IzanamiLogger.error("Shutting down JVM right now !")
+    IzanamiLogger.error("")
+    IzanamiLogger.error("#########################################################")
+    IzanamiLogger.error("")
+  }
 
   def load(context: Context): Application = {
     LoggerConfigurator(context.environment.classLoader).foreach {
       _.configure(context.environment, context.initialConfiguration, Map.empty)
     }
-    new modules.IzanamiComponentsInstances(context).application
+    val instances = new modules.IzanamiComponentsInstances(context)
+    instances.izanamiConfig.filter match {
+      case Otoroshi(cfg) if cfg.sharedKey == "none" =>
+        logBadDefaultValue("izanami.filter.otoroshi.sharedKey", "CLAIM_SHAREDKEY", false)
+      case Default(cfg) if cfg.sharedKey == "none" =>
+        val shutdown = !instances._env.isPlayDevMode && cfg.failOnDefaultValue
+        logBadDefaultValue("izanami.filter.default.sharedKey", "FILTER_CLAIM_SHAREDKEY", shutdown)
+        if (shutdown) System.exit(-1)
+      case _ => ()
+    }
+    instances.application
   }
 }
 
@@ -105,22 +127,25 @@ package object modules {
 
     // Start stores
     val globalScriptStart: ZIO[GlobalContext, Throwable, Unit] = GlobalScriptDataStore.>.start
-    val initIzanami: ZIO[GlobalContext, Throwable, Unit] = (globalScriptStart
-      *> ConfigDataStore.>.start *> FeatureDataStore.>.start
-      *> UserDataStore.>.start *> ApikeyDataStore.>.start
-      *> WebhookDataStore.>.start *> ExperimentDataStore.>.start
-      *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook).unit
-      *> MetricsService.start *> LockDataStore.>.start
-      // Import files
-      *> Import.importFile(_.globalScript.db, GlobalScriptService.importData())
-      *> Import.importFile(_.config.db, ConfigService.importData())
-      *> Import.importFile(_.features.db, FeatureService.importData())
-      *> Import.importFile(_.apikey.db, ApikeyService.importData())
-      *> Import.importFile(_.user.db, UserService.importData())
-      *> Import.importFile(_.webhook.db, WebhookService.importData())
-      *> Import.importFile(_.experiment.db, ExperimentService.importData())
-      *> Import.importFile(_.experimentEvent.db, ExperimentVariantEventService.importData())
-      *> Import.importFile(_.lock.db, LockService.importData()))
+    val initIzanami: ZIO[GlobalContext, Throwable, Unit] = (
+      globalScriptStart
+        *> ConfigDataStore.>.start *> FeatureDataStore.>.start
+        *> UserDataStore.>.start *> ApikeyDataStore.>.start
+        *> WebhookDataStore.>.start *> ExperimentDataStore.>.start
+        *> ExperimentVariantEventService.start *> WebhookService.startHooks(wsClient, izanamiConfig.webhook).unit
+        *> MetricsService.start *> LockDataStore.>.start
+        // Import files
+        *> Import.importFile(_.globalScript.db, GlobalScriptService.importData())
+        *> Import.importFile(_.config.db, ConfigService.importData())
+        *> Import.importFile(_.features.db, FeatureService.importData())
+        *> Import.importFile(_.apikey.db, ApikeyService.importData())
+        *> Import.importFile(_.user.db, UserService.importData())
+        *> Import.importFile(_.webhook.db, WebhookService.importData())
+        *> Import.importFile(_.experiment.db, ExperimentService.importData())
+        *> Import.importFile(_.experimentEvent.db, ExperimentVariantEventService.importData())
+        *> Import.importFile(_.lock.db, LockService.importData())
+        *> ensureTempUser()
+    )
 
     runtime.unsafeRun(initIzanami.provideLayer(globalContextLayer))
 
@@ -150,8 +175,7 @@ package object modules {
         IzanamiLogger.info("Using default filter")
         Seq(
           new ZioIzanamiDefaultFilter(
-            _env.env,
-            _env.contextPath,
+            _env,
             izanamiConfig.metrics,
             config,
             izanamiConfig.apikey
@@ -173,5 +197,40 @@ package object modules {
 
     override lazy val httpErrorHandler: HttpErrorHandler =
       new ErrorHandler(environment, configuration, None, Some(router))
+
+    def ensureTempUser[Ctx <: domains.user.UserContext](): RIO[Ctx, Unit] = {
+      val oauth2Enabled = _env.izanamiConfig.oauth2.exists(_.enabled)
+      val otoroshiEnabled = _env.izanamiConfig.filter match {
+        case Otoroshi(_) => true
+        case _ => false
+      }
+      if (!oauth2Enabled && !otoroshiEnabled) {
+        (for {
+          count <- UserService.countWithoutPermissions(store.Query.oneOf("*"))
+          _     <- if (count == 0) {
+            val password = _env.izanamiConfig.user.initialize.password.orElse(Some(libs.IdGenerator.token(32)))
+            val userId = s"admin@izanami.io"
+            val user: IzanamiUser = IzanamiUser(
+              id = userId,
+              name = userId,
+              email = userId,
+              password = password,
+              admin = true,
+              temporary = true,
+              authorizedPatterns = AuthorizedPatterns.All
+            )
+            UserService.createWithoutPermission(Key(userId), user).map { _ =>
+              IzanamiLogger.warn(s"A new admin user has been created as none existed. You can login with ${user.email} / ${user.password.get}")
+              IzanamiLogger.warn(s"Be sure to remember these values as it's the only time it will be displayed.")
+              ()
+            }
+          } else {
+            ZIO.succeed(())
+          }
+        } yield ()).mapError(_ => new RuntimeException("an error occurred"))
+      } else {
+        RIO.succeed(())
+      }
+    }
   }
 }
