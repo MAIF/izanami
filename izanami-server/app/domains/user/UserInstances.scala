@@ -45,6 +45,7 @@ object UserInstances {
       (__ \ "email").read[String] and
       (__ \ "password").readNullable[String] and
       (__ \ "admin").read[Boolean] and
+      (__ \ "temporary").read[Boolean].orElse(Reads.pure(false)) and
       (__ \ "authorizedPatterns").read[AuthorizedPatterns].orElse((__ \ "authorizedPattern").read[AuthorizedPatterns])
     )(IzanamiUser.apply _)
 

@@ -1,15 +1,14 @@
 package controllers
 
 import com.auth0.jwt.algorithms.Algorithm
-import domains.{AuthorizedPatterns, Key}
+import domains.Key
 import domains.user.{IzanamiUser, User, UserContext, UserService}
 import env.{DefaultFilter, Env}
 import libs.crypto.Sha
+import libs.http.HttpContext
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc._
-import store.Query
-import zio.{Runtime, ZIO}
-import libs.http.HttpContext
+import zio.ZIO
 
 case class Auth(userId: String, password: String)
 
@@ -20,8 +19,8 @@ object Auth {
 class AuthController(_env: Env, cc: ControllerComponents)(implicit R: HttpContext[UserContext])
     extends AbstractController(cc) {
 
-  import domains.user.UserNoPasswordInstances._
   import cats.implicits._
+  import domains.user.UserNoPasswordInstances._
   import libs.http._
 
   lazy val _config: DefaultFilter = _env.izanamiConfig.filter match {
@@ -32,7 +31,6 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: HttpContex
 
   def authenticate: Action[JsValue] = Action.asyncZio[UserContext](parse.json) { req =>
     val auth: Auth = req.body.as[Auth]
-
     UserService
       .getByIdWithoutPermissions(Key(auth.userId))
       .mapError(_ => InternalServerError(""))
@@ -40,39 +38,19 @@ class AuthController(_env: Env, cc: ControllerComponents)(implicit R: HttpContex
         case Some(user: User) =>
           ZIO.succeed {
             user match {
-              case IzanamiUser(_, _, _, Some(password), _, _) if password === Sha.hexSha512(auth.password) =>
+              case IzanamiUser(_, _, _, Some(password), _, _, _) if password === Sha.hexSha512(auth.password) =>
                 val token: String = User.buildToken(user, _config.issuer, algorithm)
-
-                Ok(Json.toJson(user).as[JsObject] - "password")
-                  .withCookies(Cookie(name = _env.cookieName, value = token))
-              case _ =>
-                Forbidden
+                if (user.temporary) {
+                  Ok(Json.toJson(user).as[JsObject] - "password" ++ Json.obj("changeme" -> true))
+                    .withCookies(Cookie(name = _env.cookieName, value = token))
+                } else {
+                  Ok(Json.toJson(user).as[JsObject] - "password")
+                    .withCookies(Cookie(name = _env.cookieName, value = token))
+                }
+              case _ => Forbidden
             }
           }
-        case None =>
-          UserService
-            .countWithoutPermissions(Query.oneOf("*"))
-            .map {
-              case count
-                  if count === 0 && auth.userId === _env.izanamiConfig.user.initialize.userId && auth.password === _env.izanamiConfig.user.initialize.password => {
-                val userId = _env.izanamiConfig.user.initialize.userId
-                val user: User = IzanamiUser(id = userId,
-                                             name = userId,
-                                             email = s"$userId@admin.fr",
-                                             password = None,
-                                             admin = true,
-                                             authorizedPatterns = AuthorizedPatterns.All)
-
-                val token: String = User.buildToken(user, _config.issuer, algorithm)
-
-                Ok(Json.toJson(user).as[JsObject] ++ Json.obj("changeme" -> true))
-                  .withCookies(Cookie(name = _env.cookieName, value = token))
-              }
-              case _ =>
-                Forbidden
-            }
-            .mapError(_ => InternalServerError(""))
+        case None => ZIO.succeed(Forbidden)
       }
   }
-
 }

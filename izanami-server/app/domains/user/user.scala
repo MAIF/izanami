@@ -31,6 +31,7 @@ package object user {
   trait User extends AuthInfo.Service {
     def email: String
     def admin: Boolean
+    def temporary: Boolean
     override def mayBeEmail: Option[String] = Some(email)
   }
 
@@ -39,18 +40,22 @@ package object user {
                          email: String,
                          password: Option[String],
                          admin: Boolean,
+                         temporary: Boolean,
                          authorizedPatterns: AuthorizedPatterns)
       extends User
 
   case class OauthUser(id: String, name: String, email: String, admin: Boolean, authorizedPatterns: AuthorizedPatterns)
-      extends User
+      extends User {
+    def temporary: Boolean = false
+  }
 
   case class OtoroshiUser(id: String,
                           name: String,
                           email: String,
                           admin: Boolean,
-                          authorizedPatterns: AuthorizedPatterns)
-      extends User
+                          authorizedPatterns: AuthorizedPatterns) extends User {
+    def temporary: Boolean = false
+  }
 
   object User {
 

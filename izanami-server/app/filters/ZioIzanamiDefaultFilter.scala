@@ -8,7 +8,6 @@ import com.auth0.jwt._
 import com.auth0.jwt.algorithms.Algorithm
 import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.Timer
-import com.codahale.metrics.json.MetricsModule
 import com.google.common.base.Charsets
 import domains.auth.AuthInfo
 import domains.abtesting.ExperimentDataStore
@@ -20,13 +19,13 @@ import domains.configuration.PlayModule
 import domains.events.EventStore
 import domains.feature.FeatureDataStore
 import domains.script.{GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
-import domains.user.{IzanamiUser, User, UserDataStore}
+import domains.user.{IzanamiUser, User, UserDataStore, UserService}
 import domains.webhook.WebhookDataStore
 import domains.{AuthorizedPatterns, Key}
+import store._
 import env._
 import filters.PrometheusMetricsHolder.prometheursRequestCounter
 import io.prometheus.client.{Counter, Histogram}
-import libs.database.Drivers
 import libs.http.HttpContext
 import libs.logs.ZLogger
 import play.api.libs.json._
@@ -70,8 +69,7 @@ case class TimerContext(timerMethod: Option[Timer.Context],
   }
 }
 
-class ZioIzanamiDefaultFilter(env: Mode,
-                              contextPath: String,
+class ZioIzanamiDefaultFilter(_env: Env,
                               metricsConfig: MetricsConfig,
                               config: DefaultFilter,
                               apikeyConfig: ApikeyConfig)(
@@ -79,6 +77,8 @@ class ZioIzanamiDefaultFilter(env: Mode,
     override val mat: Materializer
 ) extends ZioFilter[ApiKeyContext with MetricsContext] {
 
+  private val contextPath = _env.contextPath
+  private val env = _env.env
   private val decoder   = Base64.getDecoder
   private val algorithm = Algorithm.HMAC512(config.sharedKey)
   private val verifier  = JWT.require(algorithm).withIssuer(config.issuer).build()
@@ -205,16 +205,37 @@ class ZioIzanamiDefaultFilter(env: Mode,
 
   private val getLogger: ZIO[ZLogger, Nothing, ZLogger.Service] = ZLogger("filter")
 
-  private def decodeToken(claim: String): ZIO[FilterContext, Result, Option[User]] =
-    for {
-      decoded <- ZIO(verifier.verify(claim)).mapError { _ =>
-                  Results
-                    .Unauthorized(
-                      Json.obj("error" -> "Claim error !!!")
-                    )
-                }
-      user = User.fromJwtToken(decoded)
-    } yield user
+  private def decodeToken(claim: String): ZIO[FilterContext, Result, Option[User]] = {
+    _env.izanamiConfig.oauth2.exists(_.enabled) match {
+      case true => {
+        for {
+          decoded <- ZIO(verifier.verify(claim)).mapError { _ =>
+            Results
+              .Unauthorized(
+                Json.obj("error" -> "Claim error !!!")
+              )
+          }
+          userFromJwt = User.fromJwtToken(decoded)
+        } yield userFromJwt
+      }
+      case false => {
+        for {
+          decoded <- ZIO(verifier.verify(claim)).mapError { _ =>
+            Results
+              .Unauthorized(
+                Json.obj("error" -> "Claim error !!!")
+              )
+          }
+          userFromJwt = User.fromJwtToken(decoded)
+          finalUser <- userFromJwt match {
+            case Some(user) => UserService.getByIdWithoutPermissions(Key(user.id))
+              .mapError { _ => Results.Unauthorized(Json.obj("error" -> "failed to fetch user")) }
+            case None => ZIO.fail(Results.Unauthorized(Json.obj("error" -> "bad user from token")))
+          }
+        } yield finalUser
+      }
+    }
+  }
 
   private def devFilter(nextFilter: RequestHeader => Task[Result],
                         requestHeader: RequestHeader,
@@ -224,6 +245,7 @@ class ZioIzanamiDefaultFilter(env: Mode,
                   name = "Ragnard",
                   email = "ragnard@viking.com",
                   admin = false,
+                  temporary = false,
                   password = None,
                   authorizedPatterns = AuthorizedPatterns.All)
     )
