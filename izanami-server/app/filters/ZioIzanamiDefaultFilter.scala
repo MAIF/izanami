@@ -69,7 +69,9 @@ case class TimerContext(timerMethod: Option[Timer.Context],
   }
 }
 
-class ZioIzanamiDefaultFilter(_env: Env,
+class ZioIzanamiDefaultFilter(env: Mode,
+                              contextPath: String,
+                              izanamiConfig: IzanamiConfig,
                               metricsConfig: MetricsConfig,
                               config: DefaultFilter,
                               apikeyConfig: ApikeyConfig)(
@@ -77,8 +79,6 @@ class ZioIzanamiDefaultFilter(_env: Env,
     override val mat: Materializer
 ) extends ZioFilter[ApiKeyContext with MetricsContext] {
 
-  private val contextPath = _env.contextPath
-  private val env = _env.env
   private val decoder   = Base64.getDecoder
   private val algorithm = Algorithm.HMAC512(config.sharedKey)
   private val verifier  = JWT.require(algorithm).withIssuer(config.issuer).build()
@@ -206,7 +206,7 @@ class ZioIzanamiDefaultFilter(_env: Env,
   private val getLogger: ZIO[ZLogger, Nothing, ZLogger.Service] = ZLogger("filter")
 
   private def decodeToken(claim: String): ZIO[FilterContext, Result, Option[User]] = {
-    _env.izanamiConfig.oauth2.exists(_.enabled) match {
+    izanamiConfig.oauth2.exists(_.enabled) match {
       case true => {
         for {
           decoded <- ZIO(verifier.verify(claim)).mapError { _ =>

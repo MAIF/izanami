@@ -54,6 +54,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
       val created: Either[IzanamiErrors, User] = run(context)(UserService.create(key, ragnard).either)
 
@@ -82,6 +83,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"              -> "Izanami",
@@ -103,6 +105,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "Ragnard",
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
+                    false,
                     false,
                     AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
@@ -126,6 +129,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "id"                -> "user1",
@@ -147,6 +151,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"               -> "Izanami",
@@ -155,6 +160,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "name"               -> "Ragnard",
         "email"              -> "ragnard@gmail.com",
         "admin"              -> false,
+        "temporary"          -> false,
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
@@ -169,6 +175,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
       val json = Json.obj(
         "type"               -> "Izanami",
@@ -176,6 +183,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
         "name"               -> "Ragnard",
         "email"              -> "ragnard@gmail.com",
         "admin"              -> false,
+        "temporary"          -> false,
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D")))
       )
 
@@ -288,6 +296,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Some(Sha.hexSha512("ragnar123456")))
 
@@ -349,6 +358,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
 
       val created = run(ctx)(UserService.create(id, user).either)
@@ -365,6 +375,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "Ragnard",
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
+                    false,
                     false,
                     AuthorizedPatterns.fromString("*"))
 
@@ -410,6 +421,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Some(Sha.hexSha512("ragnar123456")))
 
@@ -441,6 +453,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "Ragnard",
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
+                    false,
                     false,
                     AuthorizedPatterns.fromString("*"))
       val oldUser      = user.copy(password = Some(Sha.hexSha512("ragnar123456")))
@@ -480,6 +493,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "Ragnard",
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
+                    false,
                     false,
                     AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Some(Sha.hexSha512("ragnar123456")))
@@ -525,6 +539,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "Ragnard",
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
+                    false,
                     false,
                     AuthorizedPatterns.fromString("*"))
       val expectedUser = user.copy(password = Some(Sha.hexSha512("ragnar123456")))
@@ -580,6 +595,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
                     false,
+                    false,
                     AuthorizedPatterns.fromString("*"))
 
       val res = run(ctx)(UserService.importData().flatMap { flow =>
@@ -602,6 +618,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "Ragnard",
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
+                    false,
                     false,
                     AuthorizedPatterns.fromString("*"))
 
@@ -628,6 +645,7 @@ class UserSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience wi
                     "Ragnard",
                     "ragnard@gmail.com",
                     Some("ragnar123456"),
+                    false,
                     false,
                     AuthorizedPatterns.fromString("*"))
 
