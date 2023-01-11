@@ -124,7 +124,7 @@ export class LoggedApp extends Component {
 
     const selected = (this.props.params || {}).lineId;
 
-    const changeme = Cookies.get("notifyuser") || this.props.user.changeme;
+    const changeme = Cookies.get("notifyuser") || this.props.user.changeme || this.props.user.temporary;
 
     return (
       <div className="container-fluid">
@@ -450,7 +450,7 @@ export class LoggedApp extends Component {
                         labelValid="Create a user"
                         title="Create a user">
                         <div>
-                          <p>You're using a temporary user, please create a dedicated one here</p>
+                          <p>You're using a temporary user, please create a dedicated one here and delete the old one</p>
                         </div>
                       </SweetModal>
                     )
