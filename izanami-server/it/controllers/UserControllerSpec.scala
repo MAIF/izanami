@@ -21,6 +21,8 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
   private lazy val ws       = izanamiComponents.wsClient
   private lazy val rootPath = s"http://localhost:$port"
 
+  private lazy val defaultUser = Json.parse("""{"id":"admin@izanami.io","name":"admin@izanami.io","email":"admin@izanami.io","admin":true,"temporary":true,"authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"type":"Izanami"}""")
+
   s"$name UserController" should {
 
     "create read update delete" in {
@@ -29,7 +31,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
       ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
         200,
-        Json.parse("""{"results":[],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
+        Json.parse(s"""{"results":[${Json.stringify(defaultUser)}],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
       )
 
       /* Create */
@@ -52,7 +54,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
         200,
-        Json.obj("results"  -> Json.arr(user),
+        Json.obj("results"  -> Json.arr(defaultUser, user),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
@@ -77,7 +79,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
         200,
-        Json.obj("results"  -> Json.arr(userUpdated),
+        Json.obj("results"  -> Json.arr(defaultUser, userUpdated),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
       )
 
@@ -88,7 +90,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
       ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
         200,
-        Json.obj("results"  -> Json.arr(),
+        Json.obj("results"  -> Json.arr(defaultUser),
                  "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
       )
 
