@@ -39,6 +39,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
         "name"               -> "toto",
         "email"              -> key,
         "admin"              -> true,
+        "temporary"          -> false,
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
         "type"               -> "Izanami"
       )
@@ -63,6 +64,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
           "name"               -> "toto deux",
           "email"              -> key,
           "admin"              -> true,
+          "temporary"          -> false,
           "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
           "type"               -> "Izanami"
         )
@@ -112,6 +114,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
         "name"               -> "toto",
         "email"              -> key,
         "admin"              -> true,
+        "temporary"          -> false,
         "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
         "type"               -> "Izanami"
       )
@@ -130,6 +133,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
           "name"               -> "toto deux",
           "email"              -> key,
           "admin"              -> true,
+          "temporary"          -> false,
           "authorizedPatterns" -> Json.arr(Json.obj("pattern" -> "*", "rights" -> Json.arr("C", "R", "U", "D"))),
           "type"               -> "Izanami"
         )
