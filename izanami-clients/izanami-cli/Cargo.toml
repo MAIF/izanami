@@ -2,7 +2,7 @@
 name = "izanami-cli"
 version = "1.9.0-SNAPSHOT"
 authors = ["adelegue <https://github.com/larousso>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 clap = "2.26"
