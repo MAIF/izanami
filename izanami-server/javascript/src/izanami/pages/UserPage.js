@@ -81,6 +81,18 @@ export class UserPage extends Component {
       notFilterable: true,
       style: { textAlign: "center" },
       content: item => <AuthorizedPatterns value={item.authorizedPatterns}/>
+    },
+    {
+      title: "Temporary",
+      notFilterable: true,
+      style: { textAlign: "center" },
+      content: item => {
+        if (item.temporary) {
+          return <span className="badge bg-danger" title="this user is a auto generated temporary one, you MUST remove this user as soon as possible and replace it by your own one.">yes</span>
+        } else {
+          return null;
+        }
+      }
     }
   ];
 
@@ -127,6 +139,7 @@ export class UserPage extends Component {
               email: "john.doe@maif.fr",
               password: null,
               admin: true,
+              temporary: false,
               authorizedPatterns: [{pattern:"*", rights:["C", "R", "U", "D"]}]
             })}
             parentProps={this.props}

@@ -216,7 +216,8 @@ dockerCommands ++= Seq(
   Cmd("ENV", "KAFKA_HOST kafka"),
   Cmd("ENV", "KAFKA_PORT 9092"),
   Cmd("ENV", "HTTP_PORT 8080"),
-  Cmd("ENV", "APPLICATION_SECRET 2nJS=TpH/qBfB=NI6:H/jt3@5B3IBhzD4OjWi=tCH50Bjy2=JCXO^]XeZUW47Gv4")
+  Cmd("ENV", "APPLICATION_SECRET 2nJS=TpH/qBfB=NI6:H/jt3@5B3IBhzD4OjWi=tCH50Bjy2=JCXO^]XeZUW47Gv4"),
+  Cmd("ENV", "IZANAMI_FILTER_DEFAULT_FAIL_ON_DEFAULT_VALUE true")
 )
 
 dockerExposedVolumes ++= Seq(

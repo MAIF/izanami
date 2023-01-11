@@ -240,6 +240,7 @@ case class OtoroshiFilterConfig(
     headerGatewayStateResp: String
 )
 case class DefaultFilter(
+    failOnDefaultValue: Boolean,
     allowedPaths: Seq[String],
     issuer: String,
     sharedKey: String,
@@ -414,5 +415,5 @@ case class PostgresqlConfig(
 )
 
 case class DbDomainConfig(`type`: DbType, conf: DbDomainConfigDetails, `import`: Option[Path])
-case class InitialUserConfig(userId: String, password: String)
+case class InitialUserConfig(userId: String, password: Option[String])
 case class DbDomainConfigDetails(namespace: String, db: Option[DbDomainConfig])

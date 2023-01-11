@@ -24,3 +24,5 @@ settings.json
 keycloak_postgres_data
 keycloak-tls
 certs
+metals.sbt
+.bsp
