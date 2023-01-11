@@ -31,6 +31,7 @@ abstract class FeatureControllerWildcardAccessSpec(name: String, configurationSp
       name = "Ragnar Lodbrok",
       email = "ragnar.lodbrok@gmail.com",
       admin = false,
+      temporary = false,
       password = None,
       authorizedPatterns = AuthorizedPatterns.fromString("a:key2:*")
     )
@@ -85,6 +86,7 @@ class FeatureControllerStrictAccessSpec(name: String, configurationSpec: Configu
                 name = "Ragnar Lodbrok",
                 email = "ragnar.lodbrok@gmail.com",
                 admin = true,
+                temporary = false,
                 password = None,
                 authorizedPatterns = AuthorizedPatterns.fromString("a:key"))
 
