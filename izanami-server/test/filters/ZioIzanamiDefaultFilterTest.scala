@@ -9,7 +9,7 @@ import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import domains.Key
+import domains.{AuthorizedPattern, AuthorizedPatterns, Key}
 import domains.abtesting.ExperimentDataStore
 import domains.auth.AuthInfo
 import domains.abtesting.events.ExperimentVariantEventService
@@ -23,22 +23,10 @@ import domains.events.EventStore
 import domains.feature.FeatureDataStore
 import domains.lock.LockDataStore
 import domains.script.{CacheService, GlobalScriptDataStore, RunnableScriptModule, ScriptCache}
-import domains.user.UserDataStore
+import domains.user.{IzanamiUser, UserDataStore, UserInstances}
 import domains.webhook.WebhookDataStore
 import env.configuration.IzanamiConfigModule
-import env.{
-  ApiKeyHeaders,
-  ApikeyConfig,
-  DefaultFilter,
-  InitializeApiKey,
-  IzanamiConfig,
-  MetricsConfig,
-  MetricsConsoleConfig,
-  MetricsElasticConfig,
-  MetricsHttpConfig,
-  MetricsKafkaConfig,
-  MetricsLogConfig
-}
+import env.{ApiKeyHeaders, ApikeyConfig, DefaultFilter, InitializeApiKey, IzanamiConfig, MetricsConfig, MetricsConsoleConfig, MetricsElasticConfig, MetricsHttpConfig, MetricsKafkaConfig, MetricsLogConfig}
 import libs.database.Drivers
 import libs.http.HttpContext
 import libs.logs.ZLogger
@@ -56,7 +44,9 @@ import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.{Runtime, Task, ULayer, ZIO, ZLayer}
 
+import java.util.concurrent.Executors
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
@@ -70,6 +60,15 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
   implicit val metricsModule: HttpContext[MetricsContext] = {
     val fake = new InMemoryJsonDataStore(name = "fake")
+    fake.inMemoryStore.put(Key("johndoe"), UserInstances.format.writes(IzanamiUser(
+      id = "johndoe",
+      name = "johndoe",
+      email = "johndoe@gmail.com",
+      password = None,
+      admin = false,
+      temporary = false,
+      authorizedPatterns = AuthorizedPatterns(AuthorizedPattern("*"))
+    )))
     playModule ++
     IzanamiConfigModule.value(FakeConfig.config) ++
     (playModule >>> MetricsModule.live) ++
@@ -113,6 +112,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
     r.unsafeRun(z.provideLayer(metricsModule))
 
   private val config = DefaultFilter(
+    failOnDefaultValue = false,
     allowedPaths = Seq("/excluded"),
     issuer = "issuer",
     sharedKey = "key",
@@ -138,7 +138,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
   "ZioIzanamiDefaultFilter" must {
 
     "Test or dev mode" in {
-      val filter         = new ZioIzanamiDefaultFilter(Mode.Dev, "/", metricsConfig, config, apiKeyConfig)
+      val filter         = new ZioIzanamiDefaultFilter(Mode.Dev, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val result: Result = run(filter.filter(h => Task(Results.Ok("Done")))(FakeRequest()))
 
       val expected = Results.Ok("Done")
@@ -148,7 +148,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
     "Api key headers" in {
 
-      val filter = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
+      val filter = new ZioIzanamiDefaultFilter(Mode.Prod, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val request = FakeRequest().withHeaders(
         config.apiKeys.headerClientId     -> "id",
         config.apiKeys.headerClientSecret -> "secret"
@@ -175,11 +175,11 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
         .withClaim("izanami_authorized_patterns", "*")
         .withClaim("izanami_admin", "false")
         .sign(algorithm)
-      val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
+      val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val request = FakeRequest().withCookies(Cookie(config.cookieClaim, token))
 
       val result: Result = run(
-        filter.filter(h => Task(Results.Ok(s"Done ${h.attrs(FilterAttrs.Attrs.AuthInfo).map(_.id).getOrElse("")}")))(
+        filter.filter(h => Task(Results.Ok(s"Done ${h.attrs(FilterAttrs.Attrs.AuthInfo).map(_.id).getOrElse("--")}")))(
           request
         )
       )
@@ -191,7 +191,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
     "Cookie bad claim" in {
       val token: String = "Mouhahaha"
-      val filter        = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
+      val filter        = new ZioIzanamiDefaultFilter(Mode.Prod, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val request       = FakeRequest().withCookies(Cookie(config.cookieClaim, token))
 
       val result: Result = run(filter.filter(h => Task(Results.Ok("Done")))(request))
@@ -203,7 +203,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
     "Api key authorization header" in {
 
-      val filter = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
+      val filter = new ZioIzanamiDefaultFilter(Mode.Prod, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val request =
         FakeRequest().withHeaders(
           "Authorization" -> s"Basic ${Base64.getEncoder.encodeToString(s"id:secret".getBytes(StandardCharsets.UTF_8))}"
@@ -222,7 +222,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
     "Api key headers unauthorized" in {
 
-      val filter = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
+      val filter = new ZioIzanamiDefaultFilter(Mode.Prod, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val request = FakeRequest().withHeaders(
         config.apiKeys.headerClientId     -> "id",
         config.apiKeys.headerClientSecret -> "secret2"
@@ -237,7 +237,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
 
     "Exclusion" in {
 
-      val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
+      val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val request = FakeRequest(method = "GET", path = "/excluded")
 
       val result: Result = run(
@@ -261,7 +261,7 @@ class ZioIzanamiDefaultFilterTest extends IzanamiSpec {
         .withClaim("izanami_admin", "false")
         .sign(algorithm)
 
-      val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", metricsConfig, config, apiKeyConfig)
+      val filter  = new ZioIzanamiDefaultFilter(Mode.Prod, "/", FakeConfig.config, metricsConfig, config, apiKeyConfig)
       val request = FakeRequest(method = "GET", path = "/excluded").withCookies(Cookie(config.cookieClaim, token))
 
       val result: Result = run(

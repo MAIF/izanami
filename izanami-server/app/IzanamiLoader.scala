@@ -175,7 +175,9 @@ package object modules {
         IzanamiLogger.info("Using default filter")
         Seq(
           new ZioIzanamiDefaultFilter(
-            _env,
+            _env.env,
+            _env.contextPath,
+            izanamiConfig,
             izanamiConfig.metrics,
             config,
             izanamiConfig.apikey

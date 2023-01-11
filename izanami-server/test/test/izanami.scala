@@ -132,7 +132,7 @@ object FakeConfig {
     false,
     "X-Forwarded-For",
     Some("Europe/Paris"),
-    Default(DefaultFilter(Seq(), "", "", "", ApiKeyHeaders("", ""))),
+    Default(DefaultFilter(false, Seq(), "", "", "", ApiKeyHeaders("", ""))),
     None,
     DbConfig(""),
     LogoutConfig(""),
@@ -142,7 +142,7 @@ object FakeConfig {
     ExperimentConfig(dbConfig),
     ExperimentEventConfig(dbConfig),
     WebhookConfig(dbConfig, WebhookEventsConfig(5, 1.second, 1, 1.second)),
-    UserConfig(dbConfig, InitialUserConfig("", "")),
+    UserConfig(dbConfig, InitialUserConfig("", Some(""))),
     LockConfig(dbConfig),
     ApikeyConfig(dbConfig, InitializeApiKey(None, None, "*")),
     InMemoryEvents(InMemoryEventsConfig(500)),
@@ -201,6 +201,7 @@ trait OneAppPerTestWithMyComponents extends OneAppPerTestWithComponents with Sca
       name = "Ragnar Lodbrok",
       email = "ragnar.lodbrok@gmail.com",
       admin = true,
+      temporary = false,
       password = None,
       authorizedPatterns = AuthorizedPatterns.fromString("*")
     )
@@ -221,6 +222,7 @@ trait OneAppPerSuiteWithMyComponents extends OneAppPerSuiteWithComponents with S
       name = "Ragnar Lodbrok",
       email = "ragnar.lodbrok@gmail.com",
       admin = true,
+      temporary = false,
       password = None,
       authorizedPatterns = AuthorizedPatterns.All
     )
@@ -241,6 +243,7 @@ trait OneServerPerTestWithMyComponents extends OneServerPerTestWithComponents wi
       name = "Ragnar Lodbrok",
       email = "ragnar.lodbrok@gmail.com",
       admin = true,
+      temporary = false,
       password = None,
       authorizedPatterns = AuthorizedPatterns.All
     )
@@ -263,6 +266,7 @@ trait OneServerPerSuiteWithMyComponents
       name = "Ragnar Lodbrok",
       email = "ragnar.lodbrok@gmail.com",
       admin = true,
+      temporary = false,
       password = None,
       authorizedPatterns = AuthorizedPatterns.All
     )
