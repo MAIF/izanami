@@ -14,7 +14,7 @@ async function getAuthentificationsCookie(host) {
   const loginResponse = await fetch(`${host}/api/login`, {
     method: "POST",
     headers: jsonHeaders,
-    body: JSON.stringify({userId: "admin", password: "admin123"})
+    body: JSON.stringify({userId: "admin@izanami.io", password: "admin123"})
   });
   const session = loginResponse.headers.get('set-cookie');
   return session;

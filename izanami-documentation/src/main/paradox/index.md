@@ -56,6 +56,6 @@ java -jar izanami.jar
 
 Go to http://localhost:9000
 
-And then log in using `admin` / `admin123`
+And then log in using login / password generated in the console
 
 Follow the @ref[getting started page](quickstart.md) to see more about Izanami.  

@@ -22,7 +22,7 @@ java -jar izanami.jar
 Go to http://localhost:9000 
 
 
-First login! When you've just started the server, the login password is admin/admin123 (of course you can change it :) ) : 
+First login! When you've just started the server, the login / password is generated in the console (of course you can change it :) ) : 
 
 <img src="img/quickstart/1-login.png" width="60%" />
 
