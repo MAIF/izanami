@@ -31,7 +31,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
       ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
         200,
-        Json.parse(s"""{"results":[${Json.stringify(defaultUser)}],"metadata":{"page":1,"pageSize":15,"count":0,"nbPages":0}}""")
+        Json.parse(s"""{"results":[${Json.stringify(defaultUser)}],"metadata":{"page":1,"pageSize":15,"count":1,"nbPages":1}}""")
       )
 
       /* Create */
