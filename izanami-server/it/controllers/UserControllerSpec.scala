@@ -1,16 +1,19 @@
 package controllers
 
+import domains.user.User
+import org.scalactic.Prettifier
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play._
 import play.api.Configuration
-import play.api.libs.json.Json
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.libs.ws.JsonBodyWritables._
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
-import scala.util.Random
-import org.scalatest.BeforeAndAfterAll
+
+import org.scalatest.matchers.{MatchResult, Matcher}
+import play.api.libs.ws.WSResponse
 
 abstract class UserControllerSpec(name: String, configurationSpec: Configuration)
-    extends PlaySpec
+  extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
     with IntegrationPatience {
@@ -18,7 +21,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
   override def getConfiguration(configuration: Configuration) =
     configurationSpec withFallback configuration
 
-  private lazy val ws       = izanamiComponents.wsClient
+  private lazy val ws = izanamiComponents.wsClient
   private lazy val rootPath = s"http://localhost:$port"
 
   private lazy val defaultUser = Json.parse("""{"id":"admin@izanami.io","name":"admin@izanami.io","email":"admin@izanami.io","admin":true,"temporary":true,"authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"type":"Izanami"}""")
@@ -29,9 +32,9 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       val key = "toto@maif.fr"
       /* First check */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
+      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(
         200,
-        Json.parse(s"""{"results":[${Json.stringify(defaultUser)}],"metadata":{"page":1,"pageSize":15,"count":1,"nbPages":1}}""")
+        defaultUser
       )
 
       /* Create */
@@ -52,11 +55,8 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       /* Verify */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAResponse(200, user)
 
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
-        200,
-        Json.obj("results"  -> Json.arr(defaultUser, user),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
-      )
+      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(
+        200, user, defaultUser)
 
       /* Update */
       val userUpdated =
@@ -77,32 +77,23 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
       /* Verify */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAResponse(200, userUpdated)
 
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
-        200,
-        Json.obj("results"  -> Json.arr(defaultUser, userUpdated),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 1, "nbPages" -> 1))
-      )
+      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(
+        200, userUpdated, defaultUser)
 
       /* Delete */
       ws.url(s"$rootPath/api/users/$key").delete().futureValue must beAStatus(200)
 
       /* Verify */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
-        200,
-        Json.obj("results"  -> Json.arr(defaultUser),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
-      )
+      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(
+        200, defaultUser)
 
       /* Delete all */
       ws.url(s"$rootPath/api/users")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/users").get().futureValue must beAResponse(
-        200,
-        Json.obj("results"  -> Json.arr(),
-                 "metadata" -> Json.obj("page" -> 1, "pageSize" -> 15, "count" -> 0, "nbPages" -> 0))
-      )
+      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(
+        200, defaultUser)
     }
 
     "update changing id" in {
@@ -150,4 +141,23 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
   }
 
+  def beAUsersResponse(status: Int, users: JsValue*): Matcher[WSResponse] = new Matcher[WSResponse] {
+    override def apply(left: WSResponse): MatchResult = {
+      val sameMetadata = {
+        (left.json \ "metadata").as[JsObject] == Json.obj("page" -> 1, "pageSize" -> 15, "count" -> users.length, "nbPages" -> 1)
+      }
+      import domains.user.UserInstances._
+      val results = (left.json \ "results").as[JsArray].value.map(_.as[User]).sortBy(_.id)
+      val expected = users.map(_.as[User]).sortBy(_.id)
+
+      MatchResult(
+        left.status == status && results.sameElements(expected) && sameMetadata,
+        s"${left.status} is not the same as $status or the body ${results} is not the same as ${expected}",
+        s"${left.status} is the same as $status and the body ${results} is not the same as ${expected}",
+        Vector()
+      )
+    }
+
+    override def toString: String = "be theStatus " + Prettifier.default(status)
+  }
 }
