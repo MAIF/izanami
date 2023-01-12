@@ -211,7 +211,7 @@ package object modules {
           count <- UserService.countWithoutPermissions(store.Query.oneOf("*"))
           _     <- if (count == 0) {
             val password = _env.izanamiConfig.user.initialize.password.orElse(Some(libs.IdGenerator.token(32)))
-            val userId = s"admin@izanami.io"
+            val userId = _env.izanamiConfig.user.initialize.userId
             val user: IzanamiUser = IzanamiUser(
               id = userId,
               name = userId,

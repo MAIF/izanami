@@ -229,7 +229,7 @@ This is a recommended pattern because
 
 As seen in the previous chapter, the features are declared as fallback in configuration file. Now let's create this features on the server. 
 
-Go to http://izanami-tryout.cleverapps.io/ and log in with `admin` / `admin123`. 
+Go to http://izanami-tryout.cleverapps.io/ and log in with `admin@izanami.io` / `admin123`. 
 
 Click the "features" menu  
 
