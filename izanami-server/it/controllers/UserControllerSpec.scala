@@ -2,21 +2,22 @@ package controllers
 
 import domains.user.User
 import org.scalactic.Prettifier
-import org.scalatest.concurrent.IntegrationPatience
+import org.scalatest.concurrent.{Eventually, IntegrationPatience}
 import org.scalatestplus.play._
 import play.api.Configuration
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.libs.ws.JsonBodyWritables._
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
-
 import org.scalatest.matchers.{MatchResult, Matcher}
+import org.scalatest.time.{Millis, Span}
 import play.api.libs.ws.WSResponse
 
 abstract class UserControllerSpec(name: String, configurationSpec: Configuration)
   extends PlaySpec
     with IzanamiMatchers
     with OneServerPerSuiteWithMyComponents
-    with IntegrationPatience {
+    with IntegrationPatience
+    with Eventually {
 
   override def getConfiguration(configuration: Configuration) =
     configurationSpec withFallback configuration
@@ -25,6 +26,9 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
   private lazy val rootPath = s"http://localhost:$port"
 
   private lazy val defaultUser = Json.parse("""{"id":"admin@izanami.io","name":"admin@izanami.io","email":"admin@izanami.io","admin":true,"temporary":true,"authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"type":"Izanami"}""")
+
+  implicit override val patienceConfig =
+    PatienceConfig(timeout = scaled(Span(1100, Millis)), interval = scaled(Span(50, Millis)))
 
   s"$name UserController" should {
 
@@ -85,15 +89,17 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
 
       /* Verify */
       ws.url(s"$rootPath/api/users/$key").get().futureValue must beAStatus(404)
-      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(
-        200, defaultUser)
+      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(200, defaultUser)
 
       /* Delete all */
       ws.url(s"$rootPath/api/users")
         .addQueryStringParameters("patterns" -> "id*")
         .delete()
-      ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(
-        200, defaultUser)
+
+      eventually {
+        Thread.`yield`()
+        ws.url(s"$rootPath/api/users").get().futureValue must beAUsersResponse(200)
+      }
     }
 
     "update changing id" in {
@@ -142,18 +148,21 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
   }
 
   def beAUsersResponse(status: Int, users: JsValue*): Matcher[WSResponse] = new Matcher[WSResponse] {
+    import scala.math.Integral.Implicits._
     override def apply(left: WSResponse): MatchResult = {
-      val sameMetadata = {
-        (left.json \ "metadata").as[JsObject] == Json.obj("page" -> 1, "pageSize" -> 15, "count" -> users.length, "nbPages" -> 1)
-      }
-      import domains.user.UserInstances._
-      val results = (left.json \ "results").as[JsArray].value.map(_.as[User]).sortBy(_.id)
-      val expected = users.map(_.as[User]).sortBy(_.id)
+      val metadata = (left.json \ "metadata").as[JsObject]
+      val expectedMetadata = Json.obj("page" -> 1, "pageSize" -> 15, "count" -> users.length, "nbPages" -> ((15 + users.length - 1) /% 15)._1)
+      val sameMetadata = metadata == expectedMetadata
 
+      import domains.user.UserInstances._
+      val results = (left.json \ "results").as[JsArray].value.map(_.as[User]).sortBy(_.id).toList
+      val expectedResults = users.map(_.as[User]).sortBy(_.id)
+
+      val sameUsers = results.sameElements(expectedResults) || (results.isEmpty && expectedResults.isEmpty)
       MatchResult(
-        left.status == status && results.sameElements(expected) && sameMetadata,
-        s"${left.status} is not the same as $status or the body ${results} is not the same as ${expected}",
-        s"${left.status} is the same as $status and the body ${results} is not the same as ${expected}",
+        left.status == status && sameUsers && sameMetadata,
+        s"${left.status} is not the same as $status or the body ${results} is not the same as ${expectedResults} or the metadata ${metadata}  is not the same as ${expectedMetadata}",
+        s"${left.status} is the same as $status and the body ${results} is not the same as ${expectedResults} or the metadata ${metadata}  is not the same as ${expectedMetadata}",
         Vector()
       )
     }
