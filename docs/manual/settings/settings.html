@@ -30,7 +30,7 @@
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.21*
+1.11.0
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -124,7 +124,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Izanami
 </a>
 <div class="version-number">
-1.10.21*
+1.11.0
 </div>
 </div>
 <select class="supergroup" name="Language"><option class="group" value="group-scala">Scala</option><option class="group" value="group-java">Java</option></select>
@@ -209,7 +209,13 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#all-the-settings" name="all-the-settings" class="anchor"><span class="anchor-link"></span></a>All the settings</h1><div class="callout note "><div class="callout-title">Note</div>
-<p>Izanami is written with play and akka. You can find additional configuration information here <a href="https://www.playframework.com/documentation/2.8.x/Configuration">https://www.playframework.com/documentation/2.8.x/Configuration</a>. </p></div>
+<p>Izanami is written with play and akka. You can find additional configuration information here <a href="https://www.playframework.com/documentation/2.8.x/Configuration">https://www.playframework.com/documentation/2.8.x/Configuration</a>. </p></div><div class="callout warning "><div class="callout-title">Warning</div>
+<p>Before deploying to production you MUST change the following values</p>
+<ul>
+  <li><code>play.http.secret.key</code> or env. variable <code>APPLICATION_SECRET</code>: generate a strong secure random value</li>
+  <li><code>izanami.filter.default.sharedKey</code> or env. variable <code>FILTER_CLAIM_SHAREDKEY</code>: generate a strong secure random value, without it, your instance will be vulnerable admin login from unexpected third parties</li>
+  <li><code>izanami.filter.otoroshi.sharedKey</code> or env. variable <code>CLAIM_SHAREDKEY</code>: if you&rsquo;re using izanami behind otoroshi, please use the secret from otoroshi challenge token here</li>
+</ul></div>
 <h2><a href="#plays-settings" name="plays-settings" class="anchor"><span class="anchor-link"></span></a>Plays settings</h2>
 <table>
   <thead>
@@ -224,7 +230,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <tr>
       <td><code>play.http.secret.key</code> </td>
       <td><code>APPLICATION_SECRET</code> </td>
-      <td>A token to sign cookies </td>
+      <td>A token to sign cookies. generate a strong secure random value </td>
       <td><code>izanamiSecret</code> </td>
     </tr>
     <tr>
@@ -748,7 +754,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <tr>
       <td><code>izanami.filter.otoroshi.sharedKey</code> </td>
       <td><code>CLAIM_SHAREDKEY</code> </td>
-      <td>Shared key used to encrypt jwt token </td>
+      <td>Shared key used to encrypt jwt token. </td>
       <td><code>none</code> </td>
     </tr>
     <tr>
@@ -778,7 +784,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     <tr>
       <td><code>izanami.filter.default.sharedKey</code> </td>
       <td><code>FILTER_CLAIM_SHAREDKEY</code> </td>
-      <td>The shared key used to encrypt jwt token. It should be the same value between each Izanami nodes in case of a cluster. </td>
+      <td>The shared key used to encrypt jwt token. It should be the same value between each Izanami nodes in case of a cluster. generate a strong secure random value, without it, your instance will be vulnerable admin login from unexpected third parties </td>
       <td><code>none</code> </td>
     </tr>
     <tr>
@@ -936,7 +942,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       <td><code>izanami.user.initialize.password</code> </td>
       <td><code>INITIAL_USER_PASSWORD</code> </td>
       <td>The password to use for the first connection </td>
-      <td><code>admin123</code> </td>
+      <td> </td>
     </tr>
     <tr>
       <td><code>izanami.apikey.db.type</code> </td>
@@ -1326,7 +1332,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </tbody>
 </table>
 <div class="source-github">
-The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/master/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
+The source code for this page can be found <a href="https://github.com/MAIF/izanami/tree/v1.11.0/izanami-documentation/src/main/paradox/settings/settings.md">here</a>.
 </div>
 
 <div class="nav-next">
@@ -1392,7 +1398,7 @@ The source code for this page can be found <a href="https://github.com/MAIF/izan
 
 <!--
 <div class="copyright">
-<span class="text">&copy; 2022</span>
+<span class="text">&copy; 2023</span>
 <a href="https://www.example.com" class="logo">logo</a>
 </div>
 -->
