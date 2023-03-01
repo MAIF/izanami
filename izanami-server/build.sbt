@@ -101,7 +101,8 @@ libraryDependencies ++= Seq(
   "org.slf4j"              % "slf4j-api"           % "1.7.36" % "it,test", // MIT license
 //  "org.apache.logging.log4j" % "log4j-api"           % "2.16.0"  % "it,test", // MIT license
   "org.apache.logging.log4j" % "log4j-api"  % "2.17.0", // MIT license // Enforce 2.17 for the bundle
-  "org.apache.logging.log4j" % "log4j-core" % "2.17.0" % "it,test" // MIT license
+  "org.apache.logging.log4j" % "log4j-core" % "2.17.0" % "it,test", // MIT license
+  "net.logstash.logback" % "logstash-logback-encoder" % "5.3" //Apache 2.0
 )
 
 dependencyOverrides ++= Seq(
