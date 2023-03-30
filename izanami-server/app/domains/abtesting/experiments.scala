@@ -131,8 +131,7 @@ package object abtesting {
       displayed: Long = 0,
       won: Long = 0,
       transformation: Double = 0,
-      users: Double = 0,
-      events: Seq[ExperimentResultEvent] = Seq.empty
+      users: Double = 0
   )
 
   case class ExperimentResultEvent(

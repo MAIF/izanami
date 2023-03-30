@@ -146,7 +146,7 @@ package object events {
                   won,
                   transformation,
                   Some(
-                    VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size, Seq(newEvent))
+                    VariantResult(Some(evt.variant), displayed, won, transformation, users = ids.size)
                   )
                 )
               )
@@ -156,8 +156,8 @@ package object events {
           }
         }
         .fold(VariantResult()) {
-          case (acc, (d, w, t, Some(r))) =>
-            r.copy(events = acc.events ++ r.events, displayed = d, won = w, transformation = t)
+          case (_, (d, w, t, Some(r))) =>
+            r.copy(displayed = d, won = w, transformation = t)
           case (acc, (d, w, t, None)) =>
             acc.copy(displayed = d, won = w, transformation = t)
         }

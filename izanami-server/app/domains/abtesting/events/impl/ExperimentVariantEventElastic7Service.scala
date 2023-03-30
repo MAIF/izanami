@@ -446,14 +446,13 @@ class ExperimentVariantEventElastic7Service(
       val users = Source.future(countUsers(experimentId, variantId))
 
       events.zip(won).zip(displayed).zip(users).map {
-        case (((e, w), d), u) =>
+        case (((_, w), d), u) =>
           VariantResult(
             variant = Some(variant),
             displayed = d,
             won = w,
             users = u.toDouble,
-            transformation = if (d != 0) (w * 100.0) / d else 0.0,
-            events = e
+            transformation = if (d != 0) (w * 100.0) / d else 0.0
           )
       }
     }
