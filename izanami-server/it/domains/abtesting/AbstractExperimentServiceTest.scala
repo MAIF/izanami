@@ -66,24 +66,24 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
           val keyAw         = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id2-$id")
           val keyB          = ExperimentVariantEventKey(experimentKey, "variantB", "clientId", "namespace", s"id3-$id")
           val eventADisplayed = ExperimentVariantDisplayed(keyA,
-                                                           experimentKey,
-                                                           "clientId",
-                                                           variantA,
-                                                           transformation = 0,
-                                                           variantId = "variantA")
+            experimentKey,
+            "clientId",
+            variantA,
+            transformation = 0,
+            variantId = "variantA")
           val eventBDisplayed = ExperimentVariantDisplayed(keyB,
-                                                           experimentKey,
-                                                           "clientId",
-                                                           variantB,
-                                                           transformation = 0,
-                                                           variantId = "variantB")
+            experimentKey,
+            "clientId",
+            variantB,
+            transformation = 0,
+            variantId = "variantB")
           val eventAWon =
             ExperimentVariantWon(keyAw, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
 
           (ds.create(keyA, eventADisplayed) *>
-          ds.create(keyAw, eventAWon) *>
-          ds.create(keyB, eventBDisplayed) *>
-          ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))).option
+            ds.create(keyAw, eventAWon) *>
+            ds.create(keyB, eventBDisplayed) *>
+            ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))).option
         }
         .unsafeRunSync()
         .flatMap(_.toList)
@@ -122,24 +122,24 @@ abstract class AbstractExperimentServiceTest(name: String) extends PlaySpec with
           val keyAw         = ExperimentVariantEventKey(experimentKey, "variantA", "clientId", "namespace", s"id2-$id")
           val keyB          = ExperimentVariantEventKey(experimentKey, "variantB", "clientId", "namespace", s"id3-$id")
           val eventADisplayed = ExperimentVariantDisplayed(keyA,
-                                                           experimentKey,
-                                                           "clientId",
-                                                           variantA,
-                                                           transformation = 0,
-                                                           variantId = "variantA")
+            experimentKey,
+            "clientId",
+            variantA,
+            transformation = 0,
+            variantId = "variantA")
           val eventAWon =
             ExperimentVariantWon(keyAw, experimentKey, "clientId", variantA, transformation = 0, variantId = "variantA")
           val eventBDisplayed = ExperimentVariantDisplayed(keyB,
-                                                           experimentKey,
-                                                           "clientId",
-                                                           variantB,
-                                                           transformation = 0,
-                                                           variantId = "variantB")
+            experimentKey,
+            "clientId",
+            variantB,
+            transformation = 0,
+            variantId = "variantB")
 
           (ds.create(keyA, eventADisplayed) *>
-          ds.create(keyB, eventBDisplayed) *>
-          ds.create(keyAw, eventAWon) *>
-          ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))).option
+            ds.create(keyB, eventBDisplayed) *>
+            ds.create(keyAw, eventAWon) *>
+            ZIO(List(eventADisplayed, eventBDisplayed, eventAWon))).option
         }
         .unsafeRunSync()
         .flatMap(_.toList)
