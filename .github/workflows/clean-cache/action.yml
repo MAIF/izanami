@@ -1,9 +1,0 @@
-name: Clean before cache
-description: Clean before cache
-runs:
-  using: "composite"
-  steps:
-    - run: |
-        (test -d ~/.ivy2 && find ~/.ivy2 -name "ivydata-*.properties" -print -delete) || echo "~/.ivy2 not found"
-        (test -d ~/.sbt && find ~/.sbt  -name "*.lock"               -print -delete) || echo "~/.sbt not found"
-      shell: bash
