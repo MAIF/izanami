@@ -18,8 +18,9 @@ git add package.json
 cd ${LOCATION}/izanami-clients/izanami-cli
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  sed -i "" "s/version = \".*\"/version = \"${VERSION}\"/g" Cargo.toml
+  sed -i "" "s/^version = \".*\"$/version = \"${VERSION}\"/g" Cargo.toml
 else
-  sed -i "s/version = \".*\"/version = \"${VERSION}\"/g" Cargo.toml
+  sed -i "s/^version = \".*\"$/version = \"${VERSION}\"/g" Cargo.toml
 fi
+git add Cargo.toml
 
