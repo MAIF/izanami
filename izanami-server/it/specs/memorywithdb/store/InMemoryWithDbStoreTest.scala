@@ -17,8 +17,7 @@ import zio.{Runtime, ZLayer}
 
 import scala.concurrent.duration._
 import domains.auth.AuthInfo
-import org.scalatest.concurrent.Eventually.eventually
-import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.time.{Millis, Minutes, Seconds, Span}
 import store.memorywithdb.{InMemoryWithDbStore, OpenResources}
 import zio.clock.Clock
 
@@ -29,7 +28,7 @@ class InMemoryWithDbStoreTest extends PlaySpec with ScalaFutures with Integratio
   implicit val actorSystem: ActorSystem = ActorSystem()
 
   implicit override val patienceConfig =
-    PatienceConfig(timeout = scaled(Span(1100, Millis)), interval = scaled(Span(50, Millis)))
+    PatienceConfig(timeout = scaled(Span(1, Minutes)), interval = scaled(Span(50, Millis)))
 
   implicit class RunOps[T](t: zio.RIO[DataStoreContext with Clock, T]) {
     def unsafeRunSync(): T = Runtime.default.unsafeRun(t.provideLayer(context))

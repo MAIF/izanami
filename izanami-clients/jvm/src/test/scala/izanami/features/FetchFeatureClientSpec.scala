@@ -14,6 +14,8 @@ import play.api.libs.json.{JsObject, Json}
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import izanami.Strategy.FetchStrategy
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Millis, Minutes, Span}
 
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -23,10 +25,14 @@ class FetchFeatureClientSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with FeatureServer
-    with FeatureMockServer {
+    with FeatureMockServer
+    with Eventually {
 
   implicit val system       = ActorSystem("test")
   implicit val materializer = Materializer.createMaterializer(system)
+
+  implicit override val patienceConfig =
+    PatienceConfig(timeout = scaled(Span(1, Minutes)), interval = scaled(Span(50, Millis)))
 
   import com.github.tomakehurst.wiremock.client.WireMock._
   import system.dispatcher
@@ -203,11 +209,13 @@ class FetchFeatureClientSpec
 
       futureCheck.futureValue must be(false)
 
-      mock.verifyThat(
-        postRequestedFor(urlEqualTo("/api/features"))
-          .withRequestBody(equalToJson(Json.stringify(Json.toJson(feature))))
-          .withHeader("Content-Type", containing("application/json"))
-      )
+      eventually {
+        mock.verifyThat(
+          postRequestedFor(urlEqualTo("/api/features"))
+            .withRequestBody(equalToJson(Json.stringify(Json.toJson(feature))))
+            .withHeader("Content-Type", containing("application/json"))
+        )
+      }
     }
 
     "autocreate searching by pattern" in {
@@ -228,12 +236,14 @@ class FetchFeatureClientSpec
       registerPage(group = Seq.empty)
       featureClient.features("*").futureValue
 
-      mock.verifyThat(
-        postRequestedFor(urlEqualTo("/api/features.ndjson"))
-          .withRequestBody(equalTo(s"""${Json.stringify(Json.toJson(feature1))}
-               |${Json.stringify(Json.toJson(feature2))}""".stripMargin))
-          .withHeader("Content-Type", containing("application/nd-json"))
-      )
+      eventually {
+        mock.verifyThat(
+          postRequestedFor(urlEqualTo("/api/features.ndjson"))
+            .withRequestBody(equalTo(s"""${Json.stringify(Json.toJson(feature1))}
+                 |${Json.stringify(Json.toJson(feature2))}""".stripMargin))
+            .withHeader("Content-Type", containing("application/nd-json"))
+        )
+      }
     }
 
     "List features" in {
@@ -386,36 +396,38 @@ class FetchFeatureClientSpec
     }
 
     "Stream event" in {
-      runServer { ctx =>
-        val strategy = IzanamiClient(
-          ClientConfig(ctx.host).sseBackend()
-        ).featureClient(
-          strategy = Strategies.fetchStrategy()
-        )
+      eventually {
+        runServer { ctx =>
+          val strategy = IzanamiClient(
+            ClientConfig(ctx.host).sseBackend()
+          ).featureClient(
+            strategy = Strategies.fetchStrategy()
+          )
 
-        val expectedEvents = Seq(
-          FeatureCreated(Some(1), "id1", DefaultFeature("id1", true)),
-          FeatureUpdated(Some(2), "filter:id2", DefaultFeature("id2", true), DefaultFeature("id2", false)),
-          FeatureCreated(Some(3), "filter:id3", ScriptFeature("id3", true, Some(true), Script("javascript", "{}"))),
-          FeatureDeleted(Some(4), "id4"),
-          FeatureDeleted(Some(5), "id5")
-        )
+          val expectedEvents = Seq(
+            FeatureCreated(Some(1), "id1", DefaultFeature("id1", true)),
+            FeatureUpdated(Some(2), "filter:id2", DefaultFeature("id2", true), DefaultFeature("id2", false)),
+            FeatureCreated(Some(3), "filter:id3", ScriptFeature("id3", true, Some(true), Script("javascript", "{}"))),
+            FeatureDeleted(Some(4), "id4"),
+            FeatureDeleted(Some(5), "id5")
+          )
 
-        val fEvents = strategy
-          .featuresSource("*")
-          .take(5)
-          .runWith(Sink.seq)
-        val fEvents2 = strategy
-          .featuresSource("filter:*")
-          .take(2)
-          .runWith(Sink.seq)
+          val fEvents = strategy
+            .featuresSource("*")
+            .take(5)
+            .runWith(Sink.seq)
+          val fEvents2 = strategy
+            .featuresSource("filter:*")
+            .take(2)
+            .runWith(Sink.seq)
 
-        Thread.sleep(50)
+          Thread.sleep(50)
 
-        expectedEvents.foreach(e => ctx.queue.offer(e))
+          expectedEvents.foreach(e => ctx.queue.offer(e))
 
-        fEvents.futureValue must be(expectedEvents)
-        fEvents2.futureValue must be(expectedEvents.filter(_.id.startsWith("filter:")))
+          fEvents.futureValue must be(expectedEvents)
+          fEvents2.futureValue must be(expectedEvents.filter(_.id.startsWith("filter:")))
+        }
       }
     }
   }

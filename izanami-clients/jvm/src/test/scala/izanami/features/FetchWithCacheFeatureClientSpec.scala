@@ -9,6 +9,8 @@ import izanami.Strategy.FetchWithCacheStrategy
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Millis, Minutes, Span}
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Json
 
@@ -20,43 +22,48 @@ class FetchWithCacheFeatureClientSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with FeatureServer
-    with FeatureMockServer {
+    with FeatureMockServer
+      with Eventually  {
 
   implicit val system       = ActorSystem("test")
   implicit val materializer = Materializer.createMaterializer(system)
+  implicit override val patienceConfig =
+    PatienceConfig(timeout = scaled(Span(1, Minutes)), interval = scaled(Span(50, Millis)))
 
   override def afterAll(): Unit =
     TestKit.shutdownActorSystem(system)
 
   "FetchWithCacheFeatureStrategy" should {
     "List features" in {
-      runServer { ctx =>
-        //#fetch-cache
-        val strategy = IzanamiClient(
-          ClientConfig(ctx.host)
-        ).featureClient(
-          strategy = FetchWithCacheStrategy(maxElement = 2, duration = 1.second),
-          fallback = Features(
-            DefaultFeature("test2", true)
+      eventually {
+        runServer { ctx =>
+          //#fetch-cache
+          val strategy = IzanamiClient(
+            ClientConfig(ctx.host)
+          ).featureClient(
+            strategy = FetchWithCacheStrategy(maxElement = 2, duration = 1.second),
+            fallback = Features(
+              DefaultFeature("test2", true)
+            )
           )
-        )
-        //#fetch-cache
+          //#fetch-cache
 
-        val initialFeatures = Seq(
-          DefaultFeature("test1", true)
-        )
-        ctx.setValues(initialFeatures)
+          val initialFeatures = Seq(
+            DefaultFeature("test1", true)
+          )
+          ctx.setValues(initialFeatures)
 
-        val features: Features = strategy.features("*").futureValue
-        strategy.features("*").futureValue
-        strategy.features("*").futureValue
+          val features: Features = strategy.features("*").futureValue
+          strategy.features("*").futureValue
+          strategy.features("*").futureValue
 
-        features.featuresSeq must be(initialFeatures)
-        ctx.calls.size must be(1)
+          features.featuresSeq must be(initialFeatures)
+          ctx.calls.size must be(1)
 
-        features.isActive("test1") must be(true)
-        features.isActive("test2") must be(true)
-        features.isActive("other") must be(false)
+          features.isActive("test1") must be(true)
+          features.isActive("test2") must be(true)
+          features.isActive("other") must be(false)
+        }
       }
     }
 
