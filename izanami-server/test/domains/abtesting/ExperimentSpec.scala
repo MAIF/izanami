@@ -2,13 +2,12 @@ package domains.abtesting
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.{ChronoField, ChronoUnit}
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import cats.data.NonEmptyList
 import domains.abtesting.events._
 import domains.abtesting.events.impl.ExperimentVariantEventInMemoryService
-import domains.{errors, AuthorizedPatterns, Key, PatternRights}
+import domains.{AuthorizedPatterns, Key, PatternRights, errors}
 import domains.auth.AuthInfo
 import domains.apikey.Apikey
 import domains.events.{EventStore, Events}
@@ -22,6 +21,7 @@ import test.{FakeConfig, IzanamiSpec, TestEventStore}
 import zio.blocking.Blocking
 import zio.{RIO, ZLayer}
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Random
@@ -780,11 +780,13 @@ class ExperimentSpec extends IzanamiSpec with ScalaFutures with IntegrationPatie
     Blocking.live ++
     AuthInfo.value(Apikey("1", "key", "secret", authorizedPatterns, true))
 
+  val namespacesCount = new AtomicInteger()
+
   def expEventsService(
       events: mutable.ArrayBuffer[Events.IzanamiEvent] = mutable.ArrayBuffer.empty
   ): ExperimentVariantEventService.Service =
     new ExperimentVariantEventInMemoryService(
-      s"test_${Random.nextInt(1000)}"
+      s"test_${namespacesCount.incrementAndGet()}"
     )
 
 }

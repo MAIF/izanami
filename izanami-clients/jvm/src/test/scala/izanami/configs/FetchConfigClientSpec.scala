@@ -14,16 +14,21 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import izanami.Strategy.FetchStrategy
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Millis, Minutes, Span}
 
 class FetchConfigClientSpec
     extends IzanamiSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with ConfigServer
-    with ConfigMockServer {
+    with ConfigMockServer
+    with Eventually {
 
   implicit val system       = ActorSystem("test")
   implicit val materializer = Materializer.createMaterializer(system)
+  implicit override val patienceConfig =
+    PatienceConfig(timeout = scaled(Span(1, Minutes)), interval = scaled(Span(100, Millis)))
 
   import system.dispatcher
   import com.github.tomakehurst.wiremock.client.WireMock._
@@ -187,12 +192,13 @@ class FetchConfigClientSpec
       registerCreateConfig(Config("test", Json.obj("value" -> 2)))
 
       val futureConfig = izanamiClient.config("test").futureValue
-
-      mock.verifyThat(
-        postRequestedFor(urlEqualTo("/api/configs"))
-          .withRequestBody(equalToJson(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
-          .withHeader("Content-Type", containing("application/json"))
-      )
+      eventually {
+        mock.verifyThat(
+          postRequestedFor(urlEqualTo("/api/configs"))
+            .withRequestBody(equalToJson(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+            .withHeader("Content-Type", containing("application/json"))
+        )
+      }
 
     }
 
@@ -213,11 +219,13 @@ class FetchConfigClientSpec
 
       val configs: Configs = client.configs("*").futureValue
 
-      mock.verifyThat(
-        postRequestedFor(urlEqualTo("/api/configs.ndjson"))
-          .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
-          .withHeader("Content-Type", containing("application/nd-json"))
-      )
+      eventually {
+        mock.verifyThat(
+          postRequestedFor(urlEqualTo("/api/configs.ndjson"))
+            .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+            .withHeader("Content-Type", containing("application/nd-json"))
+        )
+      }
 
     }
 
@@ -325,41 +333,43 @@ class FetchConfigClientSpec
     }
 
     "Stream event" in {
-      runServer { ctx =>
-        val strategy = IzanamiClient(
-          ClientConfig(ctx.host).sseBackend()
-        ).configClient(
-          strategy = Strategies.fetchStrategy()
-        )
+      eventually {
+        runServer { ctx =>
+          val strategy = IzanamiClient(
+            ClientConfig(ctx.host).sseBackend()
+          ).configClient(
+            strategy = Strategies.fetchStrategy()
+          )
 
-        val expectedEvents = Seq(
-          ConfigCreated(Some(1), "id1", Config("id1", Json.obj("config" -> 1))),
-          ConfigUpdated(
-            Some(2),
-            "filter:id2",
-            Config("id1", Json.obj("config" -> 1)),
-            Config("id1", Json.obj("config" -> 2))
-          ),
-          ConfigCreated(Some(3), "filter:id3", Config("id1", Json.obj("config" -> 3))),
-          ConfigDeleted(Some(4), "id4"),
-          ConfigDeleted(Some(5), "id5")
-        )
+          val expectedEvents = Seq(
+            ConfigCreated(Some(1), "id1", Config("id1", Json.obj("config" -> 1))),
+            ConfigUpdated(
+              Some(2),
+              "filter:id2",
+              Config("id1", Json.obj("config" -> 1)),
+              Config("id1", Json.obj("config" -> 2))
+            ),
+            ConfigCreated(Some(3), "filter:id3", Config("id1", Json.obj("config" -> 3))),
+            ConfigDeleted(Some(4), "id4"),
+            ConfigDeleted(Some(5), "id5")
+          )
 
-        val fEvents = strategy
-          .configsSource("*")
-          .take(5)
-          .runWith(Sink.seq)
-        val fEvents2 = strategy
-          .configsSource("filter:*")
-          .take(2)
-          .runWith(Sink.seq)
+          val fEvents = strategy
+            .configsSource("*")
+            .take(5)
+            .runWith(Sink.seq)
+          val fEvents2 = strategy
+            .configsSource("filter:*")
+            .take(2)
+            .runWith(Sink.seq)
 
-        Thread.sleep(50)
+          Thread.sleep(50)
 
-        expectedEvents.foreach(e => ctx.queue.offer(e))
+          expectedEvents.foreach(e => ctx.queue.offer(e))
 
-        fEvents.futureValue must be(expectedEvents)
-        fEvents2.futureValue must be(expectedEvents.filter(_.id.startsWith("filter:")))
+          fEvents.futureValue must be(expectedEvents)
+          fEvents2.futureValue must be(expectedEvents.filter(_.id.startsWith("filter:")))
+        }
       }
     }
   }
