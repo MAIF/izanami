@@ -506,8 +506,10 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
   "Hour range feature" must {
     "active" in {
 
-      val startAt = LocalTime.now(ZoneId.of("Europe/Paris")).minus(Duration.ofHours(1))
-      val endAt   = LocalTime.now(ZoneId.of("Europe/Paris")).plus(Duration.ofMinutes(30))
+      val random  = new Random()
+      val nanoNow = LocalTime.now(ZoneId.of("Europe/Paris")).toNanoOfDay
+      val startAt = LocalTime.ofNanoOfDay(random.nextLong(nanoNow))
+      val endAt   = LocalTime.ofNanoOfDay(nanoNow + random.nextLong(LocalTime.MAX.toNanoOfDay - nanoNow))
       val feature = HourRangeFeature(Key("key"), true, None, startAt, endAt)
 
       runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(true)
@@ -516,8 +518,11 @@ class FeatureSpec extends IzanamiSpec with ScalaFutures with IntegrationPatience
 
     "inactive" in {
 
-      val startAt = LocalTime.now(ZoneId.of("Europe/Paris")).plus(Duration.ofMinutes(1))
-      val endAt   = LocalTime.now(ZoneId.of("Europe/Paris")).plus(Duration.ofMinutes(30))
+      val random  = new Random()
+      val nanoNow = LocalTime.now(ZoneId.of("Europe/Paris")).toNanoOfDay
+      val maxNano = LocalTime.MAX.toNanoOfDay
+      val startAt = LocalTime.ofNanoOfDay(nanoNow + random.nextLong(maxNano - nanoNow))
+      val endAt   = LocalTime.ofNanoOfDay(startAt.toNanoOfDay + random.nextLong(maxNano - startAt.toNanoOfDay))
       val feature = HourRangeFeature(Key("key"), true, None, startAt, endAt)
 
       runIsActive(HourRangeFeatureInstances.isActive.isActive(feature, Json.obj())) must be(false)

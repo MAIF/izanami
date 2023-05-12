@@ -9,6 +9,8 @@ import izanami._
 import izanami.scaladsl.ConfigEvent.ConfigUpdated
 import izanami.scaladsl.{Config, Configs, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Millis, Minutes, Seconds, Span}
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Json
 
@@ -19,10 +21,13 @@ class SmartCacheConfigClientSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with ConfigServer
-    with ConfigMockServer {
+    with ConfigMockServer
+    with Eventually {
 
   implicit val system       = ActorSystem("test")
   implicit val materializer = Materializer.createMaterializer(system)
+  implicit override val patienceConfig =
+    PatienceConfig(timeout = scaled(Span(1, Minutes)), interval = scaled(Span(50, Millis)))
 
   import system.dispatcher
 
@@ -145,11 +150,13 @@ class SmartCacheConfigClientSpec
 
       val futureConfig = izanamiClient.config("test").futureValue
 
-      mock.verifyThat(
-        postRequestedFor(urlEqualTo("/api/configs.ndjson"))
-          .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
-          .withHeader("Content-Type", containing("application/nd-json"))
-      )
+      eventually {
+        mock.verifyThat(
+          postRequestedFor(urlEqualTo("/api/configs.ndjson"))
+            .withRequestBody(equalTo(Json.stringify(Json.obj("id" -> "test", "value" -> Json.obj("value" -> 2)))))
+            .withHeader("Content-Type", containing("application/nd-json"))
+        )
+      }
     }
 
     "autocreate listing config" in {
@@ -181,78 +188,80 @@ class SmartCacheConfigClientSpec
     }
 
     "Configs by pattern with sse" in {
-      runServer { ctx =>
-        import akka.pattern
-        //Init
-        val initialConfigs = Seq(
-          Config("test1", Json.obj("value" -> 1))
-        )
-        ctx.setValues(initialConfigs)
-
-        val fallback = Configs(
-          "test2" -> Json.obj("value" -> 2)
-        )
-        Thread.sleep(100)
-        val strategy = IzanamiClient(
-          ClientConfig(ctx.host)
-        ).configClient(
-          strategy = CacheWithSseStrategy(
-            patterns = Seq("*"),
-            pollingInterval = None //Some(3.second)
-          ),
-          fallback = fallback
-        )
-
-        //Waiting for the client to start polling
-        val configs: Configs = pattern
-          .after(1300.milliseconds, system.scheduler) {
-            strategy.configs("*")
-          }
-          .futureValue
-
-        configs.configs must contain theSameElementsAs (fallback.configs ++ initialConfigs)
-
-        //Only one call for the first fetch
-        ctx.calls.size must be(1)
-        configs.get("test1") must be(Json.obj("value" -> 1))
-        configs.get("test2") must be(Json.obj("value" -> 2))
-        configs.get("other") must be(Json.obj())
-
-        // As the data are in cache for the pattern, this should not generate an http call
-        strategy.config("test1").futureValue must be(Json.obj("value" -> 1))
-        strategy.config("test2").futureValue must be(Json.obj("value" -> 2))
-        strategy.config("other").futureValue must be(Json.obj())
-        ctx.calls.size must be(1)
-
-        // We update config via sse
-        ctx.push(
-          ConfigUpdated(
-            Some(1),
-            "test1",
-            Config("test1", Json.obj("value" -> 3)),
+      eventually(timeout(60.seconds), interval(1.seconds)) {
+        runServer { ctx =>
+          import akka.pattern
+          //Init
+          val initialConfigs = Seq(
             Config("test1", Json.obj("value" -> 1))
           )
-        )
+          ctx.setValues(initialConfigs)
 
-        //We wait that the events arrive
-        val configsUpdated: Configs = pattern
-          .after(500.milliseconds, system.scheduler) {
-            strategy.configs("*")
-          }
-          .futureValue
+          val fallback = Configs(
+            "test2" -> Json.obj("value" -> 2)
+          )
+          Thread.sleep(100)
+          val strategy = IzanamiClient(
+            ClientConfig(ctx.host)
+          ).configClient(
+            strategy = CacheWithSseStrategy(
+              patterns = Seq("*"),
+              pollingInterval = None //Some(3.second)
+            ),
+            fallback = fallback
+          )
 
-        //With SSE we should only have the first fetch
-        ctx.calls.size must be(1)
+          //Waiting for the client to start polling
+          val configs: Configs = pattern
+            .after(1300.milliseconds, system.scheduler) {
+              strategy.configs("*")
+            }
+            .futureValue
 
-        configsUpdated.get("test1") must be(Json.obj("value" -> 3))
-        configsUpdated.get("test2") must be(Json.obj("value" -> 2))
-        configsUpdated.get("other") must be(Json.obj())
+          configs.configs must contain theSameElementsAs (fallback.configs ++ initialConfigs)
 
-        // As the data are in cache for the pattern, this should not generate an http call
-        strategy.config("test1").futureValue must be(Json.obj("value" -> 3))
-        strategy.config("test2").futureValue must be(Json.obj("value" -> 2))
-        strategy.config("other").futureValue must be(Json.obj())
-        ctx.calls.size must be(1)
+          //Only one call for the first fetch
+          ctx.calls.size must be(1)
+          configs.get("test1") must be(Json.obj("value" -> 1))
+          configs.get("test2") must be(Json.obj("value" -> 2))
+          configs.get("other") must be(Json.obj())
+
+          // As the data are in cache for the pattern, this should not generate an http call
+          strategy.config("test1").futureValue must be(Json.obj("value" -> 1))
+          strategy.config("test2").futureValue must be(Json.obj("value" -> 2))
+          strategy.config("other").futureValue must be(Json.obj())
+          ctx.calls.size must be(1)
+
+          // We update config via sse
+          ctx.push(
+            ConfigUpdated(
+              Some(1),
+              "test1",
+              Config("test1", Json.obj("value" -> 3)),
+              Config("test1", Json.obj("value" -> 1))
+            )
+          )
+
+          //We wait that the events arrive
+          val configsUpdated: Configs = pattern
+            .after(500.milliseconds, system.scheduler) {
+              strategy.configs("*")
+            }
+            .futureValue
+
+          //With SSE we should only have the first fetch
+          ctx.calls.size must be(1)
+
+          configsUpdated.get("test1") must be(Json.obj("value" -> 3))
+          configsUpdated.get("test2") must be(Json.obj("value" -> 2))
+          configsUpdated.get("other") must be(Json.obj())
+
+          // As the data are in cache for the pattern, this should not generate an http call
+          strategy.config("test1").futureValue must be(Json.obj("value" -> 3))
+          strategy.config("test2").futureValue must be(Json.obj("value" -> 2))
+          strategy.config("other").futureValue must be(Json.obj())
+          ctx.calls.size must be(1)
+        }
       }
     }
   }

@@ -20,27 +20,17 @@ jobs:
             with-sbt-assets: false
     name: ${{ matrix.name }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: ./.github/workflows/load-versions
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v1
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
         with:
-          java-version: ${{ env.JAVA_VERSION }}
-      - name: Set up Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v1
+          distribution: "temurin"
+          java-version-file: ".java-version"
+          cache: "sbt"
+      - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Cache multiple paths
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.ivy2/cache
-            ~/.sbt/boot
-            ~/.sbt
-            ~/.coursier
-            ~/.nvm
-            ~/.yarn-cache
-          key: ${{ matrix.name }}
+          node-version-file: ".nvmrc"
+          cache: "yarn"
+          cache-dependency-path: "**/package-lock.json"
       - uses: ./.github/workflows/java-opts
       - run: ${{ matrix.command }}
         env:
@@ -67,7 +57,6 @@ jobs:
           path: |
             upload/izanami.jar
             upload/izanami.zip
-      - uses: ./.github/workflows/clean-cache
   build-publish-izanami-cli:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -75,7 +64,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     name: "Build Rust izanami-cli"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -106,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/download-artifact@v2
         name: Download all artifacts
       - name: Release
