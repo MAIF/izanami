@@ -11,15 +11,13 @@ jobs:
     name: Create tag
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           token: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
-      - name: Get Java version
-        uses: ./.github/workflows/load-versions
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v1
+      - uses: actions/setup-java@v3
         with:
-          java-version: ${{ env.JAVA_VERSION }}
+          distribution: "temurin"
+          java-version-file: ".java-version"
       - name: Workflow can be run only on master
         run: test  "${{ github.ref }}" = "refs/heads/master" ||  (echo "Release can be created only from master (${{ github.ref }} not supported)." && false)
       - name: Set release version (remove "v" of "vX.Y.Z")

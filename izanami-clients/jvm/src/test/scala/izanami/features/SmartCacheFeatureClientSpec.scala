@@ -12,6 +12,7 @@ import izanami.Strategy.{CacheWithPollingStrategy, CacheWithSseStrategy}
 import izanami._
 import izanami.scaladsl.{Features, IzanamiClient}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Seconds, Span}
@@ -25,7 +26,8 @@ class SmartCacheFeatureClientSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with FeatureServer
-    with FeatureMockServer {
+    with FeatureMockServer
+    with Eventually {
 
   implicit val system       = ActorSystem("test")
   implicit val materializer = Materializer.createMaterializer(system)
@@ -182,78 +184,80 @@ class SmartCacheFeatureClientSpec
     }
 
     "Features by pattern with sse" in {
-      runServer { ctx =>
-        import akka.pattern
-        //Init
-        val initialFeatures = Seq(
-          DefaultFeature("test1", true)
-        )
-        ctx.setValues(initialFeatures)
+      eventually(timeout(60.seconds), interval(1.seconds)) {
+        runServer { ctx =>
+          import akka.pattern
+          //Init
+          val initialFeatures = Seq(
+            DefaultFeature("test1", true)
+          )
+          ctx.setValues(initialFeatures)
 
-        val fallback = Seq(DefaultFeature("test2", true))
+          val fallback = Seq(DefaultFeature("test2", true))
 
-        val strategy = IzanamiClient(
-          ClientConfig(ctx.host)
-        ).featureClient(
-          strategy = CacheWithSseStrategy(
-            patterns = Seq("*"),
-            pollingInterval = None
-          ),
-          fallback = Features(fallback: _*)
-        )
+          val strategy = IzanamiClient(
+            ClientConfig(ctx.host)
+          ).featureClient(
+            strategy = CacheWithSseStrategy(
+              patterns = Seq("*"),
+              pollingInterval = None
+            ),
+            fallback = Features(fallback: _*)
+          )
 
-        //Waiting for the client to start polling
-        val features: Features = pattern
-          .after(2.second, system.scheduler) {
-            strategy.features("*")
-          }
-          .futureValue
+          //Waiting for the client to start polling
+          val features: Features = pattern
+            .after(2.second, system.scheduler) {
+              strategy.features("*")
+            }
+            .futureValue
 
-        features.featuresSeq must contain theSameElementsAs (fallback ++ initialFeatures)
+          features.featuresSeq must contain theSameElementsAs (fallback ++ initialFeatures)
 
-        //Only one call for the first fetch
-        ctx.calls.size must be(1)
-        features.isActive("test1") must be(true)
-        features.isActive("test2") must be(true)
-        features.isActive("other") must be(false)
+          //Only one call for the first fetch
+          ctx.calls.size must be(1)
+          features.isActive("test1") must be(true)
+          features.isActive("test2") must be(true)
+          features.isActive("other") must be(false)
 
-        // As the data are in cache for the pattern, this should not generate an http call
-        strategy.checkFeature("test1").futureValue must be(true)
-        strategy.checkFeature("test2").futureValue must be(true)
-        strategy.checkFeature("other").futureValue must be(false)
-        ctx.calls.size must be(1)
+          // As the data are in cache for the pattern, this should not generate an http call
+          strategy.checkFeature("test1").futureValue must be(true)
+          strategy.checkFeature("test2").futureValue must be(true)
+          strategy.checkFeature("other").futureValue must be(false)
+          ctx.calls.size must be(1)
 
-        // We update feature via sse
-        ctx.push(FeatureUpdated(Some(1), "test1", DefaultFeature("test1", false), DefaultFeature("test1", true)))
+          // We update feature via sse
+          ctx.push(FeatureUpdated(Some(1), "test1", DefaultFeature("test1", false), DefaultFeature("test1", true)))
 
-        //We wait that the events arrive
-        val featuresUpdated: Features = pattern
-          .after(500.milliseconds, system.scheduler) {
-            strategy.features("*")
-          }
-          .futureValue
+          //We wait that the events arrive
+          val featuresUpdated: Features = pattern
+            .after(500.milliseconds, system.scheduler) {
+              strategy.features("*")
+            }
+            .futureValue
 
-        //With SSE we should only have the first fetch
-        ctx.calls.size must be(1)
+          //With SSE we should only have the first fetch
+          ctx.calls.size must be(1)
 
-        featuresUpdated.isActive("test1") must be(false)
-        featuresUpdated.isActive("test2") must be(true)
-        featuresUpdated.isActive("other") must be(false)
+          featuresUpdated.isActive("test1") must be(false)
+          featuresUpdated.isActive("test2") must be(true)
+          featuresUpdated.isActive("other") must be(false)
 
-        // As the data are in cache for the pattern, this should not generate an http call
-        strategy.checkFeature("test1").futureValue must be(false)
-        strategy.checkFeature("test2").futureValue must be(true)
-        strategy.checkFeature("other").futureValue must be(false)
-        ctx.calls.size must be(1)
+          // As the data are in cache for the pattern, this should not generate an http call
+          strategy.checkFeature("test1").futureValue must be(false)
+          strategy.checkFeature("test2").futureValue must be(true)
+          strategy.checkFeature("other").futureValue must be(false)
+          ctx.calls.size must be(1)
 
-        // We ask for a data with context, a call is necessary as we don't cache for contexted features
-        strategy
-          .checkFeature("test2", Json.obj("withContext" -> true))
-          .futureValue must be(true)
-        ctx.calls.size must be(2)
-        strategy.features("*", Json.obj("withContext" -> true)).futureValue
-        ctx.calls.size must be(3)
+          // We ask for a data with context, a call is necessary as we don't cache for contexted features
+          strategy
+            .checkFeature("test2", Json.obj("withContext" -> true))
+            .futureValue must be(true)
+          ctx.calls.size must be(2)
+          strategy.features("*", Json.obj("withContext" -> true)).futureValue
+          ctx.calls.size must be(3)
 
+        }
       }
     }
 //

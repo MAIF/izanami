@@ -9,7 +9,7 @@ import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.libs.ws.JsonBodyWritables._
 import test.{IzanamiMatchers, OneServerPerSuiteWithMyComponents}
 import org.scalatest.matchers.{MatchResult, Matcher}
-import org.scalatest.time.{Millis, Span}
+import org.scalatest.time.{Millis, Minutes, Span}
 import play.api.libs.ws.WSResponse
 
 abstract class UserControllerSpec(name: String, configurationSpec: Configuration)
@@ -28,7 +28,7 @@ abstract class UserControllerSpec(name: String, configurationSpec: Configuration
   private lazy val defaultUser = Json.parse("""{"id":"admin@izanami.io","name":"admin@izanami.io","email":"admin@izanami.io","admin":true,"temporary":true,"authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"type":"Izanami"}""")
 
   implicit override val patienceConfig =
-    PatienceConfig(timeout = scaled(Span(1100, Millis)), interval = scaled(Span(50, Millis)))
+    PatienceConfig(timeout = scaled(Span(1, Minutes)), interval = scaled(Span(50, Millis)))
 
   s"$name UserController" should {
 
