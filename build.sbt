@@ -81,7 +81,7 @@ inThisBuild(
   )
 )
 
-usePgpKeyHex("4CFAF84EA6075473D68FA7D9590BEB09DDA3F0B7")
+usePgpKeyHex("306B2B42FC5879C28852CBAB2BF1C9D45276EBA0")
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 sonatypeCredentialHost := "s01.oss.sonatype.org"
 
