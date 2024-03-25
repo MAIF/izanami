@@ -4,12 +4,12 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 export default [
   {
     path: '/izanami/search',
-    component: ComponentCreator('/izanami/search', 'b82'),
+    component: ComponentCreator('/izanami/search', '67a'),
     exact: true
   },
   {
     path: '/izanami/docs',
-    component: ComponentCreator('/izanami/docs', 'fde'),
+    component: ComponentCreator('/izanami/docs', '828'),
     routes: [
       {
         path: '/izanami/docs',
@@ -165,7 +165,7 @@ export default [
   },
   {
     path: '/izanami/v1',
-    component: ComponentCreator('/izanami/v1', 'b1a'),
+    component: ComponentCreator('/izanami/v1', '433'),
     routes: [
       {
         path: '/izanami/v1',
@@ -429,7 +429,7 @@ export default [
   },
   {
     path: '/izanami/',
-    component: ComponentCreator('/izanami/', '89a'),
+    component: ComponentCreator('/izanami/', 'a38'),
     exact: true
   },
   {
