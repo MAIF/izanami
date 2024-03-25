@@ -1,0 +1,20 @@
+primary: #DC5F9F
+
+sidebar text : #E6E6E6
+
+menu hover : #8c8c8c
+
+couleur secondaire : #00B4CD;
+
+creation button : #5cb85c
+
+suppression button : #D5443F
+
+sidebar barckground : linear-gradient(180deg, #373735 1%, #494948)
+
+イザナミ
+
+
+background: #373735;
+
+default color: #b5b3b3;

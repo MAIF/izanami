@@ -1,0 +1,101 @@
+---
+title: Features
+---
+
+import { Note } from "@site/src/components/Note";
+import EnableVsActive from "@site/static/img/feature-activation-tree.excalidraw.svg";
+import StrategyConditionRule from "@site/static/img/strategy-condition-rule.excalidraw.svg";
+
+In Izanami, feature flags are just called "features" for the sake of simplicity.
+
+## Feature activation
+
+Two elements are used to decide if a feature is active:
+
+- Feature status: enabled / disabled
+- Feature activation conditions
+
+If a feature is disabled, then this feature is not active, regardless of activation conditions.
+
+If a feature is enabled, activation conditions are used to compute feature activation.
+
+<Note>
+  If you just want an on / off feature, don't define any activation condition.
+  In this scenario, feature activation is deduced from feature status (enabled
+  -> active, disabled -> inactive).
+</Note>
+
+A feature can have 0, 1 or more activation conditions, however only one of them need to match to make the whole feature active.
+
+A condition is composed of one time rule and/or one user rule. Possible rules are detailled below.
+
+If both rule are defined, both need to be active to activate condition.
+
+<Note>
+  There is a logical "OR" between activation conditions. Inside a condition,
+  there is a logical "AND" between time and user rules.
+</Note>
+
+<figure>
+  <EnableVsActive height="400" />
+  <figcaption>Feature activation decision tree</figcaption>
+</figure>
+
+Below schema givena an example of feature that define several activation conditions.
+
+Conditions are used here to progressively activate feature for all users, while keeping feature active for two "admin" users: Alice and Bob.
+
+<figure>
+  <StrategyConditionRule width="100%" height="700" />
+  <figcaption>Multi condition feature example</figcaption>
+</figure>
+
+## Activation rules
+
+### Time rules
+
+With this kind of rules, Izanami will activate feature when current time is in provided range.
+
+These startegies are used to implement release or ops flags.
+
+There is several variation for this catrgory of feature, that can be composed to craft exactly what you need.
+
+- Date range feature: define a start and/or end date for feature activation
+- Hour range: feature will be active every day on provided range(s)
+- Activation days: feature will be active only on provided days
+
+<Note>
+  Here is an example of conditions combination for time features: 
+  <ul>
+    <li>has a date range condition from 1st January to 31 January of 2024</li>
+    <li>has two hour ranges: 08h00 -> 10h00 and 14h00 -> 18h00</li>
+    <li>has following activation days: monday, tuesday</li>
+  </ul>
+
+<ul style={{ listStyleType: "none", paddingLeft: "12px" }}>
+  <li>✅ Will be active on Monday 8 January at 9h00</li>
+  <li>❌ Won't be active on Friday 26 January at 9h00</li>
+  <li>❌ Won't be active on Tuesday 16 January at 13h00</li>
+  <li>❌ Won't be active before 1st Januar or after 31 January</li>
+</ul>
+
+</Note>
+
+### User based rules
+
+With user based rules, activation conditions are based on provided user.
+
+Three is two types of user based conditions:
+
+- user list: define a list of user for which feature will be active. This rule is used to implement permission flags.
+- percentage: feature will be active only for given percentage of users. Percentage is based on user hash (using [murmum3](https://en.wikipedia.org/wiki/MurmurHash)), this means that activation is consistent for a given user (if feature is active once, it'll remain active). This rule is used to implement canary flags.
+
+## Scripted feature
+
+Sometimes above rules are not enough. For instance feature activation decision may depend on more than "just" the user.
+
+In such a case, Izanami offers (with the help of [WASMO](https://github.com/MAIF/wasmo)) the possibility to define "script feature".
+
+Such features rely on an underlying wasm script, which will be executed with provided the input each time feature activation is required.
+
+To learn more about these script, refer to the [wasm script guides](../guides/local-scripts).

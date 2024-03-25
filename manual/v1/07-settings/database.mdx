@@ -1,0 +1,485 @@
+---
+title: Choose the database
+---
+
+Izanami provide an integration with several databases :
+
+- Level DB (by default)
+- In memory
+- Redis
+- Elastic search
+- MongoDB
+- PostgreSQL
+- Kafka
+- AWS Dynamo
+
+It's possible to choose one database for the whole Izanami instance or choose a database par datatype (for example Elasticsearch for A/B testing and Redis for all the rest)
+
+Izanami can handle event with :
+
+- An in memory store
+- Redis with pub / sub
+- Kafka
+- Akka distributed pub / sub
+
+This database stores following items :
+
+- ApiKey
+- User
+- Feature flipping
+- Configuration
+- A/B Testing configuration
+- A/B Testing events
+
+The choice of the database depends on expectations in terms of performance, big data, etc. Izanami can deteriorate some expectations.
+The Events of A/B Testing can be represent a lot of data. And it may affect performance of some features, like the generation of experiment report.
+For example: Redis is a very fast database, but Izanami connector does not use all query capabilities of Redis (for history reason).
+Past a certain volume of data, experiment report is slower.
+
+The performance of this following databases can be degraded with a lot of data :
+
+- Level DB
+- In memory
+- Redis
+- MongoDB
+- AWS Dynamo
+
+The following databases can support a lot of data without significant performance loss:
+
+- Elastic search
+- PostgreSQL
+
+The other items (ApiKey, User, Feature flipping, etc) are less affected by this problem because the volume of data does not increase in the same proportions.
+
+:::warning
+
+The in memory event store does not work with a cluster of izanami instance.
+
+:::
+
+## Databases
+
+### In memory store
+
+The in memory store all data in memory using an hashmap.
+
+:::warning
+
+The in memory store should be used for trial purpose and is not suited for production usage.
+
+:::
+
+```bash
+bin/izanami -Dizanami.db.default=InMemory
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=InMemory
+bin/izanami
+```
+
+### Level DB
+
+Level DB is key / value store developed by google. The datas are stored on a the local file system.
+
+:::warning
+
+Level DB store should be used for trial purpose and is not suited for production usage.
+
+:::
+
+```bash
+bin/izanami -Dizanami.db.default=LevelDB -Dizanami.db.leveldb.parentPath=/datas
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=LevelDB
+export LEVEL_DB_PARENT_PATH=/datas
+bin/izanami
+```
+
+### Redis
+
+{/* prettier-ignore */}
+<a src="https://redis.io/" target="_blanck">Redis</a> is an very fast in memory data store.
+
+To run Izanami with redis :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=Redis \
+    -Dizanami.db.redis.host=localhost \
+    -Dizanami.db.redis.port=6379 \
+    -Dizanami.db.redis.password=xxxx
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=Redis
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export REDIS_PASSWORD=xxxx
+
+bin/izanami
+```
+
+#### redis sentinel
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=Redis \
+    -Dizanami.db.redis.type=sentinel \
+    -Dizanami.db.redis.host=localhost \
+    -Dizanami.db.redis.port=26379 \
+    -Dizanami.db.redis.masterId=redismaster \
+    -Dizanami.db.redis.sentinels.0.host=localhost \
+    -Dizanami.db.redis.sentinels.0.port=26380 \
+    -Dizanami.db.redis.password=xxxx
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=Redis
+export REDIS_HOST=localhost
+export REDIS_PORT=26379
+export REDIS_MASTER_ID=redismaster
+export REDIS_PASSWORD=xxxx
+
+bin/izanami
+```
+
+Other settings are available, consult the [settings](./settings) page.
+
+### Elasticsearch
+
+{/* prettier-ignore */}
+<a src="https://www.elastic.co/" target="_blanck">Elasticsearch</a> is an very scalable search engine. This database if well suited for storing
+A/B testing events.
+
+Only Elasticsearch 6 and 7 are supported.
+
+To run Izanami with elasticsearch :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=Elastic \
+    -Dizanami.db.elastic.host=localhost \
+    -Dizanami.db.elastic.port=9200 \
+    -Dizanami.db.elastic.user=xxxx \
+    -Dizanami.db.elastic.password=xxxx
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=Elastic
+export ELASTIC_HOST=localhost
+export ELASTIC_PORT=9200
+export ELASTIC_USER=xxxx
+export ELASTIC_PASSWORD=xxxx
+
+bin/izanami
+```
+
+Other settings are available, consult the [settings](./settings) page.
+
+### Mongo
+
+To run Izanami with mongo :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=Mongo \
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=Mongo
+export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami
+
+bin/izanami
+```
+
+Other settings are available, consult the [settings](./settings) page.
+
+### AWS DynamoDB
+
+To run Izanami with DynamoDB :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=Dynamo \
+    -Dizanami.db.dynamo.region=eu-west-1
+    -Dizanami.db.dynamo.accessKey=xxxxx
+    -Dizanami.db.dynamo.secretKey=xxxxx
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=Dynamo
+export DYNAMO_REGION=eu-west-1
+export DYNAMO_ACCESS_KEY=xxxxxxx
+export DYNAMO_SECRET_KEY=xxxxxxx
+
+bin/izanami
+```
+
+If the credentials are not set in the configuration, connector will use the default credential provider chain provided by the DynamoDB Java SDK to retrieve credentials.
+
+Izanami requires the following [IAM permissions](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/api-permissions-reference.html) :
+
+- dynamodb:DeleteItem
+- dynamodb:GetItem
+- dynamodb:PutItem
+- dynamodb:Query
+- dynamodb:UpdateItem
+- dynamodb:BatchWriteItem
+- dynamodb:DescribeTable
+
+The table name required are `izanami` and `izanami_experimentevents`.
+
+Additionally if the DynamoDB tables don't already exist, Izanami will create them for you which will require the `dynamodb:CreateTable` permission.
+
+You can create them with the following commands
+
+```bash
+aws dynamodb create-table --table-name izanami --attribute-definitions AttributeName=store,AttributeType=S AttributeName=id,AttributeType=S  --key-schema AttributeName=store,KeyType=HASH AttributeName=id,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+aws dynamodb create-table --table-name izanami_experimentevents --attribute-definitions AttributeName=experimentId,AttributeType=S AttributeName=variantId,AttributeType=S  --key-schema AttributeName=experimentId,KeyType=HASH AttributeName=variantId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+```
+
+Other settings are available, consult the [settings](./settings) page.
+
+### Postgresql
+
+To run Izanami with Postgresql :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=Postgresql \
+    -Dizanami.db.postgresql.url="jdbc:postgresql://localhost:5432/izanami" \
+    -Dizanami.db.postgresql.username=izanami \
+    -Dizanami.db.postgresql.password=izanami \
+    -Dizanami.db.postgresql.connectionPoolSize=32
+
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=Postgresql
+export JDBC_DATABASE_URL=jdbc:postgresql://localhost:5432/izanami
+export POSTGRESQL_USER=izanami
+export POSTGRESQL_PASSWORD=izanami
+export POSTGRESQL_CONNECTION_POOL_SIZE=32
+
+bin/izanami
+```
+
+### In Memory with Db
+
+If your data fit in memory and you need high throughput you can use this store.
+
+With this store your data are kept in memory and used for read operations.
+During write operations, the in memory image is updated asynchronously.
+
+![InMemoryWithDb](/v1/img/diagrams/inmemorywithdb.png)
+
+To run Izanami with in memory with db :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=InMemoryWithDb \
+    -Dizanami.db.inMemoryWithDb.db=Mongo \
+    -Dizanami.db.inMemoryWithDb.pollingInterval=1 second \  // If you need to force a periodic refresh of your cache
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=InMemoryWithDb
+export IN_MEMORY_WITH_DB_DB=Mongo
+export MONGODB_ADDON_URI=mongodb://localhost:27017/izanami
+export IN_MEMORY_WITH_DB_POLLING_INTERVAL=1 second // If you need to force a periodic refresh of your cache
+
+bin/izanami
+```
+
+You can set a database per domain :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=InMemoryWithDb \
+    -Dizanami.db.inMemoryWithDb.db=Mongo \
+    -Dizanami.db.inMemoryWithDb.pollingInterval=1 second \  // If you need to force a periodic refresh of your cache
+    -Dizanami.db.mongo.url=mongodb://localhost:27017/izanami \
+    -Dizanami.feature.db.conf.db.type=Elastic       // Override underlying db for features
+```
+
+### Mix Databases
+
+If you want to use 2 or more databases you need to provide
+
+- The connection settings for each DB
+- The database associated to a domain
+
+For example, use redis for all except the A/B testing events stored in ES :
+
+```bash
+bin/izanami \
+    -Dizanami.db.default=Redis \
+    -Dizanami.db.redis.host=localhost \
+    -Dizanami.db.redis.port=6379 \
+    -Dizanami.db.redis.password=xxxx \
+    -Dizanami.db.elastic.host=localhost \
+    -Dizanami.db.elastic.port=9200 \
+    -Dizanami.db.elastic.user=xxxx \
+    -Dizanami.db.elastic.password=xxxx \
+    -Dizanami.variantBinding.db.type=Elastic \
+    -Dizanami.experimentEvent.db.type=Elastic
+```
+
+Or
+
+```bash
+export IZANAMI_DATABASE=Redis
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export REDIS_PASSWORD=xxxx
+export ELASTIC_HOST=localhost
+export ELASTIC_PORT=9200
+export ELASTIC_USER=xxxx
+export ELASTIC_PASSWORD=xxxx
+export EXPERIMENT_VARIANT_BINDING_DATABASE=Elastic
+export EXPERIMENT_EVENT_DATABASE=Elastic
+
+bin/izanami
+```
+
+Other settings are available, consult the [settings](./settings) page.
+
+## Event stores
+
+The event store is essentially used for server sent event. Server sent event is used for real time server push notifications.
+
+### In memory
+
+With this config, the events are emitted in memory using akka eventStream. This is the default configuration.
+
+:::warning
+
+The memory event store should not be used in a clustered environment as the events are local to each node.
+
+:::
+
+```bash
+bin/izanami \
+    -Dizanami.events.store=InMemory
+```
+
+Or
+
+```bash
+export IZANAMI_EVENT_STORE=InMemory
+
+bin/izanami
+```
+
+### Redis pub sub
+
+The redis event store use the <a href="https://redis.io/topics/pubsub" target="_blanck">redis pub / sub</a>.
+
+This event store could be useful if you run multiple instance of izanami and already use redis as database but this solution is not robust.
+
+```bash
+bin/izanami \
+    -Dizanami.events.store=Redis
+    -Dizanami.db.redis.host=localhost \
+    -Dizanami.db.redis.port=6379 \
+    -Dizanami.db.redis.password=xxxx
+```
+
+Or
+
+```bash
+export IZANAMI_EVENT_STORE=Redis
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export REDIS_PASSWORD=xxxx
+
+bin/izanami
+```
+
+Other settings are available, consult the [settings](./settings) page.
+
+### Kafka
+
+The <a href="https://kafka.apache.org/" target="_blanck">Kafka</a> event store is the recommended event store.
+
+```bash
+bin/izanami \
+    -Dizanami.events.store=Kafka
+    -Dizanami.db.kafka.host=localhost \
+    -Dizanami.db.kafka.port=9092 \
+```
+
+Or
+
+```bash
+export IZANAMI_EVENT_STORE=Kafka
+export KAFKA_HOST=localhost
+export KAFKA_PORT=6379
+
+bin/izanami
+```
+
+Other settings are available, consult the [settings](./settings) page.
+
+### Distributed pub sub
+
+The distributed pub / sub use akka distributed pub sub. To use this store you need to form a <a href="https://doc.akka.io/docs/akka/snapshot/cluster-usage.html" target="_blanck" >akka cluster</a> between each nodes.
+
+```bash
+#Instance 1
+bin/izanami \
+    -Dizanami.events.store=Distributed \
+    -Dcluster.akka.remote.netty.tcp.port=2551 \
+    -Dcluster.akka.remote.seed-nodes.0=akka.tcp://DistributedEvent@127.0.0.1:2551
+
+#Instance 2
+bin/izanami \
+    -Dhttp.port=9001 \
+    -Dizanami.events.store=Distributed \
+    -Dcluster.akka.remote.netty.tcp.port=2552 \
+    -Dcluster.akka.remote.seed-nodes.0=akka.tcp://DistributedEvent@127.0.0.1:2551
+```
+
+Or
+
+```bash
+#Instance 1
+export IZANAMI_EVENT_STORE=Distributed
+export AKKA_CLUSTER_PORT=2551
+export AKKA_CLUSTER_SEED_NODE_HOST=127.0.0.1
+export AKKA_CLUSTER_SEED_NODE_PORT=2551
+bin/izanami
+
+#Instance 2
+export HTTP_PORT=9001
+export IZANAMI_EVENT_STORE=Distributed
+export AKKA_CLUSTER_PORT=2552
+export AKKA_CLUSTER_SEED_NODE_HOST=127.0.0.1
+export AKKA_CLUSTER_SEED_NODE_PORT=2551
+bin/izanami
+```
+
+Other settings are available, consult the [settings](./settings) page.

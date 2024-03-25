@@ -1,0 +1,29 @@
+.dropdown-menu {
+  background-color: $fondBody;
+
+  > li {
+    > a:focus,
+    > a:hover,
+    > div:focus,
+    > div:hover {
+      background-image: none;
+    }
+  }
+
+  > li > a,
+  > li > div {
+    color: $colorGris;
+  }
+}
+
+.dropdown-menu-right {
+  right: 0;
+  left: auto !important;
+  i {
+    min-width: 16px;
+  }
+}
+
+.dropdown-item {
+  transition-duration: 1s;
+}

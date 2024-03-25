@@ -1,0 +1,62 @@
+---
+title: Organisations
+---
+
+import { Note } from "@site/src/components/Note";
+import TenantProjectTags from "@site/static/img/tenant project tags.excalidraw.svg";
+
+Izanami provides three ways to organize your features.
+
+- Tenant: Izanami is multi-tenant, therefore one instance can be used for completely different use cases
+- Projects: inside one tenant, features are distributed in projects
+- Tags: tags can regroup features related to the same topic accross projects
+
+<TenantProjectTags width="100%" height="500" />
+
+## Tenants
+
+Tenants separate unrelated stuff.
+
+It could, for instance, be used to separate organizations / companies on one Izanami instance.
+
+Users are shared between tenants, project, features and tags are not.
+
+User can have 4 level of rights on tenants:
+
+|               | Access tenant | Create project | Create tag | See members | Modify user rights | Invite users | Delete tenant | Create tenant |
+| ------------- | ------------- | -------------- | ---------- | ----------- | ------------------ | ------------ | ------------- | ------------- |
+| Read          | ✅            | ❌             | ❌         | ❌          | ❌                 | ❌           | ❌            | ❌            |
+| Write         | ✅            | ✅             | ✅         | ❌          | ❌                 | ❌           | ❌            | ❌            |
+| Admin         | ✅            | ✅             | ✅         | ✅          | ✅                 | ✅           | ✅            | ❌            |
+| Izanami Admin | ✅            | ✅             | ✅         | ✅          | ✅                 | ✅           | ✅            | ✅            |
+
+## Projects
+
+Project is a feature container.
+
+It has two main usages:
+
+- group together features related to the same project, topic or software
+- manage rights or permissions on this group
+
+User can have 3 level of rights on tenants:
+
+|       | Access project | Create feature | Edit feature | Delete feature | Modify user rights | Invite users | Update project information | Delete project |
+| ----- | -------------- | -------------- | ------------ | -------------- | ------------------ | ------------ | -------------------------- | -------------- |
+| Read  | ✅             | ❌             | ❌           | ❌             | ❌                 | ❌           | ❌                         | ❌             |
+| Write | ✅             | ✅             | ✅           | ✅             | ❌                 | ❌           | ❌                         | ❌             |
+| Admin | ✅             | ✅             | ✅           | ✅             | ✅                 | ✅           | ✅                         | ✅             |
+
+<Note>
+  If you are a global Izanami admin or admin of the project's tenant you are
+  considered project admin
+</Note>
+
+## Tags
+
+Tags allow to regrouping features from different projects of the same tenant.
+
+One feature can have many tags.
+
+Unlike projects and tenants, there is no right associated with tags.
+In fact, when visualizing features for a tag, each feature associated with the project right determines if it should be displayed.

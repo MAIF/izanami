@@ -1,0 +1,195 @@
+.btn {
+  background-color: transparent;
+  background: none;
+  margin-right: 5px;
+  &:focus{
+  background-color: transparent;
+  }
+}
+
+.displayGroupBtn {
+  text-align: right;
+  button.btn {
+    margin-left: 5px;
+  }
+  .btn-danger:focus {
+    outline-color: $colorRouge;
+  }
+}
+
+.btn-search {
+  border: 1px solid #5cb85c;
+  background: none;
+  margin: 2px 2px 2px 2px;
+  &.active {
+    background: #5cb85c !important;
+  }
+}
+
+// .btn-dropdown {
+//   background: none;
+//   color: #48b9db;
+//   border: none;
+// }
+
+.input-group-btn:last-child > .btn,
+.input-group-btn:last-child > .btn-group {
+  margin-left: 4px;
+}
+
+.input-group-btn:last-child > .btn {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+  &:not(:last-child):not(.dropdown-toggle) {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+  }
+}
+
+.btn-primary {
+  color: #fff;
+  border: 1px solid;
+  border-color: $colorBleue;
+  &:hover,
+  &.active,
+  &.active:hover {
+    color: #fff;
+    border: 1px solid;
+    border-color: $colorBleue;
+    background-color: $colorBleue;
+  }
+
+  &:disabled,
+  &.disabled {
+    color: #fff;
+    border: 1px solid;
+    border-color: $colorBleue;
+    background-color: transparent;
+  }
+}
+
+.btn-danger {
+  color: #fff;
+  border: 1px solid;
+  border-color: $colorRouge;
+  &:hover {
+    color: #fff;
+    border: 1px solid;
+    border-color: $colorRouge;
+    background-color: $colorRouge;
+  }
+}
+
+.btn-success {
+  color: #fff;
+  border: 1px solid;
+  border-color: $savecolor;
+  &:hover {
+    color: #fff;
+    border: 1px solid;
+    border-color: $savecolor;
+    background-color: $savecolor;
+  }
+  // &[disabled] {
+  //   color: $colorGris;
+  //   text-shadow: none;
+  //   background-color: transparent;
+  //   border-color: $savecolor;
+  // }
+  &.disabled {
+    color: $colorGris;
+    text-shadow: none;
+    background-color: transparent;
+    border-color: $colorGris;
+  }
+  &.active {
+    background: $savecolor !important;
+  }
+}
+
+.input-group-btn.crud {
+  .btn:disabled {
+    cursor: not-allowed;
+  }
+  .btn-success:not(.active) {
+    background: none;
+  }
+}
+
+.btn-default.disabled,
+.btn-default.disabled:hover {
+  color: $colorGris;
+  text-shadow: none;
+  background-color: transparent;
+}
+
+.prod,
+.prod:hover {
+  color: #fff;
+  background-color: $savecolor;
+  width: 80px;
+  border-color: $savecolor;
+  margin-bottom: 1px;
+}
+
+.preprod,
+.preprod:hover {
+  color: #fff;
+  background-color: $colorBleue;
+  width: 80px;
+  border-color: $colorBleue;
+  margin-bottom: 1px;
+}
+
+.experiments,
+.experiments:hover {
+  color: #fff;
+  background-color: $primaryColor;
+  width: 80px;
+  border-color: $primaryColor;
+  margin-bottom: 1px;
+}
+
+.refresh {
+  background-color: $fondBody;
+  border-color: $colorGris;
+  color: $colorGris;
+  background-image: none;
+  margin-left: 10px;
+  padding: 3px 5px 0px 5px;
+  text-shadow: none;
+}
+
+.btn-search {
+  margin-left: 10px;
+}
+
+.btn.open-all,
+.openbtn {
+  color: #fff;
+  :hover {
+    color: $colorGris;
+  }
+}
+
+.btn-group-xs > .btn {
+  padding: 0.25rem 0.4rem;
+  font-size: 0.875rem;
+  line-height: 0.875;
+  border-radius: 0.2rem;
+}
+
+.btn-breadcrumb {
+  display: block;
+}
+
+@media only screen and (max-width: $screen-sm) {
+  .updateConfig > .btn {
+    margin-bottom: 10px;
+  }
+
+  .btn-search {
+    margin-left: 0px;
+    margin-top: 10px;
+  }
+}

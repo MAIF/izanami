@@ -1,0 +1,21 @@
+
+.toast-error {
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0, .5);
+  }
+  
+  .toast-error button {
+    background-color: white;
+    color: red; 
+    border: 1px solid white;
+  }
+  
+  .toast-error button:hover {
+    background-color: white;
+    color: red;
+    border: 1px solid red;
+  }
+  
+  .toast-error i {
+    color: red;
+  }
+  

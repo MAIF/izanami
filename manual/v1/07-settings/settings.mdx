@@ -1,0 +1,248 @@
+---
+title: All the settings
+---
+
+::: note
+
+Izanami is written with play and akka. You can find additional configuration information here https://www.playframework.com/documentation/2.8.x/Configuration.
+
+:::
+
+::: warning
+Before deploying to production you MUST change the following values
+
+- `play.http.secret.key` or env. variable `APPLICATION_SECRET`: generate a strong secure random value
+- `izanami.filter.default.sharedKey` or env. variable `FILTER_CLAIM_SHAREDKEY`: generate a strong secure random value, without it, your instance will be vulnerable admin login from unexpected third parties
+- `izanami.filter.otoroshi.sharedKey` or env. variable `CLAIM_SHAREDKEY`: if you're using izanami behind otoroshi, please use the secret from otoroshi challenge token here
+
+:::
+
+## Plays settings
+
+| Config property                                 | Env variable                          | Description                                                                                                                                                    | Default value                                   |
+| ----------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `play.http.secret.key`                          | `APPLICATION_SECRET`                  | A token to sign cookies. generate a strong secure random value                                                                                                 | `izanamiSecret`                                 |
+| `play.http.context`                             | `APPLICATION_BASE_URL`                | The context used                                                                                                                                               | `/`                                             |
+| `play.server.http.port`                         | `HTTP_PORT`                           | The port used for HTTP exposition                                                                                                                              | `9000`                                          |
+| `play.server.http.address`                      | `HTTP_ADDRESS`                        | The interface address to bind to                                                                                                                               | `0.0.0.0`                                       |
+| `play.server.http.idleTimeout`                  | `HTTP_IDLE_TIMEOUT`                   | The idle timeout for an open connection                                                                                                                        | `null`                                          |
+| `play.server.https.port`                        | `HTTPS_PORT`                          | The port used for HTTPS exposition                                                                                                                             | `disabled`                                      |
+| `play.server.https.address`                     | `HTTPS_ADDRESS`                       | The interface address to bind to                                                                                                                               | `0.0.0.0`                                       |
+| `play.server.https.engineProvider`              | `HTTPS_SSL_ENGINE_PROVIDER`           | The SSL engine provider                                                                                                                                        | `play.core.server.ssl.DefaultSSLEngineProvider` |
+| `play.server.https.keyStore.path`               | `HTTPS_KEYSTORE_PATH`                 | The path to the keystore                                                                                                                                       | `null`                                          |
+| `play.server.https.keyStore.type`               | `HTTPS_KEYSTORE_TYPE`                 | The type of the keystore                                                                                                                                       | `JKS`                                           |
+| `play.server.https.keyStore.password`           | `HTTPS_KEYSTORE_PASSWORD`             | The password for the keystore                                                                                                                                  | `""`                                            |
+| `play.server.https.keyStore.algorithm`          | `HTTPS_KEYSTORE_ALGORITHM`            | The algorithm to use. If not set, uses the platform default algorithm                                                                                          | `null`                                          |
+| `play.server.https.trustStore.noCaVerification` | `HTTPS_TRUSTSTORE_NO_CA_VERIFICATION` | If true, does not do CA verification on client side certificates                                                                                               | `false`                                         |
+| `play.server.https.wantClientAuth`              | `HTTPS_WANT_CLIENT_AUTH`              | Whether JSSE want client auth mode should be used. The server will request a client certificate, but won't fail if one isn't provided                          | `false`                                         |
+| `play.server.https.needClientAuth`              | `HTTPS_NEED_CLIENT_AUTH`              | Whether JSSE need client auth mode should be used. The server will request a client certificate, and will fail and terminate the session if one isn't provided | `false`                                         |
+| `izanami.zoneId`                                | `ZONE_ID`                             | [The time-zone id](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/ZoneId.html)                                                         | `Europe/Paris`                                  |
+
+## Events
+
+Here, you can find settings about the event store configuration.
+
+| Config property                                       | Env variable                         | Description                                                                                               | Default value                                                                                                   |
+| ----------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `izanami.mode`                                        | `IZANAMI_MODE`                       | Use `dev` when developing. Could be `prod` or `dev`                                                       | `prod`                                                                                                          |
+| `izanami.events.store`                                | `IZANAMI_EVENT_STORE`                | Type of the event store. Could be `InMemory`, `Kafka`, `Redis`, `Distributed`.                            | `InMemory`                                                                                                      |
+| `izanami.events.distributed.topic`                    | `DISTRIBUTED_TOPIC`                  | Name of the topic when `izanami.events.store`=`Distributed`                                               | `izanami`                                                                                                       |
+| `izanami.events.redis.topic`                          | `REDIS_TOPIC`                        | Name of the topic when `izanami.events.store`=`Redis`                                                     | `izanami:events`                                                                                                |
+| `izanami.events.redis.backpressureBufferSize`         | `REDIS_BACKPRESSURE_BUFFER_SIZE`     | Size of buffer (of backpressure) between `Redis` event store and notification (SSE, WebHook and hook).    | `500`                                                                                                           |
+| `izanami.events.kafka.topic`                          | `KAFKA_TOPIC`                        | Name of the topic when `izanami.events.store`=`Kafka`                                                     | `izanami`                                                                                                       |
+| `izanami.events.kafka.backpressureBufferSize`         | `KAFKA_BACKPRESSURE_BUFFER_SIZE`     | Size of buffer (of backpressure) between `Kafka` event store and notification (SSE, WebHook and hook).    | `500`                                                                                                           |
+| `izanami.events.inmemory.backpressureBufferSize`      | `IN_MEMORY_BACKPRESSURE_BUFFER_SIZE` | Size of buffer (of backpressure) between `InMemory` event store and notification (SSE, WebHook and hook). | `500`                                                                                                           |
+| `izanami.cluster.seed-node-host`                      | `AKKA_CLUSTER SEED_NODE_HOST`        | The host of the seed used to form a cluster                                                               | `127.0.0.1`                                                                                                     |
+| `izanami.cluster.seed-node-port`                      | `AKKA_CLUSTER SEED_NODE_PORT`        | The port of the seed used to form a cluster                                                               | 2551                                                                                                            |
+| `izanami.cluster.akka.remote.netty.tcp.hostname`      | `AKKA_CLUSTER_HOST`                  | The host of the current node                                                                              | `127.0.0.1`                                                                                                     |
+| `izanami.cluster.akka.remote.netty.tcp.port`          | `AKKA_CLUSTER_PORT`                  | The port of the current node                                                                              | `127.0.0.1`                                                                                                     |
+| `izanami.cluster.akka.remote.netty.tcp.bind-hostname` | `AKKA_CLUSTER_HOST`                  | The internal host of the current node (eg docker)                                                         | `127.0.0.1`                                                                                                     |
+| `izanami.cluster.akka.remote.netty.tcp.bind-port`     | `AKKA_CLUSTER_BIND_PORT`             | The internal port of the current node (eg docker)                                                         | `${cluster.akka.remote.netty.tcp.port}`                                                                         |
+| `izanami.cluster.akka.cluster.seed-nodes`             | `AKKA_CLUSTER_SEED_NODES`            | An array of seeds                                                                                         | `["akka.tcp://"${cluster.system-name}"@"${izanami.cluster.seed-node-host}":"${izanami.cluster.seed-node-port}]` |
+
+@@@ note
+The distributed event store rely on akka cluster and akka distributed pub/sub. You can find more information here https://doc.akka.io/docs/akka/current/cluster-usage.html.  
+@@@
+
+## Db config
+
+Here, you can find the settings to configure the different data stores.
+
+| Config property                             | Env variable                         | Description                                                                                                        | Default value                                            |
+| ------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `izanami.db.default`                        | `IZANAMI_DATABASE`                   | Type of the default datastore. Could be `InMemory`, `LevelDb`, `Redis`, `Elastic`, `Postgresql`.                   | `LevelDb`                                                |
+| `izanami.db.leveldb.parentPath`             | `LEVEL_DB_PARENT_PATH`               | The root folder when data are stored by level db                                                                   | `target/leveldb`                                         |
+| `izanami.db.redis.host`                     | `REDIS_HOST`                         | The host of the redis server                                                                                       | `localhost`                                              |
+| `izanami.db.redis.port`                     | `REDIS_PORT`                         | The port of the redis server                                                                                       | 6379                                                     |
+| `izanami.db.redis.masterId`                 | `REDIS_MASTER_ID`                    | The id of the master in a sentinel context                                                                         | `redismaster`                                            |
+| `izanami.db.redis.password`                 | `REDIS_PASSWORD`                     | The password for the redis server                                                                                  |                                                          |
+| `izanami.db.redis.sentinels`                |                                      | An array of redis config for slaves. For example: `izanami.db.redis.sentinels=[{ host = localhost, port = 6380 }]` |                                                          |
+| `izanami.db.redis.databaseId`               | `REDIS_DATABASE_ID`                  | the id of the redis database.                                                                                      |                                                          |
+| `izanami.db.redis.tls`                      | `REDIS_TLS`                          | If TLS should be enabled for the Redis connection.                                                                 | false                                                    |
+| `izanami.db.redis.keyPass`                  | `REDIS_KEYPASS`                      | The password for ssl certificate                                                                                   |                                                          |
+| `izanami.db.redis.keystore`                 | `REDIS_KEYSTORE_LOCATION`            | The absolute location of the keystore if ssl is used                                                               |                                                          |
+| `izanami.db.redis.truststore`               | `REDIS_TRUSTSTORE_LOCATION`          | The absolute location of the truststore,if ssl is used                                                             |                                                          |
+| `izanami.db.mongo.url`                      | `MONGODB_ADDON_URI`                  | the url of the mongo database.                                                                                     |                                                          |
+| `izanami.db.kafka.host`                     | `KAFKA_HOST`                         | The host of the kafka server                                                                                       | localhost                                                |
+| `izanami.db.kafka.port`                     | `KAFKA_PORT`                         | The port of the kafka server                                                                                       | 9092                                                     |
+| `izanami.db.kafka.protocol`                 | `KAFKA_PROTOCOL`                     | Authentication protocol. Could be `SASL_SSL`, `SSL`.                                                               | `SSL`                                                    |
+| `izanami.db.kafka.servers`                  | `KAFKA_HOSTS_AND_PORTS`              | A string with host and port separated by ','                                                                       | `${izanami.db.kafka.host}":"${izanami.db.kafka.port}`    |
+| `izanami.db.kafka.keyPass`                  | `KAFKA_PASSWORD`                     | The password for ssl certificate                                                                                   |                                                          |
+| `izanami.db.kafka.keystore.location`        | `KAFKA_KEYSTORE_LOCATION`            | The absolute location of the keystore if ssl is used                                                               |                                                          |
+| `izanami.db.kafka.truststore.location`      | `KAFKA_TRUSTORE_LOCATION`            | The absolute location of the truststore,if ssl is used                                                             |                                                          |
+| `izanami.db.kafka.saslMechanism`            | `KAFKA_SASL_MECHANISM`               | The SASL mechanism                                                                                                 |                                                          |
+| `izanami.db.kafka.saslJaasConfig`           | `KAFKA_SASL_JAAS_CONFIG`             | The SASL Jaas configuration                                                                                        |                                                          |
+| `izanami.db.elastic.host`                   | `ELASTIC_HOST`                       | The host of the elastic server                                                                                     | `127.0.0.1`                                              |
+| `izanami.db.elastic.port`                   | `ELASTIC_PORT`                       | The port of the elastic server                                                                                     | 9200                                                     |
+| `izanami.db.elastic.scheme`                 | `ELASTIC_SCHEME`                     | The scheme used for the elastic server                                                                             | `http`                                                   |
+| `izanami.db.elastic.version`                | `ELASTIC_VERSION`                    | The version of the elastic server                                                                                  | `6`                                                      |
+| `izanami.db.elastic.user`                   | `ELASTIC_USER`                       | The user if elastic is secured                                                                                     |                                                          |
+| `izanami.db.elastic.password`               | `ELASTIC_PASSWORD`                   | The password if elastic is secured                                                                                 |                                                          |
+| `izanami.db.elastic.automaticRefresh`       |                                      | Force refresh on each insert, update or delete. For dev only                                                       | false                                                    |
+| `izanami.db.inMemoryWithDb.db`              | `IN_MEMORY_WITH_DB_DB`               | The underlying store behind the cache                                                                              | `LevelDB`                                                |
+| `izanami.db.inMemoryWithDb.pollingInterval` | `IN_MEMORY_WITH_DB_POLLING_INTERVAL` | The interval used to refresh the from the underlying store                                                         |                                                          |
+| `izanami.db.dynamo.tableName`               | `DYNAMO_TABLE_NAME`                  | The name of the AWS DynamoDB table                                                                                 | izanami                                                  |
+| `izanami.db.dynamo.eventsTableName`         | `DYNAMO_EVENTS_TABLE_NAME`           | The name of the AWS DynamoDB table for A/B testing events                                                          | izanami_experimentevents                                 |
+| `izanami.db.dynamo.region`                  | `DYNAMO_REGION`                      | The AWS region                                                                                                     | eu-west-1                                                |
+| `izanami.db.dynamo.host`                    | `DYNAMO_HOST`                        | The AWS host                                                                                                       | `"dynamodb."${izanami.db.dynamo.region}".amazonaws.com"` |
+| `izanami.db.dynamo.port`                    | `DYNAMO_PORT`                        | The AWS port, https is used as default scheme                                                                      | 443                                                      |
+| `izanami.db.dynamo.parallelism`             | `DYNAMO_PARRALLELISM`                | Max number of in flight requests from the AwsClient - must be a power of 2                                         | 32                                                       |
+| `izanami.db.dynamo.accessKey`               | `DYNAMO_ACCESS_KEY`                  | Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain     |                                                          |
+| `izanami.db.dynamo.secretKey`               | `DYNAMO_SECRET_KEY`                  | Optional Credentials. Used to define static credentials rather than use the DefaultAWSCredentialsProviderChain     |                                                          |
+| `izanami.db.postgresql.url`                 | `JDBC_DATABASE_URL`                  | The postgresql url                                                                                                 |                                                          |
+| `izanami.db.postgresql.username`            | `POSTGRESQL_USER`                    | The postgresql username                                                                                            |                                                          |
+| `izanami.db.postgresql.password`            | `POSTGRESQL_PASSWORD`                | The postgresql password                                                                                            |                                                          |
+| `izanami.db.postgresql.connectionPoolSize`  | `POSTGRESQL_CONNECTION_POOL_SIZE`    | The postgresql poolsize                                                                                            | 32                                                       |
+
+## Threads configuration
+
+| Config property                                                    | Env variable                | Description                                               | Default value |
+| ------------------------------------------------------------------ | --------------------------- | --------------------------------------------------------- | ------------- |
+| `izanami.script-dispatcher.thread-pool-executor.fixed-pool-size`   | `SCRIPT_EXECUTION_POOLSIZE` | The size of the threapool to execute scripts with nashorn | 32            |
+| `izanami.level-db-dispatcher.thread-pool-executor.fixed-pool-size` | `LEVEL_DB_POOLSIZE`         | The size of the threapool for leveldb blocking calls.     | 1             |
+
+## Filters
+
+Here, you can find the settings to configure the security filter.
+
+| Config property                                     | Env variable                                                                                                             | Description                                                                                                                                                                                                                                          | Default value           |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `izanami.filter.type`                               | `IZANAMI_FILTER_TYPE`                                                                                                    | The type of the http filter used for security and identification. Izanami provide first class support for Otoroshi reverse proxy so you can set to Otoroshi if you already work with that product. Could be `Default` or `Otoroshi`.                 | `Default`               |
+| `izanami.filter.otoroshi.allowedPaths`              | `OTOROSHI_FILTER_EXCLUSION`, `OTOROSHI_FILTER_EXCLUSION_1`, `OTOROSHI_FILTER_EXCLUSION_2`, `OTOROSHI_FILTER_EXCLUSION_3` | A list of endpoint that bypass Otoroshi's security filter. The env variable allow to add more than one exclusion                                                                                                                                     |                         |
+| `izanami.filter.otoroshi.sharedKey`                 | `CLAIM_SHAREDKEY`                                                                                                        | Shared key used to encrypt jwt token.                                                                                                                                                                                                                | `none`                  |
+| `izanami.filter.otoroshi.headerClaim`               | `FILTER_CLAIM_HEADER_NAME`                                                                                               | The name of the claim header                                                                                                                                                                                                                         | `Otoroshi-Claim`        |
+| `izanami.filter.otoroshi.headerRequestId`           | `FILTER_REQUEST_ID_HEADER_NAME`                                                                                          | The name of the requestId header                                                                                                                                                                                                                     | `Otoroshi-Request-Id`   |
+| `izanami.filter.otoroshi.headerGatewayState`        | `FILTER_GATEWAY_STATE HEADER_NAME`                                                                                       | The name of the state header                                                                                                                                                                                                                         | `Otoroshi-State`        |
+| `izanami.filter.otoroshi.headerGatewayStateResp`    | `FILTER_GATEWAY_STATE RESP_HEADER_NAME`                                                                                  | The name of the state resp header                                                                                                                                                                                                                    | `Otoroshi-State-Resp`   |
+| `izanami.filter.default.sharedKey`                  | `FILTER_CLAIM_SHAREDKEY`                                                                                                 | The shared key used to encrypt jwt token. It should be the same value between each Izanami nodes in case of a cluster. generate a strong secure random value, without it, your instance will be vulnerable admin login from unexpected third parties | `none`                  |
+| `izanami.filter.default.cookieClaim`                | `FILTER_COOKIE_NAME`                                                                                                     | The name of the cookie used to store the user session.                                                                                                                                                                                               | `Izanami`               |
+| `izanami.filter.default.issuer`                     | `FILTER_ISSUER`                                                                                                          | The issuer for jwt token                                                                                                                                                                                                                             | `Izanami`               |
+| `izanami.filter.default.apiKeys.headerClientId`     | `FILTER_CLAIM_HEADER_CLIENT_ID_NAME`                                                                                     | The name of the header for clientId                                                                                                                                                                                                                  | `Izanami-Client-Id`     |
+| `izanami.filter.default.apiKeys.headerClientSecret` | `FILTER_CLAIM_HEADER_CLIENT_SECRET_NAME`                                                                                 | The name of the header of clientSecret                                                                                                                                                                                                               | `Izanami-Client-Secret` |
+| `izanami.filter.default.allowedPaths`               | `FILTER_EXLUSION`, `FILTER_EXLUSION_1`, `FILTER_EXLUSION_2`, `FILTER_EXLUSION_3`                                         | A list of endpoint that pass the security filter. The env variable allow to add more than one exclusion                                                                                                                                              |                         |
+| `izanami.logout.url`                                | `LOGOUT_URL`                                                                                                             | The logout url                                                                                                                                                                                                                                       | `/api/logout`           |
+
+## Domains
+
+| Config property                                | Env variable                           | Description                                  | Default value             |
+| ---------------------------------------------- | -------------------------------------- | -------------------------------------------- | ------------------------- |
+| `izanami.config.db.type`                       | `CONFIG_DATABASE`                      | The db used to store configs                 | `${izanami.db.default}`   |
+| `izanami.config.db.conf.namespace`             | `CONFIG_NAMESPACE`                     | The namespace used for configs               | `izanami:configuration`   |
+| `izanami.features.db.type`                     | `FEATURE_DATABASE`                     | The db used to store features                | `${izanami.db.default}`   |
+| `izanami.features.db.conf.namespace`           | `FEATURE_NAMESPACE`                    | The namespace used for features              | `izanami:features`        |
+| `izanami.globalScript.db.type`                 | `SCRIPT_DATABASE`                      | The db used to store scripts                 | `${izanami.db.default}`   |
+| `izanami.globalScript.db.conf.namespace`       | `SCRIPT_NAMESPACE`                     | The namespace used for scripts               | `izanami:globalscripts`   |
+| `izanami.experiment.db.type`                   | `EXPERIMENT_DATABASE`                  | The db used to store experiments             | `${izanami.db.default}`   |
+| `izanami.experiment.db.conf.namespace`         | `EXPERIMENT_NAMESPACE`                 | The namespace used for experiments           | `izanami:experiment`      |
+| `izanami.variantBinding.db.type`               | `EXPERIMENT_VARIANT BINDING_DATABASE`  | The db used to store variant bindings        | `${izanami.db.default}`   |
+| `izanami.variantBinding.db.conf.namespace`     | `EXPERIMENT_VARIANT BINDING_NAMESPACE` | The namespace used for variant bindings      | `izanami:variantbinding`  |
+| `izanami.experimentEvent.db.type`              | `EXPERIMENT_EVENT DATABASE`            | The db used to store experiment events       | `${izanami.db.default}`   |
+| `izanami.experimentEvent.db.conf.namespace`    | `EXPERIMENT_EVENT NAMESPACE`           | The namespace used for experiment events     | `izanami:experimentevent` |
+| `izanami.webhook.db.type`                      | `WEBHOOK_DATABASE`                     | The db used to store webhooks                | `${izanami.db.default}`   |
+| `izanami.webhook.db.conf.namespace`            | `WEBHOOK_NAMESPACE`                    | The namespace used for webhooks              | `izanami:webhook`         |
+| `izanami.user.db.type`                         | `USER_DATABASE`                        | The db used to store users                   | `${izanami.db.default}`   |
+| `izanami.user.db.conf.namespace`               | `USER_NAMESPACE`                       | The namespace used for users                 | `izanami:user`            |
+| `izanami.user.initialize.userId`               | `INITIAL_USER_ID`                      | The login to use for the first connection    | `admin`                   |
+| `izanami.user.initialize.password`             | `INITIAL_USER_PASSWORD`                | The password to use for the first connection |                           |
+| `izanami.apikey.db.type`                       | `APIKEY_DATABASE`                      | The db used to store api keys                | `${izanami.db.default}`   |
+| `izanami.apikey.db.conf.namespace`             | `APIKEY_NAMESPACE`                     | The namespace used for api keys              | `izanami:apikey`          |
+| `izanami.apikey.initialize.clientId`           | `INITIAL_APIKEY_CLIENT_ID`             | A client id used from config                 |                           |
+| `izanami.apikey.initialize.clientSecret`       | `INITIAL_APIKEY_CLIENT_SECRET`         | A client secret used from config             |                           |
+| `izanami.apikey.initialize.authorizedPatterns` | `INITIAL_APIKEY_AUTHORIZED_PATTERN`    | A pattern used from config                   |                           |
+| `izanami.patch.db.type`                        | `PATCH_DATABASE`                       | The db used to store patchs                  | `${izanami.db.default}`   |
+| `izanami.patch.db.conf.namespace`              | `PATCH_NAMESPACE`                      | The namespace used for patchs                | `izanami:patchs`          |
+
+## Metrics
+
+| Config property                        | Env variable                     | Description                                                                                        | Default value                  |
+| -------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `izanami.metrics.verbose`              | `METRICS_VERBOSE`                | If true, additional metrics are provided (detailed about endpoint)                                 | `false`                        |
+| `izanami.metrics.includeCount`         | `METRICS_COUNT`                  | If true, the count for features, config, experiments, user, webhook will be visible in the metrics | `false`                        |
+| `izanami.metrics.refresh`              | `METRICS_COUNT_REFRESH_INTERVAL` | the refresh interval for count metrics (used by console and log)                                   | `5 minutes`                    |
+| `izanami.metrics.console.enabled`      | `METRICS_CONSOLE_ENABLED`        | If true, metrics are logged in the console                                                         | `false`                        |
+| `izanami.metrics.console.interval`     | `METRICS_CONSOLE_INTERVAL`       | interval of the logged metrics                                                                     | `5 minutes`                    |
+| `izanami.metrics.log.enabled`          | `METRICS_LOG_ENABLED`            | If true, metrics are logged with slf4j                                                             | `false`                        |
+| `izanami.metrics.log.interval`         | `METRICS_LOG_INTERVAL`           | interval of the logged metrics                                                                     | `5 minutes`                    |
+| `izanami.metrics.http.defaultFormat`   | `METRICS_HTTP_FORMAT`            | The default format for http endpoint: json or prometheus                                           | `json`                         |
+| `izanami.metrics.kafka.enabled`        | `METRICS_KAFKA_ENABLED`          | If true, metrics are logged in kafka                                                               | `false`                        |
+| `izanami.metrics.kafka.topic`          | `METRICS_KAFKA_TOPIC`            | The kafka topic                                                                                    | `izanami-metrics`              |
+| `izanami.metrics.kafka.pushInterval`   | `METRICS_KAFKA_INTERVAL`         | The logging rate                                                                                   | `30 seconds`                   |
+| `izanami.metrics.kafka.format`         | `METRICS_KAFKA_FORMAT`           | The namespace used for experiments                                                                 | `json`                         |
+| `izanami.metrics.elastic.enabled`      | `METRICS_ELASTIC_ENABLED`        | If true, metrics are logged in elastic                                                             | `false`                        |
+| `izanami.metrics.elastic.index`        | `METRICS_ELASTIC_INDEX`          | The namespace used for variant bindings                                                            | `'izanami-metrics-'yyyy-MM-dd` |
+| `izanami.metrics.elastic.pushInterval` | `METRICS_ELASTIC_INTERVAL`       | The db used to store experiment events                                                             | `30 seconds`                   |
+
+## Oauth2
+
+| Config property                                                 | Env variable                           | Description                                                                      |
+| --------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------- |
+| `izanami.oauth2.enabled`                                        | `OAUTH2_ENABLED`                       | Enable this config                                                               |
+| `izanami.oauth2.authorizeUrl`                                   | `OAUTH2_AUTHORIZE_URL`                 | Oauth2 authorization url                                                         |
+| `izanami.oauth2.tokenUrl`                                       | `OAUTH2_TOKEN_URL`                     | Oauth2 token url                                                                 |
+| `izanami.oauth2.userInfoUrl`                                    | `OAUTH2_USER_INFO_URL`                 | Oauth2 user info url                                                             |
+| `izanami.oauth2.introspectionUrl`                               | `OAUTH2_INTROSPECTION_URL`             | Oauth2 introspection url                                                         |
+| `izanami.oauth2.loginUrl`                                       | `OAUTH2_LOGIN_URL`                     | Oauth2 login url                                                                 |
+| `izanami.oauth2.logoutUrl`                                      | `OAUTH2_LOGOUT_URL`                    | Oauth2 logout url                                                                |
+| `izanami.oauth2.clientId`                                       | `OAUTH2_CLIENT_ID`                     | Oauth2 client id                                                                 |
+| `izanami.oauth2.clientSecret`                                   | `OAUTH2_CLIENT_SECRET`                 | Oauth2 secret if provided                                                        |
+| `izanami.oauth2.scope`                                          | `OAUTH2_SCOPE`                         | Oauth2 scope of the requested user info                                          |
+| `izanami.oauth2.readProfileFromToken`                           | `OAUTH2_READ_FROM_TOKEN`               | Should the user be read from token                                               |
+| `izanami.oauth2.useCookie`                                      | `OAUTH2_USE_COOKIE`                    | Pass desc as query param                                                         |
+| `izanami.oauth2.useJson`                                        | `OAUTH2_USE_JSON`                      | Use json or form to post data to the server                                      |
+| `izanami.oauth2.idField`                                        | `OAUTH2_ID_FIELD`                      | the path in the token to access the user id field (required field)               |
+| `izanami.oauth2.accessTokenField`                               | `OAUTH2_ACCESS_TOKEN_FIELD`            | the path in the token to access the access token field (required field)          |
+| `izanami.oauth2.nameField`                                      | `OAUTH2_NAME_FIELD`                    | the path in the token to access the user name field (required field)             |
+| `izanami.oauth2.emailField`                                     | `OAUTH2_EMAIL_FIELD`                   | the path in the token to access the user email field (optional field)            |
+| `izanami.oauth2.adminField`                                     | `OAUTH2_ADMIN_FIELD`                   | the path in the token to access the user admin field (a boolean, false if empty) |
+| `izanami.oauth2.authorizedPatternField`                         | `OAUTH2_AUTHORIZED_PATTERN_FIELD`      | the path in the token to access the user authorizedPatternField field            |
+| `izanami.oauth2.defaultPatterns`                                | `OAUTH2_DEFAULT_PATTERN`               | the default patterns if authorizedPatternField is missing                        |
+| `izanami.oauth2.izanamiManagedUser`                             | `OAUTH2_IZANAMI_MANAGED_USERS`         | true to manage Oauth users in Izanami                                            |
+| `izanami.oauth2.admins`                                         | `OAUTH2_ADMINS_1` to `OAUTH2_ADMINS_5` | ids of users that are admin                                                      |
+| `izanami.oauth2.jwtVerifier.enabled`                            | `OAUTH2_JWT_VERIFIER_ENABLED`          | Enable jwt verification                                                          |
+| `izanami.oauth2.jwtVerifier.type`                               | `OAUTH2_JWT_VERIFIER_TYPE`             | One of `hs`, `es`, `rsa`, `jwks`                                                 |
+| `izanami.oauth2.jwtVerifier.size`                               | `OAUTH2_JWT_VERIFIER_RSA_SIZE`         | Size of rsa `256`, `384`, `512`s                                                 |
+| `izanami.oauth2.jwtVerifier.size`                               | `OAUTH2_JWT_VERIFIER_HS_SIZE`          | Size of hs `256`, `384`, `512`                                                   |
+| `izanami.oauth2.jwtVerifier.size`                               | `OAUTH2_JWT_VERIFIER_ES_SIZE`          | Size of es `256`, `384`, `512`                                                   |
+| `izanami.oauth2.jwtVerifier.secret`                             | `OAUTH2_JWT_VERIFIER_HS_SECRET`        | Hs secret                                                                        |
+| `izanami.oauth2.jwtVerifier.publicKey`                          | `OAUTH2_JWT_VERIFIER_RSA_PUBLIC_KEY`   | Rsa public key                                                                   |
+| `izanami.oauth2.jwtVerifier.publicKey`                          | `OAUTH2_JWT_VERIFIER_ES_PUBLIC_KEY`    | ES public key                                                                    |
+| `izanami.oauth2.jwtVerifier.privateKey`                         | `OAUTH2_JWT_VERIFIER_RSA_PRIVATE_KEY`  | RSA private key                                                                  |
+| `izanami.oauth2.jwtVerifier.privateKey`                         | `OAUTH2_JWT_VERIFIER_ES_PRIVATE_KEY`   | ES private key                                                                   |
+| `izanami.oauth2.jwtVerifier.url`                                | `OAUTH2_JWT_VERIFIER_JWKS_URL`         | JWKS url                                                                         |
+| `izanami.oauth2.jwtVerifier.headers`                            | `OAUTH2_JWT_VERIFIER_JWKS_HEADERS`     | JWKS headers                                                                     |
+| `izanami.oauth2.jwtVerifier.timeout`                            | `OAUTH2_JWT_VERIFIER_JWKS_TIMEOUT`     | JWKS timeout call                                                                |
+| `izanami.oauth2.mtls.enabled`                                   | `OAUTH2_MTLS_ENABLED`                  | Enable mtls authentication                                                       |
+| `izanami.oauth2.mtls.ssl-config.trustManager.stores.0.path`     | `OAUTH2_TRUSTSTORE_PATH`               | Path to store                                                                    |
+| `izanami.oauth2.mtls.ssl-config.trustManager.stores.0.type`     | `OAUTH2_TRUSTSTORE_TYPE`               | Type of the store `PEM`, `JKS`, `PKCS12`                                         |
+| `izanami.oauth2.mtls.ssl-config.trustManager.stores.0.password` | `OAUTH2_TRUSTSTORE_PASSWORD`           | The password                                                                     |
+| `izanami.oauth2.mtls.ssl-config.keyManager.stores.0.path`       | `OAUTH2_KEYSTORE_PATH`                 | Path to store                                                                    |
+| `izanami.oauth2.mtls.ssl-config.keyManager.stores.0.type`       | `OAUTH2_KEYSTORE_TYPE`                 | Type of the store `PEM`, `JKS`, `PKCS12`                                         |
+| `izanami.oauth2.mtls.ssl-config.keyManager.stores.0.password`   | `OAUTH2_KEYSTORE_PASSWORD`             | The password                                                                     |
+
+You can find more option about the `ssl-config` part on this link: https://lightbend.github.io/ssl-config/index.html.
+
+## UI
+
+| Config property              | Env variable                 | Description                              |
+| ---------------------------- | ---------------------------- | ---------------------------------------- |
+| `izanami.confirmationDialog` | `IZANAMI_CONFIRMATIONDIALOG` | Ask confirmation before update a feature |

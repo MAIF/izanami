@@ -1,0 +1,200 @@
+---
+title: Get started
+---
+
+import { Note } from "@site/src/components/Note";
+import emptyLandingPage from "@site/static/img/screenshots/gettingstarted/empty-landing-page.png";
+import tenanForm from "@site/static/img/screenshots/gettingstarted/tenant-form.png";
+import firstTenant from "@site/static/img/screenshots/gettingstarted/first-tenant.png";
+import projectForm from "@site/static/img/screenshots/gettingstarted/project-form.png";
+import firstProject from "@site/static/img/screenshots/gettingstarted/first-project.png";
+import featureForm from "@site/static/img/screenshots/gettingstarted/feature-form.png";
+import firstFeature from "@site/static/img/screenshots/gettingstarted/first-feature.png";
+import testMenu from "@site/static/img/screenshots/gettingstarted/test-menu.png";
+import testForm from "@site/static/img/screenshots/gettingstarted/test-form.png";
+import featureResult from "@site/static/img/screenshots/gettingstarted/feature-result.png";
+import keyScreen from "@site/static/img/screenshots/gettingstarted/key-screen.png";
+import keyForm from "@site/static/img/screenshots/gettingstarted/key-form.png";
+import keySecret from "@site/static/img/screenshots/gettingstarted/key-secret.png";
+import urlScreen from "@site/static/img/screenshots/gettingstarted/url-screen.png";
+import Curl from "@site/static/code/curl.md";
+
+# Get started
+
+This guide will help you to:
+
+1. Get your first Izanami instance up and running
+2. Creating your first feature
+3. Requesting features through HTTP
+
+To cover more advanced topics, either read about [core concepts](../concepts) or [our guides](../guides/).
+
+## Instantiate Izanami locally
+
+There are several ways to start Izanami.
+
+### Using docker
+
+One solution si to run a postgres DB separately (change `IZANAMI_PG_URI` to match your database setting).
+
+```sh
+docker run --env IZANAMI_PG_URI=postgresql://postgres:postgres@host.docker.internal:5432/postgres -p 9000:9000 izanami
+```
+
+Alternatively, you can run following docker-compose file
+
+```yml
+# Use postgres/example user/password credentials
+version: '3.1'
+
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 5432:5432
+  izanami:
+    image: maif/izanami:2.0.0
+    environment:
+      IZANAMI_PG_URI: postgresql://postgres:postgres@host.docker.internal:5432/postgres
+    ports:
+      - 9000:9000
+```
+
+### Using Java
+
+You'll need to run a postgres database to start Izanami. Replace `app.pg.uri` with your database values.
+
+```sh
+java -jar \
+  -Dapp.pg.uri=postgresql://postgres:postgres@localhost:5432/postgres \
+  izanami.jar
+```
+
+## Your first feature
+
+### Creating tenant and project
+
+Before creating a feature, you need to create a tenant and a project.
+
+These two organizations levels will help you to keep thing organized
+
+When login in for the first time, Izanami will ask you to create a tenant.
+
+<img src={emptyLandingPage} />
+
+When clicking this button, Izanami will display tenant creation form, tenant name can contain:
+
+- lowercase letters
+- numbers
+- `-` and `_` characters
+
+<img src={tenanForm} />
+
+Once tenant is created, Izanami redirects you its page, and indicates that there is no project for this tenant yet.
+
+<img src={firstTenant} />
+
+On this screen there are two choices, we can either create a new project from scratch or import data, for this guide we will create a new project.
+If you're interested in importing data, check the [data importing guide](../guides/import-from-v1).
+
+After clicking the creation button, a form is displayed. Project name can contain following symbols :
+
+- letters (uppercase or lowercase)
+- numbers
+- `-` and `_` characters
+
+<img src={projectForm} />
+
+After validating this form, Izanami once again redirects you, this time on the new project page.
+
+<img src={firstProject} />
+
+### Create your first feature
+
+Now that we have a project, let's create our first feature. Just click on the "Create new feature" button.
+
+In this form, feature name can contain following symbols:
+
+- letters (uppercase or lowercase)
+- numbers
+- `-`, `_` and `:` characters
+
+For now, we'll keep feature as simple as possible: feature will be either active or inactive for everyone.
+
+Check "Enabled" checkbox if you want your feature to be active, let it unchecked otherwise.
+
+<img src={featureForm} />
+
+After saving this new feature, our project doesn't look that empty anymore.
+
+<img src={firstFeature} />
+
+### Test your feature locally
+
+Izanami allows to test feature from backoffice. Click on action icon at the end of your feature row.
+
+<img src={testMenu} />
+
+Now click on "Test Feature" item to display test form.
+
+<img src={testForm} />
+
+This form allows to specify several query parameters, but we don't need it right now, just click on the test button.
+
+A result textbox will appear indicating if feature is currently active or not.
+
+<img src={featureResult} />
+
+## Querying your feature
+
+To query feature state from external application, we'll need to create a client key.
+
+<Note>We recommand to create one key by client application</Note>
+
+### Creating an API key
+
+First let's go to the API key screen, click on "Keys" entry of left menu.
+
+<img src={keyScreen} />
+
+Click on "Create new key" to display key creation form. Key name can contain following symbols:
+
+- letters (uppercase or lowercase)
+- numbers
+- `-` and `_` characters
+
+You'll also need to select allowed projects in select. Alternatively, you can check "admin" checkbox.
+
+<Note>Admin keys have right on all tenant projects</Note>
+
+<img src={keyForm} />
+
+Once your key is created, a popup will display associated client id and secret.
+
+<img src={keySecret} />
+
+### Retrieving request URL
+
+To retrieve feature call URL, you'll need to get back to your project.
+To do this click on "Projects" item on left menu, and then click on your project.
+
+Once you are back on your project screen, click on the link icon on your feature row.
+
+<img src={urlScreen} />
+
+Click the "copy" button to copy feature URL.
+
+<Note>
+  Izanami is using technical ID in URL. The reason it's not using feature name
+  is to allow changing feature names without breaking client calls
+</Note>
+
+### Requesting using curl
+
+You've got everything you need to query your feature from curl.
+
+<Curl />

@@ -1,0 +1,121 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# https://www.playframework.com/documentation/latest/ScalaRouting
+# ~~~~
+
+# Administration endpoints
+POST          /api/admin/tenants                                                                   fr.maif.izanami.web.TenantController.createTenant()
+PUT           /api/admin/tenants/:name                                                             fr.maif.izanami.web.TenantController.updateTenant(name: String)
+GET           /api/admin/tenants                                                                   fr.maif.izanami.web.TenantController.readTenants(right: Option[fr.maif.izanami.models.RightLevels.RightLevel])
+GET           /api/admin/tenants/:name                                                             fr.maif.izanami.web.TenantController.readTenant(name: String)
+DELETE        /api/admin/tenants/:name                                                             fr.maif.izanami.web.TenantController.deleteTenant(name: String)
+
+POST          /api/admin/tenants/:tenant/contexts/*parents                                         fr.maif.izanami.web.FeatureContextController.createGlobalSubContext(tenant: String, parents: fr.maif.izanami.web.FeatureContextPath)
+POST          /api/admin/tenants/:tenant/contexts                                                  fr.maif.izanami.web.FeatureContextController.createGlobalRootSubContext(tenant: String)
+GET           /api/admin/tenants/:tenant/contexts                                                  fr.maif.izanami.web.FeatureContextController.readGlobalContexts(tenant: String, all: Boolean ?= false)
+DELETE        /api/admin/tenants/:tenant/contexts/*context                                         fr.maif.izanami.web.FeatureContextController.deleteGlobalFeatureContext(tenant: String, context: fr.maif.izanami.web.FeatureContextPath)
+
+POST          /api/admin/tenants/:tenant/projects                                                  fr.maif.izanami.web.ProjectController.createProject(tenant: String)
+PUT           /api/admin/tenants/:tenant/projects/:project                                         fr.maif.izanami.web.ProjectController.updateProject(tenant: String, project: String)
+GET           /api/admin/tenants/:tenant/projects                                                  fr.maif.izanami.web.ProjectController.readProjects(tenant: String)
+GET           /api/admin/tenants/:tenant/projects/:project                                         fr.maif.izanami.web.ProjectController.readProject(tenant: String, project: String)
+DELETE        /api/admin/tenants/:tenant/projects/:project                                         fr.maif.izanami.web.ProjectController.deleteProject(tenant: String, project: String)
+
+POST          /api/admin/tenants/:tenant/projects/:project/features                                fr.maif.izanami.web.FeatureController.createFeature(tenant: String, project: String)
+PUT           /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.updateFeature(tenant: String, id: String)
+DELETE        /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.deleteFeature(tenant: String, id: String)
+GET           /api/admin/tenants/:tenant/features                                                  fr.maif.izanami.web.FeatureController.searchFeatures(tenant: String, tag: String ?= "")
+PATCH         /api/admin/tenants/:tenant/features                                                  fr.maif.izanami.web.FeatureController.patchFeatures(tenant: String)
+GET           /api/admin/tenants/:tenant/features/_test                                            fr.maif.izanami.web.FeatureController.testFeaturesForContext(tenant: String, user: String ?= "", date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
+POST          /api/admin/tenants/:tenant/test                                                      fr.maif.izanami.web.FeatureController.testFeature(tenant: String, user: String ?= "", date: java.time.Instant)
+GET           /api/admin/tenants/:tenant/features/:id/test/*context                                fr.maif.izanami.web.FeatureController.testExistingFeature(tenant: String, context: fr.maif.izanami.web.FeatureContextPath, id: String, user: String ?= "", date: java.time.Instant)
+GET           /api/admin/tenants/:tenant/features/:id/test                                         fr.maif.izanami.web.FeatureController.testExistingFeatureWithoutContext(tenant: String, id: String, user: String ?= "", date: java.time.Instant)
+
+
+POST          /api/admin/tenants/:tenant/tags                                                      fr.maif.izanami.web.TagController.createTag(tenant: String)
+GET           /api/admin/tenants/:tenant/tags/:name                                                fr.maif.izanami.web.TagController.readTag(tenant: String, name: String)
+DELETE        /api/admin/tenants/:tenant/tags/:name                                                fr.maif.izanami.web.TagController.deleteTag(tenant: String, name: String)
+GET           /api/admin/tenants/:tenant/tags                                                      fr.maif.izanami.web.TagController.readTags(tenant: String)
+
+POST          /api/admin/tenants/:tenant/keys                                                      fr.maif.izanami.web.ApiKeyController.createApiKey(tenant: String)
+GET           /api/admin/tenants/:tenant/keys                                                      fr.maif.izanami.web.ApiKeyController.readApiKey(tenant: String)
+DELETE        /api/admin/tenants/:tenant/keys/:name                                                fr.maif.izanami.web.ApiKeyController.deleteApiKey(tenant: String, name: String)
+PUT           /api/admin/tenants/:tenant/keys/:name                                                fr.maif.izanami.web.ApiKeyController.updateApiKey(tenant: String, name: String)
+
+
+POST          /api/admin/tenants/:tenant/projects/:project/contexts                                fr.maif.izanami.web.FeatureContextController.createFeatureContext(tenant: String, project: String)
+PUT           /api/admin/tenants/:tenant/projects/:project/contexts/*parents/features/:name        fr.maif.izanami.web.FeatureContextController.createFeatureStrategy(tenant: String, project: String, parents: fr.maif.izanami.web.FeatureContextPath, name: String)
+DELETE        /api/admin/tenants/:tenant/projects/:project/contexts/*parents/features/:name        fr.maif.izanami.web.FeatureContextController.deleteFeatureStrategy(tenant: String, project: String, parents: fr.maif.izanami.web.FeatureContextPath, name: String)
+POST          /api/admin/tenants/:tenant/projects/:project/contexts/*parents                       fr.maif.izanami.web.FeatureContextController.createSubContext(tenant: String, project: String, parents: fr.maif.izanami.web.FeatureContextPath)
+DELETE        /api/admin/tenants/:tenant/projects/:project/contexts/*context                       fr.maif.izanami.web.FeatureContextController.deleteFeatureContext(tenant: String, project: String, context: fr.maif.izanami.web.FeatureContextPath)
+
+GET           /api/admin/tenants/:tenant/projects/:project/contexts                                fr.maif.izanami.web.FeatureContextController.readFeatureContexts(tenant: String, project: String)
+
+GET           /api/admin/users/search                                                              fr.maif.izanami.web.UserController.searchUsers(query: String, count: Integer)
+POST          /api/admin/tenants/:tenant/projects/:project/users                                   fr.maif.izanami.web.UserController.inviteUsersToProject(tenant: String, project: String)
+POST          /api/admin/tenants/:tenant/users                                                     fr.maif.izanami.web.UserController.inviteUsersToTenant(tenant: String)
+GET           /api/admin/users/rights                                                              fr.maif.izanami.web.UserController.readRights()
+POST          /api/admin/password/_reset                                                           fr.maif.izanami.web.UserController.resetPassword()
+POST          /api/admin/password/_reinitialize                                                    fr.maif.izanami.web.UserController.reinitializePassword()
+DELETE        /api/admin/users/:user                                                               fr.maif.izanami.web.UserController.deleteUser(user: String)
+GET           /api/admin/users/:user                                                               fr.maif.izanami.web.UserController.readUser(user: String)
+GET           /api/admin/tenants/:tenant/users                                                     fr.maif.izanami.web.UserController.readUsersForTenant(tenant: String)
+GET           /api/admin/tenants/:tenant/projects/:project/users                                   fr.maif.izanami.web.UserController.readUsersForProject(tenant: String, project: String)
+PUT           /api/admin/tenants/:tenant/projects/:project/users/:user/rights                      fr.maif.izanami.web.UserController.updateUserRightsForProject(tenant: String, project: String, user: String)
+GET           /api/admin/:tenant/users/:user                                                       fr.maif.izanami.web.UserController.readUserForTenant(tenant: String, user: String)
+PUT           /api/admin/:tenant/users/:user/rights                                                fr.maif.izanami.web.UserController.updateUserRightsForTenant(tenant: String, user: String)
+PUT           /api/admin/users/:user/rights                                                        fr.maif.izanami.web.UserController.updateUserRights(user: String)
+PUT           /api/admin/users/:user/password                                                      fr.maif.izanami.web.UserController.updateUserPassword(user: String)
+PUT           /api/admin/users/:user                                                               fr.maif.izanami.web.UserController.updateUser(user: String)
+GET           /api/admin/users                                                                     fr.maif.izanami.web.UserController.readUsers()
+POST          /api/admin/users                                                                     fr.maif.izanami.web.UserController.createUser()
+POST          /api/admin/invitation                                                                fr.maif.izanami.web.UserController.sendInvitation()
+POST          /api/admin/login                                                                     fr.maif.izanami.web.LoginController.login(rights: Boolean ?= false)
+POST          /api/admin/logout                                                                    fr.maif.izanami.web.LoginController.logout()
+GET           /api/admin/openid-connect                                                            fr.maif.izanami.web.LoginController.openIdConnect()
+POST          /api/admin/openid-connect-callback                                                   fr.maif.izanami.web.LoginController.openIdCodeReturn()
+
+PUT           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.updateConfiguration()
+GET           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.readConfiguration()
+GET           /api/admin/exposition                                                                fr.maif.izanami.web.ConfigurationController.readExpositionUrl()
+GET           /api/admin/integrations                                                              fr.maif.izanami.web.ConfigurationController.availableIntegrations()
+GET           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.readMailerConfiguration(id: String)
+PUT           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.updateMailerConfiguration(id: String)
+
+GET           /api/admin/plugins                                                                   fr.maif.izanami.web.PluginController.wasmFiles()
+GET           /api/admin/tenants/:tenant/local-scripts                                             fr.maif.izanami.web.PluginController.localScripts(tenant: String, features: Boolean ?= false)
+PUT           /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.updateScript(tenant: String, script: String)
+DELETE        /api/admin/local-scripts/_cache                                                      fr.maif.izanami.web.PluginController.clearWasmCache()
+DELETE        /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.deleteScript(tenant: String, script: String)
+
+POST          /api/admin/tenants/:tenant/_import                                                   fr.maif.izanami.web.ImportController.importData(tenant: String, conflict: String, timezone: String, deduceProject: Boolean, create: Option[Boolean], project: Option[String], projectPartSize: Option[Int], inlineScript: Option[Boolean])
+GET           /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.readImportStatus(tenant: String, id: String)
+DELETE        /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.deleteImportStatus(tenant: String, id: String)
+
+GET           /api/admin/stats                                                                     fr.maif.izanami.web.ConfigurationController.readStats()
+
+# Client application endpoints
+GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
+POST          /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
+GET           /api/v2/features                                                                     fr.maif.izanami.web.FeatureController.evaluateFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
+POST          /api/v2/features                                                                     fr.maif.izanami.web.FeatureController.evaluateFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
+
+# V1 compatibility endpoints
+
+GET           /api/features/:pattern/check                                                         fr.maif.izanami.web.LegacyController.legacyFeature(pattern: String)
+POST          /api/features/:pattern/check                                                         fr.maif.izanami.web.LegacyController.legacyFeature(pattern: String)
+GET           /api/features                                                                        fr.maif.izanami.web.LegacyController.legacyFeatures(pattern: String, active: Boolean, page: Int, pageSize: Int)
+GET           /api/events                                                                          fr.maif.izanami.web.EventController.events(pattern: String ?= "*", domains: String ?= "")
+GET           /api/_health                                                                         fr.maif.izanami.web.LegacyController.healthcheck()
+
+# Frontend endpoint
+# Serve index page from public directory
+GET     /                           fr.maif.izanami.web.FrontendController.index()
+# Serve static assets under public directory
+GET     /*file                      fr.maif.izanami.web.FrontendController.assetOrDefault(file)
+#GET           /                                                                                    controllers.Assets.at(path="/public", file="index.html")
+#GET           /*file                                                                               controllers.Assets.versioned(path="/public", file: Asset)
+#GET           /*route                                                                              controllers.Assets.at(path="/public", file="index.html")
+
+#OPTIONS / fr.maif.izanami.web.FrontendController.rootOptions
+#OPTIONS /*url fr.maif.izanami.web.FrontendController.options(url: String)

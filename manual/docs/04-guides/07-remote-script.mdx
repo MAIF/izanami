@@ -1,0 +1,66 @@
+---
+title: Remote script features
+---
+
+import { Note } from "@site/src/components/Note";
+
+import pluginTemplate from "@site/static/img/screenshots/remote-wasmo/plugin-template-selection.png";
+import pluginName from "@site/static/img/screenshots/remote-wasmo/plugin-name-selection.png";
+import pluginFormFilled from "@site/static/img/screenshots/remote-wasmo/plugin-form-filled.png";
+import pluginBuilded from "@site/static/img/screenshots/remote-wasmo/plugin-builded.png";
+import wasmoPluginFilled from "@site/static/img/screenshots/remote-wasmo/plugin-filled.png";
+import mobileActive from "@site/static/img/screenshots/remote-wasmo/mobile-active.png";
+import prodMobileActive from "@site/static/img/screenshots/remote-wasmo/prod-mobile-active.png";
+import prodInactive from "@site/static/img/screenshots/remote-wasmo/prod-inactive.png";
+
+To use remote script feature (in opposition to local script features, [that we've seen previously](./06-local-scripts.mdx)), you'll need to instantiate WASMO in alongside Izanami.
+
+Moreover, you'll need to [set up Izanami connection to WASMO](./configuration#wasmo).
+
+Using remote WASMO instance allows leveraging its capabilities regarding script editions and lifecycle.
+Of course, this implies to instantiate and supervise an additional application.
+
+First, let's create our plugin in WASMO, for this example, we will create an Izanami js plugin.
+
+<img src={pluginTemplate} />
+
+Let's name it `mobile`.
+
+<img src={pluginName} />
+
+We'll one again create a script that returns `true` if `mobile` is one of request contexts, and `false` otherwise. Let's paste following code in WASMO editor :
+
+```js
+export function execute() {
+  let input = JSON.parse(Host.inputString());
+  Host.outputString(
+    JSON.stringify({
+      active: input.executionContext.includes("mobile"),
+    })
+  );
+
+  return 0;
+}
+```
+
+<img src={wasmoPluginFilled} />
+
+Then click the build button (top right) to build our `mobile` script.
+
+<img src={pluginBuilded} />
+
+Now let's get back to Izanami and create a new WASM feature. This time we'll choose to create a `WASMO` feature.
+
+<img src={pluginFormFilled} />
+
+Once again, let's test our feature, it should be active for `mobile` context.
+
+<img src={mobileActive} />
+
+It should also be active for `prod/mobile` subcontext.
+
+<img src={prodMobileActive} />
+
+And of course it should be inactive for `prod` context.
+
+<img src={prodInactive} />

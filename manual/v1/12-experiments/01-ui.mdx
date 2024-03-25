@@ -1,0 +1,55 @@
+---
+title: The UI
+---
+
+import all from "@site/static/v1/img/experiments/all.png";
+import experiment from "@site/static/v1/img/experiments/experiment.png";
+import explorer from "@site/static/v1/img/experiments/explorer.png";
+import results from "@site/static/v1/img/experiments/results.png";
+import expUploadDownload from "@site/static/v1/img/exp-upload-download.png";
+
+You can access to the experiments clicking "experiments" on the left menu.
+
+<img src={all} width="100%" />
+
+You can then
+
+- Search using a pattern on experiment key
+- add a experiment
+- update a experiment
+- delete a experiment
+
+If you're admin, you can also
+
+- Download experiments
+- Upload experiments
+
+## Edit a experiment
+
+Add or Update an experiment is really simple on the UI.
+
+<img src={experiment} width="80%" />
+
+## Evaluate experiments
+
+The explorer allows you to find which variant is associated to a user:
+
+<img src={explorer} width="100%" />
+
+In this example, we've search experiments filtering on pattern `izanami:*` and for the user `ragnar.lodbrock@gmail.com`.
+
+The variant associated to this user is the A variant.
+
+## Consult the results
+
+You can consult which is the winning variant clicking the `See report` button.
+
+<img src={results} width="100%" />
+
+## Download and Upload
+
+If you're admin you have the right to download or upload.
+
+Because experiments are stored into multiple buckets, there is 3 files to download or upload to get all the datas.
+
+<img src={expUploadDownload} width="50%" />

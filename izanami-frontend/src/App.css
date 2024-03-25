@@ -1,0 +1,54 @@
+.col.sortable {
+  cursor: pointer;
+}
+
+.table-filter {
+  max-width: 150px;
+  width: 100%;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+header .nav-link {
+  display: inline;
+}
+
+.openid-separator {
+  display: flex;
+  align-items: center;
+}
+
+.openid-separator::before,
+.openid-separator::after {
+  display: inline-flex;
+  content: "";
+  border-top: 0.1rem solid rgba(221, 221, 221, 0.25);
+  flex: 1;
+  margin: 0 12px;
+}
+
+.feature-separator {
+  text-align: center;
+  font-weight: bold;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.error-message {
+  color: red;
+}
+
+.fieldset-form fieldset {
+  background-color: #535352;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+/*.fieldset-form fieldset:nth-of-type(2n) {
+  background-color: #414140;
+}*/

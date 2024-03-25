@@ -1,0 +1,133 @@
+---
+title: Error handling
+---
+
+import { Note } from "@site/src/components/Note";
+import ErrorStrategySchema from "@site/static/img/error-strategy-decision-tree.excalidraw.svg";
+
+## Fallback on last known strategy
+
+Sometimes client encounter an error while fetching feature from remote Izanami.
+
+In this scenario, client will first try to compute activation locally as a fallback. This will happen even if cache is disabled.
+
+You can however disable this behavior :
+
+```java
+IzanamiClient.newBuilder(
+    IzanamiConnectionInformation
+      .connectionInformation()
+      .withUrl("<REMOTE_IZANAMI_URL>/api")
+      .withClientId("<YOUR_KEY_CLIENT_ID>")
+      .withClientSecret("<YOUR_KEY_CLIENT_SECRET>")
+  )
+  .withErrorStrategy(
+    failStrategy()
+      .fallbackOnLastKnownStrategy(false) // disable local computation based on last known state in case of failure
+  )
+  .build();
+```
+
+## Error strategies
+
+If fallback on last known strategy is disabled or if it can't be done (for script feature or never requested features), client will use an error strategy to decide what should be returned.
+
+There are 4 built-in error strategies :
+
+- **NullValue** : client will value erroneous features with `null` (instead of true/false)
+
+```java
+CompletableFuture<Boolean> futureActivation = client
+  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .withErrorStrategy(nullValueStrategy()));
+
+futureActivation.thenAccept(System.out::println); // null
+```
+
+- **Fail** : client will throw an IzanamiException.
+
+<Note>
+  Using fail strategy with multi-feature query will prevent from retrieving
+  activation for all features of the query, even if error only affects a single
+  one of them.
+</Note>
+
+```java
+CompletableFuture<Boolean> futureActivation = client
+  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .withErrorStrategy(failStrategy()));
+
+futureActivation.join(); // Will throw
+```
+
+- **Default value** : client will use specified value
+
+```java
+CompletableFuture<Boolean> futureActivation = client
+  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .withErrorStrategy(defaultValueStrategy(true)));
+
+futureActivation.thenAccept(System.out::println); // true
+```
+
+- **Callback strategy** : client will call specified callback to decide which value to return
+
+```java
+CompletableFuture<Boolean> futureActivation = client
+  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .withErrorStrategy(callbackStrategy(err -> {
+      // You can do anything you want here
+      return CompletableFuture.completedFuture(true);
+  })));
+futureActivation.thenAccept(System.out::println);
+```
+
+## Definition levels
+
+Error strategies decide what should be returned by the client when it can't compute activation for a given feature. Error strategy can be specified :
+
+- **Globally**, for the whole client
+
+```java
+IzanamiClient.newBuilder(
+  IzanamiConnectionInformation
+    .connectionInformation()
+    .withUrl("<REMOTE_IZANAMI_URL>/api")
+    .withClientId("<YOUR_KEY_CLIENT_ID>")
+    .withClientSecret("<YOUR_KEY_CLIENT_SECRET>")
+  )
+  .withErrorStrategy(failStrategy()) // This will be the default for all queries
+  .build();
+```
+
+- **At query level**, for every feature of the query
+
+```java
+client.checkFeatureActivations(
+  newFeatureRequest()
+    .withFeatures("<ID_1>", "<ID_2>")
+    .withErrorStrategy(failStrategy()) // This will apply for each features of this query
+);
+```
+
+- **At query's feature level**, allowing a different error strategy for each feature
+
+```java
+client.checkFeatureActivations(
+  newFeatureRequest().withFeatures(
+    SpecificFeatureRequest.feature("<ID_1>").withErrorStrategy(defaultValueStrategy(true)),
+    SpecificFeatureRequest.feature("<ID_2>").withErrorStrategy(defaultValueStrategy(false))
+  )
+)
+```
+
+### Error strategy priority
+
+Query's feature error strategy has priority over query and global strategies.
+Query strategy has priority over global strategy.
+
+> **query feature strategy** > **query strategy** > **global strategy**
+
+## Cache and error strategies behavior
+
+<ErrorStrategySchema height={800} width={900} />

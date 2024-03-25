@@ -1,0 +1,40 @@
+name: Build dev documentations
+
+on:
+  push:
+    paths:
+      - 'manual/**'
+      - '.github/workflows/doc.yml'
+    branches:
+      - main
+  workflow_dispatch:
+
+
+jobs:
+  build_dev_manual:
+    name: Build developer documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - name: Generate documentation website
+        id: doc
+        run: |
+          cd manual
+          npm ci
+          npm run build
+          rm -rf ../docs
+          mv ./build ../docs
+      - name: Commit files
+        run: |
+          git config --local user.email "izanami-release-bot@users.noreply.github.com"
+          git config --local user.name "izanami release bot"
+          git add --all
+          git commit -am "Update dev documentation"
+      - name: Push documentation
+        uses: ad-m/github-push-action@master
+        with:
+          branch: main
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN}}

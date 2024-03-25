@@ -1,0 +1,35 @@
+---
+title: Configuring mailer
+---
+
+import configurationScreen from "@site/static/img/screenshots/mailer-configuration/configuration-screen.png";
+import invitationMethod from "@site/static/img/screenshots/mailer-configuration/invitation-method.png";
+
+Izanami can send email, for example, for user invitations or password reset.
+
+It supports 4 mail providers :
+
+- Console: this is the default when no mail provider is configured, mails will be displayed in application logs (except for invitations, see below)
+- MailJet : [MailJet](https://www.mailjet.com/) external provider
+- MailGun : [MailGun](https://www.mailgun.com/) external provider
+- SMTP : allow to manually configure another SMTP server
+
+For invitations, Izanami let you choose between sending them by mail or displaying invitation link in the UI. See [invitation guide](./user-invitation).
+
+## Configuring mail provider
+
+To configure mail provider, you need to be Izanami admin. Just go to the "Global Settings" page and set up the mail provider of your choice.
+
+You must also configure origin email, which indicates origin sender email to use.
+
+<img src={configurationScreen} />
+
+## Configuring invitation mode
+
+Default invitation mode is to display an invitation link to the user performing the invitation.
+
+This allows Izanami to work correctly even when no mailer is configured.
+
+It is possible to change this behavior to make Izanami send these invitation emails.
+
+<img src={invitationMethod} />

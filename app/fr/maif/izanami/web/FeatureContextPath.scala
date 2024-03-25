@@ -1,0 +1,39 @@
+package fr.maif.izanami.web
+
+import play.api.mvc.{PathBindable, QueryStringBindable}
+
+case class FeatureContextPath(elements: Seq[String]=Seq())
+
+
+object FeatureContextPath {
+  implicit def pathBinder(implicit strBinder: PathBindable[String]): PathBindable[FeatureContextPath] = new PathBindable[FeatureContextPath] {
+    override def bind(key: String, value: String): Either[String, FeatureContextPath] = {
+      strBinder.bind(key, value).map(str => {
+        FeatureContextPath(str.split("/").toSeq)
+      })
+    }
+    override def unbind(key: String, path: FeatureContextPath): String = {
+      path.elements.mkString("/")
+    }
+  }
+
+  implicit def queryStringBindable(implicit
+                                   seqBinder: QueryStringBindable[Seq[String]]
+                                  ): QueryStringBindable[FeatureContextPath] =
+    new QueryStringBindable[FeatureContextPath] {
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, FeatureContextPath]] = {
+        for (
+          eitherContext <- seqBinder.bind("context", params)
+        ) yield {
+          Right(
+            FeatureContextPath(elements=eitherContext.map(seq => seq.filter(str => str.nonEmpty).flatMap(str => str.split("/"))).getOrElse(Seq()))
+          )
+        }
+      }
+
+      override def unbind(key: String, request: FeatureContextPath): String = {
+        throw new NotImplementedError("")
+      }
+    }
+}
+

@@ -1,0 +1,29 @@
+---
+title: Requesting multiple features
+---
+
+import menuItemHover from "@site/static/img/screenshots/query-builder/menu-item-hover.png";
+import testResult from "@site/static/img/screenshots/query-builder/test-result.png";
+import testResultJson from "@site/static/img/screenshots/query-builder/test-result-json.png";
+
+When requesting features or projects, you must pass Izanami technical ids instead of project or feature names.
+This ensures resilience of your Izanami client (changing names won't break queries), however it makes building query urls more complicated.
+
+To help you to build these urls, Izanami provides a **query builder**.
+
+<img src={menuItemHover} />
+
+This page allows selecting several elements that will be included in the generated URL :
+
+- Features : your query will return activation status for each selected feature
+- Projects : your query will return activation status for **each feature of each selected projects**
+- Context : your query will return activation statuses for given context
+- User : your query will return activation statuses for given user
+
+Once you've got everything you need, you can either copy the generated url, or make sure that it works as expected by testing it.
+
+<img src={testResult} />
+
+Results can also be displayed as JSON to help you process the response in your application.
+
+<img src={testResultJson} />

@@ -1,0 +1,107 @@
+---
+title: Requests
+---
+
+import PolligClientSchema from "@site/static/img/polling-client.excalidraw.svg";
+
+Izanami offers two way of requesting feature activation status.
+
+- HTTP endpoints: a universal way to call Izanami from any technology that has HTTP client
+- Specific clients: these clients wrap calls on HTTP endpoints, providing additional cache and local evaluation mechanisms to minimize latency
+
+Anyway, you'll need to generate a key first.
+
+## Keys
+
+A key is required to call client endpoints. We recommand to use one key per client application. This way client calls are easier to identify.
+
+If key is an admin key, it can read activation status for any feature of the tenant.
+
+If key is not an admin key, you'll have to specify a list of allowed projects. Key will only be able to read activation status for these project features.
+
+When creating a key, Izanami will generate a client id and a client secret for you, they should be passed as `Izanami-Client-Id` and `Izanami-Client-Secret` headers when calling Izanami.
+
+## HTTP(s) endpoints
+
+Izanami exposes two endpoints to fetch feature activation status. One allows to fetch a single feature while the other allows to fetch a list of features.
+
+Both endpoints require following headers:
+
+- `Izanami-Client-Id` key cliend id
+- `Izanami-Client-Secret` key client secret
+
+They also accept following query parameters:
+
+- `user` a `string` indicating user (used by user based conditions and maybe script features)
+- `context` a `string` indicating context, if your request target a subcontext, separate contexts with a "/". For instance `context/subcontext/subsubcontext`
+- `conditions` a `boolean` indicating whether activation conditions should be returned as well. This is useful for caching conditions on the client and recomputing activation startegy locally.
+
+### Single feature endpoint
+
+GET `<izanami-root>/api/v2/features/<id>`: fetches activation status for feature `id`, result has format:
+
+```json
+{
+  "active": true/false,
+  "name": "<feature name>",
+  "project": "<feature's project name>"
+}
+```
+
+where `active` indicates whether feature is active.
+
+### Multiple feature endpoints
+
+GET `<izanami-root>/api/v2/features` fetches activation features specified by query parameters.
+
+Additionally to previously specified query parameters, this endpoints accept specifics query parameters that indicate features to query
+
+- `features`: feature ids to query, comma-separated (for instance `021aaef4-5f82-4567-bc71-5006cb21db2f,021aaef4-5f82-4567-bc71-5006cb21db2e`)
+- `projects`: project ids to query, comma-separated. Every feature of every projects will be queried.
+
+```json
+{
+  "<id>": {
+    "active": false,
+    "name": "<feature name>",
+    "project": "<feature's project name>"
+  },
+  "<id2>": {
+    "active": false,
+    "name": "<feature name>",
+    "project": "<feature's project name>"
+  },
+  "<id3>": {
+    "active": false,
+    "name": "<feature name>",
+    "project": "<feature's project name>"
+  }
+}
+```
+
+### Call feature with payload
+
+For script features, it's possible to add a JSON payload that will be used by the script to decide wether feature should be active or not.
+
+This is done by calling above endpoints with `POST` method instead of `GET`, request body will be passed to script.
+
+## Specific clients
+
+Izanami provides one specific Java client, another one is currently under development for JavaScript.
+
+Please <a href="https://github.com/MAIF/izanami/discussions">open a Github discussion</a> if you need a client for another technology.
+
+### Why use a specific client
+
+Client uses HTTP endpoints described above, but it also take care of some usefull stuff for you.
+
+**Cache**: clients are allowed to define a cache strategy. This strategy can be feature-specific or defined globally. It indicates how long a feature flag should be cached.
+
+**Local evaluation**: instead of retrieving and caching feature status (active or not), client will retrieve the feature activation strategy.
+This way, the client can recompute the activation status locally when needed, without calling Izanami server again.
+
+<PolligClientSchema width="100%" height="700" />
+
+### Java client
+
+[Read Java client documentation](../clients/java)
