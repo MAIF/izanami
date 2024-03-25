@@ -56,7 +56,7 @@ Conditions are used here to progressively activate feature for all users, while 
 
 With this kind of rules, Izanami will activate feature when current time is in provided range.
 
-These startegies are used to implement <a href="" target="_blank">release</a> or <a href="" target="_blank">ops</a> flags.
+These startegies are used to implement release or ops flags.
 
 There is several variation for this catrgory of feature, that can be composed to craft exactly what you need.
 
@@ -83,12 +83,12 @@ There is several variation for this catrgory of feature, that can be composed to
 
 ### User based rules
 
-With user based rules, activation conditions are based on <a href="#" target="_blank">provided user</a>.
+With user based rules, activation conditions are based on provided user.
 
 Three is two types of user based conditions:
 
-- user list: define a list of user for which feature will be active. This rule is used to implement <a href="" target="_blank">permission flag</a>.
-- percentage: feature will be active only for given percentage of users. Percentage is based on user hash (using [murmum3](https://en.wikipedia.org/wiki/MurmurHash)), this means that activation is consistent for a given user (if feature is active once, it'll remain active). This rule is used to implement <a href="" target="_blank">canary flag</a>.
+- user list: define a list of user for which feature will be active. This rule is used to implement permission flags.
+- percentage: feature will be active only for given percentage of users. Percentage is based on user hash (using [murmum3](https://en.wikipedia.org/wiki/MurmurHash)), this means that activation is consistent for a given user (if feature is active once, it'll remain active). This rule is used to implement canary flags.
 
 ## Scripted feature
 
@@ -98,4 +98,4 @@ In such a case, Izanami offers (with the help of [WASMO](https://github.com/MAIF
 
 Such features rely on an underlying wasm script, which will be executed with provided the input each time feature activation is required.
 
-To learn more about these script, refer to the <a href="#" target="_blank">wasm script section</a>.
+To learn more about these script, refer to the [wasm script guides](../guides/local-scripts).

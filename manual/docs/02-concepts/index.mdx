@@ -24,8 +24,8 @@ Centralized flag solution (such as Izanami) have some important benefits:
 
 However there are no silver bullets, and centralized feature flag solutions are no exceptions:
 
-- Requesting flags states adds some overhead to your application process (this can be mitigated using <a href="#" target="_blank">caching</a> and/or <a href="#" target="_blank">smart clients</a>)
-- If the centralized feature flag solution is down, your application can't access flag state anymore (you may define <a href="#" target="_blank">default activation strategies</a> for your features)
+- Requesting flags states adds some overhead to your application process (this can be mitigated using [one of our clients](../clients), or by caching flag state)
+- If the centralized feature flag solution is down, your application can't access flag state anymore (you may define a default activation strategy for such cases)
 
 ## Flag types
 
@@ -39,7 +39,7 @@ Realeases feature flags are used to keep features disabled while they are not re
 
 Using this kind of flag is a good stepping stone toward trunk-based developement and CI/CD.
 
-With Izanami, release flags can be achieved using <a href="#" target="_blank">basic</a> or <a href="#" target="_blank">release date features</a>.
+With Izanami, release flags can be achieved using basic flags (simple ON/OFF flags) or release date features.
 
 ### Ops flag
 
@@ -49,7 +49,7 @@ This could, for instance, be used to disable feature with high performance impac
 
 Another use for ops feature could be to cut some services during inactivity periods.
 
-With Izanami, you could implement ops flags using <a href="#" target="_blank">basic</a> or <a href="#" target="_blank">time/date range features</a>.
+With Izanami, you could implement ops flags using basic flags (simple ON/OFF flags) or time/date range features.
 
 ### Permission flag
 
@@ -57,7 +57,7 @@ Permission features allows to unlock new feature earlier for some users.
 
 It's a good solution for beta features.
 
-Izanami allows to implement permission flags with <a href="#" target="_blank">user list features</a>.
+Izanami allows to implement permission flags with user list features.
 
 ### Experiment flag
 
@@ -65,4 +65,4 @@ Experiment flags allows to try some features on a given proportion of your users
 
 This could be used to test a new idea on a very small portion of your users.
 
-Izanami implement this using <a href="#" target="_blank">percentage feature</a>.
+Izanami implement this using percentage feature.

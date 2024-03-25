@@ -1,14 +1,14 @@
 {
-  "/izanami/search-67a": {
+  "/izanami/search-b82": {
     "__comp": "1a4e3797",
     "__context": {
-      "plugin": "1457b77c"
+      "plugin": "aaf1ecdf"
     }
   },
-  "/izanami/docs-828": {
+  "/izanami/docs-fde": {
     "__comp": "5e95c892",
     "__context": {
-      "plugin": "1ad66b9e"
+      "plugin": "18d6115e"
     }
   },
   "/izanami/docs-be2": {
@@ -110,10 +110,10 @@
     "__comp": "17896441",
     "content": "d86837dc"
   },
-  "/izanami/v1-433": {
+  "/izanami/v1-b1a": {
     "__comp": "5e95c892",
     "__context": {
-      "plugin": "4cb46bbe"
+      "plugin": "9adc4a88"
     }
   },
   "/izanami/v1-0b2": {
@@ -287,10 +287,10 @@
     "__comp": "17896441",
     "content": "22a808b3"
   },
-  "/izanami/-a38": {
+  "/izanami/-89a": {
     "__comp": "c4f5d8e4",
     "__context": {
-      "plugin": "a5a0f36f"
+      "plugin": "49cb21fa"
     },
     "config": "5e9f5e1a"
   }
