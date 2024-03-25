@@ -25,8 +25,8 @@ jobs:
           cd manual
           npm ci
           npm run build
-          rm -rf ../doc
-          mv ./build ../doc
+          rm -rf ../docs
+          mv ./build ../docs
       - name: Commit files
         run: |
           git config --local user.email "izanami-release-bot@users.noreply.github.com"
