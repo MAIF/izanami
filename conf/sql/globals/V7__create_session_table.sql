@@ -1,0 +1,5 @@
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE,
+    creation TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

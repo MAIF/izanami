@@ -1,0 +1,16 @@
+---
+title: Clients
+---
+
+For now, Izanami only supports [Java client](./01-java-client.mdx).
+
+We plan to add support for Javscript (node / in browser client).
+
+If you need another client, don't hesitate to <a href="TODO">open an issue</a> or come discuss it <a href="TODO">on discord</a>, we would be happy to help you with it.
+
+## Why clients ?
+
+It's perfectly correct to call Izanami directly through HTTP. However a specific client can take care of some boring stuff for you.
+
+- **Cache** : caching feature state can be usefull to avoid making too much requests.
+- **Local evaluation** : instead of caching feature activation status at a given time, clients can cache feature activation startegy to recompute activation status locally

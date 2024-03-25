@@ -1,0 +1,31 @@
+---
+title: Script features
+---
+
+import { Note } from "@site/src/components/Note";
+
+Izanami allows to define "scrip features".
+A script is associated to the feature that will be executed each time feature activation state is called.
+
+These features are implemented using WASM, Extism and another great product of #OSSByMaif : Wasmo.
+
+<Note>
+  Script features are very powerfull, bout should be used in last resort. In
+  fact, since it's wasm scripts, it's impossible for clients to cache activation
+  strategy and recompute feature activation status locally.
+</Note>
+
+You've got to options to integrate script features to Izanami:
+
+- Compile your script to wasm locally using wasmo-cli, and embed generated script in Izanami
+- Instantiate wasmo alongside Izanami, and connect the two of them
+
+Let's take a closer look at each strategy.
+
+## Local compilation
+
+Local compilation is the best way to get started with wasm scripts, since it does not require to deploy anothing in your production environnement.
+
+The idea is to compile locally (or in your CI/CD) your wasm script, convert it to base64 and embed it in Izanami.
+
+## Deployed Wasmo

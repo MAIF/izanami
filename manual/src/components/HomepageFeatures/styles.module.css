@@ -1,0 +1,45 @@
+.features {
+  display: flex;
+  align-items: center;
+  padding: 2rem 0;
+  width: 100%;
+  flex-direction: column;
+  max-width: 850px;
+}
+
+.features > div .featureSvg {
+  height: 200px;
+  width: 200px;
+}
+@media (min-width: 997px) {
+  .feature:nth-child(2n + 1) {
+    padding-left: 20%;
+  }
+
+  .feature:nth-child(2n) {
+    padding-right: 20%;
+  }
+}
+
+.feature {
+  display: flex;
+}
+
+.feature:nth-child(2n + 1) {
+  flex-direction: row-reverse;
+}
+
+.feature:nth-child(2n) {
+  flex-direction: row;
+}
+
+.details {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  max-width: 400px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  text-align: center;
+}

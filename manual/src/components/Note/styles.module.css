@@ -1,0 +1,15 @@
+.description__trivia {
+  color: var(--ifm-color-info);
+  /*border-left: 4px solid var(--ifm-color-info);*/
+  /*padding: 1em 20px;*/
+  margin: 1.5em 0;
+  line-height: 1.4em;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+}
+
+.description__trivia img {
+  width: 56px;
+  margin-right: 8px;
+}

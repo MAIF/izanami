@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "types": ["cypress", "@testing-library/cypress"]
+  },
+  "include": ["vite.config.ts"]
+}

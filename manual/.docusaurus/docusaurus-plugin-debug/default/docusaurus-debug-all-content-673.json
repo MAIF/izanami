@@ -1,0 +1,725 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "loadedVersions": [
+        {
+          "versionName": "current",
+          "label": "2.x.x",
+          "banner": null,
+          "badge": false,
+          "noIndex": false,
+          "className": "docs-version-current",
+          "path": "/izanami/docs",
+          "tagsPath": "/izanami/docs/tags",
+          "isLast": true,
+          "routePriority": -1,
+          "sidebarFilePath": "/Users/77199M/workspace/oss/izanami-v2/manual/sidebars.js",
+          "contentPath": "/Users/77199M/workspace/oss/izanami-v2/manual/docs",
+          "contentPathLocalized": "/Users/77199M/workspace/oss/izanami-v2/manual/i18n/en/docusaurus-plugin-content-docs/current",
+          "docs": [
+            {
+              "id": "clients/index",
+              "title": "Clients",
+              "description": "For now, Izanami only supports Java client.",
+              "source": "@site/docs/05-clients/index.mdx",
+              "sourceDirName": "05-clients",
+              "slug": "/clients/",
+              "permalink": "/izanami/docs/clients/",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Clients"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "wasmo-script",
+                "permalink": "/izanami/docs/guides/wasmo-script"
+              },
+              "next": {
+                "title": "Java client",
+                "permalink": "/izanami/docs/clients/java/"
+              }
+            },
+            {
+              "id": "clients/java/api",
+              "title": "API",
+              "description": "",
+              "source": "@site/docs/05-clients/01-java/api.mdx",
+              "sourceDirName": "05-clients/01-java",
+              "slug": "/clients/java/api",
+              "permalink": "/izanami/docs/clients/java/api",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "API"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Java client",
+                "permalink": "/izanami/docs/clients/java/"
+              }
+            },
+            {
+              "id": "clients/java/index",
+              "title": "Java client",
+              "description": "",
+              "source": "@site/docs/05-clients/01-java/index.mdx",
+              "sourceDirName": "05-clients/01-java",
+              "slug": "/clients/java/",
+              "permalink": "/izanami/docs/clients/java/",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Java client"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Clients",
+                "permalink": "/izanami/docs/clients/"
+              },
+              "next": {
+                "title": "API",
+                "permalink": "/izanami/docs/clients/java/api"
+              }
+            },
+            {
+              "id": "concepts/index",
+              "title": "Feature flags",
+              "description": "A feature flag is a switch allowing to enable / disable application features.",
+              "source": "@site/docs/02-concepts/index.mdx",
+              "sourceDirName": "02-concepts",
+              "slug": "/concepts/",
+              "permalink": "/izanami/docs/concepts/",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Feature flags"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Get started",
+                "permalink": "/izanami/docs/getstarted/"
+              },
+              "next": {
+                "title": "Concepts",
+                "permalink": "/izanami/docs/usages/"
+              }
+            },
+            {
+              "id": "getstarted/index",
+              "title": "Get started",
+              "description": "This guide will help you to :",
+              "source": "@site/docs/01-getstarted/index.mdx",
+              "sourceDirName": "01-getstarted",
+              "slug": "/getstarted/",
+              "permalink": "/izanami/docs/getstarted/",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Get started"
+              },
+              "sidebar": "tutorialSidebar",
+              "next": {
+                "title": "Feature flags",
+                "permalink": "/izanami/docs/concepts/"
+              }
+            },
+            {
+              "id": "guides/bulk-feature-modification",
+              "title": "Bulk feature modification",
+              "description": "Izanami allows to enable / disable or delete multiple features at once.",
+              "source": "@site/docs/04-guides/05-bulk-feature-modification.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/bulk-feature-modification",
+              "permalink": "/izanami/docs/guides/bulk-feature-modification",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 5,
+              "frontMatter": {
+                "title": "Bulk feature modification"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Configuring mailer",
+                "permalink": "/izanami/docs/guides/mailer-configuration"
+              },
+              "next": {
+                "title": "Global VS local contexts",
+                "permalink": "/izanami/docs/guides/global-local-contexts"
+              }
+            },
+            {
+              "id": "guides/env-contexts",
+              "title": "Handling environnements",
+              "description": "When working with multiple enironnements (dev, QA, production, ...) it's often necessary to have a different featurea activation strategy for each of them.",
+              "source": "@site/docs/04-guides/01-env-contexts.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/env-contexts",
+              "permalink": "/izanami/docs/guides/env-contexts",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 1,
+              "frontMatter": {
+                "title": "Handling environnements"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Guides",
+                "permalink": "/izanami/docs/guides/"
+              },
+              "next": {
+                "title": "Multi-condition feature",
+                "permalink": "/izanami/docs/guides/multi-conditions-feature"
+              }
+            },
+            {
+              "id": "guides/global-local-contexts",
+              "title": "Global VS local contexts",
+              "description": "Izanami allows to create both local and global contexts.",
+              "source": "@site/docs/04-guides/06-global-local-contexts.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/global-local-contexts",
+              "permalink": "/izanami/docs/guides/global-local-contexts",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 6,
+              "frontMatter": {
+                "title": "Global VS local contexts"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Bulk feature modification",
+                "permalink": "/izanami/docs/guides/bulk-feature-modification"
+              },
+              "next": {
+                "title": "User invitation",
+                "permalink": "/izanami/docs/guides/user-invitation"
+              }
+            },
+            {
+              "id": "guides/import-from-v1",
+              "title": "Migrate from V1",
+              "description": "Izanami allows to migrate features, scripts api keys and users from V1.",
+              "source": "@site/docs/04-guides/09-import-from-v1.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/import-from-v1",
+              "permalink": "/izanami/docs/guides/import-from-v1",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 9,
+              "frontMatter": {
+                "title": "Migrate from V1"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Creating API key",
+                "permalink": "/izanami/docs/guides/key-configuration"
+              },
+              "next": {
+                "title": "Script features",
+                "permalink": "/izanami/docs/guides/wasmo-configuration"
+              }
+            },
+            {
+              "id": "guides/index",
+              "title": "Guides",
+              "description": "todo",
+              "source": "@site/docs/04-guides/index.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/",
+              "permalink": "/izanami/docs/guides/",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Guides"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Requests",
+                "permalink": "/izanami/docs/usages/request"
+              },
+              "next": {
+                "title": "Handling environnements",
+                "permalink": "/izanami/docs/guides/env-contexts"
+              }
+            },
+            {
+              "id": "guides/key-configuration",
+              "title": "Creating API key",
+              "description": "API keys allow client application to call Izanami endpoints.",
+              "source": "@site/docs/04-guides/08-key-configuration.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/key-configuration",
+              "permalink": "/izanami/docs/guides/key-configuration",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 8,
+              "frontMatter": {
+                "title": "Creating API key"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "User invitation",
+                "permalink": "/izanami/docs/guides/user-invitation"
+              },
+              "next": {
+                "title": "Migrate from V1",
+                "permalink": "/izanami/docs/guides/import-from-v1"
+              }
+            },
+            {
+              "id": "guides/mailer-configuration",
+              "title": "Configuring mailer",
+              "description": "Izanami can send email, for example for user invitations or password reset.",
+              "source": "@site/docs/04-guides/04-mailer-configuration.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/mailer-configuration",
+              "permalink": "/izanami/docs/guides/mailer-configuration",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 4,
+              "frontMatter": {
+                "title": "Configuring mailer"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Requesting multiple features",
+                "permalink": "/izanami/docs/guides/query-builder"
+              },
+              "next": {
+                "title": "Bulk feature modification",
+                "permalink": "/izanami/docs/guides/bulk-feature-modification"
+              }
+            },
+            {
+              "id": "guides/multi-conditions-feature",
+              "title": "Multi-condition feature",
+              "description": "Sometimes you need specific conditions for feature activation, for instance to open a feature only to some users or to activate feature only after a given date.",
+              "source": "@site/docs/04-guides/02-multi-conditions-feature.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/multi-conditions-feature",
+              "permalink": "/izanami/docs/guides/multi-conditions-feature",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 2,
+              "frontMatter": {
+                "title": "Multi-condition feature"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Handling environnements",
+                "permalink": "/izanami/docs/guides/env-contexts"
+              },
+              "next": {
+                "title": "Requesting multiple features",
+                "permalink": "/izanami/docs/guides/query-builder"
+              }
+            },
+            {
+              "id": "guides/query-builder",
+              "title": "Requesting multiple features",
+              "description": "When requesting features or projects, you must pass Izanami technical ids instead of project or feature names.",
+              "source": "@site/docs/04-guides/03-query-builder.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/query-builder",
+              "permalink": "/izanami/docs/guides/query-builder",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 3,
+              "frontMatter": {
+                "title": "Requesting multiple features"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Multi-condition feature",
+                "permalink": "/izanami/docs/guides/multi-conditions-feature"
+              },
+              "next": {
+                "title": "Configuring mailer",
+                "permalink": "/izanami/docs/guides/mailer-configuration"
+              }
+            },
+            {
+              "id": "guides/user-invitation",
+              "title": "User invitation",
+              "description": "To invite new users, you must be an Izanami admin.",
+              "source": "@site/docs/04-guides/07-user-invitation.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/user-invitation",
+              "permalink": "/izanami/docs/guides/user-invitation",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 7,
+              "frontMatter": {
+                "title": "User invitation"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Global VS local contexts",
+                "permalink": "/izanami/docs/guides/global-local-contexts"
+              },
+              "next": {
+                "title": "Creating API key",
+                "permalink": "/izanami/docs/guides/key-configuration"
+              }
+            },
+            {
+              "id": "guides/wasmo-configuration",
+              "title": "Script features",
+              "description": "Izanami allows to define \"scrip features\".",
+              "source": "@site/docs/04-guides/wasmo-configuration.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/wasmo-configuration",
+              "permalink": "/izanami/docs/guides/wasmo-configuration",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Script features"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Migrate from V1",
+                "permalink": "/izanami/docs/guides/import-from-v1"
+              },
+              "next": {
+                "title": "wasmo-script",
+                "permalink": "/izanami/docs/guides/wasmo-script"
+              }
+            },
+            {
+              "id": "guides/wasmo-script",
+              "title": "wasmo-script",
+              "description": "",
+              "source": "@site/docs/04-guides/wasmo-script.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/wasmo-script",
+              "permalink": "/izanami/docs/guides/wasmo-script",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {},
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Script features",
+                "permalink": "/izanami/docs/guides/wasmo-configuration"
+              },
+              "next": {
+                "title": "Clients",
+                "permalink": "/izanami/docs/clients/"
+              }
+            },
+            {
+              "id": "usages/contexts",
+              "title": "Contexts",
+              "description": "Izanami allow to define finely when a feature should or should not be active, but sometimes this is not enough?",
+              "source": "@site/docs/03-usages/contexts.mdx",
+              "sourceDirName": "03-usages",
+              "slug": "/usages/contexts",
+              "permalink": "/izanami/docs/usages/contexts",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Contexts"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Concepts",
+                "permalink": "/izanami/docs/usages/"
+              },
+              "next": {
+                "title": "Features",
+                "permalink": "/izanami/docs/usages/features"
+              }
+            },
+            {
+              "id": "usages/features",
+              "title": "Features",
+              "description": "In Izanami, feature flags are just called \"features\" for the sake of simplicity.",
+              "source": "@site/docs/03-usages/features.mdx",
+              "sourceDirName": "03-usages",
+              "slug": "/usages/features",
+              "permalink": "/izanami/docs/usages/features",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Features"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Contexts",
+                "permalink": "/izanami/docs/usages/contexts"
+              },
+              "next": {
+                "title": "Organisation",
+                "permalink": "/izanami/docs/usages/organisation"
+              }
+            },
+            {
+              "id": "usages/index",
+              "title": "Concepts",
+              "description": "<DocumentationThemeHub",
+              "source": "@site/docs/03-usages/index.mdx",
+              "sourceDirName": "03-usages",
+              "slug": "/usages/",
+              "permalink": "/izanami/docs/usages/",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Concepts"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Feature flags",
+                "permalink": "/izanami/docs/concepts/"
+              },
+              "next": {
+                "title": "Contexts",
+                "permalink": "/izanami/docs/usages/contexts"
+              }
+            },
+            {
+              "id": "usages/organisation",
+              "title": "Organisation",
+              "description": "Izanami provides 3 ways to organise your features.",
+              "source": "@site/docs/03-usages/organisation.mdx",
+              "sourceDirName": "03-usages",
+              "slug": "/usages/organisation",
+              "permalink": "/izanami/docs/usages/organisation",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Organisation"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Features",
+                "permalink": "/izanami/docs/usages/features"
+              },
+              "next": {
+                "title": "Requests",
+                "permalink": "/izanami/docs/usages/request"
+              }
+            },
+            {
+              "id": "usages/request",
+              "title": "Requests",
+              "description": "Izanami offers two way of requesting feature activation status.",
+              "source": "@site/docs/03-usages/request.mdx",
+              "sourceDirName": "03-usages",
+              "slug": "/usages/request",
+              "permalink": "/izanami/docs/usages/request",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Requests"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Organisation",
+                "permalink": "/izanami/docs/usages/organisation"
+              },
+              "next": {
+                "title": "Guides",
+                "permalink": "/izanami/docs/guides/"
+              }
+            }
+          ],
+          "drafts": [],
+          "sidebars": {
+            "tutorialSidebar": [
+              {
+                "type": "doc",
+                "label": "Get started",
+                "id": "getstarted/index"
+              },
+              {
+                "type": "doc",
+                "label": "Feature flags",
+                "id": "concepts/index"
+              },
+              {
+                "type": "category",
+                "label": "Concepts",
+                "collapsible": true,
+                "collapsed": true,
+                "items": [
+                  {
+                    "type": "doc",
+                    "id": "usages/contexts"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "usages/features"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "usages/organisation"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "usages/request"
+                  }
+                ],
+                "link": {
+                  "type": "doc",
+                  "id": "usages/index"
+                }
+              },
+              {
+                "type": "category",
+                "label": "Guides",
+                "collapsible": true,
+                "collapsed": true,
+                "items": [
+                  {
+                    "type": "doc",
+                    "id": "guides/env-contexts"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/multi-conditions-feature"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/query-builder"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/mailer-configuration"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/bulk-feature-modification"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/global-local-contexts"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/user-invitation"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/key-configuration"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/import-from-v1"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/wasmo-configuration"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/wasmo-script"
+                  }
+                ],
+                "link": {
+                  "type": "doc",
+                  "id": "guides/index"
+                }
+              },
+              {
+                "type": "category",
+                "label": "Clients",
+                "collapsible": true,
+                "collapsed": true,
+                "items": [
+                  {
+                    "type": "category",
+                    "label": "Java client",
+                    "collapsible": true,
+                    "collapsed": true,
+                    "items": [
+                      {
+                        "type": "doc",
+                        "id": "clients/java/api"
+                      }
+                    ],
+                    "link": {
+                      "type": "doc",
+                      "id": "clients/java/index"
+                    }
+                  }
+                ],
+                "link": {
+                  "type": "doc",
+                  "id": "clients/index"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "docusaurus-plugin-content-blog": {
+    "default": {
+      "blogSidebarTitle": "Recent posts",
+      "blogPosts": [],
+      "blogListPaginated": [],
+      "blogTags": {},
+      "blogTagsListPath": "/izanami/blog/tags",
+      "blogTagsPaginated": []
+    }
+  },
+  "docusaurus-plugin-content-pages": {
+    "default": [
+      {
+        "type": "jsx",
+        "permalink": "/izanami/",
+        "source": "@site/src/pages/index.js"
+      }
+    ]
+  },
+  "docusaurus-plugin-debug": {},
+  "docusaurus-theme-classic": {},
+  "@easyops-cn/docusaurus-search-local": {},
+  "docusaurus-bootstrap-plugin": {},
+  "docusaurus-mdx-fallback-plugin": {}
+}
