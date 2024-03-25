@@ -5,10 +5,10 @@
   display: block;
 
   &:hover {
-    background-color: $fondGrisclairSurvolMenu;
+    background-color: $color-dark-3;
     color: #fff;
     //border-color: $primaryColor;
-    svg .icon_context{
+    svg .icon_context {
       fill: #fff !important;
     }
   }
@@ -23,7 +23,7 @@
   &:focus,
   &:hover {
     text-decoration: none;
-    background-color: $fondGrisclairSurvolMenu;
+    background-color: $color-dark-3;
     color: #fff;
   }
 }

@@ -1,6 +1,6 @@
 h1,
 h2 {
-  color: $colorGris;
+  color: var(--color_level1);
 }
 
 .navbar {
@@ -17,7 +17,7 @@ h2 {
 main a:link,
 main a,
 main a:visited {
-  color: #fff;
+  color: var(--color_level1);
 }
 
 main a:active,
@@ -30,10 +30,11 @@ main a:focus {
 }
 
 .breadcrumb .active a {
-  color: $colorGris;
+  color: var(--color_level1);
 }
-.breadcrumb svg .icon_context {
-  fill: $colorGris !important;
+.breadcrumb svg .icon_context,
+.izanami-tree-node svg .icon_context {
+  fill: var(--color_level1) !important;
 }
 
 .breadcrumb .breadcrumb-item a {
@@ -42,14 +43,6 @@ main a:focus {
   &:focus {
     color: $primaryColor;
   }
-}
-
-#root table td {
-  color: #b5b3b3;
-}
-
-#root table th {
-  color: #fff;
 }
 
 #root .modal {
@@ -71,8 +64,8 @@ main a:focus {
 
 input,
 textarea {
-  color: $colorGris !important;
-  border-color: $fondBody !important;
+  color: $color-dark-1 !important;
+  border-color: $color-dark-6 !important;
   border-radius: 4px;
   border: none;
 }
@@ -80,11 +73,11 @@ textarea {
 input:not([role="combobox"]):not([type="checkbox"]),
 textarea {
   /* buggy on react-select */
-  background-color: $fondNavbar;
+  background-color: var(--bg-color_level3);
 }
 
-.card {
-  background-color: #494948;
+::placeholder {
+  color: var(--color_level3) !important;
 }
 
 #root .mrf-content_switch_button_on {
@@ -92,7 +85,7 @@ textarea {
 }
 
 #root .mrf-content_switch_button_off {
-  background-color: $colorGris;
+  background-color: $color-dark-1;
 }
 
 .MuiOutlinedInput-notchedOutline {
@@ -128,26 +121,26 @@ thead th {
 .mrf-btn.mrf-btn_blue {
   color: #fff;
   border: 1px solid;
-  border-color: $colorBleue;
+  border-color: var(--color-blue);
   &:hover,
   &.active,
   &.active:hover {
     color: #fff;
     border: 1px solid;
-    border-color: $colorBleue;
-    background-color: $colorBleue;
+    border-color: var(--color-blue);
+    background-color: var(--color-blue);
   }
 }
 
 .mrf-btn.mrf-btn_red {
   color: #fff;
   border: 1px solid;
-  border-color: $colorRouge;
+  border-color: var(--color-red);
   &:hover {
     color: #fff;
     border: 1px solid;
-    border-color: $colorRouge;
-    background-color: $colorRouge;
+    border-color: var(--color-red);
+    background-color: var(--color-red);
   }
 }
 
@@ -194,11 +187,11 @@ thead th {
 }
 
 .activation-status {
-  font-weight: bold;
+  // font-weight: bold;
 }
 
 .enabled-status {
-  color: $primaryColor;
+  // color: $primaryColor;
 }
 
 .current-context-overload {
@@ -242,14 +235,14 @@ thead th {
   height: 22px;
   border-radius: 20px;
   display: flex;
-  background-color: $colorGris;
-  border: 1px solid $colorGris;
+  background-color: $color-dark-1;
+  border: 1px solid $color-dark-1;
   justify-content: flex-start;
 }
 
 .izanami-checkbox:not(:checked)::before {
   content: "";
-  background-color: $colorGris;
+  background-color: $color-dark-1;
   border-radius: 20px;
   cursor: pointer;
   width: 20px;
@@ -267,7 +260,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  // border: 1px solid $colorGris;
+  // border: 1px solid $color-dark-1;
   padding: 4px;
   margin: 4px;
 }

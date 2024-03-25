@@ -7,7 +7,7 @@ fieldset[disabled] .form-control {
 }
 
 .form-control:focus {
-  color: $colorGris;
+  color: $color-dark-1;
   border-color: $primaryColor;
   box-shadow: none;
 }
@@ -24,32 +24,36 @@ form.new-service {
 }
 
 label {
-  color: #fff;
+  color: var(--color_level1);
+}
+
+.sub_container label {
+  color: var(--color_level2);
 }
 
 .has-error .col-form-label {
-  color: $colorRouge;
+  color: var(--color-red);
 }
 
 .has-error .form-control {
-  border-color: $colorRouge;
+  border-color: var(--color-red);
 }
 
 input[readonly] {
   color: #757575 !important;
   cursor: default;
-  &:focus-visible{
+  &:focus-visible {
     outline: none;
   }
 }
 .dark-input {
   .fas,
   .far {
-    color: $colorGris;
+    color: $color-dark-1;
   }
   .input-group-prepend,
   .input-group-text {
-    background-color: $fondNavbar;
+    background-color: $color-dark-5;
     box-shadow: inset 0px 1px 0 rgba(0, 0, 0, 0.075);
   }
   .input-group-text {
@@ -66,7 +70,6 @@ input[readonly] {
   padding: 10px;
   border-radius: 4px;
 }
-
 
 form .error-message {
   border: 1px solid red;

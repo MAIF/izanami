@@ -13,11 +13,15 @@ export const customStyles: object = {
         backgroundColor: isDisabled
           ? null
           : isSelected
-          ? "#494948 !important"
+          ? "var(--bg-color_level3) !important"
           : isFocused
-          ? "#373735 !important"
+          ? "red !important"
           : null,
-        color: isSelected ? "#FFF !important" : isFocused ? "#FFF !important" : "8C8C8B !important",
+        color: isSelected
+          ? "#FFF !important"
+          : isFocused
+          ? "#FFF !important"
+          : "8C8C8B !important",
       };
     } else {
       return {
@@ -25,11 +29,15 @@ export const customStyles: object = {
         backgroundColor: isDisabled
           ? null
           : isSelected
-          ? "#494948 !important"
+          ? "var(--bg-color_level3) !important"
           : isFocused
-          ? "#545452 !important"
+          ? "var(--bg-color_level2)  !important"
           : null,
-          color: isSelected ? "#FFF !important" : isFocused ? "#FFF !important" : "8C8C8B !important",
+        color: isSelected
+          ? "#FFF !important"
+          : isFocused
+          ? "#FFF !important"
+          : "8C8C8B !important",
       };
     }
   },
@@ -37,16 +45,20 @@ export const customStyles: object = {
   container: (styles: object) => ({ ...styles }),
   control: (styles: object) => ({
     ...styles,
-    backgroundColor: "#494948 !important",
+    backgroundColor: "var(--bg-color_level3) !important",
     color: "#FFF !important",
     border: "none",
   }),
   menu: (styles: object) => ({
     ...styles,
-    backgroundColor: "#373735 !important",
+    backgroundColor: "var(--bg-color_level3) !important",
     color: "#FFF !important",
     zIndex: 110,
     border: "1px solid #545452",
+  }),
+  placeholder: (styles: object) => ({
+    ...styles,
+    color: "var(--color_level3) !important",
   }),
   singleValue: (provided: object) => ({
     ...provided,
@@ -56,15 +68,17 @@ export const customStyles: object = {
   multiValue: (styles: object) => {
     return {
       ...styles,
-      backgroundColor: "#535352 !important",
+      backgroundColor: "var(--bg-color_level3) !important",
     };
   },
   multiValueLabel: (styles: object, { data }: any) => ({
     ...styles,
     color: data.color,
+    backgroundColor: "var(--bg-color_level2) !important",
   }),
   multiValueRemove: (styles: object) => ({
     ...styles,
+    backgroundColor: "var(--bg-color_level2) !important",
     ":hover": {
       backgroundColor: "#D5443F !important",
       color: "#FFF !important",
