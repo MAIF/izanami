@@ -1,0 +1,49 @@
+.nav > li > a {
+  transition-duration: 1s;
+  padding: 5px 10px 5px 36px;
+  position: relative;
+  display: block;
+
+  &:hover {
+    background-color: $fondGrisclairSurvolMenu;
+    color: #fff;
+    //border-color: $primaryColor;
+    svg .icon_context{
+      fill: #fff !important;
+    }
+  }
+}
+
+.nav > li > h3 > a {
+  padding: 5px 0 5px 30px;
+  margin-left: -30px;
+  display: block;
+  transition-duration: 1s;
+
+  &:focus,
+  &:hover {
+    text-decoration: none;
+    background-color: $fondGrisclairSurvolMenu;
+    color: #fff;
+  }
+}
+
+.navbar-brand,
+.menu,
+a.navbar-brand:hover,
+a.navbar-brand:focus {
+  color: #fff;
+}
+
+.navbar-brand {
+  margin-right: 0rem;
+  min-height: 50px;
+  display: flex;
+}
+
+.navbar-toggler {
+  font-size: 1rem;
+  border-color: #fff;
+  height: 30px;
+  margin-top: 10px;
+}

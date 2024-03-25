@@ -1,0 +1,69 @@
+---
+title: Feature flipping
+---
+
+import noStrategy from "@site/static/v1/img/features/no_strategy.png";
+import releaseDate from "@site/static/v1/img/features/release_date.png";
+import dateRange from "@site/static/v1/img/features/date_range.png";
+import hourRange from "@site/static/v1/img/features/hour_range.png";
+import percentage from "@site/static/v1/img/features/percentage.png";
+import script from "@site/static/v1/img/features/script.png";
+import customersList from "@site/static/v1/img/features/customers_list.png";
+
+One of the main feature of Izanami is feature flipping. Feature flipping allow you to activate or passivate a feature in real time.
+
+The clients can check if a feature is active using the REST API.
+
+When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT
+
+## NO_STRATEGY
+
+this is the simpler one, the feature can be active or inactive
+
+<img src={noStrategy} width="60%" />
+
+## RELEASE_DATE
+
+this kind of strategy allow you to enable a feature on a date value in addition to the active boolean.
+
+<img src={releaseDate} width="60%" />
+
+## DATE_RANGE
+
+this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean.
+
+<img src={dateRange} width="60%" />
+
+## HOUR_RANGE
+
+this kind of strategy allow you to enable a feature on a range of hour for a day in addition to the active boolean.
+
+<img src={hourRange} width="60%" />
+
+## PERCENTAGE
+
+this kind of strategy allow you to enable a feature for a percentage of clients. In this strategy, the client need to send a context with an `id` field in order to calculate if the feature is enabled or not.
+
+<img src={percentage} width="60%" />
+
+## SCRIPT
+
+this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not.
+
+In this example, the feature is active if the user sent in the context is `ragnar.lodbrock@gmail.com` :
+
+<img src={script} width="80%" />
+
+You can go further following this [link](./scripts).
+
+## GLOBAL SCRIPT
+
+Global script strategy is the same as script except that the script are shared between features.
+
+You can find more details about global scripts [on this page](../ui#create-or-update-a-script).
+
+## CUSTOMERS LIST
+
+This kind of strategy allow you to enable a feature for set of customers. A use case can be to enable a feature for beta testers. In this strategy, the client need to send a context with an `id` field in order to check if the feature is enabled or not.
+
+<img src={customersList} width="60%" />

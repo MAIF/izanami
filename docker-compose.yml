@@ -1,0 +1,88 @@
+# Use postgres/example user/password credentials
+version: '3.1'
+
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+#    volumes:
+#      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - 5432:5432
+  openid:
+    image: qlik/simple-oidc-provider
+    environment:
+      REDIRECTS: http://localhost:3000/login
+    ports:
+      - 9001:9000
+  fake-smtp:
+    image: reachfive/fake-smtp-server
+    ports:
+      - 1081:1025
+      - 1080:1080
+  wasm-manager:
+    image: maif/wasmo:1.0.16
+    networks:
+      - manager-network
+    environment:
+      MANAGER_PORT: 5001
+      AUTH_MODE: NO_AUTH
+      MANAGER_MAX_PARALLEL_JOBS: 2
+      MANAGER_ALLOWED_DOMAINS: otoroshi.oto.tools,wasm-manager.oto.tools,localhost:5001
+      MANAGER_EXPOSED DOMAINS: /
+      OTOROSHI_USER_HEADER: Otoroshi-User
+      WASMO_CLIENT_ID: admin-api-apikey-id
+      WASMO_CLIENT_SECRET: admin-api-apikey-secret
+      AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
+      AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      AWS_DEFAULT_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: 1
+      S3_ENDPOINT: http://host.docker.internal:8000
+      S3_BUCKET: wasm-manager
+      STORAGE: DOCKER_S3
+      LOCAL_WASM_JOB_CLEANING: 60000
+    ports:
+      - 5001:5001
+    depends_on:
+      ninjaS3:
+        condition: service_healthy
+    links:
+      - ninjaS3 #s3Mock
+#  s3:
+#    image: scality/s3server
+#    networks:
+#      - manager-network
+#    environment:
+#      SCALITY_ACCESS_KEY_ID: access_key
+#      SCALITY_SECRET_ACCESS_KEY: secret
+#    ports:
+#      - 8000:8000
+#  s3Mock:
+#    image: adobe/s3mock
+#    networks:
+#      - manager-network
+#    ports:
+#      - 8000:9090
+#    environment:
+#      initialBuckets: wasm-manager
+#    healthcheck:
+#      test: ["CMD", "wget", "-O/dev/null", "-q", "http://localhost:9090/" ]
+#      interval: 2s
+#      timeout: 10s
+#      retries: 100
+  ninjaS3:
+    image: scireum/s3-ninja:latest
+    networks:
+      - manager-network
+    ports:
+      - 8000:9000
+    healthcheck:
+      test: curl --fail http://localhost:9000 || exit 1
+      interval: 2s
+      timeout: 10s
+      retries: 100
+networks:
+  manager-network:

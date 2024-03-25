@@ -1,0 +1,41 @@
+---
+title: User invitation
+---
+
+import { Note } from "@site/src/components/Note";
+
+import emptyInvitationForm from "@site/static/img/screenshots/user-invitation/empty-invitation-form.png";
+import filledInvitationForm from "@site/static/img/screenshots/user-invitation/filled-invitation-form.png";
+import invitationUrl from "@site/static/img/screenshots/user-invitation/invitation-url.png";
+import newUserForm from "@site/static/img/screenshots/user-invitation/new-user-form.png";
+
+To invite new users, you must be an Izanami admin.
+
+You can invite new user from the global "Users" page.
+
+<img src={emptyInvitationForm} />
+
+In this form, you must indicate email of the user to invite.
+
+You can also specify user rights (it could be done later).
+
+<img src={filledInvitationForm} />
+
+Once the invitation is sent, Izanami will either display the invitation link or send it to the specified email, based on [your configuration](./mailer-configuration).
+
+If invitation mode is set to "Request response", Izanami will display the invitation url **so that you can send it to the concerned user**.
+
+The strong point of this mode is that it doesn't require any mailer configuration.
+
+<img src={invitationUrl} />
+
+<Note>
+  Make sure that you __copy url before closing this modal__, it won't be
+  displayed again.
+</Note>
+
+Your new user must open the link to define its username and password.
+
+<img src={newUserForm} />
+
+Once this form is validated, new user can log in !

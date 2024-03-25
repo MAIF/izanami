@@ -1,0 +1,2 @@
+{"clientId":"s6dwxexv8wb2pdvr","name":"website-key","clientSecret":"bukjutku052q3yf9qzuno75vj8c2sb6he190bhc0nq93bakmwo1npu4wlbm5pa9e","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}
+{"clientId":"wf0p314x4ymw7f5l","name":"backoffice","clientSecret":"pvk8zou6go5ddrxq6g3bozojmf8qathrips068yef42nqcat9rfxvzuykjxy9fyw","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}

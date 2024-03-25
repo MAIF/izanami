@@ -1,0 +1,80 @@
+---
+title: Java client
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import { Note } from "@site/src/components/Note";
+
+Izanami Java client aims to help you fetch your features' status from remote Izanami instances.
+
+In addition to perform http requests for you, client offers some nice features :
+
+- [Cache and local evaluation](./01-cache.mdx)
+- [Resilience mechanisms](./02-error-handling.mdx)
+
+## Importing the client
+
+
+<Tabs>
+  <TabItem value="maven" label="Maven" default>
+
+```xml
+<dependency>
+    <groupId>org.awaitility</groupId>
+    <artifactId>awaitility</artifactId>
+    <version>4.2.1</version>
+</dependency>
+```
+  
+  </TabItem>
+  <TabItem value="gradle" label="Gradle">
+
+```gradle
+implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+```
+
+  </TabItem>
+</Tabs>
+
+## Getting started
+
+To instantiate Izanami client, you'll need a remote instance url and an API key.
+
+```java
+IzanamiClient client = IzanamiClient.newBuilder(
+    connectionInformation()
+      .withUrl(<REMOTE_IZANAMI_BASE_URL>/api)
+      .withClientId(<YOUR_KEY_CLIENT_ID>)
+      .withClientSecret(<YOUR_KEY_CLIENT_SECRET>)
+  ).build();
+```
+
+The client can be used to query a single feature...
+
+```java
+CompletableFuture<Boolean> res = client.checkFeatureActivation(
+  newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+);
+```
+
+... or multiple features at once
+
+```java
+// Resulting map associates feature id to its activation
+CompletableFuture<Map<String, Boolean>> results = client.checkFeatureActivations(
+    newFeatureRequest()
+      .withFeatures("<YOUR_ID_1>", "<YOUR_ID_2>")
+  );
+```
+
+With these queries, you can specify user and / or context :
+
+```java
+CompletableFuture<Map<String, Boolean>> results = client.checkFeatureActivations(
+    newFeatureRequest()
+      .withFeatures("<YOUR_ID_1>", "<YOUR_ID_2>")
+      .withUser("<YOUR_USER>")
+      .withContext("prod/mobile")
+  );
+```

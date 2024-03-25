@@ -1,0 +1,109 @@
+body {
+  padding-top: 60px;
+  padding-bottom: 20px;
+  font-family: Raleway, Helvetica, sans-serif;
+  font-weight: 500;
+  background-color: $fondBody;
+  color: $grisTexte;
+}
+
+a,
+a:hover {
+  color: $primaryColor;
+  text-decoration: none;
+}
+
+.main {
+  padding-right: 30px;
+  padding-left: 30px;
+  margin-top: 10px;
+  @media screen and (max-width: $screen-lg) {
+    margin-top: 50px;
+  }
+}
+
+.page-header {
+  margin-top: 32px;
+  border-bottom-color: $primaryColor;
+  margin-left: 25px;
+}
+
+.placeholder {
+  margin-bottom: 20px;
+
+  img {
+    display: inline-block;
+    border-radius: 50%;
+  }
+}
+
+h3,
+h4,
+h5,
+h6 {
+  color: $primaryColor;
+}
+
+hr {
+  border-top: 1px solid #eee;
+}
+
+.zi-10 {
+  z-index: 10;
+}
+@mixin h3fixed {
+  position: fixed;
+  background-color: #373735;
+  width: 100%;
+  z-index: 110;
+  margin-left: -25px;
+  margin-top: -12px;
+}
+
+.header-fixed {
+  @include h3fixed;
+}
+
+.header-fixed + .row {
+  padding-top: 88px;
+}
+
+.izanami-container {
+  > .row {
+    margin-left: 0;
+    margin-right: -5px;
+  }
+
+  > h3 + .row {
+    margin-left: 0;
+    margin-right: -10px;
+  }
+
+  @media only screen and (max-width: $screen-lg) {
+    margin-top: 66px;
+  }
+}
+
+@media only screen and (min-width: 990px) {
+  #navbarToggler.collapse {
+    display: block !important;
+  }
+}
+
+.logo_izanami_dashboard {
+  margin-top: 30px;
+  width: 240px;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.sub_container {
+  background-color: #42423f !important;
+  padding: 10px !important;
+  border-radius: 10px !important;
+}
+.sub_container-bglighter {
+  background-color: #535352 !important;
+}

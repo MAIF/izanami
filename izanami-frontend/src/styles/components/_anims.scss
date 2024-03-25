@@ -1,0 +1,88 @@
+.anim__popUp {
+  animation: popUp 0.25s;
+}
+
+@keyframes popUp {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.anim__upToBottom {
+  animation: upToBottom 0.25s;
+}
+
+@keyframes upToBottom {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(1);
+  }
+}
+
+.anim__rightToLeft {
+  animation: rightToLeft 0.5s;
+}
+
+@keyframes rightToLeft {
+  from {
+    -webkit-transform: translate3d(100%, 0, 0);
+    transform: translate3d(100%, 0, 0);
+    opacity: 0;
+  }
+
+  60% {
+    -webkit-transform: skewX(20deg);
+    transform: skewX(20deg);
+    opacity: 1;
+  }
+
+  80% {
+    -webkit-transform: skewX(-5deg);
+    transform: skewX(-5deg);
+  }
+
+  to {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.anim__rotate.bi-caret-down::before,
+.anim__rotate.bi-caret-down-fill::before {
+  animation: rotate 0.25s;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(90deg);
+  }
+}
+
+.anim__bg {
+  //   animation: bg 0.25s;
+  background-color: red;
+}
+
+.anim__highlighter {
+  animation-name: highlighter;
+  animation-duration: 1s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes highlighter {
+  0% {
+    background-color: rgba(0, 180, 205, 128);
+  }
+  100% {
+    background-color: rgba(127, 219, 255, 0);
+    border: 1px solid rgb(0, 180, 205);
+  }
+}

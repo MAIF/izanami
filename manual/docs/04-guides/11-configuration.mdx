@@ -1,0 +1,106 @@
+---
+title: Configuring Izanami
+---
+
+## Mandatory parameters
+
+### Secret
+
+This parameter is mandatory for production purpose.
+This secret is used to encrypt various stuff such as token, cookies, or passwords.
+
+Your application secret must have at least 256 bits.
+
+You can either set the `IZANAMI_SECRET` env variable or use the `app.secret` parameter.
+
+⚠️ If a custom secret is not set, a default will be used.
+**This default is not secured** since it's visible in Izanami public github repository.
+
+### Database
+
+You can either provide a connection URI, or indicate database name, user, host, port and so on separately.
+
+|                     | Environnement variable      | Program argument        | Default        |
+| ------------------- | --------------------------- | ----------------------- | -------------- |
+| Uri                 | IZANAMI_PG_URI              | app.pg.uri              |
+| Port                | IZANAMI_PG_PORT             | app.pg.port             | 5432           |
+| Host                | IZANAMI_PG_HOST             | app.pg.host             |
+| Database name       | IZANAMI_PG_DATABASE         | app.pg.database         |
+| User                | IZANAMI_PG_USER             | app.pg.user             |
+| Password            | IZANAMI_PG_PASSWORD         | app.pg.password         |
+| Pool size           | IZANAMI_PG_POOL_SIZE        | app.pg.pool-size        | 20             |
+| Connect timeout(ms) | IZANAMI_PG_CONNECT_TIMEOUT  | app.pg.connect-timeout  | 60000          |
+| IDLE timeout(s)     | IZANAMI_PG_IDLE_TIMEOUT     | app.pg.idle-timeout     | 0 (no timeout) |
+| Log activity        | IZANAMI_PG_LOG_ACTIVITY     | app.pg.log-activity     | false          |
+| Pipelining limit    | IZANAMI_PG_PIPELINING_LIMIT | app.pg.pipelining-limit | 256            |
+
+### Admin account
+
+When creating on an empty database, Izanami will create a user for you.
+
+You'll have to use this user for your first login.
+
+|          | Environnement variable         | Program argument   | Default                           |
+| -------- | ------------------------------ | ------------------ | --------------------------------- |
+| Username | IZANAMI_ADMIN_DEFAULT_USERNAME | app.admin.username | RESERVED_ADMIN_USER               |
+| Password | IZANAMI_ADMIN_DEFAULT_PASSWORD | app.admin.password | generated (and printed in stdout) |
+
+### Exposition url
+
+Izanami needs to know on which URL it is exposed, this use for generating invitation link or query builder links.
+
+|                | Environnement variable | Program argument   | Default                              |
+| -------------- | ---------------------- | ------------------ | ------------------------------------ |
+| Exposition URL | IZANAMI_EXPOSITION_URL | app.exposition.url | <>`http://localhost:${http.port}`</> |
+
+## Optional parameters
+
+### OpenId
+
+Izanami allows to set up an external openid provider.
+
+|               | Environnement variable       | Program argument         | Default                            |
+| ------------- | ---------------------------- | ------------------------ | ---------------------------------- |
+| Client ID     | IZANAMI_OPENID_CLIENT_ID     | app.openid.client-id     |                                    |
+| Client secret | IZANAMI_OPENID_CLIENT_SECRET | app.openid.client-secret |                                    |
+| Authorize URL | IZANAMI_OPENID_AUTHORIZE_URL | app.openid.authorize-url |                                    |
+| Token URL     | IZANAMI_OPENID_TOKEN_URL     | app.openid.token-url     |                                    |
+| Redirect URL  | IZANAMI_OPENID_REDIRECT_URL  | app.openid.redirect-url  | <>`${app.exposition.url}/login`</> |
+
+### Wasmo
+
+If you chose to set up a WASMO instance alongside Izanami, you'll need to provide additional properties.
+
+|                     | Environnement variable      | Program argument        | Default |
+| ------------------- | --------------------------- | ----------------------- | ------- |
+| Wasmo url           | IZANAMI_WASMO_URL           | app.wasmo.url           |         |
+| Wasmo client id     | IZANAMI_WASMO_CLIENT_ID     | app.wasmo.client-id     |         |
+| Wasmo client secret | IZANAMI_WASMO_CLIENT_SECRET | app.wasmo.client-secret |         |
+| Wasm cache TTL (ms) | IZANAMI_WASM_CACHE_TTL      | app.wasm.cache.ttl      | 60000   |
+
+### Various time to live
+
+|                                         | Environnement variable             | Program argument                | Default     |
+| --------------------------------------- | ---------------------------------- | ------------------------------- | ----------- |
+| Invitation time to live (s)             | IZANAMI_INVITATIONS_TTL            | app.invitations.ttl             | 86400 (24h) |
+| Session time to live (s)                | IZANAMI_SESSIONS_TTL               | app.sessions.ttl                | 3700        |
+| Password reset request time to live (s) | IZANAMI_PASSWORD_RESET_REQUEST_TTL | app.password-reset-requests.ttl | 900 (15min) |
+
+### Cors
+
+Izanami uses [Play CORS filter](https://www.playframework.com/documentation/3.0.x/CorsFilter#Configuring-the-CORS-filter) to handle CORS.
+
+Therefore, CORS is configurable using `play.filters.cors` configuration keys.
+
+Alternatively, Izanami re-exposes these configuration keys with below env variables :
+
+| Play configuration key                  | Environnement variable               |
+| --------------------------------------- | ------------------------------------ |
+| play.filters.cors.pathPrefixes          | IZANAMI_CORS_PATH_PREFIXES           |
+| play.filters.cors.allowedOrigins        | IZANAMI_CORS_ALLOWED_ORIGINS         |
+| play.filters.cors.allowedHttpMethods    | IZANAMI_CORS_ALLOWED_HTTP_METHODS    |
+| play.filters.cors.allowedHttpHeaders    | IZANAMI_CORS_ALLOWED_HTTP_HEADERS    |
+| play.filters.cors.exposedHeaders        | IZANAMI_CORS_EXPOSED_HEADERS         |
+| play.filters.cors.supportsCredentials   | IZANAMI_CORS_SUPPORTS_CREDENTIALS    |
+| play.filters.cors.preflightMaxAge       | IZANAMI_CORS_PREFLIGHT_MAX_AGE       |
+| play.filters.cors.serveForbiddenOrigins | IZANAMI_CORS_SERVE_FORBIDDEN_ORIGINS |

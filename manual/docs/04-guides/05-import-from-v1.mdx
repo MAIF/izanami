@@ -1,0 +1,57 @@
+---
+title: Migrate from V1
+---
+
+import { Note } from "@site/src/components/Note";
+
+import featureExport from "@site/static/img/screenshots-v1/feature-export.png";
+import keyExport from "@site/static/img/screenshots-v1/key-export.png";
+import scriptExport from "@site/static/img/screenshots-v1/script-export.png";
+import userExport from "@site/static/img/screenshots-v1/user-export.png";
+import filledForm from "@site/static/img/screenshots/import-v1/filled-form.png";
+import formButtonHover from "@site/static/img/screenshots/import-v1/form-button-hover.png";
+import importConfirmed from "@site/static/img/screenshots/import-v1/import-confirmed.png";
+import createdFeature from "@site/static/img/screenshots/import-v1/created-feature.png";
+import legacyUpdateForm from "@site/static/img/screenshots/import-v1/legacy-update-form.png";
+
+Izanami allows to migrate features, scripts api keys and users from V1.
+
+You must be tenant admin to import v1 data in your tenant.
+
+First, you'll need to extract your data from your V1 instance.
+
+<img src={featureExport} />
+<img src={keyExport} />
+<img src={scriptExport} />
+<img src={userExport} />
+
+Next step is to fill Izanami v2 import form with these ndjson files.
+
+This form is available in tenant setting page.
+
+<img src={formButtonHover} />
+
+Fill the form with exported files, the form has many options, especially regarding location of imported features.
+
+<Note>
+  Default behavior is to import features in a new project. However, Izanami can
+  try to deduce project name from feature name (using first n parts to form
+  project name).
+</Note>
+
+<img src={filledForm} />
+
+Once the form is validated, Izanami needs some time to process files.
+
+<img src={importConfirmed} />
+
+After that, your features are imported in designated (or deduced) project(s).
+
+<img src={createdFeature} />
+
+Imported features are considered "legacy", they will have a special update form that
+ensures that they stay compatible with potential v1 clients.
+
+<img src={legacyUpdateForm} />
+
+This form let you convert these features to "modern" features, however this would break compatibility.

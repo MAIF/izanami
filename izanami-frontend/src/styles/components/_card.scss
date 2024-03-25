@@ -1,0 +1,18 @@
+@mixin icon-background {
+  font-family: FontAwesome;
+  top: 0px;
+  position: absolute;
+  right: 10px;
+  font-size: 40px;
+  opacity: 0.1;
+}
+
+.card-tenant::before {
+  content: "\f0c2";
+  @include icon-background;
+}
+
+.card-project::before {
+  content: "\f1ad";
+  @include icon-background;
+}

@@ -1,0 +1,5 @@
+CREATE TABLE password_reset (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    creation TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    username TEXT UNIQUE NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE
+);

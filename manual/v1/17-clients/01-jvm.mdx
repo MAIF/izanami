@@ -1,0 +1,1531 @@
+---
+title: Java & Scala
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+It's simple to build your client using the APIs. If you're application is built on jvm you can also use the built-in Izanami client.
+
+This client offer nice strategies for better performances.
+
+You need to add repository
+
+<Tabs>
+  <TabItem value="gradle" label="Gradle" default>
+
+```gradle
+    repositories {
+        jcenter()
+        maven {
+            url 'https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases/'
+        }
+    }
+```
+
+  </TabItem>
+  <TabItem value="sbt" label="Sbt">
+
+```sbt
+resolvers ++= Seq(
+  "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
+  Resolver.jcenterRepo
+)
+```
+
+  </TabItem>
+</Tabs>
+
+Add the following dependency to your project
+
+<Tabs>
+  <TabItem value="sbt" label="sbt" default>
+
+```sbt
+libraryDependencies += "fr.maif" %% "izanami-client" % "1.11.0"
+```
+
+  </TabItem>
+  <TabItem value="maven" label="Maven">
+
+```xml
+<dependency>
+  <groupId>fr.maif</groupId>
+  <artifactId>izanami-client_2.13</artifactId>
+  <version>1.11.0</version>
+</dependency>
+```
+
+  </TabItem>
+  <TabItem value="gradle" label="Gradle">
+
+```gradle
+dependencies {
+  compile group: 'fr.maif', name: 'izanami-client_2.13', version: '1.11.0'
+}
+```
+
+  </TabItem>
+</Tabs>
+
+The client can be used in java or scala. There is two distinct dsl. Be sure to import the correct one :
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+import izanami.*;
+import izanami.javadsl.*;
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+import izanami._
+import izanami.scaladsl._
+```
+
+  </TabItem>
+</Tabs>
+
+Izanami client is built with
+
+- [Scala](https://www.scala-lang.org/): As programming language
+- [Akka](https://akka.io/docs/): to handle global state, scheduler ...
+- [Akka http](https://doc.akka.io/docs/akka-http/current/scala/http/index.html): for http request, sse ...
+
+The scaladsl rely on :
+
+- [play json](https://github.com/playframework/play-json): for json handling
+
+The javadsl rely on :
+
+- [vavr](http://www.vavr.io/): For functional structures like future, either, option ...
+- [play json java](https://github.com/mathieuancelin/json-lib-javaslang): For json handling
+
+## Setup the Izanami client
+
+The first thing to do is to create a client. The client own the shared http client between config client, feature client and the experiment client.
+
+You need to create a single client for all your application.
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+izanamiClient = IzanamiClient.client(
+    system,
+    ClientConfig.create("http://localhost:8089")
+        .withClientId("xxxx")
+        .withClientIdHeaderName("Another-Client-Id-Header")
+        .withClientSecret("xxxx")
+        .withClientSecretHeaderName("Another-Client-Secret-Header")
+        .sseBackend()
+        .withDispatcher("izanami-example.blocking-io-dispatcher")
+        .withPageSize(50)
+        .withZoneId(ZoneId.of("Europe/Paris"))
+);
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+implicit val system = ActorSystem(
+  "izanami-client",
+  ConfigFactory.parseString("""
+    izanami-example.blocking-io-dispatcher {
+      type = Dispatcher
+      executor = "thread-pool-executor"
+      thread-pool-executor {
+        fixed-pool-size = 32
+      }
+      throughput = 1
+    }
+  """)
+)
+
+val client = IzanamiClient(
+  ClientConfig(
+    host = "http://localhost:9000",
+    clientId = Some("xxxx"),
+    clientIdHeaderName = "Another-Client-Id-Header",
+    clientSecret = Some("xxxx"),
+    clientSecretHeaderName = "Another-Client-Id-Header",
+    backend = SseBackend,
+    pageSize = 50,
+    zoneId = ZoneId.of("Europe/Paris"),
+    dispatcher = "izanami-example.blocking-io-dispatcher"
+  )
+)
+```
+
+  </TabItem>
+</Tabs>
+
+| Field                    | Description                                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| `clientId`               | The client id to access izanami APIs see [Manage APIs keys](../ui#manage-api-keys)     |
+| `clientSecretIdName`     | A custom header for the client id                                                             |
+| `clientSecret`           | The client secret to access izanami APIs see [Manage APIs keys](../ui#manage-api-keys) |
+| `clientSecretHeaderName` | A custom header for the client secret                                                         |
+| `sseBackend`             | Enable sse to get events from the server                                                      |
+| `dispatcher`             | Reference a dispatcher to manage thread pool                                                  |
+| `pageSize`               | Change the size of the pages when fetching from the server                                    |
+| `zoneId`                 | Zone Id to handle date                                                                        |
+
+## Configs client
+
+The config client is used to access the shared config in Izanami. To understand how configs work, just visit this [page](../configs)
+
+### Setup the client
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+ConfigClient configClient = izanamiClient.configClient(
+    Strategies.fetchStrategy(),
+    Configs.configs(
+        Config.config("my:config", Json.obj(
+            Syntax.$("value", "Fallback value")
+        ))
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+val configClient = client.configClient(
+  strategy = FetchStrategy(),
+  fallback = Configs(
+    "test2" -> Json.obj("value" -> 2)
+  )
+)
+```
+
+  </TabItem>
+</Tabs>
+
+When you set up a client you have to choose a strategy :
+
+| Strategy                 | Description                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| Fetch                    | Call izanami for each request                                                      |
+| Fetch with cache         | Keep response in cache                                                             |
+| Smart cache with polling | Keep data in memory and poll izanami to refresh the cache asynchronously.          |
+| Smart cache with sse     | Keep data in memory and refresh the cache with the events from the izanami server. |
+
+#### The fetch strategy
+
+The fetch strategy will call izanami for each request.
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+ConfigClient configFetchStrategy = izanamiClient.configClient(
+    Strategies.fetchStrategy(),
+    Configs.configs(
+        Config.config("my:config", Json.obj(
+            Syntax.$("value", "Fallback value")
+        ))
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+val configClient = client.configClient(
+  strategy = FetchStrategy(),
+  fallback = Configs(
+    "test2" -> Json.obj("value" -> 2)
+  )
+)
+```
+
+  </TabItem>
+</Tabs>
+
+#### The fetch with cache strategy
+
+The fetch with cache will do dumb cache by http call. You have to provide a the max elements in cache and a TTL.
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+Integer maxElementInCache = 100;
+FiniteDuration ttl = FiniteDuration.create(20, TimeUnit.MINUTES);
+ConfigClient fetchWithCacheStrategy = izanamiClient.configClient(
+    Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
+    Configs.configs(
+        Config.config("my:config", Json.obj(
+            Syntax.$("value", "Fallback value")
+        ))
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+val strategy = IzanamiClient(
+  ClientConfig(ctx.host)
+).configClient(
+  strategy = FetchWithCacheStrategy(maxElement = 2, duration = 1.second),
+  fallback = Configs(
+    "test2" -> Json.obj("value" -> 2)
+  )
+)
+```
+
+  </TabItem>
+</Tabs>
+
+#### The smart cache strategy
+
+When you choose the smart cache, you have to provide patterns :
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+ConfigClient configClient = izanamiClient.configClient(
+    Strategies.smartCacheWithPollingStrategy(
+        FiniteDuration.create(20, TimeUnit.SECONDS),
+        "my:configs:*", "other:pattern"
+    ),
+    Configs.configs(
+        Config.config("my:config", Json.obj(
+            Syntax.$("value", "Fallback value")
+        ))
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+val configClient = client.configClient(
+  strategy = CacheWithPollingStrategy(
+    patterns = Seq("*"),
+    pollingInterval = 3.second
+  ),
+  fallback = fallback
+)
+```
+
+  </TabItem>
+</Tabs>
+
+The client will cache all the configs matching this patterns.
+
+- With a poll strategy, the client will request the server to get change so you have to set a delay.
+- With a SSE strategy, the client will listen events from the server to refresh the cache.
+
+::: warning
+
+There is no TTL using this strategy so you have to choose the right patterns to be sure that all datas fit in memory.
+
+:::
+
+#### Handling errors
+
+An error handling strategy could be provided. You can choose between :
+
+- `RecoverWithFallback`: If the call crash, the fallback is used
+- `Crash`: The call will finish on error if an error occured while evaluating the feature, config or experiment.
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+ConfigClient configErrorStrategy = izanamiClient.configClient(
+    Strategies.fetchStrategy(ErrorStrategies.crash())
+);
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+val configClient = izanamiClient.configClient(
+  strategy = FetchStrategy(Crash),
+  fallback = Configs(
+    "test2" -> Json.obj("value" -> 2)
+  )
+)
+```
+
+  </TabItem>
+</Tabs>
+
+### Client usage
+
+#### Get configs for a pattern
+
+<Tabs groupId="javascala">
+  <TabItem value="java" label="Java" default>
+
+```java
+Future<Configs> futureConfigs = configClient.configs("my:*");
+futureConfigs.onSuccess((Configs configs) -> {
+  JsValue config = configs.config("my:config");
+  System.out.println(config.field("value").asString());
+});
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+val configs: Future[Configs] = configClient.configs("*")
+configs.onComplete {
+  case Success(c) => println(c)
+  case Failure(e) => e.printStackTrace()
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Get one config
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<JsValue> futureConfig = configClient.config("my:config");
+futureConfig.onSuccess((JsValue config) -> {
+  System.out.println(config.field("value").asString());
+});
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val futureConfig: Future[JsValue] = izanamiClient.config("test")
+futureConfig.onComplete {
+  case Success(c) => println(c)
+  case Failure(e) => e.printStackTrace()
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Create / Update / Delete configs
+
+Create config using json
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+JsValue createdJson = configClient.createConfig("my:config", Json.obj(Syntax.$("value", "A configuration"))).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val configCreated = client.createConfig("test", Json.obj("value" -> 1))
+```
+
+  </TabItem>
+</Tabs>
+
+Create config using a config object
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Config created = configClient.createConfig(Config.config("my:config", Json.obj(Syntax.$("value", "A configuration")))).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val jsoncreated = client.createConfig(Config("test", Json.obj("value" -> 1)))
+```
+
+  </TabItem>
+</Tabs>
+
+Update config using json
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+JsValue updatedJson = configClient.updateConfig("my:previous:config", "my:config", Json.obj(Syntax.$("value", "A configuration"))).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val configUpdated = client.updateConfig("test", "newtest", Json.obj("value" -> 1))
+```
+
+  </TabItem>
+</Tabs>
+
+Update config using a config object
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Config updated = configClient.updateConfig("my:previous:config", Config.config("my:config", Json.obj(Syntax.$("value", "A configuration")))).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val configUpdated = client.updateConfig("test", Config("newtest", Json.obj("value" -> 1)))
+```
+
+  </TabItem>
+</Tabs>
+
+Delete a config
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Done deleted = configClient.deleteConfig("my:config").get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val configDeleted = client.deleteConfig("test")
+```
+
+  </TabItem>
+</Tabs>
+
+
+#### Autocreate configs
+
+You can autocreate configs that are define as fallback. To enable this you need set the `autocreate` parameter when the client is created.
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Boolean autocreate = true;
+ConfigClient configClient = izanamiClient.configClient(
+    Strategies.fetchStrategy(),
+    Configs.configs(
+        Config.config("my:config", Json.obj(
+            Syntax.$("value", "Fallback value")
+        ))
+    ),
+    autocreate
+);
+```
+
+  </TabItem>
+  <TabItem value="scala" label="Scala">
+
+```scala
+val izanamiClient = client.configClient(
+  strategy = Strategies.fetchStrategy(),
+  fallback = Configs(
+    "test" -> Json.obj("value" -> 2)
+  ),
+  autocreate = true
+)
+```
+
+  </TabItem>
+</Tabs>
+
+## Features client
+
+To understand how features work, just visit this [page](../features)
+
+### Setup the client
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.fetchStrategy(),
+    Features.features(
+        Features.feature("my:feature", false)
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val featureClient = client.featureClient(
+  strategy = FetchStrategy(),
+  fallback = Features(
+    DefaultFeature("test2", true)
+  )
+)
+```
+
+  </TabItem>
+</Tabs>
+
+When you set up a client you have to choose a strategy :
+
+| Strategy                 | Description                                                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fetch                    | Call izanami for each request                                                                                                                                                   |
+| Fetch with cache         | Keep response in cache                                                                                                                                                          |
+| Smart cache with polling | Keep data in memory and poll izanami to refresh the cache asynchronously. The features that need a context are not cached because it can needs a huge amount of memory          |
+| Smart cache with sse     | Keep data in memory and refresh the cache with the events from the izanami server. The features that need a context are not cached because it can needs a huge amount of memory |
+
+#### The fetch strategy
+
+The fetch strategy will call izanami for each request
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.fetchStrategy(),
+    Features.features(
+        Features.feature("my:feature", false)
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val strategy = IzanamiClient(
+  ClientConfig(host, pageSize = 2)
+).featureClient(
+  Strategies.fetchStrategy()
+)
+```
+
+  </TabItem>
+</Tabs>
+
+
+#### The fetch with cache strategy
+
+The fetch with cache will do dumb cache by http call. You have to provide a the max elements in cache and a TTL.
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Integer maxElementInCache = 100;
+FiniteDuration ttl = FiniteDuration.create(20, TimeUnit.MINUTES);
+FeatureClient featureClientWithCache = izanamiClient.featureClient(
+    Strategies.fetchWithCacheStrategy(maxElementInCache, ttl),
+    Features.features(
+        Features.feature("my:feature", false)
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val strategy = IzanamiClient(
+  ClientConfig(ctx.host)
+).featureClient(
+  strategy = FetchWithCacheStrategy(maxElement = 2, duration = 1.second),
+  fallback = Features(
+    DefaultFeature("test2", true)
+  )
+)
+```
+
+  </TabItem>
+</Tabs>
+
+#### The smart cache strategy
+
+When you choose the smart cache, you have to provide patterns to select the keys that will be in cache:
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.smartCacheWithSseStrategy(
+        scala.Option.apply(FiniteDuration.create(1, TimeUnit.MINUTES)),
+        "my:features:*", "other:pattern"
+    ),
+    Features.features(
+        Features.feature("my:feature", false)
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val featureClient = client.featureClient(
+  strategy = CacheWithPollingStrategy(
+    patterns = Seq("*"),
+    pollingInterval = 3.second
+  ),
+  fallback = Features(fallback: _*)
+)
+```
+
+  </TabItem>
+</Tabs>
+
+The client will cache all the configs matching this patterns.
+
+- With a poll strategy, the client will request the server to get change so you have to set a delay.
+- With a SSE strategy, the client will listen events from the server to refresh the cache.
+
+::: note
+
+The feature that need a context to be evaluated are not cached. The cache is used only for simple features or feature with release date.
+
+:::
+
+::: warning
+
+There is no TTL using this strategy so you have to choose the right patterns to be sure that all datas fit in memory.
+
+:::
+
+#### Handling errors
+
+An error handling strategy could be provided. You can choose between :
+
+- `RecoverWithFallback`: If the call crash, the fallback is used
+- `Crash`: The call will finish on error if an error occured while evaluating the feature, config or experiment.
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+FeatureClient featureClientWithErrorHandling = izanamiClient.featureClient(
+    Strategies.fetchStrategy(ErrorStrategies.crash())
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val featureClient = izanamiClient.featureClient(
+  FetchStrategy(Crash)
+)
+```
+
+  </TabItem>
+</Tabs>
+
+### Client usage
+
+#### List features
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<Features> futureFeatures = featureClient.features("my:feature:*");
+
+futureFeatures.onSuccess(features -> {
+  boolean active = features.isActive("my:feature:test");
+  if (active) {
+    System.out.println("Feature my:feature:test is active");
+  } else {
+    System.out.println("Feature my:feature:test is active");
+  }
+  JsObject tree = features.tree();
+  System.out.println("Tree is " + Json.prettyPrint(tree));
+});
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val futureFeatures: Future[Features] = featureClient.features("*")
+futureFeatures.onComplete {
+  case Success(features) =>
+    val active: Boolean = features.isActive("test")
+    if (active)
+      println(s"Feature test is active")
+    else
+      println(s"Feature test is not active")
+
+    val tree: JsObject = features.tree()
+    println(s"All features: ${Json.prettyPrint(tree)}")
+
+  case Failure(e) =>
+    e.printStackTrace()
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Check feature
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<Boolean> futureCheck = featureClient.checkFeature("my:feature");
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val futureCheck: Future[Boolean] = featureClient.checkFeature("test")
+```
+
+  </TabItem>
+</Tabs>
+
+If the feature needs a context to be evaluated:
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<Boolean> futureCheckContext = featureClient.checkFeature("my:feature", Json.obj(
+    Syntax.$("context", true)
+));
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val context                           = Json.obj("context" -> true)
+val checkWithContext: Future[Boolean] = featureClient.checkFeature("test", context)
+```
+
+  </TabItem>
+</Tabs>
+
+#### Conditional code on feature
+
+This execute a code and return a value if a feature is active:
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<String> conditonal = featureClient.featureOrElse("my:feature",
+    () -> "Feature is active",
+    () -> "Feature is not active"
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val conditonal: Future[String] = featureClient.featureOrElse("test") {
+  "Feature is active"
+} {
+  "Feature is not active"
+}
+```
+
+  </TabItem>
+</Tabs>
+
+Or with a context
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<String> conditonalContext = featureClient.featureOrElse(
+    "my:feature",
+    Json.obj(Syntax.$("context", true)),
+    () -> "Feature is active",
+    () -> "Feature is not active"
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val conditonalWithContext: Future[String] = featureClient.featureOrElse("test", context) {
+  "Feature is active"
+} {
+  "Feature is not active"
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Create / update / delete
+
+With the client you can mutate features.
+
+Create with raw data:
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Feature createdJson = featureClient.createJsonFeature(
+    "my:feature",
+    true,
+    Features.hourRangeType(),
+    Option.of(Json.obj(
+        Syntax.$("startAt", "05:25"),
+        Syntax.$("endAt", "16:30")
+    ))
+).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+Feature createdJson = featureClient.createJsonFeature(
+    "my:feature",
+    true,
+    Features.hourRangeType(),
+    Option.of(Json.obj(
+        Syntax.$("startAt", "05:25"),
+        Syntax.$("endAt", "16:30")
+    ))
+).get();
+```
+
+  </TabItem>
+</Tabs>
+
+Or with a feature object:
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Feature created = featureClient.createFeature(
+    Features.hourRange("my:feature", true, LocalTime.of(5, 25), LocalTime.of(16, 30))
+).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val featureCreated = featureClient.createFeature(
+  DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+)
+```
+
+  </TabItem>
+</Tabs>
+
+Update a feature :
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Feature updated = featureClient.updateFeature("my:previous:feature", Features.hourRange("my:feature:test", true, LocalTime.of(5, 25), LocalTime.of(16, 30))).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val featureCreated = featureClient.updateFeature(
+  "test",
+  DateRangeFeature("test2", true, LocalDateTime.of(2019, 4, 12, 0, 0, 0), LocalDateTime.of(2019, 5, 13, 0, 0, 0))
+)
+```
+
+  </TabItem>
+</Tabs>
+
+Delete a feature :
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Done deleted = featureClient.deleteFeature("my:feature").get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val deleted = featureClient.deleteFeature("test")
+```
+
+  </TabItem>
+</Tabs>
+
+You can also activate or deactivate a feature
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Feature activated = featureClient.switchFeature("my:feature", true).get();
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val activated = featureClient.switchFeature("test", false)
+```
+
+  </TabItem>
+</Tabs>
+
+
+#### Autocreate features
+
+You can autocreate features that are define as fallback. To enable this you need set the `autocreate` parameter when the client is created.
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Boolean autocreate = true;
+FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.fetchStrategy(),
+    Features.features(
+        Features.feature("my:feature", false)
+    ),
+    autocreate
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val featureClient = client
+  .featureClient(
+    FetchStrategy(Crash),
+    autocreate = true,
+    fallback = Features(feature)
+  )
+```
+
+  </TabItem>
+</Tabs>
+
+## Experiments client
+
+To understand how experiments work, just visit this [page](../experiments)
+
+### Setup the client
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+ExperimentsClient experimentsClient = izanamiClient.experimentClient(Strategies.fetchStrategy());
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val experimentClient = IzanamiClient(ClientConfig(host))
+  .experimentClient(Strategies.fetchStrategy())
+```
+
+  </TabItem>
+</Tabs>
+
+
+For experiments, there is only two strategies available : fetch or dev.
+
+### Variants
+
+#### Get a variant for a client
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<Option<Variant>> futureVariant = experimentsClient.getVariantFor("my:experiment", "clientId");
+futureVariant.onSuccess(mayBeVariant ->
+    Match(mayBeVariant).of(
+        Case($Some($()), exist -> {
+          String phrase = "Variant is " + exist;
+          System.out.println(phrase);
+          return phrase;
+        }),
+        Case($None(), __ -> {
+          String phrase = "Variant not found";
+          System.out.println(phrase);
+          return phrase;
+        })
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val mayBeFutureVariant: Future[Option[Variant]] = experimentClient.getVariantFor("test", "client1")
+mayBeFutureVariant.onComplete {
+  case Success(mayBeVariant) => println(mayBeVariant)
+  case Failure(e)            => e.printStackTrace()
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Mark variant displayed
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<ExperimentVariantDisplayed> futureDisplayed = experimentsClient.markVariantDisplayed("my:experiment", "clientId");
+futureDisplayed.onSuccess(event ->
+    System.out.println(event)
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val futureDisplayed: Future[ExperimentVariantDisplayed] =
+  experimentClient.markVariantDisplayed("test", "client1")
+futureDisplayed.onComplete {
+  case Success(event) => println(event)
+  case Failure(e)     => e.printStackTrace()
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Mark variant won
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<ExperimentVariantWon> futureWon = experimentsClient.markVariantWon("my:experiment", "clientId");
+futureWon.onSuccess(event ->
+    System.out.println(event)
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val futureWon: Future[ExperimentVariantWon] = experimentClient.markVariantWon("test", "client1")
+futureWon.onComplete {
+  case Success(event) => println(event)
+  case Failure(e)     => e.printStackTrace()
+}
+```
+
+  </TabItem>
+</Tabs>
+
+### Work with experiment
+
+#### Get the experiment
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<Option<ExperimentClient>> futureExperiment = experimentsClient.experiment("my:experiment");
+futureExperiment.onSuccess(mayBeExperiment ->
+    Match(mayBeExperiment).of(
+        Case($Some($()), exist -> {
+          String phrase = "Experiment is " + exist;
+          System.out.println(phrase);
+          return phrase;
+        }),
+        Case($None(), __ -> {
+          String phrase = "Experiment not found";
+          System.out.println(phrase);
+          return phrase;
+        })
+    )
+);
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val futureExperiment: Future[Option[ExperimentClient]] = experimentClient.experiment("test")
+futureExperiment.onComplete {
+  case Success(Some(exp)) => println(s"Experiment is $exp")
+  case Success(None)      => println("Experiment not Found")
+  case Failure(e)         => e.printStackTrace()
+}
+```
+
+  </TabItem>
+</Tabs>
+
+
+Once you get the experiment, you can get a variant for a client, mark variant displayed or mark variant won :
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+ExperimentClient experiment = mayExperiment.get();
+Future<Option<Variant>> clientId = experiment.getVariantFor("clientId");
+Future<ExperimentVariantDisplayed> displayed = experiment.markVariantDisplayed("clientId");
+Future<ExperimentVariantWon> won = experiment.markVariantWon("clientId");
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val experiment: ExperimentClient                  = mayBeExperiment.get
+val futureVariant: Future[Option[Variant]]        = experiment.getVariantFor("client1")
+val displayed: Future[ExperimentVariantDisplayed] = experiment.markVariantDisplayed("client1")
+val won: Future[ExperimentVariantWon]             = experiment.markVariantWon("client1")
+```
+
+  </TabItem>
+</Tabs>
+
+### Experiment tree
+
+You can get the experiments tree with associated variant for a client :
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+Future<JsValue> futureTree = experimentsClient.tree("*", "clientId");
+futureTree.onSuccess(tree -> {
+  assertThat(tree).isEqualTo(
+      Json.obj(
+          Syntax.$("my", Json.obj(
+              Syntax.$("experiment", Json.obj(
+                  Syntax.$("variant", "A")
+              ))
+          ))
+      )
+  );
+});
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val experimentsTree = client.tree("*", "client1").futureValue
+experimentsTree must be(
+  Json.obj(
+    "izanami" -> Json.obj(
+      "ab" -> Json.obj(
+        "test" -> Json.obj(
+          "variant" -> "A"
+        )
+      )
+    )
+  )
+)
+val experimentsTree = client.tree("*", "client1").futureValue
+experimentsTree must be(
+  Json.obj()
+)
+```
+
+  </TabItem>
+</Tabs>
+
+## Exposing izanami with a Proxy
+
+When you have to use Izanami from the client side, you can't call Izanami directly from the browser because it means the API keys are exposed to anyone.
+
+The best solution is to use your backend as a proxy. You can do this with the jvm client.
+
+<Tabs groupId="javascala">
+  <TabItem value="java"
+ label="Java"
+ default>
+
+```java
+ConfigClient configClient = izanamiClient.configClient(
+    Strategies.dev(),
+    Configs.configs(
+        Config.config("configs:test", Json.obj(
+            Syntax.$("value", 2)
+        ))
+    )
+);
+FeatureClient featureClient = izanamiClient.featureClient(
+    Strategies.dev(),
+    Features.features(
+        Features.feature("features:test1", true)
+    )
+);
+ExperimentsClient experimentsClient = izanamiClient.experimentClient(
+    Strategies.dev(),
+    Experiments.create(
+        ExperimentFallback.create(
+            "experiments:id",
+            "Experiment",
+            "An Experiment",
+            true,
+            Variant.create("A", "Variant A", scala.Option.apply("Variant A"))
+        )));
+
+Proxy proxy = izanamiClient.proxy()
+    .withConfigClient(configClient)
+    .withConfigPattern("configs:*")
+    .withFeatureClient(featureClient)
+    .withFeaturePattern("features:*")
+    .withExperimentsClient(experimentsClient)
+    .withExperimentPattern("experiments:*");
+
+Future<Tuple2<Integer, JsValue>> fJsonResponse = proxy.statusAndJsonResponse();
+fJsonResponse.onSuccess(t ->
+    System.out.println("Code = " + t._1 + ", json body = " + t._2)
+);
+
+//Or with string response and additional infos :
+Future<Tuple2<Integer, String>> fStringResponse = proxy.statusAndStringResponse(Json.obj().with("id", "ragnard.lodbrock@gmail.com"), "ragnard.lodbrock@gmail.com");
+fStringResponse.onSuccess(t ->
+    System.out.println("Code = " + t._1 + ", string body = " + t._2)
+);
+// Experiment proxy
+
+Future<Tuple2<Integer, JsValue>> markVariantDisplayed = proxy.markVariantDisplayed("experiments:id", "ragnars.lodbrock@gmail.com");
+Future<Tuple2<Integer, JsValue>> markVariantWon = proxy.markVariantWon("experiments:id", "ragnars.lodbrock@gmail.com");
+```
+
+  </TabItem>
+  <TabItem value="scala"
+ label="Scala"
+>
+
+```scala
+val client = IzanamiClient(
+  ClientConfig("")
+)
+
+val featureClient: FeatureClient = client.featureClient(
+  strategy = Strategies.dev(),
+  fallback = Features(
+    DefaultFeature("features:test1", true)
+  )
+)
+
+val configClient: ConfigClient = client.configClient(
+  Strategies.dev(),
+  fallback = Configs(
+    "configs:test" -> Json.obj("value" -> 2)
+  )
+)
+
+val experimentsClient: ExperimentsClient = client.experimentClient(
+  strategy = Strategies.dev(),
+  fallback = Experiments(
+    ExperimentFallback(
+      "experiments:id",
+      "Experiment",
+      "An experiment",
+      true,
+      Variant("A", "Variant A", Some("Variant A"))
+    )
+  )
+)
+
+val proxy: Proxy = client
+  .proxy()
+  .withConfigClient(configClient)
+  .withConfigPattern("configs:*")
+  .withFeatureClient(featureClient)
+  .withFeaturePattern("features:*")
+  .withExperimentsClient(experimentsClient)
+  .withExperimentPattern("experiments:*")
+
+val fResponseJson: Future[(Int, JsValue)] = proxy.statusAndJsonResponse()
+fResponseJson.onComplete {
+  case Success((status, responseBody)) =>
+    println(s"Izanami respond with status $status and json body $responseBody")
+  case _ => println("Oups something wrong happened")
+}
+
+//Or for a string response and additional infos
+val fResponseString: Future[(Int, String)] = proxy.statusAndStringResponse(
+  context = Some(Json.obj("user" -> "ragnard.lodbrock@gmail.com")),
+  userId = Some("ragnard.lodbrock@gmail.com")
+)
+fResponseString.onComplete {
+  case Success((status, responseBody)) =>
+    println(s"Izanami respond with status $status and string body $responseBody")
+  case _ => println("Oups something wrong happened")
+}
+
+// Experiment proxy
+
+val fDisplayed: Future[(Int, JsValue)] =
+  proxy.markVariantDisplayed("experiments:id", "ragnard.lodbrock@gmail.com")
+val fWon: Future[(Int, JsValue)] = proxy.markVariantWon("experiments:id", "ragnard.lodbrock@gmail.com")
+```
+
+  </TabItem>
+</Tabs>
+

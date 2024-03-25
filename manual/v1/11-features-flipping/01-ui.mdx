@@ -1,0 +1,128 @@
+---
+title: The UI
+---
+
+import full from "@site/static/v1/img/features/full.png";
+import treeView from "@site/static/v1/img/features/tree_view.png";
+import copyFeatures from "@site/static/v1/img/features/copy_features.png";
+import noStrategy from "@site/static/v1/img/features/no_strategy.png";
+import releaseDate from "@site/static/v1/img/features/release_date.png";
+import dateRange from "@site/static/v1/img/features/date_range.png";
+import hourRange from "@site/static/v1/img/features/hour_range.png";
+import percentage from "@site/static/v1/img/features/percentage.png";
+import script from "@site/static/v1/img/features/script.png";
+import explorer from "@site/static/v1/img/features/explorer.png";
+import downloadUpload from "@site/static/v1/img/download-upload.png";
+
+You can access to the features clicking "features" on the left menu.
+
+<img src={full} width="100%" />
+
+You can then
+
+- Search using a pattern on feature key
+- add a feature
+- update a feature
+- delete a feature
+
+If you're admin, you can also
+
+- Download features
+- Upload features
+
+## Browse features
+
+You have the choice between two mode :
+
+- Flat mode: features are displayed in a table
+- Tree mode: features are displayed as tree like a folder
+
+You can switch the mode using the first button on the left.
+
+### Flat mode
+
+<img src={full} width="100%" />
+
+### Tree mode
+
+<img src={treeView} width="100%" />
+
+On the tree mode, an action menu appear with the mouse is over the name of a feature. With the action menu you can
+
+- add a node
+- edit a node
+- lock / unlock a node
+- copy a node
+- switch to the flat for a feature
+
+#### Copy nodes
+
+You can copy a group of features to a destination selecting the parent node.
+
+<img src={copyFeatures} width="100%" />
+
+You can choose to enable or disable the copied feature by default.
+
+## Edit a feature
+
+When you create a feature, you have to select a strategy. You can choose between NO_STRATEGY, RELEASE_DATE, DATE_RANGE, PERCENTAGE, SCRIPT or GLOBAL_SCRIPT
+
+### NO_STRATEGY
+
+this is the simpler one, the feature can be active or inactive
+
+<img src={noStrategy} width="100%" />
+
+### RELEASE_DATE{" "}
+
+this kind of strategy allow you to enable a feature on a date value in addition to the active boolean.
+
+<img src={releaseDate} width="100%" />
+
+### DATE_RANGE
+
+this kind of strategy allow you to enable a feature on a range of dates in addition to the active boolean.
+
+<img src={dateRange} width="100%" />
+
+### HOUR_RANGE{" "}
+
+this kind of strategy allow you to enable a feature on a range of hour for a day in addition to the active boolean.
+
+<img src={hourRange} width="100%" />
+
+### PERCENTAGE
+
+this kind of strategy allow you to enable a feature for a percentage of clients. In this strategy, the client need to send a context with an `id` field in order to calculate if the feature is enabled or not.
+
+<img src={percentage} width="100%" />
+
+### SCRIPT
+
+this kind of strategy allow you to enable a feature using a script execution. On json context should be posted to evaluate if the feature is active or not.
+
+In this example, the feature is active if the user send in the context is `ragnar.lodbrock@gmail.com` :
+
+<img src={script} width="100%" />
+
+You can find more details about script [on this page](#script).
+
+### GLOBAL SCRIPT
+
+Global script strategy is the same as script except that the script are shared between features.
+
+## Evaluate a feature
+
+You can evaluate if a feature is active or with the explorer screen.
+
+<img src={explorer} width="80%" />
+
+In this example, we have specified a pattern `*:script` to filter the feature.
+
+We have also specified a context to test the feature. The tested feature is a feature with a "script" strategy so we want to be sure that the script is correct.
+
+## Download and Upload
+
+If you're admin you have the right to download or upload.
+
+<img src={downloadUpload} width="50%" />

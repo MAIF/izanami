@@ -1,0 +1,34 @@
+---
+title: Creating API key
+---
+
+import keyEmptyForm from "@site/static/img/screenshots/api-keys/key-empty-form.png";
+import keyFilledForm from "@site/static/img/screenshots/api-keys/key-filled-form.png";
+import keyModal from "@site/static/img/screenshots/api-keys/key-modal.png";
+
+API keys allow client application to call Izanami endpoints.
+
+Keys are either accredited to a list of projects, or declared admin.
+
+Admin keys can access every project for their tenants.
+
+To create a new key, you must have write authorization on tenant.
+
+Go to the "Key" menu, and click on "Create new key" button.
+
+<img src={keyEmptyForm} />
+
+In this form, you must indicate a name for the new key, you can also specify whether it's an admin key or specify accredited projects for this key.
+
+<img src={keyFilledForm} />
+
+Once your key is created, a modal is displayed that indicate client id and client secret.
+
+**Make sure you copy client secret**, once the modal is closed it won't be displayed again.
+
+<img src={keyModal} />
+
+Once your api key is created, you can use it to query Izanami, by passing two headers :
+
+- `Izanami-Client-Id` : client id of your key
+- `Izanami-Client-Secret` : client secret of your key

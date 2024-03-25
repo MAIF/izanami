@@ -1,0 +1,123 @@
+.navbar {
+  background-color: $fondNavbar;
+
+  .navbar-nav > li {
+    > a {
+      color: $colorGris;
+      // padding: 17px;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      // margin-top: 15px;
+      li:hover,
+      li:focus {
+        background-color: $fondGrisclairSurvolMenu;
+      }
+      a:hover,
+      a:focus {
+        text-decoration: none;
+      }
+    }
+
+    // > a:hover,
+    // > a:focus {
+    //   color: $primaryColor;
+    //   text-decoration: none;
+    // }
+  }
+
+  .navbar-nav > .active > a,
+  .navbar-nav > .open > a,
+  .navbar-nav > .open > a:focus,
+  .navbar-nav > .open > a:hover {
+    background-color: $fondBody;
+    background-image: none;
+    color: $primaryColor
+  }
+
+  .navbar-right > li > a {
+    color: $primaryColor;
+
+    &:focus,
+    &:hover {
+      background: none;
+      cursor: pointer;
+    }
+  }
+}
+
+.navbar-header {
+  background-color: $primaryColor;
+  color: #fff;
+  font-size: 18px;
+  line-height: 20px;
+  // margin-left: -0.75rem;
+}
+
+.navbar-inverse .navbar-nav > li > a {
+  color: $primaryColor;
+}
+// izanimi begin
+
+.text-info {
+  color: $colorRose;
+}
+
+.form-control:focus {
+  border-color: #373735;
+  box-shadow: none;
+  background-color: $fondNavbar;
+}
+
+.nav > li > a {
+  padding: 10px;
+}
+
+@media screen and (max-width: $screen-sm) {
+  .navbar-right {
+    margin-top: -53px;
+    float: right;
+    position: absolute;
+    right: 15px;
+
+    .open .dropdown-menu {
+      box-shadow: 0 6px 12px rgba(0,0,0,.175);
+    }
+
+    .userManagement {
+      a {
+        text-align: right;
+      }
+
+      &.open {
+        background-color: #373735;
+        z-index: 3;
+      }
+    }
+  }
+
+  .navbar-form {
+    clear: both;
+    border: none;
+    box-shadow: none;
+    margin-left: -15px;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+
+  // .navbar-collapse.in {
+  //   overflow-y: inherit;
+  //   margin-top: 60px;
+  // }
+
+  .menu {
+    float: left;
+    color: #fff;
+  }
+}
+
+.collapse.show{
+  display: block;
+}

@@ -1,0 +1,281 @@
+h1,
+h2 {
+  color: $colorGris;
+}
+
+.navbar {
+  .nav-link {
+    color: $primaryColor;
+    text-decoration: none;
+  }
+
+  .nav-link i {
+    margin-left: 0.5em;
+  }
+}
+
+main a:link,
+main a,
+main a:visited {
+  color: #fff;
+}
+
+main a:active,
+main a:hover,
+main a:focus {
+  color: $primaryColor;
+  & svg .icon_context {
+    fill: $primaryColor !important;
+  }
+}
+
+.breadcrumb .active a {
+  color: $colorGris;
+}
+.breadcrumb svg .icon_context {
+  fill: $colorGris !important;
+}
+
+.breadcrumb .breadcrumb-item a {
+  &:hover,
+  &:active,
+  &:focus {
+    color: $primaryColor;
+  }
+}
+
+#root table td {
+  color: #b5b3b3;
+}
+
+#root table th {
+  color: #fff;
+}
+
+#root .modal {
+  width: 100%;
+}
+
+.breadcrumb a {
+  color: $primaryColor;
+  text-decoration: none;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+// h1 {
+//   font-size: 2rem;
+// }
+
+input,
+textarea {
+  color: $colorGris !important;
+  border-color: $fondBody !important;
+  border-radius: 4px;
+  border: none;
+}
+
+input:not([role="combobox"]):not([type="checkbox"]),
+textarea {
+  /* buggy on react-select */
+  background-color: $fondNavbar;
+}
+
+.card {
+  background-color: #494948;
+}
+
+#root .mrf-content_switch_button_on {
+  background-color: $primaryColor;
+}
+
+#root .mrf-content_switch_button_off {
+  background-color: $colorGris;
+}
+
+.MuiOutlinedInput-notchedOutline {
+  top: -7px;
+  border-color: #494948 !important;
+}
+
+.MuiSvgIcon-root {
+  color: #fff;
+}
+
+.alert {
+  background-color: $primaryColor;
+  color: #fff;
+  border-color: #fff;
+}
+
+thead th {
+  & > div {
+    min-height: 62px;
+  }
+
+  & input.table-filter {
+    height: 38px;
+  }
+}
+
+.mrf-btn {
+  background-color: transparent;
+  background: none;
+  margin-right: 5px;
+}
+.mrf-btn.mrf-btn_blue {
+  color: #fff;
+  border: 1px solid;
+  border-color: $colorBleue;
+  &:hover,
+  &.active,
+  &.active:hover {
+    color: #fff;
+    border: 1px solid;
+    border-color: $colorBleue;
+    background-color: $colorBleue;
+  }
+}
+
+.mrf-btn.mrf-btn_red {
+  color: #fff;
+  border: 1px solid;
+  border-color: $colorRouge;
+  &:hover {
+    color: #fff;
+    border: 1px solid;
+    border-color: $colorRouge;
+    background-color: $colorRouge;
+  }
+}
+
+.right-selector {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.right-selector .right-name-selector {
+  flex-grow: 1;
+  max-width: 70%;
+}
+
+.project-selector,
+.key-selector {
+  margin-top: 24px;
+  margin-bottom: 24px;
+  background-color: #49494873;
+  border-radius: 10px;
+  padding: 10px;
+  margin-left: 30px;
+}
+
+.dropdown-toggle::after {
+  display: none;
+}
+
+.izanami-tree-node {
+  margin-top: 10px;
+}
+
+.izanami-tree-node.open {
+  position: relative;
+}
+
+.izanami-tree-node.open:after {
+  border-left: 1px solid grey;
+  content: "";
+  position: absolute;
+  left: 9px;
+  bottom: 0;
+  top: 24px;
+}
+
+.activation-status {
+  font-weight: bold;
+}
+
+.enabled-status {
+  color: $primaryColor;
+}
+
+.current-context-overload {
+  color: $primaryColor;
+  font-weight: bold;
+}
+
+.izanami-checkbox {
+  cursor: pointer;
+  appearance: none;
+  margin-top: 10px;
+}
+
+.izanami-checkbox:checked {
+  width: 35px;
+  height: 22px;
+  border-radius: 20px;
+  display: flex;
+  background-color: $primaryColor;
+  border: 1px solid $primaryColor;
+  justify-content: flex-end;
+}
+
+.izanami-checkbox.izanami-checkbox-inline:checked,
+.izanami-checkbox.izanami-checkbox-inline:not(:checked) {
+  display: inline-flex;
+}
+
+.izanami-checkbox:checked:before {
+  content: "";
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  background-color: #fff;
+  border-radius: 20px;
+  box-shadow: 1px 0px 5px 0px rgba(0, 0, 0, 0.3);
+}
+
+.izanami-checkbox:not(:checked) {
+  width: 35px;
+  height: 22px;
+  border-radius: 20px;
+  display: flex;
+  background-color: $colorGris;
+  border: 1px solid $colorGris;
+  justify-content: flex-start;
+}
+
+.izanami-checkbox:not(:checked)::before {
+  content: "";
+  background-color: $colorGris;
+  border-radius: 20px;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  box-shadow: 1px 0px 5px 0px rgba(0, 0, 0, 0.3);
+}
+
+.izanami-checkbox:disabled:checked:before,
+.izanami-checkbox:disabled:not(:checked)::before,
+.izanami-checkbox:disabled {
+  cursor: default !important;
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  // border: 1px solid $colorGris;
+  padding: 4px;
+  margin: 4px;
+}
+
+input[type="time"] {
+  max-width: 120px;
+}
+
+.react-tooltip {
+  z-index: 1001;
+}

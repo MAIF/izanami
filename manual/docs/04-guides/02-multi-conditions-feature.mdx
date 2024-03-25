@@ -1,0 +1,57 @@
+---
+title: Multi-condition feature
+---
+
+import { Note } from "@site/src/components/Note";
+import featureForm from "@site/static/img/screenshots/multi-condition-feature/feature-form.png";
+import addConditionHover from "@site/static/img/screenshots/multi-condition-feature/add-condition-hover.png";
+import specificPeriodFocus from "@site/static/img/screenshots/multi-condition-feature/specific-period-focus.png";
+import summerSaleSummary from "@site/static/img/screenshots/multi-condition-feature/summer-sale-summary.png";
+import secondConditionForm from "@site/static/img/screenshots/multi-condition-feature/second-condition-form.png";
+import summerSaleSummary2 from "@site/static/img/screenshots/multi-condition-feature/summer-sale-summary2.png";
+
+Sometimes you need specific conditions for feature activation, for instance to open a feature only to some users or to activate a feature only after a given date.
+
+Izanami has a built-in conditions system that allows to define feature activation based on time or user rules.
+
+In this guide, we'll see how to create a feature that is active only at some times or for some users.
+
+## Release date feature
+
+Let's say we want to add a `summer-sales` feature to our application.
+
+Summer-sales only start at a given date, we could manually activate it at the desired time, however Izanami allows performing this kind of stuff automatically.
+
+You'll need to click "Add condition" button on feature form creation.
+
+<img src={addConditionHover} />
+
+A new condition is added to your feature, by default this conditions does not change your feature behavior, since it's active for all users and all time period.
+
+Next, check the "Active only on specific periods" checkbox.
+
+<img src={specificPeriodFocus} />
+
+This will display a form that let you define when the feature should be active, for our example we will activate it from 1st to 24th June.
+
+<img src={featureForm} />
+
+You can now save your feature, as we can see, the feature table of the project screen confirms that our feature will only be active for our specified period.
+
+<img src={summerSaleSummary} />
+
+## User list feature
+
+Now, let's say that we want some of our users to have access to our summer sales in advance.
+
+It could be to make sure that everything is working correctly, or to give advantages to some kind of "premium users".
+
+To achieve this, we will add a second condition to our `summer-sales` feature, that activates a bit earlier AND only for a specific list of users.
+
+Let's edit our feature and add it a new condition for this need.
+
+<img src={secondConditionForm} />
+
+After saving our work, summary in table is updated, our feature will be active from June 1st for everyone, and from May 15 for our beta-testers.
+
+<img src={summerSaleSummary2} />

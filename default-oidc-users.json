@@ -1,0 +1,123 @@
+[
+  {
+    "id": "SIMPLE_OIDC_USER_HARLEY",
+    "email": "harley@qlik.example",
+    "email_verified": true,
+    "name": "Harley Kiffe",
+    "nickname": "harley",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Sales"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_BARB",
+    "email": "barb@qlik.example",
+    "email_verified": true,
+    "name": "Barb Stovin",
+    "nickname": "barb",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Support"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_QUINN",
+    "email": "quinn@qlik.example",
+    "email_verified": true,
+    "name": "Quinn Leeming",
+    "nickname": "quinn",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Accounting"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_SIM",
+    "email": "sim@qlik.example",
+    "email_verified": true,
+    "name": "Sim Cleaton",
+    "nickname": "sim",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Accounting"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_PHILLIE",
+    "email": "phillie@qlik.example",
+    "email_verified": true,
+    "name": "Phillie Smeed",
+    "nickname": "phillie",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Marketing",
+      "Sales"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_PETA",
+    "email": "peta@qlik.example",
+    "email_verified": true,
+    "name": "Peta Sammon",
+    "nickname": "peta",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Engineering"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_MARNE",
+    "email": "marne@qlik.example",
+    "email_verified": true,
+    "name": "Marne Probetts",
+    "nickname": "marne",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Marketing"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_SIBYLLA",
+    "email": "sibylla@qlik.example",
+    "email_verified": true,
+    "name": "Sibylla Meadows",
+    "nickname": "sibylla",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Accounting"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_EVAN",
+    "email": "evan@qlik.example",
+    "email_verified": true,
+    "name": "Evan Highman",
+    "nickname": "evan",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Engineering"
+    ]
+  },
+  {
+    "id": "SIMPLE_OIDC_USER_FRANKLIN",
+    "email": "franklin@qlik.example",
+    "email_verified": true,
+    "name": "Franklin Glamart",
+    "nickname": "franklin",
+    "password": "Password1!",
+    "groups": [
+      "Everyone",
+      "Sales"
+    ]
+  }
+]

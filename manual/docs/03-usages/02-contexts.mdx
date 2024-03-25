@@ -1,0 +1,45 @@
+---
+title: Contexts
+---
+
+import { Note } from "@site/src/components/Note";
+import ContextTreeSchema from "@site/static/img/context tree.excalidraw.svg";
+
+Izanami allows to define finely when a feature should or should not be active, but sometimes this is not enough.
+
+For instance, you may want to have different activation conditions for dev and prod environment.
+
+There is two way to make it work, however they both have their drawback:
+
+- You could use a user list activation condition and pass your environment as a user. This is a bit hacky, but would work as long as you don't need to add another activation condition to this feature.
+- You could use a script activation condition, and pass your environment as payload for your feature activation request. This works, however it's better to avoid using script feature when possible, since this kind of activation strategy is impossible to cache client side.
+
+Since this kind of use case is very common, Izanami provides **contexts**.
+
+**Contexts** are a way for callers to indicate their execution context. They are organized as a tree: one context can define subcontexts, which can themselves have subcontexts and so on.
+
+<Note>
+  Contexts are ideal to let the caller indicate information such as browser,
+  env, device, ...
+</Note>
+
+You can **redefine activation conditions** for your feature in a given context.
+
+Caller can specify a context or subcontext when checking for feature activation status.
+
+When called with a context, Izanami will search for context-specific activation conditions and use them if they exist.
+If they don't, Izanami will go up this _context tree_ and use the first encountered activation condition, or the base one if no activation condition was encountered.
+
+To make it clearer, let's take a look at an example
+
+<ContextTreeSchema width="100%" height="300px" />
+
+The above schema represents a "context tree". The base node of the tree represents activation conditions that are defined by features.
+Each node may or may not redefine activation conditions for these features. To keep it simple, we only used "basic" startegy (feature is either enable or disable).
+
+Now let's see what happens when requesting feature activation:
+
+- feature1 without specifying context: <span style={{color: "green", fontWeight: "bold"}}>enabled</span> (easy, base activation condition was used here)
+- feature1 for context1: <span style={{color: "red", fontWeight: "bold"}}>disabled</span> (we use context1 redefinition for feature1)
+- feature1 for subcontext2: <span style={{color: "red", fontWeight: "bold"}}>disabled</span> (there is no activation condition redefinition for subcontext2, therefore we use the closest one when going up: context1 redefinition)
+- feature2 for subcontext1: <span style={{color: "red", fontWeight: "bold"}}>disabled</span> (context2 has no overload for subcontext1 nor context1, therefore base activation condition is used)

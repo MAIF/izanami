@@ -1,0 +1,68 @@
+---
+title: Feature flags
+---
+
+A feature flag is a switch allowing to enable / disable application features.
+
+Feature flags allows to **separate delivery from activation**.
+
+This means that you can deliver an application with disabled features, and activate it only when they are ready.
+This also means that you can disable problematic features without having to do another delivery.
+
+It's a nice tool for OPS and SRE engineers, but it's also very usefull for developers, since feature flags allow to leverage **trunk-based developement**, avoiding many merges and late integration issues.
+
+## Centralized VS local flags
+
+Feature flag logic can be entirely stored in your application, for instance by storing flag state in some database.
+
+Centralized flag solution (such as Izanami) have some important benefits:
+
+- Flags can be shared accross applications
+- All your flags are visible in one place
+- Feature flag allows to define custom activation conditions, that can be changed over time without having to deliver your application again
+- Managing access and rights only need to be done in one place
+
+However there are no silver bullets, and centralized feature flag solutions are no exceptions:
+
+- Requesting flags states adds some overhead to your application process (this can be mitigated using <a href="#" target="_blank">caching</a> and/or <a href="#" target="_blank">smart clients</a>)
+- If the centralized feature flag solution is down, your application can't access flag state anymore (you may define <a href="#" target="_blank">default activation strategies</a> for your features)
+
+## Flag types
+
+As we've seen in previous section, feature flags are very versatile. This section presents their main use cases.
+
+Categories are inspired by <a href="https://martinfowler.com/articles/feature-toggles.html">this great article</a> from Pete Hodgson.
+
+### Release flag
+
+Realeases feature flags are used to keep features disabled while they are not ready.
+
+Using this kind of flag is a good stepping stone toward trunk-based developement and CI/CD.
+
+With Izanami, release flags can be achieved using <a href="#" target="_blank">basic</a> or <a href="#" target="_blank">release date features</a>.
+
+### Ops flag
+
+Ops flag are usually long living flags, that aims to be used when things go wrong.
+
+This could, for instance, be used to disable feature with high performance impact, or to put part of your information system into maintenance state.
+
+Another use for ops feature could be to cut some services during inactivity periods.
+
+With Izanami, you could implement ops flags using <a href="#" target="_blank">basic</a> or <a href="#" target="_blank">time/date range features</a>.
+
+### Permission flag
+
+Permission features allows to unlock new feature earlier for some users.
+
+It's a good solution for beta features.
+
+Izanami allows to implement permission flags with <a href="#" target="_blank">user list features</a>.
+
+### Experiment flag
+
+Experiment flags allows to try some features on a given proportion of your users.
+
+This could be used to test a new idea on a very small portion of your users.
+
+Izanami implement this using <a href="#" target="_blank">percentage feature</a>.

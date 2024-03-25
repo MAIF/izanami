@@ -1,0 +1,29 @@
+---
+title: Shared Configs
+---
+
+import config from "@site/static/v1/img/configs/config.png";
+
+Izanami provide the ability to share configuration between your applications and change this configuration in real time.  
+The configuration is just a regular json :
+
+<img src={config} width="60%" />
+
+Then just call the api :
+
+```bash
+curl -X GET \
+  'http://localhost:9000/api/configs/ragnar:lodbrok:city' \
+  -H 'Content-Type: application/json' \
+  -H 'Izanami-Client-Id: xxxx' \
+  -H 'Izanami-Client-Secret: xxxx' | jq
+```
+
+And get the config:
+
+```json
+{
+  "id": "ragnar:lodbrok:city",
+  "value": "{\"city\": \"Kattegat\"}"
+}
+```

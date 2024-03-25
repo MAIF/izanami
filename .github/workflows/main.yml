@@ -1,0 +1,38 @@
+name: Playwright
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+
+jobs:
+  tests_e2e:
+    name: Run end-to-end tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./izanami-frontend
+      - name: Install playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: ./izanami-frontend
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'sbt'
+      - name: Start docker
+        run: docker-compose up -d
+      - name: start backend
+        run: sbt "bgRun -Dconfig.resource=dev.conf"
+      - name: Run tests
+        run: npx playwright test --project chromium
+        working-directory: ./izanami-frontend
