@@ -4,7 +4,7 @@ import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
 import HomepageIzanamiDescription from "@site/src/components/HomepageIzanamiDescription";
-import IzanamiImage from "@site/static/img/izanami.png";
+import IzanamiImage from "@site/static/img/izanami_compressed.webp";
 
 import Heading from "@theme/Heading";
 import styles from "./index.module.css";
