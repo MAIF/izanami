@@ -71,6 +71,21 @@ class TagsDatastore(val env: Env) extends Datastore {
       schemas=Set(tenant)
     ) { row => row.optTag() }
   }
+  def updateTag(tag: Tag, tenant: String, currentName: String): Future[Either[IzanamiError, Tag]] = {
+    env.postgresql
+      .queryOne(
+        s"""Update tags set name=$$1, description=$$2  where name = $$3 returning *""",
+        List(tag.name, tag.description, currentName),
+        schemas=Set(tenant)
+      ) { row => row.optTag() }
+      .map {
+        _.toRight(InternalServerError())
+      }
+      .recover { case ex =>
+        logger.error("Failed to update tag", ex)
+        Left(InternalServerError())
+      }
+  }
 }
 
 object tagImplicits {

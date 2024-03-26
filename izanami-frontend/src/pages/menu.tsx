@@ -227,6 +227,25 @@ export function Menu(props: {
               <li
                 className={
                   matchPath(
+                    { path: "/tenants/:tenant/tags" },
+                    props?.location?.pathname || ""
+                  )
+                    ? "active"
+                    : "inactive"
+                }
+              >
+                <NavLink
+                  to={`/tenants/${tenant}/tags`}
+                  className={() => ""}
+                  onClick={() => hideSidebar()}
+                >
+                  <i className="ms-2 fa-solid fa-tag" aria-hidden />
+                  Tags
+                </NavLink>
+              </li>
+              <li
+                className={
+                  matchPath(
                     { path: "/tenants/:tenant/scripts" },
                     props?.location?.pathname || ""
                   )
@@ -243,6 +262,7 @@ export function Menu(props: {
                   WASM scripts
                 </NavLink>
               </li>
+              
               <li
                 className={
                   matchPath(

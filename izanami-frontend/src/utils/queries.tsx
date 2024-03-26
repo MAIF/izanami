@@ -516,6 +516,21 @@ export function queryTag(tenant: string, name: string): Promise<TagType> {
 export function queryTags(tenant: string): Promise<TagType[]> {
   return handleFetchJsonResponse(fetch(`/api/admin/tenants/${tenant}/tags`));
 }
+export function updateTag(
+  tenant: string,
+  tag: TagType,
+  currentName: string
+): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/tags/${currentName}`, {
+      method: "PUT",
+      body: JSON.stringify(tag),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+  );
+}
 
 export function queryConfiguration(): Promise<Configuration> {
   return handleFetchJsonResponse(fetch(`/api/admin/configuration`)).then(

@@ -36,6 +36,7 @@ POST          /api/admin/tenants/:tenant/tags                                   
 GET           /api/admin/tenants/:tenant/tags/:name                                                fr.maif.izanami.web.TagController.readTag(tenant: String, name: String)
 DELETE        /api/admin/tenants/:tenant/tags/:name                                                fr.maif.izanami.web.TagController.deleteTag(tenant: String, name: String)
 GET           /api/admin/tenants/:tenant/tags                                                      fr.maif.izanami.web.TagController.readTags(tenant: String)
+PUT           /api/admin/tenants/:tenant/tags/:name                                                fr.maif.izanami.web.TagController.updateTag(tenant: String, name: String)
 
 POST          /api/admin/tenants/:tenant/keys                                                      fr.maif.izanami.web.ApiKeyController.createApiKey(tenant: String)
 GET           /api/admin/tenants/:tenant/keys                                                      fr.maif.izanami.web.ApiKeyController.readApiKey(tenant: String)

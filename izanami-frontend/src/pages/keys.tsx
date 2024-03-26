@@ -346,7 +346,7 @@ export default function Keys(props: { tenant: string }) {
                 action: (key: TKey) => {
                   return new Promise((resolve, reject) => {
                     askConfirmation(
-                      `Are you sure you want to delete feature ${key.name} ?`,
+                      `Are you sure you want to delete key ${key.name} ?`,
                       () =>
                         keyDeleteMutation
                           .mutateAsync(key.name)

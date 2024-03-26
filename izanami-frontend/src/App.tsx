@@ -61,6 +61,7 @@ import {
   differenceInSeconds,
 } from "date-fns";
 import { JsonViewer } from "@textea/json-viewer";
+import { Tags } from "./pages/tags";
 
 function Wrapper({
   element,
@@ -295,22 +296,41 @@ const router = createBrowserRouter([
             },
           },
           {
-            path: "/tenants/:tenant/",
-            element: <Wrapper element={Tenant} />,
-          },
-          {
-            path: "/tenants/:tenant/tags/:tag",
-            element: <Wrapper element={Tag} />,
+            path: "/tenants/:tenant/tags",
             handle: {
               crumb: (data: any) => (
                 <NavLink
                   className={() => ""}
-                  to={`/tenants/${data.tenant}/tags/${data.tag}`}
+                  to={`/tenants/${data.tenant}/tags`}
                 >
-                  # {data.tag}
+                  Tags
                 </NavLink>
               ),
             },
+            children: [
+              {
+                path: "/tenants/:tenant/tags/",
+                element: <Wrapper element={Tags} />,
+              },
+              {
+                path: "/tenants/:tenant/tags/:tag",
+                element: <Wrapper element={Tag} />,
+                handle: {
+                  crumb: (data: any) => (
+                    <NavLink
+                      className={() => ""}
+                      to={`/tenants/${data.tenant}/tags/${data.tag}`}
+                    >
+                      <i className="fa-solid fa-tag" aria-hidden></i> {data.tag}
+                    </NavLink>
+                  ),
+                },
+              },
+            ],
+          },
+          {
+            path: "/tenants/:tenant/",
+            element: <Wrapper element={Tenant} />,
           },
         ],
       },
