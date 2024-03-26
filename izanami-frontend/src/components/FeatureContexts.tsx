@@ -344,16 +344,17 @@ function FeatureContextTree(props: {
   return (
     <TreeRoot
       nodes={contextToTreeNode(contexts, "", [])}
-      labelRender={(node) =>
-        node.payload.context.global ? (
+      labelRender={(node) => {
+        console.log("node", node.name);
+        return node.payload.context.global ? (
           <span>
             <GlobalContextIcon />
             &nbsp;{node.name}
           </span>
         ) : (
           <>{node.name}</>
-        )
-      }
+        );
+      }}
       payloadRender={({ payload: { context, path, parents } }) => (
         <Overloads
           context={context}
@@ -514,6 +515,7 @@ function EditableTree<T>({
                   payloadRender={payloadRender as any}
                   spacing={spacing}
                   fontSize={fontSize}
+                  labelRender={labelRender}
                 />
               </>
             ))}
