@@ -2131,6 +2131,18 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
+    def updateTag(tenant: String, testTag: TestTag, currentName: String): RequestResult = {
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/tags/${currentName}")
+          .withCookies(cookies: _*)
+          .put(Json.obj(
+            "name" -> testTag.name,
+            "description" -> testTag.description
+          ))
+      )
+      RequestResult(json = Try { response.json }, status = response.status)
+    }
+
     def updateConfiguration(
         mailProvider: String = "Console",
         invitationMode: String = "Response",

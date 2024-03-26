@@ -79,7 +79,7 @@ class TagsDatastore(val env: Env) extends Datastore {
         schemas=Set(tenant)
       ) { row => row.optTag() }
       .map {
-        _.toRight(InternalServerError())
+        _.toRight(TagDoesNotExists(currentName))
       }
       .recover { case ex =>
         logger.error("Failed to update tag", ex)
