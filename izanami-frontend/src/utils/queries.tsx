@@ -244,14 +244,18 @@ export function updateTenant(
   );
 }
 
-export function createTag(tenant: string, name: string): Promise<TenantType> {
+export function createTag(
+  tenant: string,
+  name: string,
+  description: string
+): Promise<TenantType> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/tags`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, description }),
     })
   );
 }
