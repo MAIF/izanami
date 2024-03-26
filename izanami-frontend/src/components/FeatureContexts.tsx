@@ -345,7 +345,6 @@ function FeatureContextTree(props: {
     <TreeRoot
       nodes={contextToTreeNode(contexts, "", [])}
       labelRender={(node) => {
-        console.log("node", node.name);
         return node.payload.context.global ? (
           <span>
             <GlobalContextIcon />
