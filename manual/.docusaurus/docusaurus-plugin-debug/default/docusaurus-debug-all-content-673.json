@@ -88,6 +88,10 @@
               "previous": {
                 "title": "Cache",
                 "permalink": "/izanami/docs/clients/java/cache"
+              },
+              "next": {
+                "title": "Server Sent Events",
+                "permalink": "/izanami/docs/clients/java/sse"
               }
             },
             {
@@ -113,6 +117,28 @@
               "next": {
                 "title": "Cache",
                 "permalink": "/izanami/docs/clients/java/cache"
+              }
+            },
+            {
+              "id": "clients/java/sse",
+              "title": "Server Sent Events",
+              "description": "This page covers features available only from 2.1.0",
+              "source": "@site/docs/05-clients/01-java/03-sse.mdx",
+              "sourceDirName": "05-clients/01-java",
+              "slug": "/clients/java/sse",
+              "permalink": "/izanami/docs/clients/java/sse",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 3,
+              "frontMatter": {
+                "title": "Server Sent Events"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Error handling",
+                "permalink": "/izanami/docs/clients/java/error-handling"
               }
             },
             {
@@ -718,6 +744,10 @@
                       {
                         "type": "doc",
                         "id": "clients/java/error-handling"
+                      },
+                      {
+                        "type": "doc",
+                        "id": "clients/java/sse"
                       }
                     ],
                     "link": {

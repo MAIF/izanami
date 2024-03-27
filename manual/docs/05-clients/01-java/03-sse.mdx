@@ -1,0 +1,92 @@
+---
+title: Server Sent Events
+---
+
+import { Note } from "@site/src/components/Note";
+import SSESchema from "@site/static/img/SSEs.excalidraw.svg";
+
+<Note>This page covers features available only from 2.1.0</Note>
+
+Instead of caching feature activation conditions of fetching them on every query,
+Java client can subscribe to remote Izanami updates through Server Sent Events (SSE).
+
+Using this, you get the best of both worlds :
+
+- An SSE is emitted each time a feature is created/updated/deleted,
+  this way activation conditions are always up-to-date in caches.
+- Since events are emitted only when something changes, there is no useless traffic / computations.
+
+<SSESchema width={800} height={400} />
+
+To use SSE from client:
+
+```java
+IzanamiClient client = IzanamiClient.newBuilder(
+    connectionInformation()
+      .withUrl(<REMOTE_IZANAMI_BASE_URL>/api)
+      .withClientId(<YOUR_KEY_CLIENT_ID>)
+      .withClientSecret(<YOUR_KEY_CLIENT_SECRET>)
+  ).withCacheConfiguration(
+    FeatureCacheConfiguration
+      .newBuilder()
+      .enabled(true)
+      .shouldUseServerSentEvent(true)
+      .build()
+  ).build();
+```
+
+## Custom SSE configuration
+
+You can leverage two additional parameters to configure client SSE connection.
+
+### Periodic refresh
+
+As with basic caches, **refresh interval** defines an interval of time at which your cache will be completely refreshed.
+This refreshed doesn't imply any extra HTTP call, it's done via an event sent on the SSE connection.
+Setting this interval to 0 will completely disable this periodic refresh mechanism.
+
+```java
+IzanamiClient client = IzanamiClient.newBuilder(
+    connectionInformation()
+      .withUrl(<REMOTE_IZANAMI_BASE_URL>/api)
+      .withClientId(<YOUR_KEY_CLIENT_ID>)
+      .withClientSecret(<YOUR_KEY_CLIENT_SECRET>)
+  ).withCacheConfiguration(
+    FeatureCacheConfiguration
+      .newBuilder()
+      .enabled(true)
+      .shouldUseServerSentEvent(true)
+      .withRefreshInterval(Duration.ofMinutes(10L))
+      .build()
+  ).build();
+```
+
+<Note>
+  This periodic refresh mechanism covers some rare edge cases (for instance if
+  connection is lost just when an event occurs). Therefore, it's acceptable to
+  use a much wider interval than with the basic cache.
+</Note>
+
+### Connection keep alive
+
+When using SSE, it's a good practice to send a keep alive event periodically to prevent the connection from closing.
+
+**serverSentEventKeepAliveInterval** indicates the maximum time that should separate two events sent by Izanami backend.
+
+Izanami backend will periodically send `KEEP_ALIVE` events to ensure that this is respected.
+
+```java
+IzanamiClient client = IzanamiClient.newBuilder(
+    connectionInformation()
+      .withUrl(<REMOTE_IZANAMI_BASE_URL>/api)
+      .withClientId(<YOUR_KEY_CLIENT_ID>)
+      .withClientSecret(<YOUR_KEY_CLIENT_SECRET>)
+  ).withCacheConfiguration(
+    FeatureCacheConfiguration
+      .newBuilder()
+      .enabled(true)
+      .shouldUseServerSentEvent(true)
+      .withServerSentEventKeepAliveInterval(Duration.ofSeconds(30L))
+      .build()
+  ).build();
+```

@@ -170,6 +170,7 @@ case class RequestContext(
     data: JsObject = Json.obj()
 ) {
   def wasmJson: JsValue = Json.obj("tenant" -> tenant, "id" -> user, "now" -> now.toEpochMilli, "data" -> data)
+  def contextAsString: String = context.elements.mkString("_")
 }
 sealed trait ActivationRule extends LegacyCompatibleCondition {
   override def active(context: RequestContext, featureId: String): Boolean
@@ -439,6 +440,37 @@ object Feature {
     hash <= percentage
   }
 
+
+  def processMultipleStrategyResult(strategyByCtx: Map[String, AbstractFeature], requestContext: RequestContext, conditions: Boolean, env: Env): Future[Either[IzanamiError, JsObject]] = {
+    val context = requestContext.context.elements.mkString("_")
+    val strategyToUse = if (context.isBlank) {
+      strategyByCtx("")
+    } else {
+      strategyByCtx.filter { case (ctx, f) => context.startsWith(ctx) }
+        .toSeq.sortWith {
+          case ((c1, _), (c2, _)) if c1.length < c2.length => false
+          case _ => true
+        }.headOption.map(_._2).getOrElse(strategyByCtx(""))
+    }
+
+
+    val jsonStrategies = Json.toJson(strategyByCtx.map { case (ctx, feature) => {
+      (ctx.replace("_", "/"), (feature match {
+        case w: WasmFeature => Feature.featureWrite.writes(w).as[JsObject] - "wasmConfig" - "tags" - "name" - "description" - "id" - "project" ++ Json.obj("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+        case lf: SingleConditionFeature => Feature.featureWrite.writes(lf.toModernFeature).as[JsObject] - "tags" - "name" - "description" - "id" - "project"
+        case f => Feature.featureWrite.writes(f).as[JsObject]
+      }) - "metadata" - "tags" - "name" - "description" - "id" - "project")
+    }
+    }).as[JsObject]
+
+    writeFeatureForCheck(strategyToUse, requestContext, env = env)
+      .map {
+        case Left(err) => Left(err)
+        case Right(json) if conditions =>  Right(json ++ Json.obj("conditions" -> jsonStrategies))
+        case Right(json) => Right(json)
+      }(env.executionContext)
+  }
+
   def writeFeatureForCheck(
       feature: AbstractFeature,
       context: RequestContext,
@@ -453,6 +485,11 @@ object Feature {
             "active"  -> active,
             "project" -> feature.project
           )
+          /*(feature match {
+              case w: WasmFeature => Feature.featureWrite.writes(w).as[JsObject] - "wasmConfig"
+              case lf: SingleConditionFeature => Feature.featureWrite.writes(lf.toModernFeature).as[JsObject]
+              case f => Feature.featureWrite.writes(f).as[JsObject]
+            }) - "metadata" ++ Json.obj("active" -> active)*/
         })
       })(env.executionContext)
   }
@@ -462,45 +499,35 @@ object Feature {
       context: RequestContext,
       env: Env
   ): Future[Either[IzanamiError, Option[JsObject]]] = {
-    writeFeatureInLegacyFormat(feature) match {
-      case None           => {
-        Future.successful(Right(None: Option[JsObject]))
-      }
-      case Some(jsObject) => {
-        feature
-          .active(context, env)
-          .map {
-            case Left(error)   => Left(error)
-            case Right(active) => Right(Some(jsObject ++ Json.obj("active" -> active)))
-          }(env.executionContext)
-      }
-    }
+    feature
+      .active(context, env)
+      .map {
+        case Left(error) => Left(error)
+        case Right(active) => Right(Some(writeFeatureInLegacyFormat(feature) ++ Json.obj("active" -> active)))
+      }(env.executionContext)
   }
 
-  def writeFeatureInLegacyFormat(feature: AbstractFeature): Option[JsObject] = {
+  def writeFeatureInLegacyFormat(feature: AbstractFeature): JsObject = {
     feature match {
       case s: SingleConditionFeature =>
-        Some(Json.toJson(OldFeature.fromModernFeature(s))(OldFeature.oldFeatureWrites).as[JsObject])
+        Json.toJson(OldFeature.fromModernFeature(s))(OldFeature.oldFeatureWrites).as[JsObject]
       // Transforming modern feature to script feature is a little hacky, however it's a format that legacy client
       // can understand, moreover due to the script nature of the feature, there won't be cache client side, which
       // is what we want since legacy client can't evaluate modern feeature locally
       case f: Feature                =>
-        Some(
-          Json
-            .toJson(
-              OldGlobalScriptFeature(
-                id = f.id,
-                name = f.name,
-                enabled = f.enabled,
-                description = Option(f.description),
-                tags = f.tags,
-                ref = "fake-script-feature"
-              )
-            )(OldFeature.oldGlobalScriptWrites)
-            .as[JsObject]
-        )
-      case w: WasmFeature            =>
-        Some(Json.toJson(OldFeature.fromScriptFeature(w))(OldFeature.oldFeatureWrites).as[JsObject])
+        Json
+          .toJson(
+            OldGlobalScriptFeature(
+              id = f.id,
+              name = f.name,
+              enabled = f.enabled,
+              description = Option(f.description),
+              tags = f.tags,
+              ref = "fake-script-feature"
+            )
+          )(OldFeature.oldGlobalScriptWrites)
+          .as[JsObject]
+      case w: WasmFeature            => Json.toJson(OldFeature.fromScriptFeature(w))(OldFeature.oldFeatureWrites).as[JsObject]
     }
   }
 

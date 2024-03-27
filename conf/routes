@@ -94,12 +94,15 @@ GET           /api/admin/tenants/:tenant/_import/:id                            
 DELETE        /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.deleteImportStatus(tenant: String, id: String)
 
 GET           /api/admin/stats                                                                     fr.maif.izanami.web.ConfigurationController.readStats()
+DELETE        /api/admin/sse                                                                       fr.maif.izanami.web.EventController.killAllSources()
 
 # Client application endpoints
 GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
 POST          /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
 GET           /api/v2/features                                                                     fr.maif.izanami.web.FeatureController.evaluateFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
 POST          /api/v2/features                                                                     fr.maif.izanami.web.FeatureController.evaluateFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
+GET           /api/v2/events                                                                       fr.maif.izanami.web.EventController.newEvents(user: String ?= "*", conditions: Boolean ?= false, refreshInterval: Int ?= 0, keepAliveInterval: Int ?= 25, featureRequest: fr.maif.izanami.models.FeatureRequest)
+POST          /api/v2/events                                                                       fr.maif.izanami.web.EventController.newEvents(user: String ?= "*", conditions: Boolean ?= false, refreshInterval: Int ?= 0, keepAliveInterval: Int ?= 25, featureRequest: fr.maif.izanami.models.FeatureRequest)
 
 # V1 compatibility endpoints
 

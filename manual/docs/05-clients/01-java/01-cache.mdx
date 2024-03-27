@@ -24,6 +24,7 @@ IzanamiClient client = IzanamiClient.newBuilder(
     FeatureCacheConfiguration
       .newBuilder()
       .enabled(true) // Enable caching feature activation conditions and local activation computation
+      .withRefreshInterval(Duration.ofMinutes(5L)) // Optional : how frequently cache will be refreshed
       .build()
   ).build();
 ```

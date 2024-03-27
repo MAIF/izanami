@@ -31,6 +31,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "clients/java/sse",
+              "path": "/izanami/docs/clients/java/sse",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "concepts/index",
               "path": "/izanami/docs/concepts/",
               "sidebar": "tutorialSidebar"
