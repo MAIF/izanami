@@ -1,7 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
+import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 sealed trait ProjectChoiceStrategy
 case class DeduceProject(fieldCount: Int = 1) extends ProjectChoiceStrategy
-case class FixedProject(name: String) extends ProjectChoiceStrategy
+case class FixedProject(name: String)         extends ProjectChoiceStrategy
 
 class TenantController(
     val env: Env,
@@ -20,7 +20,8 @@ class TenantController(
     val tenantAuthAction: TenantAuthActionFactory,
     val adminAuthAction: AdminAuthAction,
     val tenantRightsAuthAction: TenantRightsAction,
-    val wasmManagerClient: WasmManagerClient
+    val wasmManagerClient: WasmManagerClient,
+    val eventController: EventController
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
@@ -28,11 +29,11 @@ class TenantController(
     implicit request =>
       Tenant.tenantReads.reads(request.body) match {
         case JsSuccess(value, _) =>
-          if(name != value.name) {
+          if (name != value.name) {
             BadRequest(Json.obj("message" -> "Modification of a tenant name is not permitted")).future
           } else {
             env.datastores.tenants.updateTenant(name, value).map {
-              case Left(err) => err.toHttpResponse
+              case Left(err)    => err.toHttpResponse
               case Right(value) => NoContent
             }
           }
@@ -78,7 +79,10 @@ class TenantController(
     implicit request =>
       env.datastores.tenants.deleteTenant(name).map {
         case Left(err)    => err.toHttpResponse
-        case Right(value) => NoContent
+        case Right(value) => {
+          eventController.killSource(name)
+          NoContent
+        }
       }
   }
 
@@ -106,6 +110,3 @@ class TenantController(
         )
   }
 }
-
-
-

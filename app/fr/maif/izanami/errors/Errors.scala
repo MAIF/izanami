@@ -63,6 +63,7 @@ case class MissingOIDCConfigurationError() extends IzanamiError(message=s"OIDC c
 case class WasmError() extends IzanamiError(message="Failed to parse wasm response", status = INTERNAL_SERVER_ERROR)
 case class MissingProjectRight(projects: Set[String]) extends IzanamiError(message=s"""You're not allowed for projects ${projects.mkString(",")}""", status = FORBIDDEN)
 case class MissingFeatureRight(features: Set[String]) extends IzanamiError(message=s"""You're not allowed for features ${features.mkString(",")}, you don't have right for this project""", status = FORBIDDEN)
+case class IncorrectKey() extends IzanamiError(message = "Incorrect key provided", status = FORBIDDEN)
 object IzanamiError {
   implicit val errorWrite: Writes[IzanamiError] = { err =>
     Json.obj(

@@ -28,7 +28,7 @@ import io.vertx.core.shareddata.ClusterSerializable
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 import org.postgresql.xml.LegacyInsecurePGXmlFactoryFactory
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 
 import java.lang
 import java.util.UUID
@@ -73,6 +73,113 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         conn = Some(conn)
       ) { r => Some(()) }
       .map(_ => ())
+  }
+
+  def findActivationStrategiesForFeature(
+      tenant: String,
+      id: String
+  ): Future[Option[Map[String, AbstractFeature]]] = {
+    env.postgresql.queryRaw(
+      s"""SELECT
+         |    f.id,
+         |    f.name,
+         |    f.enabled,
+         |    f.project,
+         |    f.conditions,
+         |    f.description,
+         |    f.metadata,
+         |    w.config as wasm,
+         |    w.id as script_id,
+         |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags,
+         |    COALESCE(
+         |        json_object_agg(
+         |            fcs.context_path, json_build_object(
+         |                'enabled', fcs.enabled,
+         |                'conditions', fcs.conditions,
+         |                'wasm', ow.config
+         |            )
+         |        ) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json
+         |    )
+         |    AS overloads
+         |FROM features f
+         |LEFT JOIN feature_contexts_strategies fcs ON fcs.feature = f.name
+         |LEFT JOIN features_tags ft ON ft.feature = f.id
+         |LEFT JOIN tags t ON ft.tag = t.name
+         |LEFT JOIN wasm_script_configurations w ON w.id=f.script_config
+         |LEFT JOIN wasm_script_configurations ow ON ow.id=fcs.script_config
+         |WHERE f.id=$$1
+         |GROUP BY f.id, w.id""".stripMargin,
+      params = List(id),
+      schemas = Set(tenant)
+    ) { rs =>
+      {
+        if (rs.isEmpty) {
+          None
+        } else {
+          rs.head
+            .optFeature()
+            .map(feature => {
+              val overloadByContext: Map[String, AbstractFeature] = rs
+                .flatMap(r => {
+                  r
+                    .optJsObject("overloads")
+                    .map(overloads => {
+                      overloads.keys.map(context => {
+                        (overloads \ context)
+                          .asOpt[JsObject]
+                          .flatMap(json => {
+                            (json \ "enabled")
+                              .asOpt[Boolean]
+                              .map(enabled => {
+                                val maybeConditions              = (json \ "conditions")
+                                  .asOpt[JsArray]
+                                  .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
+                                val maybeScriptName              = (json \ "wasm").asOpt[JsObject]
+                                val r: (String, AbstractFeature) = (
+                                  context,
+                                  maybeConditions
+                                    .map(conditions =>
+                                      Feature(
+                                        id = feature.id,
+                                        name = feature.name,
+                                        project = feature.project,
+                                        conditions = conditions,
+                                        enabled = enabled,
+                                        tags = feature.tags,
+                                        metadata = feature.metadata,
+                                        description = feature.description
+                                      )
+                                    )
+                                    .orElse(
+                                      maybeScriptName.map(scriptConfig =>
+                                        WasmFeature(
+                                          id = feature.id,
+                                          name = feature.name,
+                                          project = feature.project,
+                                          wasmConfig = WasmConfig.format.reads(scriptConfig).get,
+                                          enabled = enabled,
+                                          tags = feature.tags,
+                                          metadata = feature.metadata,
+                                          description = feature.description
+                                        )
+                                      )
+                                    )
+                                    .getOrElse(throw new RuntimeException("Bad feature format in DB"))
+                                )
+                                r
+                              })
+                          })
+                      })
+                    })
+                    .getOrElse(Set())
+                })
+                .flatMap(_.toSeq)
+                .toMap
+              overloadByContext + ("" -> feature)
+            })
+        }
+      }
+    }
   }
 
   def findFeatureMatching(
@@ -419,8 +526,6 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       }
   }
 
-  case class FeatureWithOverloads(feature: AbstractFeature, overloads: Map[String, ContextualFeatureStrategy])
-
   def doFindByRequestForKey(
       tenant: String,
       request: FeatureRequest,
@@ -473,12 +578,15 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |    ${if (needTags) ",COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]') as tags" else ""}
            |  FROM projects p
            |  LEFT JOIN features f on f.project = p.name
-           |  ${if (needTags)"""
+           |  ${if (needTags) """
            |    LEFT JOIN features_tags ft ON f.id=ft.feature
            |    LEFT JOIN tags t ON t.name=ft.tag""" else ""}
-           |   ${if (needContexts)s"""
-           |    LEFT JOIN feature_contexts_strategies fcs ON fcs.feature=f.name ${if (!conditions)s"AND fcs.context_path = ANY($$5)" else ""}
-           |    LEFT JOIN wasm_script_configurations ow ON fcs.script_config=ow.id""".stripMargin else ""}
+           |   ${if (needContexts) s"""
+           |    LEFT JOIN feature_contexts_strategies fcs ON fcs.feature=f.name ${if (!conditions)
+                                        s"AND fcs.context_path = ANY($$5)"
+                                      else ""}
+           |    LEFT JOIN wasm_script_configurations ow ON fcs.script_config=ow.id""".stripMargin
+        else ""}
            |  LEFT JOIN wasm_script_configurations w ON w.id=f.script_config
            |  INNER JOIN apikeys k ON (k.clientid=$$1 AND k.clientsecret=$$2 AND k.enabled=true)
            |  LEFT JOIN apikeys_projects kp ON (kp.apikey=k.name AND kp.project=p.name)
@@ -489,42 +597,50 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |""".stripMargin,
         params,
         schemas = Set(tenant)
-      ) {r => {
-        r.optFeature().filter(f => {
-          if(needTags) {
-            val tags = f.tags.map(t =>  UUID.fromString(t))
-            val specificFeatureRequest = request.features.contains(f.id)
-            val allTagsInOk = request.allTagsIn.subsetOf(tags)
-            val oneTagInOk = request.oneTagIn.isEmpty || request.oneTagIn.exists(u => tags.contains(u))
-            val noTagsInOk = !request.noTagIn.exists(u => tags.contains(u))
+      ) { r =>
+        {
+          r.optFeature()
+            .filter(f => {
+              if (needTags) {
+                val tags                   = f.tags.map(t => UUID.fromString(t))
+                val specificFeatureRequest = request.features.contains(f.id)
+                val allTagsInOk            = request.allTagsIn.subsetOf(tags)
+                val oneTagInOk             = request.oneTagIn.isEmpty || request.oneTagIn.exists(u => tags.contains(u))
+                val noTagsInOk             = !request.noTagIn.exists(u => tags.contains(u))
 
-            specificFeatureRequest || (allTagsInOk && oneTagInOk && noTagsInOk)
-          } else {
-            true
-          }
-        }).flatMap(f => {
-          if(needContexts) {
-            r.optJsObject("overloads")
-              .map(jsObject => {
-                val objByContext = jsObject.as[Map[String, JsObject]]
-                val overloadByPath: Map[Option[String], AbstractFeature] = objByContext.map { case (ctx, jsObject) => (ctx, Feature.readFeature(jsObject).asOpt) }.filter {
-                  case (_, None) => false
-                  case _ => true
-                }.map { case (ctx, optionF) => (Some(ctx), optionF.get) }
+                specificFeatureRequest || (allTagsInOk && oneTagInOk && noTagsInOk)
+              } else {
+                true
+              }
+            })
+            .flatMap(f => {
+              if (needContexts) {
+                r.optJsObject("overloads")
+                  .map(jsObject => {
+                    val objByContext                                         = jsObject.as[Map[String, JsObject]]
+                    val overloadByPath: Map[Option[String], AbstractFeature] = objByContext
+                      .map { case (ctx, jsObject) => (ctx, Feature.readFeature(jsObject).asOpt) }
+                      .filter {
+                        case (_, None) => false
+                        case _         => true
+                      }
+                      .map { case (ctx, optionF) => (Some(ctx), optionF.get) }
 
-                (r.optUUID("pid").get, (f.id, overloadByPath + (None -> f)))
-              })
-          } else {
-            Some((r.optUUID("pid").get, (f.id, Map(None -> f))))
-          }
-        })
-      }}.map(l => {
+                    (r.optUUID("pid").get, (f.id, overloadByPath + (None -> f)))
+                  })
+              } else {
+                Some((r.optUUID("pid").get, (f.id, Map(None -> f))))
+              }
+            })
+        }
+      }
+      .map(l => {
         val featureByProjects = l.groupBy(t => t._1).map { case (k, v) => (k, v.map(t => t._2).toMap) }
         Right(featureByProjects)
       })
       .recover {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(InvalidCredentials())
-        case _ => Left(InternalServerError())
+        case _                                                           => Left(InternalServerError())
       }
   }
 
@@ -1437,7 +1553,7 @@ object featureImplicits {
               description = description
             )
           }
-          case _ => throw new RuntimeException("Failed to read feature " + id)
+          case _                                       => throw new RuntimeException("Failed to read feature " + id)
         }
     }
   }

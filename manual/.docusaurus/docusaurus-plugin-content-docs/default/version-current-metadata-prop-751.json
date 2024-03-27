@@ -171,6 +171,13 @@
                 "href": "/izanami/docs/clients/java/error-handling",
                 "docId": "clients/java/error-handling",
                 "unlisted": false
+              },
+              {
+                "type": "link",
+                "label": "Server Sent Events",
+                "href": "/izanami/docs/clients/java/sse",
+                "docId": "clients/java/sse",
+                "unlisted": false
               }
             ],
             "href": "/izanami/docs/clients/java/"
@@ -203,6 +210,12 @@
       "id": "clients/java/index",
       "title": "Java client",
       "description": "Izanami Java client aims to help you fetch your features' status from remote Izanami instances.",
+      "sidebar": "tutorialSidebar"
+    },
+    "clients/java/sse": {
+      "id": "clients/java/sse",
+      "title": "Server Sent Events",
+      "description": "This page covers features available only from 2.1.0",
       "sidebar": "tutorialSidebar"
     },
     "concepts/index": {

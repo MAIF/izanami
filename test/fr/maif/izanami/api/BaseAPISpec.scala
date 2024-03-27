@@ -1,15 +1,30 @@
 package fr.maif.izanami.api
 
+import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.Materializer
-import akka.stream.scaladsl.{FileIO, Source}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.sse.ServerSentEvent
+import akka.stream.{KillSwitches, Materializer, ThrottleMode, UniqueKillSwitch}
+import akka.stream.alpakka.sse.scaladsl.EventSource
+import akka.stream.scaladsl.{FileIO, Keep, Sink, Source}
 import akka.util.Timeout
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
-import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, shouldCleanUpMails, shouldCleanUpWasmServer, ws}
+import fr.maif.izanami.api.BaseAPISpec.{
+  cleanUpDB,
+  eventKillSwitch,
+  login,
+  shouldCleanUpEvents,
+  shouldCleanUpMails,
+  shouldCleanUpWasmServer,
+  ws
+}
 import fr.maif.izanami.utils.{WasmManagerClient, WiremockResponseDefinitionTransformer}
+import org.awaitility.scala.AwaitilitySupport
 import org.postgresql.util.PSQLException
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.play.PlaySpec
@@ -39,7 +54,8 @@ class BaseAPISpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with DefaultAwaitTimeout
-    with IzanamiServerTest {
+    with IzanamiServerTest
+    with AwaitilitySupport {
   override implicit def defaultAwaitTimeout: Timeout = 30.seconds
 
   private var mailjetMockServer: WireMockServer                       = null
@@ -87,7 +103,23 @@ class BaseAPISpec
       shouldCleanUpMails = false
     }
 
+    if (shouldCleanUpEvents) {
+      futures = futures.appended(cleanEvents)
+      shouldCleanUpEvents = false
+    }
+
+    if (Objects.nonNull(eventKillSwitch)) {
+      eventKillSwitch.shutdown()
+    }
+
     await(Future.sequence(futures))
+  }
+
+  def cleanEvents: Future[Any] = {
+    val res = login("RESERVED_ADMIN_USER", "ADMIN_DEFAULT_PASSWORD")
+    ws.url(s"${BaseAPISpec.ADMIN_BASE_URL}/")
+      .withCookies(res.cookies: _*)
+      .delete()
   }
 
   def clearWasmServer(): Future[Any] = {
@@ -133,8 +165,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   val TIME_FORMATTER                                 = DateTimeFormatter.ISO_TIME
   val TEST_SECRET                                    = "supersafesecret"
 
-  var shouldCleanUpWasmServer = true
-  var shouldCleanUpMails      = true
+  var shouldCleanUpWasmServer           = true
+  var shouldCleanUpMails                = true
+  var shouldCleanUpEvents               = true
+  var eventKillSwitch: UniqueKillSwitch = null
 
   def cleanUpDB(): Unit = {
     classOf[org.postgresql.Driver]
@@ -1287,6 +1321,60 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       tags: Map[String, Map[String, String]] = Map(),
       scripts: Map[String, String] = Map()
   ) {
+
+    def shutdownEventSources(tenant: String) = {
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features")
+          .withCookies(cookies: _*)
+          .delete()
+      )
+
+      RequestResult(
+        json = Try {
+          response.json
+        },
+        status = response.status
+      )
+    }
+
+    def listenEvents(
+        key: String,
+        features: Seq[String],
+        projects: Seq[String],
+        consumer: ServerSentEvent => Unit,
+        user: String = "",
+        conditions: Boolean = true,
+        refreshInterval: Duration = Duration.ofSeconds(0L),
+        keepAliveInterval: Duration = Duration.ofSeconds(25L)
+    ) = {
+      shouldCleanUpEvents = true
+      val send: HttpRequest => Future[HttpResponse] = request => {
+        val r = request.withHeaders(keyHeaders(key).map { case (name, value) => RawHeader(name, value) }.toSeq)
+        Http().singleRequest(r)
+      }
+
+      val eventSource: Source[ServerSentEvent, NotUsed] =
+        EventSource(
+          uri = Uri(
+            s"""$BASE_URL/v2/events?user=${user}&projects=${projects.mkString(",")}&features=${features.mkString(
+              ","
+            )}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
+          ),
+          send,
+          initialLastEventId = Some("2"),
+          retryDelay = 1.second
+        )
+
+      val (killswitch, source) = eventSource
+        .throttle(elements = 1, per = 200.milliseconds, maximumBurst = 1, ThrottleMode.Shaping)
+        .viaMat(KillSwitches.single)(Keep.right)
+        .toMat(Sink.foreach((evt: ServerSentEvent) => {
+          consumer(evt)
+        }))(Keep.both)
+        .run()
+      eventKillSwitch = killswitch
+    }
+
     def patchFeatures(tenant: String, patches: Seq[TestFeaturePatch]) = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features")
@@ -1685,20 +1773,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .delete()
       )
       RequestResult(json = Try { response.json }, status = response.status)
-    }
-
-    def deleteFeatureOverloadForGlobalContext(tenant: String, path: String, feature: String): RequestResult = {
-      val response = await(
-        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/contexts/${path}/features/${feature}")
-          .withCookies(cookies: _*)
-          .delete()
-      )
-      RequestResult(
-        json = Try {
-          response.json
-        },
-        status = response.status
-      )
     }
 
     def deleteContext(tenant: String, project: String, path: String): RequestResult = {
