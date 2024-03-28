@@ -785,7 +785,6 @@ export function FeatureTable(props: {
                       break;
                     case "Transfer":
                       setTrasfered(true);
-                      setBulkOperation(undefined);
                       break;
                   }
                 }}
@@ -793,23 +792,24 @@ export function FeatureTable(props: {
                 {bulkOperation} {selectedRows.length} feature
                 {selectedRows.length > 1 ? "s" : ""}
               </button>
+              {transfered && hasSelectedRows && (
+                <div className="sub_container anim__rightToLeft">
+                  <div
+                    className="anim__rightToLeft"
+                    style={{ backgroundColor: "#42423f" }}
+                  >
+                    <h4>Transfer to another project</h4>
+                    <TransferBulkForm
+                      tenant={tenant!}
+                      selectedRows={selectedRows}
+                      cancel={() => setTrasfered(false)}
+                      refresh={refresh}
+                      bulkOperation={() => setBulkOperation(undefined)}
+                    />
+                  </div>
+                </div>
+              )}
             </>
-          )}
-          {transfered && !hasSelectedRows && !bulkOperation && (
-            <div className="sub_container anim__rightToLeft">
-              <div
-                className="anim__rightToLeft"
-                style={{ backgroundColor: "#42423f" }}
-              >
-                <h4>Transfer to another project</h4>
-                <TransferBulkForm
-                  tenant={tenant!}
-                  selectedRows={selectedRows}
-                  cancel={() => setTrasfered(false)}
-                  refresh={refresh}
-                />
-              </div>
-            </div>
           )}
         </div>
       )}
@@ -838,8 +838,9 @@ function TransferBulkForm(props: {
   selectedRows: TFeature[];
   cancel: () => void;
   refresh: () => any;
+  bulkOperation: () => void;
 }) {
-  const { tenant, selectedRows, cancel, refresh } = props;
+  const { tenant, selectedRows, cancel, refresh, bulkOperation } = props;
   const selectedRowProjects = selectedRows.map((f) => f.project);
   const selectedRowProject = selectedRowProjects.filter(
     (q, idx) => selectedRowProjects.indexOf(q) === idx
@@ -882,7 +883,9 @@ function TransferBulkForm(props: {
                   path: `/${f.id}/project`,
                   value: data.project,
                 }))
-              ).then(() => refresh())
+              )
+                .then(() => refresh())
+                .then(() => bulkOperation())
           );
         }}
         footer={({ valid }: { valid: () => void }) => {
