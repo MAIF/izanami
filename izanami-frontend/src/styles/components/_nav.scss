@@ -3,11 +3,11 @@
   padding: 5px 10px 5px 36px;
   position: relative;
   display: block;
+  border-radius: 5px;
 
   &:hover {
     background-color: $color-dark-3;
     color: #fff;
-    //border-color: $primaryColor;
     svg .icon_context {
       fill: #fff !important;
       transition-duration: 1s;
