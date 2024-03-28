@@ -31,8 +31,8 @@ label {
   color: var(--color_level2);
 }
 
-.sub_container-bglighter label{
-  color: var(--color_level3);
+.sub_container-bglighter label, .sub_container-bglighter .btn{
+  color: var(--color_level3) !important;
 }
 
 .has-error .col-form-label {
