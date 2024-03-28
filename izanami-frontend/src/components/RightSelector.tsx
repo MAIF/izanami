@@ -343,7 +343,7 @@ export function RightSelector(props: {
                       dispatch({ type: EventType.DeleteTenant, name });
                     }}
                   />
-                  <div className="project-selector">
+                  <div className="sub_container sub_container-bglighter project-selector">
                     <label>Project rights for {name}</label>
                     <div className="my-2">
                       <ProjectSelector
@@ -353,7 +353,7 @@ export function RightSelector(props: {
                       />
                     </div>
                   </div>
-                  <div className="key-selector">
+                  <div className="sub_container sub_container-bglighter key-selector">
                     <label>Keys rights for {name}</label>
                     <div className="my-2">
                       <KeySelector
