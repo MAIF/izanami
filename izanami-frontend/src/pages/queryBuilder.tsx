@@ -256,7 +256,7 @@ export function QueryBuilder() {
             </div>
             <div className="col-sm">
               <label className="w-100">
-                Features&nbsp;
+                Features (Project) &nbsp;
                 <Tooltip id="features" position="top">
                   These features will be evaluated, even if their projects are
                   not selected
