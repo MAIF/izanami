@@ -1,12 +1,13 @@
 .btn {
-  background-color: var(--bg-color_level3) !important;
+  background-color: transparent !important;
   margin-right: 5px;
-  color: var(--color_level3) !important;
+  color: var(--color_level2) !important;
   &:focus {
-    background-color: transparent;
+    background-color:var(--bg-color_level3);
   }
   &:hover {
-    color: var(--color-white) !important;
+    background-color:var(--bg-color_level3) !important;
+    color: var(--color_level3) !important;
   }
 }
 
