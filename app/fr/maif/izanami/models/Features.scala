@@ -163,6 +163,7 @@ case class RequestContext(
     data: JsObject = Json.obj()
 ) {
   def wasmJson: JsValue = Json.obj("tenant" -> tenant, "id" -> user, "now" -> now.toEpochMilli, "data" -> data)
+  def contextAsString: String = context.elements.mkString("_")
 }
 sealed trait ActivationRule extends LegacyCompatibleCondition {
   override def active(context: RequestContext, featureId: String): Boolean
@@ -430,6 +431,33 @@ object Feature {
   def isPercentageFeatureActive(source: String, percentage: Int): Boolean = {
     val hash = (Math.abs(MurmurHash3.bytesHash(source.getBytes, 42)) % 100) + 1
     hash <= percentage
+  }
+
+
+  def processMultipleStrategyResult(tenant: String, strategyByCtx: Map[String, AbstractFeature], requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsObject]] = {
+    val context = requestContext.context.elements.mkString("_")
+    val strategyToUse = if (context.isBlank) {
+      strategyByCtx("")
+    } else {
+      strategyByCtx.filter { case (ctx, f) => context.startsWith(ctx) }
+        .toSeq.sortWith {
+          case ((c1, _), (c2, _)) if c1.length < c2.length => false
+          case _ => true
+        }.headOption.map(_._2).getOrElse(strategyByCtx(""))
+    }
+
+
+    val jsonStrategies = Json.toJson(strategyByCtx.map { case (ctx, feature) => {
+      (ctx.replace("_", "/"), (feature match {
+        case w: WasmFeature => Feature.featureWrite.writes(w).as[JsObject] - "wasmConfig" - "tags" - "name" - "description" - "id" - "project" ++ Json.obj("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+        case lf: SingleConditionFeature => Feature.featureWrite.writes(lf.toModernFeature).as[JsObject] - "tags" - "name" - "description" - "id" - "project"
+        case f => Feature.featureWrite.writes(f).as[JsObject]
+      }) - "metadata" - "tags" - "name" - "description" - "id" - "project")
+    }
+    }).as[JsObject]
+
+    writeFeatureForCheck(strategyToUse, requestContext, env = env)
+      .map(either => either.map(json => json ++ Json.obj("conditions" -> jsonStrategies)))(env.executionContext)
   }
 
   def writeFeatureForCheck(

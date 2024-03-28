@@ -8,6 +8,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{FailedToReadEvent, IzanamiError}
 import fr.maif.izanami.models.{AbstractFeature, Feature, FeatureRequest, RequestContext}
 import fr.maif.izanami.v1.V1FeatureEvents.{createEvent, deleteEvent, keepAliveEvent, updateEvent}
+import fr.maif.izanami.v1.V2FeatureEvents.{createEventV2, deleteEventV2, updateEventV2}
 import io.vertx.pgclient.pubsub.PgSubscriber
 import play.api.http.ContentTypes
 import play.api.libs.EventSource
@@ -36,7 +37,7 @@ class EventController(val controllerComponents: ControllerComponents, val client
   private implicit val dataExtractor: EventDataExtractor[JsObject] =
     EventDataExtractor[JsObject](event => Json.stringify(event))
 
-  case class GenericEvent(eventType: EventType, project: String, maybeFeature: Option[AbstractFeature], id: String)
+  case class GenericEvent(eventType: EventType, project: String, maybeFeature: Option[Map[String, AbstractFeature]], id: String)
   case class InternalEvent(id: String, project: String, payload: JsObject)
 
   private def eventSource(tenant: String): Source[GenericEvent, NotUsed] = {
@@ -70,28 +71,23 @@ class EventController(val controllerComponents: ControllerComponents, val client
                     formalType match {
                       case f @ (FeatureUpdated | FeatureCreated) =>
                         env.datastores.features
-                          .findById(tenant, id)
-                          .map(either => {
-                            either.map(maybeFeature =>
+                          .findActivationStrategiesForFeature(tenant, id)
+                          .map(maybeFeature =>
                               GenericEvent(
                                 eventType = formalType,
                                 project = project,
                                 maybeFeature = maybeFeature,
                                 id = id
                               )
-                            )
-                          })
+                          )
                       case f @ FeatureDeleted                    =>
-                        Future.successful(
-                          Right(GenericEvent(eventType = formalType, project = project, maybeFeature = None, id = id))
-                        )
+                        Future.successful(GenericEvent(eventType = formalType, project = project, maybeFeature = None, id = id))
                     }
                   }
 
-              maybeFuturEvent.getOrElse(Future.successful(Left(FailedToReadEvent(payload)))).map {
-                case Left(error)  => env.logger.error(s"Failed to process event : ${error.message}")
-                case Right(value) => queue.offer(value)
-              }
+              maybeFuturEvent.fold(logger.error(s"Failed to read event $payload"))(futureValue => {
+                futureValue.map(value => queue.offer(value))
+              })
             })
         } else {
           logger.error("Failed to connect postgres suscriber", ar.cause())
@@ -107,7 +103,7 @@ class EventController(val controllerComponents: ControllerComponents, val client
       deleteEvent(event.id)
     } else {
       event.maybeFeature.fold(deleteEvent(event.id))(f => {
-        val legacyFormatFeature = Feature.writeFeatureInLegacyFormat(f)
+        val legacyFormatFeature = Feature.writeFeatureInLegacyFormat(f.get("").get)
         if (event.eventType == FeatureCreated) {
           createEvent(event.id, legacyFormatFeature)
         } else {
@@ -124,21 +120,21 @@ class EventController(val controllerComponents: ControllerComponents, val client
     }
   )
 
-  def processForModernEndpoint(event: GenericEvent, context: RequestContext, env: Env): Future[Option[JsObject]] = {
+  def processForModernEndpoint(tenant: String, event: GenericEvent, context: RequestContext, env: Env): Future[Option[JsObject]] = {
     if (event.eventType == FeatureDeleted) {
-      Future.successful(Some(deleteEvent(event.id)))
+      Future.successful(Some(deleteEventV2(event.id)))
     } else {
-      event.maybeFeature.fold(Future.successful(Some(deleteEvent(event.id)): Option[JsObject]))(f => {
-        Feature.writeFeatureForCheck(f, context, env).map {
+      event.maybeFeature.fold(Future.successful(Some(deleteEventV2(event.id)): Option[JsObject]))(f => {
+        Feature.processMultipleStrategyResult(tenant, f, context, env).map {
           case Left(error) => {
             logger.error(s"Failed to write feature : ${error.message}")
             None
           }
           case Right(json) => {
             if (event.eventType == FeatureCreated) {
-              Some(createEvent(event.id, json))
+              Some(createEventV2(json))
             } else {
-              Some(updateEvent(event.id, json))
+              Some(updateEventV2(json))
             }
           }
         }
@@ -176,6 +172,8 @@ class EventController(val controllerComponents: ControllerComponents, val client
   }
 
   def newEvents(user: String, clientRequest: FeatureRequest): Action[AnyContent] = clientKeyAction.async { request =>
+    implicit val nameExtractor: EventNameExtractor[JsObject] =
+      EventNameExtractor[JsObject](event => Some((event \ "type").as[String]))
     val key    = request.key
     val tenant = key.tenant
 
@@ -185,7 +183,7 @@ class EventController(val controllerComponents: ControllerComponents, val client
       .map(m => m.values.map(p => p.name).toSet)
       .map(allowedProjects => {
         val resultSource = source
-          .filter { case GenericEvent(_, project, _, id) =>
+          .filter { case GenericEvent(_, project, _, _) =>
             key.admin || key.projects.exists(ap => ap.name == project)
           }
           .filter { case GenericEvent(_, project, _, id) =>
@@ -193,7 +191,7 @@ class EventController(val controllerComponents: ControllerComponents, val client
             allowedProjects.contains(project) ||
               clientRequest.features.contains(id)
           }
-          .mapAsync(1)(e => processForModernEndpoint(e, RequestContext(tenant, user, FeatureContextPath(elements = clientRequest.context)), env))
+          .mapAsync(1)(e => processForModernEndpoint(tenant, e, RequestContext(tenant, user, FeatureContextPath(elements = clientRequest.context)), env))
           .filter(_.isDefined)
           .map(_.get)
 
