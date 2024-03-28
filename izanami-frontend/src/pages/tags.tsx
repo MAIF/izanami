@@ -131,14 +131,14 @@ export function Tags(props: { tenant: string }) {
               }}
             >
               <div style={{ fontSize: "21px", marginBottom: "24px" }}>
-                There is no Tag for this tenant.
+                There is no tag for this tenant.
               </div>
               <button
                 type="button"
                 className="btn btn-primary btn-lg"
                 onClick={() => setCreating(true)}
               >
-                Create new Tag
+                Create new tag
               </button>
             </div>
           )

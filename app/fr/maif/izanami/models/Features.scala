@@ -27,6 +27,7 @@ case object Replace extends PatchOperation
 case object Remove extends PatchOperation
 
 case object Enabled extends PatchPathField
+case object ProjectFeature extends PatchPathField
 case object RootFeature extends PatchPathField
 
 
@@ -41,6 +42,11 @@ case class EnabledFeaturePatch(value: Boolean, id: String) extends FeaturePatch 
   override def path: PatchPathField = Enabled
 }
 
+case class ProjectFeaturePatch(value: String, id: String) extends FeaturePatch {
+  override def op: PatchOperation   = Replace
+  override def path: PatchPathField = ProjectFeature
+}
+
 case class RemoveFeaturePatch(id: String) extends FeaturePatch {
   override def op: PatchOperation   = Remove
   override def path: PatchPathField = RootFeature
@@ -48,6 +54,7 @@ case class RemoveFeaturePatch(id: String) extends FeaturePatch {
 
 object FeaturePatch {
   val ENABLED_PATH_PATTERN: Regex = "^/(?<id>\\S+)/enabled$".r
+  val PROJECT_PATH_PATTERN: Regex = "^/(?<id>\\S+)/project$".r
   val FEATURE_PATH_PATTERN: Regex = "^/(?<id>\\S+)$".r
 
   implicit val patchPathReads: Reads[PatchPath] = Reads[PatchPath] { json =>
@@ -55,6 +62,7 @@ object FeaturePatch {
       .asOpt[String]
       .map { case ENABLED_PATH_PATTERN(id) =>
         PatchPath(id, Enabled)
+      case PROJECT_PATH_PATTERN(id) => PatchPath(id, ProjectFeature)
       case FEATURE_PATH_PATTERN(id) => PatchPath(id, RootFeature)
       }
       .map(path => JsSuccess(path))
@@ -78,6 +86,7 @@ object FeaturePatch {
       path <- (json \ "path").asOpt[PatchPath]
     ) yield (op, path) match {
       case (Replace, PatchPath(id, Enabled)) => (json \ "value").asOpt[Boolean].map(b => EnabledFeaturePatch(b, id))
+      case (Replace, PatchPath(id, ProjectFeature)) => (json \ "value").asOpt[String].map(b => ProjectFeaturePatch(b, id))
       case (Remove, PatchPath(id, RootFeature)) => Some(RemoveFeaturePatch(id))
       case (_,_) => None
     }

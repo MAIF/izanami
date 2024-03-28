@@ -304,7 +304,7 @@ type FeatureActionNames =
   | "transfer"
   | "url";
 
-const BULK_OPERATIONS = ["Enable", "Disable", "Delete"] as const;
+const BULK_OPERATIONS = ["Enable", "Disable", "Delete", "Transfer"] as const;
 
 function CopyButton(props: { value: any }) {
   const [validCheckMark, setValidCheckmark] = React.useState<boolean>(false);
@@ -703,6 +703,8 @@ export function FeatureTable(props: {
     undefined
   );
 
+  const [transfered, setTrasfered] = React.useState<boolean>(false);
+
   const hasSelectedRows = selectedRows.length > 0;
   const selectableRows = features
     .map((f) => f.project!)
@@ -781,6 +783,10 @@ export function FeatureTable(props: {
                         .then(() => refresh())
                         .then(() => setBulkOperation(undefined));
                       break;
+                    case "Transfer":
+                      setTrasfered(true);
+                      setBulkOperation(undefined);
+                      break;
                   }
                 }}
               >
@@ -788,6 +794,22 @@ export function FeatureTable(props: {
                 {selectedRows.length > 1 ? "s" : ""}
               </button>
             </>
+          )}
+          {transfered && !hasSelectedRows && !bulkOperation && (
+            <div className="sub_container anim__rightToLeft">
+              <div
+                className="anim__rightToLeft"
+                style={{ backgroundColor: "#42423f" }}
+              >
+                <h4>Transfer to another project</h4>
+                <TransferBulkForm
+                  tenant={tenant!}
+                  selectedRows={selectedRows}
+                  cancel={() => setTrasfered(false)}
+                  refresh={refresh}
+                />
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -811,6 +833,78 @@ export function FeatureTable(props: {
   );
 }
 
+function TransferBulkForm(props: {
+  tenant: string;
+  selectedRows: TFeature[];
+  cancel: () => void;
+  refresh: () => any;
+}) {
+  const { tenant, selectedRows, cancel, refresh } = props;
+  const selectedRowProjects = selectedRows.map((f) => f.project);
+  const selectedRowProject = selectedRowProjects.filter(
+    (q, idx) => selectedRowProjects.indexOf(q) === idx
+  );
+
+  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
+    queryTenant(tenant)
+  );
+
+  const { askConfirmation } = React.useContext(IzanamiContext);
+
+  if (projectQuery.isLoading) {
+    return <div>Loading projects...</div>;
+  } else if (projectQuery.error) {
+    return <div className="error">Failed to load projects</div>;
+  } else {
+    return (
+      <Form
+        schema={{
+          project: {
+            label: "Target project",
+            type: "string",
+            format: "select",
+            options: projectQuery.data?.projects
+              ?.filter(({ name }) => selectedRowProject.indexOf(name) === -1)
+              ?.map(({ name }) => ({
+                label: name,
+                value: name,
+              })),
+          },
+        }}
+        onSubmit={(data: { project: string }) => {
+          askConfirmation(
+            "Transferring this feature will delete existing local overloads (if any), are you sure ?",
+            () =>
+              patchFeatures(
+                tenant!,
+                selectedRows.map((f) => ({
+                  op: "replace",
+                  path: `/${f.id}/project`,
+                  value: data.project,
+                }))
+              ).then(() => refresh())
+          );
+        }}
+        footer={({ valid }: { valid: () => void }) => {
+          return (
+            <div className="d-flex justify-content-end">
+              <button
+                type="button"
+                className="btn btn-danger m-2"
+                onClick={cancel}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-success m-2" onClick={valid}>
+                Transfer feature
+              </button>
+            </div>
+          );
+        }}
+      />
+    );
+  }
+}
 function TransferForm(props: {
   tenant: string;
   project: string;
