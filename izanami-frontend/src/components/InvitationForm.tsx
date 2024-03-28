@@ -16,7 +16,7 @@ export function InvitationForm(props: {
   const [level, setLevel] = useState<TLevel | undefined>();
   const { loadOptions } = props;
   return (
-    <div className="d-flex flex-column sub_container anim__rightToLeft">
+    <div className="d-flex flex-column sub_container anim__rightToLeft mb-2">
       <h4>Invite new users</h4>
       <label>
         Users to invite

@@ -56,8 +56,7 @@ export function OverloadCreationForm(props: {
       <FormProvider {...methods}>
         <form
           onSubmit={handleSubmit((data) => submit(data))}
-          className="d-flex flex-column anim__rightToLeft p-3"
-          style={{ backgroundColor: "#42423f" }}
+          className="d-flex flex-column anim__rightToLeft p-3 sub_container"
         >
           <label>
             Name

@@ -1,4 +1,4 @@
-@import "variables";
+@import "variables.module";
 @import "../index.scss";
 
 @import "components/checkbox";
@@ -16,4 +16,3 @@
 @import "layout/global";
 @import "layout/header";
 @import "layout/sidebar";
-

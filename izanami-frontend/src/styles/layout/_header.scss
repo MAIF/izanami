@@ -1,10 +1,9 @@
 .navbar {
-  background-color: $fondNavbar;
+  background-color: var(--bg-color_level2) !important;
 
   .navbar-nav > li {
     > a {
-      color: $colorGris;
-      // padding: 17px;
+      color: var(--color_level2);
     }
 
     .dropdown-menu {
@@ -12,7 +11,7 @@
       // margin-top: 15px;
       li:hover,
       li:focus {
-        background-color: $fondGrisclairSurvolMenu;
+        background-color: var(--bg-color_level3);
       }
       a:hover,
       a:focus {
@@ -31,9 +30,9 @@
   .navbar-nav > .open > a,
   .navbar-nav > .open > a:focus,
   .navbar-nav > .open > a:hover {
-    background-color: $fondBody;
+    background-color: $color-dark-6;
     background-image: none;
-    color: $primaryColor
+    color: $primaryColor;
   }
 
   .navbar-right > li > a {
@@ -61,13 +60,13 @@
 // izanimi begin
 
 .text-info {
-  color: $colorRose;
+  color: $primaryColor;
 }
 
 .form-control:focus {
   border-color: #373735;
   box-shadow: none;
-  background-color: $fondNavbar;
+  background-color: $color-dark-5;
 }
 
 .nav > li > a {
@@ -82,7 +81,7 @@
     right: 15px;
 
     .open .dropdown-menu {
-      box-shadow: 0 6px 12px rgba(0,0,0,.175);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
     }
 
     .userManagement {
@@ -106,7 +105,6 @@
     margin-bottom: 0;
   }
 
-
   // .navbar-collapse.in {
   //   overflow-y: inherit;
   //   margin-top: 60px;
@@ -118,6 +116,6 @@
   }
 }
 
-.collapse.show{
+.collapse.show {
   display: block;
 }

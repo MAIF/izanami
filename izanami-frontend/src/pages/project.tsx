@@ -78,10 +78,6 @@ export function Project({
           <div className="sub_container anim__rightToLeft">
             <h4
               style={{
-                position: "sticky",
-                top: "50px",
-                backgroundColor: "#42423f",
-                zIndex: "2",
                 marginBottom: "0px",
                 paddingBottom: ".5rem",
                 paddingTop: ".5rem",

@@ -107,7 +107,7 @@ input[type="checkbox"].ios8-switch-lg:checked + label:after {
 
 .fa-check-circle,
 .text-success {
-  color: $savecolor;
+  color: var(--color-green);
 }
 
 input.checkbox-rounded {

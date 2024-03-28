@@ -1,5 +1,5 @@
 .dropdown-menu {
-  background-color: $fondBody;
+  background-color: $color-dark-6;
 
   > li {
     > a:focus,
@@ -12,7 +12,7 @@
 
   > li > a,
   > li > div {
-    color: $colorGris;
+    color: $color-dark-1;
   }
 }
 

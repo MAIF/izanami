@@ -160,7 +160,7 @@ export function QueryBuilder() {
         <div className="container">
           <div className="row mt-4">
             <button
-              className="ms-2 my-3 d-flex btn btn-secondary btn-sm"
+              className="ms-2 my-3 d-flex btn btn-primary btn-sm"
               style={{ flexBasis: "fit-content" }}
               onClick={handleToggleImport}
             >
@@ -256,7 +256,7 @@ export function QueryBuilder() {
             </div>
             <div className="col-sm">
               <label className="w-100">
-                Features&nbsp;
+                Features (Project) &nbsp;
                 <Tooltip id="features" position="top">
                   These features will be evaluated, even if their projects are
                   not selected
@@ -461,7 +461,7 @@ export function QueryBuilder() {
                       disabled={
                         selectedProjects.length === 0 && features.length === 0
                       }
-                      className="btn btn-secondary btn-lg"
+                      className="btn btn-primary btn-lg"
                       type="button"
                       onClick={() => {
                         fetch(callUrl.replace(expositionUrl!, ""))
@@ -510,7 +510,7 @@ export function QueryBuilder() {
                 </label>
               </div>
               {jsonDisplay ? (
-                <div className="row">
+                <div className="row mb-2">
                   <JsonViewer
                     rootName={false}
                     value={rawResult}

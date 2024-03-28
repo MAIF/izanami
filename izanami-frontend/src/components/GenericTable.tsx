@@ -337,7 +337,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
             </tr>
           ))}
         </thead>
-        <tbody style={{ backgroundColor: "#494948" }}>
+        <tbody>
           <>
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
@@ -391,10 +391,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                         idAccessor(row.original!)
                       )}`}
                     >
-                      <td
-                        colSpan={completeColumns.length}
-                        style={{ backgroundColor: "#373736" }}
-                      >
+                      <td colSpan={completeColumns.length}>
                         <div className="sub_container">
                           {renderActionForm(
                             extractAction(row),

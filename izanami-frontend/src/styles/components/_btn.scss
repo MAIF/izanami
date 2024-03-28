@@ -1,9 +1,13 @@
 .btn {
-  background-color: transparent;
-  background: none;
+  background-color: transparent !important;
   margin-right: 5px;
-  &:focus{
-  background-color: transparent;
+  color: var(--color_level2) !important;
+  &:focus {
+    background-color:var(--bg-color_level3);
+  }
+  &:hover {
+    background-color:var(--bg-color_level3) !important;
+    color: var(--color_level3) !important;
   }
 }
 
@@ -13,7 +17,7 @@
     margin-left: 5px;
   }
   .btn-danger:focus {
-    outline-color: $colorRouge;
+    outline-color: var(--color-red);
   }
 }
 
@@ -49,21 +53,21 @@
 .btn-primary {
   color: #fff;
   border: 1px solid;
-  border-color: $colorBleue;
+  border-color: var(--color-blue);
   &:hover,
   &.active,
   &.active:hover {
     color: #fff;
     border: 1px solid;
-    border-color: $colorBleue;
-    background-color: $colorBleue;
+    border-color: var(--color-blue);
+    background-color: var(--color-blue);
   }
 
   &:disabled,
   &.disabled {
     color: #fff;
     border: 1px solid;
-    border-color: $colorBleue;
+    border-color: var(--color-blue);
     background-color: transparent;
   }
 }
@@ -71,39 +75,39 @@
 .btn-danger {
   color: #fff;
   border: 1px solid;
-  border-color: $colorRouge;
+  border-color: var(--color-red);
   &:hover {
     color: #fff;
     border: 1px solid;
-    border-color: $colorRouge;
-    background-color: $colorRouge;
+    border-color: var(--color-red);
+    background-color: var(--color-red);
   }
 }
 
 .btn-success {
   color: #fff;
   border: 1px solid;
-  border-color: $savecolor;
+  border-color: var(--color-green);
   &:hover {
     color: #fff;
     border: 1px solid;
-    border-color: $savecolor;
-    background-color: $savecolor;
+    border-color: var(--color-green);
+    background-color: var(--color-green);
   }
   // &[disabled] {
-  //   color: $colorGris;
+  //   color: $color-dark-1;
   //   text-shadow: none;
   //   background-color: transparent;
-  //   border-color: $savecolor;
+  //   border-color: var(--color-green);
   // }
   &.disabled {
-    color: $colorGris;
+    color: $color-dark-1;
     text-shadow: none;
     background-color: transparent;
-    border-color: $colorGris;
+    border-color: $color-dark-1;
   }
   &.active {
-    background: $savecolor !important;
+    background: var(--color-green) !important;
   }
 }
 
@@ -118,7 +122,7 @@
 
 .btn-default.disabled,
 .btn-default.disabled:hover {
-  color: $colorGris;
+  color: $color-dark-1;
   text-shadow: none;
   background-color: transparent;
 }
@@ -126,18 +130,18 @@
 .prod,
 .prod:hover {
   color: #fff;
-  background-color: $savecolor;
+  background-color: var(--color-green);
   width: 80px;
-  border-color: $savecolor;
+  border-color: var(--color-green);
   margin-bottom: 1px;
 }
 
 .preprod,
 .preprod:hover {
   color: #fff;
-  background-color: $colorBleue;
+  background-color: var(--color-blue);
   width: 80px;
-  border-color: $colorBleue;
+  border-color: var(--color-blue);
   margin-bottom: 1px;
 }
 
@@ -151,9 +155,9 @@
 }
 
 .refresh {
-  background-color: $fondBody;
-  border-color: $colorGris;
-  color: $colorGris;
+  background-color: $color-dark-6;
+  border-color: $color-dark-1;
+  color: $color-dark-1;
   background-image: none;
   margin-left: 10px;
   padding: 3px 5px 0px 5px;
@@ -168,7 +172,7 @@
 .openbtn {
   color: #fff;
   :hover {
-    color: $colorGris;
+    color: $color-dark-1;
   }
 }
 
