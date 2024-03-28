@@ -31,6 +31,10 @@ label {
   color: var(--color_level2);
 }
 
+.sub_container-bglighter label{
+  color: var(--color_level3);
+}
+
 .has-error .col-form-label {
   color: var(--color-red);
 }
