@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
+import { useState, useContext } from "react";
 import {
   createTag,
   deleteTag,
@@ -14,13 +15,15 @@ import { TAG_NAME_REGEXP } from "../utils/patterns";
 import queryClient from "../queryClient";
 import { TLevel, TagType } from "../utils/types";
 import { IzanamiContext, useTenantRight } from "../securityContext";
+import Select from "react-select";
+import { customStyles } from "../styles/reactSelect";
 
 export function Tags(props: { tenant: string }) {
   const { tenant } = props;
   const tagsQuery = useQuery(tagsQueryKey(tenant), () => queryTags(tenant));
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation } = useContext(IzanamiContext);
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
-  const [creating, setCreating] = React.useState<boolean>(false);
+  const [creating, setCreating] = useState<boolean>(false);
 
   const tagCreateMutation = useMutation(
     (data: TagType) => createTag(tenant, data.name, data.description),
@@ -53,6 +56,15 @@ export function Tags(props: { tenant: string }) {
       },
     }
   );
+
+  const [bulkOperation, setBulkOperation] = useState<string | undefined>(
+    undefined
+  );
+
+  const BULK_OPERATIONS = ["Delete"] as const;
+  const [selectedRows, setSelectedRows] = useState<TagType[]>([]);
+
+  const hasSelectedRows = selectedRows.length > 0;
 
   if (tagsQuery.error) return <div>Error while fetching tags</div>;
   else if (tagsQuery.data) {
@@ -143,134 +155,190 @@ export function Tags(props: { tenant: string }) {
             </div>
           )
         ) : (
-          <GenericTable
-            idAccessor={(tag) => tag.name}
-            data={tagsQuery.data}
-            columns={[
-              {
-                id: "name",
-                accessorFn: (s) => s.name,
-                header: () => "Tag name",
-                minSize: 200,
-                cell: (info) => {
-                  const name = info.getValue();
-                  return (
-                    <>
-                      <div key={name}>
-                        <NavLink
-                          className={() => ""}
-                          to={`/tenants/${tenant}/tags/${name}`}
-                        >
-                          {name}
-                        </NavLink>
-                      </div>
-                    </>
-                  );
-                },
-                size: 10,
-              },
-              {
-                id: "description",
-                accessorFn: (s) => s.description,
-                header: () => "Description",
-                minSize: 200,
-                size: 10,
-
-                meta: {
-                  valueType: "discrete",
-                },
-              },
-            ]}
-            customRowActions={{
-              edit: {
-                icon: (
-                  <>
-                    <i className="bi bi-pencil-square" aria-hidden></i> Edit
-                  </>
-                ),
-                customForm(key, cancel) {
-                  return (
-                    <Form
-                      schema={{
-                        name: {
-                          label: "Name",
-                          type: type.string,
-                          defaultValue: key?.name || "",
-                          props: {
-                            autoFocus: true,
-                          },
-                          constraints: [
-                            constraints.required("Name is required"),
-                            constraints.matches(
-                              TAG_NAME_REGEXP,
-                              `Key name must match regex ${TAG_NAME_REGEXP.toString()}`
-                            ),
-                          ],
-                        },
-
-                        description: {
-                          label: "Description",
-                          type: type.string,
-                          format: format.textarea,
-                          defaultValue: key?.description || "",
-                        },
-                      }}
-                      footer={({ valid }: { valid: () => void }) => {
-                        return (
-                          <div className="d-flex justify-content-end">
-                            <button
-                              type="button"
-                              className="btn btn-danger m-2"
-                              onClick={() => cancel()}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="btn btn-success m-2"
-                              onClick={valid}
-                            >
-                              Update tag
-                            </button>
-                          </div>
+          <div
+            className={`d-flex align-items-center ${
+              hasSelectedRows ? "" : "invisible"
+            }`}
+          >
+            <Select
+              options={BULK_OPERATIONS.map((op) => ({ label: op, value: op }))}
+              value={
+                bulkOperation
+                  ? { label: bulkOperation, value: bulkOperation }
+                  : null
+              }
+              onChange={(e) => setBulkOperation(e?.value)}
+              styles={customStyles}
+              isClearable={true}
+              isDisabled={selectedRows?.length === 0}
+              placeholder="Bulk action"
+              aria-label="Bulk action"
+            />
+            &nbsp;
+            {bulkOperation && (
+              <>
+                <button
+                  className="ms-2 btn btn-primary"
+                  type="button"
+                  disabled={!hasSelectedRows || !bulkOperation}
+                  onClick={() => {
+                    switch (bulkOperation) {
+                      case "Delete":
+                        askConfirmation(
+                          `Are you sure you want to delete ${
+                            selectedRows.length
+                          } feature${selectedRows.length > 1 ? "s" : ""} ?`,
+                          () => {
+                            return Promise.all(
+                              selectedRows.map((row) =>
+                                tagDeleteMutation.mutateAsync(row)
+                              )
+                            ).then(() => setBulkOperation(undefined));
+                          }
                         );
-                      }}
-                      onSubmit={(formResult: any) => {
-                        return tagUpdateMutation
-                          .mutateAsync({
-                            tag: {
-                              ...formResult,
-                              id: key.id,
-                            },
-                            currentName: key.name,
-                          })
-                          .then(() => cancel());
-                      }}
-                    />
-                  );
-                },
-              },
-              delete: {
-                icon: (
-                  <>
-                    <i className="bi bi-trash" aria-hidden></i> Delete
-                  </>
-                ),
-                action: (tag: TagType) => {
-                  return new Promise((resolve, reject) => {
-                    askConfirmation(
-                      `Are you sure you want to delete tag ${tag.name} ?`,
-                      () =>
-                        tagDeleteMutation
-                          .mutateAsync({ name: tag.name })
-                          .then((res) => resolve(res))
-                          .catch((err) => reject(err))
-                    );
-                  });
-                },
-              },
-            }}
-          />
+                        break;
+                    }
+                  }}
+                >
+                  {bulkOperation} {selectedRows.length} feature
+                  {selectedRows.length > 1 ? "s" : ""}
+                </button>
+              </>
+            )}
+          </div>
         )}
+        <GenericTable
+          selectableRows
+          idAccessor={(tag) => tag.name}
+          data={tagsQuery.data}
+          columns={[
+            {
+              id: "name",
+              accessorFn: (s) => s.name,
+              header: () => "Tag name",
+              minSize: 200,
+              cell: (info) => {
+                const name = info.getValue();
+                return (
+                  <>
+                    <div key={name}>
+                      <NavLink
+                        className={() => ""}
+                        to={`/tenants/${tenant}/tags/${name}`}
+                      >
+                        {name}
+                      </NavLink>
+                    </div>
+                  </>
+                );
+              },
+              size: 10,
+            },
+            {
+              id: "description",
+              accessorFn: (s) => s.description,
+              header: () => "Description",
+              minSize: 200,
+              size: 10,
+
+              meta: {
+                valueType: "discrete",
+              },
+            },
+          ]}
+          customRowActions={{
+            edit: {
+              icon: (
+                <>
+                  <i className="bi bi-pencil-square" aria-hidden></i> Edit
+                </>
+              ),
+              customForm(key, cancel) {
+                return (
+                  <Form
+                    schema={{
+                      name: {
+                        label: "Name",
+                        type: type.string,
+                        defaultValue: key?.name || "",
+                        props: {
+                          autoFocus: true,
+                        },
+                        constraints: [
+                          constraints.required("Name is required"),
+                          constraints.matches(
+                            TAG_NAME_REGEXP,
+                            `Key name must match regex ${TAG_NAME_REGEXP.toString()}`
+                          ),
+                        ],
+                      },
+
+                      description: {
+                        label: "Description",
+                        type: type.string,
+                        format: format.textarea,
+                        defaultValue: key?.description || "",
+                      },
+                    }}
+                    footer={({ valid }: { valid: () => void }) => {
+                      return (
+                        <div className="d-flex justify-content-end">
+                          <button
+                            type="button"
+                            className="btn btn-danger m-2"
+                            onClick={() => cancel()}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className="btn btn-success m-2"
+                            onClick={valid}
+                          >
+                            Update tag
+                          </button>
+                        </div>
+                      );
+                    }}
+                    onSubmit={(formResult: any) => {
+                      return tagUpdateMutation
+                        .mutateAsync({
+                          tag: {
+                            ...formResult,
+                            id: key.id,
+                          },
+                          currentName: key.name,
+                        })
+                        .then(() => cancel());
+                    }}
+                  />
+                );
+              },
+            },
+            delete: {
+              icon: (
+                <>
+                  <i className="bi bi-trash" aria-hidden></i> Delete
+                </>
+              ),
+              action: (tag: TagType) => {
+                return new Promise((resolve, reject) => {
+                  askConfirmation(
+                    `Are you sure you want to delete tag ${tag.name} ?`,
+                    () =>
+                      tagDeleteMutation
+                        .mutateAsync({ name: tag.name })
+                        .then((res) => resolve(res))
+                        .catch((err) => reject(err))
+                  );
+                });
+              },
+            },
+          }}
+          onRowSelectionChange={(rows) => {
+            setSelectedRows(rows);
+          }}
+          isRowSelectable={() => hasTenantWriteRight === true}
+        />
       </>
     );
   } else {
