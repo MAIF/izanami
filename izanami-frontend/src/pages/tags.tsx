@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
-import { useState, useContext } from "react";
+import { useState, useContext, CSSProperties } from "react";
+import ClipLoader from "react-spinners/ClipLoader";
 import {
   createTag,
   deleteTag,
@@ -63,10 +64,31 @@ export function Tags(props: { tenant: string }) {
 
   const BULK_OPERATIONS = ["Delete"] as const;
   const [selectedRows, setSelectedRows] = useState<TagType[]>([]);
-
+  const override: CSSProperties = {
+    display: "block",
+    margin: "0 auto",
+  };
   const hasSelectedRows = selectedRows.length > 0;
 
-  if (tagsQuery.error) return <div>Error while fetching tags</div>;
+  if (tagsQuery.error)
+    return (
+      <>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            marginTop: "10%",
+          }}
+        >
+          <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+            <i className="fa fa-info-circle" aria-hidden="true"></i> There was
+            an error fetching data for Tags.
+          </div>
+        </div>
+      </>
+    );
   else if (tagsQuery.data) {
     return (
       <>
@@ -342,6 +364,14 @@ export function Tags(props: { tenant: string }) {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return (
+      <ClipLoader
+        color="#fff"
+        cssOverride={override}
+        size={50}
+        aria-label="Loading Spinner"
+        data-testid="loader"
+      />
+    );
   }
 }
