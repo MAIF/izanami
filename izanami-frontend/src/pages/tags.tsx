@@ -226,7 +226,7 @@ export function Tags(props: { tenant: string }) {
                         className={() => ""}
                         to={`/tenants/${tenant}/tags/${name}`}
                       >
-                        {name}
+                        <span className="badge bg-warning text-dark">{`${name}`}</span>
                       </NavLink>
                     </div>
                   </>

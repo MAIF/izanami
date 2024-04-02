@@ -513,8 +513,8 @@ export function FeatureTable(props: {
           </div>
         ));
       },
-      size: 15,
-      minSize: 150,
+      size: 10,
+      minSize: 200,
       meta: {
         valueType: "discrete",
       },
