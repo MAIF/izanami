@@ -104,17 +104,8 @@ function ProjectList(props: { tenant: TenantType }) {
           </div>
         )}
         {noProjects && !creating && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              marginTop: "10%",
-              width: "100%",
-            }}
-          >
-            <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+          <div className="item-block">
+            <div className="item-text">
               This tenant does not have any project yet.
             </div>
             <button

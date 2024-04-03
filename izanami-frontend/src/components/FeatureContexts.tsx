@@ -133,16 +133,8 @@ export function FeatureContexts(props: {
           </div>
         )}
         {contextQuery.data.length === 0 && !creating && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              marginTop: "10%",
-            }}
-          >
-            <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+          <div className="item-block">
+            <div className="item-text">
               There is no {allowGlobalContextDelete ? "global" : ""} context for
               this {allowGlobalContextDelete ? "tenant" : "project"}.
             </div>

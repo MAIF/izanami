@@ -46,18 +46,10 @@ export function HomePage() {
         </div>
         <div className="container mt-4">
           {empty && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                marginTop: "10%",
-              }}
-            >
+            <div className="item-block">
               {user?.admin ? (
                 <>
-                  <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+                  <div className="item-text">
                     Izanami doesn't have any tenant yet.
                   </div>
                   <button

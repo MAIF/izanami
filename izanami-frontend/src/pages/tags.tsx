@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
-import { useState, useContext, CSSProperties } from "react";
-import ClipLoader from "react-spinners/ClipLoader";
+import { useState, useContext } from "react";
+import { Loader } from "../components/Loader";
 import {
   createTag,
   deleteTag,
@@ -64,25 +64,13 @@ export function Tags(props: { tenant: string }) {
 
   const BULK_OPERATIONS = ["Delete"] as const;
   const [selectedRows, setSelectedRows] = useState<TagType[]>([]);
-  const override: CSSProperties = {
-    display: "block",
-    margin: "0 auto",
-  };
   const hasSelectedRows = selectedRows.length > 0;
 
   if (tagsQuery.error)
     return (
       <>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            marginTop: "10%",
-          }}
-        >
-          <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+        <div className="item-block">
+          <div className="item-text">
             <i className="fa fa-info-circle" aria-hidden="true"></i> There was
             an error fetching data for Tags.
           </div>
@@ -155,18 +143,8 @@ export function Tags(props: { tenant: string }) {
         )}
         {tagsQuery.data.length === 0 ? (
           !creating && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                marginTop: "10%",
-              }}
-            >
-              <div style={{ fontSize: "21px", marginBottom: "24px" }}>
-                There is no tag for this tenant.
-              </div>
+            <div className="item-block">
+              <div className="item-text">There is no tag for this tenant.</div>
               <button
                 type="button"
                 className="btn btn-primary btn-lg"
@@ -364,14 +342,6 @@ export function Tags(props: { tenant: string }) {
       </>
     );
   } else {
-    return (
-      <ClipLoader
-        color="#fff"
-        cssOverride={override}
-        size={50}
-        aria-label="Loading Spinner"
-        data-testid="loader"
-      />
-    );
+    return <Loader />;
   }
 }

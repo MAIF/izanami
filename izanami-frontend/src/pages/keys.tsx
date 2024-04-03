@@ -269,18 +269,8 @@ export default function Keys(props: { tenant: string }) {
         )}
         {keyQuery.data.length === 0 ? (
           !creating && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                marginTop: "10%",
-              }}
-            >
-              <div style={{ fontSize: "21px", marginBottom: "24px" }}>
-                There is no key for this tenant.
-              </div>
+            <div className="item-block">
+              <div className="item-text">There is no key for this tenant.</div>
               <button
                 type="button"
                 className="btn btn-primary btn-lg"
