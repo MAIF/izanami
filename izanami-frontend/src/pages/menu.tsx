@@ -41,8 +41,10 @@ export function Menu(props: {
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   const { user } = React.useContext(IzanamiContext);
-  const projectsQuery = useQuery(projectsQueryKey(tenant!), () =>
-    queryProjects(tenant!)
+  const projectsQuery = useQuery(
+    projectsQueryKey(tenant!),
+    () => queryProjects(tenant!),
+    { enabled: !!tenant }
   );
 
   if (tenantQuery.isSuccess) {
