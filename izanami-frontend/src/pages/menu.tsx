@@ -1,6 +1,11 @@
 import * as React from "react";
 import { useQuery } from "react-query";
-import { MutationNames, queryTenants } from "../utils/queries";
+import {
+  MutationNames,
+  projectsQueryKey,
+  queryProjects,
+  queryTenants,
+} from "../utils/queries";
 import { matchPath, NavLink, useLocation, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
@@ -29,12 +34,16 @@ export function Menu(props: {
 }) {
   let { tenant, project } = props;
   const [selectedTenant, selectTenant] = React.useState<string | undefined>();
+  const [selectedProject, selectProject] = React.useState<string | undefined>();
   const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
   const navigate = useNavigate();
   const isAdmin = useAdmin();
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   const { user } = React.useContext(IzanamiContext);
+  const projectsQuery = useQuery(projectsQueryKey(tenant!), () =>
+    queryProjects(tenant!)
+  );
 
   if (tenantQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
@@ -43,6 +52,10 @@ export function Menu(props: {
         selectedTenant ?? user.defaultTenant ?? tenantQuery.data?.[0]?.name;
       isTenantAdmin =
         isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
+    }
+
+    if (projectsQuery.isSuccess) {
+      project = project ?? projectsQuery.data?.[0]?.name ?? selectedProject;
     }
     return (
       <>
@@ -76,12 +89,46 @@ export function Menu(props: {
                   </>
                 )}
               </li>
+              <li>
+                {projectsQuery.data?.length === 1 ? (
+                  <>
+                    <NavLink
+                      to={`/tenants/${tenant}/projects/${project}`}
+                      className={() => ""}
+                      onClick={() => hideSidebar()}
+                    >
+                      <i className="ms-2 fas fa-building" aria-hidden></i>
+                      Project {project}
+                    </NavLink>
+                  </>
+                ) : (
+                  <>
+                    <h3 style={{ marginTop: "10px" }}>
+                      <i className="ms-2 fas fa-building" aria-hidden></i>
+                      Projects
+                    </h3>
+                    <div>
+                      <Select
+                        options={projectsQuery.data?.map((t) => ({
+                          value: t.name,
+                          label: t.name,
+                        }))}
+                        styles={customStyles}
+                        value={{
+                          value: project,
+                          label: project,
+                        }}
+                        onChange={(v) => {
+                          selectProject(v!.value);
+                          navigate(`/tenants/${tenant}/projects/${v!.value}`);
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </li>
               <li
                 className={
-                  matchPath(
-                    { path: "/tenants/:tenant" },
-                    props?.location?.pathname || ""
-                  ) ||
                   matchPath(
                     { path: "/tenants/:tenant/projects/:project/*" },
                     props?.location?.pathname || ""
@@ -90,29 +137,6 @@ export function Menu(props: {
                     : "inactive mt-2"
                 }
               >
-                <NavLink
-                  to={`/tenants/${tenant}`}
-                  className={() => ""}
-                  onClick={() => hideSidebar()}
-                >
-                  {!project && (
-                    <i className="ms-2 fas fa-building" aria-hidden></i>
-                  )}
-                  Projects
-                </NavLink>
-                {project && (
-                  <span
-                    className=""
-                    style={{
-                      marginLeft: "15px",
-                      fontWeight: "700",
-                      color: "#DC5F9F",
-                    }}
-                  >
-                    <i className="ms-2 fas fa-building" aria-hidden></i>{" "}
-                    {project}
-                  </span>
-                )}
                 {matchPath(
                   { path: "/tenants/:tenant/projects/:project/*" },
                   props?.location?.pathname || ""
@@ -262,7 +286,7 @@ export function Menu(props: {
                   WASM scripts
                 </NavLink>
               </li>
-              
+
               <li
                 className={
                   matchPath(

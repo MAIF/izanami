@@ -64,6 +64,9 @@ export function tagQueryKey(tenant: string, tag: string): string {
 export function tagsQueryKey(tenant: string): string {
   return `TAG-${tenant}`;
 }
+export function projectsQueryKey(tenant: string): string {
+  return `PROJECT-${tenant}`;
+}
 
 export function featureQueryKey(tenant: string, tag: string): string {
   return `FEATURES-${tenant}-${tag}`;
@@ -156,6 +159,11 @@ export function queryTenant(tenant: string): Promise<TenantType> {
   return handleFetchJsonResponse(fetch(`/api/admin/tenants/${tenant}`));
 }
 
+export function queryProjects(tenant: string): Promise<ProjectType[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/projects`)
+  );
+}
 export function queryUser(user: string): Promise<TUser> {
   return handleFetchJsonResponse(fetch(`/api/admin/users/${user}`));
 }
