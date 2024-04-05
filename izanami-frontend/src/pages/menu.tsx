@@ -18,6 +18,7 @@ import {
 import { TLevel } from "../utils/types";
 import { IzanamiContext } from "../securityContext";
 import { GlobalContextIcon } from "../utils/icons";
+import { Loader } from "../components/Loader";
 
 function hideSidebar() {
   let el = document.getElementById("btnToggler");
@@ -46,7 +47,6 @@ export function Menu(props: {
     () => queryProjects(tenant!),
     { enabled: !!tenant }
   );
-
   if (tenantQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
     if (!tenant && user) {
@@ -55,7 +55,6 @@ export function Menu(props: {
       isTenantAdmin =
         isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
     }
-
     if (projectsQuery.isSuccess) {
       project = project ?? projectsQuery.data?.[0]?.name ?? selectedProject;
     }
@@ -109,7 +108,7 @@ export function Menu(props: {
                       <i className="ms-2 fas fa-building" aria-hidden></i>
                       Projects
                     </h3>
-                    <div>
+                    <div style={{ marginLeft: "20px" }}>
                       <Select
                         options={projectsQuery.data?.map((t) => ({
                           value: t.name,
@@ -365,7 +364,7 @@ export function Menu(props: {
       </>
     );
   } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading tenants..." />;
   } else {
     return <div>Error while fetching tenants</div>;
   }

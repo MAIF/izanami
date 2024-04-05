@@ -9,6 +9,7 @@ import { customStyles } from "../styles/reactSelect";
 import { useQuery } from "react-query";
 import { useParams } from "react-router-dom";
 import { projectQueryKey, queryProject } from "../utils/queries";
+import { Loader } from "./Loader";
 
 export function OverloadCreationForm(props: {
   project: string;
@@ -130,6 +131,6 @@ export function OverloadCreationForm(props: {
       </FormProvider>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }

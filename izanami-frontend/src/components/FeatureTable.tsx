@@ -55,6 +55,7 @@ import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
 import { Form } from "@maif/react-forms";
+import { Loader } from "./Loader";
 
 export const Strategy = {
   all: { id: "All", label: "All" },
@@ -853,7 +854,7 @@ function TransferBulkForm(props: {
   const { askConfirmation } = React.useContext(IzanamiContext);
 
   if (projectQuery.isLoading) {
-    return <div>Loading projects...</div>;
+    return <Loader message="Loading projects..." />;
   } else if (projectQuery.error) {
     return <div className="error">Failed to load projects</div>;
   } else {
@@ -874,7 +875,9 @@ function TransferBulkForm(props: {
         }}
         onSubmit={(data: { project: string }) => {
           askConfirmation(
-            "Transferring this feature will delete existing local overloads (if any), are you sure ?",
+            `Transferring ${selectedRows.length} feature${
+              selectedRows.length > 1 ? "s" : ""
+            }  will delete existing local overloads (if any), are you sure ?`,
             () =>
               patchFeatures(
                 tenant!,
@@ -899,7 +902,7 @@ function TransferBulkForm(props: {
                 Cancel
               </button>
               <button className="btn btn-success m-2" onClick={valid}>
-                Transfer feature
+                Transfer feature{selectedRows.length > 1 ? "s" : ""}
               </button>
             </div>
           );
@@ -931,7 +934,7 @@ function TransferForm(props: {
   const { askConfirmation } = React.useContext(IzanamiContext);
 
   if (projectQuery.isLoading) {
-    return <div>Loading projects...</div>;
+    return <Loader message="Loading projects..." />;
   } else if (projectQuery.error) {
     return <div className="error">Failed to load projects</div>;
   } else {
@@ -1060,7 +1063,7 @@ function FeatureUrl(props: {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 
@@ -1089,7 +1092,7 @@ function OverloadTableForFeature(props: { tenant: string; feature: TFeature }) {
       />
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 
@@ -1210,7 +1213,7 @@ function OverloadDetails(props: { feature: TFeature; cancel: () => void }) {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 
@@ -1649,6 +1652,6 @@ function ExistingFeatureTestForm(props: {
       </form>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }

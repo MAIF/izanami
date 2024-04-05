@@ -7,6 +7,7 @@ import queryClient from "../queryClient";
 import { TenantInCreationType } from "../utils/types";
 import { IzanamiContext, useAdmin } from "../securityContext";
 import { TENANT_NAME_REGEXP } from "../utils/patterns";
+import { Loader } from "../components/Loader";
 
 export function HomePage() {
   const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
@@ -126,7 +127,7 @@ export function HomePage() {
       </>
     );
   } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading tenants ..." />;
   } else {
     return <div>Error while fetching tenants</div>;
   }

@@ -22,6 +22,7 @@ import { GlobalContextIcon } from "../utils/icons";
 import { CopyButton } from "../components/CopyButton";
 import { Tooltip } from "../components/Tooltip";
 import { useRef } from "react";
+import { Loader } from "../components/Loader";
 
 export function QueryBuilder() {
   const { tenant } = useParams();
@@ -590,7 +591,7 @@ export function QueryBuilder() {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 

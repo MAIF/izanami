@@ -15,6 +15,7 @@ import {
 import { FeatureContexts } from "../components/FeatureContexts";
 import queryClient from "../queryClient";
 import { OverloadTable } from "../components/FeatureTable";
+import { Loader } from "../components/Loader";
 
 export function GlobalContexts(props: { tenant: string }) {
   const { tenant } = props;
@@ -55,7 +56,7 @@ function GlobalFeatureContexts(props: { tenant: string }) {
   );
 
   if (contextQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading global contexts ..." />;
   } else if (contextQuery.data) {
     // handle opening
     return (

@@ -1,20 +1,14 @@
-import React from "react";
-import { CSSProperties } from "react";
-import ClipLoader from "react-spinners/ClipLoader";
+import * as React from "react";
 
-const override: CSSProperties = {
-  display: "block",
-  margin: "0 auto",
-};
-
-export function Loader() {
+export function Loader(props: { message: string }) {
   return (
-    <ClipLoader
-      color="#fff"
-      cssOverride={override}
-      size={50}
-      aria-label="Loading Spinner"
-      data-testid="loader"
-    />
+    <>
+      <div className="d-flex justify-content-center">
+        <i className="fas fa-cog fa-spin" style={{ fontSize: "30px" }} />
+      </div>
+      <h5 style={{ textAlign: "center" }} className="mt-3">
+        {props.message}
+      </h5>
+    </>
   );
 }

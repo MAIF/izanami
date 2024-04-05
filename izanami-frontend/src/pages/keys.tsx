@@ -18,6 +18,7 @@ import { IzanamiContext, useTenantRight } from "../securityContext";
 import { useState } from "react";
 import { KEY_NAME_REGEXP } from "../utils/patterns";
 import { CopyButton } from "../components/CopyButton";
+import { Loader } from "../components/Loader";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -361,7 +362,7 @@ export default function Keys(props: { tenant: string }) {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading keys ..." />;
   }
 }
 

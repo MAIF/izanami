@@ -25,6 +25,7 @@ import {
 import { TLevel, TRights, TTenantRight, TUser, UserType } from "../utils/types";
 import { Modal } from "../components/Modal";
 import { Form, constraints } from "@maif/react-forms";
+import { Loader } from "../components/Loader";
 
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);
@@ -76,7 +77,7 @@ export function Users() {
   );
 
   if (userQuery.isLoading) {
-    return <div>Loading</div>;
+    return <Loader message="Loading users..." />;
   } else if (userQuery.isSuccess) {
     const users = userQuery.data;
     const columns: ColumnDef<TUser>[] = [
@@ -394,7 +395,7 @@ export function UserEdition(props: {
   );
 
   if (userQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   } else if (userQuery.data) {
     let { rights, admin } = userQuery.data;
     return (

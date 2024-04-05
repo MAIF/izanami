@@ -71,8 +71,7 @@ export function Tags(props: { tenant: string }) {
       <>
         <div className="item-block">
           <div className="item-text">
-            <i className="fa fa-info-circle" aria-hidden="true"></i> There was
-            an error fetching data for Tags.
+            There was an error fetching data for Tags.
           </div>
         </div>
       </>
@@ -187,7 +186,7 @@ export function Tags(props: { tenant: string }) {
                         askConfirmation(
                           `Are you sure you want to delete ${
                             selectedRows.length
-                          } feature${selectedRows.length > 1 ? "s" : ""} ?`,
+                          } tag${selectedRows.length > 1 ? "s" : ""} ?`,
                           () => {
                             return Promise.all(
                               selectedRows.map((row) =>
@@ -200,7 +199,7 @@ export function Tags(props: { tenant: string }) {
                     }
                   }}
                 >
-                  {bulkOperation} {selectedRows.length} feature
+                  {bulkOperation} {selectedRows.length} tag
                   {selectedRows.length > 1 ? "s" : ""}
                 </button>
               </>

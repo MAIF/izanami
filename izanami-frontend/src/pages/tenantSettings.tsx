@@ -34,6 +34,7 @@ import { Controller, FormProvider, useForm } from "react-hook-form";
 import { Tooltip } from "../components/Tooltip";
 import { customStyles } from "../styles/reactSelect";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "../components/TimeZoneSelect";
+import { Loader } from "../components/Loader";
 
 const loadOptions = (
   inputValue: string,
@@ -82,7 +83,7 @@ export function TenantSettings(props: { tenant: string }) {
     return (
       <>
         <h1>Settings</h1>
-        <div>Loading...</div>
+        <Loader message="Loading..." />
       </>
     );
   } else if (tenantQuery.data) {
@@ -251,7 +252,7 @@ function TenantUsers(props: { tenant: string }) {
   );
   const isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   if (userQuery.isLoading) {
-    return <div>Loading users...</div>;
+    return <Loader message="Loading users..." />;
   } else if (userQuery.data) {
     return (
       <GenericTable
@@ -703,6 +704,6 @@ function IzanamiV1ImportForm(props: {
       </FormProvider>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }

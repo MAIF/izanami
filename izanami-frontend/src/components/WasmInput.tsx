@@ -9,6 +9,7 @@ import { ErrorDisplay } from "./FeatureForm";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
 import { IzanamiContext } from "../securityContext";
 import { Tooltip } from "./Tooltip";
+import { Loader } from "./Loader";
 
 export function WasmInput() {
   const {
@@ -112,7 +113,7 @@ function KindOptions() {
           </>
         );
       } else {
-        opts = <div>Loading...</div>;
+        opts = <Loader message="Loading..." />;
       }
       break;
     case "Http":
@@ -431,6 +432,6 @@ export function ExistingScript() {
       </>
     );
   } else {
-    return <div>Loading local scripts ...</div>;
+    return <Loader message="Loading local scripts ..." />;
   }
 }

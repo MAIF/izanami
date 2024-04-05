@@ -62,6 +62,8 @@ import {
 } from "date-fns";
 import { JsonViewer } from "@textea/json-viewer";
 import { Tags } from "./pages/tags";
+import { Loader } from "./components/Loader";
+import Logo from "../izanami.png";
 
 function Wrapper({
   element,
@@ -339,9 +341,17 @@ const router = createBrowserRouter([
   {
     path: "*",
     element: (
-      <main style={{ padding: "1rem" }}>
-        <p>There&apos;s nothing here!</p>
-      </main>
+      <div className="d-flex flex-column justify-content-center align-items-center">
+        <img
+          src={Logo}
+          style={{
+            marginBottom: 48,
+            height: 300,
+          }}
+        />
+        <h3>Page not found</h3>
+        <p>The page you are looking for doesn't exist.</p>
+      </div>
     ),
   },
 ]);
@@ -357,7 +367,7 @@ function RedirectToFirstTenant(): JSX.Element {
   } else if (tenantQuery.data && tenantQuery.data.length > 0) {
     return <Navigate to={`/tenants/${tenantQuery.data[0].name}`} />;
   } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading tenants..." />;
   } else {
     return <Navigate to="/home" />;
   }
@@ -382,7 +392,7 @@ function Layout() {
   }, [user?.username]);
 
   if (loading) {
-    return <div className="container-fluid">Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 
   return (

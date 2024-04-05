@@ -8,6 +8,7 @@ import { useTenantRight } from "../securityContext";
 import { createProject, queryTenant, tenantQueryKey } from "../utils/queries";
 import { ProjectInCreationType, TenantType, TLevel } from "../utils/types";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
+import { Loader } from "../components/Loader";
 
 export function Tenant({ tenant }: { tenant: string }) {
   const queryKey = tenantQueryKey(tenant);
@@ -27,7 +28,7 @@ export function Tenant({ tenant }: { tenant: string }) {
       </>
     );
   } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   } else {
     return <div>Error while fetching tenant</div>;
   }

@@ -23,6 +23,7 @@ import { OverloadTable } from "../components/FeatureTable";
 import { OverloadCreationForm } from "../components/OverloadCreationForm";
 import { useParams } from "react-router-dom";
 import { useState } from "react";
+import { Loader } from "../components/Loader";
 
 export function ProjectContexts(props: {
   tenant: string;
@@ -212,7 +213,7 @@ function ProjectOverloadTable({
   } else if (projectQuery.error) {
     return <div>Failed to fetch project</div>;
   } else {
-    return <div>Loading project</div>;
+    return <Loader message="Loading project" />;
   }
 }
 

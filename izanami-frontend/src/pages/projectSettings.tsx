@@ -21,6 +21,7 @@ import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { InvitationForm } from "../components/InvitationForm";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
+import { Loader } from "../components/Loader";
 
 const loadOptions = (
   inputValue: string,
@@ -141,7 +142,7 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading project / project users..." />;
   }
 }
 
@@ -160,7 +161,7 @@ function ProjectUsers(props: { tenant: string; project: string }) {
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
 
   if (userQuery.isLoading) {
-    return <div>Loading users...</div>;
+    return <Loader message="Loading users..." />;
   } else if (userQuery.data) {
     return (
       <>

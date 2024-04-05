@@ -7,6 +7,7 @@ import { TContext } from "../utils/types";
 import { useQuery } from "react-query";
 import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
+import { Loader } from "./Loader";
 
 const LocalContext = React.createContext<{
   open: string[];
@@ -157,7 +158,7 @@ export function FeatureContexts(props: {
   } else if (contextQuery.error) {
     return <div>Failed to fetch contexts</div>;
   } else {
-    return <div>Loading contetx</div>;
+    return <Loader message="Loading contexts..." />;
   }
 }
 
