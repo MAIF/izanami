@@ -73,7 +73,7 @@ export const cleanup = async () => {
   );
   promises.push(
     client.query(
-      "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE'"
+      "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE', anonymous_reporting_date=NOW()"
     )
   );
 
