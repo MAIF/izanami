@@ -2,9 +2,9 @@ import * as React from "react";
 import { useQuery } from "react-query";
 import {
   MutationNames,
-  projectsQueryKey,
-  queryProjects,
+  queryTenant,
   queryTenants,
+  tenantQueryKey,
 } from "../utils/queries";
 import { matchPath, NavLink, useLocation, useNavigate } from "react-router-dom";
 import Select from "react-select";
@@ -36,27 +36,31 @@ export function Menu(props: {
   let { tenant, project } = props;
   const [selectedTenant, selectTenant] = React.useState<string | undefined>();
   const [selectedProject, selectProject] = React.useState<string | undefined>();
-  const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
+  const [navbarOpen, setNavbarOpen] = React.useState(false);
+  const tenantsQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
   const navigate = useNavigate();
   const isAdmin = useAdmin();
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   const { user } = React.useContext(IzanamiContext);
-  const projectsQuery = useQuery(
-    projectsQueryKey(tenant!),
-    () => queryProjects(tenant!),
+  let projects;
+  const tenantQuery = useQuery(
+    tenantQueryKey(tenant!),
+    () => queryTenant(tenant!),
     { enabled: !!tenant }
   );
-  if (tenantQuery.isSuccess) {
+
+  if (tenantsQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
     if (!tenant && user) {
       tenant =
-        selectedTenant ?? user.defaultTenant ?? tenantQuery.data?.[0]?.name;
+        selectedTenant ?? user.defaultTenant ?? tenantsQuery.data?.[0]?.name;
       isTenantAdmin =
         isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
     }
-    if (projectsQuery.isSuccess) {
-      project = project ?? projectsQuery.data?.[0]?.name ?? selectedProject;
+    if (tenantQuery.isSuccess) {
+      projects = tenantQuery.data?.projects;
+      project = project ?? projects?.[0]?.name ?? selectedProject;
     }
     return (
       <>
@@ -64,7 +68,7 @@ export function Menu(props: {
           {tenant && (
             <>
               <li>
-                {tenantQuery.data.length === 1 ? (
+                {tenantsQuery.data.length === 1 ? (
                   <p style={{ color: "#e6e6e6" }}>
                     <i className="fas fa-cloud" aria-hidden></i> Tenant {tenant}
                   </p>
@@ -75,7 +79,7 @@ export function Menu(props: {
                     </h3>
                     <div>
                       <Select
-                        options={tenantQuery.data.map((t) => ({
+                        options={tenantsQuery.data.map((t) => ({
                           value: t.name,
                           label: t.name,
                         }))}
@@ -83,6 +87,7 @@ export function Menu(props: {
                         value={{ value: tenant, label: tenant }}
                         onChange={(v) => {
                           selectTenant(v!.value);
+                          setNavbarOpen(false);
                           navigate(`/tenants/${v!.value}`);
                         }}
                       />
@@ -90,44 +95,57 @@ export function Menu(props: {
                   </>
                 )}
               </li>
-              <li>
-                {projectsQuery.data?.length === 1 ? (
-                  <>
-                    <NavLink
-                      to={`/tenants/${tenant}/projects/${project}`}
-                      className={() => ""}
-                      onClick={() => hideSidebar()}
-                    >
-                      <i className="ms-2 fas fa-building" aria-hidden></i>
-                      Project {project}
-                    </NavLink>
-                  </>
-                ) : (
-                  <>
-                    <h3 style={{ marginTop: "10px" }}>
-                      <i className="ms-2 fas fa-building" aria-hidden></i>
-                      Projects
-                    </h3>
-                    <div style={{ marginLeft: "20px" }}>
-                      <Select
-                        options={projectsQuery.data?.map((t) => ({
-                          value: t.name,
-                          label: t.name,
-                        }))}
-                        styles={customStyles}
-                        value={{
-                          value: project,
-                          label: project,
+              {projects && (
+                <li>
+                  {projects.length === 1 ? (
+                    <>
+                      <NavLink
+                        to={`/tenants/${tenant}/projects/${project}`}
+                        className={() => ""}
+                        onClick={() => {
+                          setNavbarOpen(!navbarOpen);
+                          hideSidebar();
                         }}
-                        onChange={(v) => {
-                          selectProject(v!.value);
-                          navigate(`/tenants/${tenant}/projects/${v!.value}`);
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
-              </li>
+                      >
+                        <i className="ms-2 fas fa-building" aria-hidden></i>
+                        Project {project}
+                      </NavLink>
+                    </>
+                  ) : (
+                    <>
+                      <NavLink
+                        to="#"
+                        className={() => ""}
+                        onClick={() => setNavbarOpen(!navbarOpen)}
+                      >
+                        <i className="ms-2 fas fa-building" aria-hidden></i>
+                        Projects
+                      </NavLink>
+                      {navbarOpen && projects.length > 1 && (
+                        <div style={{ marginLeft: "20px" }}>
+                          <Select
+                            options={projects.map((t) => ({
+                              value: t.name,
+                              label: t.name,
+                            }))}
+                            styles={customStyles}
+                            value={{
+                              value: project,
+                              label: project,
+                            }}
+                            onChange={(v) => {
+                              selectProject(v!.value);
+                              navigate(
+                                `/tenants/${tenant}/projects/${v!.value}`
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </li>
+              )}
               <li
                 className={
                   matchPath(
@@ -141,7 +159,7 @@ export function Menu(props: {
                 {matchPath(
                   { path: "/tenants/:tenant/projects/:project/*" },
                   props?.location?.pathname || ""
-                ) ? (
+                ) && navbarOpen ? (
                   <ul
                     className="nav flex-column"
                     style={{ marginLeft: "36px" }}
@@ -363,7 +381,7 @@ export function Menu(props: {
         )}
       </>
     );
-  } else if (tenantQuery.isLoading) {
+  } else if (tenantsQuery.isLoading) {
     return <Loader message="Loading tenants..." />;
   } else {
     return <div>Error while fetching tenants</div>;

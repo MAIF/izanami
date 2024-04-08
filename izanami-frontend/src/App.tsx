@@ -401,7 +401,7 @@ function Layout() {
       <div className="row">
         <nav className="navbar navbar-expand-lg fixed-top p-0">
           <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
-            <NavLink className="navbar-brand" to="/">
+            <NavLink className="navbar-brand" to="/home">
               <div className="d-flex flex-column justify-content-center align-items-center">
                 Izanami
               </div>
