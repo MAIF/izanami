@@ -14,8 +14,12 @@ import { NavLink } from "react-router-dom";
 import { Form, constraints, format, type } from "@maif/react-forms";
 import { TAG_NAME_REGEXP } from "../utils/patterns";
 import queryClient from "../queryClient";
-import { TLevel, TagType } from "../utils/types";
-import { IzanamiContext, useTenantRight } from "../securityContext";
+import { TLevel, TagType, TUser } from "../utils/types";
+import {
+  IzanamiContext,
+  useTenantRight,
+  hasRightForTenant,
+} from "../securityContext";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 
@@ -140,74 +144,79 @@ export function Tags(props: { tenant: string }) {
             />
           </div>
         )}
-        {tagsQuery.data.length === 0 ? (
-          !creating && (
-            <div className="item-block">
-              <div className="item-text">There is no tag for this tenant.</div>
-              <button
-                type="button"
-                className="btn btn-primary btn-lg"
-                onClick={() => setCreating(true)}
-              >
-                Create new tag
-              </button>
-            </div>
-          )
-        ) : (
-          <div
-            className={`d-flex align-items-center ${
-              hasSelectedRows ? "" : "invisible"
-            }`}
-          >
-            <Select
-              options={BULK_OPERATIONS.map((op) => ({ label: op, value: op }))}
-              value={
-                bulkOperation
-                  ? { label: bulkOperation, value: bulkOperation }
-                  : null
-              }
-              onChange={(e) => setBulkOperation(e?.value)}
-              styles={customStyles}
-              isClearable={true}
-              isDisabled={selectedRows?.length === 0}
-              placeholder="Bulk action"
-              aria-label="Bulk action"
-            />
-            &nbsp;
-            {bulkOperation && (
-              <>
+        {tagsQuery.data.length === 0
+          ? !creating && (
+              <div className="item-block">
+                <div className="item-text">
+                  There is no tag for this tenant.
+                </div>
                 <button
-                  className="ms-2 btn btn-primary"
                   type="button"
-                  disabled={!hasSelectedRows || !bulkOperation}
-                  onClick={() => {
-                    switch (bulkOperation) {
-                      case "Delete":
-                        askConfirmation(
-                          `Are you sure you want to delete ${
-                            selectedRows.length
-                          } tag${selectedRows.length > 1 ? "s" : ""} ?`,
-                          () => {
-                            return Promise.all(
-                              selectedRows.map((row) =>
-                                tagDeleteMutation.mutateAsync(row)
-                              )
-                            ).then(() => setBulkOperation(undefined));
-                          }
-                        );
-                        break;
-                    }
-                  }}
+                  className="btn btn-primary btn-lg"
+                  onClick={() => setCreating(true)}
                 >
-                  {bulkOperation} {selectedRows.length} tag
-                  {selectedRows.length > 1 ? "s" : ""}
+                  Create new tag
                 </button>
-              </>
+              </div>
+            )
+          : hasTenantWriteRight && (
+              <div
+                className={`d-flex align-items-center ${
+                  hasSelectedRows ? "" : "invisible"
+                }`}
+              >
+                <Select
+                  options={BULK_OPERATIONS.map((op) => ({
+                    label: op,
+                    value: op,
+                  }))}
+                  value={
+                    bulkOperation
+                      ? { label: bulkOperation, value: bulkOperation }
+                      : null
+                  }
+                  onChange={(e) => setBulkOperation(e?.value)}
+                  styles={customStyles}
+                  isClearable={true}
+                  isDisabled={selectedRows?.length === 0}
+                  placeholder="Bulk action"
+                  aria-label="Bulk action"
+                />
+                &nbsp;
+                {bulkOperation && (
+                  <>
+                    <button
+                      className="ms-2 btn btn-primary"
+                      type="button"
+                      disabled={!hasSelectedRows || !bulkOperation}
+                      onClick={() => {
+                        switch (bulkOperation) {
+                          case "Delete":
+                            askConfirmation(
+                              `Are you sure you want to delete ${
+                                selectedRows.length
+                              } tag${selectedRows.length > 1 ? "s" : ""} ?`,
+                              () => {
+                                return Promise.all(
+                                  selectedRows.map((row) =>
+                                    tagDeleteMutation.mutateAsync(row)
+                                  )
+                                ).then(() => setBulkOperation(undefined));
+                              }
+                            );
+                            break;
+                        }
+                      }}
+                    >
+                      {bulkOperation} {selectedRows.length} tag
+                      {selectedRows.length > 1 ? "s" : ""}
+                    </button>
+                  </>
+                )}
+              </div>
             )}
-          </div>
-        )}
         <GenericTable
-          selectableRows
+          selectableRows={hasTenantWriteRight}
           idAccessor={(tag) => tag.name}
           data={tagsQuery.data}
           columns={[
@@ -252,6 +261,9 @@ export function Tags(props: { tenant: string }) {
                   <i className="bi bi-pencil-square" aria-hidden></i> Edit
                 </>
               ),
+              hasRight: (user: TUser) => {
+                return Boolean(hasRightForTenant(user, tenant, TLevel.Write));
+              },
               customForm(key, cancel) {
                 return (
                   <Form
@@ -319,6 +331,9 @@ export function Tags(props: { tenant: string }) {
                   <i className="bi bi-trash" aria-hidden></i> Delete
                 </>
               ),
+              hasRight: (user: TUser) => {
+                return Boolean(hasRightForTenant(user, tenant, TLevel.Write));
+              },
               action: (tag: TagType) => {
                 return new Promise((resolve, reject) => {
                   askConfirmation(
@@ -336,7 +351,7 @@ export function Tags(props: { tenant: string }) {
           onRowSelectionChange={(rows) => {
             setSelectedRows(rows);
           }}
-          isRowSelectable={() => hasTenantWriteRight === true}
+          isRowSelectable={() => Boolean(hasTenantWriteRight)}
         />
       </>
     );
