@@ -341,6 +341,6 @@ export function Tags(props: { tenant: string }) {
       </>
     );
   } else {
-    return <Loader />;
+    return <Loader message="Loading tags..." />;
   }
 }
