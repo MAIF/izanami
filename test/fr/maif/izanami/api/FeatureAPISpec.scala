@@ -133,6 +133,33 @@ class FeatureAPISpec extends BaseAPISpec {
       val fetchResponse = situation.fetchProject("tenant", "project")
       (fetchResponse.json.get \ "features").as[JsArray].value.length mustBe 1
     }
+
+    "allow to transfer features to a chosen project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant")
+          .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"), TestProject("new-project"))
+        ).loggedInWithAdminRights().build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        patches = Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F1").get}/project",
+            value = JsString("new-project")
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F2").get}/project",
+            value = JsString("new-project")
+          ))
+      )
+
+      response.status mustEqual 204
+
+      val fetchResponse = situation.fetchProject("tenant", "new-project")
+      (fetchResponse.json.get \ "features").as[JsArray].value.length mustBe 2
+    }
   }
 
   "Feature POST endpoint" should {
