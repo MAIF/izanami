@@ -89,12 +89,12 @@ function redirectToLoginIfNotAuthenticated({
   }
 }
 
-let mode = window.localStorage.getItem("otoroshi-dark-light-mode");
+let mode = window.localStorage.getItem("izanami-dark-light-mode");
 
 function setupLightMode() {
   if (!mode) {
     mode = "dark";
-    window.localStorage.setItem("otoroshi-dark-light-mode", mode);
+    window.localStorage.setItem("izanami-dark-light-mode", mode);
   }
   applyLightMode();
 }
@@ -121,7 +121,7 @@ function applyLightMode() {
 }
 function switchLightMode() {
   mode = mode === "dark" ? "light" : "dark";
-  window.localStorage.setItem("otoroshi-dark-light-mode", mode);
+  window.localStorage.setItem("izanami-dark-light-mode", mode);
   applyLightMode();
 }
 
