@@ -670,7 +670,7 @@ function IzanamiV1ImportForm(props: {
           >
             <div
               style={{
-                backgroundColor: "#373735",
+                backgroundColor:"var(--bg-color_level2)",
                 width: "185px",
                 height: "55px",
                 position: "absolute",
