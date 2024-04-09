@@ -1060,7 +1060,6 @@ export function V2FeatureForm(props: {
               style={{
                 position: "sticky",
                 bottom: "0px",
-                backgroundColor: "#42423f",
                 zIndex: "1",
                 width: "170px",
                 borderRadius: "10px",

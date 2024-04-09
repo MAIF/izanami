@@ -1,3 +1,14 @@
+.card {
+  background-color: var(--bg-color_level2);
+}
+
+.card-body,
+.card-body a,
+.card-body a:visited,
+.card-body label {
+  color: var(--color_level2);
+}
+
 @mixin icon-background {
   font-family: FontAwesome;
   top: 0px;
