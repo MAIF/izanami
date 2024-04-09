@@ -43,7 +43,8 @@ header .nav-link {
 }
 
 .fieldset-form fieldset {
-  background-color: #535352;
+  background-color: var(--bg-color_level2);
+  color: var(--color_level2);
   border-radius: 10px;
   padding: 20px;
   margin-bottom: 12px;

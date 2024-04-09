@@ -26,6 +26,13 @@ export function AtomicDesign() {
           }}
         >
           --bg-color_level2 & --color_level2
+          <p style={{
+                            backgroundColor: "var(--bg-color_level25)",
+                            color: "var(--color_level3)",
+                            padding: 10,
+            }}>
+            --bg-color_level25
+            </p>
           <div
             style={{
               width: 200,
@@ -36,6 +43,7 @@ export function AtomicDesign() {
             }}
           >
             --bg-color_level3 & --color_level3
+
           </div>
         </div>
       </div>

@@ -60,6 +60,10 @@ export const customStyles: object = {
     ...styles,
     color: "var(--color_level3) !important",
   }),
+  noOptionsMessage: (styles: object) => ({
+    ...styles,
+    color: "var(--color_level3) !important",
+  }),
   singleValue: (provided: object) => ({
     ...provided,
     color: "#FFF !important",

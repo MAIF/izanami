@@ -52,11 +52,13 @@ export function ConditionsInput() {
         >
           {fields.length > 0 ? "Add condition (OR)" : "Add condition"}
         </button>
-        <Tooltip id="add-condition">
-          Add another activation condition.
-          <br />
-          One active condition is sufficient to activate the feature.
-        </Tooltip>
+        <label>
+          <Tooltip id="add-condition">
+            Add another activation condition.
+            <br />
+            One active condition is sufficient to activate the feature.
+          </Tooltip>
+        </label>
       </div>
     </>
   );

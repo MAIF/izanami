@@ -1064,6 +1064,7 @@ export function V2FeatureForm(props: {
                 width: "170px",
                 borderRadius: "10px",
                 alignSelf: "end",
+                backgroundColor:"var(--bg-color_level2)"
               }}
             >
               <button
