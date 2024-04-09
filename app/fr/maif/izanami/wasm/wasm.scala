@@ -15,7 +15,7 @@ import scala.util.{Failure, Success, Try}
 
 case class WasmAuthorizations(
     httpAccess: Boolean = false
-)                 {
+) {
   def json: JsValue = WasmAuthorizations.format.writes(this)
 }
 
@@ -42,15 +42,15 @@ case class WasmConfigWithFeatures(wasmConfig: WasmConfig, features: Seq[WasmScri
 object WasmConfigWithFeatures {
   implicit val wasmConfigAssociatedFeaturesWrites: Writes[WasmScriptAssociatedFeatures] = { feature =>
     Json.obj(
-      "name" -> feature.name,
+      "name"    -> feature.name,
       "project" -> feature.project,
-      "id" -> feature.id
+      "id"      -> feature.id
     )
   }
 
   implicit val wasmConfigWithFeaturesWrites: Writes[WasmConfigWithFeatures] = { wasm =>
     Json.obj(
-      "config" -> Json.toJson(wasm.wasmConfig)(WasmConfig.format),
+      "config"   -> Json.toJson(wasm.wasmConfig)(WasmConfig.format),
       "features" -> wasm.features
     )
   }
@@ -73,7 +73,7 @@ case class WasmConfig(
     authorizations: WasmAuthorizations = WasmAuthorizations()
 ) extends WasmConfiguration {
   // still here for compat reason
-  def json: JsValue                         = Json.obj(
+  def json: JsValue = Json.obj(
     "name"           -> name,
     "source"         -> source.json,
     "memoryPages"    -> memoryPages,
@@ -108,8 +108,10 @@ object WasmConfig {
               case Some(source) => WasmSource(WasmSourceKind.Wasmo, source, Json.obj("name" -> name))
               case None         =>
                 rawSource match {
-                  case Some(source) if source.startsWith("http://")   => WasmSource(WasmSourceKind.Http, source, Json.obj("name" -> name))
-                  case Some(source) if source.startsWith("https://")  => WasmSource(WasmSourceKind.Http, source,Json.obj("name" -> name))
+                  case Some(source) if source.startsWith("http://")   =>
+                    WasmSource(WasmSourceKind.Http, source, Json.obj("name" -> name))
+                  case Some(source) if source.startsWith("https://")  =>
+                    WasmSource(WasmSourceKind.Http, source, Json.obj("name" -> name))
                   case Some(source) if source.startsWith("file://")   =>
                     WasmSource(WasmSourceKind.File, source.replace("file://", ""), Json.obj("name" -> name))
                   case Some(source) if source.startsWith("base64://") =>
@@ -159,43 +161,52 @@ object WasmConfig {
 }
 
 object WasmUtils {
-  def handle(config: WasmConfig, requestContext: RequestContext)(implicit ec: ExecutionContext, env: Env): Future[Either[IzanamiError, Boolean]] = {
+  def handle(config: WasmConfig, requestContext: RequestContext)(implicit
+      ec: ExecutionContext,
+      env: Env
+  ): Future[Either[IzanamiError, Boolean]] = {
     val context = (requestContext.wasmJson.as[JsObject] ++ Json.obj(
-      "id" -> requestContext.user, "context" -> requestContext.data, "executionContext" -> requestContext.context.elements
+      "id"               -> requestContext.user,
+      "context"          -> requestContext.data,
+      "executionContext" -> requestContext.context.elements
     )).stringify
     env.wasmIntegration.withPooledVm(config) { vm =>
       if (config.opa) {
         vm.callOpa("execute", context).map {
-          case Left(err) => throw new RuntimeException(s"Failed to execute wasm feature : ${err.toString()}") // TODO - fix me
+          case Left(err)             =>
+            throw new RuntimeException(s"Failed to execute wasm feature : ${err.toString()}") // TODO - fix me
           case Right((rawResult, _)) => {
             val response = Json.parse(rawResult)
-            val result = response.asOpt[JsArray].getOrElse(Json.arr())
-            (result.value.head \ "result").asOpt[Boolean]
+            val result   = response.asOpt[JsArray].getOrElse(Json.arr())
+            (result.value.head \ "result")
+              .asOpt[Boolean]
               .orElse((result.value.head \ "result").asOpt[String].flatMap(s => s.toBooleanOption))
-              .toRight({
+              .toRight {
                 env.logger.error(s"Failed to parse wasm result (OPA), result is $result")
                 WasmError()
-              })
+              }
           }
         }
       } else {
         vm.callExtismFunction("execute", context).map {
-          case Left(err) => throw new RuntimeException(s"Failed to execute wasm feature : ${err.toString()}") // TODO - fix me
+          case Left(err)        =>
+            throw new RuntimeException(s"Failed to execute wasm feature : ${err.toString()}") // TODO - fix me
           case Right(rawResult) => {
             if (rawResult.startsWith("{")) {
               val response = Json.parse(rawResult)
 
-              (response \ "active").asOpt[Boolean]
+              (response \ "active")
+                .asOpt[Boolean]
                 .orElse((response \ "active").asOpt[String].flatMap(s => s.toBooleanOption))
-                .toRight({
+                .toRight {
                   env.logger.error(s"Failed to parse wasm result, result is $response")
                   WasmError()
-                })
+                }
             } else {
-              rawResult.toBooleanOption.toRight({
+              rawResult.toBooleanOption.toRight {
                 env.logger.error(s"Failed to parse wasm result, result is $rawResult")
                 WasmError()
-              })
+              }
             }
           }
         }
