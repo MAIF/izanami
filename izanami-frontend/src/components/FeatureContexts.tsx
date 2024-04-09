@@ -268,7 +268,7 @@ function FeatureContextTree(props: {
                   const { createSubContextCallback } =
                     React.useContext(LocalContext);
                   return (
-                    <div className="sub_container anim__popUp">
+                    <div className="sub_container anim__popUp mt-2">
                       <h4>Add subcontext</h4>
                       <Form
                         schema={{

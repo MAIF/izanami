@@ -1,7 +1,5 @@
 .sidebar {
-  background: -moz-linear-gradient(top, $fondBody 1%, $fondNavbar 100%);
-  background: -webkit-linear-gradient(top, $fondBody 1%, $fondNavbar);
-  background: linear-gradient(180deg, $fondBody 1%, $fondNavbar);
+  background-color: var(--bg-color_level2);
   position: fixed;
   top: 51px;
   bottom: 0;
@@ -19,11 +17,14 @@
   }
 
   a {
-    color: $colorGris;
+    color: var(--color_level2);
   }
 
   .active > a {
     color: $primaryColor;
+  }
+  .icon_context {
+    fill: var(--color_level2) !important;
   }
   .active svg .icon_context {
     fill: $primaryColor !important;

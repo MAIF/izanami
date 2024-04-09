@@ -622,10 +622,7 @@ export function FeatureTable(props: {
       },
       customForm: (datum: TFeature, cancel: () => void) => {
         return (
-          <div
-            className="anim__rightToLeft"
-            style={{ backgroundColor: "#42423f" }}
-          >
+          <div className="anim__rightToLeft">
             <h4>Duplicate feature</h4>
             <FeatureForm
               defaultValue={datum}
@@ -655,10 +652,7 @@ export function FeatureTable(props: {
       },
       customForm: (datum: TFeature, cancel: () => void) => {
         return (
-          <div
-            className="anim__rightToLeft"
-            style={{ backgroundColor: "#42423f" }}
-          >
+          <div className="anim__rightToLeft">
             <h4>Transfer to another project</h4>
             <TransferForm
               project={datum.project!}

@@ -30,7 +30,7 @@ import { Login } from "./pages/login";
 import Keys from "./pages/keys";
 import { isAuthenticated } from "./utils/authUtils";
 import "./App.css";
-import { Configuration, TUser } from "./utils/types";
+import { TUser } from "./utils/types";
 import { TIzanamiContext, IzanamiContext } from "./securityContext";
 import { Topbar } from "./Topbar";
 import { Users } from "./pages/users";
@@ -55,12 +55,9 @@ import { GlobalContexts } from "./pages/globalContexts";
 import { QueryBuilder } from "./pages/queryBuilder";
 import { GlobalContextIcon } from "./utils/icons";
 import { WasmScripts } from "./pages/wasmScripts";
-import {
-  differenceInDays,
-  differenceInMonths,
-  differenceInSeconds,
-} from "date-fns";
+import { differenceInMonths } from "date-fns";
 import { JsonViewer } from "@textea/json-viewer";
+import { AtomicDesign } from "./pages/atomicDesign";
 
 function Wrapper({
   element,
@@ -90,6 +87,42 @@ function redirectToLoginIfNotAuthenticated({
   if (!isAuthenticated()) {
     return redirect(`/login?req=${encodeURI(`${pathname}${search}`)}`);
   }
+}
+
+let mode = window.localStorage.getItem("izanami-dark-light-mode");
+
+function setupLightMode() {
+  if (!mode) {
+    mode = "dark";
+    window.localStorage.setItem("izanami-dark-light-mode", mode);
+  }
+  applyLightMode();
+}
+
+function applyLightMode() {
+  let el = document.getElementById("lightMode");
+
+  if (el) {
+    if (mode === "dark") {
+      el.classList.remove("fa-moon");
+      el.classList.remove("fa-lightbulb");
+      el.classList.add("fa-moon");
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      el.classList.remove("fa-moon");
+      el.classList.remove("fa-lightbulb");
+      el.classList.add("fa-lightbulb");
+      window.document.body.classList.remove("white-mode");
+      window.document.body.classList.remove("dark-mode");
+      window.document.body.classList.add("white-mode");
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  }
+}
+function switchLightMode() {
+  mode = mode === "dark" ? "light" : "dark";
+  window.localStorage.setItem("izanami-dark-light-mode", mode);
+  applyLightMode();
 }
 
 const router = createBrowserRouter([
@@ -128,6 +161,10 @@ const router = createBrowserRouter([
       {
         path: "/home",
         element: <Wrapper element={HomePage} />,
+      },
+      {
+        path: "/atomicDesign",
+        element: <Wrapper element={AtomicDesign} />,
       },
       {
         path: "/users",
@@ -390,6 +427,16 @@ function Layout() {
             </button>
           </div>
           <ul className="navbar-nav ms-auto">
+            <li
+              onClick={() => switchLightMode()}
+              className="me-2 d-flex align-items-center"
+            >
+              <i
+                id="lightMode"
+                className="fa fa-lightbulb"
+                style={{ color: "var(--color_level2)", cursor: "pointer" }}
+              />
+            </li>
             <li className="nav-item dropdown userManagement me-2">
               <a
                 className="nav-link"
@@ -578,6 +625,7 @@ export class App extends Component {
 
   componentDidUpdate(): void {
     this.fetchIntegrationsIfNeeded();
+    setupLightMode();
   }
 
   render() {

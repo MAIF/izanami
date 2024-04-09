@@ -3,8 +3,8 @@ body {
   padding-bottom: 20px;
   font-family: Raleway, Helvetica, sans-serif;
   font-weight: 500;
-  background-color: $fondBody;
-  color: $grisTexte;
+  background-color: var(--bg-color_level1);
+  color: var(--color_level1);
 }
 
 a,
@@ -45,7 +45,7 @@ h6 {
 }
 
 hr {
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--color_level1);
 }
 
 .zi-10 {
@@ -100,10 +100,10 @@ hr {
 }
 
 .sub_container {
-  background-color: #42423f !important;
+  background-color: var(--bg-color_level2) !important;
   padding: 10px !important;
   border-radius: 10px !important;
 }
 .sub_container-bglighter {
-  background-color: #535352 !important;
+  background-color: var(--bg-color_level25) !important;
 }
