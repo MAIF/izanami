@@ -5,6 +5,7 @@ on:
     paths:
       - 'manual/**'
       - '.github/workflows/doc.yml'
+      - 'swagger.json'
     branches:
       - main
   workflow_dispatch:
@@ -22,6 +23,7 @@ jobs:
       - name: Generate documentation website
         id: doc
         run: |
+          cp ./swagger.json ./manual/static/swagger/
           cd manual
           npm ci
           npm run build
