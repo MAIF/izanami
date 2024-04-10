@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Izanami client API",
-    "description": "This describes client endpoints exposed by Izanami. These endpoints are accessible using an api key. This swagger does not yet include 'admin' endpoints that are used by backoffice.",
+    "title": "Izanami API",
+    "description": "Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.",
     "version": "2.0.0"
   },
   "paths": {
@@ -10,19 +10,32 @@
       "description": "Compute feature activation for given parameters. POST endpoint allows to pass data in body that can be used by script based features.",
       "parameters": [
         {
-          "$ref": "#/components/parameters/clientId"
+          "in": "path",
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "Feature id."
         },
         {
-          "$ref": "#/components/parameters/clientSecret"
+          "in": "query",
+          "name": "user",
+          "schema": {
+            "type": "string",
+            "default": ""
+          },
+          "description": "User for which activation should be computed, this is used by user based conditions (user list, percentage, ...)"
         },
         {
-          "$ref": "#/components/parameters/featureId"
-        },
-        {
-          "$ref": "#/components/parameters/user"
-        },
-        {
-          "$ref": "#/components/parameters/context"
+          "in": "query",
+          "name": "context",
+          "schema": {
+            "type": "string",
+            "default": ""
+          },
+          "description": "Context to use for computing activation, for subcontext separate context by a '/' character (ex: 'root/subcontext/subsubcontext')."
         }
       ],
       "get": {
@@ -68,16 +81,22 @@
       "description": "These two endpoints allows checking activation for multiple features. Optionally, they can return activation conditions for these features., allowing to recompute their activation offline.",
       "parameters": [
         {
-          "$ref": "#/components/parameters/clientId"
+          "in": "query",
+          "name": "user",
+          "schema": {
+            "type": "string",
+            "default": ""
+          },
+          "description": "User for which activation should be computed, this is used by user based conditions (user list, percentage, ...)"
         },
         {
-          "$ref": "#/components/parameters/clientSecret"
-        },
-        {
-          "$ref": "#/components/parameters/user"
-        },
-        {
-          "$ref": "#/components/parameters/context"
+          "in": "query",
+          "name": "context",
+          "schema": {
+            "type": "string",
+            "default": ""
+          },
+          "description": "Context to use for computing activation, for subcontext separate context by a '/' character (ex: 'root/subcontext/subsubcontext')."
         },
         {
           "in": "query",
@@ -233,13 +252,13 @@
         "description": "This endpoint emits legacy (v1) format event whenever a feature is created / updated / deleted. It also periodically emit keep alive events when nothing happens.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/clientId"
-          },
-          {
-            "$ref": "#/components/parameters/clientSecret"
-          },
-          {
-            "$ref": "#/components/parameters/pattern"
+            "in": "query",
+            "name": "pattern",
+            "schema": {
+              "default": "*",
+              "type": "string"
+            },
+            "required": false
           }
         ],
         "responses": {
@@ -259,19 +278,33 @@
     "/api/features/_checks": {
       "parameters": [
         {
-          "$ref": "#/components/parameters/clientId"
+          "in": "query",
+          "name": "pattern",
+          "schema": {
+            "default": "*",
+            "type": "string"
+          },
+          "required": false
         },
         {
-          "$ref": "#/components/parameters/clientSecret"
+          "in": "query",
+          "name": "pageSize",
+          "schema": {
+            "default": 15,
+            "format": "int32",
+            "type": "integer"
+          },
+          "required": false
         },
         {
-          "$ref": "#/components/parameters/pattern"
-        },
-        {
-          "$ref": "#/components/parameters/pageSize"
-        },
-        {
-          "$ref": "#/components/parameters/page"
+          "in": "query",
+          "name": "page",
+          "schema": {
+            "default": 1,
+            "format": "int32",
+            "type": "integer"
+          },
+          "required": false
         }
       ],
       "post": {
@@ -299,19 +332,33 @@
     "/api/features": {
       "parameters": [
         {
-          "$ref": "#/components/parameters/clientId"
+          "in": "query",
+          "name": "pattern",
+          "schema": {
+            "default": "*",
+            "type": "string"
+          },
+          "required": false
         },
         {
-          "$ref": "#/components/parameters/clientSecret"
+          "in": "query",
+          "name": "pageSize",
+          "schema": {
+            "default": 15,
+            "format": "int32",
+            "type": "integer"
+          },
+          "required": false
         },
         {
-          "$ref": "#/components/parameters/pattern"
-        },
-        {
-          "$ref": "#/components/parameters/pageSize"
-        },
-        {
-          "$ref": "#/components/parameters/page"
+          "in": "query",
+          "name": "page",
+          "schema": {
+            "default": 1,
+            "format": "int32",
+            "type": "integer"
+          },
+          "required": false
         }
       ],
       "get": {
@@ -965,66 +1012,6 @@
         },
         "required": true,
         "description": "client key secret"
-      },
-      "featureId": {
-        "in": "path",
-        "name": "id",
-        "schema": {
-          "type": "string",
-          "format": "uuid"
-        },
-        "required": true,
-        "description": "Feature id."
-      },
-      "user": {
-        "in": "query",
-        "name": "user",
-        "schema": {
-          "type": "string",
-          "default": ""
-        },
-        "description": "User for which activation should be computed, this is used by user based conditions (user list, percentage, ...)"
-      },
-      "context": {
-        "in": "query",
-        "name": "context",
-        "schema": {
-          "type": "string",
-          "default": ""
-        },
-        "description": "Context to use for computing activation, for subcontext separate context by a '/' character (ex: 'root/subcontext/subsubcontext')."
-      },
-      "pattern": {
-        "in": "query",
-        "name": "pattern",
-        "schema": {
-          "default": "*",
-          "type": "string"
-        },
-        "required": false,
-        "description": "Pattern to search feature for. For instance pattern foo:* will match for feature 'foo:bar', 'foo:baz:biz' but not 'baz'"
-      },
-      "pageSize": {
-        "in": "query",
-        "name": "pageSize",
-        "schema": {
-          "default": 15,
-          "format": "int32",
-          "type": "integer"
-        },
-        "required": false,
-        "description": "Number of elements by page."
-      },
-      "page": {
-        "in": "query",
-        "name": "page",
-        "schema": {
-          "default": 1,
-          "format": "int32",
-          "type": "integer"
-        },
-        "required": false,
-        "description": "Page to fetch, it starts at 1 (not 0)."
       }
     }
   }
