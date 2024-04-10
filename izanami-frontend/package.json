@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && mkdir -p ../public && rm -rf ../public/* &&  cp -r ./dist/* ../public/",
+    "build": "tsc && vite build && mkdir -p ../public && rm -rf ../public/* &&  cp -r ./dist/* ../public/ && cp ../swagger.json ../public/",
     "preview": "vite preview",
     "test": "playwright test --workers 1 --trace on",
     "screenshots": "npx tsx ./tests/screenshots/index.ts"

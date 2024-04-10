@@ -7,6 +7,7 @@
   },
   "paths": {
     "/api/v2/features/{id}": {
+      "description": "Compute feature activation for given parameters. POST endpoint allows to pass data in body that can be used by script based features.",
       "parameters": [
         {
           "in": "path",
@@ -15,7 +16,8 @@
             "type": "string",
             "format": "uuid"
           },
-          "required": true
+          "required": true,
+          "description": "Feature id."
         },
         {
           "in": "query",
@@ -23,7 +25,8 @@
           "schema": {
             "type": "string",
             "default": ""
-          }
+          },
+          "description": "User for which activation should be computed, this is used by user based conditions (user list, percentage, ...)"
         },
         {
           "in": "query",
@@ -31,7 +34,8 @@
           "schema": {
             "type": "string",
             "default": ""
-          }
+          },
+          "description": "Context to use for computing activation, for subcontext separate context by a '/' character (ex: 'root/subcontext/subsubcontext')."
         }
       ],
       "get": {
@@ -82,7 +86,8 @@
           "schema": {
             "type": "string",
             "default": ""
-          }
+          },
+          "description": "User for which activation should be computed, this is used by user based conditions (user list, percentage, ...)"
         },
         {
           "in": "query",
