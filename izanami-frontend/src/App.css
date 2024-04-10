@@ -50,6 +50,14 @@ header .nav-link {
   margin-bottom: 12px;
 }
 
-/*.fieldset-form fieldset:nth-of-type(2n) {
-  background-color: #414140;
-}*/
+#swagger-ui {
+  background-color: white;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  min-height: 100vh;
+}
+#swagger-ui > * {
+  all: revert;
+}

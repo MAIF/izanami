@@ -8,6 +8,7 @@ export default defineConfig({
     proxy: {
       // string shorthand
       "/api": "http://localhost:9000",
+      "/swagger.json": "http://localhost:9000",
     },
   },
   plugins: [react()],
@@ -18,8 +19,12 @@ export default defineConfig({
     minify: "terser",
     terserOptions: {
       format: {
-        keep_quoted_props: true
-      }
-    }
-  }
+        keep_quoted_props: true,
+      },
+    },
+  },
+  define: {
+    // See https://stackoverflow.com/questions/72114775/vite-global-is-not-defined
+    global: "window",
+  },
 });
