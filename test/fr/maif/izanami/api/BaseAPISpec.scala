@@ -16,7 +16,7 @@ import org.scalatestplus.play.PlaySpec
 import play.api.libs.json._
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
-import play.api.test.Helpers.{OK, await}
+import play.api.test.Helpers.{await, OK}
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.test.DefaultAwaitTimeout
 
@@ -1481,6 +1481,33 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(Try { response.json }, status = response.status)
+    }
+
+    def checkFeaturesLegacy(
+        pattern: String,
+        payload: JsObject,
+        clientId: String,
+        clientSecret: String,
+        active: Boolean = false,
+        page: Int = 1,
+        pageSize: Int = 100
+    ): RequestResult = {
+      val response = await(
+        ws
+          .url(s"${BASE_URL}/features/_checks?pattern=$pattern&active=$active&pageSize=$pageSize&page=$page")
+          .withHttpHeaders(
+            ("Izanami-Client-Id"     -> clientId),
+            ("Izanami-Client-Secret" -> clientSecret)
+          )
+          .post(payload)
+      )
+
+      RequestResult(
+        Try {
+          response.json
+        },
+        status = response.status
+      )
     }
 
     def readFeaturesAsLegacy(

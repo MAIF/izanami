@@ -106,7 +106,7 @@ class EventController(val controllerComponents: ControllerComponents, val client
     }
   )
 
-  def events(pattern: String, domains: String): Action[AnyContent] = clientKeyAction.async { request =>
+  def events(pattern: String): Action[AnyContent] = clientKeyAction.async { request =>
     val key = request.key
 
     val regexpPattern = pattern.replaceAll("\\*", ".*")

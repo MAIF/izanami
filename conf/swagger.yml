@@ -1,0 +1,568 @@
+openapi: 3.0.0
+info:
+  title: Izanami API
+  description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.
+  version: 2.0.0
+paths:
+  /api/v2/features/{id}:
+    parameters:
+      - in: query
+        name: user
+        schema:
+          type: string
+          default: ""
+      - in: query
+        name: context
+        schema:
+          type: string
+          default: ""
+    get:
+      summary: Check feature activation
+      operationId: checkModernFeatureGet
+      tags:
+        - V2 feature endpoints
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activation"
+    post:
+      summary: Check feature activation with payload
+      operationId: checkModernFeaturePost
+      tags:
+        - V2 feature endpoints
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activation"
+  /api/v2/features:
+    parameters:
+      - in: query
+        name: user
+        schema:
+          type: string
+          default: ""
+      - in: query
+        name: context
+        schema:
+          type: string
+          default: ""
+      - in: query
+        name: features
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+      - in: query
+        name: projects
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+      - in: query
+        name: conditions
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date-time
+          default: 
+      - in: query
+        name: oneTagIn
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+      - in: query
+        name: allTagsIn
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+      - in: query
+        name: noTagIn
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+    get:
+      summary: Check features activation
+      operationId: checkModernFeaturesGet
+      tags:
+        - V2 feature endpoints
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationsWithConditions"
+    post:
+      summary: Check features activation with payload
+      operationId: checkModernFeaturesPost
+      tags:
+        - V2 feature endpoints
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationsWithConditions"
+  /api/_health:
+    get:
+      summary: respond when application is started
+      tags:
+        - Health
+      operationId: healthcheck
+      description: This endpoint returns 200 with an empty body whenever Izanami is running.
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: string
+                enum: 
+                  - ""
+  /api/events:
+    get:
+      summary: Allow listening feature changes
+      tags:
+        - Legacy feature endpoints
+      operationId: SSE consumption endpoint
+      description: This endpoint emits legacy (v1) format event whenever a feature is created / updated / deleted. It also periodically emit keep alive events when nothing happens.
+      parameters:
+        - in: query
+          name: pattern
+          schema:
+            default: "*"
+            type: string
+          required: false
+      responses:
+        "200":
+          description: ⚠️⚠️⚠️ Below model is represented with JSON for OpenAPI convenience, however this endpoinst serves Server Sent Event format (see <a href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format">MDN SSE documentation</a> for details).
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/LegacyEvent"
+  /api/features/_checks:
+    parameters:
+      - in: query
+        name: pattern
+        schema:
+          default: "*"
+          type: string
+        required: false
+      - in: query
+        name: pageSize
+        schema:
+          default: 15
+          format: int32
+          type: integer
+        required: false
+      - in: query
+        name: page
+        schema:
+          default: 1
+          format: int32
+          type: integer
+        required: false
+    post:
+      summary: Check multiple legacy feature activation with context
+      operationId: check multiple features by pattern with context
+      tags:
+        - Legacy feature endpoints
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Activations"
+  /api/features:
+    parameters:
+      - in: query
+        name: pattern
+        schema:
+          default: "*"
+          type: string
+        required: false
+      - in: query
+        name: pageSize
+        schema:
+          default: 15
+          format: int32
+          type: integer
+        required: false
+      - in: query
+        name: page
+        schema:
+          default: 1
+          format: int32
+          type: integer
+        required: false
+    get:
+      summary: Check multiple legacy features activation
+      operationId: check multiple features by pattern
+      tags:
+        - Legacy feature endpoints
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Activations"
+  /api/features/{id}/check:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - $ref: "#/components/parameters/clientId"
+      - $ref: "#/components/parameters/clientSecret"
+    post:
+      operationId: checkWithContext
+      tags:
+        - Legacy feature endpoints
+      summary: Check legacy feature activation by id with context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activation"
+    get:
+      operationId: check
+      tags:
+        - Legacy feature endpoints
+      summary: Check lecgacy feature activation by id
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activation"
+components:
+  schemas:
+    Activation:
+      type: object
+      properties:
+        active:
+          type: boolean
+        name:
+          type: string
+        project:
+          type: string
+    Activations:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/LegacyFeatureWithActivation"
+        metadata:
+          $ref: "#/components/schemas/Metadata"
+    Metadata:
+      type: object
+      properties:
+        count:
+          type: number
+        page:
+          type: number
+        pageSize:
+          type: number
+        nbPages:
+          type: number
+    ActivationsWithConditions:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/ActivationWithConditions"
+      example:
+        - 9fddafb4-a69b-4ea3-a75b-867d95e24557: {"name": "modern-feature","active": true,"project": "my-project","conditions": {"": {"enabled": true,"conditions": []}}}
+        - 77072778-0de9-4132-9b35-ab8a9c8a302e: {"name": "modern-feature","active": true,"project": "my-project","conditions": {"dev": {"enabled": true,"conditions": []},"production": {"enabled": true,"conditions": [{"period": {"begin": "2024-01-01T08:00:00Z","end": "2024-01-31T22:00:00Z","hourPeriods": [{"startTime": "08:00:00","endTime": "12:30:00"},{"startTime": "14:00:00","endTime": "18:30:00"}],"activationDays": {"days": ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY"]},"timezone": "Europe/Paris"},"rule": {"percentage": 10}},{"period": null,"rule": {"users": ["qa-user-1", "qa-user-2"]}}]},"": {"enabled": false,"conditions": []}}}
+    ActivationWithConditions:
+      allOf:
+        - $ref: "#/components/schemas/Activation"
+        - type: object
+          properties:
+            conditions:
+              $ref: "#/components/schemas/ConditionMap"
+    ConditionMap:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          enabled:
+            type: boolean
+          conditions:
+            type: array
+            items:
+              $ref: "#/components/schemas/ActivationCondition"
+    ActivationCondition:
+      type: object
+      properties:
+        period:
+          $ref: "#/components/schemas/TimeCondition"
+        rule:
+          $ref: "#/components/schemas/UserCondition"
+    UserCondition:
+      oneOf:
+        - $ref: "#/components/schemas/UserListCondition"
+        - $ref: "#/components/schemas/UserPercentageCondition"
+    UserListCondition:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            type: string
+    UserPercentageCondition:
+      type: object
+      properties:
+        percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+    TimeCondition:
+      type: object
+      properties:
+        begin:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        activationDays: 
+          type: object
+          properties:
+            days:
+              type: array
+              items:
+                type: string
+                enum:
+                  - MONDAY
+                  - TUESDAY
+                  - WEDNESDAY
+                  - THURSDAY
+                  - FRIDAY
+                  - SATURDAY
+                  - SUNDAY
+        hourPeriods:
+          type: array
+          items:
+            type: object
+            properties:
+              startTime:
+                type: string
+                format: time
+              endTime:
+                type: string
+                format: time
+    LegacyEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: 
+            - message
+        lastEventId:
+          type: number
+        origin:
+          type: string
+          format: uri
+        data:
+          $ref: "#/components/schemas/LegacyEventData"
+    LegacyEventData:
+      type: object
+      properties:
+        _id:
+          type: number
+        type:
+          type: string
+          enum:
+            - KEEP_ALIVE
+            - FEATURE_UPDATED
+            - FEATURE_CREATED
+            - FEATURE_DELETED
+        key:
+          type: string
+        domain:
+          type: string
+          enum:
+            - Feature
+        payload:
+          $ref: "#/components/schemas/LegacyFeature"
+    LegacyFeatureWithActivation:
+      allOf:
+        - $ref: "#/components/schemas/LegacyFeature"
+        - type: object
+          properties:
+            active:
+              type: boolean
+    LegacyFeature:
+      oneOf:
+        - $ref: "#/components/schemas/LegacyPercentageFeature"
+        - $ref: "#/components/schemas/LegacyCustomerListFeature"
+        - $ref: "#/components/schemas/LegacyReleaseDateFeature"
+        - $ref: "#/components/schemas/LegacyDateRangeFeature"
+        - $ref: "#/components/schemas/LegacyHourRangeFeature"
+        - $ref: "#/components/schemas/LegacyScriptFeature"
+    LegacyScriptFeature:
+      allOf:
+        - $ref: "#/components/schemas/LegacyFeatureBase"
+        - type: object
+          properties:
+            activationStrategy:
+              type: string
+              enum:
+                - SCRIPT
+            parameters:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: 
+                    - javascript
+                script:
+                  type: string
+    LegacyReleaseDateFeature:
+      allOf:
+        - $ref: "#/components/schemas/LegacyFeatureBase"
+        - type: object
+          properties:
+            activationStrategy:
+              type: string
+              enum:
+                - RELEASE_DATE
+            parameters:
+              type: object
+              properties:
+                releaseDate:
+                  type: string
+                  pattern: '^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$'
+    LegacyDateRangeFeature:
+      allOf:
+        - $ref: "#/components/schemas/LegacyFeatureBase"
+        - type: object
+          properties:
+            activationStrategy:
+              type: string
+              enum:
+                - DATE_RANGE
+            parameters:
+              type: object
+              properties:
+                from:
+                  type: string
+                  pattern: '^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$'
+                to:
+                  type: string
+                  pattern: '^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$'
+    LegacyHourRangeFeature:
+      allOf:
+        - $ref: "#/components/schemas/LegacyFeatureBase"
+        - type: object
+          properties:
+            activationStrategy:
+              type: string
+              enum:
+                - HOUR_RANGE
+            parameters:
+              type: object
+              properties:
+                startAt:
+                  type: string
+                  pattern: '\d{2}:\d{2}$'
+                endAt:
+                  type: string
+                  pattern: '\d{2}:\d{2}$'
+    LegacyPercentageFeature:
+      allOf:
+        - $ref: "#/components/schemas/LegacyFeatureBase"
+        - type: object
+          properties:
+            activationStrategy:
+              type: string
+              enum:
+                - PERCENTAGE
+            parameters:
+              type: object
+              properties:
+                percentage:
+                  type: number
+    LegacyCustomerListFeature:
+      allOf:
+        - $ref: "#/components/schemas/LegacyFeatureBase"
+        - type: object
+          properties:
+            activationStrategy:
+              type: string
+              enum:
+                - CUSTOMERS_LIST
+            parameters:
+              type: object
+              properties:
+                customers:
+                  type: array
+                  items:
+                    type: string
+    LegacyFeatureBase:
+      type: object
+      properties:
+        id:
+          type: string
+        enabled:
+          type: boolean
+        parameters:
+          type: object
+        name:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+  parameters:
+    clientId:
+      in: header
+      name: izanami-client-id
+      schema:
+        type: string
+      required: true
+      description: client key id
+    clientSecret:
+      in: header
+      name: izanami-client-secret
+      schema:
+        type: string
+      required: true
+      description: client key secret

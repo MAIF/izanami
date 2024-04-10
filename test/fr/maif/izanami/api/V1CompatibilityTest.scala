@@ -5,7 +5,18 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.stream.alpakka.sse.scaladsl.EventSource
-import fr.maif.izanami.api.BaseAPISpec.{BASE_URL, DATE_TIME_FORMATTER, TestCondition, TestFeature, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUserListRule, system}
+import fr.maif.izanami.api.BaseAPISpec.{
+  system,
+  BASE_URL,
+  DATE_TIME_FORMATTER,
+  TestCondition,
+  TestFeature,
+  TestFeaturePatch,
+  TestProject,
+  TestSituationBuilder,
+  TestTenant,
+  TestUserListRule
+}
 import fr.maif.izanami.utils.SseSubscriber
 import izanami._
 import izanami.commons.IzanamiException
@@ -30,10 +41,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         ),
@@ -42,7 +54,8 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val response = situation.readFeatureAsLegacy("project:foo:default-feature", clientId = clientId, clientSecret = clientSecret)
+      val response =
+        situation.readFeatureAsLegacy("project:foo:default-feature", clientId = clientId, clientSecret = clientSecret)
       response.status mustBe OK
 
       val json = response.json.get
@@ -57,10 +70,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:test:percentage-feature","enabled":true,"description":"An old style percentage feature","parameters":{"percentage":75},"activationStrategy":"PERCENTAGE"}""".stripMargin
         ),
@@ -69,7 +83,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val response = situation.readFeatureAsLegacy("project:test:percentage-feature", clientId = clientId, clientSecret = clientSecret)
+      val response = situation.readFeatureAsLegacy(
+        "project:test:percentage-feature",
+        clientId = clientId,
+        clientSecret = clientSecret
+      )
       response.status mustBe OK
 
       val json = response.json.get
@@ -84,10 +102,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:another:customer-list-feature","enabled":true,"description":"An old style user list feature","parameters":{"customers":["foo","bar","baz"]},"activationStrategy":"CUSTOMERS_LIST"}""".stripMargin
         ),
@@ -96,13 +115,17 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val response = situation.readFeatureAsLegacy("project:another:customer-list-feature", clientId = clientId, clientSecret = clientSecret)
+      val response = situation.readFeatureAsLegacy(
+        "project:another:customer-list-feature",
+        clientId = clientId,
+        clientSecret = clientSecret
+      )
       response.status mustBe OK
 
       val json = response.json.get
 
       (json \ "activationStrategy").as[String] mustEqual "CUSTOMERS_LIST"
-      (json \ "parameters" \ "customers").as[Seq[String]] must contain theSameElementsAs Seq("foo","bar","baz")
+      (json \ "parameters" \ "customers").as[Seq[String]] must contain theSameElementsAs Seq("foo", "bar", "baz")
     }
 
     "convert date range legacy feature to V1 format" in {
@@ -111,10 +134,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:test:date-range","enabled":true,"description":"An old style date range feature","parameters":{"from":"2023-01-01 00:00:00","to":"2023-12-31 23:59:59"},"activationStrategy":"DATE_RANGE"}""".stripMargin
         ),
@@ -123,7 +147,8 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val response = situation.readFeatureAsLegacy("project:test:date-range", clientId = clientId, clientSecret = clientSecret)
+      val response =
+        situation.readFeatureAsLegacy("project:test:date-range", clientId = clientId, clientSecret = clientSecret)
       response.status mustBe OK
 
       val json = response.json.get
@@ -139,10 +164,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:baz:release-date","enabled":true,"description":"An old release date feature","parameters":{"releaseDate":"22/07/2023 14:18:11"},"activationStrategy":"RELEASE_DATE"}""".stripMargin
         ),
@@ -151,7 +177,8 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val response = situation.readFeatureAsLegacy("project:baz:release-date", clientId = clientId, clientSecret = clientSecret)
+      val response =
+        situation.readFeatureAsLegacy("project:baz:release-date", clientId = clientId, clientSecret = clientSecret)
       response.status mustBe OK
 
       val json = response.json.get
@@ -166,10 +193,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:baz:hour-range-feature","enabled":true,"description":"An old style hour range feature","parameters":{"endAt":"18:00","startAt":"08:00"},"activationStrategy":"HOUR_RANGE"}""".stripMargin
         ),
@@ -178,7 +206,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val response = situation.readFeatureAsLegacy("project:baz:hour-range-feature", clientId = clientId, clientSecret = clientSecret)
+      val response = situation.readFeatureAsLegacy(
+        "project:baz:hour-range-feature",
+        clientId = clientId,
+        clientSecret = clientSecret
+      )
       response.status mustBe OK
 
       val json = response.json.get
@@ -194,10 +226,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:script-feature","enabled":true,"description":"An old style inline script feature","parameters":{"type":"javascript","script":"/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.id === 'benjamin') {\n    return enabled();\n  }\n  return disabled();\n}"},"activationStrategy":"SCRIPT"}""".stripMargin
         ),
@@ -206,38 +239,47 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val response = situation.readFeatureAsLegacy("project:foo:script-feature", clientId = clientId, clientSecret = clientSecret)
+      val response =
+        situation.readFeatureAsLegacy("project:foo:script-feature", clientId = clientId, clientSecret = clientSecret)
       response.status mustBe OK
 
       val json = response.json.get
 
       (json \ "activationStrategy").as[String] mustEqual "GLOBAL_SCRIPT"
-      (json \ "parameters" \ "ref" ).as[String] must not be empty
+      (json \ "parameters" \ "ref").as[String] must not be empty
     }
 
     "return fake script feature for modern feature" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant("tenant")
-          .withProjects(TestProject("project")
-            .withFeatures(
-              TestFeature(name = "modern-feature", enabled = true, conditions = Set(
-                TestCondition(rule= TestUserListRule(users=Set("foo")))
-              ))
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    name = "modern-feature",
+                    enabled = true,
+                    conditions = Set(
+                      TestCondition(rule = TestUserListRule(users = Set("foo")))
+                    )
+                  )
+                )
             )
-          )
-        ).build()
+        )
+        .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         keys = Seq(
           s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
         )
       )
 
-      val id = situation.findFeatureId("tenant", "project", "modern-feature")
+      val id       = situation.findFeatureId("tenant", "project", "modern-feature")
       val response = situation.readFeatureAsLegacy(id.get, clientId = clientId, clientSecret = clientSecret)
       (response.json.get \ "activationStrategy").as[String] mustEqual "GLOBAL_SCRIPT"
       response.status mustBe OK
@@ -248,12 +290,14 @@ class V1CompatibilityTest extends BaseAPISpec {
     "return activation status when requested" in {
       val situation = TestSituationBuilder()
         .withTenantNames("tenant")
-        .loggedInWithAdminRights().build()
+        .loggedInWithAdminRights()
+        .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:foo:baz","enabled":false,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -264,10 +308,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val result = situation.readFeaturesAsLegacy("project:*", clientId=clientId, clientSecret=clientSecret, active=true)
+      val result =
+        situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret, active = true)
       result.status mustBe OK
 
-      val json = result.json.get
+      val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 2
 
@@ -281,12 +326,14 @@ class V1CompatibilityTest extends BaseAPISpec {
     "respect given page size pagination when there is more feature" in {
       val situation = TestSituationBuilder()
         .withTenantNames("tenant")
-        .loggedInWithAdminRights().build()
+        .loggedInWithAdminRights()
+        .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:f1","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:f2","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -300,10 +347,16 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val result = situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret, active = false, pageSize=5)
+      val result = situation.readFeaturesAsLegacy(
+        "project:*",
+        clientId = clientId,
+        clientSecret = clientSecret,
+        active = false,
+        pageSize = 5
+      )
       result.status mustBe OK
 
-      val json = result.json.get
+      val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 5
 
@@ -316,12 +369,14 @@ class V1CompatibilityTest extends BaseAPISpec {
     "respect given page index" in {
       val situation = TestSituationBuilder()
         .withTenantNames("tenant")
-        .loggedInWithAdminRights().build()
+        .loggedInWithAdminRights()
+        .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:f1","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:f2","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -335,10 +390,17 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val result = situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret, active = false, pageSize = 2, page=2)
+      val result = situation.readFeaturesAsLegacy(
+        "project:*",
+        clientId = clientId,
+        clientSecret = clientSecret,
+        active = false,
+        pageSize = 2,
+        page = 2
+      )
       result.status mustBe OK
 
-      val json = result.json.get
+      val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 2
 
@@ -351,12 +413,14 @@ class V1CompatibilityTest extends BaseAPISpec {
     "allow to retrieve every datum by iterating over pages" in {
       val situation = TestSituationBuilder()
         .withTenantNames("tenant")
-        .loggedInWithAdminRights().build()
+        .loggedInWithAdminRights()
+        .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:f1","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:f2","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -375,7 +439,14 @@ class V1CompatibilityTest extends BaseAPISpec {
       }
 
       val ids = (for (i <- 1 to 3) yield {
-        val result = situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret, active = false, pageSize = 2, page = i)
+        val result = situation.readFeaturesAsLegacy(
+          "project:*",
+          clientId = clientId,
+          clientSecret = clientSecret,
+          active = false,
+          pageSize = 2,
+          page = i
+        )
         extractIdsFromResult(result.json.get)
       }).flatten
 
@@ -392,13 +463,20 @@ class V1CompatibilityTest extends BaseAPISpec {
 
     "not return modern features" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withFeatures(TestFeature("modern1", id="project:f1"), TestFeature("modern2", id="project:f2"))))
-        .loggedInWithAdminRights().build()
+        .withTenants(
+          TestTenant("tenant").withProjects(
+            TestProject("project")
+              .withFeatures(TestFeature("modern1", id = "project:f1"), TestFeature("modern2", id = "project:f2"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:f3","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:f4","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -413,7 +491,7 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val result = situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret)
 
-      val json = result.json.get
+      val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 4
 
@@ -423,12 +501,14 @@ class V1CompatibilityTest extends BaseAPISpec {
     "not return unauthorized features for key" in {
       val situation = TestSituationBuilder()
         .withTenantNames("tenant")
-        .loggedInWithAdminRights().build()
+        .loggedInWithAdminRights()
+        .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:f1","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:f2","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -444,11 +524,51 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val result = situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret)
 
-      val json = result.json.get
+      val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 4
 
       (json \ "metadata" \ "count").as[Int] mustEqual 4
+    }
+  }
+
+  "legacy checks endpoint" should {
+    "allow to pass user in body" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val clientId     = "yfsc5ooy3v3hu5z2"
+      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+
+      situation.importAndWaitTermination(
+        "tenant",
+        features = Seq(
+          """{"id":"project:another:customer-list-feature","enabled":true,"description":"An old style user list feature","parameters":{"customers":["foo","bar"]},"activationStrategy":"CUSTOMERS_LIST"}""".stripMargin
+        ),
+        keys = Seq(
+          s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
+        )
+      )
+
+      val result = situation.checkFeaturesLegacy(
+        pattern = "project:another:*",
+        payload = play.api.libs.json.Json.obj("id" -> "foo"),
+        clientId = clientId,
+        clientSecret = clientSecret
+      )
+
+      (result.json.get \ "results" \ 0 \ "active").as[Boolean] mustBe true
+
+      val result2 = situation.checkFeaturesLegacy(
+        pattern = "project:another:*",
+        payload = play.api.libs.json.Json.obj("id" -> "foo2"),
+        clientId = clientId,
+        clientSecret = clientSecret
+      )
+
+      (result2.json.get \ "results" \ 0 \ "active").as[Boolean] mustBe false
     }
   }
 
@@ -459,10 +579,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         ),
@@ -473,7 +594,8 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         system,
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
       )
@@ -488,10 +610,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:another:customer-list-feature","enabled":true,"description":"An old style user list feature","parameters":{"customers":["foo","bar"]},"activationStrategy":"CUSTOMERS_LIST"}""".stripMargin
         ),
@@ -502,19 +625,30 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         system,
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
       )
 
       val featureClient = client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
-      featureClient.checkFeature("project:another:customer-list-feature", Json.obj(
-        Syntax.$("id", "baz")
-      )).get() mustBe false
+      featureClient
+        .checkFeature(
+          "project:another:customer-list-feature",
+          Json.obj(
+            Syntax.$("id", "baz")
+          )
+        )
+        .get() mustBe false
 
-      featureClient.checkFeature("project:another:customer-list-feature", Json.obj(
-        Syntax.$("id", "foo")
-      )).get() mustBe true
+      featureClient
+        .checkFeature(
+          "project:another:customer-list-feature",
+          Json.obj(
+            Syntax.$("id", "foo")
+          )
+        )
+        .get() mustBe true
     }
 
     "reject feature query for unauthorized feature" in {
@@ -523,10 +657,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         ),
@@ -537,15 +672,15 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         system,
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
       )
 
-
       val featureClient = client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
-      val thrown = the [IzanamiException] thrownBy featureClient.checkFeature("project:foo:default-feature").get()
-      thrown.getMessage must include ("403")
+      val thrown        = the[IzanamiException] thrownBy featureClient.checkFeature("project:foo:default-feature").get()
+      thrown.getMessage must include("403")
     }
 
     "allow to retrieve activation for several features" in {
@@ -554,10 +689,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:foo:bar","enabled":true,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
@@ -569,7 +705,8 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         system,
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
       )
@@ -587,10 +724,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:foo:bar","enabled":true,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
@@ -602,7 +740,8 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         system,
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
       )
@@ -620,10 +759,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         ),
@@ -634,24 +774,27 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         system,
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .pollingBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithPollingStrategy(
-        patterns=Seq("project:*"),
-        pollingInterval=2000.milliseconds,
-        errorStrategy = Crash)
+      val featureClient = client.featureClient(
+        Strategy.CacheWithPollingStrategy(
+          patterns = Seq("project:*"),
+          pollingInterval = 2000.milliseconds,
+          errorStrategy = Crash
+        )
       )
       featureClient.checkFeature("project:foo:default-feature").get() mustBe false
 
-      val feature = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
+      val feature        = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
       val updatedFeature = feature + ("enabled" -> JsTrue)
       situation.updateFeature("tenant", "project:foo:default-feature", updatedFeature)
 
-      await until {() => featureClient.checkFeature("project:foo:default-feature").get() == true}
+      await until { () => featureClient.checkFeature("project:foo:default-feature").get() == true }
     }
 
     /*"allow to get feature change state via SSE (feature update)" in {
@@ -976,7 +1119,6 @@ class V1CompatibilityTest extends BaseAPISpec {
       await until { () => featureClient.checkFeature("project:release-date").get() == true }
     }*/
   }
-
 
   "event endpoint" should {
     /*"filter events to keep only those authorized by provided key" in {
