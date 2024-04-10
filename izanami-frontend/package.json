@@ -30,6 +30,7 @@
     "react-router-dom": "6.4.0",
     "react-select": "^5.7.7",
     "react-tooltip": "^5.14.0",
+    "swagger-ui-react": "^5.15.0",
     "uuid": "^8.3.2",
     "xstate": "^4.32.1"
   },

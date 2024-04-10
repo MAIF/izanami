@@ -58,6 +58,7 @@ import { WasmScripts } from "./pages/wasmScripts";
 import { differenceInMonths } from "date-fns";
 import { JsonViewer } from "@textea/json-viewer";
 import { AtomicDesign } from "./pages/atomicDesign";
+import { Swagger } from "./pages/swagger";
 
 function Wrapper({
   element,
@@ -126,6 +127,10 @@ function switchLightMode() {
 }
 
 const router = createBrowserRouter([
+  {
+    path: "/swagger",
+    element: <Wrapper element={Swagger} />,
+  },
   {
     path: "/login",
     element: <Wrapper element={Login} />,
