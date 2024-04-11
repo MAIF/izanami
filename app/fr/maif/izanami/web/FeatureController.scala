@@ -394,12 +394,20 @@ class FeatureController(
       request.body
         .asOpt[Seq[FeaturePatch]]
         .map(fs => {
-          env.datastores.features
-            .findFeaturesProjects(tenant, fs.map(fp => fp.id).toSet)
-            .map(projects => {
-              projects.foreach(project => request.user.hasRightForProject(project, RightLevels.Write))
-            })
-          env.datastores.features.applyPatch(tenant, fs).map(_ => NoContent)
+          val projectsFeatures = fs.filter(fp => fp.path match {
+            case project: ProjectFeature.type if (!request.user.hasRightForProject(fp.asInstanceOf[ProjectFeaturePatch].value, RightLevels.Write) && !request.user.admin) => false
+            case _ => true
+          })
+          if (projectsFeatures.isEmpty) {
+            Forbidden("Your are not allowed to transfer to features").toFuture
+          } else {
+            env.datastores.features
+              .findFeaturesProjects(tenant, fs.map(fp => fp.id).toSet)
+              .map(projects => {
+                projects.foreach(project => request.user.hasRightForProject(project, RightLevels.Write))
+              })
+            env.datastores.features.applyPatch(tenant, fs).map(_ => NoContent)
+          }
         })
         .getOrElse(BadRequest("").future)
   }

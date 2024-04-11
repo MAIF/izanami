@@ -160,6 +160,37 @@ class FeatureAPISpec extends BaseAPISpec {
       val fetchResponse = situation.fetchProject("tenant", "new-project")
       (fetchResponse.json.get \ "features").as[JsArray].value.length mustBe 2
     }
+    "prevent to transfer features to a is not admin of the tenant and does not have write right on project " in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"), TestProject("new-project"))
+        )
+        .withUsers(
+          TestUser("testuser")
+            .withTenantReadWriteRight("tenant")
+            .withProjectReadRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testuser")
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        patches = Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F1").get}/project",
+            value = JsString("new-project")
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F2").get}/project",
+            value = JsString("new-project")
+          ))
+      )
+      response.status mustBe FORBIDDEN
+    }
+
   }
 
   "Feature POST endpoint" should {
