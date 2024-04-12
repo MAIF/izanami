@@ -97,31 +97,21 @@ export function Menu(props: {
               </li>
               {projects && (
                 <li>
-                  {projects.length === 1 ? (
-                    <>
-                      <NavLink
-                        to={`/tenants/${tenant}/projects/${project}`}
-                        className={() => ""}
-                        onClick={() => {
-                          setNavbarOpen(!navbarOpen);
-                          hideSidebar();
-                        }}
-                      >
-                        <i className="ms-2 fas fa-building" aria-hidden></i>
-                        Project {project}
-                      </NavLink>
-                    </>
-                  ) : (
-                    <>
-                      <NavLink
-                        to="#"
-                        className={() => ""}
-                        onClick={() => setNavbarOpen(!navbarOpen)}
-                      >
-                        <i className="ms-2 fas fa-building" aria-hidden></i>
-                        Projects
-                      </NavLink>
-                      {navbarOpen && projects.length > 1 && (
+                  <>
+                    <NavLink
+                      to={`/tenants/${tenant}/`}
+                      className={() => ""}
+                      onClick={() => setNavbarOpen(!navbarOpen)}
+                    >
+                      <i className="ms-2 fas fa-building" aria-hidden></i>
+                      Projects
+                    </NavLink>
+                    {(navbarOpen ||
+                      matchPath(
+                        { path: "/tenants/:tenant/projects/:project/*" },
+                        props?.location?.pathname || ""
+                      )) &&
+                      projects.length > 0 && (
                         <div style={{ marginLeft: "20px" }}>
                           <Select
                             options={projects.map((t) => ({
@@ -142,8 +132,7 @@ export function Menu(props: {
                           />
                         </div>
                       )}
-                    </>
-                  )}
+                  </>
                 </li>
               )}
               <li
@@ -159,7 +148,7 @@ export function Menu(props: {
                 {matchPath(
                   { path: "/tenants/:tenant/projects/:project/*" },
                   props?.location?.pathname || ""
-                ) && navbarOpen ? (
+                ) ? (
                   <ul
                     className="nav flex-column"
                     style={{ marginLeft: "36px" }}

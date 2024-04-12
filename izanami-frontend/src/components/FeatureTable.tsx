@@ -704,8 +704,6 @@ export function FeatureTable(props: {
     undefined
   );
 
-  const [transfered, setTrasfered] = React.useState<boolean>(false);
-
   const hasSelectedRows = selectedRows.length > 0;
   const selectableRows = features
     .map((f) => f.project!)
@@ -726,7 +724,9 @@ export function FeatureTable(props: {
                 ? { label: bulkOperation, value: bulkOperation }
                 : null
             }
-            onChange={(e) => setBulkOperation(e?.value)}
+            onChange={(e) => {
+              setBulkOperation(e?.value);
+            }}
             styles={customStyles}
             isClearable={true}
             isDisabled={selectedRows?.length === 0}
@@ -734,7 +734,7 @@ export function FeatureTable(props: {
             aria-label="Bulk action"
           />
           &nbsp;
-          {bulkOperation && (
+          {bulkOperation && bulkOperation !== "Transfer" && (
             <>
               <button
                 className="ms-2 btn btn-primary"
@@ -770,7 +770,9 @@ export function FeatureTable(props: {
                         }))
                       )
                         .then(() => refresh())
-                        .then(() => setBulkOperation(undefined));
+                        .then(() => {
+                          setBulkOperation(undefined);
+                        });
                       break;
                     case "Disable":
                       patchFeatures(
@@ -784,33 +786,29 @@ export function FeatureTable(props: {
                         .then(() => refresh())
                         .then(() => setBulkOperation(undefined));
                       break;
-                    case "Transfer":
-                      setTrasfered(true);
-                      break;
                   }
                 }}
               >
                 {bulkOperation} {selectedRows.length} feature
                 {selectedRows.length > 1 ? "s" : ""}
               </button>
-              {transfered && hasSelectedRows && (
-                <div className="sub_container anim__rightToLeft">
-                  <div
-                    className="anim__rightToLeft"
-                    style={{ backgroundColor: "#42423f" }}
-                  >
-                    <h4>Transfer to another project</h4>
-                    <TransferBulkForm
-                      tenant={tenant!}
-                      selectedRows={selectedRows}
-                      cancel={() => setTrasfered(false)}
-                      refresh={refresh}
-                      bulkOperation={() => setBulkOperation(undefined)}
-                    />
-                  </div>
-                </div>
-              )}
             </>
+          )}
+          {hasSelectedRows && bulkOperation && bulkOperation === "Transfer" && (
+            <div className="sub_container anim__rightToLeft">
+              <div
+                className="anim__rightToLeft"
+                style={{ backgroundColor: "#42423f" }}
+              >
+                <h4>Transfer to another project</h4>
+                <TransferBulkForm
+                  tenant={tenant!}
+                  selectedRows={selectedRows}
+                  cancel={() => setBulkOperation(undefined)}
+                  refresh={refresh}
+                />
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -839,9 +837,8 @@ function TransferBulkForm(props: {
   selectedRows: TFeature[];
   cancel: () => void;
   refresh: () => any;
-  bulkOperation: () => void;
 }) {
-  const { tenant, selectedRows, cancel, refresh, bulkOperation } = props;
+  const { tenant, selectedRows, cancel, refresh } = props;
   const selectedRowProjects = selectedRows.map((f) => f.project);
   const selectedRowProject = selectedRowProjects.filter(
     (q, idx) => selectedRowProjects.indexOf(q) === idx
@@ -865,6 +862,7 @@ function TransferBulkForm(props: {
             label: "Target project",
             type: "string",
             format: "select",
+            props: { "aria-label": "projects", styles: customStyles },
             options: projectQuery.data?.projects
               ?.filter(({ name }) => selectedRowProject.indexOf(name) === -1)
               ?.map(({ name }) => ({
@@ -888,7 +886,7 @@ function TransferBulkForm(props: {
                 }))
               )
                 .then(() => refresh())
-                .then(() => bulkOperation())
+                .then(() => cancel())
           );
         }}
         footer={({ valid }: { valid: () => void }) => {
@@ -901,8 +899,9 @@ function TransferBulkForm(props: {
               >
                 Cancel
               </button>
-              <button className="btn btn-success m-2" onClick={valid}>
-                Transfer feature{selectedRows.length > 1 ? "s" : ""}
+              <button className="btn btn-primary m-2" onClick={valid}>
+                Transfer {selectedRows.length} feature
+                {selectedRows.length > 1 ? "s" : ""}
               </button>
             </div>
           );
@@ -945,6 +944,7 @@ function TransferForm(props: {
             label: "Target project",
             type: "string",
             format: "select",
+            props: { "aria-label": "projects", styles: customStyles },
             options: projectQuery.data?.projects
               ?.filter(({ name }) => name !== project)
               ?.map(({ name }) => ({
