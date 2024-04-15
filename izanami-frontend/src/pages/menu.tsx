@@ -147,16 +147,7 @@ export function Menu(props: {
                   </>
                 </li>
               )}
-              <li
-                className={
-                  matchPath(
-                    { path: "/tenants/:tenant/projects/:project/*" },
-                    props?.location?.pathname || ""
-                  )
-                    ? "active mt-2"
-                    : "inactive mt-2"
-                }
-              >
+              <li className="">
                 {matchPath(
                   { path: "/tenants/:tenant/projects/:project/*" },
                   props?.location?.pathname || ""
