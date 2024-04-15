@@ -67,7 +67,7 @@ export function Menu(props: {
           {tenant && (
             <>
               <li>
-                {tenantQuery.data.length === 1 ? (
+                {tenantsQuery.data.length === 1 ? (
                   <p style={{ color: "var(--color_level2)" }}>
                     <i className="fas fa-cloud" aria-hidden></i> Tenant {tenant}
                   </p>

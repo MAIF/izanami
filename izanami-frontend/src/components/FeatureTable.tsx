@@ -792,7 +792,6 @@ export function FeatureTable(props: {
             <div className="sub_container anim__rightToLeft">
               <div
                 className="anim__rightToLeft"
-                style={{ backgroundColor: "#42423f" }}
               >
                 <h4>Transfer to another project</h4>
                 <TransferBulkForm
