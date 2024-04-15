@@ -1,0 +1,31 @@
+name: Create tag
+on:
+  workflow_dispatch:
+    inputs:
+      releaseVersion:
+        description: 'release version (1.0.0, v1.2.0, etc)'
+        required: true
+
+jobs:
+  create-tag:
+    name: Create tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+      - uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version-file: ".java-version"
+      - name: Workflow can be run only on master
+        run: test  "${{ github.ref }}" = "refs/heads/master" ||  (echo "Release can be created only from master (${{ github.ref }} not supported)." && false)
+      - name: Set release version (remove "v" of "vX.Y.Z")
+        run: |
+          export VERSION=$(echo ${{ github.event.inputs.releaseVersion }} | sed 's/v//')
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Build & create tag
+        run: |
+          git config --local user.email "izanami-github-actions@users.noreply.github.com"
+          git config --local user.name "izanami-github-actions"
+          sbt "release with-defaults release-version ${{ env.RELEASE_VERSION }}"
