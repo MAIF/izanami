@@ -36,7 +36,6 @@ export function Menu(props: {
   let { tenant, project } = props;
   const [selectedTenant, selectTenant] = React.useState<string | undefined>();
   const [selectedProject, selectProject] = React.useState<string | undefined>();
-  const [navbarOpen, setNavbarOpen] = React.useState(false);
   const tenantsQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
   const navigate = useNavigate();
   const isAdmin = useAdmin();
@@ -87,7 +86,6 @@ export function Menu(props: {
                         value={{ value: tenant, label: tenant }}
                         onChange={(v) => {
                           selectTenant(v!.value);
-                          setNavbarOpen(false);
                           navigate(`/tenants/${v!.value}`);
                         }}
                       />
@@ -96,19 +94,27 @@ export function Menu(props: {
                 )}
               </li>
               {projects && (
-                <li>
+                <li
+                  className={
+                    matchPath(
+                      { path: "/tenants/:tenant/" },
+                      props?.location?.pathname || ""
+                    )
+                      ? "active mt-2"
+                      : "inactive mt-2"
+                  }
+                >
                   <>
-                    <NavLink
-                      to={`/tenants/${tenant}/`}
-                      className={() => ""}
-                      onClick={() => setNavbarOpen(!navbarOpen)}
-                    >
+                    <NavLink to={`/tenants/${tenant}/`} className={() => ""}>
                       <i className="ms-2 fas fa-building" aria-hidden></i>
                       Projects
                     </NavLink>
-                    {(navbarOpen ||
+                    {(matchPath(
+                      { path: "/tenants/:tenant/" },
+                      props?.location?.pathname || ""
+                    ) ||
                       matchPath(
-                        { path: "/tenants/:tenant/projects/:project/*" },
+                        { path: "/tenants/:tenant/projects/*" },
                         props?.location?.pathname || ""
                       )) &&
                       projects.length > 0 && (
