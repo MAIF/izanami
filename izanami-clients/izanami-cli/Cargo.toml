@@ -1,6 +1,6 @@
 [package]
 name = "izanami-cli"
-version = "1.11.7"
+version = "1.11.8"
 authors = ["adelegue <https://github.com/larousso>"]
 edition = "2021"
 
