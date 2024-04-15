@@ -26,6 +26,7 @@ export function HomePage() {
   const navigate = useNavigate();
 
   const isAdmin = useAdmin();
+
   if (tenantQuery.isSuccess) {
     if (!isAdmin && tenantQuery.data.length === 1) {
       return <Navigate to={`/tenants/${tenantQuery.data[0].name}`} />;

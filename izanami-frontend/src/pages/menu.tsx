@@ -43,6 +43,23 @@ export function Menu(props: {
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   const { user } = React.useContext(IzanamiContext);
   let projects;
+
+  if (
+    matchPath({ path: "/home" }, props?.location?.pathname || "") &&
+    selectedTenant
+  ) {
+    selectTenant(undefined);
+  } else if (!tenant && user && selectedTenant) {
+    tenant = selectedTenant;
+  } else if (tenant && user && !selectedTenant) {
+    selectTenant(tenant);
+  }
+
+  if (tenant && user) {
+    isTenantAdmin =
+      isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
+  }
+
   const tenantQuery = useQuery(
     tenantQueryKey(tenant!),
     () => queryTenant(tenant!),
@@ -51,48 +68,37 @@ export function Menu(props: {
 
   if (tenantsQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
-    if (!tenant && user) {
-      tenant =
-        selectedTenant ?? user.defaultTenant ?? tenantsQuery.data?.[0]?.name;
-      isTenantAdmin =
-        isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
-    }
     if (tenantQuery.isSuccess) {
       projects = tenantQuery.data?.projects;
       project = project ?? projects?.[0]?.name ?? selectedProject;
     }
+
     return (
       <>
         <ul className="nav flex-column">
+          <li>
+            <>
+              <h3>
+                <i className="fas fa-cloud" aria-hidden></i> Tenant
+              </h3>
+              <div>
+                <Select
+                  options={tenantsQuery.data.map((t) => ({
+                    value: t.name,
+                    label: t.name,
+                  }))}
+                  styles={customStyles}
+                  value={{ value: tenant, label: tenant }}
+                  onChange={(v) => {
+                    selectTenant(v!.value);
+                    navigate(`/tenants/${v!.value}`);
+                  }}
+                />
+              </div>
+            </>
+          </li>
           {tenant && (
             <>
-              <li>
-                {tenantsQuery.data.length === 1 ? (
-                  <p style={{ color: "var(--color_level2)" }}>
-                    <i className="fas fa-cloud" aria-hidden></i> Tenant {tenant}
-                  </p>
-                ) : (
-                  <>
-                    <h3>
-                      <i className="fas fa-cloud" aria-hidden></i> Tenant
-                    </h3>
-                    <div>
-                      <Select
-                        options={tenantsQuery.data.map((t) => ({
-                          value: t.name,
-                          label: t.name,
-                        }))}
-                        styles={customStyles}
-                        value={{ value: tenant, label: tenant }}
-                        onChange={(v) => {
-                          selectTenant(v!.value);
-                          navigate(`/tenants/${v!.value}`);
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
-              </li>
               {projects && (
                 <li
                   className={
