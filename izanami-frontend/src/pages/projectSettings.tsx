@@ -355,20 +355,7 @@ function ProjectModification(props: {
             defaultValue: project.description,
           },
         }}
-        onSubmit={(data: any) => {
-          return askConfirmation(
-            <>
-              Are you sure you want to rename this project {project.name} to{" "}
-              {data.name} ?
-              <br />
-              <p style={{ color: "red" }}>
-                <i className="bi bi-exclamation-triangle" />
-                &nbsp;This may break client calls !!!
-              </p>
-            </>,
-            () => updateMutation.mutateAsync(data).then(() => props.onDone())
-          );
-        }}
+        onSubmit={(data: any) => updateMutation.mutateAsync(data).then(() => props.onDone())}
         footer={({ valid }: { valid: () => void }) => {
           return (
             <>
