@@ -22,6 +22,7 @@ import { useFormContext, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { useParams, NavLink } from "react-router-dom";
+import { Loader } from "../components/Loader";
 
 export function Tag(prop: { tag: string; tenant: string }) {
   const { tag, tenant } = prop;
@@ -50,7 +51,7 @@ export function Tag(prop: { tag: string; tenant: string }) {
   if (tagQuery.isError) {
     return <div>Failed to load tag</div>;
   } else if (tagQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   } else if (tagQuery.isSuccess) {
     const { name, description } = tagQuery.data;
     return (
@@ -129,7 +130,7 @@ function ProjectInput() {
       </label>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 
@@ -144,7 +145,7 @@ function Features(props: { tagName: string; tenant: string }): JSX.Element {
   if (featureQuery.isError) {
     return <div>Failed to load tag features</div>;
   } else if (featureQuery.isLoading) {
-    return <div>Loading features...</div>;
+    return <Loader message="Loading features..." />;
   } else if (featureQuery.isSuccess) {
     const features = featureQuery.data;
     return (

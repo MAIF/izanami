@@ -7,6 +7,7 @@ import { TContext } from "../utils/types";
 import { useQuery } from "react-query";
 import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
+import { Loader } from "./Loader";
 
 const LocalContext = React.createContext<{
   open: string[];
@@ -133,16 +134,8 @@ export function FeatureContexts(props: {
           </div>
         )}
         {contextQuery.data.length === 0 && !creating && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              marginTop: "10%",
-            }}
-          >
-            <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+          <div className="item-block">
+            <div className="item-text">
               There is no {allowGlobalContextDelete ? "global" : ""} context for
               this {allowGlobalContextDelete ? "tenant" : "project"}.
             </div>
@@ -165,7 +158,7 @@ export function FeatureContexts(props: {
   } else if (contextQuery.error) {
     return <div>Failed to fetch contexts</div>;
   } else {
-    return <div>Loading contetx</div>;
+    return <Loader message="Loading contexts..." />;
   }
 }
 

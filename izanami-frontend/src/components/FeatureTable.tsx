@@ -55,6 +55,7 @@ import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
 import { Form } from "@maif/react-forms";
+import { Loader } from "./Loader";
 
 export const Strategy = {
   all: { id: "All", label: "All" },
@@ -304,7 +305,7 @@ type FeatureActionNames =
   | "transfer"
   | "url";
 
-const BULK_OPERATIONS = ["Enable", "Disable", "Delete"] as const;
+const BULK_OPERATIONS = ["Enable", "Disable", "Delete", "Transfer"] as const;
 
 function CopyButton(props: { value: any }) {
   const [validCheckMark, setValidCheckmark] = React.useState<boolean>(false);
@@ -513,8 +514,8 @@ export function FeatureTable(props: {
           </div>
         ));
       },
-      size: 15,
-      minSize: 150,
+      size: 10,
+      minSize: 200,
       meta: {
         valueType: "discrete",
       },
@@ -717,7 +718,9 @@ export function FeatureTable(props: {
                 ? { label: bulkOperation, value: bulkOperation }
                 : null
             }
-            onChange={(e) => setBulkOperation(e?.value)}
+            onChange={(e) => {
+              setBulkOperation(e?.value);
+            }}
             styles={customStyles}
             isClearable={true}
             isDisabled={selectedRows?.length === 0}
@@ -725,7 +728,7 @@ export function FeatureTable(props: {
             aria-label="Bulk action"
           />
           &nbsp;
-          {bulkOperation && (
+          {bulkOperation && bulkOperation !== "Transfer" && (
             <>
               <button
                 className="ms-2 btn btn-primary"
@@ -761,7 +764,9 @@ export function FeatureTable(props: {
                         }))
                       )
                         .then(() => refresh())
-                        .then(() => setBulkOperation(undefined));
+                        .then(() => {
+                          setBulkOperation(undefined);
+                        });
                       break;
                     case "Disable":
                       patchFeatures(
@@ -782,6 +787,22 @@ export function FeatureTable(props: {
                 {selectedRows.length > 1 ? "s" : ""}
               </button>
             </>
+          )}
+          {hasSelectedRows && bulkOperation && bulkOperation === "Transfer" && (
+            <div className="sub_container anim__rightToLeft">
+              <div
+                className="anim__rightToLeft"
+                style={{ backgroundColor: "#42423f" }}
+              >
+                <h4>Transfer to another project</h4>
+                <TransferBulkForm
+                  tenant={tenant!}
+                  selectedRows={selectedRows}
+                  cancel={() => setBulkOperation(undefined)}
+                  refresh={refresh}
+                />
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -805,6 +826,84 @@ export function FeatureTable(props: {
   );
 }
 
+function TransferBulkForm(props: {
+  tenant: string;
+  selectedRows: TFeature[];
+  cancel: () => void;
+  refresh: () => any;
+}) {
+  const { tenant, selectedRows, cancel, refresh } = props;
+  const selectedRowProjects = selectedRows.map((f) => f.project);
+  const selectedRowProject = selectedRowProjects.filter(
+    (q, idx) => selectedRowProjects.indexOf(q) === idx
+  );
+
+  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
+    queryTenant(tenant)
+  );
+
+  const { askConfirmation } = React.useContext(IzanamiContext);
+
+  if (projectQuery.isLoading) {
+    return <Loader message="Loading projects..." />;
+  } else if (projectQuery.error) {
+    return <div className="error">Failed to load projects</div>;
+  } else {
+    return (
+      <Form
+        schema={{
+          project: {
+            label: "Target project",
+            type: "string",
+            format: "select",
+            props: { "aria-label": "projects", styles: customStyles },
+            options: projectQuery.data?.projects
+              ?.filter(({ name }) => selectedRowProject.indexOf(name) === -1)
+              ?.map(({ name }) => ({
+                label: name,
+                value: name,
+              })),
+          },
+        }}
+        onSubmit={(data: { project: string }) => {
+          askConfirmation(
+            `Transferring ${selectedRows.length} feature${
+              selectedRows.length > 1 ? "s" : ""
+            }  will delete existing local overloads (if any), are you sure ?`,
+            () =>
+              patchFeatures(
+                tenant!,
+                selectedRows.map((f) => ({
+                  op: "replace",
+                  path: `/${f.id}/project`,
+                  value: data.project,
+                }))
+              )
+                .then(() => refresh())
+                .then(() => cancel())
+          );
+        }}
+        footer={({ valid }: { valid: () => void }) => {
+          return (
+            <div className="d-flex justify-content-end">
+              <button
+                type="button"
+                className="btn btn-danger m-2"
+                onClick={cancel}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary m-2" onClick={valid}>
+                Transfer {selectedRows.length} feature
+                {selectedRows.length > 1 ? "s" : ""}
+              </button>
+            </div>
+          );
+        }}
+      />
+    );
+  }
+}
 function TransferForm(props: {
   tenant: string;
   project: string;
@@ -828,7 +927,7 @@ function TransferForm(props: {
   const { askConfirmation } = React.useContext(IzanamiContext);
 
   if (projectQuery.isLoading) {
-    return <div>Loading projects...</div>;
+    return <Loader message="Loading projects..." />;
   } else if (projectQuery.error) {
     return <div className="error">Failed to load projects</div>;
   } else {
@@ -839,6 +938,7 @@ function TransferForm(props: {
             label: "Target project",
             type: "string",
             format: "select",
+            props: { "aria-label": "projects", styles: customStyles },
             options: projectQuery.data?.projects
               ?.filter(({ name }) => name !== project)
               ?.map(({ name }) => ({
@@ -957,7 +1057,7 @@ function FeatureUrl(props: {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 
@@ -986,7 +1086,7 @@ function OverloadTableForFeature(props: { tenant: string; feature: TFeature }) {
       />
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 
@@ -1107,7 +1207,7 @@ function OverloadDetails(props: { feature: TFeature; cancel: () => void }) {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 
@@ -1546,6 +1646,6 @@ function ExistingFeatureTestForm(props: {
       </form>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }

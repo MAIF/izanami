@@ -19,6 +19,7 @@ import {
   tenantQueryKey,
 } from "../utils/queries";
 import { TLevel, TRights } from "../utils/types";
+import { Loader } from "./Loader";
 
 const EventType = {
   SelectTenant: "SelectTenant",
@@ -306,7 +307,7 @@ export function RightSelector(props: {
   const { admin, rights } = user!;
 
   if (tenantQuery.isLoading) {
-    return <div>Loading tenants...</div>;
+    return <Loader message="Loading tenants.." />;
   } else if (tenantQuery.data) {
     const tenants = tenantQuery.data.map((t) => t.name);
     const selectorChoices = tenants.filter((item) => {
@@ -416,7 +417,7 @@ function ProjectSelector(props: {
   );
 
   if (projectQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   } else if (projectQuery.data?.projects?.length === 0) {
     return (
       <div>
@@ -505,7 +506,7 @@ function KeySelector(props: {
   const { admin, rights } = user!;
 
   if (keyQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   } else if (keyQuery.data?.length === 0) {
     return (
       <div>

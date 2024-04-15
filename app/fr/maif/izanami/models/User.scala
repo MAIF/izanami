@@ -174,9 +174,11 @@ case class UserWithCompleteRightForOneTenant(
     tenantRight: Option[TenantRight]
 ) extends UserTrait {
   def hasRightForProject(project: String, level: RightLevel): Boolean = {
-    tenantRight
+    val maybeTenantAdmin = tenantRight.map(t => t.level == RightLevels.Admin)
+
+    admin || maybeTenantAdmin.filter(_ == true).getOrElse(tenantRight
       .flatMap(tr => tr.projects.get(project))
-      .exists(r => RightLevels.superiorOrEqualLevels(r.level).contains(level))
+      .exists(r => RightLevels.superiorOrEqualLevels(r.level).contains(level)))
   }
 }
 

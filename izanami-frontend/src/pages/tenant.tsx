@@ -8,6 +8,7 @@ import { useTenantRight } from "../securityContext";
 import { createProject, queryTenant, tenantQueryKey } from "../utils/queries";
 import { ProjectInCreationType, TenantType, TLevel } from "../utils/types";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
+import { Loader } from "../components/Loader";
 
 export function Tenant({ tenant }: { tenant: string }) {
   const queryKey = tenantQueryKey(tenant);
@@ -27,7 +28,7 @@ export function Tenant({ tenant }: { tenant: string }) {
       </>
     );
   } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   } else {
     return <div>Error while fetching tenant</div>;
   }
@@ -104,17 +105,8 @@ function ProjectList(props: { tenant: TenantType }) {
           </div>
         )}
         {noProjects && !creating && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              marginTop: "10%",
-              width: "100%",
-            }}
-          >
-            <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+          <div className="item-block">
+            <div className="item-text">
               This tenant does not have any project yet.
             </div>
             <button

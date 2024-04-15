@@ -64,6 +64,9 @@ export function tagQueryKey(tenant: string, tag: string): string {
 export function tagsQueryKey(tenant: string): string {
   return `TAG-${tenant}`;
 }
+export function projectsQueryKey(tenant: string): string {
+  return `PROJECT-${tenant}`;
+}
 
 export function featureQueryKey(tenant: string, tag: string): string {
   return `FEATURES-${tenant}-${tag}`;
@@ -156,6 +159,11 @@ export function queryTenant(tenant: string): Promise<TenantType> {
   return handleFetchJsonResponse(fetch(`/api/admin/tenants/${tenant}`));
 }
 
+export function queryProjects(tenant: string): Promise<ProjectType[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/projects`)
+  );
+}
 export function queryUser(user: string): Promise<TUser> {
   return handleFetchJsonResponse(fetch(`/api/admin/users/${user}`));
 }
@@ -244,14 +252,18 @@ export function updateTenant(
   );
 }
 
-export function createTag(tenant: string, name: string): Promise<TenantType> {
+export function createTag(
+  tenant: string,
+  name: string,
+  description: string
+): Promise<TenantType> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/tags`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, description }),
     })
   );
 }
@@ -515,6 +527,21 @@ export function queryTag(tenant: string, name: string): Promise<TagType> {
 
 export function queryTags(tenant: string): Promise<TagType[]> {
   return handleFetchJsonResponse(fetch(`/api/admin/tenants/${tenant}/tags`));
+}
+export function updateTag(
+  tenant: string,
+  tag: TagType,
+  currentName: string
+): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/tags/${currentName}`, {
+      method: "PUT",
+      body: JSON.stringify(tag),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+  );
 }
 
 export function queryConfiguration(): Promise<Configuration> {

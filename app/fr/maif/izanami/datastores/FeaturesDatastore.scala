@@ -155,7 +155,33 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                   case None                               => Future.successful(())
                 }
             }
-            case RemoveFeaturePatch(id)         => {
+            case ProjectFeaturePatch(value, id) => {
+              env.postgresql
+                .queryOne(
+                  s"""UPDATE features SET project=$$1 WHERE id=$$2 RETURNING id, name, project, enabled""",
+                  List(value, id),
+                  conn = Some(conn)
+                ) { r =>
+                  for (
+                    id      <- r.optString("id");
+                    name    <- r.optString("name");
+                    project <- r.optString("project");
+                    enabled <- r.optBoolean("enabled")
+                  ) yield (id, name, project, enabled)
+                }
+                .flatMap {
+                  case Some((id, name, project, enabled)) =>
+                    emitEvent(
+                      tenant,
+                      id = id,
+                      eventType = FeatureUpdated,
+                      sourceProject = project,
+                      conn = conn
+                    )
+                  case None                               => Future.successful(())
+                }
+            }
+            case RemoveFeaturePatch(id) => {
               env.postgresql
                 .queryOne(
                   s"""DELETE FROM features WHERE id=$$1 RETURNING id, name, project, enabled""",

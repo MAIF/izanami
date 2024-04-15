@@ -56,4 +56,21 @@ class TagController(
     env.datastores.tags.readTags(tenant).map(tags => Ok(Json.toJson(tags)))
   }
 
+  def updateTag(tenant: String, currentName: String): Action[JsValue] = authAction(tenant, RightLevels.Write).async(parse.json) {
+    implicit request =>
+      Tag.tagReads.reads(request.body) match {
+        case JsError(e)        => BadRequest(Json.obj("message" -> "bad body format")).future
+        case JsSuccess(tag, _) => {
+          env.datastores.tags
+            .updateTag(tag, tenant,currentName)
+            .map(maybeTenant =>
+              maybeTenant.fold(
+                err => Results.Status(err.status)(Json.toJson(err)),
+                tag => NoContent
+              )
+            )
+        }
+      }
+  }
+
 }

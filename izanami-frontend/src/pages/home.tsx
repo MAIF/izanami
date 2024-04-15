@@ -7,6 +7,7 @@ import queryClient from "../queryClient";
 import { TenantInCreationType } from "../utils/types";
 import { IzanamiContext, useAdmin } from "../securityContext";
 import { TENANT_NAME_REGEXP } from "../utils/patterns";
+import { Loader } from "../components/Loader";
 
 export function HomePage() {
   const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
@@ -46,18 +47,10 @@ export function HomePage() {
         </div>
         <div className="container mt-4">
           {empty && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                marginTop: "10%",
-              }}
-            >
+            <div className="item-block">
               {user?.admin ? (
                 <>
-                  <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+                  <div className="item-text">
                     Izanami doesn't have any tenant yet.
                   </div>
                   <button
@@ -134,7 +127,7 @@ export function HomePage() {
       </>
     );
   } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading tenants ..." />;
   } else {
     return <div>Error while fetching tenants</div>;
   }
