@@ -159,7 +159,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               env.postgresql
                 .queryOne(
                   s"""UPDATE features SET project=$$1 WHERE id=$$2 RETURNING id, name, project, enabled""",
-                  List(java.lang.String.valueOf(value), id),
+                  List(value, id),
                   conn = Some(conn)
                 ) { r =>
                   for (
