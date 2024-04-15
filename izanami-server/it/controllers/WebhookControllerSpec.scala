@@ -288,7 +288,7 @@ abstract class WebhookControllerSpec(name: String, configurationSpec: Configurat
     val (route: Route, state) = fn()
 
     val bindingFuture: Future[ServerBinding] =
-      Http().bindAndHandle(route, host, port)
+      Http().newServerAt(host, port).bind(route)
     val serverBinding = Await.result(bindingFuture, 1.second)
 
     try {

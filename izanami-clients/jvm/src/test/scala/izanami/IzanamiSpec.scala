@@ -687,7 +687,7 @@ trait ExperimentServer {
       }
 
     val bindingFuture: Future[ServerBinding] =
-      Http().bindAndHandle(route, host, port)
+      Http().newServerAt(host, port).bind(route)
     val serverBinding = Await.result(bindingFuture, 1.second)
 
     try {
@@ -771,7 +771,7 @@ trait ConfigServer {
       }
 
     val bindingFuture: Future[ServerBinding] =
-      Http().bindAndHandle(route, host, port)
+      Http().newServerAt(host, port).bind(route)
     val serverBinding = Await.result(bindingFuture, 1.second)
 
     try {
@@ -920,7 +920,7 @@ trait FeatureServer {
       }
 
     val bindingFuture: Future[ServerBinding] =
-      Http().bindAndHandle(route, host, port)
+      Http().newServerAt(host, port).bind(route)
     val serverBinding = Await.result(bindingFuture, 1.second)
 
     try {
