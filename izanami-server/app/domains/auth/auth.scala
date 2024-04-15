@@ -195,7 +195,7 @@ package object auth {
           .filter(_.enabled)
           .flatMap(_.mtls.filter(_.enabled))
           .map(c => loadCertificate(system, configuration))
-      val connectionContext: Option[HttpsConnectionContext] = sslContext.map(c => ConnectionContext.https(c))
+      val connectionContext: Option[HttpsConnectionContext] = sslContext.map(c => ConnectionContext.httpsClient(c))
 
       val http: HttpExt = Http()
 
