@@ -24,6 +24,7 @@ import { customStyles } from "../styles/reactSelect";
 import { IzanamiContext } from "../securityContext";
 import { Form, constraints } from "@maif/react-forms";
 import { config } from "process";
+import { Loader } from "../components/Loader";
 
 const MAILER_OPTIONS = [
   { label: "MailJet", value: "MailJet" },
@@ -58,7 +59,7 @@ export function Settings() {
   );
 
   if (configurationQuery.isLoading) {
-    return <div>Loading configuration...</div>;
+    return <Loader message="Loading configuration..." />;
   } else if (configurationQuery.data) {
     const configuration = configurationQuery.data;
     return (
@@ -189,7 +190,7 @@ function MailerDetail(props: { mailer: Mailer }) {
   );
 
   if (mailerConfigurationQuery.isLoading) {
-    return <div>Loading configuration...</div>;
+    return <Loader message="Loading configuration..." />;
   } else if (mailerConfigurationQuery.data) {
     const mailerConfiguration = mailerConfigurationQuery.data;
     if (mailer === "Console") {

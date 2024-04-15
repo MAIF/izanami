@@ -396,10 +396,26 @@ class FeatureController(
         .map(fs => {
           env.datastores.features
             .findFeaturesProjects(tenant, fs.map(fp => fp.id).toSet)
-            .map(projects => {
-              projects.foreach(project => request.user.hasRightForProject(project, RightLevels.Write))
+            .map(sourceProjects => {
+              sourceProjects.concat(
+                fs.collect { case ProjectFeaturePatch(target, _) =>
+                  target
+                }
+              )
             })
-          env.datastores.features.applyPatch(tenant, fs).map(_ => NoContent)
+            .flatMap(projects => {
+              val unauthorizedProjects =
+                projects.filter(project => !request.user.hasRightForProject(project, RightLevels.Write))
+              if (unauthorizedProjects.nonEmpty) {
+                Forbidden(
+                  Json.obj(
+                    "message" -> s"Your are not allowed to transfer to projects ${unauthorizedProjects.mkString(",")}"
+                  )
+                ).toFuture
+              } else {
+                env.datastores.features.applyPatch(tenant, fs).map(_ => NoContent)
+              }
+            })
         })
         .getOrElse(BadRequest("").future)
   }

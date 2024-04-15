@@ -37,6 +37,7 @@ import { FEATURE_NAME_REGEXP, LEGACY_ID_REGEXP } from "../utils/patterns";
 import { format, isBefore, parse } from "date-fns";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
 import { Tooltip } from "./Tooltip";
+import { Loader } from "./Loader";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -732,7 +733,7 @@ function LegacyFeatureForm(props: {
       </FormProvider>
     );
   } else if (tagQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading tags..." />;
   } else {
     return <div>Failed to fetch tags</div>;
   }
@@ -1084,7 +1085,7 @@ export function V2FeatureForm(props: {
       </FormProvider>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 

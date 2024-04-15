@@ -112,7 +112,7 @@ export function Project({
                 marginTop: "10%",
               }}
             >
-              <div style={{ fontSize: "21px", marginBottom: "24px" }}>
+              <div className="item-text">
                 There is no feature for this project.
               </div>
               <button

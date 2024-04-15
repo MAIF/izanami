@@ -1,6 +1,11 @@
 import * as React from "react";
 import { useQuery } from "react-query";
-import { MutationNames, queryTenants } from "../utils/queries";
+import {
+  MutationNames,
+  queryTenant,
+  queryTenants,
+  tenantQueryKey,
+} from "../utils/queries";
 import { matchPath, NavLink, useLocation, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
@@ -13,6 +18,7 @@ import {
 import { TLevel } from "../utils/types";
 import { IzanamiContext } from "../securityContext";
 import { GlobalContextIcon } from "../utils/icons";
+import { Loader } from "../components/Loader";
 
 function hideSidebar() {
   let el = document.getElementById("btnToggler");
@@ -29,20 +35,31 @@ export function Menu(props: {
 }) {
   let { tenant, project } = props;
   const [selectedTenant, selectTenant] = React.useState<string | undefined>();
-  const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
+  const [selectedProject, selectProject] = React.useState<string | undefined>();
+  const tenantsQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
   const navigate = useNavigate();
   const isAdmin = useAdmin();
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   const { user } = React.useContext(IzanamiContext);
+  let projects;
+  const tenantQuery = useQuery(
+    tenantQueryKey(tenant!),
+    () => queryTenant(tenant!),
+    { enabled: !!tenant }
+  );
 
-  if (tenantQuery.isSuccess) {
+  if (tenantsQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
     if (!tenant && user) {
       tenant =
-        selectedTenant ?? user.defaultTenant ?? tenantQuery.data?.[0]?.name;
+        selectedTenant ?? user.defaultTenant ?? tenantsQuery.data?.[0]?.name;
       isTenantAdmin =
         isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
+    }
+    if (tenantQuery.isSuccess) {
+      projects = tenantQuery.data?.projects;
+      project = project ?? projects?.[0]?.name ?? selectedProject;
     }
     return (
       <>
@@ -61,7 +78,7 @@ export function Menu(props: {
                     </h3>
                     <div>
                       <Select
-                        options={tenantQuery.data.map((t) => ({
+                        options={tenantsQuery.data.map((t) => ({
                           value: t.name,
                           label: t.name,
                         }))}
@@ -76,12 +93,56 @@ export function Menu(props: {
                   </>
                 )}
               </li>
+              {projects && (
+                <li
+                  className={
+                    matchPath(
+                      { path: "/tenants/:tenant/" },
+                      props?.location?.pathname || ""
+                    )
+                      ? "active mt-2"
+                      : "inactive mt-2"
+                  }
+                >
+                  <>
+                    <NavLink to={`/tenants/${tenant}/`} className={() => ""}>
+                      <i className="ms-2 fas fa-building" aria-hidden></i>
+                      Projects
+                    </NavLink>
+                    {(matchPath(
+                      { path: "/tenants/:tenant/" },
+                      props?.location?.pathname || ""
+                    ) ||
+                      matchPath(
+                        { path: "/tenants/:tenant/projects/*" },
+                        props?.location?.pathname || ""
+                      )) &&
+                      projects.length > 0 && (
+                        <div style={{ marginLeft: "20px" }}>
+                          <Select
+                            options={projects.map((t) => ({
+                              value: t.name,
+                              label: t.name,
+                            }))}
+                            styles={customStyles}
+                            value={{
+                              value: project,
+                              label: project,
+                            }}
+                            onChange={(v) => {
+                              selectProject(v!.value);
+                              navigate(
+                                `/tenants/${tenant}/projects/${v!.value}`
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
+                  </>
+                </li>
+              )}
               <li
                 className={
-                  matchPath(
-                    { path: "/tenants/:tenant" },
-                    props?.location?.pathname || ""
-                  ) ||
                   matchPath(
                     { path: "/tenants/:tenant/projects/:project/*" },
                     props?.location?.pathname || ""
@@ -90,29 +151,6 @@ export function Menu(props: {
                     : "inactive mt-2"
                 }
               >
-                <NavLink
-                  to={`/tenants/${tenant}`}
-                  className={() => ""}
-                  onClick={() => hideSidebar()}
-                >
-                  {!project && (
-                    <i className="ms-2 fas fa-building" aria-hidden></i>
-                  )}
-                  Projects
-                </NavLink>
-                {project && (
-                  <span
-                    className=""
-                    style={{
-                      marginLeft: "15px",
-                      fontWeight: "700",
-                      color: "#DC5F9F",
-                    }}
-                  >
-                    <i className="ms-2 fas fa-building" aria-hidden></i>{" "}
-                    {project}
-                  </span>
-                )}
                 {matchPath(
                   { path: "/tenants/:tenant/projects/:project/*" },
                   props?.location?.pathname || ""
@@ -227,6 +265,25 @@ export function Menu(props: {
               <li
                 className={
                   matchPath(
+                    { path: "/tenants/:tenant/tags" },
+                    props?.location?.pathname || ""
+                  )
+                    ? "active"
+                    : "inactive"
+                }
+              >
+                <NavLink
+                  to={`/tenants/${tenant}/tags`}
+                  className={() => ""}
+                  onClick={() => hideSidebar()}
+                >
+                  <i className="ms-2 fa-solid fa-tag" aria-hidden />
+                  Tags
+                </NavLink>
+              </li>
+              <li
+                className={
+                  matchPath(
                     { path: "/tenants/:tenant/scripts" },
                     props?.location?.pathname || ""
                   )
@@ -243,6 +300,7 @@ export function Menu(props: {
                   WASM scripts
                 </NavLink>
               </li>
+
               <li
                 className={
                   matchPath(
@@ -318,8 +376,8 @@ export function Menu(props: {
         )}
       </>
     );
-  } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+  } else if (tenantsQuery.isLoading) {
+    return <Loader message="Loading tenants..." />;
   } else {
     return <div>Error while fetching tenants</div>;
   }

@@ -13,6 +13,7 @@ import { IzanamiContext, hasRightForTenant } from "../securityContext";
 import queryClient from "../queryClient";
 import { WasmInput } from "../components/WasmInput";
 import { useForm, FormProvider } from "react-hook-form";
+import { Loader } from "../components/Loader";
 
 export function WasmScripts(props: { tenant: string }) {
   const { tenant } = props;
@@ -141,7 +142,7 @@ export function WasmScripts(props: { tenant: string }) {
       </>
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 }
 

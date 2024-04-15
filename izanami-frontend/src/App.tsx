@@ -59,6 +59,9 @@ import { differenceInMonths } from "date-fns";
 import { JsonViewer } from "@textea/json-viewer";
 import { AtomicDesign } from "./pages/atomicDesign";
 import { Swagger } from "./pages/swagger";
+import { Tags } from "./pages/tags";
+import { Loader } from "./components/Loader";
+import Logo from "../izanami.png";
 
 function Wrapper({
   element,
@@ -337,22 +340,41 @@ const router = createBrowserRouter([
             },
           },
           {
-            path: "/tenants/:tenant/",
-            element: <Wrapper element={Tenant} />,
-          },
-          {
-            path: "/tenants/:tenant/tags/:tag",
-            element: <Wrapper element={Tag} />,
+            path: "/tenants/:tenant/tags",
             handle: {
               crumb: (data: any) => (
                 <NavLink
                   className={() => ""}
-                  to={`/tenants/${data.tenant}/tags/${data.tag}`}
+                  to={`/tenants/${data.tenant}/tags`}
                 >
-                  # {data.tag}
+                  Tags
                 </NavLink>
               ),
             },
+            children: [
+              {
+                path: "/tenants/:tenant/tags/",
+                element: <Wrapper element={Tags} />,
+              },
+              {
+                path: "/tenants/:tenant/tags/:tag",
+                element: <Wrapper element={Tag} />,
+                handle: {
+                  crumb: (data: any) => (
+                    <NavLink
+                      className={() => ""}
+                      to={`/tenants/${data.tenant}/tags/${data.tag}`}
+                    >
+                      <i className="fa-solid fa-tag" aria-hidden></i> {data.tag}
+                    </NavLink>
+                  ),
+                },
+              },
+            ],
+          },
+          {
+            path: "/tenants/:tenant/",
+            element: <Wrapper element={Tenant} />,
           },
         ],
       },
@@ -361,9 +383,17 @@ const router = createBrowserRouter([
   {
     path: "*",
     element: (
-      <main style={{ padding: "1rem" }}>
-        <p>There&apos;s nothing here!</p>
-      </main>
+      <div className="d-flex flex-column justify-content-center align-items-center">
+        <img
+          src={Logo}
+          style={{
+            marginBottom: 48,
+            height: 300,
+          }}
+        />
+        <h3>Page not found</h3>
+        <p>The page you are looking for doesn't exist.</p>
+      </div>
     ),
   },
 ]);
@@ -379,7 +409,7 @@ function RedirectToFirstTenant(): JSX.Element {
   } else if (tenantQuery.data && tenantQuery.data.length > 0) {
     return <Navigate to={`/tenants/${tenantQuery.data[0].name}`} />;
   } else if (tenantQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <Loader message="Loading tenants..." />;
   } else {
     return <Navigate to="/home" />;
   }
@@ -404,7 +434,7 @@ function Layout() {
   }, [user?.username]);
 
   if (loading) {
-    return <div className="container-fluid">Loading...</div>;
+    return <Loader message="Loading..." />;
   }
 
   return (
@@ -413,7 +443,7 @@ function Layout() {
       <div className="row">
         <nav className="navbar navbar-expand-lg fixed-top p-0">
           <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
-            <NavLink className="navbar-brand" to="/">
+            <NavLink className="navbar-brand" to="/home">
               <div className="d-flex flex-column justify-content-center align-items-center">
                 Izanami
               </div>

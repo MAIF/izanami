@@ -49,6 +49,17 @@ header .nav-link {
   padding: 20px;
   margin-bottom: 12px;
 }
+.item-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10%;
+}
+.item-text {
+  font-size: 21px;
+  margin-Bottom: 24px;
+}
 
 #swagger-ui {
   background-color: white;

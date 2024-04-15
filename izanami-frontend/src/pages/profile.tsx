@@ -12,6 +12,7 @@ import {
 import { Form, constraints } from "@maif/react-forms";
 import { customStyles } from "../styles/reactSelect";
 import { PASSWORD_REGEXP, USERNAME_REGEXP } from "../utils/patterns";
+import { Loader } from "../components/Loader";
 
 export function Profile() {
   const ctx = React.useContext(IzanamiContext);
@@ -212,7 +213,7 @@ function EditionForm(props: {
       />
     );
   } else {
-    return <div>Loading...</div>;
+    return <Loader message="Loading tenants..." />;
   }
 }
 

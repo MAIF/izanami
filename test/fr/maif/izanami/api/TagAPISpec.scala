@@ -112,4 +112,31 @@ class TagAPISpec extends BaseAPISpec {
     }
   }
 
+  "Tag PUT endpoint" should {
+    "allow tag update" in {
+      val tenantName = "my-tenant"
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant(tenantName).withTagNames("Tag"))
+        .loggedInWithAdminRights()
+        .build()
+      val updateResponse = situation.updateTag(tenantName,TestTag("my-tag","my-description"),"Tag")
+      updateResponse.status mustBe NO_CONTENT
+
+      val fetchResponse = situation.fetchTag(tenantName,"my-tag")
+      fetchResponse.status mustBe OK
+      val json= fetchResponse.json
+      (json.get \ "name").get.as[String] mustEqual "my-tag"
+      (json.get \ "description").get.as[String] mustEqual "my-description"
+    }
+    "should return 404 if tag does not exist" in {
+      val tenantName = "my-tenant"
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant(tenantName))
+        .loggedInWithAdminRights()
+        .build()
+      val updateResponse = situation.updateTag(tenantName,TestTag("my-tag","my-description"),"Tag")
+      updateResponse.status mustBe NOT_FOUND
+    }
+  }
+
 }
