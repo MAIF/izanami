@@ -5,6 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
+import fr.maif.izanami.events.FeatureUpdated
 import fr.maif.izanami.models.Feature.{activationConditionRead, activationConditionWrite}
 import fr.maif.izanami.models.FeatureContext.generateSubContextId
 import fr.maif.izanami.models._
@@ -361,7 +362,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       }
       .map(o => o.fold(false)(_ => true))
     isLocal.flatMap(local =>
-      env.postgresql.executeInTransaction(conn => {
+      env.postgresql.executeInTransaction(implicit conn => {
         env.postgresql
           .queryOne(
             s"""
@@ -381,15 +382,12 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           .flatMap {
             case Left(err)  => Left(err).future
             case Right(fid) => {
-              env.datastores.features
+              env.eventService
                 .emitEvent(
-                  tenant = tenant,
-                  id = fid,
-                  eventType = FeatureUpdated,
-                  sourceProject = project,
-                  targetProject = None,
-                  conn = conn
-                ).map(_ => Right(()))
+                  channel = tenant,
+                  event = FeatureUpdated(id = fid, project = project, tenant = tenant)
+                )
+                .map(_ => Right(()))
             }
           }
       })
@@ -415,7 +413,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       .map(o => o.fold(false)(_ => true))
     isLocal.flatMap(local => {
       env.postgresql.executeInTransaction(
-        conn => {
+        implicit conn => {
           (strategy match {
             case ClassicalFeatureStrategy(enabled, conditions, _)  =>
               env.postgresql
@@ -481,14 +479,9 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
             }
           }).flatMap {
             case Right(fid) =>
-              env.datastores.features
+              env.eventService
                 .emitEvent(
-                  tenant = tenant,
-                  id = fid,
-                  eventType = FeatureUpdated,
-                  sourceProject = project,
-                  targetProject = None,
-                  conn = conn
+                  channel = tenant, event = FeatureUpdated(id = fid, project = project, tenant = tenant)
                 )
                 .map(_ => Right(()))
             case Left(err)  => Left(err).future

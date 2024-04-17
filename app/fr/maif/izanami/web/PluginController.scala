@@ -55,7 +55,7 @@ class PluginController(
   def wasmFiles() = Action.async { implicit request =>
     env.datastores.configuration
       .readWasmConfiguration() match {
-      case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _)) =>
+      case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>
         Try {
           val userHeader = io.otoroshi.wasm4s.scaladsl.ApikeyHelper.generate(settings)
           env.Ws

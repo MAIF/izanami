@@ -2,20 +2,11 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{
-  FOREIGN_KEY_VIOLATION,
-  NOT_NULL_VIOLATION,
-  RELATION_DOES_NOT_EXISTS,
-  UNIQUE_VIOLATION
-}
+import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.Feature.{
-  activationConditionRead,
-  activationConditionWrite,
-  legacyActivationConditionRead,
-  legacyCompatibleConditionWrites
-}
+import fr.maif.izanami.events.{EventService, FeatureCreated, FeatureDeleted, FeatureUpdated}
+import fr.maif.izanami.models.Feature.{activationConditionRead, activationConditionWrite, legacyActivationConditionRead, legacyCompatibleConditionWrites}
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterListEither, BetterSyntax}
@@ -37,44 +28,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
-sealed trait EventType
-
-case object FeatureCreated extends EventType {
-  override def toString = "FEATURE_CREATED"
-}
-case object FeatureDeleted extends EventType {
-  override def toString = "FEATURE_DELETED"
-}
-case object FeatureUpdated extends EventType {
-  override def toString = "FEATURE_UPDATED"
-}
-
 class FeaturesDatastore(val env: Env) extends Datastore {
-
-  def emitEvent(
-      tenant: String,
-      id: String,
-      eventType: EventType,
-      sourceProject: String,
-      targetProject: Option[String] = None,
-      conn: SqlConnection
-  ): Future[Unit] = {
-    val payload = Json
-      .obj(
-        "id"      -> id,
-        "type"    -> eventType.toString,
-        "project" -> sourceProject
-      )
-      .applyOnWithOpt(targetProject)((json, project) => json ++ Json.obj("newProject" -> project))
-    env.postgresql
-      .queryOne(
-        s"""SELECT pg_notify($$1, $$2)""",
-        List(s"$tenant-features", payload.toString),
-        conn = Some(conn)
-      ) { r => Some(()) }
-      .map(_ => ())
-  }
-
   def findActivationStrategiesForFeature(
       tenant: String,
       id: String
@@ -233,7 +187,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
   def applyPatch(tenant: String, operations: Seq[FeaturePatch]): Future[Unit] = {
     env.postgresql.executeInTransaction(
-      conn => {
+      implicit conn => {
         val eventualId: Future[Unit] = Future
           .sequence(operations.map {
             case EnabledFeaturePatch(value, id) => {
@@ -252,12 +206,9 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 }
                 .flatMap {
                   case Some((id, name, project, enabled)) =>
-                    emitEvent(
-                      tenant,
-                      id = id,
-                      eventType = FeatureUpdated,
-                      sourceProject = project,
-                      conn = conn
+                    env.eventService.emitEvent(
+                      channel=tenant,
+                      event=FeatureUpdated(id=id, project=project, tenant=tenant)
                     )
                   case None                               => Future.successful(())
                 }
@@ -278,13 +229,12 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 }
                 .flatMap {
                   case Some((id, name, project, enabled)) =>
-                    emitEvent(
-                      tenant,
-                      id = id,
-                      eventType = FeatureUpdated,
-                      sourceProject = project,
-                      conn = conn
-                    )
+                    env.eventService.emitEvent(
+                      channel=tenant,
+                      event=FeatureUpdated(id=id,
+                      project=project,
+                      tenant=tenant)
+                    )(conn)
                   case None                               => Future.successful(())
                 }
             }
@@ -304,13 +254,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 }
                 .flatMap {
                   case Some((id, name, project, enabled)) =>
-                    emitEvent(
-                      tenant,
-                      id = id,
-                      eventType = FeatureDeleted,
-                      sourceProject = project,
-                      conn = conn
-                    )
+                    env.eventService.emitEvent(
+                      channel = tenant,
+                      event = FeatureDeleted(id = id, project = project, tenant = tenant)
+                    )(conn)
                   case None                               => Future.successful(())
                 }
             }
@@ -1024,7 +971,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         case Right(ids)   => {
           Future
             .sequence(ids.map { case (id, project) =>
-              emitEvent(tenant, id = id, eventType = FeatureCreated, sourceProject = project, conn = conn)
+              env.eventService.emitEvent(
+                channel = tenant,
+                event = FeatureCreated(id = id, project = project, tenant = tenant)
+              )(conn)
             })
             .map(_ => Right(()))
         }
@@ -1310,7 +1260,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       .flatMap {
         case Left(error) => Future.successful(Left(error))
         case Right(id)   =>
-          emitEvent(tenant, id = id, eventType = FeatureCreated, sourceProject = project, conn = conn).map(_ =>
+          env.eventService.emitEvent(
+            channel = tenant,
+            event = FeatureCreated(id = id, project = project, tenant = tenant)
+          )(conn)
+          .map(_ =>
             Right(id)
           )
       }
@@ -1413,13 +1367,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           .flatMap {
             case l @ Left(_)   => Future.successful(l)
             case r @ Right(id) =>
-              emitEvent(
-                tenant,
-                id = id,
-                eventType = FeatureUpdated,
-                sourceProject = feature.project,
-                conn = conn
-              ).map(_ => r)
+              env.eventService.emitEvent(
+                channel=tenant,
+                event=FeatureUpdated(id=id, project=feature.project, tenant=tenant)
+              )(conn)
+              .map(_ => r)
           }
       },
       schemas = Set(tenant)
@@ -1478,7 +1430,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         .flatMap {
           case l @ Left(err)        => Future.successful(Left(err))
           case Right((id, project)) =>
-            emitEvent(tenant, id = id, eventType = FeatureDeleted, sourceProject = project, conn = conn).map(_ =>
+            env.eventService.emitEvent(
+              channel = tenant,
+              event = FeatureDeleted(id = id, project = project, tenant = tenant)
+            )(conn)
+            .map(_ =>
               Right(id)
             )
         }

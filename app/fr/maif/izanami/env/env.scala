@@ -4,6 +4,7 @@ import akka.actor.{ActorSystem, Scheduler}
 import akka.stream.Materializer
 import com.typesafe.config.ConfigFactory
 import fr.maif.izanami.datastores._
+import fr.maif.izanami.events.EventService
 import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
@@ -80,6 +81,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val materializer: Materializer                  = Materializer(actorSystem)
 
   // init subsystems
+  val eventService = new EventService(this)
   val postgresql = new Postgresql(this)
   val datastores = new Datastores(this)
   val mails      = new Mails(this)

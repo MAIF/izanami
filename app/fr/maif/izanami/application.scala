@@ -4,6 +4,7 @@ import com.softwaremill.macwire.wire
 import controllers.{Assets, AssetsComponents}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
+import fr.maif.izanami.events.EventService
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web.{ClientApiKeyAction, _}
 import play.api.ApplicationLoader.Context

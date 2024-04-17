@@ -5,6 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
+import fr.maif.izanami.events.FeatureDeleted
 import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevels}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -160,7 +161,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
             Future
               .sequence(
                 ids.map(id =>
-                  env.datastores.features.emitEvent(tenant, id, FeatureDeleted, sourceProject = project, conn = conn)
+                  env.eventService.emitEvent(channel=tenant, event=FeatureDeleted(id=id, project=project, tenant=tenant))(conn)
                 )
               )
               .map(_ => Right(ids))
