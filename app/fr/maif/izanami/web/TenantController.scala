@@ -79,10 +79,7 @@ class TenantController(
     implicit request =>
       env.datastores.tenants.deleteTenant(name).map {
         case Left(err)    => err.toHttpResponse
-        case Right(value) => {
-          eventController.killSource(name)
-          NoContent
-        }
+        case Right(value) => NoContent
       }
   }
 

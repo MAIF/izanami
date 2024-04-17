@@ -64,6 +64,7 @@ case class WasmError() extends IzanamiError(message="Failed to parse wasm respon
 case class MissingProjectRight(projects: Set[String]) extends IzanamiError(message=s"""You're not allowed for projects ${projects.mkString(",")}""", status = FORBIDDEN)
 case class MissingFeatureRight(features: Set[String]) extends IzanamiError(message=s"""You're not allowed for features ${features.mkString(",")}, you don't have right for this project""", status = FORBIDDEN)
 case class IncorrectKey() extends IzanamiError(message = "Incorrect key provided", status = FORBIDDEN)
+case class BadEventFormat(override val message: String = "Bad event format") extends IzanamiError(message, status = FORBIDDEN)
 object IzanamiError {
   implicit val errorWrite: Writes[IzanamiError] = { err =>
     Json.obj(

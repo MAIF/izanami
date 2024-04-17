@@ -6,6 +6,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError, TenantAlreadyExists, TenantDoesNotExists}
+import fr.maif.izanami.events.TenantDeleted
 import fr.maif.izanami.models.{RightLevels, Tenant, TenantCreationRequest}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
@@ -184,7 +185,10 @@ class TenantsDatastore(val env: Env) extends Datastore {
           conn=Some(conn)
         ){_ => Some(())}
           .map(_ => Right(()))
-      }
+      }.flatMap(r => {
+          env.eventService.emitEvent(channel=name, event=TenantDeleted(name))(conn)
+            .map(_ => r)
+        })
     })
 
   }
