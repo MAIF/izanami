@@ -6,6 +6,84 @@
     "version": "2.0.0"
   },
   "paths": {
+    "/api/v2/events": {
+      "description": "Emit Server Sent Events when features in given scope are modified. This endpoint also emit initially (and optionally periodically) a global event that contains state of every feature in scope.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/clientId"
+        },
+        {
+          "$ref": "#/components/parameters/clientSecret"
+        },
+        {
+          "$ref": "#/components/parameters/user"
+        },
+        {
+          "$ref": "#/components/parameters/context"
+        },
+        {
+          "$ref": "#/components/parameters/features"
+        },
+        {
+          "$ref": "#/components/parameters/projects"
+        },
+        {
+          "$ref": "#/components/parameters/conditions"
+        },
+        {
+          "$ref": "#/components/parameters/date"
+        },
+        {
+          "$ref": "#/components/parameters/oneTagIn"
+        },
+        {
+          "$ref": "#/components/parameters/allTagsIn"
+        },
+        {
+          "$ref": "#/components/parameters/noTagIn"
+        }
+      ],
+      "get": {
+        "summary": "Suscribe to events",
+        "description": "⚠️⚠️⚠️ Below model is represented with JSON for OpenAPI convenience, however this endpoinst serves Server Sent Event format (see <a href=\"https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format\">MDN SSE documentation</a> for details).",
+        "operationId": "modernEventGet",
+        "tags": [
+          "V2 feature endpoints"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Suscribe to events and pass a JSON payload (script feature)",
+        "description": "⚠️⚠️⚠️ Below model is represented with JSON for OpenAPI convenience, however this endpoinst serves Server Sent Event format (see <a href=\"https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format\">MDN SSE documentation</a> for details).",
+        "operationId": "modernEventGet",
+        "tags": [
+          "V2 feature endpoints"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/features/{id}": {
       "description": "Compute feature activation for given parameters. POST endpoint allows to pass data in body that can be used by script based features.",
       "parameters": [
@@ -80,83 +158,25 @@
           "$ref": "#/components/parameters/context"
         },
         {
-          "in": "query",
-          "name": "features",
-          "schema": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "description": "Ids of features to query, activation status will be returned for all these features."
+          "$ref": "#/components/parameters/features"
         },
         {
-          "in": "query",
-          "name": "projects",
-          "schema": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "description": "Ids of projects to query, activation will be returned for every feature of these projects, after applying them tag filters."
+          "$ref": "#/components/parameters/projects"
         },
         {
-          "in": "query",
-          "name": "conditions",
-          "schema": {
-            "type": "boolean",
-            "default": false
-          },
-          "description": "Whether activation condition should be returned alongside feature activations. Conditions are returned for all contexts / subcontexts. These conditions can be used to recompute activation locally, without needing another call. This parameter should not be 'true' if you have no interest in computing activation locally, since it may have a minor impact on response time performances."
+          "$ref": "#/components/parameters/conditions"
         },
         {
-          "in": "query",
-          "name": "date",
-          "schema": {
-            "type": "string",
-            "format": "date-time",
-            "default": null
-          },
-          "description": "Date for which activation should be computed, used by time based activation conditions. Default is current time."
+          "$ref": "#/components/parameters/date"
         },
         {
-          "in": "query",
-          "name": "oneTagIn",
-          "schema": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "description": "When querying projects using 'projects' parameters, feature of these projects are filtered to keep only features with one tag in this tag array. Format is 'tag1,tag2,tag3'."
+          "$ref": "#/components/parameters/oneTagIn"
         },
         {
-          "in": "query",
-          "name": "allTagsIn",
-          "schema": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "description": "When querying projects using 'projects' parameters, feature of these projects are filtered to keep only features with all given tags. Format is 'tag1,tag2,tag3'."
+          "$ref": "#/components/parameters/allTagsIn"
         },
         {
-          "in": "query",
-          "name": "noTagIn",
-          "schema": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "description": "When querying projects using 'projects' parameters, feature of these projects are filtered to keep only features none of the given tags. Format is 'tag1,tag2,tag3'."
+          "$ref": "#/components/parameters/noTagIn"
         }
       ],
       "get": {
@@ -405,6 +425,138 @@
   },
   "components": {
     "schemas": {
+      "Event": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "FEATURE_STATES",
+              "FEATURE_CREATED",
+              "FEATURE_UPDATED",
+              "FEATURE_DELETED",
+              "KEEP_ALIVE"
+            ]
+          },
+          "id": {
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/EventData"
+          }
+        }
+      },
+      "EventData": {
+        "allOf": [
+          {
+            "properties": {
+              "_id": {
+                "type": "number"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FeatureUpdatedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/FeatureDeletedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/FeatureCreatedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/FeatureStatesEvent"
+              },
+              {
+                "$ref": "#/components/schemas/KeepAliveEvent"
+              }
+            ]
+          }
+        ]
+      },
+      "KeepAliveEvent": {
+        "title": "Keep alive event",
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "FEATURE_STATES"
+            ]
+          }
+        }
+      },
+      "FeatureStatesEvent": {
+        "title": "FeatureStatesEvent",
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "FEATURE_STATES"
+            ]
+          },
+          "payload": {
+            "title": "Features activation/conditions",
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActivationWithConditions"
+            }
+          }
+        }
+      },
+      "FeatureUpdatedEvent": {
+        "title": "FeatureUpdatedEvent",
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "FEATURE_UPDATED"
+            ]
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ActivationWithConditions"
+          }
+        }
+      },
+      "FeatureCreatedEvent": {
+        "title": "FeatureCreatedEvent",
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "FEATURE_CREATED"
+            ]
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ActivationWithConditions"
+          }
+        }
+      },
+      "FeatureDeletedEvent": {
+        "title": "FeatureDeletedEvent",
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "FEATURE_DELETED"
+            ]
+          },
+          "payload": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "Activation": {
         "type": "object",
         "properties": {
@@ -455,83 +607,80 @@
         "additionalProperties": {
           "$ref": "#/components/schemas/ActivationWithConditions"
         },
-        "example": [
-          {
-            "9fddafb4-a69b-4ea3-a75b-867d95e24557": {
-              "name": "modern-feature",
-              "active": true,
-              "project": "my-project",
-              "conditions": {
-                "": {
-                  "enabled": true,
-                  "conditions": []
-                }
+        "example": {
+          "9fddafb4-a69b-4ea3-a75b-867d95e24557": {
+            "name": "modern-feature",
+            "active": true,
+            "project": "my-project",
+            "conditions": {
+              "": {
+                "enabled": true,
+                "conditions": []
               }
             }
           },
-          {
-            "77072778-0de9-4132-9b35-ab8a9c8a302e": {
-              "name": "modern-feature",
-              "active": true,
-              "project": "my-project",
-              "conditions": {
-                "dev": {
-                  "enabled": true,
-                  "conditions": []
-                },
-                "production": {
-                  "enabled": true,
-                  "conditions": [
-                    {
-                      "period": {
-                        "begin": "2024-01-01T08:00:00Z",
-                        "end": "2024-01-31T22:00:00Z",
-                        "hourPeriods": [
-                          {
-                            "startTime": "08:00:00",
-                            "endTime": "12:30:00"
-                          },
-                          {
-                            "startTime": "14:00:00",
-                            "endTime": "18:30:00"
-                          }
-                        ],
-                        "activationDays": {
-                          "days": [
-                            "MONDAY",
-                            "TUESDAY",
-                            "WEDNESDAY",
-                            "THURSDAY",
-                            "FRIDAY"
-                          ]
+          "77072778-0de9-4132-9b35-ab8a9c8a302e": {
+            "name": "modern-feature",
+            "active": true,
+            "project": "my-project",
+            "conditions": {
+              "dev": {
+                "enabled": true,
+                "conditions": []
+              },
+              "production": {
+                "enabled": true,
+                "conditions": [
+                  {
+                    "period": {
+                      "begin": "2024-01-01T08:00:00Z",
+                      "end": "2024-01-31T22:00:00Z",
+                      "hourPeriods": [
+                        {
+                          "startTime": "08:00:00",
+                          "endTime": "12:30:00"
                         },
-                        "timezone": "Europe/Paris"
-                      },
-                      "rule": {
-                        "percentage": 10
-                      }
-                    },
-                    {
-                      "period": null,
-                      "rule": {
-                        "users": [
-                          "qa-user-1",
-                          "qa-user-2"
+                        {
+                          "startTime": "14:00:00",
+                          "endTime": "18:30:00"
+                        }
+                      ],
+                      "activationDays": {
+                        "days": [
+                          "MONDAY",
+                          "TUESDAY",
+                          "WEDNESDAY",
+                          "THURSDAY",
+                          "FRIDAY"
                         ]
-                      }
+                      },
+                      "timezone": "Europe/Paris"
+                    },
+                    "rule": {
+                      "percentage": 10
                     }
-                  ]
-                },
-                "": {
-                  "enabled": false,
-                  "conditions": []
-                }
+                  },
+                  {
+                    "period": null,
+                    "rule": {
+                      "users": [
+                        "qa-user-1",
+                        "qa-user-2"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "": {
+                "enabled": false,
+                "conditions": []
               }
             }
           }
-        ]
+        }
       },
       "ActivationWithConditions": {
+        "title": "Feature activation/conditions",
         "allOf": [
           {
             "$ref": "#/components/schemas/Activation"
@@ -666,7 +815,7 @@
               "message"
             ]
           },
-          "lastEventId": {
+          "id": {
             "type": "number"
           },
           "origin": {
@@ -1025,6 +1174,85 @@
         },
         "required": false,
         "description": "Page to fetch, it starts at 1 (not 0)."
+      },
+      "features": {
+        "in": "query",
+        "name": "features",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "description": "Ids of features to query, activation status will be returned for all these features."
+      },
+      "projects": {
+        "in": "query",
+        "name": "projects",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "description": "Ids of projects to query, activation will be returned for every feature of these projects, after applying them tag filters."
+      },
+      "conditions": {
+        "in": "query",
+        "name": "conditions",
+        "schema": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": "Whether activation condition should be returned alongside feature activations. Conditions are returned for all contexts / subcontexts. These conditions can be used to recompute activation locally, without needing another call. This parameter should not be 'true' if you have no interest in computing activation locally, since it may have a minor impact on response time performances."
+      },
+      "date": {
+        "in": "query",
+        "name": "date",
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "default": null
+        },
+        "description": "Date for which activation should be computed, used by time based activation conditions. Default is current time."
+      },
+      "oneTagIn": {
+        "in": "query",
+        "name": "oneTagIn",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "description": "When querying projects using 'projects' parameters, feature of these projects are filtered to keep only features with one tag in this tag array. Format is 'tag1,tag2,tag3'."
+      },
+      "allTagsIn": {
+        "in": "query",
+        "name": "allTagsIn",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "description": "When querying projects using 'projects' parameters, feature of these projects are filtered to keep only features with all given tags. Format is 'tag1,tag2,tag3'."
+      },
+      "noTagIn": {
+        "in": "query",
+        "name": "noTagIn",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "description": "When querying projects using 'projects' parameters, feature of these projects are filtered to keep only features none of the given tags. Format is 'tag1,tag2,tag3'."
       }
     }
   }
