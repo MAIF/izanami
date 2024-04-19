@@ -5,7 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.events.FeatureDeleted
+import fr.maif.izanami.events.SourceFeatureDeleted
 import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevels}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -145,7 +145,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
     ) { row => row.optProject() }
   }
 
-  def deleteProject(tenant: String, project: String): Future[Either[IzanamiError, List[String]]] = {
+  def deleteProject(tenant: String, project: String, user: String): Future[Either[IzanamiError, List[String]]] = {
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryOne(
@@ -161,7 +161,10 @@ class ProjectsDatastore(val env: Env) extends Datastore {
             Future
               .sequence(
                 ids.map(id =>
-                  env.eventService.emitEvent(channel=tenant, event=FeatureDeleted(id=id, project=project, tenant=tenant))(conn)
+                  env.eventService.emitEvent(
+                    channel = tenant,
+                    event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user)
+                  )(conn)
                 )
               )
               .map(_ => Right(ids))
@@ -184,9 +187,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
          |          WHERE ft.feature = f.id
          |          GROUP BY ft.tag
          |        )
-         |      ), 'wasmConfig', (
-         |        select w.config FROM wasm_script_configurations w where w.id = f.script_config
-         |      )))::jsonb)
+         |      ), 'wasmConfig', f.script_config))::jsonb)
          |      FILTER (WHERE f.id IS NOT NULL), '[]'
          |  ) as "features"
          |from projects p
@@ -253,7 +254,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
   }
 
   def readProjectsById(tenant: String, ids: Set[UUID]): Future[Map[UUID, Project]] = {
-    if(ids.isEmpty) {
+    if (ids.isEmpty) {
       Future.successful(Map())
     }
     env.postgresql
@@ -294,7 +295,7 @@ object projectImplicits {
         yield {
           val maybeFeatures = row
             .optJsArray("features")
-            .map(array => array.value.map(v => Feature.readFeature(v, name).asOpt).flatMap(o => o.toList).toList)
+            .map(array => array.value.map(v => Feature.readLightWeightFeature(v, name).asOpt).flatMap(o => o.toList).toList)
           Project(id = id, name = name, features = maybeFeatures.getOrElse(List()), description = description)
         }
     }

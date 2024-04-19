@@ -12,11 +12,13 @@ import {
 import { customStyles } from "../styles/reactSelect";
 import {
   MutationNames,
+  fetchWebhooks,
   queryKeys,
   queryTenant,
   queryTenants,
   tenantKeyQueryKey,
   tenantQueryKey,
+  webhookQueryKey,
 } from "../utils/queries";
 import { TLevel, TRights } from "../utils/types";
 import { Loader } from "./Loader";
@@ -32,6 +34,9 @@ const EventType = {
   DeleteKey: "DeleteKey",
   SetKeyLevel: "SetKeyLevel",
   SetupState: "SetupState",
+  SetWebhookLevel: "SetWebhookLevel",
+  SelectWebhook: "SelectWebhook",
+  DeleteWebhook: "DeleteWebhook",
 } as const;
 
 type EventType = typeof EventType[keyof typeof EventType];
@@ -94,6 +99,25 @@ interface KeyLevelEvent extends Event {
   name: string;
 }
 
+interface WebhookSelectionEvent extends Event {
+  type: "SelectWebhook";
+  name: string;
+  tenant: string;
+}
+
+interface WebhookLevelEvent extends Event {
+  type: "SetWebhookLevel";
+  level: TLevel;
+  tenant: string;
+  name: string;
+}
+
+interface WebhookDeleteEvent extends Event {
+  type: "DeleteWebhook";
+  tenant: string;
+  name: string;
+}
+
 interface InitialSetup extends Event {
   type: "SetupState";
   rights: TRights;
@@ -109,9 +133,12 @@ type EventTypes =
   | KeySelectionEvent
   | KeyDeleteEvent
   | KeyLevelEvent
-  | InitialSetup;
+  | InitialSetup
+  | WebhookSelectionEvent
+  | WebhookLevelEvent
+  | WebhookDeleteEvent;
 
-type State = {
+export type State = {
   name: string;
   level?: TLevel;
   projects: {
@@ -119,6 +146,10 @@ type State = {
     level?: TLevel;
   }[];
   keys: {
+    name: string;
+    level?: TLevel;
+  }[];
+  webhooks: {
     name: string;
     level?: TLevel;
   }[];
@@ -135,14 +166,18 @@ export function rightStateArrayToBackendMap(state: State): TRights {
   if (!state) {
     return { tenants: {} };
   }
-  const backendRights = state.reduce((acc, { name, level, projects, keys }) => {
-    acc[name] = {
-      level,
-      projects: projectOrKeyArrayToObject(projects),
-      keys: projectOrKeyArrayToObject(keys),
-    };
-    return acc;
-  }, {} as { [x: string]: any });
+  const backendRights = state.reduce(
+    (acc, { name, level, projects, keys, webhooks }) => {
+      acc[name] = {
+        level,
+        projects: projectOrKeyArrayToObject(projects),
+        keys: projectOrKeyArrayToObject(keys),
+        webhooks: projectOrKeyArrayToObject(webhooks),
+      };
+      return acc;
+    },
+    {} as { [x: string]: any }
+  );
 
   return { tenants: backendRights };
 }
@@ -166,6 +201,12 @@ const reducer = function reducer(state: State, event: EventTypes): State {
             name: keyName,
             level: keyValue.level,
           })),
+          webhooks: Object.entries(value.webhooks).map(
+            ([keyName, keyValue]) => ({
+              name: keyName,
+              level: keyValue.level,
+            })
+          ),
         }));
       }
     }
@@ -198,7 +239,13 @@ const reducer = function reducer(state: State, event: EventTypes): State {
     case EventType.SelectTenant:
       return [
         ...state,
-        { name: event.name, level: TLevel.Read, projects: [], keys: [] },
+        {
+          name: event.name,
+          level: TLevel.Read,
+          projects: [],
+          keys: [],
+          webhooks: [],
+        },
       ];
     case EventType.SetTenantLevel:
       return [...state].map((el) => {
@@ -261,6 +308,45 @@ const reducer = function reducer(state: State, event: EventTypes): State {
         }
         return el;
       });
+    case EventType.SetWebhookLevel:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            webhooks: el.webhooks.map((w) => {
+              if (w.name === event.name) {
+                return { ...w, level: event.level };
+              }
+              return w;
+            }),
+          };
+        }
+        return el;
+      });
+    case EventType.DeleteWebhook:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          const webhooks = el.webhooks;
+
+          return {
+            ...el,
+            webhooks: [...webhooks].filter(({ name }) => name !== event.name),
+          };
+        }
+        return el;
+      });
+    case EventType.SelectWebhook:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          const webhooks = el.webhooks;
+
+          return {
+            ...el,
+            webhooks: [...webhooks, { name: event.name, level: TLevel.Read }],
+          };
+        }
+        return el;
+      });
   }
 };
 
@@ -279,7 +365,7 @@ export function RightSelector(props: {
   defaultValue?: TRights;
   tenantLevelFilter?: TLevel;
   tenant?: string;
-  onChange: (value: any) => void;
+  onChange: (value: State) => void;
 }) {
   const { defaultValue, tenantLevelFilter, onChange } = props;
   const tenantQuery = useQuery(MutationNames.TENANTS, () =>
@@ -313,13 +399,16 @@ export function RightSelector(props: {
     const selectorChoices = tenants.filter((item) => {
       return !selectedTenants.includes(item);
     });
+
     return (
       <div>
         <>
-          {state.map(({ name, level, projects, keys }) => {
+          {state.map(({ name, level, projects, keys, webhooks }) => {
             return (
               <>
-                <label className="mt-3">Tenant</label>
+                <label className="mt-3">
+                  <i className="fas fa-cloud" aria-hidden></i>&nbsp;Tenant
+                </label>
                 <div className="tenant-selector" key={name}>
                   <ItemSelector
                     label="Tenant"
@@ -345,7 +434,10 @@ export function RightSelector(props: {
                     }}
                   />
                   <div className="sub_container sub_container-bglighter project-selector">
-                    <label>Project rights for {name}</label>
+                    <label>
+                      <i className="fas fa-building" aria-hidden></i>
+                      &nbsp;Project rights for {name}
+                    </label>
                     <div className="my-2">
                       <ProjectSelector
                         tenant={name}
@@ -355,12 +447,28 @@ export function RightSelector(props: {
                     </div>
                   </div>
                   <div className="sub_container sub_container-bglighter key-selector">
-                    <label>Keys rights for {name}</label>
+                    <label>
+                      <i className="fas fa-key" aria-hidden></i>&nbsp;Keys
+                      rights for {name}
+                    </label>
                     <div className="my-2">
                       <KeySelector
                         tenant={name}
                         dispatch={dispatch}
                         keys={keys}
+                      />
+                    </div>
+                  </div>
+                  <div className="sub_container sub_container-bglighter key-selector">
+                    <label>
+                      <i className="fas fa-plug" aria-hidden></i>&nbsp;Webhooks
+                      rights for {name}
+                    </label>
+                    <div className="my-2">
+                      <WebhookSelector
+                        tenant={name}
+                        dispatch={dispatch}
+                        webhooks={webhooks}
                       />
                     </div>
                   </div>
@@ -577,6 +685,95 @@ function KeySelector(props: {
     );
   } else {
     return <div>Error while loading projects</div>;
+  }
+}
+
+function WebhookSelector(props: {
+  tenant: string;
+  dispatch: (event: EventTypes) => void;
+  webhooks: { name: string; level?: TLevel }[];
+}) {
+  const [creating, setCreating] = useState(false);
+  const { tenant, dispatch, webhooks } = props;
+
+  const webhookQuery = useQuery(webhookQueryKey(tenant), () =>
+    fetchWebhooks(tenant)
+  );
+  const { user } = useContext(IzanamiContext);
+  const { admin, rights } = user!;
+
+  if (webhookQuery.isLoading) {
+    return <Loader message="Loading..." />;
+  } else if (webhookQuery.data?.length === 0) {
+    return (
+      <div>
+        <em>No webhooks defined yet</em>
+      </div>
+    );
+  } else if (webhookQuery.data) {
+    const selectedWebhookNames = webhooks.map(({ name }) => name);
+    const availableWebhooks = (
+      webhookQuery.data.map((k) => k.name) || []
+    ).filter((p) => !selectedWebhookNames.includes(p));
+    return (
+      <>
+        {webhooks.map(({ name, level }) => (
+          <div className="my-2" key={`${name}-container`}>
+            <ItemSelector
+              label={`${tenant} key`}
+              key={name}
+              choices={availableWebhooks}
+              onItemChange={(item) => {
+                dispatch({ type: "DeleteWebhook", name, tenant });
+                dispatch({ type: "SelectWebhook", name: item, tenant });
+              }}
+              level={level}
+              userRight={
+                admin || findTenantRight(rights, tenant) === TLevel.Admin
+                  ? TLevel.Admin
+                  : findKeyRight(rights, tenant, name) || TLevel.Read
+              }
+              onLevelChange={(level) => {
+                dispatch({
+                  type: "SetWebhookLevel",
+                  name,
+                  tenant,
+                  level,
+                });
+              }}
+              name={name}
+              onClear={() => {
+                dispatch({ type: "DeleteWebhook", tenant, name });
+              }}
+            />
+          </div>
+        ))}
+        {creating && (
+          <div className="my-2">
+            <ItemSelector
+              label={`${tenant} new key`}
+              choices={availableWebhooks}
+              onItemChange={(project) => {
+                setCreating(false);
+                dispatch({ type: "SelectWebhook", name: project, tenant });
+              }}
+              onClear={() => setCreating(false)}
+              userRight={TLevel.Read}
+            />
+          </div>
+        )}
+        {!creating && webhooks.length < (webhookQuery.data.length || 0) && (
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => setCreating(true)}
+          >
+            Add webhook rights
+          </button>
+        )}
+      </>
+    );
+  } else {
+    return <div>Error while loading webhooks</div>;
   }
 }
 

@@ -23,17 +23,6 @@ import { InvitationForm } from "../components/InvitationForm";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 
-const loadOptions = (
-  inputValue: string,
-  callback: (options: string[]) => void
-) => {
-  fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
-    .then((resp) => resp.json())
-    .then((data) =>
-      callback(data.map((d: string) => ({ label: d, value: d })))
-    );
-};
-
 export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
   const queryKey = projectQueryKey(tenant, project);
@@ -81,7 +70,6 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
         </h2>
         {inviting && (
           <InvitationForm
-            loadOptions={loadOptions as any} // FIXME TS
             submit={({ users, level }) =>
               inviteUsers
                 .mutateAsync({ users, level })
@@ -317,7 +305,6 @@ function ProjectModification(props: {
 }) {
   const { tenant, project } = props;
   const navigate = useNavigate();
-  const { askConfirmation } = React.useContext(IzanamiContext);
 
   const updateMutation = useMutation(
     (data: { name: string; description: string }) =>
@@ -355,7 +342,9 @@ function ProjectModification(props: {
             defaultValue: project.description,
           },
         }}
-        onSubmit={(data: any) => updateMutation.mutateAsync(data).then(() => props.onDone())}
+        onSubmit={(data: any) =>
+          updateMutation.mutateAsync(data).then(() => props.onDone())
+        }
         footer={({ valid }: { valid: () => void }) => {
           return (
             <>

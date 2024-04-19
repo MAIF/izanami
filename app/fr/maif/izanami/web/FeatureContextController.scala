@@ -34,8 +34,8 @@ class FeatureContextController(
   }
 
   def deleteFeatureStrategy(tenant: String, project: String, context: FeatureContextPath, name: String): Action[AnyContent] = authAction(tenant, project, RightLevels.Write).async {
-    implicit request: Request[AnyContent] =>
-      env.datastores.featureContext.deleteFeatureStrategy(tenant, project, context.elements, name)
+    implicit request: UserNameRequest[AnyContent] =>
+      env.datastores.featureContext.deleteFeatureStrategy(tenant, project, context.elements, name, request.user)
         .map {
           case Left(err) => err.toHttpResponse
           case Right(_) => NoContent
@@ -79,7 +79,7 @@ class FeatureContextController(
       FeatureContext.readcontextualFeatureStrategyRead(request.body, name) match {
         case JsSuccess(value, path) =>
           env.datastores.featureContext
-            .updateFeatureStrategy(tenant, project, parents.elements, name, value)
+            .updateFeatureStrategy(tenant, project, parents.elements, name, value, request.user)
             .map(eitherCreated => {
               eitherCreated.fold(
                 err => Results.Status(err.status)(Json.toJson(err)),

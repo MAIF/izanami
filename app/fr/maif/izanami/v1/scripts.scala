@@ -8,6 +8,7 @@ import fr.maif.izanami.v1.OldScripts.generateNewScriptContent
 import io.otoroshi.wasm4s.scaladsl.{ApikeyHelper, WasmoSettings}
 import org.mozilla.javascript.Parser
 import org.mozilla.javascript.ast._
+import play.api.Logger
 import play.api.libs.json.{JsBoolean, Json}
 import play.api.libs.ws.WSClient
 
@@ -15,14 +16,19 @@ import java.time.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
-  val httpClient: WSClient = env.Ws
+  implicit val logger: Logger = env.logger
+  val httpClient: WSClient    = env.Ws
 
   def wasmoConfiguration: Option[WasmoSettings] = env.datastores.configuration.readWasmConfiguration()
 
-  def transferLegacyJsScript(name: String, content: String, local: Boolean): Future[Either[IzanamiError, (String, ByteString)]] = {
+  def transferLegacyJsScript(
+      name: String,
+      content: String,
+      local: Boolean
+  ): Future[Either[IzanamiError, (String, ByteString)]] = {
     wasmoConfiguration match {
-      case None => Future.successful(Left(NoWasmManagerConfigured()))
-      case Some(w:WasmoSettings) => {
+      case None                   => Future.successful(Left(NoWasmManagerConfigured()))
+      case Some(w: WasmoSettings) => {
         createScript(
           name,
           generateNewScriptContent(content),
@@ -33,40 +39,55 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
     }
   }
 
-
   def createScript(
       name: String,
       content: String,
       config: WasmoSettings,
       local: Boolean
   ): Future[(String, ByteString)] = {
-    if(local) {
+    if (local) {
       build(config, name, content)
         .map(queueId => queueId)
         .flatMap(queueId => retrieveLocallyBuildedWasm(s"$name-1.0.0-dev", config).map(bs => (queueId, bs)))
     } else {
       val pluginName = s"$name-1.0.0"
-      for (
-        pluginId <- httpClient.url(s"${config.url}/api/plugins")
-          .withHttpHeaders(("Content-Type", "application/json"), ApikeyHelper.generate(config))
-          .post(Json.obj(
-            "metadata" -> Json.obj(
-              "type" -> "js",
-              "name" -> name,
-              "release" -> true,
-              "local" -> false
-            ),
-            "files" -> Json.arr(Json.obj(
-              "name" -> "index.js", "content" -> content,
-
-            ), Json.obj("name" -> "plugin.d.ts", "content" ->
+      val body = Json.obj(
+        "metadata" -> Json.obj(
+          "type"    -> "js",
+          "name"    -> name,
+          "release" -> true,
+          "local"   -> false
+        ),
+        "files"    -> Json.arr(
+          Json.obj(
+            "name"    -> "index.js",
+            "content" -> content
+          ),
+          Json.obj(
+            "name"    -> "plugin.d.ts",
+            "content" ->
               """declare module 'main' {
                 |  export function execute(): I32;
-                |}""".stripMargin))
-          ))
-          .map(response => (response.json \ "plugin_id").as[String]);
-        _ <- buildAndSave(pluginId, config=config);
-        wasm <- retrieveBuildedWasm(pluginName, config)
+                |}""".stripMargin
+          )
+        )
+      )
+      if (logger.isDebugEnabled) {
+        logger.debug(s"Creating script : POST ${config.url}/api/plugins with body $body and auth headers ${ApikeyHelper.generate(config)}")
+      }
+
+      for (
+        pluginId <- httpClient
+                      .url(s"${config.url}/api/plugins")
+                      .withHttpHeaders(("Content-Type", "application/json"), ApikeyHelper.generate(config))
+                      .post(body)
+                      .map(response => {
+                        val json = response.json
+                        logger.debug(s"Resoponse from ${config.url}/api/plugins is $json")
+                        (json \ "plugin_id").as[String]
+                      });
+        _        <- buildAndSave(pluginId, config = config);
+        wasm     <- retrieveBuildedWasm(pluginName, config)
       ) yield {
         (pluginName, wasm)
       }
@@ -74,14 +95,24 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
   }
 
   def buildAndSave(
-                  pluginId: String,
-                  config: WasmoSettings,
-                  ): Future[String] = {
+      pluginId: String,
+      config: WasmoSettings
+  ): Future[String] = {
+    if (logger.isDebugEnabled) {
+      logger.debug(
+        s"Building plugin for release : POST ${config.url}/api/plugins/$pluginId/build?release=true and auth header ${ApikeyHelper
+          .generate(config)}"
+      )
+    }
     httpClient
       .url(s"${config.url}/api/plugins/$pluginId/build?release=true")
       .withHttpHeaders(ApikeyHelper.generate(config))
       .post("")
-      .map(response => (response.json \ "queue_id").as[String])
+      .map(response => {
+        val json = response.json
+        logger.debug(s"Response from ${config.url}/api/plugins/$pluginId/build?release=true is $json")
+        (json \ "queue_id").as[String]
+      })
   }
 
   def build(
@@ -99,16 +130,21 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
             "type"    -> "js",
             "name"    -> name,
             "version" -> "1.0.0",
-            "local" -> true,
+            "local"   -> true,
             "release" -> false
           ),
           "files"    -> Json.arr(
-            Json.obj("name" -> "index.js" , "content" -> content),
-            Json.obj("name" -> "plugin.d.ts", "content" ->
+            Json.obj("name" -> "index.js", "content" -> content),
+            Json.obj(
+              "name"        -> "plugin.d.ts",
+              "content"     ->
               """declare module 'main' {
                 |  export function execute(): I32;
-                |}""".stripMargin),
-            Json.obj("name" -> "package.json", "content" ->
+                |}""".stripMargin
+            ),
+            Json.obj(
+              "name"        -> "package.json",
+              "content"     ->
               s"""
                 {
                   "name": "$name",
@@ -117,7 +153,8 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
                     "esbuild": "^0.17.9"
                   }
                 }
-                """.stripMargin)
+                """.stripMargin
+            )
           )
         )
       )

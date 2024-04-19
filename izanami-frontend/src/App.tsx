@@ -62,6 +62,7 @@ import { Swagger } from "./pages/swagger";
 import { Tags } from "./pages/tags";
 import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
+import { WebHooks } from "./pages/webhooks";
 
 function Wrapper({
   element,
@@ -217,6 +218,20 @@ const router = createBrowserRouter([
           ),
         },
         children: [
+          {
+            path: "/tenants/:tenant/webhooks",
+            element: <Wrapper element={WebHooks} />,
+            handle: {
+              crumb: (data: any) => (
+                <NavLink
+                  className={() => ""}
+                  to={`/tenants/${data.tenant}/webhooks`}
+                >
+                  <i className="fas fa-plug" aria-hidden></i>&nbsp;Webhooks
+                </NavLink>
+              ),
+            },
+          },
           {
             path: "/tenants/:tenant/contexts",
             element: <Wrapper element={GlobalContexts} />,

@@ -77,7 +77,7 @@ class TenantController(
 
   def deleteTenant(name: String): Action[AnyContent] = tenantAuthAction(name, RightLevels.Admin).async {
     implicit request =>
-      env.datastores.tenants.deleteTenant(name).map {
+      env.datastores.tenants.deleteTenant(name, request.user).map {
         case Left(err)    => err.toHttpResponse
         case Right(value) => NoContent
       }

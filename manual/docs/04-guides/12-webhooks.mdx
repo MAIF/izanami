@@ -1,0 +1,39 @@
+---
+title: Webhooks
+---
+
+Webhooks are a way to make Izanami call a provided URL when a feature is modified.
+
+Given URL is called with new activation status for modified feature.
+
+This is usefull if you want to execute some specific code on feature activation,
+or if you want to keep your feature in sync with an external system that can't perform HTTP
+call to Izanami.
+
+## Webhook creation
+
+To create a webhook, go to the webhook screen of your tenant and click the "Create new webhook" button.
+
+This form allows to configure your webhook :
+
+- `url` indicates which URL should be call when a feature is updated
+- `name` and `description` allows to describe what your hook is and what it's doing
+- `headers` allows to specify custom HTTPs headers to pass while calling webhook
+- `features` and `projects` specify hook scope : hook will be called only when a liste feature (or a feature of one of the listed projects) is modified
+- `context` and `user` allows to specify context and user for which activation will be recomputed
+- `custom body` allows to transform sent body (using a [handlebars template](https://handlebarsjs.com/)).
+  This is espacially usefull when integrating with external services, such as messaging systems.
+
+## Resilience
+
+Izanami offers some guaranties for webhook resilience.
+
+If webhook call timeout or if remote server respond with an error code, Izanami will retry the call several times (TODO) with an increased interval between calls (TODO).
+
+If Izanami instance is shut down (or crashes) while making initial or retry call, webhook call will be retried after some times either when Izanami instances restart or by another instance if Izanami has multiple instances.
+
+## Rights
+
+Izanami has a fine grain right management on hooks.
+
+User can either read

@@ -20,9 +20,18 @@ main a:visited {
   color: var(--color_level1);
 }
 
+main a.white-link:link,
+main a.white-link,
+main a.white-link:visited {
+  color: var(--color_level3);
+}
+
 main a:active,
 main a:hover,
-main a:focus {
+main a:focus,
+main a.white-link:active,
+main a.white-link:hover,
+main a.white-link:focus {
   color: $primaryColor;
   & svg .icon_context {
     fill: $primaryColor !important;

@@ -2,8 +2,9 @@ package fr.maif.izanami.web
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Merge, Source}
-import akka.stream.{Materializer}
+import akka.stream.Materializer
 import fr.maif.izanami.env.Env
+import fr.maif.izanami.events.EventService.internalToExternalEvent
 import fr.maif.izanami.events._
 import fr.maif.izanami.models.{Feature, FeatureRequest, RequestContext}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -26,9 +27,9 @@ class EventController(
 )(implicit
     val env: Env
 ) extends BaseController {
-  implicit val ec: ExecutionContext                                   = env.executionContext;
-  implicit val materializer: Materializer                             = env.materializer
-  val eventService = env.eventService
+  implicit val ec: ExecutionContext       = env.executionContext;
+  implicit val materializer: Materializer = env.materializer
+  val eventService: EventService          = env.eventService
 
   val logger                                                       = env.logger
   // FIXME create dedicated object instead
@@ -42,11 +43,11 @@ class EventController(
 
   def processForLegacyEndpoint(event: FeatureEvent): JsObject = {
     event match {
-      case FeatureCreated(_, _, _, Some(strategiesByContext)) =>
+      case FeatureCreated(_, _, _, _, _, Some(strategiesByContext))    =>
         createEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
-      case FeatureUpdated(_, _, _, Some(strategiesByContext)) =>
+      case FeatureUpdated(_, _, _, _, _, Some(strategiesByContext), _) =>
         updateEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
-      case _                                               => deleteEvent(event.id)
+      case _                                                           => deleteEvent(event.id)
     }
   }
 
@@ -63,38 +64,6 @@ class EventController(
         interval,
         keepAliveEventV2
       )
-
-  def processForModernEndpoint(
-      event: IzanamiEvent,
-      context: RequestContext,
-      conditions: Boolean,
-      env: Env
-  ): Future[Option[JsObject]] = {
-    event match {
-      case FeatureDeleted(id, _, _)                                    => Future.successful(Some(deleteEventV2(id)))
-      case f: ConditionFeatureEvent if f.conditionByContext.isEmpty =>
-        Future.successful(Some(deleteEventV2(f.asInstanceOf[FeatureEvent].id)))
-      case f: ConditionFeatureEvent                                 => {
-        val maybeContextmap = f match {
-          case FeatureCreated(_, _, _, map) => map
-          case FeatureUpdated(_, _, _, map) => map
-        }
-        Feature.processMultipleStrategyResult(maybeContextmap.get, context, conditions, env).map {
-          case Left(error) => {
-            logger.error(s"Failed to write feature : ${error.message}")
-            None
-          }
-          case Right(json) => {
-            f match {
-              case FeatureCreated(id, _, _, _) => Some(createEventV2(json) ++ Json.obj("id" -> id))
-              case FeatureUpdated(id, _, _, _) => Some(updateEventV2(json) ++ Json.obj("id" -> id))
-            }
-          }
-        }
-      }
-      case _                                                        => Future.successful(None)
-    }
-  }
 
   def events(pattern: String): Action[AnyContent] = clientKeyAction.async { request =>
     val key = request.key
@@ -162,7 +131,7 @@ class EventController(
               case _                   => false
             }
             .mapAsync(1)(e =>
-              processForModernEndpoint(
+              internalToExternalEvent(
                 e,
                 RequestContext(tenant, user, FeatureContextPath(elements = clientRequest.context)),
                 conditions,
@@ -206,7 +175,7 @@ class EventController(
               future.onComplete {
                 case Failure(exception) => logger.error("Event source failed", exception)
                 case Success(foo)       => {
-                  logger.info("Event source closed")
+                  logger.debug("Event source closed")
                 }
               }
             )

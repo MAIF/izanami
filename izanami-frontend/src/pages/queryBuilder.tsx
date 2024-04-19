@@ -1,13 +1,9 @@
 import * as React from "react";
 import {
-  findFeatures,
   globalContextKey,
   queryGlobalContexts,
   queryTags,
-  queryTenant,
   tagsQueryKey,
-  tenantFeaturesKey,
-  tenantQueryKey,
 } from "../utils/queries";
 import { useQuery } from "react-query";
 import { NavLink, useParams } from "react-router-dom";
@@ -18,28 +14,22 @@ import { IzanamiContext } from "../securityContext";
 import { GenericTable } from "../components/GenericTable";
 import { format, parse } from "date-fns";
 import { TContext } from "../utils/types";
-import { GlobalContextIcon } from "../utils/icons";
 import { CopyButton } from "../components/CopyButton";
 import { Tooltip } from "../components/Tooltip";
 import { useRef } from "react";
 import { Loader } from "../components/Loader";
+import { AllContexts } from "../components/AllContextSelect";
+import { FeatureSelector } from "../components/FeatureSelector";
+import { ProjectSelector } from "../components/ProjectSelector";
 
 export function QueryBuilder() {
   const { tenant } = useParams();
   const { expositionUrl } = React.useContext(IzanamiContext);
 
-  const queryKey = tenantQueryKey(tenant!);
-  const tenantQuery = useQuery(queryKey, () => queryTenant(tenant!));
-  const featureQuery = useQuery(tenantFeaturesKey(tenant!), () =>
-    findFeatures(tenant!)
-  );
   const tagQuery = useQuery(tagsQueryKey(tenant!), () => queryTags(tenant!));
   const [selectedProjects, setSelectedProjects] = React.useState<
     readonly string[]
   >([]);
-  const globalContextQuery = useQuery(globalContextKey(tenant!), () =>
-    queryGlobalContexts(tenant!, true)
-  );
   const [features, setFeatures] = React.useState<readonly string[]>([]);
   const [allTagsIn, setAllTagsIn] = React.useState<readonly string[]>([]);
 
@@ -101,60 +91,14 @@ export function QueryBuilder() {
     setImportDisplay((current) => !current);
   };
 
-  if (
-    tenantQuery.error ||
-    tagQuery.error ||
-    globalContextQuery.error ||
-    featureQuery.error
-  ) {
-    return <div>Failed to fetch tenant</div>;
-  } else if (
-    tenantQuery.data &&
-    tagQuery.data &&
-    globalContextQuery.data &&
-    featureQuery.data
-  ) {
-    const projectOptions = tenantQuery.data?.projects?.map((project) => ({
-      label: project.name,
-      value: project.id,
-    }));
-    const featureOptions = featureQuery.data.map((d) => ({
-      value: d.id,
-      label: `${d.name} (${d.project})`,
-    }));
+  if (tagQuery.error) {
+    return <div>Failed to fetch tags</div>;
+  } else if (tagQuery.data) {
     const tagOptions = tagQuery.data.map((t) => ({
       label: t.name,
       value: t.id,
     }));
-    const allContexts = possiblePaths(globalContextQuery.data)
-      .sort((context1, context2) => {
-        if (context1.context.global && !context2.context.global) {
-          return -1;
-        } else if (context2.context.global && !context1.context.global) {
-          return 1;
-        } else {
-          return context1.path.localeCompare(context2.path);
-        }
-      })
-      .map(({ context, path }) => {
-        let label = undefined;
-        if (context.project) {
-          label = (
-            <>
-              {path} ({context.project})
-            </>
-          );
-        } else {
-          label = (
-            <>
-              <GlobalContextIcon />
-              &nbsp; {path}
-            </>
-          );
-        }
 
-        return { label, value: path };
-      });
     return (
       <>
         <h1>Client query builder</h1>
@@ -241,17 +185,10 @@ export function QueryBuilder() {
                 <Tooltip id="projects">
                   All features of these projects will be evaluated.
                 </Tooltip>
-                <Select
-                  value={projectOptions?.filter(({ value }) =>
-                    selectedProjects.includes(value)
-                  )}
-                  styles={customStyles}
-                  options={projectOptions}
-                  onChange={(vs) => {
-                    setSelectedProjects(vs.map(({ value }) => value));
+                <ProjectSelector
+                  onChange={(ids) => {
+                    setSelectedProjects(ids);
                   }}
-                  isMulti
-                  isClearable
                 />
               </label>
             </div>
@@ -262,20 +199,9 @@ export function QueryBuilder() {
                   These features will be evaluated, even if their projects are
                   not selected.
                 </Tooltip>
-                <Select
-                  value={featureOptions?.filter(
-                    ({ value }) => value && features.includes(value)
-                  )}
-                  styles={customStyles}
-                  isClearable
-                  isMulti
-                  options={featureOptions}
-                  onChange={(values) => {
-                    setFeatures(
-                      values
-                        .map(({ value }) => value)
-                        .filter((v) => v !== undefined) as string[]
-                    );
+                <FeatureSelector
+                  onChange={(ids) => {
+                    setFeatures(ids.filter((v) => v !== undefined) as string[]);
                   }}
                 />
               </label>
@@ -287,18 +213,14 @@ export function QueryBuilder() {
                   Features will be evaluated for this context, either select or
                   type your context.
                 </Tooltip>
-                <Select
-                  value={allContexts.find(({ value }) => context === value)}
-                  styles={customStyles}
-                  options={allContexts}
+                <AllContexts
                   onChange={(value) => {
                     if (!value) {
                       setContext("");
                     } else {
-                      setContext(value?.value);
+                      setContext(value);
                     }
                   }}
-                  isClearable
                 />
               </label>
             </div>

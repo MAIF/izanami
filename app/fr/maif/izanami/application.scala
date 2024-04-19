@@ -73,6 +73,7 @@ class IzanamiComponentsInstances(
   lazy val sessionAuthAction              = wire[AuthenticatedSessionAction]
   lazy val wasmManagerClient              = wire[WasmManagerClient]
   lazy val clientApiKeyAction             = wire[ClientApiKeyAction]
+  lazy val webhookAuthAction              = wire[WebhookAuthActionFactory]
 
   lazy val featureController        = wire[FeatureController]
   lazy val tenantController         = wire[TenantController]
@@ -87,6 +88,7 @@ class IzanamiComponentsInstances(
   lazy val importController         = wire[ImportController]
   lazy val legacyController         = wire[LegacyController]
   lazy val eventController          = wire[EventController]
+  lazy val webhookController        = wire[WebhookController]
   lazy val frontendController       = wire[FrontendController]
 
   override lazy val assets: Assets = wire[Assets]

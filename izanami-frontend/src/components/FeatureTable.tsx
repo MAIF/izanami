@@ -11,13 +11,14 @@ import {
   TContext,
   TContextOverload,
   TDayOfWeepPeriod,
-  TFeature,
   TFeaturePeriod,
   TFeatureRule,
   THourPeriod,
   TLevel,
+  TLightFeature,
   TUser,
   TWasmConfig,
+  TCompleteFeature,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "react-query";
@@ -192,8 +193,8 @@ export function possiblePaths(contexts: TContext[], path = ""): string[] {
   });
 }
 
-function ScriptDetails({ config }: { config: TWasmConfig }) {
-  return <div>Depends on script {config.name}</div>;
+function ScriptDetails({ config }: { config: string }) {
+  return <div>Depends on script {config}</div>;
 }
 
 function SingleConditionFeatureDetail({ feature }: { feature: LegacyFeature }) {
@@ -305,7 +306,7 @@ function findContextWithOverloadsForFeature(
 function OperationButton(props: {
   tenant: string;
   bulkOperation: string;
-  selectedRows: TFeature[];
+  selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
 }) {
@@ -373,7 +374,7 @@ function OperationButton(props: {
 }
 function OperationTransferForm(props: {
   tenant: string;
-  selectedRows: TFeature[];
+  selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
 }) {
@@ -453,7 +454,7 @@ function OperationTransferForm(props: {
 }
 function OperationTagForm(props: {
   tenant: string;
-  selectedRows: TFeature[];
+  selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
 }) {
@@ -466,7 +467,7 @@ function OperationTagForm(props: {
   const onSelected = (selectedOptions: Option[]) => {
     setSelectedValues(selectedOptions);
   };
-  const OnSubmit = (selectedRows: TFeature[], values: Option[]) => {
+  const OnSubmit = (selectedRows: TLightFeature[], values: Option[]) => {
     askConfirmation(
       `Are you sure to apply ${values.length} tag${
         selectedRows.length > 1 ? "s" : ""
@@ -538,7 +539,7 @@ function OperationTagForm(props: {
 function TransferForm(props: {
   tenant: string;
   project: string;
-  feature: TFeature;
+  feature: TLightFeature;
   cancel: () => void;
 }) {
   const { project, tenant, feature, cancel } = props;
@@ -547,10 +548,13 @@ function TransferForm(props: {
   );
 
   const featureUpdateMutation = useMutation((data: { project: string }) =>
-    updateFeature(tenant!, feature.id!, {
-      ...feature,
-      project: data.project,
-    }).then(() => {
+    patchFeatures(tenant, [
+      {
+        op: "replace",
+        path: `/${feature.id}/project`,
+        value: data.project,
+      },
+    ]).then(() => {
       queryClient.invalidateQueries(projectQueryKey(tenant, project));
     })
   );
@@ -604,10 +608,11 @@ function TransferForm(props: {
     );
   }
 }
+
 function OperationForm(props: {
   tenant: string;
   bulkOperation: string;
-  selectedRows: TFeature[];
+  selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
 }) {
@@ -692,7 +697,7 @@ export function CopyButton(props: { value: any; title?: any }) {
 function FeatureUrl(props: {
   context?: string;
   tenant: string;
-  feature: TFeature;
+  feature: TLightFeature;
 }) {
   const { project } = props.feature;
   const { tenant, context, feature } = props;
@@ -775,7 +780,10 @@ function FeatureUrl(props: {
     return <Loader message="Loading..." />;
   }
 }
-function OverloadTableForFeature(props: { tenant: string; feature: TFeature }) {
+function OverloadTableForFeature(props: {
+  tenant: string;
+  feature: TLightFeature;
+}) {
   const { project, name } = props.feature;
   const { tenant } = props;
   const contextQuery = useQuery(projectContextKey(tenant!, project!), () =>
@@ -804,7 +812,10 @@ function OverloadTableForFeature(props: { tenant: string; feature: TFeature }) {
   }
 }
 
-function OverloadDetails(props: { feature: TFeature; cancel: () => void }) {
+function OverloadDetails(props: {
+  feature: TLightFeature;
+  cancel: () => void;
+}) {
   const [creating, setCreating] = useState(false);
   const { tenant } = useParams();
   const { feature, cancel } = props;
@@ -912,7 +923,7 @@ function OverloadDetails(props: { feature: TFeature; cancel: () => void }) {
   }
 }
 function ExistingFeatureTestForm(props: {
-  feature: TFeature | TContextOverload;
+  feature: TLightFeature | TContextOverload;
   cancel?: () => any;
   context?: string;
 }) {
@@ -1237,7 +1248,7 @@ export function OverloadTable(props: {
   );
 }
 export function FeatureTestForm(props: {
-  feature: TFeature;
+  feature: TCompleteFeature;
   cancel?: () => any;
   noContext?: boolean;
 }) {
@@ -1255,7 +1266,7 @@ export function FeatureTestForm(props: {
     }: {
       date: Date;
       user: string;
-      feature: TFeature;
+      feature: TCompleteFeature;
     }) => testFeature(tenant!, feature, user, date)
   );
 
@@ -1342,7 +1353,7 @@ export function FeatureTestForm(props: {
     </form>
   );
 }
-export function FeatureDetails({ feature }: { feature: TFeature }) {
+export function FeatureDetails({ feature }: { feature: TLightFeature }) {
   if ("wasmConfig" in feature && feature.wasmConfig !== undefined) {
     return (
       <>
@@ -1372,21 +1383,21 @@ export function FeatureDetails({ feature }: { feature: TFeature }) {
   }
 }
 export function FeatureTable(props: {
-  features: TFeature[];
+  features: TLightFeature[];
   fields: FeatureFields[];
-  actions: (t: TFeature) => FeatureActionNames[];
+  actions: (t: TLightFeature) => FeatureActionNames[];
   refresh: () => any;
 }) {
   const { tenant } = useParams();
   const { fields, features, actions, refresh } = props;
-  const [selectedRows, setSelectedRows] = useState<TFeature[]>([]);
+  const [selectedRows, setSelectedRows] = useState<TLightFeature[]>([]);
 
-  const columns: ColumnDef<TFeature>[] = [];
+  const columns: ColumnDef<TLightFeature>[] = [];
 
   const { askConfirmation, user } = React.useContext(IzanamiContext);
 
   const featureUpdateMutation = useMutation(
-    (data: { id: string; feature: TFeature }) =>
+    (data: { id: string; feature: TCompleteFeature }) =>
       updateFeature(tenant!, data.id, data.feature),
     {
       onSuccess: () => {
@@ -1567,17 +1578,17 @@ export function FeatureTable(props: {
     });
   }
 
-  const customActions: { [x: string]: TCustomAction<TFeature> } = {
+  const customActions: { [x: string]: TCustomAction<TLightFeature> } = {
     edit: {
       icon: (
         <>
           <i className="bi bi-pencil-square" aria-hidden></i> Edit
         </>
       ),
-      hasRight: (user: TUser, feature: TFeature) => {
+      hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("edit");
       },
-      customForm: (datum: TFeature, cancel: () => void) => {
+      customForm: (datum: TLightFeature, cancel: () => void) => {
         return (
           <>
             <h4>Edit feature</h4>
@@ -1604,7 +1615,7 @@ export function FeatureTable(props: {
       },
     },
     overloads: {
-      icon: (feature: TFeature) => {
+      icon: (feature: TLightFeature) => {
         return (
           <>
             <i
@@ -1616,10 +1627,10 @@ export function FeatureTable(props: {
           </>
         );
       },
-      hasRight: (user: TUser, feature: TFeature) => {
+      hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("overloads");
       },
-      customForm: (datum: TFeature, cancel: () => void) => {
+      customForm: (datum: TLightFeature, cancel: () => void) => {
         return <OverloadDetails feature={datum} cancel={cancel} />;
       },
     },
@@ -1629,10 +1640,10 @@ export function FeatureTable(props: {
           <i className="bi bi-wrench" aria-hidden></i> Test feature
         </>
       ),
-      hasRight: (user: TUser, feature: TFeature) => {
+      hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("test");
       },
-      customForm: (datum: TFeature, cancel: () => void) => {
+      customForm: (datum: TLightFeature, cancel: () => void) => {
         return (
           <>
             <h4>Test feature</h4>
@@ -1647,10 +1658,10 @@ export function FeatureTable(props: {
           <i className="bi bi-clipboard" aria-hidden></i> Duplicate
         </>
       ),
-      hasRight: (user: TUser, feature: TFeature) => {
+      hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("duplicate");
       },
-      customForm: (datum: TFeature, cancel: () => void) => {
+      customForm: (datum: TLightFeature, cancel: () => void) => {
         return (
           <div className="anim__rightToLeft">
             <h4>Duplicate feature</h4>
@@ -1677,10 +1688,10 @@ export function FeatureTable(props: {
           Transfer
         </>
       ),
-      hasRight: (user: TUser, feature: TFeature) => {
+      hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("transfer");
       },
-      customForm: (datum: TFeature, cancel: () => void) => {
+      customForm: (datum: TLightFeature, cancel: () => void) => {
         return (
           <div className="anim__rightToLeft">
             <h4>Transfer to another project</h4>
@@ -1700,10 +1711,10 @@ export function FeatureTable(props: {
           <i className="bi bi-trash" aria-hidden></i> Delete
         </>
       ),
-      hasRight: (user: TUser, feature: TFeature) => {
+      hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("delete");
       },
-      action: (feature: TFeature) =>
+      action: (feature: TLightFeature) =>
         askConfirmation(
           `Are you sure you want to delete feature ${feature.name} ?`,
           () => featureDeleteMutation.mutateAsync(feature.id!)
@@ -1715,10 +1726,10 @@ export function FeatureTable(props: {
           <i className="bi bi-link-45deg" aria-hidden></i> Url
         </>
       ),
-      hasRight: (user: TUser, feature: TFeature) => {
+      hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("url");
       },
-      action: (feature: TFeature) =>
+      action: (feature: TLightFeature) =>
         askConfirmation(<FeatureUrl tenant={tenant!} feature={feature} />),
     },
   };
@@ -1769,7 +1780,7 @@ export function FeatureTable(props: {
       )}
       <GenericTable
         selectableRows={selectableRows}
-        idAccessor={(datum: TFeature | TContextOverload) => {
+        idAccessor={(datum: TLightFeature | TContextOverload) => {
           return datum.name;
         }}
         columns={columns}
