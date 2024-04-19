@@ -209,7 +209,6 @@ object SMTPMailService {
           transport.sendMessage(msg, msg.getAllRecipients)
         }
       }.toEither.left.map(t => {
-        println(t.getMessage)
         MailSendingError(t.getMessage, 500)
       })
     }

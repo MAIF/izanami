@@ -4,17 +4,23 @@ import AsyncSelect from "react-select/async";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 
+const loadOptions = (
+  inputValue: string,
+  callback: (options: string[]) => void
+) => {
+  fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
+    .then((resp) => resp.json())
+    .then((data) =>
+      callback(data.map((d: string) => ({ label: d, value: d })))
+    );
+};
+
 export function InvitationForm(props: {
   submit: (p: { users: string[]; level: TLevel }) => void;
   cancel: () => void;
-  loadOptions: (
-    inputValue: string,
-    callback: (options: string[]) => void
-  ) => { label: string; value: any }[];
 }) {
   const [selection, setSelection] = useState<string[]>([]);
   const [level, setLevel] = useState<TLevel | undefined>();
-  const { loadOptions } = props;
   return (
     <div className="d-flex flex-column sub_container anim__rightToLeft mb-2">
       <h4>Invite new users</h4>

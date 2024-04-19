@@ -32,11 +32,12 @@
 
 
   <logger name="play" level="INFO" />
+  <logger name="izanami" level="DEBUG" />
   <logger name="application" level="INFO" />
   <logger name="izanami-wasm" level="WARN" />
 
 
-  <root level="INFO">
+  <root level="DEBUG">
     <appender-ref ref="ASYNCFILE" />
     <appender-ref ref="ASYNCSTDOUT" />
   </root>

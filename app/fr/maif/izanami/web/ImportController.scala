@@ -3,7 +3,7 @@ package fr.maif.izanami.web
 import akka.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.models.{AbstractFeature, ApiKey, Feature, RightLevels, UserWithRights, WasmFeature}
+import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, Feature, RightLevels, UserWithRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
@@ -165,7 +165,7 @@ class ImportController (val env: Env,
         val files: Map[String, URI] = request.body.files.map(f => (f.key, f.ref.path.toUri)).toMap
 
         case class MigrationData(
-                                  features: Seq[AbstractFeature] = Seq(),
+                                  features: Seq[CompleteFeature] = Seq(),
                                   users: Seq[UserWithRights] = Seq(),
                                   keys: Seq[ApiKey] = Seq(),
                                   scripts: Seq[OldGlobalScript] = Seq(),
@@ -259,7 +259,7 @@ class ImportController (val env: Env,
                   .flatMap(either => either.toOption).toSeq
                   .flatMap(s => s.map(tuple => tuple._1))
                   .map {
-                    case WasmFeature(id, name, project, enabled, WasmConfig(scriptName, _, _, _, _, _, _, _, _, _, _, _), tags, metadata, description)
+                    case CompleteWasmFeature(id, name, project, enabled, WasmConfig(scriptName, _, _, _, _, _, _, _, _, _, _, _), tags, metadata, description)
                     if !compatibleScripts.exists(s => s.id == scriptName) => Feature(id=id, name=name, project=project, enabled=enabled, tags=tags, metadata=metadata, description=description, conditions=Set())
                     case f@_ => f
                   },
@@ -289,7 +289,7 @@ class ImportController (val env: Env,
                 case Left(err) => ImportFailure(id, Seq(err.message)).future
                 case Right(scriptIds) => {
                   val featureWithCorrectPath = features.map {
-                    case f@WasmFeature(id, name, project, enabled, w@WasmConfig(
+                    case f@CompleteWasmFeature(id, name, project, enabled, w@WasmConfig(
                     scriptName,
                     source,
                     memoryPages,

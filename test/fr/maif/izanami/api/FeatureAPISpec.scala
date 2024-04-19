@@ -1465,7 +1465,7 @@ class FeatureAPISpec extends BaseAPISpec {
 
       situation.createContext("tenant", "project", "local", "global")
 
-      situation.changeFeatureStrategyForContext(
+      val res = situation.changeFeatureStrategyForContext(
         "tenant",
         "project",
         "global",

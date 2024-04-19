@@ -21,7 +21,6 @@ class PluginController(
 
   // TODO authenticate
   def localScripts(tenant: String, features: Boolean) = Action.async { implicit request =>
-    // FIXME json mapping :'(
     if (features) {
       env.datastores.features
         .readLocalScriptsWithAssociatedFeatures(tenant)
@@ -33,6 +32,16 @@ class PluginController(
         .readLocalScripts(tenant)
         .map(configs => Ok(Json.toJson(configs.map(w => Json.toJson(w)(WasmConfig.format)))))
     }
+  }
+
+  def readScript(tenant: String, script: String) = authAction(tenant, RightLevels.Read).async { implicit request =>
+    env.datastores.features
+      .readWasmScript(tenant, script)
+      .map(maybeConfig =>
+        maybeConfig.fold(NotFound(Json.obj("message" -> s"Script $script not found")))(script =>
+          Ok(Json.toJson(script)(WasmConfig.format))
+        )
+      )
   }
 
   def deleteScript(tenant: String, script: String): Action[AnyContent] = authAction(tenant, RightLevels.Write).async {

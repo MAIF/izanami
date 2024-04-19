@@ -15,7 +15,7 @@ import play.api.mvc._
 import javax.crypto.spec.SecretKeySpec
 import scala.concurrent.{ExecutionContext, Future}
 
-  case class ClientKeyRequest[A](request: Request[A], key: ApiKeyWithCompleteRights)       extends WrappedRequest[A](request)
+case class ClientKeyRequest[A](request: Request[A], key: ApiKeyWithCompleteRights)       extends WrappedRequest[A](request)
 case class UserRequestWithCompleteRights[A](request: Request[A], user: UserWithRights)
     extends WrappedRequest[A](request)
 case class UserRequestWithTenantRights[A](request: Request[A], user: UserWithTenantRights)
@@ -23,6 +23,7 @@ case class UserRequestWithTenantRights[A](request: Request[A], user: UserWithTen
 case class UserRequestWithCompleteRightForOneTenant[A](request: Request[A], user: UserWithCompleteRightForOneTenant)
     extends WrappedRequest[A](request)
 case class UserNameRequest[A](request: Request[A], user: String)       extends WrappedRequest[A](request)
+case class HookAndUserNameRequest[A](request: Request[A], user: String, hookName: String) extends WrappedRequest[A](request)
 case class SessionIdRequest[A](request: Request[A], sessionId: String) extends WrappedRequest[A](request)
 
 
@@ -199,12 +200,12 @@ class ProjectAuthAction(
     project: String,
     minimumLevel: RightLevel
 )(implicit ec: ExecutionContext)
-    extends ActionBuilder[Request, AnyContent] {
+    extends ActionBuilder[UserNameRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
+  override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
     extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
@@ -213,12 +214,43 @@ class ProjectAuthAction(
           .flatMap(authorized =>
             authorized.fold(
               err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
-              authorized => {
-                if (authorized) {
-                  block(request)
+              maybeUser => {
+                if (maybeUser.isDefined) {
+                  block(UserNameRequest(request = request, user = maybeUser.get))
                 } else {
                   Future.successful(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
                 }
+              }
+            )
+          )
+      })
+  }
+}
+
+class WebhookAuthAction(
+                     bodyParser: BodyParser[AnyContent],
+                     env: Env,
+                     tenant: String,
+                     webhook: String,
+                     minimumLevel: RightLevel
+                   )(implicit ec: ExecutionContext)
+  extends ActionBuilder[HookAndUserNameRequest, AnyContent] {
+
+  override def parser: BodyParser[AnyContent]               = bodyParser
+  override protected def executionContext: ExecutionContext = ec
+
+  override def invokeBlock[A](request: Request[A], block: HookAndUserNameRequest[A] => Future[Result]): Future[Result] = {
+    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+      .flatMap(claims => claims.subject)
+      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+        env.datastores.users
+          .hasRightForWebhook(subject, tenant, webhook, minimumLevel)
+          .flatMap(authorized =>
+            authorized.fold(
+              err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
+              {
+                case Some((username, hookName)) => block(HookAndUserNameRequest(request = request, user = username, hookName=hookName))
+                case None           => Future.successful(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
               }
             )
           )
@@ -265,6 +297,11 @@ class DetailledRightForTenantFactory(bodyParser: BodyParser[AnyContent], env: En
 class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
   def apply(tenant: String, key: String, minimumLevel: RightLevel): KeyAuthAction =
     new KeyAuthAction(bodyParser, env, tenant, key, minimumLevel)
+}
+
+class WebhookAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
+  def apply(tenant: String, webhook: String, minimumLevel: RightLevel): WebhookAuthAction =
+    new WebhookAuthAction(bodyParser, env, tenant, webhook, minimumLevel)
 }
 
 class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {

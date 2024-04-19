@@ -32,7 +32,7 @@ export interface TenantProjectType extends ProjectInCreationType {
 }
 
 export interface ProjectType extends TenantProjectType {
-  features: TFeature[];
+  features: TLightFeature[];
 }
 
 export interface UserType {
@@ -51,10 +51,28 @@ export interface FeatureInCreation {
   tags?: string[];
 }
 
-export type TFeature = ClassicalFeature | WasmFeature | SingleConditionFeature;
+export type TLightFeature =
+  | ClassicalFeature
+  | LightWasmFeature
+  | SingleConditionFeature;
+
+export type TCompleteFeature =
+  | ClassicalFeature
+  | WasmFeature
+  | SingleConditionFeature;
+
+export function isClassicalFeature(feature: TLightFeature | TCompleteFeature) {
+  const lightF = feature as LightWasmFeature;
+  const completeF = feature as WasmFeature;
+  return (
+    !isLightWasmFeature(lightF) &&
+    !isSingleConditionFeature(feature) &&
+    !isWasmFeature(completeF)
+  );
+}
 
 export function isSingleConditionFeature(
-  feature: TFeature
+  feature: TLightFeature | TCompleteFeature
 ): feature is SingleConditionFeature {
   const f = feature as SingleConditionFeature;
   return f.conditions && !isArray(f.conditions);
@@ -78,7 +96,7 @@ export interface SinglePercentageConditionFeature
 }
 
 export function isSinglePercentageConditionFeature(
-  feature: TFeature
+  feature: TLightFeature | TCompleteFeature
 ): feature is SinglePercentageConditionFeature {
   return (
     (feature as SinglePercentageConditionFeature)?.conditions?.percentage !==
@@ -93,7 +111,7 @@ export interface SingleCustomerConditionFeature extends SingleConditionFeature {
 }
 
 export function isSingleCustomerConditionFeature(
-  feature: TFeature
+  feature: TLightFeature | TCompleteFeature
 ): feature is SingleCustomerConditionFeature {
   return (
     (feature as SingleCustomerConditionFeature)?.conditions?.users !== undefined
@@ -110,7 +128,7 @@ export interface SingleDateRangeConditionFeature
 }
 
 export function isSingleDateRangeConditionFeature(
-  feature: TFeature
+  feature: TLightFeature | TCompleteFeature
 ): feature is SingleDateRangeConditionFeature {
   return (
     (feature as SingleDateRangeConditionFeature)?.conditions?.begin !==
@@ -128,7 +146,7 @@ export interface SingleHourRangeConditionFeature
 }
 
 export function isSingleHourRangeConditionFeature(
-  feature: TFeature
+  feature: TLightFeature | TCompleteFeature
 ): feature is SingleHourRangeConditionFeature {
   const f = feature as SingleHourRangeConditionFeature;
   return (
@@ -143,7 +161,7 @@ export interface SingleNoStrategyConditionFeature
 }
 
 export function isSingleNoStrategyConditionFeature(
-  feature: TFeature
+  feature: TLightFeature | TCompleteFeature
 ): feature is SingleNoStrategyConditionFeature {
   return (
     isSingleConditionFeature(feature) &&
@@ -170,6 +188,16 @@ export interface WasmFeature {
   tags: string[];
   project?: string;
   wasmConfig: TWasmConfig;
+}
+
+export interface LightWasmFeature {
+  id?: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  tags: string[];
+  project?: string;
+  wasmConfig: string;
 }
 
 export interface TWasmConfig {
@@ -244,8 +272,22 @@ export function isUserListRule(rule: TFeatureRule): rule is TUserList {
   return (rule as TUserList).users !== undefined;
 }
 
-export function isWasmFeature(feature: TFeature): feature is WasmFeature {
-  return (feature as WasmFeature).wasmConfig !== undefined;
+export function isWasmFeature(
+  feature: TCompleteFeature
+): feature is WasmFeature {
+  return (
+    (feature as WasmFeature).wasmConfig !== undefined &&
+    typeof (feature as WasmFeature).wasmConfig === "object"
+  );
+}
+
+export function isLightWasmFeature(
+  feature: TLightFeature
+): feature is LightWasmFeature {
+  return (
+    (feature as LightWasmFeature).wasmConfig !== undefined &&
+    typeof (feature as LightWasmFeature).wasmConfig === "string"
+  );
 }
 
 export type TFeatureRule = TPercentageRule | TUserList;
@@ -258,6 +300,10 @@ export interface TKeyRight {
   level: TLevel;
 }
 
+export interface TWebhookRight {
+  level: TLevel;
+}
+
 export interface TTenantRight {
   level: TLevel;
   projects: {
@@ -265,6 +311,9 @@ export interface TTenantRight {
   };
   keys: {
     [key: string]: TKeyRight;
+  };
+  webhooks: {
+    [key: string]: TWebhookRight;
   };
 }
 
@@ -292,6 +341,15 @@ export interface TUser {
   userType: "INTERNAL" | "OIDC" | "OTOROSHI";
   defaultTenant?: string;
   external?: boolean;
+}
+
+export interface TSingleRightForTenantUser {
+  username: string;
+  email: string;
+  admin: boolean;
+  userType: "INTERNAL" | "OIDC" | "OTOROSHI";
+  right: TLevel;
+  tenantAdmin: boolean;
 }
 
 export type Mailer = "Console" | "MailJet" | "MailGun" | "SMTP";
@@ -384,4 +442,40 @@ export interface IzanamiV1ImportRequest {
   zone: string;
   projectPartSize: number;
   inlineScript: boolean;
+}
+
+export interface LightWebhook {
+  name: string;
+  description: string;
+  url: string;
+  features: string[];
+  projects: string[];
+  context: string;
+  user: string;
+  headers: { [x: string]: string };
+  enabled: boolean;
+  bodyTemplate?: string;
+  global: boolean;
+}
+
+export interface Webhook {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  context: string;
+  user: string;
+  features: {
+    id: string;
+    name: string;
+    project: string;
+  }[];
+  projects: {
+    name: string;
+    id: string;
+  }[];
+  headers: { [x: string]: string };
+  enabled: boolean;
+  bodyTemplate?: string;
+  global: boolean;
 }

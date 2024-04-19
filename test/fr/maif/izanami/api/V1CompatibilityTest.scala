@@ -5,18 +5,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.stream.alpakka.sse.scaladsl.EventSource
-import fr.maif.izanami.api.BaseAPISpec.{
-  system,
-  BASE_URL,
-  DATE_TIME_FORMATTER,
-  TestCondition,
-  TestFeature,
-  TestFeaturePatch,
-  TestProject,
-  TestSituationBuilder,
-  TestTenant,
-  TestUserListRule
-}
+import fr.maif.izanami.api.BaseAPISpec.{BASE_URL, DATE_TIME_FORMATTER, TestCondition, TestFeature, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUserListRule, system}
 import fr.maif.izanami.utils.SseSubscriber
 import izanami._
 import izanami.commons.IzanamiException
@@ -30,6 +19,7 @@ import play.api.libs.json.{JsArray, JsBoolean, JsObject, JsTrue, JsValue}
 import java.net.URI
 import java.time.{Duration, LocalDateTime, ZoneId}
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 
@@ -226,13 +216,14 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
+      val uuid = UUID.randomUUID()
       val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
         features = Seq(
-          """{"id":"project:foo:script-feature","enabled":true,"description":"An old style inline script feature","parameters":{"type":"javascript","script":"/**\n * context:  a JSON object containing app specific value \n *           to evaluate the state of the feature\n * enabled:  a callback to mark the feature as active \n *           for this request\n * disabled: a callback to mark the feature as inactive \n *           for this request \n * http:     a http client\n */ \nfunction enabled(context, enabled, disabled, http) {\n  if (context.id === 'benjamin') {\n    return enabled();\n  }\n  return disabled();\n}"},"activationStrategy":"SCRIPT"}""".stripMargin
+          s"""{"id":"project:foo:script-feature$uuid","enabled":true,"description":"An old style inline script feature","parameters":{"type":"javascript","script":"function enabled(context, enabled, disabled, http) {  if (context.id === 'benjamin') {    return enabled();  }  return disabled();}"},"activationStrategy":"SCRIPT"}""".stripMargin
         ),
         keys = Seq(
           s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
@@ -240,7 +231,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val response =
-        situation.readFeatureAsLegacy("project:foo:script-feature", clientId = clientId, clientSecret = clientSecret)
+        situation.readFeatureAsLegacy(s"project:foo:script-feature$uuid", clientId = clientId, clientSecret = clientSecret)
       response.status mustBe OK
 
       val json = response.json.get

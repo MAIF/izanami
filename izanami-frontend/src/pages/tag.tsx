@@ -16,12 +16,12 @@ import {
   tagQueryKey,
   tenantQueryKey,
 } from "../utils/queries";
-import { TFeature, TLevel } from "../utils/types";
+import { TCompleteFeature, TLevel, TLightFeature } from "../utils/types";
 import { FeatureForm } from "../components/FeatureForm";
 import { useFormContext, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import { useParams, NavLink } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Loader } from "../components/Loader";
 
 export function Tag(prop: { tag: string; tenant: string }) {
@@ -77,7 +77,7 @@ export function Tag(prop: { tag: string; tenant: string }) {
         <span>{description}</span>
         {creating && (
           <FeatureForm
-            defaultValue={{ tags: [tag] } as TFeature}
+            defaultValue={{ tags: [tag] } as TLightFeature}
             additionalFields={() => <ProjectInput />}
             submit={(feature) =>
               featureCreateMutation
@@ -102,7 +102,7 @@ function ProjectInput() {
   const tenantQuery = useQuery(tenantQueryKey(tenant!), () =>
     queryTenant(tenant!)
   );
-  const { control } = useFormContext<TFeature>();
+  const { control } = useFormContext<TCompleteFeature>();
 
   if (tenantQuery.isError) {
     return <div>Failed to fetch project</div>;

@@ -78,7 +78,7 @@ sealed trait UserTrait {
   val email: String
   val password: String                           = null
   val admin: Boolean                             = false
-  val userType: UserType = INTERNAL
+  val userType: UserType                         = INTERNAL
   val defaultTenant: Option[String]              = None
   val legacy: Boolean                            = false
   def withRights(rights: Rights): UserWithRights =
@@ -96,11 +96,11 @@ case class User(
 ) extends UserTrait {
   def withSingleLevelRight(level: RightLevel): UserWithSingleLevelRight                                        =
     UserWithSingleLevelRight(username, email, password, admin, userType, level, defaultTenant)
-  def withSingleProjectRightLevel(level: RightLevel, tenantAdmin: Boolean = false): UserWithSingleProjectRight =
-    UserWithSingleProjectRight(username, email, password, admin, userType, level, defaultTenant, tenantAdmin)
+  def withSingleTenantScopedRightLevel(level: RightLevel, tenantAdmin: Boolean = false): UserWithSingleScopedRight =
+    UserWithSingleScopedRight(username, email, password, admin, userType, level, defaultTenant, tenantAdmin)
 }
 
-case class UserWithSingleProjectRight(
+case class UserWithSingleScopedRight(
     override val username: String,
     override val email: String = null,
     override val password: String = null,
@@ -149,6 +149,14 @@ case class UserWithRights(
       )
   }
 
+  def hasAdminRightForWebhook(webhook: String, tenant: String): Boolean = {
+    admin || rights.tenants
+      .get(tenant)
+      .exists(tenantRight =>
+        tenantRight.level == RightLevels.Admin || tenantRight.webhooks.get(webhook).exists(r => r.level == RightLevels.Admin)
+      )
+  }
+
   def hasAdminRightForTenant(tenant: String): Boolean = {
     admin || rights.tenants.get(tenant).exists(tenantRight => tenantRight.level == RightLevels.Admin)
   }
@@ -176,9 +184,13 @@ case class UserWithCompleteRightForOneTenant(
   def hasRightForProject(project: String, level: RightLevel): Boolean = {
     val maybeTenantAdmin = tenantRight.map(t => t.level == RightLevels.Admin)
 
-    admin || maybeTenantAdmin.filter(_ == true).getOrElse(tenantRight
-      .flatMap(tr => tr.projects.get(project))
-      .exists(r => RightLevels.superiorOrEqualLevels(r.level).contains(level)))
+    admin || maybeTenantAdmin
+      .filter(_ == true)
+      .getOrElse(
+        tenantRight
+          .flatMap(tr => tr.projects.get(project))
+          .exists(r => RightLevels.superiorOrEqualLevels(r.level).contains(level))
+      )
   }
 }
 
@@ -187,17 +199,9 @@ case class AtomicRight(level: RightLevel)
 case class TenantRight(
     level: RightLevel,
     projects: Map[String, AtomicRight] = Map(),
-    keys: Map[String, AtomicRight] = Map()
-) {
-  def toRightUnits(): Seq[RightUnit] = {
-    projects
-      .map { case (name, right) => RightUnit(name = name, rightType = RightTypes.Project, rightLevel = right.level) }
-      .concat(keys.map { case (name, right) =>
-        RightUnit(name = name, rightType = RightTypes.Key, rightLevel = right.level)
-      })
-      .toSeq
-  }
-}
+    keys: Map[String, AtomicRight] = Map(),
+    webhooks: Map[String, AtomicRight] = Map()
+)
 
 case class Rights(tenants: Map[String, TenantRight]) {
   def withTenantRight(name: String, level: RightLevel): Rights = {
@@ -229,7 +233,9 @@ object Rights {
       addedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
       removedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
       addedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
-      removedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map()
+      removedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
+      addedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map(),
+      removedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map()
   )
 
   case class TenantRightDiff(
@@ -238,12 +244,15 @@ object Rights {
       addedProjectRights: Set[FlattenProjectRight] = Set(),
       removedProjectRights: Set[FlattenProjectRight] = Set(),
       addedKeyRights: Set[FlattenKeyRight] = Set(),
-      removedKeyRights: Set[FlattenKeyRight] = Set()
+      removedKeyRights: Set[FlattenKeyRight] = Set(),
+      addedWebhookRights: Set[FlattenWebhookRight] = Set(),
+      removedWebhookRights: Set[FlattenWebhookRight] = Set()
   )
   sealed trait FlattenRight
   case class FlattenTenantRight(name: String, level: RightLevel)                  extends FlattenRight
   case class FlattenProjectRight(name: String, tenant: String, level: RightLevel) extends FlattenRight
   case class FlattenKeyRight(name: String, tenant: String, level: RightLevel)     extends FlattenRight
+  case class FlattenWebhookRight(name: String, tenant: String, level: RightLevel) extends FlattenRight
   val EMPTY: Rights = Rights(tenants = Map())
   // TODO refactor me
   def compare(tenantName: String, base: Option[TenantRight], modified: Option[TenantRight]): Option[TenantRightDiff] = {
@@ -259,6 +268,12 @@ object Rights {
       }.toSet
     }
 
+    def flattenWebhooks(tenantRight: TenantRight): Set[FlattenWebhookRight] = {
+      tenantRight.webhooks.map { case (projectName, AtomicRight(level)) =>
+        FlattenWebhookRight(name = projectName, level = level, tenant = tenantName)
+      }.toSet
+    }
+
     (base, modified) match {
       case (None, None)                 => None
       case (Some(existingRights), None) =>
@@ -266,7 +281,8 @@ object Rights {
           TenantRightDiff(
             removedTenantRight = Some(FlattenTenantRight(name = tenantName, level = existingRights.level)),
             removedProjectRights = flattenProjects(existingRights),
-            removedKeyRights = flattenKeys(existingRights)
+            removedKeyRights = flattenKeys(existingRights),
+            removedWebhookRights = flattenWebhooks(existingRights)
           )
         )
       case (None, Some(newRights))      =>
@@ -274,10 +290,11 @@ object Rights {
           TenantRightDiff(
             addedTenantRight = Some(FlattenTenantRight(name = tenantName, level = newRights.level)),
             addedProjectRights = flattenProjects(newRights),
-            addedKeyRights = flattenKeys(newRights)
+            addedKeyRights = flattenKeys(newRights),
+            addedWebhookRights = flattenWebhooks(newRights)
           )
         )
-      case (Some(oldR @ TenantRight(oldLevel, _, _)), Some(newR @ TenantRight(newLevel, _, _)))
+      case (Some(oldR @ TenantRight(oldLevel, _, _, _)), Some(newR @ TenantRight(newLevel, _, _, _)))
           if oldLevel != newLevel => {
         Some(
           TenantRightDiff(
@@ -286,7 +303,9 @@ object Rights {
             addedProjectRights = flattenProjects(newR).diff(flattenProjects(oldR)),
             removedProjectRights = flattenProjects(oldR).diff(flattenProjects(newR)),
             addedKeyRights = flattenKeys(newR).diff(flattenKeys(oldR)),
-            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR))
+            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR)),
+            addedWebhookRights = flattenWebhooks(newR).diff(flattenWebhooks(oldR)),
+            removedWebhookRights = flattenWebhooks(oldR).diff(flattenWebhooks(newR))
           )
         )
       }
@@ -296,7 +315,9 @@ object Rights {
             addedProjectRights = flattenProjects(newR).diff(flattenProjects(oldR)),
             removedProjectRights = flattenProjects(oldR).diff(flattenProjects(newR)),
             addedKeyRights = flattenKeys(newR).diff(flattenKeys(oldR)),
-            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR))
+            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR)),
+            addedWebhookRights = flattenWebhooks(newR).diff(flattenWebhooks(oldR)),
+            removedWebhookRights = flattenWebhooks(oldR).diff(flattenWebhooks(newR))
           )
         )
       }
@@ -306,10 +327,11 @@ object Rights {
   def compare(base: Rights, modified: Rights): RightDiff = {
     def extractFlattenRights(
         rights: Rights
-    ): (Set[FlattenTenantRight], Set[FlattenProjectRight], Set[FlattenKeyRight]) = {
+    ): (Set[FlattenTenantRight], Set[FlattenProjectRight], Set[FlattenKeyRight], Set[FlattenWebhookRight]) = {
       val tenants  = ArrayBuffer[FlattenTenantRight]()
       val projects = ArrayBuffer[FlattenProjectRight]()
       val keys     = ArrayBuffer[FlattenKeyRight]()
+      val webhooks = ArrayBuffer[FlattenWebhookRight]()
       rights.tenants.foreach {
         case (tenantName, tenantRights) => {
           tenants.addOne(FlattenTenantRight(name = tenantName, level = tenantRights.level))
@@ -323,14 +345,18 @@ object Rights {
           keys.addAll(tenantRights.keys.map { case (keyName, level) =>
             FlattenKeyRight(name = keyName, tenant = tenantName, level = level.level)
           })
+
+          webhooks.addAll(tenantRights.webhooks.map { case (keyName, level) =>
+            FlattenWebhookRight(name = keyName, tenant = tenantName, level = level.level)
+          })
         }
       }
 
-      (tenants.toSet, projects.toSet, keys.toSet)
+      (tenants.toSet, projects.toSet, keys.toSet, webhooks.toSet)
     }
 
-    val (baseTenantRights, baseProjectRights, baseKeyRights) = extractFlattenRights(base)
-    val (newTenantRights, newProjectRights, newKeyRights)    = extractFlattenRights(modified)
+    val (baseTenantRights, baseProjectRights, baseKeyRights, basedWebhookRights) = extractFlattenRights(base)
+    val (newTenantRights, newProjectRights, newKeyRights, newWebhookRights)      = extractFlattenRights(modified)
 
     RightDiff(
       addedTenantRights = newTenantRights.diff(baseTenantRights).toSeq,
@@ -338,7 +364,9 @@ object Rights {
       addedProjectRights = newProjectRights.diff(baseProjectRights).toSeq.groupBy(_.tenant),
       removedProjectRights = baseProjectRights.diff(newProjectRights).toSeq.groupBy(_.tenant),
       addedKeyRights = newKeyRights.diff(baseKeyRights).toSeq.groupBy(_.tenant),
-      removedKeyRights = baseKeyRights.diff(newKeyRights).toSeq.groupBy(_.tenant)
+      removedKeyRights = baseKeyRights.diff(newKeyRights).toSeq.groupBy(_.tenant),
+      addedWebhookRights = newWebhookRights.diff(basedWebhookRights).toSeq.groupBy(_.tenant),
+      removedWebhookRights = basedWebhookRights.diff(newWebhookRights).toSeq.groupBy(_.tenant)
     )
   }
 }
@@ -360,7 +388,8 @@ object User {
   implicit val tenantRightReads: Reads[TenantRight] = (
     (__ \ "level").read[RightLevel] and
       (__ \ "projects").readWithDefault[Map[String, AtomicRight]](Map()) and
-      (__ \ "keys").readWithDefault[Map[String, AtomicRight]](Map())
+      (__ \ "keys").readWithDefault[Map[String, AtomicRight]](Map()) and
+      (__ \ "webhooks").readWithDefault[Map[String, AtomicRight]](Map())
   )(TenantRight.apply _)
 
   implicit val rightsReads: Reads[Rights] =
@@ -370,7 +399,8 @@ object User {
     Json.obj(
       "level"    -> tenantRight.level.toString,
       "projects" -> tenantRight.projects,
-      "keys"     -> tenantRight.keys
+      "keys"     -> tenantRight.keys,
+      "webhooks" -> tenantRight.webhooks
     )
   }
 
@@ -415,7 +445,7 @@ object User {
     }
   }
 
-  implicit val userWithSingleProjectRightWrites: Writes[UserWithSingleProjectRight] = { user =>
+  implicit val userWithSingleProjectRightWrites: Writes[UserWithSingleScopedRight] = { user =>
     {
       Json
         .obj(
@@ -445,8 +475,8 @@ object User {
     (json.asOpt[String].map(_.toUpperCase) flatMap {
       case "OTOROSHI" => OTOROSHI.some
       case "INTERNAL" => INTERNAL.some
-      case "OIDC" =>  OIDC.some
-      case _ => None
+      case "OIDC"     => OIDC.some
+      case _          => None
     }).map(JsSuccess(_)).getOrElse(JsError(s"Unknown user type ${json}"))
   }
 

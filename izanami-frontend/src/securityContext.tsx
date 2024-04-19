@@ -163,6 +163,26 @@ export function hasRightForKey(
   );
 }
 
+export function hasRightForWebhook(
+  user: TUser,
+  level: TLevel,
+  webhook: string,
+  tenant: string
+): boolean {
+  if (user.admin) {
+    return true;
+  }
+  const tenantRight = user?.rights?.tenants?.[tenant];
+  if (!tenantRight) {
+    return false;
+  }
+
+  return (
+    tenantRight.level === TLevel.Admin ||
+    isRightAbove(tenantRight?.webhooks?.[webhook]?.level, level)
+  );
+}
+
 export function findProjectRight(
   rights: TRights,
   tenant: string,

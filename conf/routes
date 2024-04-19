@@ -85,6 +85,7 @@ PUT           /api/admin/configuration/mailer/:id                               
 
 GET           /api/admin/plugins                                                                   fr.maif.izanami.web.PluginController.wasmFiles()
 GET           /api/admin/tenants/:tenant/local-scripts                                             fr.maif.izanami.web.PluginController.localScripts(tenant: String, features: Boolean ?= false)
+GET           /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.readScript(tenant: String, script: String)
 PUT           /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.updateScript(tenant: String, script: String)
 DELETE        /api/admin/local-scripts/_cache                                                      fr.maif.izanami.web.PluginController.clearWasmCache()
 DELETE        /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.deleteScript(tenant: String, script: String)
@@ -95,6 +96,14 @@ DELETE        /api/admin/tenants/:tenant/_import/:id                            
 
 GET           /api/admin/stats                                                                     fr.maif.izanami.web.ConfigurationController.readStats()
 DELETE        /api/admin/sse                                                                       fr.maif.izanami.web.EventController.killAllSources()
+
+POST          /api/admin/tenants/:tenant/webhooks                                                  fr.maif.izanami.web.WebhookController.createWebhook(tenant: String)
+GET           /api/admin/tenants/:tenant/webhooks                                                  fr.maif.izanami.web.WebhookController.listWebhooks(tenant: String)
+DELETE        /api/admin/tenants/:tenant/webhooks/:id                                              fr.maif.izanami.web.WebhookController.deleteWebhook(tenant: String, id: String)
+PUT           /api/admin/tenants/:tenant/webhooks/:id                                              fr.maif.izanami.web.WebhookController.updateWebhook(tenant: String, id: String)
+GET           /api/admin/tenants/:tenant/webhooks/:id/users                                        fr.maif.izanami.web.UserController.readUsersForWebhook(tenant: String, id: String)
+PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights                      fr.maif.izanami.web.UserController.updateUserRightsForWebhook(tenant: String, webhook: String, user: String)
+
 
 # Client application endpoints
 GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
