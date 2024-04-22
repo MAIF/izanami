@@ -61,6 +61,10 @@ header .nav-link {
   margin-Bottom: 24px;
 }
 
+.form-margin {
+  margin-Top: -10px;
+}
+
 #swagger-ui {
   background-color: white;
   position: absolute;

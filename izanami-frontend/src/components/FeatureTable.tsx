@@ -30,10 +30,12 @@ import {
   projectQueryKey,
   queryContextsForProject,
   queryTenant,
+  tagsQueryKey,
   tenantQueryKey,
   testExistingFeature,
   testFeature,
   updateFeature,
+  queryTags,
   updateFeatureActivationForContext,
 } from "../utils/queries";
 import {
@@ -56,7 +58,35 @@ import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
 import { Form } from "@maif/react-forms";
 import { Loader } from "./Loader";
+import MultiSelect, { Option } from "./MultiSelect";
+import { features } from "process";
 
+type FeatureFields =
+  | "id"
+  | "name"
+  | "tags"
+  | "enabled"
+  | "details"
+  | "project"
+  | "overloadCount";
+
+type OverloadFields = "name" | "enabled" | "details" | "path" | "linkedPath";
+
+type OverloadActionNames = "delete" | "edit" | "test";
+
+type FeatureActionNames =
+  | "delete"
+  | "edit"
+  | "test"
+  | "overloads"
+  | "duplicate"
+  | "transfer"
+  | "url";
+interface FeatureTestType {
+  user?: string;
+  date: Date;
+  context?: string;
+}
 export const Strategy = {
   all: { id: "All", label: "All" },
   percentage: { id: "Percentage", label: "Percentage" },
@@ -67,6 +97,18 @@ export const FeatureType = {
   script: { value: "Script", label: "Scripted feature" },
   classical: { value: "Classical", label: "Classical feature" },
 } as const;
+
+const BULK_OPERATIONS = [
+  "Enable",
+  "Disable",
+  "Delete",
+  "Transfer",
+  "Apply Tags",
+] as const;
+
+export function isAString(variable: any) {
+  return typeof variable === "string" || variable instanceof String;
+}
 
 function days(days: TDayOfWeepPeriod): string {
   return `on ${days.days
@@ -138,35 +180,17 @@ function Rule(props: { rule: TFeatureRule }): JSX.Element {
     return <>For all users</>;
   }
 }
-
-export function FeatureDetails({ feature }: { feature: TFeature }) {
-  if ("wasmConfig" in feature && feature.wasmConfig !== undefined) {
-    return (
-      <>
-        {feature.description && <div>{feature.description}</div>}
-        <ScriptDetails config={feature.wasmConfig} />
-      </>
-    );
-  } else if (isSingleConditionFeature(feature)) {
-    return (
-      <>
-        {feature.description && <div>{feature.description}</div>}
-        <div className="fw-semibold">Active : </div>
-        <SingleConditionFeatureDetail
-          feature={toLegacyFeatureFormat(feature)}
-        />
-      </>
-    );
-  } else {
-    return (
-      <>
-        {feature.description && <div>{feature.description}</div>}
-        <ConditionDetails
-          conditions={(feature as ClassicalFeature).conditions}
-        />
-      </>
-    );
-  }
+export function possiblePaths(contexts: TContext[], path = ""): string[] {
+  return contexts.flatMap((ctx) => {
+    if (ctx.children) {
+      return [
+        ...possiblePaths(ctx.children, path + "/" + ctx.name),
+        path + "/" + ctx.name,
+      ];
+    } else {
+      return [];
+    }
+  });
 }
 
 function ScriptDetails({ config }: { config: TWasmConfig }) {
@@ -236,10 +260,6 @@ function ConditionDetails({ conditions }: { conditions: TCondition[] }) {
   );
 }
 
-export function isAString(variable: any) {
-  return typeof variable === "string" || variable instanceof String;
-}
-
 function findOverloadsForFeature(
   name: string,
   contexts: TContext[],
@@ -283,29 +303,328 @@ function findContextWithOverloadsForFeature(
   });
 }
 
-type FeatureFields =
-  | "id"
-  | "name"
-  | "tags"
-  | "enabled"
-  | "details"
-  | "project"
-  | "overloadCount";
+function OperationButton(props: {
+  tenant: string;
+  bulkOperation: string;
+  selectedRows: TFeature[];
+  cancel: () => void;
+  refresh: () => any;
+}) {
+  const { tenant, bulkOperation, selectedRows, cancel, refresh } = props;
+  const hasSelectedRows = selectedRows.length > 0;
+  const { askConfirmation } = React.useContext(IzanamiContext);
+  return (
+    <>
+      <button
+        className="ms-2 btn btn-primary"
+        type="button"
+        disabled={!hasSelectedRows || !bulkOperation}
+        onClick={() => {
+          switch (bulkOperation) {
+            case "Delete":
+              askConfirmation(
+                `Are you sure you want to delete ${
+                  selectedRows.length
+                } feature${selectedRows.length > 1 ? "s" : ""} ?`,
+                () => {
+                  return patchFeatures(
+                    tenant!,
+                    selectedRows.map((f) => ({
+                      op: "remove",
+                      path: `/${f.id}`,
+                    }))
+                  ).then(() => refresh());
+                }
+              );
+              break;
+            case "Enable":
+              patchFeatures(
+                tenant!,
+                selectedRows.map((f) => ({
+                  op: "replace",
+                  path: `/${f.id}/enabled`,
+                  value: true,
+                }))
+              )
+                .then(() => refresh())
+                .then(() => {
+                  cancel();
+                });
+              break;
+            case "Disable":
+              patchFeatures(
+                tenant!,
+                selectedRows.map((f) => ({
+                  op: "replace",
+                  path: `/${f.id}/enabled`,
+                  value: false,
+                }))
+              )
+                .then(() => refresh())
+                .then(() => cancel());
+              break;
+          }
+        }}
+      >
+        {bulkOperation} {selectedRows.length} feature
+        {selectedRows.length > 1 ? "s" : ""}
+      </button>
+    </>
+  );
+}
+function OperationTransferForm(props: {
+  tenant: string;
+  selectedRows: TFeature[];
+  cancel: () => void;
+  refresh: () => any;
+}) {
+  const { tenant, selectedRows, cancel, refresh } = props;
+  const selectedRowProjects = selectedRows.map((f) => f.project);
+  const selectedRowProject = selectedRowProjects.filter(
+    (q, idx) => selectedRowProjects.indexOf(q) === idx
+  );
 
-type OverloadFields = "name" | "enabled" | "details" | "path" | "linkedPath";
+  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
+    queryTenant(tenant)
+  );
+  const { askConfirmation } = React.useContext(IzanamiContext);
 
-type OverloadActionNames = "delete" | "edit" | "test";
+  if (projectQuery.isLoading) {
+    return <Loader message="Loading projects..." />;
+  } else if (projectQuery.error) {
+    return <div className="error">Failed to load projects</div>;
+  } else {
+    return (
+      <Form
+        className={"d-flex align-items-center"}
+        schema={{
+          project: {
+            className: "form-margin",
+            label: null,
+            type: "string",
+            format: "select",
+            props: { styles: customStyles },
+            defaultValue: "Select target project...",
+            options: projectQuery.data?.projects
+              ?.filter(({ name }) => selectedRowProject.indexOf(name) === -1)
+              ?.map(({ name }) => ({
+                label: name,
+                value: name,
+              })),
+          },
+        }}
+        onSubmit={(data: { project: string }) => {
+          askConfirmation(
+            `Transferring ${selectedRows.length} feature${
+              selectedRows.length > 1 ? "s" : ""
+            }  will delete existing local overloads (if any), are you sure ?`,
+            () =>
+              patchFeatures(
+                tenant!,
+                selectedRows.map((f) => ({
+                  op: "replace",
+                  path: `/${f.id}/project`,
+                  value: data.project,
+                }))
+              )
+                .then(refresh)
+                .then(cancel)
+          );
+        }}
+        footer={({ valid }: { valid: () => void }) => {
+          return (
+            <button className="btn btn-primary m-2" onClick={valid}>
+              Transfer {selectedRows.length} feature
+              {selectedRows.length > 1 ? "s" : ""}
+            </button>
+          );
+        }}
+      />
+    );
+  }
+}
+function OperationTagForm(props: {
+  tenant: string;
+  selectedRows: TFeature[];
+  cancel: () => void;
+  refresh: () => any;
+}) {
+  const { tenant, selectedRows, cancel, refresh } = props;
+  const tagsQuery = useQuery(tagsQueryKey(tenant), () => queryTags(tenant));
+  const selectedRowTags = [...new Set(selectedRows.flatMap((f) => f.tags))];
+  const { askConfirmation } = React.useContext(IzanamiContext);
+  const [values, setSelectedValues] = React.useState<Option[] | null>();
 
-type FeatureActionNames =
-  | "delete"
-  | "edit"
-  | "test"
-  | "overloads"
-  | "duplicate"
-  | "transfer"
-  | "url";
+  const onChange = (selectedOptions: Option[]) => {
+    setSelectedValues(selectedOptions);
+  };
+  const OnSubmit = (selectedRows: TFeature[], values: Option[]) => {
+    askConfirmation(
+      `Are you sure to apply ${values.length} tag${
+        selectedRows.length > 1 ? "s" : ""
+      } on ${selectedRows.length} feature${
+        selectedRows.length > 1 ? "s" : ""
+      }?`,
+      () =>
+        patchFeatures(
+          tenant!,
+          selectedRows.map((f) => ({
+            op: "replace",
+            path: `/${f.id}/tags`,
+            value: [...new Set(values.map((value) => value.value))],
+          }))
+        )
+          .then(refresh)
+          .then(cancel)
+    );
+  };
+  if (tagsQuery.isLoading) {
+    return <Loader message="Loading tags..." />;
+  } else if (tagsQuery.error) {
+    return <div className="error">Failed to load tags</div>;
+  } else {
+    return (
+      <>
+        {tagsQuery.data && (
+          <>
+            <MultiSelect
+              options={tagsQuery.data.map(({ name }) => ({
+                label: name,
+                value: name,
+                state: selectedRowTags.includes(name),
+              }))}
+              value={values}
+              defaultValue={tagsQuery.data
+                .map(({ name }) => ({
+                  label: name,
+                  value: name,
+                  state: selectedRowTags.includes(name),
+                }))
+                .filter((f) => f.state)}
+              onChange={onChange}
+              placeholder={"Select tags..."}
+            />
+            <button
+              className="btn btn-primary m-2"
+              onClick={() => OnSubmit(selectedRows, values!)}
+            >
+              Update {selectedRows.length} feature
+              {selectedRows.length > 1 ? "s" : ""}
+            </button>
+          </>
+        )}
+      </>
+    );
+  }
+}
+function TransferForm(props: {
+  tenant: string;
+  project: string;
+  feature: TFeature;
+  cancel: () => void;
+}) {
+  const { project, tenant, feature, cancel } = props;
+  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
+    queryTenant(tenant)
+  );
 
-const BULK_OPERATIONS = ["Enable", "Disable", "Delete", "Transfer"] as const;
+  const featureUpdateMutation = useMutation((data: { project: string }) =>
+    updateFeature(tenant!, feature.id!, {
+      ...feature,
+      project: data.project,
+    }).then(() => {
+      queryClient.invalidateQueries(projectQueryKey(tenant, project));
+    })
+  );
+
+  const { askConfirmation } = React.useContext(IzanamiContext);
+
+  if (projectQuery.isLoading) {
+    return <Loader message="Loading projects..." />;
+  } else if (projectQuery.error) {
+    return <div className="error">Failed to load projects</div>;
+  } else {
+    return (
+      <Form
+        schema={{
+          project: {
+            label: "Target project",
+            type: "string",
+            format: "select",
+            props: { "aria-label": "projects", styles: customStyles },
+            options: projectQuery.data?.projects
+              ?.filter(({ name }) => name !== project)
+              ?.map(({ name }) => ({
+                label: name,
+                value: name,
+              })),
+          },
+        }}
+        onSubmit={(data) => {
+          askConfirmation(
+            "Transferring this feature will delete existing local overloads (if any), are you sure ?",
+            () => featureUpdateMutation.mutateAsync(data as any)
+          );
+        }}
+        footer={({ valid }: { valid: () => void }) => {
+          return (
+            <div className="d-flex justify-content-end">
+              <button
+                type="button"
+                className="btn btn-danger m-2"
+                onClick={() => cancel()}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-success m-2" onClick={valid}>
+                Transfer feature
+              </button>
+            </div>
+          );
+        }}
+      />
+    );
+  }
+}
+function OperationForm(props: {
+  tenant: string;
+  bulkOperation: string;
+  selectedRows: TFeature[];
+  cancel: () => void;
+  refresh: () => any;
+}) {
+  const { tenant, bulkOperation, selectedRows, cancel, refresh } = props;
+  switch (bulkOperation) {
+    case "Transfer":
+      return (
+        <OperationTransferForm
+          tenant={tenant!}
+          selectedRows={selectedRows}
+          cancel={cancel}
+          refresh={refresh}
+        />
+      );
+    case "Apply Tags":
+      return (
+        <OperationTagForm
+          tenant={tenant!}
+          selectedRows={selectedRows}
+          cancel={cancel}
+          refresh={refresh}
+        />
+      );
+    default:
+      return (
+        <OperationButton
+          tenant={tenant!}
+          bulkOperation={bulkOperation}
+          selectedRows={selectedRows}
+          cancel={cancel}
+          refresh={refresh}
+        />
+      );
+  }
+}
 
 function CopyButton(props: { value: any }) {
   const [validCheckMark, setValidCheckmark] = React.useState<boolean>(false);
@@ -346,6 +665,688 @@ function CopyButton(props: { value: any }) {
   );
 }
 
+function FeatureUrl(props: {
+  context?: string;
+  tenant: string;
+  feature: TFeature;
+}) {
+  const { project } = props.feature;
+  const { tenant, context, feature } = props;
+  const contextQuery = useQuery(projectContextKey(tenant!, project!), () =>
+    queryContextsForProject(tenant!, project!)
+  );
+  const [selectedContext, setSelectedContext] = useState(context);
+
+  const { expositionUrl } = React.useContext(IzanamiContext);
+
+  const url = `${
+    expositionUrl ? expositionUrl : "<BASE-IZANAMI-URL>"
+  }/api/v2/features/${feature.id}${
+    selectedContext ? "?context=" + encodeURIComponent(selectedContext) : ""
+  }`;
+
+  if (contextQuery.error) {
+    return <div>Failed to fetch contexts</div>;
+  } else if (contextQuery.data) {
+    const allContexts = possiblePaths(contextQuery.data);
+
+    return (
+      <>
+        <div>
+          <h5>Client link for {feature.name}</h5>
+          <span>
+            To craft more complete client queries, use{" "}
+            <a href={`/tenants/${tenant}/query-builder`}>the query builder</a>.
+          </span>
+          <label style={{ width: "100%" }}>
+            Context (optional)
+            <Select
+              defaultValue={
+                context ? { label: context, value: context } : undefined
+              }
+              onChange={(e) => {
+                setSelectedContext(e?.value);
+              }}
+              styles={customStyles}
+              options={allContexts
+                .map((c) => c.substring(1))
+                .sort()
+                .map((c) => ({ value: c, label: c }))}
+              isClearable
+            />
+          </label>
+        </div>
+        <div className="mt-3">
+          <label htmlFor="url">
+            Feature <b>{feature.name}</b> url{" "}
+            {`${selectedContext ? "for context " + selectedContext + " " : ""}`}
+            is
+          </label>
+        </div>
+        <div className="input-group mb-3">
+          <input
+            name="url"
+            type="text"
+            className="form-control"
+            placeholder="Recipient's username"
+            aria-label="Recipient's username"
+            aria-describedby="basic-addon2"
+            value={url}
+          />
+          <div className="ms-2 input-group-append">
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(url);
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  } else {
+    return <Loader message="Loading..." />;
+  }
+}
+function OverloadTableForFeature(props: { tenant: string; feature: TFeature }) {
+  const { project, name } = props.feature;
+  const { tenant } = props;
+  const contextQuery = useQuery(projectContextKey(tenant!, project!), () =>
+    queryContextsForProject(tenant!, project!)
+  );
+
+  const hasModificationRight = useProjectRight(tenant, project, TLevel.Write);
+
+  if (contextQuery.isError) {
+    return <div>Failed to fetch overloads</div>;
+  } else if (contextQuery.data) {
+    const overloads = findOverloadsForFeature(name, contextQuery.data);
+    return (
+      <OverloadTable
+        overloads={overloads}
+        project={project!}
+        refresh={() =>
+          queryClient.invalidateQueries(projectContextKey(tenant!, project!))
+        }
+        fields={["linkedPath", "name", "enabled", "details"]}
+        actions={() => (hasModificationRight ? ["edit", "delete"] : [])}
+      />
+    );
+  } else {
+    return <Loader message="Loading..." />;
+  }
+}
+
+function OverloadDetails(props: { feature: TFeature; cancel: () => void }) {
+  const [creating, setCreating] = useState(false);
+  const { tenant } = useParams();
+  const { feature, cancel } = props;
+  const contextQuery = useQuery(
+    projectContextKey(tenant!, feature.project!),
+    () => queryContextsForProject(tenant!, feature.project!)
+  );
+  const updateStrategyMutation = useMutation(
+    (data: {
+      enabled: boolean;
+      conditions?: TCondition[];
+      feature: string;
+      path: string;
+      wasm?: TWasmConfig;
+      project: string;
+    }) => {
+      return updateFeatureActivationForContext(
+        tenant!,
+        data.project,
+        data.path,
+        data.feature,
+        data.enabled,
+        data.conditions,
+        data.wasm
+      );
+    },
+    {
+      onSuccess: () =>
+        queryClient.invalidateQueries(
+          projectContextKey(tenant!, feature.project!)
+        ),
+    }
+  );
+  const [selectedContext, selectContext] = useState<string>();
+
+  if (contextQuery.error) {
+    return <div>Failed to fetch contexts</div>;
+  } else if (contextQuery.data) {
+    const allContexts = possiblePaths(contextQuery.data);
+    const excluded = findContextWithOverloadsForFeature(
+      feature.name,
+      contextQuery.data
+    );
+
+    return (
+      <>
+        <h4>
+          Feature overloads{" "}
+          <button
+            className="btn btn-primary btn-sm mb-2 ms-3"
+            type="button"
+            onClick={() => setCreating(true)}
+          >
+            Create new overload
+          </button>
+        </h4>
+        {creating && (
+          <OverloadCreationForm
+            submit={(overload) =>
+              updateStrategyMutation
+                .mutateAsync({
+                  enabled: overload.enabled,
+                  conditions: overload.conditions,
+                  feature: feature.name,
+                  path: selectedContext as string,
+                  wasm: overload.wasmConfig,
+                  project: feature.project!,
+                })
+                .then(() => setCreating(false))
+            }
+            project={feature.project!}
+            cancel={() => setCreating(false)}
+            defaultValue={feature as TContextOverload}
+            noName
+            additionalFields={() => (
+              <label className="mt-3">
+                Context
+                <Select
+                  styles={customStyles}
+                  options={allContexts
+                    .filter((ctx) => !excluded.includes(ctx))
+                    .map((c) => c.substring(1))
+                    .sort()
+                    .map((c) => ({ value: c, label: c }))}
+                  onChange={(e) => selectContext(e?.value)}
+                />
+              </label>
+            )}
+          />
+        )}
+        <OverloadTableForFeature feature={feature} tenant={tenant!} />
+        <div className="d-flex justify-content-end">
+          <button
+            type="button"
+            className="btn btn-danger m-2"
+            onClick={() => cancel()}
+          >
+            Close
+          </button>
+        </div>
+      </>
+    );
+  } else {
+    return <Loader message="Loading..." />;
+  }
+}
+function ExistingFeatureTestForm(props: {
+  feature: TFeature | TContextOverload;
+  cancel?: () => any;
+  context?: string;
+}) {
+  const { control, register, handleSubmit } = useForm<FeatureTestType>();
+  const { feature } = props;
+
+  const [message, setMessage] = useState<string | undefined>(undefined);
+  const { tenant } = useParams();
+
+  const contextQuery = useQuery(
+    projectContextKey(tenant!, feature.project!),
+    () => queryContextsForProject(tenant!, feature.project!)
+  );
+
+  const featureTestMutation = useMutation(
+    ({ context, user, date }: { date: Date; user: string; context: string }) =>
+      testExistingFeature(tenant!, feature.id!, date, context ?? "", user ?? "")
+  );
+
+  if (contextQuery.error) {
+    return <div>Error while fetching contexts</div>;
+  } else if (contextQuery.data) {
+    const allContexts = possiblePaths(contextQuery.data);
+    return (
+      <form
+        onSubmit={handleSubmit(({ user, date, context }) => {
+          setMessage("");
+          featureTestMutation
+            .mutateAsync({
+              context: context ?? "",
+              user: user ?? "",
+              date,
+            })
+            .then(({ active }) => {
+              setMessage(
+                `${feature.name} would be ${
+                  active ? "active" : "inactive"
+                } on ${format(date, "yyyy-MM-dd")}${
+                  user ? ` for user ${user}` : ""
+                }${context ? ` for context ${context}` : ""}`
+              );
+            });
+        })}
+        className="d-flex flex-column"
+      >
+        <label className="mt-3">
+          Context
+          <Controller
+            name={`context`}
+            control={control}
+            defaultValue={props.context ?? ""}
+            render={({ field: { onChange, value } }) => (
+              <Select
+                value={{ label: value, value }}
+                onChange={(e) => {
+                  onChange(e?.value);
+                }}
+                styles={customStyles}
+                options={allContexts
+                  .map((c) => c.substring(1))
+                  .sort()
+                  .map((c) => ({ value: c, label: c }))}
+                isClearable
+              />
+            )}
+          />
+        </label>
+        <label className="mt-3 col-2">
+          Date
+          <Controller
+            name="date"
+            defaultValue={new Date()}
+            control={control}
+            render={({ field: { onChange, value } }) => {
+              return (
+                <input
+                  className="form-control"
+                  defaultValue={format(new Date(), "yyyy-MM-dd")}
+                  value={value ? format(value, "yyyy-MM-dd") : ""}
+                  onChange={(e) => {
+                    onChange(parse(e.target.value, "yyyy-MM-dd", new Date()));
+                  }}
+                  type="date"
+                />
+              );
+            }}
+          />
+        </label>
+        <label className="mt-3">
+          User
+          <input
+            type="text"
+            className="form-control"
+            {...register("user")}
+          ></input>
+        </label>
+        {message && (
+          <div className="d-flex justify-content-end">
+            <output className="m-2 py-1 px-3 anim__highlighter">
+              {message}
+            </output>
+          </div>
+        )}
+        <div className="d-flex justify-content-end">
+          {props.cancel && (
+            <button
+              type="button"
+              className="btn btn-danger m-2"
+              onClick={() => props.cancel?.()}
+            >
+              Cancel
+            </button>
+          )}
+          <button type="submit" className="btn btn-success m-2">
+            Test feature
+          </button>
+        </div>
+      </form>
+    );
+  } else {
+    return <Loader message="Loading..." />;
+  }
+}
+
+export function OverloadTable(props: {
+  project?: string;
+  overloads: TContextOverload[];
+  fields: OverloadFields[];
+  actions: (t: TContextOverload) => OverloadActionNames[];
+  refresh: () => any;
+}) {
+  const { tenant } = useParams();
+  const { fields, overloads, actions, refresh, project } = props;
+  const columns: ColumnDef<TContextOverload>[] = [];
+  const updateStrategyMutation = useMutation(
+    (data: {
+      enabled: boolean;
+      conditions?: TCondition[];
+      feature: string;
+      path: string;
+      wasm?: TWasmConfig;
+      project: string;
+    }) => {
+      return updateFeatureActivationForContext(
+        tenant!,
+        data.project,
+        data.path,
+        data.feature,
+        data.enabled,
+        data.conditions,
+        data.wasm
+      );
+    },
+    {
+      onSuccess: () => {
+        refresh();
+      },
+    }
+  );
+
+  const deleteStrategyMutation = useMutation(
+    (data: { feature: string; path: string; project: string }) =>
+      deleteFeatureActivationForContext(
+        tenant!,
+        data.project, // TODO this should not be necessary
+        data.path,
+        data.feature
+      ),
+    {
+      onSuccess: () => {
+        refresh();
+      },
+    }
+  );
+
+  const { askConfirmation } = React.useContext(IzanamiContext);
+
+  const hasPath = fields.includes("path");
+  const hasLinkedPath = fields.includes("linkedPath");
+  if (hasPath || hasLinkedPath) {
+    columns.push({
+      accessorKey: "path",
+      header: () => "Overload path",
+      cell: (info: any) =>
+        hasLinkedPath ? (
+          <a
+            href={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
+          >
+            {info.getValue()}
+          </a>
+        ) : (
+          info.getValue()
+        ),
+      minSize: 350,
+      size: 15,
+    });
+  }
+  if (fields.includes("name")) {
+    columns.push({
+      accessorKey: "name",
+      header: () => "Feature name",
+      minSize: 150,
+      size: 15,
+    });
+  }
+  if (fields.includes("enabled")) {
+    columns.push({
+      accessorKey: "enabled",
+      header: () => "Enabled",
+      cell: (info: any) =>
+        info.getValue() ? (
+          <span className="activation-status enabled-status">Enabled</span>
+        ) : (
+          <span className="activation-status">Disabled</span>
+        ),
+      minSize: 150,
+      size: 5,
+      meta: {
+        valueType: "status",
+      },
+    });
+  }
+  if (fields.includes("details")) {
+    columns.push({
+      id: "details",
+      header: () => "Details",
+      minSize: 250,
+      cell: (props: any) => <FeatureDetails feature={props.row.original!} />,
+    });
+  }
+
+  const customActions = {
+    edit: {
+      icon: (
+        <>
+          <i className="bi bi-pencil-square" aria-hidden></i> Edit
+        </>
+      ),
+      hasRight: (user: TUser, overload: TContextOverload) => {
+        return actions(overload).includes("edit");
+      },
+      customForm: (datum: TContextOverload, cancel: () => void) => {
+        return (
+          <>
+            <h4>Edit overload</h4>
+            <OverloadCreationForm
+              project={datum.project!}
+              defaultValue={datum}
+              submit={(overload) =>
+                updateStrategyMutation.mutateAsync(
+                  {
+                    feature: overload.name,
+                    wasm: overload.wasmConfig,
+                    ...overload,
+                  } as any,
+                  {
+                    onSuccess: () => cancel(),
+                  }
+                )
+              }
+              cancel={cancel}
+              noName
+            />
+          </>
+        );
+      },
+    },
+    test: {
+      icon: (
+        <>
+          <i className="bi bi-wrench" aria-hidden></i> Test overload
+        </>
+      ),
+      hasRight: (user: TUser, overload: TContextOverload) => {
+        return actions(overload).includes("test");
+      },
+      customForm: (datum: TContextOverload, cancel: () => void) => {
+        return (
+          <>
+            <h4>Test feature</h4>
+            <ExistingFeatureTestForm
+              context={datum.path}
+              feature={datum}
+              cancel={cancel}
+            />
+          </>
+        );
+      },
+    },
+    delete: {
+      icon: (
+        <>
+          <i className="bi bi-trash" aria-hidden></i> Delete
+        </>
+      ),
+      hasRight: (user: TUser, overload: TContextOverload) => {
+        return actions(overload).includes("delete");
+      },
+      action: (overload: TContextOverload) =>
+        askConfirmation(
+          `Are you sure you want to delete overload ${overload.name} ?`,
+          () =>
+            deleteStrategyMutation.mutateAsync({
+              feature: overload.name,
+              path: overload.path!,
+              project: overload.project as any,
+            })
+        ),
+    },
+  };
+
+  return (
+    <GenericTable
+      idAccessor={(datum: TContextOverload) =>
+        `${datum.path ?? ""} ${datum.name}`
+      }
+      columns={columns}
+      data={overloads}
+      customRowActions={customActions}
+      defaultSort="name"
+    />
+  );
+}
+export function FeatureTestForm(props: {
+  feature: TFeature;
+  cancel?: () => any;
+  noContext?: boolean;
+}) {
+  const { tenant } = useParams();
+  const { control, register, handleSubmit } = useForm<FeatureTestType>();
+
+  const [message, setMessage] = useState<string | undefined>(undefined);
+
+  // TODO handle context
+  const featureTestMutation = useMutation(
+    ({
+      feature,
+      user,
+      date,
+    }: {
+      date: Date;
+      user: string;
+      feature: TFeature;
+    }) => testFeature(tenant!, feature, user, date)
+  );
+
+  return (
+    <form
+      onSubmit={handleSubmit(({ user, date, context }) => {
+        setMessage("");
+        featureTestMutation
+          .mutateAsync({
+            feature: props.feature,
+            user: user ?? "",
+            date,
+          })
+          .then(({ active }) => {
+            setMessage(
+              `feature ${props.feature.name} would be ${
+                active ? "active" : "inactive"
+              } on ${format(date, "yyyy-MM-dd")}${
+                user ? ` for user ${user}` : ""
+              }${context ? ` for context ${context}` : ""}`
+            );
+          });
+      })}
+      className="d-flex flex-column"
+    >
+      {!props.noContext && (
+        <label>
+          Context path
+          <input
+            type="text"
+            className="form-control"
+            {...register("context")}
+          ></input>
+        </label>
+      )}
+      <label className="col-6">
+        Date
+        <Controller
+          name="date"
+          defaultValue={new Date()}
+          control={control}
+          render={({ field: { onChange, value } }) => {
+            return (
+              <input
+                className="form-control"
+                defaultValue={format(new Date(), "yyyy-MM-dd")}
+                value={value ? format(value, "yyyy-MM-dd") : ""}
+                onChange={(e) => {
+                  onChange(parse(e.target.value, "yyyy-MM-dd", new Date()));
+                }}
+                type="date"
+              />
+            );
+          }}
+        />
+      </label>
+      <label className="mt-2">
+        User
+        <input
+          type="text"
+          className="form-control"
+          {...register("user")}
+        ></input>
+      </label>
+      {message && (
+        <div className="d-flex justify-content-end">
+          <output className="m-2 py-1 px-3 anim__highlighter">{message}</output>
+        </div>
+      )}
+      <div className="d-flex justify-content-end">
+        {props.cancel && (
+          <button
+            type="button"
+            className="btn btn-danger m-2"
+            onClick={() => props.cancel?.()}
+          >
+            Cancel
+          </button>
+        )}
+        <button type="submit" className="btn btn-secondary m-2">
+          Test feature
+        </button>
+      </div>
+    </form>
+  );
+}
+export function FeatureDetails({ feature }: { feature: TFeature }) {
+  if ("wasmConfig" in feature && feature.wasmConfig !== undefined) {
+    return (
+      <>
+        {feature.description && <div>{feature.description}</div>}
+        <ScriptDetails config={feature.wasmConfig} />
+      </>
+    );
+  } else if (isSingleConditionFeature(feature)) {
+    return (
+      <>
+        {feature.description && <div>{feature.description}</div>}
+        <div className="fw-semibold">Active : </div>
+        <SingleConditionFeatureDetail
+          feature={toLegacyFeatureFormat(feature)}
+        />
+      </>
+    );
+  } else {
+    return (
+      <>
+        {feature.description && <div>{feature.description}</div>}
+        <ConditionDetails
+          conditions={(feature as ClassicalFeature).conditions}
+        />
+      </>
+    );
+  }
+}
 export function FeatureTable(props: {
   features: TFeature[];
   fields: FeatureFields[];
@@ -697,18 +1698,15 @@ export function FeatureTable(props: {
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
     undefined
   );
-
-  const hasSelectedRows = selectedRows.length > 0;
   const selectableRows = features
     .map((f) => f.project!)
     .some((p) => hasRightForProject(user!, TLevel.Write, p, tenant!));
-
   return (
     <div className="mt-2">
       {selectableRows && (
         <div
           className={`d-flex align-items-center ${
-            hasSelectedRows ? "" : "invisible"
+            selectedRows.length > 0 ? "" : "invisible"
           }`}
         >
           <Select
@@ -728,80 +1726,16 @@ export function FeatureTable(props: {
             aria-label="Bulk action"
           />
           &nbsp;
-          {bulkOperation && bulkOperation !== "Transfer" && (
-            <>
-              <button
-                className="ms-2 btn btn-primary"
-                type="button"
-                disabled={!hasSelectedRows || !bulkOperation}
-                onClick={() => {
-                  switch (bulkOperation) {
-                    case "Delete":
-                      askConfirmation(
-                        `Are you sure you want to delete ${
-                          selectedRows.length
-                        } feature${selectedRows.length > 1 ? "s" : ""} ?`,
-                        () => {
-                          return patchFeatures(
-                            tenant!,
-                            selectedRows.map((f) => ({
-                              op: "remove",
-                              path: `/${f.id}`,
-                            }))
-                          )
-                            .then(() => refresh())
-                            .then(() => setBulkOperation(undefined));
-                        }
-                      );
-                      break;
-                    case "Enable":
-                      patchFeatures(
-                        tenant!,
-                        selectedRows.map((f) => ({
-                          op: "replace",
-                          path: `/${f.id}/enabled`,
-                          value: true,
-                        }))
-                      )
-                        .then(() => refresh())
-                        .then(() => {
-                          setBulkOperation(undefined);
-                        });
-                      break;
-                    case "Disable":
-                      patchFeatures(
-                        tenant!,
-                        selectedRows.map((f) => ({
-                          op: "replace",
-                          path: `/${f.id}/enabled`,
-                          value: false,
-                        }))
-                      )
-                        .then(() => refresh())
-                        .then(() => setBulkOperation(undefined));
-                      break;
-                  }
-                }}
-              >
-                {bulkOperation} {selectedRows.length} feature
-                {selectedRows.length > 1 ? "s" : ""}
-              </button>
-            </>
-          )}
-          {hasSelectedRows && bulkOperation && bulkOperation === "Transfer" && (
-            <div className="sub_container anim__rightToLeft">
-              <div
-                className="anim__rightToLeft"
-              >
-                <h4>Transfer to another project</h4>
-                <TransferBulkForm
-                  tenant={tenant!}
-                  selectedRows={selectedRows}
-                  cancel={() => setBulkOperation(undefined)}
-                  refresh={refresh}
-                />
-              </div>
-            </div>
+          {bulkOperation && (
+            <OperationForm
+              tenant={tenant!}
+              bulkOperation={bulkOperation!}
+              selectedRows={features.filter((f) =>
+                selectedRows.map((item) => item.id).includes(f.id)
+              )}
+              cancel={() => setBulkOperation(undefined)}
+              refresh={() => refresh()}
+            />
           )}
         </div>
       )}
@@ -823,828 +1757,4 @@ export function FeatureTable(props: {
       />
     </div>
   );
-}
-
-function TransferBulkForm(props: {
-  tenant: string;
-  selectedRows: TFeature[];
-  cancel: () => void;
-  refresh: () => any;
-}) {
-  const { tenant, selectedRows, cancel, refresh } = props;
-  const selectedRowProjects = selectedRows.map((f) => f.project);
-  const selectedRowProject = selectedRowProjects.filter(
-    (q, idx) => selectedRowProjects.indexOf(q) === idx
-  );
-
-  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
-    queryTenant(tenant)
-  );
-
-  const { askConfirmation } = React.useContext(IzanamiContext);
-
-  if (projectQuery.isLoading) {
-    return <Loader message="Loading projects..." />;
-  } else if (projectQuery.error) {
-    return <div className="error">Failed to load projects</div>;
-  } else {
-    return (
-      <Form
-        schema={{
-          project: {
-            label: "Target project",
-            type: "string",
-            format: "select",
-            props: { "aria-label": "projects", styles: customStyles },
-            options: projectQuery.data?.projects
-              ?.filter(({ name }) => selectedRowProject.indexOf(name) === -1)
-              ?.map(({ name }) => ({
-                label: name,
-                value: name,
-              })),
-          },
-        }}
-        onSubmit={(data: { project: string }) => {
-          askConfirmation(
-            `Transferring ${selectedRows.length} feature${
-              selectedRows.length > 1 ? "s" : ""
-            }  will delete existing local overloads (if any), are you sure ?`,
-            () =>
-              patchFeatures(
-                tenant!,
-                selectedRows.map((f) => ({
-                  op: "replace",
-                  path: `/${f.id}/project`,
-                  value: data.project,
-                }))
-              )
-                .then(() => refresh())
-                .then(() => cancel())
-          );
-        }}
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <div className="d-flex justify-content-end">
-              <button
-                type="button"
-                className="btn btn-danger m-2"
-                onClick={cancel}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-primary m-2" onClick={valid}>
-                Transfer {selectedRows.length} feature
-                {selectedRows.length > 1 ? "s" : ""}
-              </button>
-            </div>
-          );
-        }}
-      />
-    );
-  }
-}
-function TransferForm(props: {
-  tenant: string;
-  project: string;
-  feature: TFeature;
-  cancel: () => void;
-}) {
-  const { project, tenant, feature, cancel } = props;
-  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
-    queryTenant(tenant)
-  );
-
-  const featureUpdateMutation = useMutation((data: { project: string }) =>
-    updateFeature(tenant!, feature.id!, {
-      ...feature,
-      project: data.project,
-    }).then(() => {
-      queryClient.invalidateQueries(projectQueryKey(tenant, project));
-    })
-  );
-
-  const { askConfirmation } = React.useContext(IzanamiContext);
-
-  if (projectQuery.isLoading) {
-    return <Loader message="Loading projects..." />;
-  } else if (projectQuery.error) {
-    return <div className="error">Failed to load projects</div>;
-  } else {
-    return (
-      <Form
-        schema={{
-          project: {
-            label: "Target project",
-            type: "string",
-            format: "select",
-            props: { "aria-label": "projects", styles: customStyles },
-            options: projectQuery.data?.projects
-              ?.filter(({ name }) => name !== project)
-              ?.map(({ name }) => ({
-                label: name,
-                value: name,
-              })),
-          },
-        }}
-        onSubmit={(data) => {
-          askConfirmation(
-            "Transferring this feature will delete existing local overloads (if any), are you sure ?",
-            () => featureUpdateMutation.mutateAsync(data as any)
-          );
-        }}
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <div className="d-flex justify-content-end">
-              <button
-                type="button"
-                className="btn btn-danger m-2"
-                onClick={() => cancel()}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-success m-2" onClick={valid}>
-                Transfer feature
-              </button>
-            </div>
-          );
-        }}
-      />
-    );
-  }
-}
-
-function FeatureUrl(props: {
-  context?: string;
-  tenant: string;
-  feature: TFeature;
-}) {
-  const { project } = props.feature;
-  const { tenant, context, feature } = props;
-  const contextQuery = useQuery(projectContextKey(tenant!, project!), () =>
-    queryContextsForProject(tenant!, project!)
-  );
-  const [selectedContext, setSelectedContext] = useState(context);
-
-  const { expositionUrl } = React.useContext(IzanamiContext);
-
-  const url = `${
-    expositionUrl ? expositionUrl : "<BASE-IZANAMI-URL>"
-  }/api/v2/features/${feature.id}${
-    selectedContext ? "?context=" + encodeURIComponent(selectedContext) : ""
-  }`;
-
-  if (contextQuery.error) {
-    return <div>Failed to fetch contexts</div>;
-  } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data);
-
-    return (
-      <>
-        <div>
-          <h5>Client link for {feature.name}</h5>
-          <span>
-            To craft more complete client queries, use{" "}
-            <a href={`/tenants/${tenant}/query-builder`}>the query builder</a>.
-          </span>
-          <label style={{ width: "100%" }}>
-            Context (optional)
-            <Select
-              defaultValue={
-                context ? { label: context, value: context } : undefined
-              }
-              onChange={(e) => {
-                setSelectedContext(e?.value);
-              }}
-              styles={customStyles}
-              options={allContexts
-                .map((c) => c.substring(1))
-                .sort()
-                .map((c) => ({ value: c, label: c }))}
-              isClearable
-            />
-          </label>
-        </div>
-        <div className="mt-3">
-          <label htmlFor="url">
-            Feature <b>{feature.name}</b> url{" "}
-            {`${selectedContext ? "for context " + selectedContext + " " : ""}`}
-            is
-          </label>
-        </div>
-        <div className="input-group mb-3">
-          <input
-            name="url"
-            type="text"
-            className="form-control"
-            placeholder="Recipient's username"
-            aria-label="Recipient's username"
-            aria-describedby="basic-addon2"
-            value={url}
-          />
-          <div className="ms-2 input-group-append">
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(url);
-              }}
-            >
-              Copy
-            </button>
-          </div>
-        </div>
-      </>
-    );
-  } else {
-    return <Loader message="Loading..." />;
-  }
-}
-
-function OverloadTableForFeature(props: { tenant: string; feature: TFeature }) {
-  const { project, name } = props.feature;
-  const { tenant } = props;
-  const contextQuery = useQuery(projectContextKey(tenant!, project!), () =>
-    queryContextsForProject(tenant!, project!)
-  );
-
-  const hasModificationRight = useProjectRight(tenant, project, TLevel.Write);
-
-  if (contextQuery.isError) {
-    return <div>Failed to fetch overloads</div>;
-  } else if (contextQuery.data) {
-    const overloads = findOverloadsForFeature(name, contextQuery.data);
-    return (
-      <OverloadTable
-        overloads={overloads}
-        project={project!}
-        refresh={() =>
-          queryClient.invalidateQueries(projectContextKey(tenant!, project!))
-        }
-        fields={["linkedPath", "name", "enabled", "details"]}
-        actions={() => (hasModificationRight ? ["edit", "delete"] : [])}
-      />
-    );
-  } else {
-    return <Loader message="Loading..." />;
-  }
-}
-
-export function possiblePaths(contexts: TContext[], path = ""): string[] {
-  return contexts.flatMap((ctx) => {
-    if (ctx.children) {
-      return [
-        ...possiblePaths(ctx.children, path + "/" + ctx.name),
-        path + "/" + ctx.name,
-      ];
-    } else {
-      return [];
-    }
-  });
-}
-
-function OverloadDetails(props: { feature: TFeature; cancel: () => void }) {
-  const [creating, setCreating] = useState(false);
-  const { tenant } = useParams();
-  const { feature, cancel } = props;
-  const contextQuery = useQuery(
-    projectContextKey(tenant!, feature.project!),
-    () => queryContextsForProject(tenant!, feature.project!)
-  );
-  const updateStrategyMutation = useMutation(
-    (data: {
-      enabled: boolean;
-      conditions?: TCondition[];
-      feature: string;
-      path: string;
-      wasm?: TWasmConfig;
-      project: string;
-    }) => {
-      return updateFeatureActivationForContext(
-        tenant!,
-        data.project,
-        data.path,
-        data.feature,
-        data.enabled,
-        data.conditions,
-        data.wasm
-      );
-    },
-    {
-      onSuccess: () =>
-        queryClient.invalidateQueries(
-          projectContextKey(tenant!, feature.project!)
-        ),
-    }
-  );
-  const [selectedContext, selectContext] = useState<string>();
-
-  if (contextQuery.error) {
-    return <div>Failed to fetch contexts</div>;
-  } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data);
-    const excluded = findContextWithOverloadsForFeature(
-      feature.name,
-      contextQuery.data
-    );
-
-    return (
-      <>
-        <h4>
-          Feature overloads{" "}
-          <button
-            className="btn btn-primary btn-sm mb-2 ms-3"
-            type="button"
-            onClick={() => setCreating(true)}
-          >
-            Create new overload
-          </button>
-        </h4>
-        {creating && (
-          <OverloadCreationForm
-            submit={(overload) =>
-              updateStrategyMutation
-                .mutateAsync({
-                  enabled: overload.enabled,
-                  conditions: overload.conditions,
-                  feature: feature.name,
-                  path: selectedContext as string,
-                  wasm: overload.wasmConfig,
-                  project: feature.project!,
-                })
-                .then(() => setCreating(false))
-            }
-            project={feature.project!}
-            cancel={() => setCreating(false)}
-            defaultValue={feature as TContextOverload}
-            noName
-            additionalFields={() => (
-              <label className="mt-3">
-                Context
-                <Select
-                  styles={customStyles}
-                  options={allContexts
-                    .filter((ctx) => !excluded.includes(ctx))
-                    .map((c) => c.substring(1))
-                    .sort()
-                    .map((c) => ({ value: c, label: c }))}
-                  onChange={(e) => selectContext(e?.value)}
-                />
-              </label>
-            )}
-          />
-        )}
-        <OverloadTableForFeature feature={feature} tenant={tenant!} />
-        <div className="d-flex justify-content-end">
-          <button
-            type="button"
-            className="btn btn-danger m-2"
-            onClick={() => cancel()}
-          >
-            Close
-          </button>
-        </div>
-      </>
-    );
-  } else {
-    return <Loader message="Loading..." />;
-  }
-}
-
-export function OverloadTable(props: {
-  project?: string;
-  overloads: TContextOverload[];
-  fields: OverloadFields[];
-  actions: (t: TContextOverload) => OverloadActionNames[];
-  refresh: () => any;
-}) {
-  const { tenant } = useParams();
-  const { fields, overloads, actions, refresh, project } = props;
-  const columns: ColumnDef<TContextOverload>[] = [];
-  const updateStrategyMutation = useMutation(
-    (data: {
-      enabled: boolean;
-      conditions?: TCondition[];
-      feature: string;
-      path: string;
-      wasm?: TWasmConfig;
-      project: string;
-    }) => {
-      return updateFeatureActivationForContext(
-        tenant!,
-        data.project,
-        data.path,
-        data.feature,
-        data.enabled,
-        data.conditions,
-        data.wasm
-      );
-    },
-    {
-      onSuccess: () => {
-        refresh();
-      },
-    }
-  );
-
-  const deleteStrategyMutation = useMutation(
-    (data: { feature: string; path: string; project: string }) =>
-      deleteFeatureActivationForContext(
-        tenant!,
-        data.project, // TODO this should not be necessary
-        data.path,
-        data.feature
-      ),
-    {
-      onSuccess: () => {
-        refresh();
-      },
-    }
-  );
-
-  const { askConfirmation } = React.useContext(IzanamiContext);
-
-  const hasPath = fields.includes("path");
-  const hasLinkedPath = fields.includes("linkedPath");
-  if (hasPath || hasLinkedPath) {
-    columns.push({
-      accessorKey: "path",
-      header: () => "Overload path",
-      cell: (info: any) =>
-        hasLinkedPath ? (
-          <a
-            href={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
-          >
-            {info.getValue()}
-          </a>
-        ) : (
-          info.getValue()
-        ),
-      minSize: 350,
-      size: 15,
-    });
-  }
-  if (fields.includes("name")) {
-    columns.push({
-      accessorKey: "name",
-      header: () => "Feature name",
-      minSize: 150,
-      size: 15,
-    });
-  }
-  if (fields.includes("enabled")) {
-    columns.push({
-      accessorKey: "enabled",
-      header: () => "Enabled",
-      cell: (info: any) =>
-        info.getValue() ? (
-          <span className="activation-status enabled-status">Enabled</span>
-        ) : (
-          <span className="activation-status">Disabled</span>
-        ),
-      minSize: 150,
-      size: 5,
-      meta: {
-        valueType: "status",
-      },
-    });
-  }
-  if (fields.includes("details")) {
-    columns.push({
-      id: "details",
-      header: () => "Details",
-      minSize: 250,
-      cell: (props: any) => <FeatureDetails feature={props.row.original!} />,
-    });
-  }
-
-  const customActions = {
-    edit: {
-      icon: (
-        <>
-          <i className="bi bi-pencil-square" aria-hidden></i> Edit
-        </>
-      ),
-      hasRight: (user: TUser, overload: TContextOverload) => {
-        return actions(overload).includes("edit");
-      },
-      customForm: (datum: TContextOverload, cancel: () => void) => {
-        return (
-          <>
-            <h4>Edit overload</h4>
-            <OverloadCreationForm
-              project={datum.project!}
-              defaultValue={datum}
-              submit={(overload) =>
-                updateStrategyMutation.mutateAsync(
-                  {
-                    feature: overload.name,
-                    wasm: overload.wasmConfig,
-                    ...overload,
-                  } as any,
-                  {
-                    onSuccess: () => cancel(),
-                  }
-                )
-              }
-              cancel={cancel}
-              noName
-            />
-          </>
-        );
-      },
-    },
-    test: {
-      icon: (
-        <>
-          <i className="bi bi-wrench" aria-hidden></i> Test overload
-        </>
-      ),
-      hasRight: (user: TUser, overload: TContextOverload) => {
-        return actions(overload).includes("test");
-      },
-      customForm: (datum: TContextOverload, cancel: () => void) => {
-        return (
-          <>
-            <h4>Test feature</h4>
-            <ExistingFeatureTestForm
-              context={datum.path}
-              feature={datum}
-              cancel={cancel}
-            />
-          </>
-        );
-      },
-    },
-    delete: {
-      icon: (
-        <>
-          <i className="bi bi-trash" aria-hidden></i> Delete
-        </>
-      ),
-      hasRight: (user: TUser, overload: TContextOverload) => {
-        return actions(overload).includes("delete");
-      },
-      action: (overload: TContextOverload) =>
-        askConfirmation(
-          `Are you sure you want to delete overload ${overload.name} ?`,
-          () =>
-            deleteStrategyMutation.mutateAsync({
-              feature: overload.name,
-              path: overload.path!,
-              project: overload.project as any,
-            })
-        ),
-    },
-  };
-
-  return (
-    <GenericTable
-      idAccessor={(datum: TContextOverload) =>
-        `${datum.path ?? ""} ${datum.name}`
-      }
-      columns={columns}
-      data={overloads}
-      customRowActions={customActions}
-      defaultSort="name"
-    />
-  );
-}
-
-interface FeatureTestType {
-  user?: string;
-  date: Date;
-  context?: string;
-}
-
-export function FeatureTestForm(props: {
-  feature: TFeature;
-  cancel?: () => any;
-  noContext?: boolean;
-}) {
-  const { tenant } = useParams();
-  const { control, register, handleSubmit } = useForm<FeatureTestType>();
-
-  const [message, setMessage] = useState<string | undefined>(undefined);
-
-  // TODO handle context
-  const featureTestMutation = useMutation(
-    ({
-      feature,
-      user,
-      date,
-    }: {
-      date: Date;
-      user: string;
-      feature: TFeature;
-    }) => testFeature(tenant!, feature, user, date)
-  );
-
-  return (
-    <form
-      onSubmit={handleSubmit(({ user, date, context }) => {
-        setMessage("");
-        featureTestMutation
-          .mutateAsync({
-            feature: props.feature,
-            user: user ?? "",
-            date,
-          })
-          .then(({ active }) => {
-            setMessage(
-              `feature ${props.feature.name} would be ${
-                active ? "active" : "inactive"
-              } on ${format(date, "yyyy-MM-dd")}${
-                user ? ` for user ${user}` : ""
-              }${context ? ` for context ${context}` : ""}`
-            );
-          });
-      })}
-      className="d-flex flex-column"
-    >
-      {!props.noContext && (
-        <label>
-          Context path
-          <input
-            type="text"
-            className="form-control"
-            {...register("context")}
-          ></input>
-        </label>
-      )}
-      <label className="col-6">
-        Date
-        <Controller
-          name="date"
-          defaultValue={new Date()}
-          control={control}
-          render={({ field: { onChange, value } }) => {
-            return (
-              <input
-                className="form-control"
-                defaultValue={format(new Date(), "yyyy-MM-dd")}
-                value={value ? format(value, "yyyy-MM-dd") : ""}
-                onChange={(e) => {
-                  onChange(parse(e.target.value, "yyyy-MM-dd", new Date()));
-                }}
-                type="date"
-              />
-            );
-          }}
-        />
-      </label>
-      <label className="mt-2">
-        User
-        <input
-          type="text"
-          className="form-control"
-          {...register("user")}
-        ></input>
-      </label>
-      {message && (
-        <div className="d-flex justify-content-end">
-          <output className="m-2 py-1 px-3 anim__highlighter">{message}</output>
-        </div>
-      )}
-      <div className="d-flex justify-content-end">
-        {props.cancel && (
-          <button
-            type="button"
-            className="btn btn-danger m-2"
-            onClick={() => props.cancel?.()}
-          >
-            Cancel
-          </button>
-        )}
-        <button type="submit" className="btn btn-secondary m-2">
-          Test feature
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function ExistingFeatureTestForm(props: {
-  feature: TFeature | TContextOverload;
-  cancel?: () => any;
-  context?: string;
-}) {
-  const { control, register, handleSubmit } = useForm<FeatureTestType>();
-  const { feature } = props;
-
-  const [message, setMessage] = useState<string | undefined>(undefined);
-  const { tenant } = useParams();
-
-  const contextQuery = useQuery(
-    projectContextKey(tenant!, feature.project!),
-    () => queryContextsForProject(tenant!, feature.project!)
-  );
-
-  const featureTestMutation = useMutation(
-    ({ context, user, date }: { date: Date; user: string; context: string }) =>
-      testExistingFeature(tenant!, feature.id!, date, context ?? "", user ?? "")
-  );
-
-  if (contextQuery.error) {
-    return <div>Error while fetching contexts</div>;
-  } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data);
-    return (
-      <form
-        onSubmit={handleSubmit(({ user, date, context }) => {
-          setMessage("");
-          featureTestMutation
-            .mutateAsync({
-              context: context ?? "",
-              user: user ?? "",
-              date,
-            })
-            .then(({ active }) => {
-              setMessage(
-                `${feature.name} would be ${
-                  active ? "active" : "inactive"
-                } on ${format(date, "yyyy-MM-dd")}${
-                  user ? ` for user ${user}` : ""
-                }${context ? ` for context ${context}` : ""}`
-              );
-            });
-        })}
-        className="d-flex flex-column"
-      >
-        <label className="mt-3">
-          Context
-          <Controller
-            name={`context`}
-            control={control}
-            defaultValue={props.context ?? ""}
-            render={({ field: { onChange, value } }) => (
-              <Select
-                value={{ label: value, value }}
-                onChange={(e) => {
-                  onChange(e?.value);
-                }}
-                styles={customStyles}
-                options={allContexts
-                  .map((c) => c.substring(1))
-                  .sort()
-                  .map((c) => ({ value: c, label: c }))}
-                isClearable
-              />
-            )}
-          />
-        </label>
-        <label className="mt-3 col-2">
-          Date
-          <Controller
-            name="date"
-            defaultValue={new Date()}
-            control={control}
-            render={({ field: { onChange, value } }) => {
-              return (
-                <input
-                  className="form-control"
-                  defaultValue={format(new Date(), "yyyy-MM-dd")}
-                  value={value ? format(value, "yyyy-MM-dd") : ""}
-                  onChange={(e) => {
-                    onChange(parse(e.target.value, "yyyy-MM-dd", new Date()));
-                  }}
-                  type="date"
-                />
-              );
-            }}
-          />
-        </label>
-        <label className="mt-3">
-          User
-          <input
-            type="text"
-            className="form-control"
-            {...register("user")}
-          ></input>
-        </label>
-        {message && (
-          <div className="d-flex justify-content-end">
-            <output className="m-2 py-1 px-3 anim__highlighter">
-              {message}
-            </output>
-          </div>
-        )}
-        <div className="d-flex justify-content-end">
-          {props.cancel && (
-            <button
-              type="button"
-              className="btn btn-danger m-2"
-              onClick={() => props.cancel?.()}
-            >
-              Cancel
-            </button>
-          )}
-          <button type="submit" className="btn btn-success m-2">
-            Test feature
-          </button>
-        </div>
-      </form>
-    );
-  } else {
-    return <Loader message="Loading..." />;
-  }
 }
