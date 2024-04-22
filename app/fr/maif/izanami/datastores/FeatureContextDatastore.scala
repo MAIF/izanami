@@ -275,7 +275,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |SELECT name, parent, id, true as global, null as project
          |FROM global_feature_contexts
          |UNION ALL
-         |SELECT name, parent, id, false as global, project
+         |SELECT name, COALESCE(parent, global_parent) as parent, id, false as global, project
          |FROM feature_contexts
          |""".stripMargin,
       schemas = Set(tenant)
@@ -481,7 +481,8 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
             case Right(fid) =>
               env.eventService
                 .emitEvent(
-                  channel = tenant, event = FeatureUpdated(id = fid, project = project, tenant = tenant)
+                  channel = tenant,
+                  event = FeatureUpdated(id = fid, project = project, tenant = tenant)
                 )
                 .map(_ => Right(()))
             case Left(err)  => Left(err).future
