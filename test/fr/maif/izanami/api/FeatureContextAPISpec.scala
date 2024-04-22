@@ -554,4 +554,73 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe NO_CONTENT
     }
   }
+
+  "Tenant context GET endpoint" should {
+    "Return correctly organized global and local contexts when all is true" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
+            .withProjects(TestProject("project").withContexts(
+              TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal"))),
+            ))
+        )
+        .build()
+
+      var status = situation.createContext("tenant", "project", name="localsubglobal", parents="global").status
+      status mustBe CREATED
+      status = situation.createContext("tenant", "project", name="localsubsubglobal", parents="global/subglobal").status
+      status mustBe CREATED
+      val result = situation.fetchGlobalContext("tenant", all=true)
+      result.status mustBe OK
+
+      val json = result.json.get.as[JsArray]
+
+      // Checking global part
+      val globalCtx = json.value.find(node => (node \ "name").as[String] == "global").get
+      val children = (globalCtx \ "children").as[JsArray].value
+      val childrenNames = children.map(node => (node \ "name").as[String])
+      childrenNames must contain theSameElementsAs Seq("localsubglobal", "subglobal")
+      val subglobal = children.find(node => (node \ "name").as[String] == "subglobal").get
+      val subglobalChildren = (subglobal \ "children").as[JsArray].value
+      subglobalChildren must have length 1
+      (subglobalChildren.head \ "name").as[String] mustEqual "localsubsubglobal"
+
+
+      // Checking local part
+      val localCtx = json.value.find(node => (node \ "name").as[String] == "toplocal").get
+      val localChildren = (localCtx \ "children").as[JsArray].value
+      localChildren must have length 1
+      (localChildren.head \ "name").as[String] mustEqual "sublocal"
+    }
+
+    "Return only global context if all is false" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
+            .withProjects(TestProject("project").withContexts(
+              TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal"))),
+            ))
+        )
+        .build()
+
+      var status = situation.createContext("tenant", "project", name = "localsubglobal", parents = "global").status
+      status mustBe CREATED
+      status = situation.createContext("tenant", "project", name = "localsubsubglobal", parents = "global/subglobal").status
+      status mustBe CREATED
+      val result = situation.fetchGlobalContext("tenant", all = false)
+      result.status mustBe OK
+
+      val json = result.json.get.as[JsArray].value
+      json must have length 1
+
+      val globalCtx = json.find(node => (node \ "name").as[String] == "global").get
+      val children = (globalCtx \ "children").as[JsArray].value
+      children must have length 1
+      (children.head \ "name").as[String] mustEqual "subglobal"
+    }
+  }
 }
