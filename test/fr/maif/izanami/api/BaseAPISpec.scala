@@ -1896,6 +1896,17 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       BaseAPISpec.this.fetchContexts(tenant, project, cookies)
     }
 
+    def fetchGlobalContext(tenant: String, all: Boolean = false) = {
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/contexts?all=$all").withCookies(cookies: _*).get()
+      )
+
+      val jsonTry = Try {
+        response.json
+      }
+      RequestResult(json = jsonTry, status = response.status, idField = "name")
+    }
+
     def fetchTenants(right: String = null): RequestResult = {
       BaseAPISpec.this.fetchTenants(right, cookies)
     }
@@ -2236,10 +2247,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/tags/${currentName}")
           .withCookies(cookies: _*)
-          .put(Json.obj(
-            "name" -> testTag.name,
-            "description" -> testTag.description
-          ))
+          .put(
+            Json.obj(
+              "name"        -> testTag.name,
+              "description" -> testTag.description
+            )
+          )
       )
       RequestResult(json = Try { response.json }, status = response.status)
     }
