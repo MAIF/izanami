@@ -124,7 +124,7 @@ export function Menu(props: {
                         props?.location?.pathname || ""
                       )) &&
                       projects.length > 0 && (
-                        <div style={{ marginLeft: "20px" }}>
+                        <div style={{ paddingLeft: "10px", paddingBottom : "10px" }}>
                           <Select
                             options={projects.map((t) => ({
                               value: t.name,
