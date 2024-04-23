@@ -124,7 +124,9 @@ export function Menu(props: {
                         props?.location?.pathname || ""
                       )) &&
                       projects.length > 0 && (
-                        <div style={{ paddingLeft: "10px", paddingBottom : "10px" }}>
+                        <div
+                          style={{ paddingLeft: "10px", paddingBottom: "10px" }}
+                        >
                           <Select
                             options={projects.map((t) => ({
                               value: t.name,
@@ -337,6 +339,12 @@ export function Menu(props: {
                   </NavLink>
                 </li>
               )}
+              <li className="inactive">
+                <a href="https://maif.github.io/izanami/">
+                  <i className="ms-2 fa-solid fa-book" aria-hidden></i>{" "}
+                  Documentation
+                </a>
+              </li>
             </>
           )}
         </ul>
