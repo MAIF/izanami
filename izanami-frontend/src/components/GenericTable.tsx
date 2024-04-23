@@ -444,7 +444,11 @@ function Filter({ column }: { column: Column<any>; table: Table<any> }) {
         options={options}
         onChange={(e) => {
           const values = e.map(({ value }) => value);
-          column.setFilterValue(values);
+          if (values.length === 0) {
+            column.setFilterValue(undefined);
+          } else {
+            column.setFilterValue(values);
+          }
         }}
         isMulti
       />
