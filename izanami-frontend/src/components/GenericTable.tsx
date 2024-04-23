@@ -270,7 +270,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
 
   return (
     <>
-      <table className="table table-borderless table-striped">
+      <table className="table table-borderless table-striped mt-2">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} aria-label="headers">
