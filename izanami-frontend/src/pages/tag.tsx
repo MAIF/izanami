@@ -113,19 +113,30 @@ function ProjectInput() {
         <Controller
           name="project"
           control={control}
-          render={({ field: { onChange, value } }) => (
-            <Select
-              value={{ label: value, value }}
-              onChange={(e) => {
-                onChange(e?.value);
-              }}
-              styles={customStyles}
-              options={tenantQuery.data.projects?.map((p) => ({
-                value: p.name,
-                label: p.name,
-              }))}
-            />
-          )}
+          rules={{ required: true }}
+          render={({ field: { onChange, value }, fieldState }) => {
+            return (
+              <>
+                <Select
+                  value={{ label: value, value }}
+                  onChange={(e) => {
+                    onChange(e?.value);
+                  }}
+                  styles={customStyles}
+                  options={tenantQuery.data.projects?.map((p) => ({
+                    value: p.name,
+                    label: p.name,
+                  }))}
+                />
+                {fieldState.invalid && fieldState?.error?.type === "required" && (
+                  <div className="error-message">
+                    <i className="fa-solid fa-circle-exclamation" aria-hidden />
+                    &nbsp;Project is required
+                  </div>
+                )}
+              </>
+            );
+          }}
         />
       </label>
     );
