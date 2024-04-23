@@ -347,7 +347,7 @@ const router = createBrowserRouter([
                   className={() => ""}
                   to={`/tenants/${data.tenant}/tags`}
                 >
-                  Tags
+                  <i className="fa-solid fa-tag" aria-hidden></i> Tags
                 </NavLink>
               ),
             },
