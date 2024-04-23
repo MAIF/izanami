@@ -4,7 +4,7 @@
 
 This README is for anyone who would like to contribute to Izanami.
 
-If you're interested in Izanami documentation, [it's here]().
+If you're interested in Izanami documentation, [it's here](https://maif.github.io/izanami/).
 
 ## Start application locally
 
