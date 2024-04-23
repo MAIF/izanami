@@ -704,7 +704,7 @@ export function FeatureTable(props: {
     .some((p) => hasRightForProject(user!, TLevel.Write, p, tenant!));
 
   return (
-    <div className="mt-2">
+    <div>
       {selectableRows && (
         <div
           className={`d-flex align-items-center ${
