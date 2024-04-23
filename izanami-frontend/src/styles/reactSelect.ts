@@ -13,12 +13,12 @@ export const customStyles: object = {
         backgroundColor: isDisabled
           ? null
           : isSelected
-          ? "var(--bg-color_level3) !important"
+          ? "var(--bg-color_level1)  !important"
           : isFocused
           ? "red !important"
           : null,
         color: isSelected
-          ? "#FFF !important"
+          ? "var(--color_level1) !important"
           : isFocused
           ? "#FFF !important"
           : "8C8C8B !important",
