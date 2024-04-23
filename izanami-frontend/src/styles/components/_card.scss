@@ -8,6 +8,9 @@
 .card-body label {
   color: var(--color_level2);
 }
+.card-body a:hover{
+  color: $primaryColor;
+}
 
 @mixin icon-background {
   font-family: FontAwesome;
