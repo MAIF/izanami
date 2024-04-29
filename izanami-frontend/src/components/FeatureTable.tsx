@@ -506,7 +506,20 @@ function OperationTagForm(props: {
             />
             <button
               className="btn btn-primary m-2"
-              onClick={() => OnSubmit(selectedRows, values!)}
+              onClick={() =>
+                OnSubmit(
+                  selectedRows,
+                  values
+                    ? values
+                    : tagsQuery?.data
+                        .map(({ name }) => ({
+                          label: name,
+                          value: name,
+                          state: selectedRowTags.includes(name),
+                        }))
+                        .filter((f) => f.state)
+                )
+              }
             >
               Update {selectedRows.length} feature
               {selectedRows.length > 1 ? "s" : ""}
@@ -1565,7 +1578,10 @@ export function FeatureTable(props: {
                     feature,
                   },
                   {
-                    onSuccess: () => cancel(),
+                    onSuccess: () => {
+                      queryClient.invalidateQueries(tagsQueryKey(tenant!));
+                      cancel();
+                    },
                   }
                 );
               }}
