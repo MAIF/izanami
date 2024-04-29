@@ -38,7 +38,8 @@ const MultiSelect = (props: any) => {
       options={[...props.options]}
       onChange={props.onChange}
       components={{ Option, MultiValue }}
-      value={props.values}
+      value={props.value ? props.value : props.defaultValue}
+      defaultValue={props.defaultValue}
       styles={customStyles}
       isMulti
       closeMenuOnSelect={false}
