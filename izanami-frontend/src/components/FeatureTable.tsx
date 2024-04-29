@@ -59,6 +59,7 @@ import { Tooltip } from "react-tooltip";
 import { Form } from "@maif/react-forms";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
+import { features } from "process";
 
 type FeatureFields =
   | "id"
@@ -1561,7 +1562,10 @@ export function FeatureTable(props: {
                     feature,
                   },
                   {
-                    onSuccess: () => cancel(),
+                    onSuccess: () => {
+                      queryClient.invalidateQueries(tagsQueryKey(tenant!));
+                      cancel();
+                    },
                   }
                 );
               }}
