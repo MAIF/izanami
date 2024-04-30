@@ -7,7 +7,18 @@ export type Option = {
   label: string;
   state: boolean;
 };
-const MultiSelect = (props: any) => {
+
+interface ISelectProps {
+  options: Option[];
+  value: Option[];
+  onSelected: any;
+  defaultValue: Option[];
+  labelBy: string;
+}
+
+const MultiSelect = (props: ISelectProps) => {
+  const { options, value, defaultValue, onSelected, labelBy } = props;
+
   const Option = (props: any) => {
     return (
       <components.Option {...props}>
@@ -34,13 +45,13 @@ const MultiSelect = (props: any) => {
 
   return (
     <Select
-      {...props}
-      options={[...props.options]}
-      onChange={props.onChange}
+      options={options}
       components={{ Option, MultiValue }}
-      value={props.value ? props.value : props.defaultValue}
-      defaultValue={props.defaultValue}
+      value={value ? value : defaultValue}
+      defaultValue={defaultValue}
+      placeholder={labelBy}
       styles={customStyles}
+      onChange={onSelected}
       isMulti
       closeMenuOnSelect={false}
       tabSelectsValue={false}
