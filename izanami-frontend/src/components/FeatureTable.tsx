@@ -433,10 +433,19 @@ function OperationTransferForm(props: {
         }}
         footer={({ valid }: { valid: () => void }) => {
           return (
-            <button className="btn btn-primary m-2" onClick={valid}>
-              Transfer {selectedRows.length} feature
-              {selectedRows.length > 1 ? "s" : ""}
-            </button>
+            <div className="d-flex justify-content-end">
+              <button
+                type="button"
+                className="btn btn-danger m-2"
+                onClick={cancel}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary m-2" onClick={valid}>
+                Transfer {selectedRows.length} feature
+                {selectedRows.length > 1 ? "s" : ""}
+              </button>
+            </div>
           );
         }}
       />
