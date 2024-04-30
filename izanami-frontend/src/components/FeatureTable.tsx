@@ -59,7 +59,6 @@ import { Tooltip } from "react-tooltip";
 import { Form } from "@maif/react-forms";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
-import { features } from "process";
 
 type FeatureFields =
   | "id"
@@ -455,7 +454,7 @@ function OperationTagForm(props: {
   const { askConfirmation } = React.useContext(IzanamiContext);
   const [values, setSelectedValues] = React.useState<Option[] | null>();
 
-  const onChange = (selectedOptions: Option[]) => {
+  const onSelected = (selectedOptions: Option[]) => {
     setSelectedValues(selectedOptions);
   };
   const OnSubmit = (selectedRows: TFeature[], values: Option[]) => {
@@ -483,36 +482,33 @@ function OperationTagForm(props: {
   } else if (tagsQuery.error) {
     return <div className="error">Failed to load tags</div>;
   } else {
+    const dataTags = (tagsQuery.data ?? []).map(({ name }) => ({
+      label: name,
+      value: name,
+      state: selectedRowTags.includes(name),
+    }));
+
     return (
       <>
-        {tagsQuery.data && (
-          <>
-            <MultiSelect
-              options={tagsQuery.data.map(({ name }) => ({
-                label: name,
-                value: name,
-                state: selectedRowTags.includes(name),
-              }))}
-              value={values}
-              defaultValue={tagsQuery.data
-                .map(({ name }) => ({
-                  label: name,
-                  value: name,
-                  state: selectedRowTags.includes(name),
-                }))
-                .filter((f) => f.state)}
-              onChange={onChange}
-              placeholder={"Select tags..."}
-            />
-            <button
-              className="btn btn-primary m-2"
-              onClick={() => OnSubmit(selectedRows, values!)}
-            >
-              Update {selectedRows.length} feature
-              {selectedRows.length > 1 ? "s" : ""}
-            </button>
-          </>
-        )}
+        <MultiSelect
+          options={dataTags}
+          value={values!}
+          defaultValue={dataTags.filter((f) => f.state)}
+          onSelected={onSelected}
+          labelBy={"Select tags..."}
+        />
+        <button
+          className="btn btn-primary m-2"
+          onClick={() =>
+            OnSubmit(
+              selectedRows,
+              values ? values : dataTags.filter((f) => f.state)
+            )
+          }
+        >
+          Update {selectedRows.length} feature
+          {selectedRows.length > 1 ? "s" : ""}
+        </button>
       </>
     );
   }
