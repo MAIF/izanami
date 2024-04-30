@@ -556,11 +556,11 @@ export function QueryBuilder() {
                         header: () => "Status",
                         cell: (info: any) =>
                           info.getValue() ? (
-                            <span className="activation-status enabled-status">
+                            <span className="activation-status">
                               Active
                             </span>
                           ) : (
-                            <span className="activation-status">Inactive</span>
+                            <span className="activation-status disabled-status">Inactive</span>
                           ),
                         size: 20,
                         meta: {
