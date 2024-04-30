@@ -122,9 +122,9 @@ export default function Keys(props: { tenant: string }) {
       accessorKey: "enabled",
       cell: (info: any) =>
         info.getValue() ? (
-          <span className="activation-status enabled-status">Enabled</span>
+          <span className="activation-status">Enabled</span>
         ) : (
-          <span className="activation-status">Disabled</span>
+          <span className="activation-status disabled-status">Disabled</span>
         ),
       header: () => "Status",
       minSize: 150,
