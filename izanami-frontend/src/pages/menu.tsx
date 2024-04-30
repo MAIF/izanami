@@ -340,7 +340,7 @@ export function Menu(props: {
                 </li>
               )}
               <li className="inactive">
-                <a href="https://maif.github.io/izanami/">
+                <a href="https://maif.github.io/izanami/" target="_blank" rel="noreferrer">
                   <i className="ms-2 fa-solid fa-book" aria-hidden></i>{" "}
                   Documentation
                 </a>
