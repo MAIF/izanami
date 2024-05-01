@@ -148,15 +148,18 @@ export function Tags(props: { tenant: string }) {
           ? !creating && (
               <div className="item-block">
                 <div className="item-text">
-                  There is no tag for this tenant.
+                  There is no tag{hasTenantWriteRight ? "" : " you can see"} for
+                  this tenant.
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-lg"
-                  onClick={() => setCreating(true)}
-                >
-                  Create new tag
-                </button>
+                {hasTenantWriteRight && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-lg"
+                    onClick={() => setCreating(true)}
+                  >
+                    Create new tag
+                  </button>
+                )}
               </div>
             )
           : hasTenantWriteRight && (
