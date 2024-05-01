@@ -78,7 +78,7 @@ export default function Keys(props: { tenant: string }) {
   const [secret, setSecret] = React.useState<string | undefined>(undefined);
   const [clientid, setClientId] = React.useState<string | undefined>(undefined);
   const keyQuery = useQuery(tenantKeyQueryKey(tenant), () => queryKeys(tenant));
-  const isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
+  const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
   const { askConfirmation } = React.useContext(IzanamiContext);
   const keyDeleteMutation = useMutation(
@@ -227,7 +227,7 @@ export default function Keys(props: { tenant: string }) {
       <>
         <div className="d-flex align-items-center">
           <h1>Client keys</h1>
-          {isTenantAdmin && !creating && keyQuery.data.length > 0 && (
+          {hasTenantWriteRight && !creating && keyQuery.data.length > 0 && (
             <button
               className="btn btn-primary btn-sm mb-2 ms-3"
               type="button"
@@ -271,14 +271,19 @@ export default function Keys(props: { tenant: string }) {
         {keyQuery.data.length === 0 ? (
           !creating && (
             <div className="item-block">
-              <div className="item-text">There is no key for this tenant.</div>
-              <button
-                type="button"
-                className="btn btn-primary btn-lg"
-                onClick={() => setCreating(true)}
-              >
-                Create new key
-              </button>
+              <div className="item-text">
+                There is no key{hasTenantWriteRight ? "" : " you can see"} for
+                this tenant.
+              </div>
+              {hasTenantWriteRight && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg"
+                  onClick={() => setCreating(true)}
+                >
+                  Create new key
+                </button>
+              )}
             </div>
           )
         ) : (

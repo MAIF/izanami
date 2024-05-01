@@ -136,16 +136,19 @@ export function FeatureContexts(props: {
         {contextQuery.data.length === 0 && !creating && (
           <div className="item-block">
             <div className="item-text">
-              There is no {allowGlobalContextDelete ? "global" : ""} context for
-              this {allowGlobalContextDelete ? "tenant" : "project"}.
+              There is no {allowGlobalContextDelete ? "global" : ""} context
+              {modificationRight ? "" : " you can see"} for this{" "}
+              {allowGlobalContextDelete ? "tenant" : "project"}.
             </div>
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              onClick={() => setCreating(true)}
-            >
-              Create new context
-            </button>
+            {modificationRight && (
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => setCreating(true)}
+              >
+                Create new context
+              </button>
+            )}
           </div>
         )}
         <FeatureContextTree

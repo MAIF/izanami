@@ -70,29 +70,34 @@ function ProjectList(props: { tenant: TenantType }) {
       {noProjects && !creating && (
         <div className="item-block">
           <div className="item-text">
-            This tenant does not have any project yet.
+            This tenant does not have any project
+            {hasTenantWriteRight ? "yet" : " you can see"}.
           </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            style={{
-              marginBottom: "12px",
-              width: "215px",
-            }}
-            onClick={() => setCreating(true)}
-          >
-            Create new project
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-lg"
-            style={{
-              width: "215px",
-            }}
-            onClick={() => navigate(`/tenants/${tenant.name}/settings`)}
-          >
-            Import data
-          </button>
+          {hasTenantWriteRight && (
+            <>
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                style={{
+                  marginBottom: "12px",
+                  width: "215px",
+                }}
+                onClick={() => setCreating(true)}
+              >
+                Create new project
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-lg"
+                style={{
+                  width: "215px",
+                }}
+                onClick={() => navigate(`/tenants/${tenant.name}/settings`)}
+              >
+                Import data
+              </button>
+            </>
+          )}
         </div>
       )}
       <div className="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3 nav mt-4">
