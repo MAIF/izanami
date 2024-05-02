@@ -190,6 +190,39 @@ class FeatureAPISpec extends BaseAPISpec {
       )
       response.status mustBe FORBIDDEN
     }
+    "allow to applying multiple tags to features " in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("F1", tags = Seq("t1")),
+                TestFeature("F2"),
+                TestFeature("F3", tags = Seq("t2"))            ),
+            )
+        )
+        .build()
+      val response = situation.patchFeatures(
+        "tenant",
+        Seq(TestFeaturePatch(
+          op = "replace",
+          path = s"/${situation.findFeatureId("tenant", "project", "F1").get}/tags",
+          value = JsArray(Seq(JsString("t1"), JsString("t3"), JsString("t4")))
+
+        ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F2").get}/tags",
+            value = JsArray(Seq(JsString("t2")))
+
+          ))
+      )
+      response.status mustEqual 204
+      val fetchResponse = situation.fetchProject("tenant", "project").json.get
+      ((fetchResponse \ "features").as[Seq[JsObject]].find(obj => (obj \ "name").as[String] == "F1").get \ "tags")
+        .as[JsArray].value.length mustBe 3
+    }
 
   }
 
