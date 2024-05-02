@@ -238,6 +238,37 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                   case None                               => Future.successful(())
                 }
             }
+            case TagsFeaturePatch(value, id) =>
+              findById(tenant, id).flatMap {
+                case Right(Some(oldFeature)) =>
+                  env.datastores.tags
+                    .readTags(tenant, value).flatMap {
+                      case tags if tags.size < value.size => {
+                        val tagsToCreate = value.diff(oldFeature.tags)
+                        env.datastores.tags.createTags(tagsToCreate.map(tag => TagCreationRequest(name = tag)).toList, tenant)
+                      }
+                      case tags => Right(tags).toFuture
+                    }.flatMap(_ => {
+                      env.postgresql
+                        .queryOne(
+                          s"""delete from features_tags where feature=$$1""",
+                          List(id),
+                          conn = Some(conn)
+                        ) { _ => Some(id) }
+                      insertIntoFeatureTags(tenant, id, value, Some(conn)).map {
+                        case Left(error) => Future.successful(Left(error))
+                        case _ => env.eventService.emitEvent(
+                          channel = tenant,
+                          event = FeatureUpdated(id = id,
+                            project = oldFeature.project,
+                            tenant = tenant)
+                        )(conn)
+                      }
+                    }
+                    )
+                case Left(err) => Future.successful(Left(err))
+              }
+
             case RemoveFeaturePatch(id) => {
               env.postgresql
                 .queryOne(
@@ -1377,7 +1408,6 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       schemas = Set(tenant)
     )
   }
-
   def insertIntoFeatureTags(
       tenant: String,
       id: String,
