@@ -1113,9 +1113,9 @@ export function OverloadTable(props: {
       header: () => "Enabled",
       cell: (info: any) =>
         info.getValue() ? (
-          <span className="activation-status enabled-status">Enabled</span>
+          <span className="activation-status">Enabled</span>
         ) : (
-          <span className="activation-status">Disabled</span>
+          <span className="activation-status disabled-status">Disabled</span>
         ),
       minSize: 150,
       size: 5,
@@ -1480,9 +1480,9 @@ export function FeatureTable(props: {
       header: () => "Enabled",
       cell: (info: any) =>
         info.getValue() ? (
-          <span className="activation-status enabled-status">Enabled</span>
+          <span className="activation-status">Enabled</span>
         ) : (
-          <span className="activation-status">Disabled</span>
+          <span className="activation-status disabled-status">Disabled</span>
         ),
       minSize: 150,
       size: 5,
