@@ -252,10 +252,6 @@ export function Tags(props: { tenant: string }) {
                 header: () => "Description",
                 minSize: 200,
                 size: 10,
-
-                meta: {
-                  valueType: "discrete",
-                },
               },
             ]}
             customRowActions={{
