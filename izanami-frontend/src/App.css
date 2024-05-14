@@ -58,11 +58,11 @@ header .nav-link {
 }
 .item-text {
   font-size: 21px;
-  margin-Bottom: 24px;
+  margin-bottom: 24px;
 }
 
 .form-margin {
-  margin-Top: -10px;
+  margin-top: -10px;
 }
 
 #swagger-ui {
