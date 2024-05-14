@@ -28,7 +28,7 @@ jobs:
       - name: build frontend
         run: |
           cd izanami-frontend
-          npm ci
+          npm ci --omit-lockfile-registry-resolved
           npm run build
       - name: build backend
         run: sbt "set test in assembly := {}" clean assembly
