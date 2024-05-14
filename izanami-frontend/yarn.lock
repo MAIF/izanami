@@ -1405,6 +1405,13 @@
     "@types/prop-types" "*"
     csstype "^3.0.2"
 
+"@types/swagger-ui-react@^4.18.3":
+  version "4.18.3"
+  resolved "http://nexus-fabfonc.maif.local/repository/npm-public/@types/swagger-ui-react/-/swagger-ui-react-4.18.3.tgz"
+  integrity sha512-Mo/R7IjDVwtiFPs84pWvh5pI9iyNGBjmfielxqbOh2Jv+8WVSDVe8Nu25kb5BOuV2xmGS3o33jr6nwDJMBcX+Q==
+  dependencies:
+    "@types/react" "*"
+
 "@types/unist@^2":
   version "2.0.10"
   resolved "https://registry.npmjs.org/@types/unist/-/unist-2.0.10.tgz"

@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
+import * as path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -26,5 +27,16 @@ export default defineConfig({
   define: {
     // See https://stackoverflow.com/questions/72114775/vite-global-is-not-defined
     global: "window",
+  },
+  resolve: {
+    alias: [
+      {
+        find: "#swagger-ui",
+        replacement: path.resolve(
+          __dirname,
+          "node_modules/swagger-ui-react/swagger-ui-bundle.js"
+        ),
+      },
+    ],
   },
 });
