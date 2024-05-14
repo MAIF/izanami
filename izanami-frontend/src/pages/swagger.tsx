@@ -1,11 +1,14 @@
+import { useEffect } from "react";
 import * as React from "react";
-import SwaggerUI from "swagger-ui-react";
-import "swagger-ui-react/swagger-ui.css";
+import SwaggerUI from "swagger-ui";
+import "swagger-ui/dist/swagger-ui.css";
 
 export function Swagger() {
-  return (
-    <div id="swagger-ui">
-      <SwaggerUI url="/swagger.json" />
-    </div>
-  );
+  useEffect(() => {
+    SwaggerUI({
+      dom_id: "#swagger-ui",
+      url: "/swagger.json",
+    });
+  }, []);
+  return <div id="swagger-ui"></div>;
 }

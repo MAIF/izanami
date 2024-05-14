@@ -26,17 +26,6 @@ export default defineConfig({
   },
   define: {
     // See https://stackoverflow.com/questions/72114775/vite-global-is-not-defined
-    global: "window",
-  },
-  resolve: {
-    alias: [
-      {
-        find: "#swagger-ui",
-        replacement: path.resolve(
-          __dirname,
-          "node_modules/swagger-ui-react/swagger-ui-bundle.js"
-        ),
-      },
-    ],
+    ...(process.env.NODE_ENV === "development" ? { global: "window" } : {}),
   },
 });
