@@ -37,9 +37,7 @@ const MultiSelect = (props: ISelectProps) => {
 
     const handleChange = () => {
       let updatedChecked =CHECKBOX_STATES.Empty ;
-      if (state === CHECKBOX_STATES.Checked) {
-        updatedChecked = CHECKBOX_STATES.Empty;
-      } else if (state === CHECKBOX_STATES.Empty) {
+      if (state === CHECKBOX_STATES.Empty) {
         updatedChecked = CHECKBOX_STATES.Checked;
       } else if (state === CHECKBOX_STATES.Indeterminate) {
         updatedChecked = CHECKBOX_STATES.Checked;
