@@ -42,7 +42,6 @@ import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.{Objects, TimeZone}
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
