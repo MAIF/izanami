@@ -6,7 +6,7 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError, TagDoesNotExists}
 import fr.maif.izanami.models.{Tag, TagCreationRequest}
 import fr.maif.izanami.utils.Datastore
-import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.{Row, SqlConnection}
 
 import scala.concurrent.Future
 
@@ -27,12 +27,13 @@ class TagsDatastore(val env: Env) extends Datastore {
       }
   }
 
-  def createTags(tags: List[TagCreationRequest], tenant: String): Future[List[Tag]] = {
+  def createTags(tags: List[TagCreationRequest], tenant: String, conn: Option[SqlConnection] = None): Future[List[Tag]] = {
     env.postgresql
       .queryAll(
         s"""insert into tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) returning *""",
         List(tags.map(_.name).toArray, tags.map(_.description).toArray),
-        schemas=Set(tenant)
+        schemas=Set(tenant),
+        conn=conn
       ) { row => row.optTag() }
   }
 

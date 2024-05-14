@@ -245,7 +245,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     .readTags(tenant, value).flatMap {
                       case tags if tags.size < value.size => {
                         val tagsToCreate = value.diff(oldFeature.tags)
-                        env.datastores.tags.createTags(tagsToCreate.map(tag => TagCreationRequest(name = tag)).toList, tenant)
+                        env.datastores.tags.createTags(tagsToCreate.map(tag => TagCreationRequest(name = tag)).toList, tenant, conn=Some(conn))
                       }
                       case tags => Right(tags).toFuture
                     }.flatMap(_ => {
@@ -267,6 +267,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     }
                     )
                 case Left(err) => Future.successful(Left(err))
+                case Right(None) => Future.successful(Left(FeatureDoesNotExist(name=id)))
               }
 
             case RemoveFeaturePatch(id) => {
