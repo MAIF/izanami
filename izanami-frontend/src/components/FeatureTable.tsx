@@ -491,10 +491,16 @@ function OperationTagForm(props: {
   } else if (tagsQuery.error) {
     return <div className="error">Failed to load tags</div>;
   } else {
+    const selectedTags = selectedRows.flatMap((row) => row.tags);
+
+    const nonRepeatingTags = selectedTags.filter(
+      (tag) => selectedTags.indexOf(tag) === selectedTags.lastIndexOf(tag)
+    );
     const dataTags = (tagsQuery.data ?? []).map(({ name }) => ({
       label: name,
       value: name,
-      state: selectedRowTags.includes(name),
+      checked: selectedRowTags.includes(name),
+      indeterminate: nonRepeatingTags.includes(name),
     }));
 
     return (
@@ -502,7 +508,7 @@ function OperationTagForm(props: {
         <MultiSelect
           options={dataTags}
           value={values!}
-          defaultValue={dataTags.filter((f) => f.state)}
+          defaultValue={dataTags.filter((f) => f.checked)}
           onSelected={onSelected}
           labelBy={"Select tags..."}
         />
@@ -511,7 +517,7 @@ function OperationTagForm(props: {
           onClick={() =>
             OnSubmit(
               selectedRows,
-              values ? values : dataTags.filter((f) => f.state)
+              values ? values : dataTags.filter((f) => f.checked)
             )
           }
         >
@@ -522,6 +528,7 @@ function OperationTagForm(props: {
     );
   }
 }
+
 function TransferForm(props: {
   tenant: string;
   project: string;
