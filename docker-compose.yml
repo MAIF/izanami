@@ -27,6 +27,7 @@ services:
     image: maif/wasmo:1.0.16
     networks:
       - manager-network
+    #entrypoint: ["/bin/sh", "-c", "npm config set strict-ssl false"]
     environment:
       MANAGER_PORT: 5001
       AUTH_MODE: NO_AUTH
@@ -44,6 +45,7 @@ services:
       S3_BUCKET: wasm-manager
       STORAGE: DOCKER_S3
       LOCAL_WASM_JOB_CLEANING: 60000
+      NPM_CONFIG_STRICT_SSL: false
     ports:
       - 5001:5001
     depends_on:

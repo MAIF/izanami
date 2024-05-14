@@ -70,7 +70,7 @@ export function Menu(props: {
     // Allow to keep tenant menu part while in settings / users views
     if (tenantQuery.isSuccess) {
       projects = tenantQuery.data?.projects;
-      project = project ?? projects?.[0]?.name ?? selectedProject;
+      project = project ?? selectedProject;
     }
 
     return (
@@ -88,7 +88,8 @@ export function Menu(props: {
                     label: t.name,
                   }))}
                   styles={customStyles}
-                  value={{ value: tenant, label: tenant }}
+                  value={tenant ? { value: tenant, label: tenant } : null}
+                  placeholder="Select tenant..."
                   onChange={(v) => {
                     selectTenant(v!.value);
                     navigate(`/tenants/${v!.value}`);
@@ -133,10 +134,15 @@ export function Menu(props: {
                               label: t.name,
                             }))}
                             styles={customStyles}
-                            value={{
-                              value: project,
-                              label: project,
-                            }}
+                            placeholder="Select project..."
+                            value={
+                              project
+                                ? {
+                                    value: project,
+                                    label: project,
+                                  }
+                                : null
+                            }
                             onChange={(v) => {
                               selectProject(v!.value);
                               navigate(
@@ -340,7 +346,11 @@ export function Menu(props: {
                 </li>
               )}
               <li className="inactive">
-                <a href="https://maif.github.io/izanami/" target="_blank" rel="noreferrer">
+                <a
+                  href="https://maif.github.io/izanami/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   <i className="ms-2 fa-solid fa-book" aria-hidden></i>{" "}
                   Documentation
                 </a>
