@@ -9,6 +9,8 @@ import { createProject, queryTenant, tenantQueryKey } from "../utils/queries";
 import { ProjectInCreationType, TenantType, TLevel } from "../utils/types";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
+import Select from "react-select";
+import { customStyles } from "../styles/reactSelect";
 
 export function Tenant({ tenant }: { tenant: string }) {
   const queryKey = tenantQueryKey(tenant);
@@ -38,6 +40,7 @@ function ProjectList(props: { tenant: TenantType }) {
   const { tenant } = props;
   const queryKey = tenantQueryKey(tenant.name);
   const [creating, setCreating] = useState<boolean>(false);
+  const [selectedProject, selectProject] = useState<string | undefined>();
 
   const projectCreationMutation = useMutation(
     (data: ProjectInCreationType) => createProject(tenant.name, data),
@@ -137,24 +140,64 @@ function ProjectList(props: { tenant: TenantType }) {
             </div>
           </div>
         )}
-
-        {tenant?.projects?.map(({ name: pName, description }) => (
-          <div className="col" key={pName}>
+        <div style={{ textAlign: "center" }}>
+          <Select
+            options={tenant?.projects?.map((t) => ({
+              value: t.name,
+              label: t.name,
+            }))}
+            styles={customStyles}
+            placeholder="Select project..."
+            value={
+              selectedProject
+                ? {
+                    value: selectedProject,
+                    label: selectedProject,
+                  }
+                : null
+            }
+            onChange={(v) => {
+              selectProject(v!.value);
+            }}
+          />
+        </div>
+        {selectedProject ? (
+          <div className="col" key={selectedProject}>
             <div className="card shadow-sm">
               <div className="card-body position-relative card-project">
                 <h2>
                   <NavLink
                     className={() => "card-title stretched-link"}
-                    to={`/tenants/${tenant.name}/projects/${pName}`}
+                    to={`/tenants/${tenant.name}/projects/${selectedProject}`}
                   >
-                    {pName}
+                    {selectedProject}
                   </NavLink>
                 </h2>
-                {description || ""}
+                {tenant?.projects
+                  ?.filter((f) => f.name === selectedProject)
+                  .map((f) => f.description) || ""}
               </div>
             </div>
           </div>
-        ))}
+        ) : (
+          tenant?.projects?.map(({ name: pName, description }) => (
+            <div className="col" key={pName}>
+              <div className="card shadow-sm">
+                <div className="card-body position-relative card-project">
+                  <h2>
+                    <NavLink
+                      className={() => "card-title stretched-link"}
+                      to={`/tenants/${tenant.name}/projects/${pName}`}
+                    >
+                      {pName}
+                    </NavLink>
+                  </h2>
+                  {description || ""}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </>
   );
