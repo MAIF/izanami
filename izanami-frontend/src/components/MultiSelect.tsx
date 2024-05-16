@@ -1,5 +1,5 @@
 import * as React from "react";
-import Select, { components } from "react-select";
+import CreatableSelect, { components } from "react-select";
 import { customStyles } from "../styles/reactSelect";
 
 export type Option = {
@@ -36,7 +36,7 @@ const MultiSelect = (props: ISelectProps) => {
     );
 
     const handleChange = () => {
-      let updatedChecked =CHECKBOX_STATES.Empty ;
+      let updatedChecked = CHECKBOX_STATES.Empty;
       if (state === CHECKBOX_STATES.Empty) {
         updatedChecked = CHECKBOX_STATES.Checked;
       } else if (state === CHECKBOX_STATES.Indeterminate) {
@@ -77,7 +77,7 @@ const MultiSelect = (props: ISelectProps) => {
   };
 
   return (
-    <Select
+    <CreatableSelect
       options={options}
       components={{ Option, MultiValue }}
       value={value ? value : defaultValue}
@@ -86,6 +86,7 @@ const MultiSelect = (props: ISelectProps) => {
       styles={customStyles}
       onChange={onSelected}
       isMulti
+      isClearable
       closeMenuOnSelect={false}
       tabSelectsValue={false}
       backspaceRemovesValue={false}
