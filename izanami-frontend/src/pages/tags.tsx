@@ -22,6 +22,7 @@ import {
 } from "../securityContext";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
+import { CopyButton } from "../components/CopyButton";
 
 export function Tags(props: { tenant: string }) {
   const { tenant } = props;
@@ -253,6 +254,14 @@ export function Tags(props: { tenant: string }) {
                 minSize: 200,
                 size: 10,
               },
+
+              {
+                id: "id",
+                accessorFn: (s) => s.id,
+                maxSize: 80,
+                minSize: 60,
+                size: 15,
+              },
             ]}
             customRowActions={{
               edit: {
@@ -289,6 +298,11 @@ export function Tags(props: { tenant: string }) {
                           type: type.string,
                           format: format.textarea,
                           defaultValue: key?.description || "",
+                        },
+                        id: {
+                          label: "ID",
+                          type: type.string,
+                          defaultValue: <CopyButton value={key.id} />,
                         },
                       }}
                       footer={({ valid }: { valid: () => void }) => {
