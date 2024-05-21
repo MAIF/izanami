@@ -16,7 +16,7 @@ import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import { CopyButton } from "../components/CopyButton";
+import { CopyButton } from "../components/FeatureTable";
 
 export function Tenant({ tenant }: { tenant: string }) {
   const queryKey = tenantQueryKey(tenant);
@@ -77,6 +77,30 @@ function ProjectList(props: { tenant: TenantType }) {
             Create new project
           </button>
         )}
+      </div>
+      <div className="d-flex flex-column">
+        <Select
+          options={tenant?.projects?.map((t) => ({
+            value: t.name,
+            label: t.name,
+          }))}
+          styles={customStyles}
+          placeholder="Select project..."
+          value={
+            selectedProject
+              ? {
+                  value: selectedProject.name,
+                  label: selectedProject.name,
+                }
+              : null
+          }
+          isClearable
+          onChange={(v) => {
+            selectProject(
+              tenant?.projects?.filter((f) => f.name === v?.value)[0]
+            );
+          }}
+        />
       </div>
       {noProjects && !creating && (
         <div className="item-block">
@@ -148,29 +172,6 @@ function ProjectList(props: { tenant: TenantType }) {
             </div>
           </div>
         )}
-        <div style={{ textAlign: "center" }}>
-          <Select
-            options={tenant?.projects?.map((t) => ({
-              value: t.name,
-              label: t.name,
-            }))}
-            styles={customStyles}
-            placeholder="Select project..."
-            value={
-              selectedProject
-                ? {
-                    value: selectedProject.name,
-                    label: selectedProject.name,
-                  }
-                : null
-            }
-            onChange={(v) => {
-              selectProject(
-                tenant?.projects?.filter((f) => f.name === v?.value)[0]
-              );
-            }}
-          />
-        </div>
         {selectedProject ? (
           <div className="col" key={selectedProject.name}>
             <div className="card shadow-sm">
@@ -183,8 +184,10 @@ function ProjectList(props: { tenant: TenantType }) {
                     {selectedProject.name}
                   </NavLink>
                 </h2>
-                <CopyButton value={selectedProject.id} />
                 {selectedProject.description}
+              </div>
+              <div className="d-flex mb-2 justify-content-end">
+                <CopyButton value={selectedProject.id} />
               </div>
             </div>
           </div>
@@ -201,8 +204,11 @@ function ProjectList(props: { tenant: TenantType }) {
                       {pName}
                     </NavLink>
                   </h2>
-                  <CopyButton value={id} />
+
                   {description || ""}
+                </div>
+                <div className="d-flex mb-2 justify-content-end">
+                  <CopyButton value={id} />
                 </div>
               </div>
             </div>
