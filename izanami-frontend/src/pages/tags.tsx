@@ -22,7 +22,7 @@ import {
 } from "../securityContext";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import { CopyButton } from "../components/CopyButton";
+import { CopyButton } from "../components/FeatureTable";
 
 export function Tags(props: { tenant: string }) {
   const { tenant } = props;
@@ -229,7 +229,8 @@ export function Tags(props: { tenant: string }) {
                 id: "name",
                 accessorFn: (s) => s.name,
                 header: () => "Tag name",
-                minSize: 200,
+                minSize: 150,
+                size: 15,
                 cell: (info) => {
                   const name = info.getValue();
                   return (
@@ -245,22 +246,24 @@ export function Tags(props: { tenant: string }) {
                     </>
                   );
                 },
-                size: 10,
               },
               {
                 id: "description",
                 accessorFn: (s) => s.description,
                 header: () => "Description",
-                minSize: 200,
-                size: 10,
+                minSize: 150,
+                size: 85,
               },
 
               {
-                id: "id",
+                id: "ID",
                 accessorFn: (s) => s.id,
+                cell: (info) => {
+                  return <CopyButton value={info.getValue()}></CopyButton>;
+                },
                 maxSize: 80,
                 minSize: 60,
-                size: 15,
+                size: 10,
               },
             ]}
             customRowActions={{

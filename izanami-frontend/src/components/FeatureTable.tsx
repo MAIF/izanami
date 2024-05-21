@@ -638,7 +638,7 @@ function OperationForm(props: {
   }
 }
 
-function CopyButton(props: { value: any }) {
+export function CopyButton(props: { value: any }) {
   const [validCheckMark, setValidCheckmark] = React.useState<boolean>(false);
   const [idCheckMark, setIdCheckmark] = React.useState<number>();
   const timeRef = React.useRef<NodeJS.Timeout>();
