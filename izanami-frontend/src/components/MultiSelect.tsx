@@ -1,6 +1,7 @@
 import * as React from "react";
-import CreatableSelect, { components } from "react-select";
+import { components } from "react-select";
 import { customStyles } from "../styles/reactSelect";
+import CreatableSelect from "react-select/creatable";
 
 export type Option = {
   value: string;
