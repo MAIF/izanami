@@ -493,9 +493,12 @@ function OperationTagForm(props: {
   } else {
     const selectedTags = selectedRows.flatMap((row) => row.tags);
 
-    const nonRepeatingTags = selectedTags.filter(
-      (tag) => selectedTags.indexOf(tag) === selectedTags.lastIndexOf(tag)
-    );
+    const nonRepeatingTags =
+      selectedRows.length > 1
+        ? selectedTags.filter(
+            (tag) => selectedTags.indexOf(tag) === selectedTags.lastIndexOf(tag)
+          )
+        : [];
     const dataTags = (tagsQuery.data ?? []).map(({ name }) => ({
       label: name,
       value: name,
