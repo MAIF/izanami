@@ -47,7 +47,7 @@ function ProjectList(props: { tenant: TenantType }) {
   const queryKey = tenantQueryKey(tenant.name);
   const [creating, setCreating] = useState<boolean>(false);
   const [selectedProject, selectProject] = useState<
-    TenantProjectType | undefined
+    TenantProjectType[] | undefined
   >();
 
   const projectCreationMutation = useMutation(
@@ -79,27 +79,19 @@ function ProjectList(props: { tenant: TenantType }) {
         )}
       </div>
       <div className="d-flex flex-column">
-        <Select
-          options={tenant?.projects?.map((t) => ({
-            value: t.name,
-            label: t.name,
-          }))}
-          styles={customStyles}
-          placeholder="Select project..."
-          value={
-            selectedProject
-              ? {
-                  value: selectedProject.name,
-                  label: selectedProject.name,
-                }
-              : null
-          }
-          isClearable
-          onChange={(v) => {
+        <input
+          placeholder="Search project"
+          onChange={(e) => {
             selectProject(
-              tenant?.projects?.filter((f) => f.name === v?.value)[0]
+              tenant?.projects?.filter((f) =>
+                f.name.toLowerCase().startsWith(e.target.value.toLowerCase())
+              )
             );
           }}
+          className="form-control"
+          type="search-form"
+          name="search-form"
+          id="search-form"
         />
       </div>
       {noProjects && !creating && (
@@ -172,53 +164,53 @@ function ProjectList(props: { tenant: TenantType }) {
             </div>
           </div>
         )}
-        {selectedProject ? (
-          <div className="col" key={selectedProject.name}>
-            <div className="card shadow-sm">
-              <div className="card-body position-relative card-project">
-                <h2>
-                  <NavLink
-                    className={() => "card-title stretched-link"}
-                    to={`/tenants/${tenant.name}/projects/${selectedProject}`}
-                  >
-                    {selectedProject.name}
-                  </NavLink>
-                </h2>
-                {selectedProject.description}
-              </div>
-              <div className="d-flex mb-2 justify-content-end">
-                <CopyButton value={selectedProject.id} />
-              </div>
-            </div>
-          </div>
-        ) : (
-          tenant?.projects?.map(({ name: pName, description, id }) => (
-            <div className="col" key={pName}>
-              <div className="card shadow-sm">
-                <div className="card-body position-relative card-project">
-                  <h2>
-                    <NavLink
-                      className={() => "card-title stretched-link"}
-                      to={`/tenants/${tenant.name}/projects/${pName}`}
-                    >
-                      {pName}
-                    </NavLink>
-                  </h2>
-
-                  {description || ""}
-                </div>
-                <div className="d-flex mb-2 justify-content-end">
-                  <CopyButton value={id} />
-                </div>
-              </div>
-            </div>
-          ))
-        )}
+        {selectedProject
+          ? selectedProject.map((selectedProject) => (
+              <ProjectCard
+                key={selectedProject.id}
+                project={selectedProject}
+                tenantName={tenant.name}
+              />
+            ))
+          : tenant?.projects?.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                tenantName={tenant.name}
+              />
+            ))}
       </div>
     </>
   );
 }
 
+function ProjectCard(props: {
+  project: TenantProjectType;
+  tenantName: string;
+}) {
+  const { project, tenantName } = props;
+  return (
+    <div className="col" key={project.name}>
+      <div className="card shadow-sm">
+        <div className="card-body position-relative card-project">
+          <h2>
+            <NavLink
+              className={() => "card-title stretched-link"}
+              to={`/tenants/${tenantName}/projects/${project.name}`}
+            >
+              {project.name}
+            </NavLink>
+          </h2>
+
+          {project.description || ""}
+        </div>
+        <div className="d-flex mb-2 justify-content-end">
+          <CopyButton value={project.id} title={"ID"} />
+        </div>
+      </div>
+    </div>
+  );
+}
 const projectCreationSchema = {
   name: {
     type: type.string,

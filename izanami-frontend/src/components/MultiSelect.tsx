@@ -56,15 +56,15 @@ const MultiSelect = (props: ISelectProps) => {
 
     return (
       <components.Option {...props}>
-        <input
-          type="checkbox"
-          onChange={handleChange}
-          ref={checkboxRef}
-          style={{
-            accentColor: state !== CHECKBOX_STATES.Empty ? "#dc5f9f" : "#fff",
-          }}
-        />
-        <label style={{ marginLeft: "5px" }}>{props.label}</label>
+        <div className="d-flex align-items-center">
+          <input
+            type="checkbox"
+            onChange={handleChange}
+            ref={checkboxRef}
+            className="checkbox-rounded-select"
+          />
+          <label style={{ marginLeft: "5px" }}>{props.label}</label>
+        </div>
       </components.Option>
     );
   };

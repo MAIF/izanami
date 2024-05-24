@@ -302,11 +302,6 @@ export function Tags(props: { tenant: string }) {
                           format: format.textarea,
                           defaultValue: key?.description || "",
                         },
-                        id: {
-                          label: "ID",
-                          type: type.string,
-                          defaultValue: <CopyButton value={key.id} />,
-                        },
                       }}
                       footer={({ valid }: { valid: () => void }) => {
                         return (
