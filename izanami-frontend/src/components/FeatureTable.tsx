@@ -638,11 +638,11 @@ function OperationForm(props: {
   }
 }
 
-export function CopyButton(props: { value: any }) {
+export function CopyButton(props: { value: any; title?: any }) {
   const [validCheckMark, setValidCheckmark] = React.useState<boolean>(false);
   const [idCheckMark, setIdCheckmark] = React.useState<number>();
   const timeRef = React.useRef<NodeJS.Timeout>();
-  const { value } = props;
+  const { value, title } = props;
 
   return (
     <button
@@ -671,7 +671,10 @@ export function CopyButton(props: { value: any }) {
           <Tooltip id="copy_id" isOpen={validCheckMark} />
         </>
       ) : (
-        <i className="bi bi-clipboard" aria-label="copy feature id"></i>
+        <div className="row justify-content-center">
+          <i className="bi bi-clipboard" aria-label="copy feature id"></i>
+          {title ? title : ""}
+        </div>
       )}
     </button>
   );
@@ -1508,7 +1511,7 @@ export function FeatureTable(props: {
       cell: (props: any) => {
         const value = props.row.original.id;
 
-        return <CopyButton value={value} />;
+        return <CopyButton value={value}/>;
       },
     });
   }

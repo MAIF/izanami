@@ -152,3 +152,40 @@ input.checkbox-rounded:indeterminate:after {
   transform: rotate(0deg);
   border-left: none;
 }
+
+input.checkbox-rounded-select {
+  appearance: none;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 20%;
+  height: 16px;
+  width: 16px;
+}
+input.checkbox-rounded-select:after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  margin-top: 3px;
+  margin-left: 3px;
+  height: 5px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-right: none;
+  transform:rotate(-45deg); 
+  opacity: 0; 
+}
+input.checkbox-rounded-select:checked,
+input.checkbox-rounded-select:indeterminate {
+  background-color: $primaryColor;
+  border-color: $primaryColor;
+}
+
+input.checkbox-rounded-select:checked:after,
+input.checkbox-rounded-select:indeterminate:after {
+  opacity: 1;
+}
+input.checkbox-rounded-select:indeterminate:after {
+  transform: rotate(0deg);
+  border-left: none;
+}
+
