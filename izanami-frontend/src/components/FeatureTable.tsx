@@ -661,14 +661,17 @@ export function CopyButton(props: { value: any; title?: any }) {
     >
       {validCheckMark && idCheckMark === value ? (
         <>
-          <i
-            aria-label="copy feature id"
-            className="bi bi-clipboard"
-            data-tooltip-id="copy_id"
-            data-tooltip-content="Copied to clipboard !"
-            data-tooltip-place="top"
-          ></i>
-          <Tooltip id="copy_id" isOpen={validCheckMark} />
+          <div className="row justify-content-center">
+            <i
+              aria-label="copy feature id"
+              className="bi bi-clipboard"
+              data-tooltip-id="copy_id"
+              data-tooltip-content="Copied to clipboard !"
+              data-tooltip-place="top"
+            ></i>
+            {title ? title : ""}
+            <Tooltip id="copy_id" isOpen={validCheckMark} />
+          </div>
         </>
       ) : (
         <div className="row justify-content-center">
@@ -1511,7 +1514,7 @@ export function FeatureTable(props: {
       cell: (props: any) => {
         const value = props.row.original.id;
 
-        return <CopyButton value={value}/>;
+        return <CopyButton value={value} />;
       },
     });
   }
