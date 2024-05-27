@@ -14,8 +14,6 @@ import {
 } from "../utils/types";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
-import Select from "react-select";
-import { customStyles } from "../styles/reactSelect";
 import { CopyButton } from "../components/FeatureTable";
 
 export function Tenant({ tenant }: { tenant: string }) {
