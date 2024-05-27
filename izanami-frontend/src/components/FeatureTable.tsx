@@ -492,12 +492,15 @@ function OperationTagForm(props: {
     return <div className="error">Failed to load tags</div>;
   } else {
     const selectedTags = selectedRows.flatMap((row) => row.tags);
-
+    const tagCounts = new Map();
+    selectedTags.forEach((tag) => {
+      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+    });
     const nonRepeatingTags =
       selectedRows.length > 1
-        ? selectedTags.filter(
-            (tag) => selectedTags.indexOf(tag) === selectedTags.lastIndexOf(tag)
-          )
+        ? [...tagCounts.entries()]
+            .filter(([, count]) => count < selectedRows.length)
+            .map(([tag]) => tag)
         : [];
     const dataTags = (tagsQuery.data ?? []).map(({ name }) => ({
       label: name,
