@@ -6,9 +6,15 @@ import { NavLink, useNavigate } from "react-router-dom";
 import queryClient from "../queryClient";
 import { useTenantRight } from "../securityContext";
 import { createProject, queryTenant, tenantQueryKey } from "../utils/queries";
-import { ProjectInCreationType, TenantType, TLevel } from "../utils/types";
+import {
+  ProjectInCreationType,
+  TenantProjectType,
+  TenantType,
+  TLevel,
+} from "../utils/types";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
+import { CopyButton } from "../components/FeatureTable";
 
 export function Tenant({ tenant }: { tenant: string }) {
   const queryKey = tenantQueryKey(tenant);
@@ -38,6 +44,9 @@ function ProjectList(props: { tenant: TenantType }) {
   const { tenant } = props;
   const queryKey = tenantQueryKey(tenant.name);
   const [creating, setCreating] = useState<boolean>(false);
+  const [selectedProject, selectProject] = useState<
+    TenantProjectType[] | undefined
+  >();
 
   const projectCreationMutation = useMutation(
     (data: ProjectInCreationType) => createProject(tenant.name, data),
@@ -66,6 +75,22 @@ function ProjectList(props: { tenant: TenantType }) {
             Create new project
           </button>
         )}
+      </div>
+      <div className="d-flex flex-column">
+        <input
+          placeholder="Search project"
+          onChange={(e) => {
+            selectProject(
+              tenant?.projects?.filter((f) =>
+                f.name.toLowerCase().startsWith(e.target.value.toLowerCase())
+              )
+            );
+          }}
+          className="form-control"
+          type="search-form"
+          name="search-form"
+          id="search-form"
+        />
       </div>
       {noProjects && !creating && (
         <div className="item-block">
@@ -137,29 +162,53 @@ function ProjectList(props: { tenant: TenantType }) {
             </div>
           </div>
         )}
-
-        {tenant?.projects?.map(({ name: pName, description }) => (
-          <div className="col" key={pName}>
-            <div className="card shadow-sm">
-              <div className="card-body position-relative card-project">
-                <h2>
-                  <NavLink
-                    className={() => "card-title stretched-link"}
-                    to={`/tenants/${tenant.name}/projects/${pName}`}
-                  >
-                    {pName}
-                  </NavLink>
-                </h2>
-                {description || ""}
-              </div>
-            </div>
-          </div>
-        ))}
+        {selectedProject
+          ? selectedProject.map((selectedProject) => (
+              <ProjectCard
+                key={selectedProject.id}
+                project={selectedProject}
+                tenantName={tenant.name}
+              />
+            ))
+          : tenant?.projects?.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                tenantName={tenant.name}
+              />
+            ))}
       </div>
     </>
   );
 }
 
+function ProjectCard(props: {
+  project: TenantProjectType;
+  tenantName: string;
+}) {
+  const { project, tenantName } = props;
+  return (
+    <div className="col" key={project.name}>
+      <div className="card shadow-sm">
+        <div className="card-body position-relative card-project">
+          <h2>
+            <NavLink
+              className={() => "card-title stretched-link"}
+              to={`/tenants/${tenantName}/projects/${project.name}`}
+            >
+              {project.name}
+            </NavLink>
+          </h2>
+
+          {project.description || ""}
+        </div>
+        <div className="d-flex mb-2 justify-content-end">
+          <CopyButton value={project.id} title={"ID"} />
+        </div>
+      </div>
+    </div>
+  );
+}
 const projectCreationSchema = {
   name: {
     type: type.string,

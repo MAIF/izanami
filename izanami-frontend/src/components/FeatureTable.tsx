@@ -491,10 +491,22 @@ function OperationTagForm(props: {
   } else if (tagsQuery.error) {
     return <div className="error">Failed to load tags</div>;
   } else {
+    const selectedTags = selectedRows.flatMap((row) => row.tags);
+    const tagCounts = new Map();
+    selectedTags.forEach((tag) => {
+      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+    });
+    const nonRepeatingTags =
+      selectedRows.length > 1
+        ? [...tagCounts.entries()]
+            .filter(([, count]) => count < selectedRows.length)
+            .map(([tag]) => tag)
+        : [];
     const dataTags = (tagsQuery.data ?? []).map(({ name }) => ({
       label: name,
       value: name,
-      state: selectedRowTags.includes(name),
+      checked: selectedRowTags.includes(name),
+      indeterminate: nonRepeatingTags.includes(name),
     }));
 
     return (
@@ -502,7 +514,7 @@ function OperationTagForm(props: {
         <MultiSelect
           options={dataTags}
           value={values!}
-          defaultValue={dataTags.filter((f) => f.state)}
+          defaultValue={dataTags.filter((f) => f.checked)}
           onSelected={onSelected}
           labelBy={"Select tags..."}
         />
@@ -511,7 +523,7 @@ function OperationTagForm(props: {
           onClick={() =>
             OnSubmit(
               selectedRows,
-              values ? values : dataTags.filter((f) => f.state)
+              values ? values : dataTags.filter((f) => f.checked)
             )
           }
         >
@@ -522,6 +534,7 @@ function OperationTagForm(props: {
     );
   }
 }
+
 function TransferForm(props: {
   tenant: string;
   project: string;
@@ -631,11 +644,11 @@ function OperationForm(props: {
   }
 }
 
-function CopyButton(props: { value: any }) {
+export function CopyButton(props: { value: any; title?: any }) {
   const [validCheckMark, setValidCheckmark] = React.useState<boolean>(false);
   const [idCheckMark, setIdCheckmark] = React.useState<number>();
   const timeRef = React.useRef<NodeJS.Timeout>();
-  const { value } = props;
+  const { value, title } = props;
 
   return (
     <button
@@ -654,17 +667,23 @@ function CopyButton(props: { value: any }) {
     >
       {validCheckMark && idCheckMark === value ? (
         <>
-          <i
-            aria-label="copy feature id"
-            className="bi bi-clipboard"
-            data-tooltip-id="copy_id"
-            data-tooltip-content="Copied to clipboard !"
-            data-tooltip-place="top"
-          ></i>
-          <Tooltip id="copy_id" isOpen={validCheckMark} />
+          <div className="row justify-content-center">
+            <i
+              aria-label="copy feature id"
+              className="bi bi-clipboard"
+              data-tooltip-id="copy_id"
+              data-tooltip-content="Copied to clipboard !"
+              data-tooltip-place="top"
+            ></i>
+            {title ? title : ""}
+            <Tooltip id="copy_id" isOpen={validCheckMark} />
+          </div>
         </>
       ) : (
-        <i className="bi bi-clipboard" aria-label="copy feature id"></i>
+        <div className="row justify-content-center">
+          <i className="bi bi-clipboard" aria-label="copy feature id"></i>
+          {title ? title : ""}
+        </div>
       )}
     </button>
   );
