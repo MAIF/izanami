@@ -244,7 +244,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                   env.datastores.tags
                     .readTags(tenant, value).flatMap {
                       case tags if tags.size < value.size => {
-                        val tagsToCreate = value.diff(oldFeature.tags)
+                        val existingTagNames = tags.map(_.name).toSet
+                        val tagsToCreate = value.diff(existingTagNames)
                         env.datastores.tags.createTags(tagsToCreate.map(tag => TagCreationRequest(name = tag)).toList, tenant, conn=Some(conn))
                       }
                       case tags => Right(tags).toFuture

@@ -30,7 +30,7 @@ class TagsDatastore(val env: Env) extends Datastore {
   def createTags(tags: List[TagCreationRequest], tenant: String, conn: Option[SqlConnection] = None): Future[List[Tag]] = {
     env.postgresql
       .queryAll(
-        s"""insert into tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) returning *""",
+        s"""insert into tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) ON CONFLICT (name) DO NOTHING returning *""",
         List(tags.map(_.name).toArray, tags.map(_.description).toArray),
         schemas=Set(tenant),
         conn=conn
