@@ -54,6 +54,7 @@ export function Users() {
     },
     {
       onSuccess: (_, { username }) => {
+        queryClient.invalidateQueries(MutationNames.USERS);
         queryClient.invalidateQueries(userQueryKey(username));
       },
     }
