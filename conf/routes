@@ -127,7 +127,6 @@ POST          /api/features/_checks                                             
 GET           /api/events                                                                          fr.maif.izanami.web.EventController.events(pattern: String ?= "*")
 GET           /api/_health                                                                         fr.maif.izanami.web.LegacyController.healthcheck()
 
-
 # Frontend endpoint
 # Serve index page from public directory
 GET     /                           fr.maif.izanami.web.FrontendController.index()
