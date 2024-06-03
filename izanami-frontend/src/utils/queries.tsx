@@ -91,7 +91,12 @@ export function tenantUserQueryKey(tenant: string) {
 export function projectUserQueryKey(tenant: string, project: string) {
   return `USERS-${tenant}-${project}`;
 }
-
+export function searchQueryEntities(query: string): string {
+  return `ENTITIES-${query}`;
+}
+export function searchQueryByTenant(tenant: string, query: string): string {
+  return `ENTITIES-${tenant}-${query}`;
+}
 export function queryTenantUsers(tenant: string): Promise<
   {
     username: string;
@@ -1020,4 +1025,16 @@ export function importUsersFile(tenant: string, file: FileList): Promise<any> {
     method: "POST",
     body: data,
   });
+}
+
+export function searchEntities(query: string): Promise<TFeature[]> {
+  return handleFetchJsonResponse(fetch(`/api/admin/search?query=${query}`));
+}
+export function searchEntitiesByTenant(
+  tenant: string,
+  query: string
+): Promise<TFeature[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenant/${tenant}/search?query=${query}`)
+  );
 }

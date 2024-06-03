@@ -31,6 +31,7 @@ class Datastores(env: Env) {
   val users: UsersDatastore                   = new UsersDatastore(env)
   val configuration: ConfigurationDatastore   = new ConfigurationDatastore(env)
   val stats: StatsDatastore   = new StatsDatastore(env)
+  val searchQueries : SearchDatastore = new SearchDatastore(env)
 
   def onStart(): Future[Unit] = {
     for {

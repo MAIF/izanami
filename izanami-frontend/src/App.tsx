@@ -62,6 +62,7 @@ import { Swagger } from "./pages/swagger";
 import { Tags } from "./pages/tags";
 import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
+import { SearchDropDown } from "./components/SearchDropDown";
 
 function Wrapper({
   element,
@@ -462,6 +463,9 @@ function Layout() {
             </button>
           </div>
           <ul className="navbar-nav ms-auto">
+            <li className="me-2">
+              <SearchDropDown tenant={user?.defaultTenant} />
+            </li>
             <li
               onClick={() => switchLightMode()}
               className="me-2 d-flex align-items-center"
