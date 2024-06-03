@@ -97,6 +97,10 @@ DELETE        /api/admin/tenants/:tenant/_import/:id                            
 GET           /api/admin/stats                                                                     fr.maif.izanami.web.ConfigurationController.readStats()
 DELETE        /api/admin/sse                                                                       fr.maif.izanami.web.EventController.killAllSources()
 
+# Search application endpoints
+GET          /api/admin/search                                                                    fr.maif.izanami.web.SearchController.searchEntities(query: String)
+GET          /api/admin/tenants/:tenant/search                                                    fr.maif.izanami.web.SearchController.searchEntitiesByTenant( tenant: String, query: String)
+
 POST          /api/admin/tenants/:tenant/webhooks                                                  fr.maif.izanami.web.WebhookController.createWebhook(tenant: String)
 GET           /api/admin/tenants/:tenant/webhooks                                                  fr.maif.izanami.web.WebhookController.listWebhooks(tenant: String)
 DELETE        /api/admin/tenants/:tenant/webhooks/:id                                              fr.maif.izanami.web.WebhookController.deleteWebhook(tenant: String, id: String)
