@@ -420,6 +420,7 @@ function Layout() {
   const { user, setUser, logout, expositionUrl, setExpositionUrl } =
     useContext(IzanamiContext);
   const loading = !user?.username || !expositionUrl;
+  const { tenant } = useParams();
   useEffect(() => {
     if (!user?.username) {
       fetch("/api/admin/users/rights")
@@ -464,7 +465,7 @@ function Layout() {
           </div>
           <ul className="navbar-nav ms-auto">
             <li className="me-2">
-              <SearchDropDown tenant={user?.defaultTenant} />
+              <SearchDropDown tenant={tenant} />
             </li>
             <li
               onClick={() => switchLightMode()}
