@@ -106,15 +106,8 @@ PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights   
 
 
 # Search application endpoints
-GET          /api/admin/search                                                                     fr.maif.izanami.web.SearchController.searchEntities(query: String)
-GET          /api/admin/tenants/:tenant/search                                                     fr.maif.izanami.web.SearchController.searchEntitiesByTenant(tenant: String, query: String)
-
-POST          /api/admin/tenants/:tenant/webhooks                                                  fr.maif.izanami.web.WebhookController.createWebhook(tenant: String)
-GET           /api/admin/tenants/:tenant/webhooks                                                  fr.maif.izanami.web.WebhookController.listWebhooks(tenant: String)
-DELETE        /api/admin/tenants/:tenant/webhooks/:id                                              fr.maif.izanami.web.WebhookController.deleteWebhook(tenant: String, id: String)
-PUT           /api/admin/tenants/:tenant/webhooks/:id                                              fr.maif.izanami.web.WebhookController.updateWebhook(tenant: String, id: String)
-GET           /api/admin/tenants/:tenant/webhooks/:id/users                                        fr.maif.izanami.web.UserController.readUsersForWebhook(tenant: String, id: String)
-PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights                      fr.maif.izanami.web.UserController.updateUserRightsForWebhook(tenant: String, webhook: String, user: String)
+GET          /api/admin/search                                                                    fr.maif.izanami.web.SearchController.searchEntities(query: String)
+GET          /api/admin/tenants/:tenant/search                                                    fr.maif.izanami.web.SearchController.searchEntitiesByTenant( tenant: String, query: String)
 
 # Client application endpoints
 GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
