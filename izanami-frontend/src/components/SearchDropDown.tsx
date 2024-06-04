@@ -1,23 +1,39 @@
 import React, { useState, useEffect } from "react";
 import { useDebounce } from "./useDebounce";
-import { searchEntities } from "../utils/queries";
+import { searchEntitiesByTenant, searchQueryEntities } from "../utils/queries";
 import { useQuery } from "react-query";
-import { searchQueryByTenant } from "../utils/queries";
+import { searchQueryByTenant, searchEntities } from "../utils/queries";
 
-export function SearchDropDown(props: { tenant: string | undefined }) {
-  const { tenant } = props;
+interface ISearchProps {
+  tenant: string | undefined;
+  user: string;
+}
+
+export function SearchDropDown(props: ISearchProps) {
+  const { tenant, user } = props;
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
-
-  /*const useSearchEntities = (query: string) => {
-    return useQuery(searchQueryEntities(query), () => searchEntities(query), {
-      enabled: !!query,
-    });
-  };*/
-  const useSearchEntitiesByTenant = (query: string, tenant: string) => {
+  const iconMapping = new Map([
+    ["features", "fa-gears"],
+    ["projects", "fa-building"],
+    ["apikeys", "fa-key"],
+    ["tags", "fa-tag"],
+    ["tenants", "fa-cloud"],
+    ["users", "fa-user"],
+  ]);
+  const useSearchEntitiesByTenant = (query: string) => {
+    if (tenant) {
+      return useQuery(
+        searchQueryByTenant(tenant, query),
+        () => searchEntitiesByTenant(tenant!, query),
+        {
+          enabled: !!query,
+        }
+      );
+    }
     return useQuery(
-      searchQueryByTenant(tenant, query),
-      () => searchEntities(query),
+      searchQueryEntities(query),
+      () => searchEntities(user, query),
       {
         enabled: !!query,
       }
@@ -28,7 +44,7 @@ export function SearchDropDown(props: { tenant: string | undefined }) {
     isLoading,
     isSuccess,
     isError,
-  } = useSearchEntitiesByTenant(debouncedSearchQuery, tenant!);
+  } = useSearchEntitiesByTenant(debouncedSearchQuery);
   const [showDropdown, setShowDropdown] = useState(false);
 
   const handleSearchInput = (event: any) => {
@@ -69,14 +85,6 @@ export function SearchDropDown(props: { tenant: string | undefined }) {
     return acc;
   }, {});
 
-  const iconMapping = new Map([
-    ["features", "fa-gears"],
-    ["projects", "fa-building"],
-    ["apikeys", "fa-key"],
-    ["tags", "fa-tag"],
-    ["tenants", "fa-cloud"],
-    ["users", "fa-user"],
-  ]);
   return (
     <div className="search-container">
       <div>
