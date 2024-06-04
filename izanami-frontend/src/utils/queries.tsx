@@ -24,7 +24,6 @@ import {
   TWasmConfig,
   WasmFeature,
   Webhook,
-  SearchEntityResponse,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -102,17 +101,17 @@ export function tenantUserQueryKey(tenant: string) {
 export function projectUserQueryKey(tenant: string, project: string) {
   return `USERS-${tenant}-${project}`;
 }
+
+export function webhookUserQueryKey(tenant: string, webhook: string) {
+  return `USERS-${tenant}-${webhook}`;
+}
+
 export function searchQueryEntities(query: string): string {
   return `ENTITIES-${query}`;
 }
 export function searchQueryByTenant(tenant: string, query: string): string {
   return `ENTITIES-${tenant}-${query}`;
 }
-
-export function webhookUserQueryKey(tenant: string, webhook: string) {
-  return `USERS-${tenant}-${webhook}`;
-}
-
 export function queryTenantUsers(tenant: string): Promise<
   {
     username: string;
@@ -1166,7 +1165,7 @@ export function importUsersFile(tenant: string, file: FileList): Promise<any> {
 export function searchEntities(
   user: string,
   query: string
-): Promise<SearchEntityResponse[]> {
+): Promise<TFeature[]> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/users/${user}/search?query=${query}`)
   );
@@ -1174,7 +1173,7 @@ export function searchEntities(
 export function searchEntitiesByTenant(
   tenant: string,
   query: string
-): Promise<SearchEntityResponse[]> {
+): Promise<TFeature[]> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/search?query=${query}`)
   );

@@ -4,7 +4,6 @@ import React, {
   FunctionComponent,
   useContext,
   useEffect,
-  useState,
 } from "react";
 
 import {
@@ -64,7 +63,7 @@ import { Tags } from "./pages/tags";
 import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
 import { WebHooks } from "./pages/webhooks";
-import { SearchModal } from "./components/SearchComponant/SearchModal";
+import { SearchDropDown } from "./components/SearchDropDown";
 
 function Wrapper({
   element,
@@ -435,7 +434,7 @@ function RedirectToFirstTenant(): JSX.Element {
 function Layout() {
   const { user, setUser, logout, expositionUrl } = useContext(IzanamiContext);
   const loading = !user?.username || !expositionUrl;
-  const [isOpenModal, setIsOpenModal] = useState(false);
+  const defaultTenant = user?.defaultTenant;
   const { tenant } = useParams();
   useEffect(() => {
     if (!user?.username) {
@@ -446,23 +445,10 @@ function Layout() {
     }
   }, [user?.username]);
 
-  //Handle command k to show Search Modal
-  useEffect(() => {
-    const open = (e: any) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setIsOpenModal(true);
-      }
-    };
-    window.addEventListener("keydown", open);
-    return () => {
-      window.removeEventListener("keydown", open);
-    };
-  }, []);
-
   if (loading) {
     return <Loader message="Loading..." />;
   }
+
   return (
     <div className="container-fluid">
       {/*TOOD externalsier la navbar*/}
@@ -489,20 +475,10 @@ function Layout() {
           </div>
           <ul className="navbar-nav ms-auto">
             <li className="me-2">
-              <button
-                className="btn btn-secondary"
-                aria-label="Search"
-                id="btnSearch"
-                type="button"
-                onClick={() => setIsOpenModal(true)}
-              >
-                <span className="fa fa-search"></span>
-                <span className="text-searchbutton">Type to search ...</span>
-                <span className="span-kbd-searchbutton">
-                  <kbd className="kbd-searchbutton">⌘</kbd>
-                  <kbd className="kbd-searchbutton">K</kbd>
-                </span>
-              </button>
+              <SearchDropDown
+                tenant={tenant || defaultTenant}
+                user={user?.username}
+              />
             </li>
             <li
               onClick={() => switchLightMode()}
@@ -570,13 +546,6 @@ function Layout() {
           <Outlet />
         </main>
       </div>
-      {/*Add Search Modal*/}
-      <SearchModal
-        tenant={tenant!}
-        user={user.username}
-        isOpenModal={isOpenModal}
-        onClose={() => setIsOpenModal(false)}
-      />
     </div>
   );
 }
