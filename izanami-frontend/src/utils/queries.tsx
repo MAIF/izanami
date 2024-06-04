@@ -1027,14 +1027,19 @@ export function importUsersFile(tenant: string, file: FileList): Promise<any> {
   });
 }
 
-export function searchEntities(query: string): Promise<TFeature[]> {
-  return handleFetchJsonResponse(fetch(`/api/admin/search?query=${query}`));
+export function searchEntities(
+  user: string,
+  query: string
+): Promise<TFeature[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/users/${user}/search?query=${query}`)
+  );
 }
 export function searchEntitiesByTenant(
   tenant: string,
   query: string
 ): Promise<TFeature[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenant/${tenant}/search?query=${query}`)
+    fetch(`/api/admin/tenants/${tenant}/search?query=${query}`)
   );
 }

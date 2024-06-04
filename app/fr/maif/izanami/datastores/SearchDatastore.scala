@@ -11,12 +11,12 @@ import scala.concurrent.Future
 
 class SearchDatastore(val env: Env) extends Datastore {
 
-  def searchEntities(query: String) : Future[List[SearchEntity]] = {
+  def searchEntities(user: String, query: String) : Future[List[SearchEntity]] = {
 
     env.postgresql.queryAll(
       s"""
-         |SELECT * FROM search_entities WHERE to_tsquery('english', $$1) @@ searchable_name;""".stripMargin,
-        List(query.concat(":*")),
+         |SELECT * FROM izanami.search_entities WHERE to_tsquery('english', $$1) @@ searchable_name;""".stripMargin,
+      List(query.concat(":*")),
     ) { r => r.optSearchEntity()}
 
   }
@@ -25,7 +25,7 @@ class SearchDatastore(val env: Env) extends Datastore {
 
     env.postgresql.queryAll(
       s"""
-         |SELECT * FROM search_entities WHERE ts @@ to_tsquery('english',$$1);""".stripMargin,
+         |SELECT * FROM search_entities WHERE to_tsquery('english', $$1) @@ searchable_name;""".stripMargin,
       List(query.concat(":*")),
       schemas = Set(tenant)
     ) { r => r.optSearchEntity()}
