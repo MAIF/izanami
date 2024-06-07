@@ -497,7 +497,7 @@ function Layout() {
             </li>
             <li
               onClick={() => switchLightMode()}
-              className="me-2 d-flex align-items-center"
+              className="me-2 d-flex align-items-center justify-content-end my-2"
             >
               <i
                 id="lightMode"
