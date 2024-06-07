@@ -425,7 +425,7 @@ function LegacyFeatureForm(props: {
             <label>
               Enabled
               <Tooltip id="legacy-enabled">
-                Wether feature is enabled or disabled. Disabled feature is
+                Whether feature is enabled or disabled. The disabled feature is an
                 inactive event if its conditions match.
               </Tooltip>
               <input
@@ -1003,7 +1003,7 @@ export function V2FeatureForm(props: {
             <label className="mt-3">
               Enabled
               <Tooltip id="modern-enabled">
-                Wether feature is enabled or disabled. Disabled feature is
+                Whether feature is enabled or disabled. The disabled feature is an
                 inactive event if its conditions match.
               </Tooltip>
               <input

@@ -484,7 +484,7 @@ function IzanamiV1ImportForm(props: {
               Inline WASM scripts as Base64
               <Tooltip id="inline-scripts">
                 <div>
-                  Wether Izanami should store wasm script in its own database
+                  Whether Izanami should store Wasm script in its own database
                 </div>
                 <div>(inBase64 format) or rely on Wasmo</div>
                 <div>to provide scripts at runtime. </div>
@@ -513,7 +513,7 @@ function IzanamiV1ImportForm(props: {
             <label className="mt-3">
               Timezone
               <Tooltip id="import-timezone">
-                Timezine to use for date/time in imported scripts.
+                Timezone to use for date/time in imported scripts.
               </Tooltip>
               <Controller
                 name="zone"
@@ -535,7 +535,7 @@ function IzanamiV1ImportForm(props: {
                       project
                     </div>
                     <div>
-                      from its name,by splitting it into project / name
+                      from its name, by splitting it into project / name
                       combination.
                     </div>
                   </Tooltip>
@@ -574,7 +574,7 @@ function IzanamiV1ImportForm(props: {
               >
                 Import in a new project
                 <Tooltip id="import-in-new-project">
-                  Wether to import feature in a new or an existing project
+                  Whether to import feature in a new or an existing project.
                 </Tooltip>
                 <input
                   type="checkbox"
@@ -594,7 +594,7 @@ function IzanamiV1ImportForm(props: {
                     <label className="mt-3">
                       Target project
                       <Tooltip id="target-existing-project">
-                        Project to import features into
+                        Project to import features into.
                       </Tooltip>
                       <Controller
                         name="project"

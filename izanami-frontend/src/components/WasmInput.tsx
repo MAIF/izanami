@@ -55,7 +55,7 @@ export function WasmInput() {
             <span>
               Open Policy Agent
               <Tooltip id="opa">
-                Wether your script is an Open Policy Agent script.
+                Whether your script is an Open Policy Agent script.
               </Tooltip>
             </span>
             <input

@@ -142,12 +142,12 @@ function ConditionInput(props: { index: number }) {
         <label>
           Strategy to use
           <Tooltip id="user-strategy">
-            All activate this rule for every user.
+            All - activate this rule for every user.
             <br />
-            Percentage activate this rule only for the given percentage of
+            Percentage - activate this rule only for the given percentage of
             users.
             <br />
-            User list activates this rule only for specified users.
+            User list - activate this rule only for specified users.
             <br />
             Both time rule and user rule must be active to activate this
             condition.

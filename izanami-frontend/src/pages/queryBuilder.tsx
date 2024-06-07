@@ -171,7 +171,7 @@ export function QueryBuilder() {
               <label className="w-100">
                 Existing url
                 <Tooltip id="paste_url">
-                  Paste an existing URL to fill below fields
+                  Paste an existing URL to fill below fields.
                 </Tooltip>
                 <div className="input-group">
                   <input
@@ -239,7 +239,7 @@ export function QueryBuilder() {
               <label className="w-100">
                 Projects&nbsp;
                 <Tooltip id="projects">
-                  All features of these projects will be evaluated
+                  All features of these projects will be evaluated.
                 </Tooltip>
                 <Select
                   value={projectOptions?.filter(({ value }) =>
@@ -260,7 +260,7 @@ export function QueryBuilder() {
                 Features (Project) &nbsp;
                 <Tooltip id="features" position="top">
                   These features will be evaluated, even if their projects are
-                  not selected
+                  not selected.
                 </Tooltip>
                 <Select
                   value={featureOptions?.filter(
