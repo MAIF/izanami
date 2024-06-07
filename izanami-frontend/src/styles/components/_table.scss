@@ -8,15 +8,20 @@
   }
   tbody {
     background-color: var(--bg-color_level3);
-    td, th {
+    td,
+    th {
       color: var(--color_level3) !important;
     }
   }
   //   th {
   //     color:var(--color_level2) !important;
   //   }
-  .btn{
-    color: #FFF !important;
+  .btn {
+    color: #fff !important;
+  }
+
+  .dropdown {
+    position: inherit;
   }
 }
 
