@@ -96,7 +96,7 @@ function ProjectList(props: { tenant: TenantType }) {
         <div className="item-block">
           <div className="item-text">
             This tenant does not have any project
-            {hasTenantWriteRight ? "yet" : " you can see"}.
+            {hasTenantWriteRight ? " yet" : " you can see"}.
           </div>
           {hasTenantWriteRight && (
             <>
