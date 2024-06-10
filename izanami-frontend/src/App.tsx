@@ -416,8 +416,7 @@ function RedirectToFirstTenant(): JSX.Element {
 }
 
 function Layout() {
-  const { user, setUser, logout, expositionUrl, setExpositionUrl } =
-    useContext(IzanamiContext);
+  const { user, setUser, logout, expositionUrl } = useContext(IzanamiContext);
   const loading = !user?.username || !expositionUrl;
   useEffect(() => {
     if (!user?.username) {
@@ -425,11 +424,6 @@ function Layout() {
         .then((response) => response.json())
         .then((user) => setUser(user))
         .catch(console.error);
-    }
-    if (!expositionUrl) {
-      fetch("/api/admin/exposition")
-        .then((response) => response.json())
-        .then(({ url }) => setExpositionUrl(url));
     }
   }, [user?.username]);
 
@@ -654,12 +648,22 @@ export class App extends Component {
     }
   }
 
+  fetchExpositionUrlIfNeeded(): void {
+    if (!this.state.expositionUrl) {
+      fetch("/api/admin/exposition")
+        .then((response) => response.json())
+        .then(({ url }) => this.setState({ expositionUrl: url }));
+    }
+  }
+
   componentDidMount(): void {
     this.fetchIntegrationsIfNeeded();
+    this.fetchExpositionUrlIfNeeded();
   }
 
   componentDidUpdate(): void {
     this.fetchIntegrationsIfNeeded();
+    this.fetchExpositionUrlIfNeeded;
     setupLightMode();
   }
 

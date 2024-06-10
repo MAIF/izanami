@@ -22,3 +22,4 @@ project/.bloop/
 project/metals.sbt
 project/project/
 izanami-frontend/playwright/.auth/
+.oidc-secrets

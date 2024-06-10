@@ -6,7 +6,7 @@ import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.models.{OIDC, OIDCConfiguration, Rights, User}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import pdi.jwt.{JwtJson, JwtOptions}
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 import play.api.libs.ws.WSAuthScheme
 import play.api.mvc.Cookie.SameSite
 import play.api.mvc._
@@ -22,46 +22,58 @@ class LoginController(
   implicit val ec: ExecutionContext = env.executionContext;
 
   def openIdConnect = Action {
-      env.datastores.configuration.readOIDCConfiguration() match {
-        case None => MissingOIDCConfigurationError().toHttpResponse
-        case Some(OIDCConfiguration(clientId, _, authorizeUrl, _, redirectUrl)) => Redirect(s"${authorizeUrl}?scope=openid%20profile%20email%20name&client_id=${clientId}&response_type=code&redirect_uri=${redirectUrl}")
+    env.datastores.configuration.readOIDCConfiguration() match {
+      case None                                                                             => MissingOIDCConfigurationError().toHttpResponse
+      case Some(OIDCConfiguration(clientId, _, authorizeUrl, _, redirectUrl, _, _, scopes)) => {
+        val hasOpenIdInScope = scopes.exists(s => s.equalsIgnoreCase("openid"))
+        val actualScope      = (if (!hasOpenIdInScope) scopes + "openid" else scopes).mkString("%20")
+        Redirect(
+          s"${authorizeUrl}?scope=$actualScope&client_id=${clientId}&response_type=code&redirect_uri=${redirectUrl}"
+        )
       }
+    }
   }
 
   def openIdCodeReturn = Action.async { implicit request =>
     // TODO handle refresh_token
     {
       for (
-        code         <- request.body.asJson.flatMap(json => (json \ "code").get.asOpt[String]);
-        OIDCConfiguration(clientId, clientSecret, _, tokenUrl, redirectUrl) <- env.datastores.configuration.readOIDCConfiguration()
+        code                                                                                           <- request.body.asJson.flatMap(json => (json \ "code").get.asOpt[String]);
+        OIDCConfiguration(clientId, clientSecret, _, tokenUrl, redirectUrl, usernameField, emailField, _) <-
+          env.datastores.configuration.readOIDCConfiguration()
       )
         yield env.Ws
           .url(tokenUrl)
           .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
           .withHttpHeaders(("content-type", "application/x-www-form-urlencoded"))
           .post(Map("grant_type" -> "authorization_code", "code" -> code, "redirect_uri" -> redirectUrl))
-          //.post(s"grant_type=authorization_code&code=${code}&redirect_uri=${redirectUrl}")
           .flatMap(r => {
             val maybeToken = (r.json \ "id_token").get.asOpt[String]
             maybeToken.fold(Future(InternalServerError(Json.obj("message" -> "Failed to retrieve token"))))(token => {
               val maybeClaims = JwtJson.decode(token, JwtOptions(signature = false))
               maybeClaims.toOption
-                .flatMap(claims => claims.subject)
-                .map(userId =>
-                  env.datastores.users
-                    .findUser(userId)
-                    .flatMap(maybeUser =>
-                      maybeUser.fold(
-                        // TODO handle mail
-                        env.datastores.users.createUser(User(userId, userType = OIDC).withRights(Rights.EMPTY))
-                      )(user => Future(Right(user.withRights(Rights.EMPTY)))).map(either => either.map(_ => userId))
-                    )
-                )
+                .flatMap(claims => Json.parse(claims.content).asOpt[JsObject])
+                .flatMap(json => {
+                  for (
+                    username <- (json \ usernameField).asOpt[String];
+                    email    <- (json \ emailField).asOpt[String]
+                  )
+                    yield env.datastores.users
+                      .findUser(username)
+                      .flatMap(maybeUser =>
+                        maybeUser
+                          .fold(
+                            env.datastores.users
+                              .createUser(User(username, email = email, userType = OIDC).withRights(Rights.EMPTY))
+                          )(user => Future(Right(user.withRights(Rights.EMPTY))))
+                          .map(either => either.map(_ => username))
+                      )
+                })
                 .getOrElse(Future(Left(InternalServerError(Json.obj("message" -> "Failed to read token claims")))))
                 .flatMap {
                   // TODO refactor this whole method
                   case Right(username) => env.datastores.users.createSession(username).map(id => Right(id))
-                  case Left(err)   => Future(Left(err))
+                  case Left(err)       => Future(Left(err))
                 }
                 .map(maybeId => {
                   maybeId
@@ -133,7 +145,7 @@ class LoginController(
               )
             )
         }
-      case _                                => Future(Unauthorized(Json.obj("message" -> "Missing credentials")))
+      case _                                   => Future(Unauthorized(Json.obj("message" -> "Missing credentials")))
     }
   }
 }

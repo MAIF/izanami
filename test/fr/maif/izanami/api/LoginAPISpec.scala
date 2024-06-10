@@ -27,7 +27,7 @@ class LoginAPISpec extends BaseAPISpec {
         .withTenantNames("my-tenant")
         .build()
 
-      val response = login("test-user", "password1234", rights=true)
+      val response = login("test-user", "password1234", rights = true)
       response.status mustBe OK
       response.cookies.find(c => c.name.equals("token")) mustBe defined
       (response.json.get \ "rights" \ "tenants" \ "my-tenant" \ "level").as[String] mustEqual "Admin"
@@ -84,7 +84,7 @@ class LoginAPISpec extends BaseAPISpec {
         .loggedAs("test-user")
         .build()
 
-      val response = await(ws.url(s"${ADMIN_BASE_URL}/logout").withCookies(situation.cookies:_*).post(""))
+      val response       = await(ws.url(s"${ADMIN_BASE_URL}/logout").withCookies(situation.cookies: _*).post(""))
       response.status mustBe NO_CONTENT
       val tenantResponse = situation.fetchTenants()
       tenantResponse.status mustBe UNAUTHORIZED
@@ -105,7 +105,7 @@ class LoginAPISpec extends BaseAPISpec {
       result
         .headers()
         .firstValue("location")
-        .get() mustEqual "http://localhost:9001/auth?scope=openid%20profile%20email%20name&client_id=foo&response_type=code&redirect_uri=http://localhost:3000/login"
+        .get() mustEqual "http://localhost:9001/auth?scope=email%20profile%20openid&client_id=foo&response_type=code&redirect_uri=http://localhost:3000/login"
     }
 
     "should allow complete flow" in {
@@ -137,8 +137,8 @@ class LoginAPISpec extends BaseAPISpec {
       )
 
       val myAppRedirectUrl = codeRes.header("location").get
-      val uri = new URI(myAppRedirectUrl)
-      val code = uri.getQuery.split("code=")(1).split("&")(0)
+      val uri              = new URI(myAppRedirectUrl)
+      val code             = uri.getQuery.split("code=")(1).split("&")(0)
 
       val finalResponse = await(ws.url(s"""${ADMIN_BASE_URL}/openid-connect-callback""").post(Json.obj("code" -> code)))
 
