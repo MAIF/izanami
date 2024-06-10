@@ -6,6 +6,7 @@ import Logo from "../../izanami.png";
 import { Configuration, TUser } from "../utils/types";
 import { useMutation } from "react-query";
 import { updateConfiguration } from "../utils/queries";
+import { Loader } from "../components/Loader";
 
 export function Login(props: any) {
   const code = new URLSearchParams(props.location.search).get("code");
@@ -42,7 +43,11 @@ function TokenWaitScreen({ code }: { code: string }) {
   if (error) {
     return <div>{error}</div>;
   } else if (fetching) {
-    return <div>Fetching...</div>;
+    return (
+      <div>
+        <Loader message="Waiting redirection..." />
+      </div>
+    );
   } else {
     return <div>Fetched !!!</div>;
   }
@@ -51,7 +56,7 @@ function TokenWaitScreen({ code }: { code: string }) {
 function LoginForm(props: { req?: string }) {
   const navigate = useNavigate();
   const req = props.req;
-  const { setUser, integrations } = useContext(IzanamiContext);
+  const { setUser, integrations, expositionUrl } = useContext(IzanamiContext);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -164,8 +169,7 @@ function LoginForm(props: { req?: string }) {
                 <button
                   className="btn btn-secondary"
                   onClick={() => {
-                    window.location.href =
-                      "http://localhost:9000/api/admin/openid-connect";
+                    window.location.href = `${expositionUrl}/api/admin/openid-connect`;
                   }}
                 >
                   OpenId connect

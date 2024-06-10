@@ -40,8 +40,19 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
       clientSecret <- env.configuration.getOptional[String]("app.openid.client-secret");
       authorizeUrl <- env.configuration.getOptional[String]("app.openid.authorize-url");
       tokenUrl <- env.configuration.getOptional[String]("app.openid.token-url");
-      redirectUrl <- env.configuration.getOptional[String]("app.openid.redirect-url")
-    ) yield OIDCConfiguration(clientId=clientId, clientSecret=clientSecret, authorizeUrl=authorizeUrl, tokenUrl=tokenUrl, redirectUrl=redirectUrl)
+      redirectUrl <- env.configuration.getOptional[String]("app.openid.redirect-url");
+      usernameField <- env.configuration.getOptional[String]("app.openid.username-field");
+      emailField <- env.configuration.getOptional[String]("app.openid.email-field");
+      scopes <- env.configuration.getOptional[String]("app.openid.scopes")
+    ) yield OIDCConfiguration(clientId=clientId,
+      clientSecret=clientSecret,
+      authorizeUrl=authorizeUrl,
+      tokenUrl=tokenUrl,
+      redirectUrl=redirectUrl,
+      usernameField = usernameField,
+      emailField = emailField,
+      scopes = scopes.split(" ").toSet
+    )
   }
 
   def readConfiguration(): Future[Either[IzanamiError, IzanamiConfiguration]] = {

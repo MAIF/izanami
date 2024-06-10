@@ -59,13 +59,20 @@ Izanami needs to know on which URL it is exposed, this use for generating invita
 
 Izanami allows to set up an external openid provider.
 
-|               | Environnement variable       | Program argument         | Default                            |
-| ------------- | ---------------------------- | ------------------------ | ---------------------------------- |
-| Client ID     | IZANAMI_OPENID_CLIENT_ID     | app.openid.client-id     |                                    |
-| Client secret | IZANAMI_OPENID_CLIENT_SECRET | app.openid.client-secret |                                    |
-| Authorize URL | IZANAMI_OPENID_AUTHORIZE_URL | app.openid.authorize-url |                                    |
-| Token URL     | IZANAMI_OPENID_TOKEN_URL     | app.openid.token-url     |                                    |
-| Redirect URL  | IZANAMI_OPENID_REDIRECT_URL  | app.openid.redirect-url  | <>`${app.exposition.url}/login`</> |
+|                | Environnement variable        | Program argument          | Default                            |
+| -------------- | ----------------------------- | ------------------------- | ---------------------------------- |
+| Client ID      | IZANAMI_OPENID_CLIENT_ID      | app.openid.client-id      |                                    |
+| Client secret  | IZANAMI_OPENID_CLIENT_SECRET  | app.openid.client-secret  |                                    |
+| Authorize URL  | IZANAMI_OPENID_AUTHORIZE_URL  | app.openid.authorize-url  |                                    |
+| Token URL      | IZANAMI_OPENID_TOKEN_URL      | app.openid.token-url      |                                    |
+| Redirect URL   | IZANAMI_OPENID_REDIRECT_URL   | app.openid.redirect-url   | <>`${app.exposition.url}/login`</> |
+| Scopes         | IZANAMI_OPENID_SCOPES         | app.openid.scopes         | <>`openid email profile`</>        |
+| Email field    | IZANAMI_OPENID_EMAIL_FIELD    | app.openid.email-field    | <>`email`</>                       |
+| Username field | IZANAMI_OPENID_USERNAME_FIELD | app.openid.username-field | <>`name`</>                        |
+
+- `Scopes` indicates which scopes should be requested when calling authorization url.
+- `Email field` indicates which field of id token should be used as user email
+- `Username field` indicates which field of id token should be used as username
 
 ### Wasmo
 

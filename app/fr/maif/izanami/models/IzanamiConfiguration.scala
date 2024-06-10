@@ -18,7 +18,10 @@ case class OIDCConfiguration(
   clientSecret: String,
   authorizeUrl: String,
   tokenUrl: String,
-  redirectUrl: String
+  redirectUrl: String,
+  usernameField: String,
+  emailField: String,
+  scopes: Set[String]
 )
 
 case class IzanamiConfiguration(
