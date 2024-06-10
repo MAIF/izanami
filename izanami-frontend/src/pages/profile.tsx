@@ -17,6 +17,7 @@ import { Loader } from "../components/Loader";
 export function Profile() {
   const ctx = React.useContext(IzanamiContext);
   const user = ctx.user!;
+  const isOIDC = user.userType === "OIDC";
   const [informationEdition, setInformationEdition] = useState(false);
   const [passwordEdition, setPasswordEdition] = useState(false);
   const passwordUpdateMutation = useMutation(
@@ -84,7 +85,7 @@ export function Profile() {
               </div>
             </>
           )}
-          {!informationEdition && (
+          {!isOIDC && !informationEdition && (
             <button
               type="button"
               className="btn btn-primary my-2 btn-sm"
@@ -109,7 +110,7 @@ export function Profile() {
             />
           )}
 
-          {!passwordEdition && (
+          {!isOIDC && !passwordEdition && (
             <button
               type="button"
               className="btn btn-primary my-2 btn-sm"
