@@ -76,7 +76,7 @@ export function Menu(props: {
     return (
       <>
         <ul className="nav flex-column">
-          <li>
+          <li className="w-100">
             <>
               <h3>
                 <i className="fas fa-cloud" aria-hidden></i> Tenant
@@ -107,8 +107,8 @@ export function Menu(props: {
                       { path: "/tenants/:tenant/" },
                       props?.location?.pathname || ""
                     )
-                      ? "active mt-2"
-                      : "inactive mt-2"
+                      ? "active mt-2 w-100"
+                      : "inactive mt-2 w-100"
                   }
                 >
                   <>
