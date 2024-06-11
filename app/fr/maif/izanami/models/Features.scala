@@ -26,9 +26,9 @@ sealed trait PatchPathField
 case object Replace extends PatchOperation
 case object Remove  extends PatchOperation
 
-case object Enabled extends PatchPathField
+case object Enabled        extends PatchPathField
 case object ProjectFeature extends PatchPathField
-case object TagsFeature extends PatchPathField
+case object TagsFeature    extends PatchPathField
 
 case object RootFeature extends PatchPathField
 
@@ -61,17 +61,18 @@ case class RemoveFeaturePatch(id: String) extends FeaturePatch {
 object FeaturePatch {
   val ENABLED_PATH_PATTERN: Regex = "^/(?<id>\\S+)/enabled$".r
   val PROJECT_PATH_PATTERN: Regex = "^/(?<id>\\S+)/project$".r
-  val TAGS_PATH_PATTERN: Regex = "^/(?<id>\\S+)/tags$".r
+  val TAGS_PATH_PATTERN: Regex    = "^/(?<id>\\S+)/tags$".r
   val FEATURE_PATH_PATTERN: Regex = "^/(?<id>\\S+)$".r
 
   implicit val patchPathReads: Reads[PatchPath] = Reads[PatchPath] { json =>
     json
       .asOpt[String]
-      .map { case ENABLED_PATH_PATTERN(id) =>
-        PatchPath(id, Enabled)
-      case PROJECT_PATH_PATTERN(id) => PatchPath(id, ProjectFeature)
-      case TAGS_PATH_PATTERN(id) => PatchPath(id, TagsFeature)
-      case FEATURE_PATH_PATTERN(id) => PatchPath(id, RootFeature)
+      .map {
+        case ENABLED_PATH_PATTERN(id) =>
+          PatchPath(id, Enabled)
+        case PROJECT_PATH_PATTERN(id) => PatchPath(id, ProjectFeature)
+        case TAGS_PATH_PATTERN(id)    => PatchPath(id, TagsFeature)
+        case FEATURE_PATH_PATTERN(id) => PatchPath(id, RootFeature)
       }
       .map(path => JsSuccess(path))
       .getOrElse(JsError("Bad patch path"))
@@ -89,16 +90,19 @@ object FeaturePatch {
   }
 
   implicit val featurePatchReads: Reads[FeaturePatch] = Reads[FeaturePatch] { json =>
-    val maybeResult = for (
-      op <- (json \ "op").asOpt[PatchOperation];
-      path <- (json \ "path").asOpt[PatchPath]
-    ) yield (op, path) match {
-      case (Replace, PatchPath(id, Enabled)) => (json \ "value").asOpt[Boolean].map(b => EnabledFeaturePatch(b, id))
-      case (Replace, PatchPath(id, ProjectFeature)) => (json \ "value").asOpt[String].map(b => ProjectFeaturePatch(b, id))
-      case (Replace, PatchPath(id, TagsFeature)) => (json \ "value").asOpt[Set[String]].map(b => TagsFeaturePatch(b, id))
-      case (Remove, PatchPath(id, RootFeature)) => Some(RemoveFeaturePatch(id))
-      case (_,_) => None
-    }
+    val maybeResult =
+      for (
+        op   <- (json \ "op").asOpt[PatchOperation];
+        path <- (json \ "path").asOpt[PatchPath]
+      ) yield (op, path) match {
+        case (Replace, PatchPath(id, Enabled))        => (json \ "value").asOpt[Boolean].map(b => EnabledFeaturePatch(b, id))
+        case (Replace, PatchPath(id, ProjectFeature)) =>
+          (json \ "value").asOpt[String].map(b => ProjectFeaturePatch(b, id))
+        case (Replace, PatchPath(id, TagsFeature))    =>
+          (json \ "value").asOpt[Set[String]].map(b => TagsFeaturePatch(b, id))
+        case (Remove, PatchPath(id, RootFeature))     => Some(RemoveFeaturePatch(id))
+        case (_, _)                                   => None
+      }
     maybeResult.flatten.map(r => JsSuccess(r)).getOrElse(JsError("Failed to read patch operation"))
   }
 }
@@ -179,7 +183,7 @@ case class RequestContext(
     now: Instant = Instant.now(),
     data: JsObject = Json.obj()
 ) {
-  def wasmJson: JsValue = Json.obj("tenant" -> tenant, "id" -> user, "now" -> now.toEpochMilli, "data" -> data)
+  def wasmJson: JsValue       = Json.obj("tenant" -> tenant, "id" -> user, "now" -> now.toEpochMilli, "data" -> data)
   def contextAsString: String = context.elements.mkString("_")
 }
 sealed trait ActivationRule extends LegacyCompatibleCondition {
@@ -424,7 +428,7 @@ object FeatureRequest {
               oneTagIn = processInputSeqUUID(eitherOneTagIn.getOrElse(Seq())),
               noTagIn = processInputSeqUUID(eitherNoTagIn.getOrElse(Seq())),
               context = (eitherContext
-                .map(seq => seq.filter(str => str.nonEmpty).flatMap(str => str.split("/")))
+                .map(seq => seq.filter(str => str.nonEmpty).flatMap(str => str.split("/").filter(s => s.nonEmpty)))
                 .getOrElse(Seq()))
             )
           )
@@ -450,34 +454,55 @@ object Feature {
     hash <= percentage
   }
 
-
-  def processMultipleStrategyResult(strategyByCtx: Map[String, AbstractFeature], requestContext: RequestContext, conditions: Boolean, env: Env): Future[Either[IzanamiError, JsObject]] = {
-    val context = requestContext.context.elements.mkString("_")
+  def processMultipleStrategyResult(
+      strategyByCtx: Map[String, AbstractFeature],
+      requestContext: RequestContext,
+      conditions: Boolean,
+      env: Env
+  ): Future[Either[IzanamiError, JsObject]] = {
+    val context       = requestContext.context.elements.mkString("_")
     val strategyToUse = if (context.isBlank) {
       strategyByCtx("")
     } else {
-      strategyByCtx.filter { case (ctx, f) => context.startsWith(ctx) }
-        .toSeq.sortWith {
+      strategyByCtx
+        .filter { case (ctx, f) => context.startsWith(ctx) }
+        .toSeq
+        .sortWith {
           case ((c1, _), (c2, _)) if c1.length < c2.length => false
-          case _ => true
-        }.headOption.map(_._2).getOrElse(strategyByCtx(""))
+          case _                                           => true
+        }
+        .headOption
+        .map(_._2)
+        .getOrElse(strategyByCtx(""))
     }
 
-
-    val jsonStrategies = Json.toJson(strategyByCtx.map { case (ctx, feature) => {
-      (ctx.replace("_", "/"), (feature match {
-        case w: WasmFeature => Feature.featureWrite.writes(w).as[JsObject] - "wasmConfig" - "tags" - "name" - "description" - "id" - "project" ++ Json.obj("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
-        case lf: SingleConditionFeature => Feature.featureWrite.writes(lf.toModernFeature).as[JsObject] - "tags" - "name" - "description" - "id" - "project"
-        case f => Feature.featureWrite.writes(f).as[JsObject]
-      }) - "metadata" - "tags" - "name" - "description" - "id" - "project")
-    }
-    }).as[JsObject]
+    val jsonStrategies = Json
+      .toJson(strategyByCtx.map {
+        case (ctx, feature) => {
+          (
+            ctx.replace("_", "/"),
+            (feature match {
+              case w: WasmFeature             =>
+                Feature.featureWrite
+                  .writes(w)
+                  .as[JsObject] - "wasmConfig" - "tags" - "name" - "description" - "id" - "project" ++ Json
+                  .obj("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+              case lf: SingleConditionFeature =>
+                Feature.featureWrite
+                  .writes(lf.toModernFeature)
+                  .as[JsObject] - "tags" - "name" - "description" - "id" - "project"
+              case f                          => Feature.featureWrite.writes(f).as[JsObject]
+            }) - "metadata" - "tags" - "name" - "description" - "id" - "project"
+          )
+        }
+      })
+      .as[JsObject]
 
     writeFeatureForCheck(strategyToUse, requestContext, env = env)
       .map {
-        case Left(err) => Left(err)
-        case Right(json) if conditions =>  Right(json ++ Json.obj("conditions" -> jsonStrategies))
-        case Right(json) => Right(json)
+        case Left(err)                 => Left(err)
+        case Right(json) if conditions => Right(json ++ Json.obj("conditions" -> jsonStrategies))
+        case Right(json)               => Right(json)
       }(env.executionContext)
   }
 
@@ -512,7 +537,7 @@ object Feature {
     feature
       .active(context, env)
       .map {
-        case Left(error) => Left(error)
+        case Left(error)   => Left(error)
         case Right(active) => Right(Some(writeFeatureInLegacyFormat(feature) ++ Json.obj("active" -> active)))
       }(env.executionContext)
   }
