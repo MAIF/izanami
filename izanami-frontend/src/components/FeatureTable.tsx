@@ -1443,17 +1443,19 @@ export function FeatureTable(props: {
 
           if (!maybeContexts || maybeContexts.length === 0) {
             return (
-              <div className="d-flex justify-content-center align-items-center">
-                {feature.name}
+              <div className="d-flex justify-start align-items-center">
+                <span className="px-3">{feature.name}</span>
               </div>
             );
           } else {
             return (
-              <div className="d-flex flex-column justify-content-center align-items-center">
-                <span className="px-3 position-relative">
+              <div className="d-flex justify-content-between align-items-start mt-2">
+                <span className="px-3">
                   {feature.name}
-                  <button
-                    className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary-outline"
+                  
+                </span>
+                <button
+                    className="top-10 translate-middle badge rounded-pill bg-primary-outline"
                     role="button"
                     data-tooltip-id="paste_url"
                     data-tooltip-content="Overloads"
@@ -1468,7 +1470,6 @@ export function FeatureTable(props: {
                     {maybeContexts.length}
                     <span className="visually-hidden">Overloads</span>
                   </button>
-                </span>
               </div>
             );
           }
