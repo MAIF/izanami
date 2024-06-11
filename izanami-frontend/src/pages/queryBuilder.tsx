@@ -500,6 +500,7 @@ export function QueryBuilder() {
           {Object.keys(result).length > 0 && (
             <>
               <div className="row">
+              <h2 className="mt-4">Call results</h2>
                 <label>
                   <input
                     checked={jsonDisplay}
