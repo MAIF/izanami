@@ -24,3 +24,5 @@ object SearchEntity {
   }
 
 }
+
+
