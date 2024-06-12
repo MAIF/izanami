@@ -463,6 +463,7 @@ function Layout() {
   if (loading) {
     return <Loader message="Loading..." />;
   }
+
   return (
     <div className="container-fluid">
       {/*TOOD externalsier la navbar*/}
