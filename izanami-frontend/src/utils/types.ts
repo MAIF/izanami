@@ -385,3 +385,10 @@ export interface IzanamiV1ImportRequest {
   projectPartSize: number;
   inlineScript: boolean;
 }
+
+export interface SearchEntityResponse {
+  id: string;
+  origin_table : string; 
+  origin_tenant: string; 
+  name: string;
+}
