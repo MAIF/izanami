@@ -269,7 +269,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
   }, [rowSelection]);
 
   return (
-    <div className="overflow-scroll">
+    <div>
       <table className="table table-borderless table-striped mt-2">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
