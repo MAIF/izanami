@@ -426,8 +426,8 @@ function LegacyFeatureForm(props: {
             <label>
               Enabled
               <Tooltip id="legacy-enabled">
-                Whether feature is enabled or disabled. The disabled feature is an
-                inactive event if its conditions match.
+                Whether feature is enabled or disabled. The disabled feature is
+                an inactive event if its conditions match.
               </Tooltip>
               <input
                 type="checkbox"
@@ -750,7 +750,7 @@ export function FeatureForm(props: {
   const { defaultValue, submit, ...rest } = props;
 
   const completeFeatureQuery = useQuery(
-    "",
+    JSON.stringify(defaultValue),
     () => toCompleteFeature(tenant!, defaultValue!),
     { enabled: !!defaultValue }
   );
@@ -1017,8 +1017,8 @@ export function V2FeatureForm(props: {
             <label className="mt-3">
               Enabled
               <Tooltip id="modern-enabled">
-                Whether feature is enabled or disabled. The disabled feature is an
-                inactive event if its conditions match.
+                Whether feature is enabled or disabled. The disabled feature is
+                an inactive event if its conditions match.
               </Tooltip>
               <input
                 type="checkbox"

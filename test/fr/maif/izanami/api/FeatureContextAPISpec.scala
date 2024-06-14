@@ -8,6 +8,43 @@ import java.time.LocalDateTime
 
 class FeatureContextAPISpec extends BaseAPISpec {
   "Global context POST endpoint" should {
+    "Allow to recreate deleted global context" in {
+      val situation      = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjectNames("project")
+            .withGlobalContext(
+              TestFeatureContext(
+                "prod",
+                subContext = Set(
+                  TestFeatureContext(
+                    "mobile",
+                    subContext = Set(
+                      TestFeatureContext("foo", subContext = Set(TestFeatureContext("bar")))
+                    )
+                  )
+                )
+              )
+            )
+        )
+        .loggedInWithAdminRights()
+        .build()
+      val deleteResponse = situation.deleteGlobalContext("tenant", "prod")
+
+      deleteResponse.status mustBe NO_CONTENT
+
+      val response  = situation.createGlobalContext("tenant", "prod")
+      val response2 = situation.createGlobalContext("tenant", "mobile", parents = "prod")
+      val response3 = situation.createGlobalContext("tenant", "foo", parents = "prod/mobile")
+      val response4 = situation.createGlobalContext("tenant", "bar", parents = "prod/mobile/foo")
+
+      response.status mustEqual CREATED
+      response2.status mustEqual CREATED
+      response3.status mustEqual CREATED
+      response4.status mustEqual CREATED
+      //(contexts.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("context")
+    }
+
     "Allow to create context for tenants" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
@@ -41,8 +78,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("context")).withProjectNames("project"))
         .loggedInWithAdminRights()
         .build()
-      val result = situation.deleteGlobalContext("tenant", "context")
-      val contexts = situation.fetchContexts("tenant", "project")
+      val result    = situation.deleteGlobalContext("tenant", "context")
+      val contexts  = situation.fetchContexts("tenant", "project")
 
       result.status mustBe NO_CONTENT
       (contexts.json.get \\ "name").map(v => v.as[String]) mustBe empty
@@ -50,11 +87,15 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
     "Allow to delete global subcontext" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("context", subContext = Set(TestFeatureContext("subcontext")))).withProjectNames("project"))
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context", subContext = Set(TestFeatureContext("subcontext"))))
+            .withProjectNames("project")
+        )
         .loggedInWithAdminRights()
         .build()
-      val result = situation.deleteGlobalContext("tenant", "context/subcontext")
-      val contexts = situation.fetchContexts("tenant", "project")
+      val result    = situation.deleteGlobalContext("tenant", "context/subcontext")
+      val contexts  = situation.fetchContexts("tenant", "project")
 
       result.status mustBe NO_CONTENT
       (contexts.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("context")
@@ -93,21 +134,23 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
     "allow to create local subcontext for existing global contexts" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withGlobalContext(TestFeatureContext("context"))
-          .withProjectNames("project")
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
+            .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name="subcontext", parents="context")
+      val response = situation.createContext("tenant", project = "project", name = "subcontext", parents = "context")
       response.status mustBe CREATED
     }
 
     "return 404 if parent context does not exist" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjectNames("project")
+        .withTenants(
+          TestTenant("tenant")
+            .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
@@ -118,9 +161,10 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
     "prevent creating subcontext if global context with the same name exist" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withGlobalContext(TestFeatureContext("context").withSubContextNames("foo"))
-          .withProjectNames("project")
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context").withSubContextNames("foo"))
+            .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
@@ -131,24 +175,26 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
     "prevent creating global subcontext if local context with the same name exist" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withGlobalContext(TestFeatureContext("context"))
-          .withProjectNames("project")
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
+            .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
 
       val localCtxResponse = situation.createContext("tenant", project = "project", name = "foo", parents = "context")
       localCtxResponse.status mustBe CREATED
-      val response = situation.createGlobalContext("tenant", name = "foo", parents = "context")
+      val response         = situation.createGlobalContext("tenant", name = "foo", parents = "context")
       response.status mustBe BAD_REQUEST
     }
 
     "prevent creating root local context when global context with the same name exist" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withGlobalContext(TestFeatureContext("context"))
-          .withProjectNames("project")
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
+            .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
@@ -159,15 +205,16 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
     "prevent creating root global context when local context with the same name exist" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjectNames("project")
+        .withTenants(
+          TestTenant("tenant")
+            .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
 
       val localResponse = situation.createContext("tenant", project = "project", name = "context")
       localResponse.status mustBe CREATED
-      val response = situation.createGlobalContext("tenant", name = "context")
+      val response      = situation.createGlobalContext("tenant", name = "context")
       response.status mustBe BAD_REQUEST
     }
   }
@@ -239,25 +286,32 @@ class FeatureContextAPISpec extends BaseAPISpec {
         )
         .build()
 
-      situation.createContext("tenant", "project", name="localchildofglobal", parents = "global")
-      situation.createContext("tenant", "project", name="localsubchild", parents = "global/localchildofglobal")
-      situation.createContext("tenant", "project", name="localchild", parents = "toplocal")
-      situation.createContext("tenant", "project", name="subgloballocalchild", parents = "subglobal")
+      situation.createContext("tenant", "project", name = "localchildofglobal", parents = "global")
+      situation.createContext("tenant", "project", name = "localsubchild", parents = "global/localchildofglobal")
+      situation.createContext("tenant", "project", name = "localchild", parents = "toplocal")
+      situation.createContext("tenant", "project", name = "subgloballocalchild", parents = "subglobal")
 
       val result = situation.fetchContexts("tenant", "project")
 
       result.status mustBe OK
       val json = result.json.get.as[JsArray].value.map(v => v.as[JsObject])
 
-      val topLocal = json.find(obj => (obj \ "name").get.as[String] == "toplocal").get
+      val topLocal   = json.find(obj => (obj \ "name").get.as[String] == "toplocal").get
       val localchild = (topLocal \ "children").as[JsArray].value.head
       (localchild \ "name").get.as[String] mustEqual "localchild"
 
       val global = json.find(obj => (obj \ "name").get.as[String] == "global").get
-      (global \ "children").get.as[JsArray].value.map(v => (v \ "name").get.as[String]) must contain theSameElementsAs Seq("localchildofglobal", "subglobal")
+      (global \ "children").get
+        .as[JsArray]
+        .value
+        .map(v => (v \ "name").get.as[String]) must contain theSameElementsAs Seq("localchildofglobal", "subglobal")
 
-      val localchildofglobal = (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "localchildofglobal").get
-      (localchildofglobal \ "children").get.as[JsArray].value.map(js => (js \ "name").get.as[String]) must contain theSameElementsAs Seq("localsubchild")
+      val localchildofglobal =
+        (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "localchildofglobal").get
+      (localchildofglobal \ "children").get
+        .as[JsArray]
+        .value
+        .map(js => (js \ "name").get.as[String]) must contain theSameElementsAs Seq("localsubchild")
     }
 
     "return true global attribue when context is global" in {
@@ -275,7 +329,6 @@ class FeatureContextAPISpec extends BaseAPISpec {
       situation.createContext("tenant", "project", name = "localchild", parents = "toplocal")
       situation.createContext("tenant", "project", name = "subgloballocalchild", parents = "subglobal")
 
-
       val result = situation.fetchContexts("tenant", "project")
 
       result.status mustBe OK
@@ -290,13 +343,19 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val global = json.find(obj => (obj \ "name").get.as[String] == "global").get
       (global \ "global").get.as[Boolean] mustBe true
 
-      val localchildofglobal = (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "localchildofglobal").get
+      val localchildofglobal =
+        (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "localchildofglobal").get
       (localchildofglobal \ "global").get.as[Boolean] mustBe false
 
-      val localsubchild = (localchildofglobal \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "localsubchild").get
+      val localsubchild = (localchildofglobal \ "children").get
+        .as[JsArray]
+        .value
+        .find(v => (v \ "name").get.as[String] == "localsubchild")
+        .get
       (localsubchild \ "global").get.as[Boolean] mustBe false
 
-      val subglobal = (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "subglobal").get
+      val subglobal =
+        (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "subglobal").get
       (subglobal \ "global").get.as[Boolean] mustBe true
 
     }
@@ -383,14 +442,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
-          TestTenant("tenant").withGlobalContext(TestFeatureContext("context"))
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
             .withProjects(
               TestProject("project")
                 .withFeatures(TestFeature(name = "F1", enabled = false))
             )
         )
         .build()
-
 
       situation.changeFeatureStrategyForContext(
         "tenant",
@@ -497,7 +556,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
-          TestTenant("tenant").withGlobalContext(TestFeatureContext("context"))
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
             .withProjects(
               TestProject("project")
                 .withFeatures(TestFeature(name = "F1", enabled = false))
@@ -522,10 +582,9 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe NO_CONTENT
 
       val contextsResponse = situation.fetchContexts("tenant", "project")
-      val json = contextsResponse.json.get
+      val json             = contextsResponse.json.get
 
       (json \ 0 \ "overloads").as[JsArray].value must not be empty
-
 
     }
 
@@ -533,7 +592,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
-          TestTenant("tenant").withGlobalContext(TestFeatureContext("context"))
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
             .withProjects(
               TestProject("project")
                 .withFeatures(TestFeature(name = "F1", enabled = false))
@@ -541,7 +601,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
         )
         .build()
 
-      situation.createContext("tenant", "project", "subcontext", parents="context")
+      situation.createContext("tenant", "project", "subcontext", parents = "context")
 
       val res = situation.changeFeatureStrategyForContext(
         "tenant",
@@ -562,34 +622,36 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant("tenant")
             .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
-            .withProjects(TestProject("project").withContexts(
-              TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal"))),
-            ))
+            .withProjects(
+              TestProject("project").withContexts(
+                TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal")))
+              )
+            )
         )
         .build()
 
-      var status = situation.createContext("tenant", "project", name="localsubglobal", parents="global").status
+      var status = situation.createContext("tenant", "project", name = "localsubglobal", parents = "global").status
       status mustBe CREATED
-      status = situation.createContext("tenant", "project", name="localsubsubglobal", parents="global/subglobal").status
+      status =
+        situation.createContext("tenant", "project", name = "localsubsubglobal", parents = "global/subglobal").status
       status mustBe CREATED
-      val result = situation.fetchGlobalContext("tenant", all=true)
+      val result = situation.fetchGlobalContext("tenant", all = true)
       result.status mustBe OK
 
       val json = result.json.get.as[JsArray]
 
       // Checking global part
-      val globalCtx = json.value.find(node => (node \ "name").as[String] == "global").get
-      val children = (globalCtx \ "children").as[JsArray].value
-      val childrenNames = children.map(node => (node \ "name").as[String])
+      val globalCtx         = json.value.find(node => (node \ "name").as[String] == "global").get
+      val children          = (globalCtx \ "children").as[JsArray].value
+      val childrenNames     = children.map(node => (node \ "name").as[String])
       childrenNames must contain theSameElementsAs Seq("localsubglobal", "subglobal")
-      val subglobal = children.find(node => (node \ "name").as[String] == "subglobal").get
+      val subglobal         = children.find(node => (node \ "name").as[String] == "subglobal").get
       val subglobalChildren = (subglobal \ "children").as[JsArray].value
       subglobalChildren must have length 1
       (subglobalChildren.head \ "name").as[String] mustEqual "localsubsubglobal"
 
-
       // Checking local part
-      val localCtx = json.value.find(node => (node \ "name").as[String] == "toplocal").get
+      val localCtx      = json.value.find(node => (node \ "name").as[String] == "toplocal").get
       val localChildren = (localCtx \ "children").as[JsArray].value
       localChildren must have length 1
       (localChildren.head \ "name").as[String] mustEqual "sublocal"
@@ -601,15 +663,18 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant("tenant")
             .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
-            .withProjects(TestProject("project").withContexts(
-              TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal"))),
-            ))
+            .withProjects(
+              TestProject("project").withContexts(
+                TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal")))
+              )
+            )
         )
         .build()
 
       var status = situation.createContext("tenant", "project", name = "localsubglobal", parents = "global").status
       status mustBe CREATED
-      status = situation.createContext("tenant", "project", name = "localsubsubglobal", parents = "global/subglobal").status
+      status =
+        situation.createContext("tenant", "project", name = "localsubsubglobal", parents = "global/subglobal").status
       status mustBe CREATED
       val result = situation.fetchGlobalContext("tenant", all = false)
       result.status mustBe OK
@@ -618,7 +683,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
       json must have length 1
 
       val globalCtx = json.find(node => (node \ "name").as[String] == "global").get
-      val children = (globalCtx \ "children").as[JsArray].value
+      val children  = (globalCtx \ "children").as[JsArray].value
       children must have length 1
       (children.head \ "name").as[String] mustEqual "subglobal"
     }

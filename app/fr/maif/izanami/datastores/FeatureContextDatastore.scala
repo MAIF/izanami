@@ -43,8 +43,15 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           case Right(value) =>
             env.postgresql
               .queryRaw(
-                s"""DELETE FROM feature_context_name_unicity_check_table WHERE parent = $$1 AND context=$$2""",
-                List(if (parentPart.isEmpty) "" else generateSubContextId(tenant, parentPart), ctxName),
+                s"""DELETE FROM feature_context_name_unicity_check_table
+                   |WHERE (parent = $$1 AND context=$$2) OR (parent = $$3) OR (parent LIKE $$4)
+                   |""".stripMargin,
+                List(
+                  if (parentPart.isEmpty) "" else generateSubContextId(tenant, parentPart),
+                  ctxName,
+                  s"${tenant}_${ctxName}",
+                  s"${tenant}_${ctxName}_%"
+                ),
                 conn = Some(conn)
               ) { r => Some(()) }
               .map(_ => Right(()))

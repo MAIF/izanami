@@ -28,9 +28,8 @@ class Postgresql(env: Env) {
 
   import scala.jdk.CollectionConverters._
 
-
-  private val logger        = Logger("izanami")
-  lazy val connectOptions   = if (configuration.has("app.pg.uri")) {
+  private val logger           = Logger("izanami")
+  lazy val connectOptions      = if (configuration.has("app.pg.uri")) {
     logger.info(s"Postgres URI : ${configuration.get[String]("app.pg.uri")}")
     val opts = PgConnectOptions.fromUri(configuration.get[String]("app.pg.uri"))
     opts
@@ -91,10 +90,10 @@ class Postgresql(env: Env) {
         pgopt
       }
   }
-  lazy val vertx = Vertx.vertx()
+  lazy val vertx               = Vertx.vertx()
   private lazy val poolOptions = new PoolOptions()
     .setMaxSize(configuration.getOptional[Int]("app.pg.pool-size").getOrElse(100))
-  private lazy val pool = PgPool.pool(connectOptions, poolOptions)
+  private lazy val pool        = PgPool.pool(connectOptions, poolOptions)
 
   private val configuration = env.configuration
 
@@ -108,10 +107,9 @@ class Postgresql(env: Env) {
 
   def onStart(): Future[Unit] = {
     updateSchema()
-    Future.successful(())
   }
 
-  def updateSchema(): Unit = {
+  def updateSchema(): Future[Unit] = {
     val config     = new HikariConfig()
     config.setDriverClassName(classOf[org.postgresql.Driver].getName)
     config.setJdbcUrl(
@@ -121,25 +119,44 @@ class Postgresql(env: Env) {
     config.setPassword(connectOptions.getPassword)
     config.setMaximumPoolSize(10)
     val dataSource = new HikariDataSource(config)
-    val password = defaultPassword
+    val password   = defaultPassword
     val flyway     =
       Flyway.configure
         .dataSource(dataSource)
         .locations("filesystem:conf/sql/globals", "conf/sql/globals", "sql/globals")
         .baselineOnMigrate(true)
         .schemas("izanami")
-        .placeholders(java.util.Map.of("default_admin", "RESERVED_ADMIN_USER", "default_password", HashUtils.bcryptHash(password)))
+        .placeholders(
+          java.util.Map.of("default_admin", "RESERVED_ADMIN_USER", "default_password", HashUtils.bcryptHash(password))
+        )
         .load()
+
     val migrationResult = flyway.migrate()
-    if(migrationResult.initialSchemaVersion == null) {
+    if (migrationResult.initialSchemaVersion == null) {
       val isPasswordProvided = configuration.getOptional[String]("app.admin.password").isDefined
-      if(!isPasswordProvided) {
+      if (!isPasswordProvided) {
         logger.warn(
           s"No password provided in app.admin.password env variable. Therefore password ${password} has been automatically generated for RESERVED_ADMIN_USER account"
         )
       }
     }
-    dataSource.close()
+
+    env.datastores.tenants
+      .readTenants()
+      .map(tenants => {
+        tenants.foreach(tenant => {
+          val flyway =
+            Flyway.configure
+              .dataSource(dataSource)
+              .locations("filesystem:conf/sql/tenants", "filesystem:sql/tenants", "sql/tenants", "conf/sql/tenants")
+              .baselineOnMigrate(true)
+              .schemas(tenant.name)
+              .load()
+          flyway.migrate()
+        })
+      })(env.executionContext)
+      .map(_ => dataSource.close())(env.executionContext)
+
   }
 
   def defaultPassword: String = {
@@ -152,17 +169,21 @@ class Postgresql(env: Env) {
     FastFuture.successful(())
   }
 
-
   def updateSearchPath(searchPath: String, conn: SqlConnection): Future[Unit] = {
-    conn.preparedQuery(
-      f"SELECT set_config('search_path', $$1, true)"
-    )
-    .execute(io.vertx.sqlclient.Tuple.of(searchPath)).mapEmpty().scala
+    conn
+      .preparedQuery(
+        f"SELECT set_config('search_path', $$1, true)"
+      )
+      .execute(io.vertx.sqlclient.Tuple.of(searchPath))
+      .mapEmpty()
+      .scala
   }
 
   private def setSearchPath(schemas: Set[String], conn: SqlConnection): io.vertx.core.Future[RowSet[Row]] = {
     if (schemas.nonEmpty) {
-      conn.preparedQuery(f"SELECT set_config('search_path', $$1, true)").execute(io.vertx.sqlclient.Tuple.of(schemas.mkString(",")))
+      conn
+        .preparedQuery(f"SELECT set_config('search_path', $$1, true)")
+        .execute(io.vertx.sqlclient.Tuple.of(schemas.mkString(",")))
     } else {
       io.vertx.core.Future.succeededFuture()
     }
@@ -229,8 +250,17 @@ class Postgresql(env: Env) {
           .getOrElse(executeInTransaction(lambda(_).scala, schemas))
       case false =>
         conn
-          .map(c => setSearchPath(schemas, c).flatMap(_ => c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray))).scala)
-          .getOrElse(executeInTransaction(conn => conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)).scala, schemas))
+          .map(c =>
+            setSearchPath(schemas, c)
+              .flatMap(_ => c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)))
+              .scala
+          )
+          .getOrElse(
+            executeInTransaction(
+              conn => conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)).scala,
+              schemas
+            )
+          )
     }).flatMap { _rows =>
       Try {
         val rows = _rows.asScala.toList
@@ -317,11 +347,11 @@ object pgimplicits {
   }
 
   implicit class EnhancedRow(val row: Row) extends AnyVal {
-    def optString(name: String): Option[String]                 = opt(name, "String", (a, b) => a.getString(b))
+    def optString(name: String): Option[String] = opt(name, "String", (a, b) => a.getString(b))
 
     def optStringArray(name: String): Option[Array[String]] = opt(name, "String", (a, b) => a.getArrayOfStrings(b))
 
-    def optUUID(name: String): Option[UUID]  = opt(name, "UUID", (a, b) => a.getUUID(b))
+    def optUUID(name: String): Option[UUID] = opt(name, "UUID", (a, b) => a.getUUID(b))
 
     def opt[A](name: String, typ: String, extractor: (Row, String) => A): Option[A] = {
       Try(extractor(row, name)) match {
@@ -333,15 +363,15 @@ object pgimplicits {
       }
     }
 
-    def optDouble(name: String): Option[Double]                 = opt(name, "Double", (a, b) => a.getDouble(b).doubleValue())
-    def optInt(name: String): Option[Int]                       = opt(name, "Integer", (a, b) => a.getDouble(b).intValue())
-    def optBoolean(name: String): Option[Boolean]               = opt(name, "Boolean", (a, b) => a.getBoolean(b))
-    def optLong(name: String): Option[Long]                     =
+    def optDouble(name: String): Option[Double]   = opt(name, "Double", (a, b) => a.getDouble(b).doubleValue())
+    def optInt(name: String): Option[Int]         = opt(name, "Integer", (a, b) => a.getDouble(b).intValue())
+    def optBoolean(name: String): Option[Boolean] = opt(name, "Boolean", (a, b) => a.getBoolean(b))
+    def optLong(name: String): Option[Long]       =
       opt(name, "Long", (a, b) => a.getLong(b).longValue())
 
     def optDateTime(name: String): Option[OffsetDateTime] = {
       optOffsetDatetime(name).map { d =>
-        val id = if (d.getOffset.getId == "Z") "UTC" else d.getOffset.getId
+        val id      = if (d.getOffset.getId == "Z") "UTC" else d.getOffset.getId
         val instant = Instant.ofEpochMilli(d.toInstant.toEpochMilli)
         OffsetDateTime.ofInstant(instant, ZoneId.of(id))
       }
@@ -350,7 +380,7 @@ object pgimplicits {
     def optOffsetDatetime(name: String): Option[OffsetDateTime] =
       opt(name, "OffsetDateTime", (a, b) => a.getOffsetDateTime(b))
 
-    def optJsObject(name: String): Option[JsObject]             =
+    def optJsObject(name: String): Option[JsObject] =
       opt(
         name,
         "JsObject",
@@ -363,7 +393,7 @@ object pgimplicits {
           }
         }
       )
-    def optJsArray(name: String): Option[JsArray]               =
+    def optJsArray(name: String): Option[JsArray]   =
       opt(
         name,
         "JsArray",
