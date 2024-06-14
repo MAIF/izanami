@@ -696,7 +696,7 @@ function WebHookCreationForm(props: {
         />
       </div>
     );
-  } else if (projectQuery) {
+  } else {
     return <Loader message="Loading projects..." />;
   }
 }

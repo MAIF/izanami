@@ -158,7 +158,7 @@ function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
       "PPP"
     )}`;
   } else if (period.begin) {
-    display = `since ${format(period.begin, "PPP")}`;
+    display = `after ${format(period.begin, "PPP")}`;
   } else if (period.end) {
     display = `until ${format(period.end, "PPP")}`;
   }
@@ -1461,26 +1461,23 @@ export function FeatureTable(props: {
           } else {
             return (
               <div className="d-flex justify-content-between align-items-start mt-2">
-                <span className="px-3">
-                  {feature.name}
-                  
-                </span>
+                <span className="px-3">{feature.name}</span>
                 <button
-                    className="top-10 translate-middle badge rounded-pill bg-primary-outline"
-                    role="button"
-                    data-tooltip-id="paste_url"
-                    data-tooltip-content="Overloads"
-                    data-tooltip-place="top"
-                    onClick={() =>
-                      document
-                        .getElementById(`overload-action-icon-${feature.id}`)
-                        ?.click()
-                    }
-                  >
-                    <Tooltip id="paste_url" />
-                    {maybeContexts.length}
-                    <span className="visually-hidden">Overloads</span>
-                  </button>
+                  className="top-10 translate-middle badge rounded-pill bg-primary-outline"
+                  role="button"
+                  data-tooltip-id="paste_url"
+                  data-tooltip-content="Overloads"
+                  data-tooltip-place="top"
+                  onClick={() =>
+                    document
+                      .getElementById(`overload-action-icon-${feature.id}`)
+                      ?.click()
+                  }
+                >
+                  <Tooltip id="paste_url" />
+                  {maybeContexts.length}
+                  <span className="visually-hidden">Overloads</span>
+                </button>
               </div>
             );
           }
@@ -1589,6 +1586,7 @@ export function FeatureTable(props: {
         return actions(feature).includes("edit");
       },
       customForm: (datum: TLightFeature, cancel: () => void) => {
+        console.log("datum", datum);
         return (
           <>
             <h4>Edit feature</h4>

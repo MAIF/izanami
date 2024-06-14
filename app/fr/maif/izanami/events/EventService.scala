@@ -320,8 +320,8 @@ class EventService(env: Env) {
          |INSERT INTO  ${if (global) "izanami.global_events" else "events"} (id, event, event_type, entity_id)
          |SELECT gid.next_id as id, (jsonb_build_object('eventId', gid.next_id) || $$1::jsonb) as event, $$2::${if (
           global
-        ) "GLOBAL_EVENTS"
-        else "LOCAL_EVENTS"}, $$3
+        ) "izanami.GLOBAL_EVENT_TYPES"
+        else "izanami.LOCAL_EVENT_TYPES"}, $$3
          |FROM generated_id gid
          |RETURNING id;
          |""".stripMargin,
