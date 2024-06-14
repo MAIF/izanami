@@ -104,6 +104,38 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context POST endpoint" should {
+    "Allow to recreate deleted local context" in {
+      val situation      = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext(
+              "prod",
+              subContext = Set(
+                TestFeatureContext(
+                  "mobile")))
+            )
+            .withProjects(TestProject("project"))
+        )
+        .loggedInWithAdminRights()
+        .build()
+      val response = situation.createContext("tenant", "project", name="localsubmobile", parents = "prod/mobile")
+      val response2 = situation.createContext("tenant", "project", name="localsubprod", parents = "prod")
+      response.status mustBe CREATED
+      response2.status mustBe CREATED
+
+      val deleteResponse = situation.deleteGlobalContext("tenant", "prod")
+      deleteResponse.status mustBe NO_CONTENT
+
+      val response3  = situation.createGlobalContext("tenant", name = "prod")
+      val response4  = situation.createGlobalContext("tenant", name = "mobile", parents = "prod")
+      val response5 = situation.createContext("tenant", "project", "localsubmobile", parents = "prod/mobile")
+      val response6 = situation.createContext("tenant", "project", "localsubprod", parents = "prod")
+
+      response3.status mustEqual CREATED
+      response4.status mustEqual CREATED
+      response5.status mustEqual CREATED
+      response6.status mustEqual CREATED
+    }
     "allow context creation" in {
       val tenant    = "context-tenant"
       val project   = "context-project"
