@@ -748,9 +748,10 @@ export function FeatureForm(props: {
 }) {
   const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
+  console.log("defaultValue", defaultValue);
 
   const completeFeatureQuery = useQuery(
-    JSON.stringify(defaultValue),
+    defaultValue ? JSON.stringify(defaultValue) : "",
     () => toCompleteFeature(tenant!, defaultValue!),
     { enabled: !!defaultValue }
   );
@@ -763,9 +764,7 @@ export function FeatureForm(props: {
     ClassicalFeature | undefined
   >(undefined);
 
-  if (completeFeatureQuery.isError) {
-    return <div>Failed to load feature details</div>;
-  } else if (completeFeatureQuery.data || completeFeatureQuery.isIdle) {
+  if (completeFeatureQuery.data || completeFeatureQuery.isIdle) {
     const defaultValue = completeFeatureQuery.data;
     let form = undefined;
     if (legacy) {
@@ -839,6 +838,8 @@ export function FeatureForm(props: {
         {form}
       </>
     );
+  } else if (completeFeatureQuery.isError) {
+    return <div>Failed to load feature details</div>;
   } else {
     return <div>Loading...</div>;
   }
