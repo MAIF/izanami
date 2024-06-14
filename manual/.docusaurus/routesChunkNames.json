@@ -5,17 +5,17 @@
       "plugin": "1457b77c"
     }
   },
-  "/izanami/docs-393": {
+  "/izanami/docs-77d": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "1ad66b9e"
     }
   },
-  "/izanami/docs-c30": {
+  "/izanami/docs-53e": {
     "__comp": "a7bd4aaa",
     "version": "935f2afb"
   },
-  "/izanami/docs-77e": {
+  "/izanami/docs-ec2": {
     "__comp": "a94703ab"
   },
   "/izanami/docs/clients/-7b7": {
@@ -93,6 +93,10 @@
   "/izanami/docs/guides/user-invitation-eba": {
     "__comp": "17896441",
     "content": "382abdc7"
+  },
+  "/izanami/docs/guides/webhooks-724": {
+    "__comp": "17896441",
+    "content": "88f2e2fd"
   },
   "/izanami/docs/usages/-f2d": {
     "__comp": "17896441",
