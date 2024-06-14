@@ -9,15 +9,15 @@ export default [
   },
   {
     path: '/izanami/docs',
-    component: ComponentCreator('/izanami/docs', '393'),
+    component: ComponentCreator('/izanami/docs', '77d'),
     routes: [
       {
         path: '/izanami/docs',
-        component: ComponentCreator('/izanami/docs', 'c30'),
+        component: ComponentCreator('/izanami/docs', '53e'),
         routes: [
           {
             path: '/izanami/docs',
-            component: ComponentCreator('/izanami/docs', '77e'),
+            component: ComponentCreator('/izanami/docs', 'ec2'),
             routes: [
               {
                 path: '/izanami/docs/clients/',
@@ -130,6 +130,12 @@ export default [
               {
                 path: '/izanami/docs/guides/user-invitation',
                 component: ComponentCreator('/izanami/docs/guides/user-invitation', 'eba'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/izanami/docs/guides/webhooks',
+                component: ComponentCreator('/izanami/docs/guides/webhooks', '724'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

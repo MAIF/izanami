@@ -46,6 +46,7 @@ export default {
   "83cf5a0e": [() => import(/* webpackChunkName: "83cf5a0e" */ "@site/v1/06-getizanami/01-binaries.mdx"), "@site/v1/06-getizanami/01-binaries.mdx", require.resolveWeak("@site/v1/06-getizanami/01-binaries.mdx")],
   "858bfcaf": [() => import(/* webpackChunkName: "858bfcaf" */ "@site/docs/05-clients/01-java/index.mdx"), "@site/docs/05-clients/01-java/index.mdx", require.resolveWeak("@site/docs/05-clients/01-java/index.mdx")],
   "868bc92e": [() => import(/* webpackChunkName: "868bc92e" */ "@site/v1/04-features.mdx"), "@site/v1/04-features.mdx", require.resolveWeak("@site/v1/04-features.mdx")],
+  "88f2e2fd": [() => import(/* webpackChunkName: "88f2e2fd" */ "@site/docs/04-guides/12-webhooks.mdx"), "@site/docs/04-guides/12-webhooks.mdx", require.resolveWeak("@site/docs/04-guides/12-webhooks.mdx")],
   "8a163022": [() => import(/* webpackChunkName: "8a163022" */ "@site/v1/07-settings/index.mdx"), "@site/v1/07-settings/index.mdx", require.resolveWeak("@site/v1/07-settings/index.mdx")],
   "8c817def": [() => import(/* webpackChunkName: "8c817def" */ "@site/v1/09-api.mdx"), "@site/v1/09-api.mdx", require.resolveWeak("@site/v1/09-api.mdx")],
   "915e538f": [() => import(/* webpackChunkName: "915e538f" */ "@site/v1/17-clients/index.mdx"), "@site/v1/17-clients/index.mdx", require.resolveWeak("@site/v1/17-clients/index.mdx")],
