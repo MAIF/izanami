@@ -142,6 +142,13 @@
             "href": "/izanami/docs/guides/configuration",
             "docId": "guides/configuration",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Webhooks",
+            "href": "/izanami/docs/guides/webhooks",
+            "docId": "guides/webhooks",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/guides/"
@@ -300,6 +307,12 @@
       "id": "guides/user-invitation",
       "title": "User invitation",
       "description": "To invite new users, you must be an Izanami admin.",
+      "sidebar": "tutorialSidebar"
+    },
+    "guides/webhooks": {
+      "id": "guides/webhooks",
+      "title": "Webhooks",
+      "description": "Webhooks are a way to make Izanami call a provided URL when a feature is modified.",
       "sidebar": "tutorialSidebar"
     },
     "usages/contexts": {
