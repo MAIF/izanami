@@ -523,7 +523,9 @@ function WebHookCreationForm(props: {
               defaultValue: maybeDefault?.features?.map((f) => f.id) ?? [],
               label: () => (
                 <>
-                  Features (project)
+                  <label htmlFor="webhook-features-select">
+                    Features (project)
+                  </label>
                   <Tooltip id="webhooks-features">
                     Update of selected features will trigger calls on provided
                     url.
@@ -534,7 +536,13 @@ function WebHookCreationForm(props: {
               type: type.string,
               format: format.select,
               render: ({ value, onChange }) => {
-                return <FeatureSelector value={value} onChange={onChange} />;
+                return (
+                  <FeatureSelector
+                    id="webhook-features-select"
+                    value={value}
+                    onChange={onChange}
+                  />
+                );
               },
               arrayConstraints: [
                 constraints.test(
@@ -554,7 +562,7 @@ function WebHookCreationForm(props: {
               defaultValue: maybeDefault?.projects?.map((p) => p.id) ?? [],
               label: () => (
                 <>
-                  Projects
+                  <label htmlFor="webhook-projects-select">Projects</label>
                   <Tooltip id="webhook-projects">
                     Update of on of these projects features
                     <br />
@@ -566,7 +574,13 @@ function WebHookCreationForm(props: {
               isMulti: true,
               format: format.select,
               render: ({ value, onChange }) => {
-                return <ProjectSelector value={value} onChange={onChange} />;
+                return (
+                  <ProjectSelector
+                    id="webhook-projects-select"
+                    value={value}
+                    onChange={onChange}
+                  />
+                );
               },
               arrayConstraints: [
                 constraints.test(
@@ -583,7 +597,7 @@ function WebHookCreationForm(props: {
               defaultValue: maybeDefault?.context ?? "",
               label: () => (
                 <>
-                  Context
+                  <label htmlFor="webhook-context-select">Context</label>
                   <Tooltip id="webhook-context">
                     Context to use for activation and conditions.
                   </Tooltip>
@@ -592,7 +606,11 @@ function WebHookCreationForm(props: {
               type: type.string,
               render: ({ value, onChange }) => {
                 return (
-                  <AllContexts onChange={(v) => onChange?.(v)} value={value} />
+                  <AllContexts
+                    id="webhook-context-select"
+                    onChange={(v) => onChange?.(v)}
+                    value={value}
+                  />
                 );
               },
             },
