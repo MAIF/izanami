@@ -18,12 +18,28 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 class WebhookListener(env: Env, eventService: EventService) {
-  private val handlebars = new Handlebars()
-  private val mapper = new ObjectMapper()
-  private val logger                            = env.logger
-  private implicit val ec: ExecutionContext     = env.executionContext
-  private implicit val actorSystem: ActorSystem = env.actorSystem
+  private val handlebars                             = new Handlebars()
+  private val mapper                                 = new ObjectMapper()
+  private val logger                                 = env.logger
+  private implicit val ec: ExecutionContext          = env.executionContext
+  private implicit val actorSystem: ActorSystem      = env.actorSystem
   private val cancelSwitch: Map[String, Cancellable] = Map()
+  private val retryCount: Long                       = env.configuration.getOptional[Long]("app.webhooks.retry.count").getOrElse {
+    logger.warn("Failed to parse app.webhooks.retry.count as long, will use 5 as default value")
+    5L
+  }
+  private val retryInitialDelay                      = env.configuration.getOptional[Long]("app.webhooks.retry.intial-delay").getOrElse {
+    logger.warn("Failed to parse app.webhooks.retry.intial-delay as long, will use 5 as default value")
+    5L
+  }
+  private val retryMaxDelay                          = env.configuration.getOptional[Long]("app.webhooks.retry.max-delay").getOrElse {
+    logger.warn("Failed to parse app.webhooks.retry.max-delay as long, will use 600 as default value")
+    600L
+  }
+  private val retryMultiplier                        = env.configuration.getOptional[Long]("app.webhooks.retry.multiplier").getOrElse {
+    logger.warn("Failed to parse app.webhooks.retry.multiplier as long, will use 2 as default value")
+    2L
+  }
 
   def onStart(): Future[Unit] = {
     env.datastores.tenants
@@ -43,16 +59,14 @@ class WebhookListener(env: Env, eventService: EventService) {
   def handleGlobalEvent(event: IzanamiEvent): Unit = {
     event match {
       case TenantCreated(eventId, tenant, _) => startListening(tenant)
-      case TenantDeleted(_, tenant, _) => cancelSwitch.get(tenant).map(c => c.cancel())
-      case _                              => ()
+      case TenantDeleted(_, tenant, _)       => cancelSwitch.get(tenant).map(c => c.cancel())
+      case _                                 => ()
     }
   }
 
-
-
   def startListening(tenant: String): Unit = {
     logger.info(s"Initializing webhook event listener for tenant $tenant")
-    val cancelRef = new AtomicReference[Cancellable]()
+    val cancelRef   = new AtomicReference[Cancellable]()
     val cancellable = env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 5.minutes)(() => {
       env.datastores.webhook
         .findAbandoneddWebhooks(tenant)
@@ -66,7 +80,7 @@ class WebhookListener(env: Env, eventService: EventService) {
                 handleEventForHook(tenant, event.asInstanceOf[FeatureEvent], webhook)
               }
             }
-          case None => cancelRef.get().cancel()
+          case None    => cancelRef.get().cancel()
         }
     })
 
@@ -138,25 +152,23 @@ class WebhookListener(env: Env, eventService: EventService) {
   private def futureWithRetry[T](
       expression: () => Future[T],
       onFailure: () => Future[Any],
-      factor: Float = 1.5f,
-      previousWait: FiniteDuration = 5.seconds,
-      max: Int = 5,
       cur: Int = 0
   )(implicit as: ActorSystem): Future[T] = {
     expression().recoverWith { case e =>
       onFailure().flatMap(_ => {
         logger.error(s"Call failed", e)
-        val next: FiniteDuration =
-          if (cur == 0) previousWait
-          else (Math.round(previousWait.toMillis * factor)).milliseconds
+        var next: FiniteDuration = Math.round(retryInitialDelay * 1000 * (Math.pow(retryMultiplier, cur))).milliseconds
+        if(next > retryMaxDelay.seconds) {
+          next = retryMaxDelay.seconds
+        }
 
-        if (cur >= max) {
-          logger.error(s"Exceeded max retry ($max), stopping...")
+        if (cur >= retryCount) {
+          logger.error(s"Exceeded max retry ($retryCount), stopping...")
           Future.failed(WebhookRetryCountExceeded())
         } else {
-          logger.error(s"Will retry after ${next.toSeconds} seconds (${cur + 1} / $max)")
+          logger.error(s"Will retry after ${next.toSeconds} seconds (${cur + 1} / $retryCount)")
           after(next, as.scheduler, global, () => Future.successful(1)).flatMap { _ =>
-            futureWithRetry(expression, onFailure, factor, next, max, cur + 1)(actorSystem)
+            futureWithRetry(expression, onFailure, cur + 1)(actorSystem)
           }
         }
       })
@@ -182,10 +194,10 @@ class WebhookListener(env: Env, eventService: EventService) {
 
   private def callWebhook(webhook: LightWebhook, body: String): Future[Unit] = {
     logger.info(s"Calling ${webhook.url.toString}")
-    val hasContentType = webhook.headers.exists {
-      case (name, _) => name.equalsIgnoreCase("Content-Type")
+    val hasContentType = webhook.headers.exists { case (name, _) =>
+      name.equalsIgnoreCase("Content-Type")
     }
-    val headers = if(hasContentType) {
+    val headers        = if (hasContentType) {
       webhook.headers
     } else {
       webhook.headers + ("Content-Type" -> "application/json")
