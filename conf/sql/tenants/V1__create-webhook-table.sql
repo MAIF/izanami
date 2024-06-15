@@ -31,7 +31,7 @@ CREATE TABLE users_webhooks_rights (
 );
 
 CREATE TABLE webhooks_call_status(
-  webhook UUID NOT NULL REFERENCES webhooks(id),
+  webhook UUID NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE ON UPDATE CASCADE,
   event bigint NOT NULL,
   pending boolean NOT NULL DEFAULT TRUE,
   last_call  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()

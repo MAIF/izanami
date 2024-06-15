@@ -87,6 +87,23 @@ export class TestSituationBuilder {
               )
             );
           })
+          .then((foo) => {
+            t.webhooks.map((webhook) => {
+              handleFetchJsonResponse(
+                fetch(
+                  `http://localhost:9000/api/admin/tenants/${t.name}/webhooks`,
+                  {
+                    method: "POST",
+                    body: JSON.stringify(webhook),
+                    headers: {
+                      "Content-Type": "application/json",
+                      cookie: `${cookies[0].name}=${cookies[0].value}`,
+                    },
+                  }
+                )
+              );
+            });
+          })
           .then((contextResult) =>
             Promise.all(
               t.projects.map((p) =>
@@ -155,6 +172,10 @@ export function testproject(name: string): TestProject {
   return new TestProject(name);
 }
 
+export function testWebhook(name: string): TestWebhook {
+  return new TestWebhook(name);
+}
+
 export function testFeature(name: string): TestFeature {
   return new TestFeature(name);
 }
@@ -171,6 +192,7 @@ class TestTenant {
   name: string;
   projects: TestProject[] = [];
   contexts: TestGlobalContext[] = [];
+  webhooks: TestWebhook[] = [];
 
   constructor(tenant: string) {
     this.name = tenant;
@@ -183,6 +205,64 @@ class TestTenant {
 
   withContext(context: TestGlobalContext): TestTenant {
     this.contexts.push(context);
+    return this;
+  }
+
+  withWebhook(webhook: TestWebhook): TestTenant {
+    this.webhooks.push(webhook);
+    return this;
+  }
+}
+
+class TestWebhook {
+  name: string;
+  url: string = "http://localhost:9999";
+  enabled: boolean = false;
+  global: boolean = true;
+  features: string[] = [];
+  projects: string[] = [];
+  user: string = "";
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  withUrl(url: string): TestWebhook {
+    this.url = url;
+    return this;
+  }
+
+  withEnableStatus(): TestWebhook {
+    this.enabled = true;
+    return this;
+  }
+
+  withDisableStatus(): TestWebhook {
+    this.enabled = false;
+    return this;
+  }
+
+  withGlobalScope(): TestWebhook {
+    this.global = true;
+    this.features = [];
+    this.projects = [];
+    return this;
+  }
+
+  withFeature(feature: string): TestWebhook {
+    this.global = false;
+    this.features.push(feature);
+    return this;
+  }
+
+  withProject(project: string): TestWebhook {
+    this.global = false;
+    this.projects.push(project);
+    return this;
+  }
+
+  withUser(user: string): TestWebhook {
+    this.user = user;
     return this;
   }
 }
