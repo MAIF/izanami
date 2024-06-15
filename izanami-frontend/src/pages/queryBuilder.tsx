@@ -214,6 +214,7 @@ export function QueryBuilder() {
                   type your context.
                 </Tooltip>
                 <AllContexts
+                  id="query-selector-context-select"
                   onChange={(value) => {
                     if (!value) {
                       setContext("");
@@ -422,7 +423,7 @@ export function QueryBuilder() {
           {Object.keys(result).length > 0 && (
             <>
               <div className="row">
-              <h2 className="mt-4">Call results</h2>
+                <h2 className="mt-4">Call results</h2>
                 <label>
                   <input
                     checked={jsonDisplay}
@@ -479,11 +480,11 @@ export function QueryBuilder() {
                         header: () => "Status",
                         cell: (info: any) =>
                           info.getValue() ? (
-                            <span className="activation-status">
-                              Active
-                            </span>
+                            <span className="activation-status">Active</span>
                           ) : (
-                            <span className="activation-status disabled-status">Inactive</span>
+                            <span className="activation-status disabled-status">
+                              Inactive
+                            </span>
                           ),
                         size: 20,
                         meta: {

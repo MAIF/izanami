@@ -1270,7 +1270,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       .readTenants()
       .flatMap(tenants => {
         Future.sequence(tenants.map(tenant => {
-          env.postgresql.queryOne(
+          env.postgresql.queryAll(
             s"""
                |SELECT config FROM "${tenant.name}".wasm_script_configurations
                |""".stripMargin,
@@ -1278,7 +1278,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           ) { r => r.optJsObject("config").map(js => js.as(WasmConfig.format)) }
         }))
       })
-      .map(os => os.filter(o => o.isDefined).map(o => o.get))
+      .map(os => os.flatten)
   }
 
   def createWasmScriptIfNeeded(

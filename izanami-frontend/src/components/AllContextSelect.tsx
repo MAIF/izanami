@@ -2,13 +2,14 @@ import * as React from "react";
 import { useQuery } from "react-query";
 import { globalContextKey, queryGlobalContexts } from "../utils/queries";
 import { useParams } from "react-router-dom";
-import Select, { SingleValue } from "react-select";
+import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { GlobalContextIcon } from "../utils/icons";
 import { Loader } from "./Loader";
 import { TContext } from "../utils/types";
 
 export function AllContexts(props: {
+  id: string;
   value?: string;
   onChange: (v?: string) => void;
 }) {
@@ -24,6 +25,7 @@ export function AllContexts(props: {
     const options = contextHierarchyToSelectOption(contextQuery.data);
     return (
       <Select
+        inputId={props.id}
         value={
           value ? options.find(({ value }) => value === props.value) : undefined
         }
