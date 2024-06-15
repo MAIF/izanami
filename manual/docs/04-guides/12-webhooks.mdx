@@ -28,12 +28,19 @@ This form allows to configure your webhook :
 
 Izanami offers some guaranties for webhook resilience.
 
-If webhook call timeout or if remote server respond with an error code, Izanami will retry the call several times (TODO) with an increased interval between calls (TODO).
+If webhook call timeout or if remote server respond with an error code,
+Izanami will retry the call several times with an increased interval between calls.
+To do so, Izanami will use [exponential backoff algorithm](https://en.wikipedia.org/wiki/Exponential_backoff)
+elements of this algorithm can be configured, see [dedicated configuration section](./configuration#webhooks) for details.
 
 If Izanami instance is shut down (or crashes) while making initial or retry call, webhook call will be retried after some times either when Izanami instances restart or by another instance if Izanami has multiple instances.
 
 ## Rights
 
-Izanami has a fine grain right management on hooks.
+Each hook has a dedicated right section, as for keys, tenants or projects, users can have 3 right levels on hooks :
 
-User can either read
+| Read hook information          | Read hook information | Create/update webhook | Delete webhook |
+| ------------------------------ | --------------------- | --------------------- | -------------- |
+| Read                           | ✅                    | ❌                    | ❌             |
+| Write                          | ✅                    | ✅                    | ❌             |
+| Admin (or tenant/global admin) | ✅                    | ✅                    | ✅             |

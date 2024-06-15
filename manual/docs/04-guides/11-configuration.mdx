@@ -111,3 +111,21 @@ Alternatively, Izanami re-exposes these configuration keys with below env variab
 | play.filters.cors.supportsCredentials   | IZANAMI_CORS_SUPPORTS_CREDENTIALS    |
 | play.filters.cors.preflightMaxAge       | IZANAMI_CORS_PREFLIGHT_MAX_AGE       |
 | play.filters.cors.serveForbiddenOrigins | IZANAMI_CORS_SERVE_FORBIDDEN_ORIGINS |
+
+### Webhooks
+
+Webhooks use exponential backoff algorithm to space out retries in case of failures.
+If retry exceed max allowed retry count, it stops trying and webhook won't be called.
+
+Duration is computed as :
+
+`retryDelay = Math.min(initialDelay * Math.pow(multiplier, currentCount), maxDelay)`
+
+With configurable values
+
+|                            | Play configuration key          | Environnement variable              |
+| -------------------------- | ------------------------------- | ----------------------------------- |
+| max retry count            | app.webhooks.retry.count        | IZANAMI_WEBHOOK_RETRY_COUNT         |
+| initial delay (in seconds) | app.webhooks.retry.intial-delay | IZANAMI_WEBHOOK_RETRY_INITIAL_DELAY |
+| max delay (in seconds)     | app.webhooks.retry.max-delay    | IZANAMI_WEBHOOK_RETRY_MAX_DELAY     |
+| multiplier                 | app.webhooks.retry.multiplier   | IZANAMI_WEBHOOK_RETRY_MULTIPLIER    |

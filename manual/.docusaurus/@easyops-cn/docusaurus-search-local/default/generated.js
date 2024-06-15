@@ -1,12 +1,12 @@
-import lunr from "/home/runner/work/izanami/izanami/manual/node_modules/lunr/lunr.js";
-require("/home/runner/work/izanami/izanami/manual/node_modules/lunr-languages/lunr.stemmer.support.js")(lunr);
+import lunr from "/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/lunr/lunr.js";
+require("/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/lunr-languages/lunr.stemmer.support.js")(lunr);
 require("@easyops-cn/docusaurus-search-local/dist/client/shared/lunrLanguageZh").lunrLanguageZh(lunr);
-require("/home/runner/work/izanami/izanami/manual/node_modules/lunr-languages/lunr.multi.js")(lunr);
+require("/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/lunr-languages/lunr.multi.js")(lunr);
 export const language = ["en","zh"];
 export const removeDefaultStopWordFilter = false;
 export const removeDefaultStemmer = false;
-export { default as Mark } from "/home/runner/work/izanami/izanami/manual/node_modules/mark.js/dist/mark.js"
-export const searchIndexUrl = "search-index{dir}.json?_=2de5ae58";
+export { default as Mark } from "/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/mark.js/dist/mark.js"
+export const searchIndexUrl = "search-index{dir}.json?_=11a1c7b8";
 export const searchResultLimits = 8;
 export const searchResultContextMaxLength = 50;
 export const explicitSearchResultPath = true;

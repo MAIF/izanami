@@ -34,8 +34,8 @@
               },
               "sidebar": "tutorialSidebar",
               "previous": {
-                "title": "Configuring Izanami",
-                "permalink": "/izanami/docs/guides/configuration"
+                "title": "Webhooks",
+                "permalink": "/izanami/docs/guides/webhooks"
               },
               "next": {
                 "title": "Java client",
@@ -235,8 +235,8 @@
                 "permalink": "/izanami/docs/guides/mailer-configuration"
               },
               "next": {
-                "title": "Clients",
-                "permalink": "/izanami/docs/clients/"
+                "title": "Webhooks",
+                "permalink": "/izanami/docs/guides/webhooks"
               }
             },
             {
@@ -499,6 +499,32 @@
               }
             },
             {
+              "id": "guides/webhooks",
+              "title": "Webhooks",
+              "description": "Webhooks are a way to make Izanami call a provided URL when a feature is modified.",
+              "source": "@site/docs/04-guides/12-webhooks.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/webhooks",
+              "permalink": "/izanami/docs/guides/webhooks",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 12,
+              "frontMatter": {
+                "title": "Webhooks"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Configuring Izanami",
+                "permalink": "/izanami/docs/guides/configuration"
+              },
+              "next": {
+                "title": "Clients",
+                "permalink": "/izanami/docs/clients/"
+              }
+            },
+            {
               "id": "usages/contexts",
               "title": "Contexts",
               "description": "Izanami allows to define finely when a feature should or should not be active, but sometimes this is not enough.",
@@ -718,6 +744,10 @@
                   {
                     "type": "doc",
                     "id": "guides/configuration"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/webhooks"
                   }
                 ],
                 "link": {
