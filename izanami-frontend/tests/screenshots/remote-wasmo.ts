@@ -27,7 +27,7 @@ export async function generate() {
     )
     .build(page);
   await page.goto("http://localhost:5001/");
-  await page.locator("div:nth-child(2) > .svg-inline--fa").click();
+  await page.getByText("Plugins", { exact: true }).click();
   await page.getByRole("button", { name: "Javascript" }).click();
   await page.getByRole("button", { name: "Izanami" }).hover();
   await screenshot("plugin-template-selection");
