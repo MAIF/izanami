@@ -3,6 +3,10 @@ title: Webhooks
 ---
 
 import { Note } from "@site/src/components/Note";
+import webhookPage from "@site/static/img/screenshots/webhooks/webhook-page.png";
+import webhookForm from "@site/static/img/screenshots/webhooks/webhook-form.png";
+import webhookHandlebarForm from "@site/static/img/screenshots/webhooks/webhook-handlebar-form.png";
+import webhookCompleteForm from "@site/static/img/screenshots/webhooks/webhook-completed-form.png";
 
 <Note>This page covers features available only from 2.3.0</Note>
 
@@ -10,7 +14,7 @@ Webhooks are a way to make Izanami call a provided URL when a feature is modifie
 
 Given URL is called with new activation status for modified feature.
 
-This is usefull if you want to execute some specific code on feature activation,
+This is useful if you want to execute some specific code on feature activation,
 or if you want to keep your feature in sync with an external system that can't perform HTTP
 call to Izanami.
 
@@ -18,15 +22,33 @@ call to Izanami.
 
 To create a webhook, go to the webhook screen of your tenant and click the "Create new webhook" button.
 
-This form allows to configure your webhook :
+<img src={webhookPage} />
+
+<img src={webhookForm} />
+
+This form allows configuring your webhook :
 
 - `url` indicates which URL should be call when a feature is updated
-- `name` and `description` allows to describe what your hook is and what it's doing
-- `headers` allows to specify custom HTTPs headers to pass while calling webhook
-- `features` and `projects` specify hook scope : hook will be called only when a liste feature (or a feature of one of the listed projects) is modified
-- `context` and `user` allows to specify context and user for which activation will be recomputed
-- `custom body` allows to transform sent body (using a [handlebars template](https://handlebarsjs.com/)).
-  This is espacially usefull when integrating with external services, such as messaging systems.
+- `name` and `description` allows describing what your hook is and what it's doing
+- `headers` allows specifying custom HTTPs headers to pass while calling webhook
+- `features` and `projects` specify hook scope : hook will be called only when a listed feature (or a feature of one of the listed projects) is modified
+- `context` and `user` allows specifying context and user for which activation will be recomputed
+- `custom body` allows transforming sent body (using a [handlebars template](https://handlebarsjs.com/)).
+  This is especially useful when integrating with external services, such as messaging systems.
+
+When enabling `custom body`, a template editor appears on the screen.
+
+This editor allows indicating handlebars template to apply to "original" events in order to generate event to send.
+
+Left part of the screen allows to select or edit and "original" event.
+Right part allows typing your template.
+
+<img src={webhookHandlebarForm} />
+
+Bottom button allows applying your template on selected (or edited) event, and will display the result.
+It's useful to make sure that your template work as expected.
+
+<img src={webhookCompleteForm} />
 
 ## Webhook call
 
@@ -36,18 +58,18 @@ Webhook is called :
 - When feature concerned by given scope is deleted
 - When enabling of feature concerned by given scope is modified
 - When activation conditions of feature concerned by given scope are modified
-- When an overload is created / updated / deleted for a given feature
+- When an overload is created / updated / deleted for a feature concerned by given scope
 
 ## Resilience
 
-Izanami offers some guaranties for webhook resilience.
+Izanami offers some guarantees for webhook resilience.
 
 If webhook call timeout or if remote server respond with an error code,
-Izanami will retry the call several times with an increased interval between calls.
+Izanami will retry the call several times, with an increased interval between calls.
 To do so, Izanami will use [exponential backoff algorithm](https://en.wikipedia.org/wiki/Exponential_backoff)
 elements of this algorithm can be configured, see [dedicated configuration section](./configuration#webhooks) for details.
 
-If Izanami instance is shut down (or crashes) while making initial or retry call, webhook call will be retried after some times either when Izanami instances restart or by another instance if Izanami has multiple instances.
+If Izanami instance is shut down (or crashes) while making an initial or retry call, webhook call will be retried after some times either when Izanami instances restart or by another instance if Izanami has multiple instances.
 
 ## Rights
 
