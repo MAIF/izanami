@@ -501,7 +501,7 @@
             {
               "id": "guides/webhooks",
               "title": "Webhooks",
-              "description": "Webhooks are a way to make Izanami call a provided URL when a feature is modified.",
+              "description": "This page covers features available only from 2.3.0",
               "source": "@site/docs/04-guides/12-webhooks.mdx",
               "sourceDirName": "04-guides",
               "slug": "/guides/webhooks",

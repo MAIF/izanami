@@ -34,7 +34,8 @@ CREATE TABLE webhooks_call_status(
   webhook UUID NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE ON UPDATE CASCADE,
   event bigint NOT NULL,
   pending boolean NOT NULL DEFAULT TRUE,
-  last_call  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  last_call  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (webhook, event)
 );
 
 CREATE TABLE events (

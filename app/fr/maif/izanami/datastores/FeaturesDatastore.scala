@@ -1586,7 +1586,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     })
                 )
                 .flatMap {
-                  case Right(_) if !oldFeature.baseFeature().hasSameActivationStrategy(feature) => // FIXME
+                  case Right(_) if !oldFeature.baseFeature().hasSameActivationStrategy(feature) =>
                     env.eventService
                       .emitEvent(
                         channel = tenant,
