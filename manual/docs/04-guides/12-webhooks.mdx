@@ -52,13 +52,14 @@ It's useful to make sure that your template work as expected.
 
 ## Webhook call
 
-Webhook is called :
+Webhook is called for a feature in scope when:
 
-- When feature is created under given scope
-- When feature concerned by given scope is deleted
-- When enabling of feature concerned by given scope is modified
-- When activation conditions of feature concerned by given scope are modified
-- When an overload is created / updated / deleted for a feature concerned by given scope
+- it's created
+- it's deleted
+- its enabling is modified
+- its activation conditions are modified
+- an overload is created / updated / deleted for it
+- its name changes (we need to call webhook since user based activation condition rely on name)
 
 ## Resilience
 
