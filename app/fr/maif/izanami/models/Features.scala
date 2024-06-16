@@ -336,6 +336,7 @@ sealed trait LightWeightFeature extends AbstractFeature {
   }
 
   def hasSameActivationStrategy(another: AbstractFeature): Boolean = (this, another) match {
+    case (f1, f2) if f1.name != f2.name                           => false
     case (f1, f2) if f1.enabled != f2.enabled                     => false
     case (f1: Feature, f2: Feature)                               => f1.conditions == f2.conditions
     case (f1: LightWeightWasmFeature, f2: LightWeightWasmFeature) => f1.wasmConfigName == f2.wasmConfigName
