@@ -358,6 +358,40 @@ class WebhookAPISpec extends BaseAPISpec {
       Thread.sleep(1000)
     }
 
+
+    "trigger when a targeted feature name is updated" in {
+      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(tenant)
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              )
+            )
+            .withWebhooks(
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:8087/",
+                features = Set((tenant, "project", "f1"))
+              )
+            )
+        )
+        .withWebhookServer(port = 8087, responseCode = OK)
+        .build()
+
+      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("name" -> "f2"))
+
+      val requests = awaitRequests(8087, "FEATURE_UPDATED")
+
+      requests.toSeq.exists { case (r, _) =>
+        r.getBodyAsString.contains("FEATURE_UPDATED")
+      } mustBe true
+
+      Thread.sleep(1000)
+    }
+
     "triggers if feature overload is created" in {
       val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
