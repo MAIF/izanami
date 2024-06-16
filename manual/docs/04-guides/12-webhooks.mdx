@@ -2,6 +2,10 @@
 title: Webhooks
 ---
 
+import { Note } from "@site/src/components/Note";
+
+<Note>This page covers features available only from 2.3.0</Note>
+
 Webhooks are a way to make Izanami call a provided URL when a feature is modified.
 
 Given URL is called with new activation status for modified feature.
@@ -23,6 +27,16 @@ This form allows to configure your webhook :
 - `context` and `user` allows to specify context and user for which activation will be recomputed
 - `custom body` allows to transform sent body (using a [handlebars template](https://handlebarsjs.com/)).
   This is espacially usefull when integrating with external services, such as messaging systems.
+
+## Webhook call
+
+Webhook is called :
+
+- When feature is created under given scope
+- When feature concerned by given scope is deleted
+- When enabling of feature concerned by given scope is modified
+- When activation conditions of feature concerned by given scope are modified
+- When an overload is created / updated / deleted for a given feature
 
 ## Resilience
 

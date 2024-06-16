@@ -314,13 +314,13 @@ class WebhookAPISpec extends BaseAPISpec {
 
   "webhook call" should {
 
-    def awaitRequests(port: Int, eventType: String): mutable.Seq[(Request, HttpHeaders)] = {
+    def awaitRequests(port: Int, eventType: String, count: Int = 1): mutable.Seq[(Request, HttpHeaders)] = {
       val requests = getWebhookServerRequests(port)
       Thread.sleep(2000)
       await atMost (10, SECONDS) until {
-        requests.exists { case (request, _) =>
+        requests.count { case (request, _) =>
           request.getBodyAsString.contains(eventType)
-        }
+        } >= count
       }
       requests
     }
@@ -350,6 +350,149 @@ class WebhookAPISpec extends BaseAPISpec {
       situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
 
       val requests = awaitRequests(8087, "FEATURE_UPDATED")
+
+      requests.toSeq.exists { case (r, _) =>
+        r.getBodyAsString.contains("FEATURE_UPDATED")
+      } mustBe true
+
+      Thread.sleep(1000)
+    }
+
+    "triggers if feature overload is created" in {
+      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(tenant)
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              )
+            )
+            .withWebhooks(
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:8091/",
+                features = Set((tenant, "project", "f1"))
+              )
+            )
+            .withGlobalContext(TestFeatureContext("prod"))
+        )
+        .withWebhookServer(port = 8091, responseCode = OK)
+        .build()
+
+      val response = situation.changeFeatureStrategyForContext(
+        tenant = tenant,
+        project = "project",
+        contextPath = "prod",
+        enabled = true,
+        feature = "f1"
+      )
+
+      response.status mustEqual NO_CONTENT
+
+      val requests = awaitRequests(8091, "FEATURE_UPDATED")
+
+      requests.toSeq.exists { case (r, _) =>
+        r.getBodyAsString.contains("FEATURE_UPDATED")
+      } mustBe true
+
+      Thread.sleep(1000)
+    }
+
+    "triggers if feature overload is updated" in {
+      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(tenant)
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              )
+            )
+            .withWebhooks(
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:8092/",
+                features = Set((tenant, "project", "f1"))
+              )
+            )
+            .withGlobalContext(TestFeatureContext("prod"))
+        )
+        .withWebhookServer(port = 8092, responseCode = OK)
+        .build()
+
+      val response = situation.changeFeatureStrategyForContext(
+        tenant = tenant,
+        project = "project",
+        contextPath = "prod",
+        enabled = false,
+        feature = "f1"
+      )
+
+      val response2 = situation.changeFeatureStrategyForContext(
+        tenant = tenant,
+        project = "project",
+        contextPath = "prod",
+        enabled = true,
+        feature = "f1"
+      )
+
+      response.status mustEqual NO_CONTENT
+      response2.status mustEqual NO_CONTENT
+
+      val requests = awaitRequests(8092, "FEATURE_UPDATED", 2)
+
+      requests.toSeq.exists { case (r, _) =>
+        r.getBodyAsString.contains("FEATURE_UPDATED")
+      } mustBe true
+
+      Thread.sleep(1000)
+    }
+
+
+    "triggers if feature overload is deleted" in {
+      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(tenant)
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              )
+            )
+            .withWebhooks(
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:8093/",
+                features = Set((tenant, "project", "f1"))
+              )
+            )
+            .withGlobalContext(TestFeatureContext("prod"))
+        )
+        .withWebhookServer(port = 8093, responseCode = OK)
+        .build()
+
+      val response = situation.changeFeatureStrategyForContext(
+        tenant = tenant,
+        project = "project",
+        contextPath = "prod",
+        enabled = true,
+        feature = "f1"
+      )
+
+      val deleteResponse = situation.deleteFeatureOverload(tenant = tenant,
+        project = "project",
+        path = "prod",
+        feature = "f1"
+      )
+
+      response.status mustEqual NO_CONTENT
+      deleteResponse.status mustEqual NO_CONTENT
+
+      val requests = awaitRequests(8093, "FEATURE_UPDATED", 2)
 
       requests.toSeq.exists { case (r, _) =>
         r.getBodyAsString.contains("FEATURE_UPDATED")
@@ -582,7 +725,7 @@ class WebhookAPISpec extends BaseAPISpec {
       val request = requests.toSeq.find { case (r, _) =>
         r.getBodyAsString.contains("FEATURE_UPDATED")
       }.get
-      val body = Json.parse(request._1.getBodyAsString)
+      val body    = Json.parse(request._1.getBodyAsString)
       (body \ "metadata" \ "user").as[String] mustEqual "RESERVED_ADMIN_USER"
     }
 
@@ -789,14 +932,14 @@ class WebhookAPISpec extends BaseAPISpec {
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name" -> Json.toJson("my-super-hook")) +
-            ("features" -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects" -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers" -> Json.obj("foo" -> "bar")) +
-            ("url" -> Json.toJson("http://foo.bar")) +
+            ("name"        -> Json.toJson("my-super-hook")) +
+            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
+            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
+            ("headers"     -> Json.obj("foo" -> "bar")) +
+            ("url"         -> Json.toJson("http://foo.bar")) +
             ("description" -> Json.toJson("My new description")) +
-            ("context" -> Json.toJson("My new context")) +
-            ("user" -> Json.toJson("My new user"))
+            ("context"     -> Json.toJson("My new context")) +
+            ("user"        -> Json.toJson("My new user"))
           result
         }
       )
@@ -838,7 +981,12 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
-        .withUsers(TestUser("testu", rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))))
+        .withUsers(
+          TestUser(
+            "testu",
+            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))
+          )
+        )
         .loggedAs("testu")
         .build()
 
@@ -856,7 +1004,6 @@ class WebhookAPISpec extends BaseAPISpec {
 
       response.status mustBe FORBIDDEN
     }
-
 
     "prevent webhook update if there is no features or projects for non global hooks" in {
       val situation = TestSituationBuilder()
@@ -887,14 +1034,14 @@ class WebhookAPISpec extends BaseAPISpec {
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name" -> Json.toJson("my-super-hook")) +
-            ("features" -> JsArray()) +
-            ("projects" -> JsArray()) +
-            ("headers" -> Json.obj("foo" -> "bar")) +
-            ("url" -> Json.toJson("http://foo.bar")) +
+            ("name"        -> Json.toJson("my-super-hook")) +
+            ("features"    -> JsArray()) +
+            ("projects"    -> JsArray()) +
+            ("headers"     -> Json.obj("foo" -> "bar")) +
+            ("url"         -> Json.toJson("http://foo.bar")) +
             ("description" -> Json.toJson("My new description")) +
-            ("context" -> Json.toJson("My new context")) +
-            ("user" -> Json.toJson("My new user"))
+            ("context"     -> Json.toJson("My new context")) +
+            ("user"        -> Json.toJson("My new user"))
           result
         }
       )
@@ -902,9 +1049,7 @@ class WebhookAPISpec extends BaseAPISpec {
       response.status mustBe BAD_REQUEST
     }
 
-    "prevent webhook update if there is features or projects for global hooks" in {
-
-    }
+    "prevent webhook update if there is features or projects for global hooks" in {}
   }
 
   "webhook right endpoint" should {
@@ -915,7 +1060,7 @@ class WebhookAPISpec extends BaseAPISpec {
           TestTenant("tenant")
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false),
+                TestFeature("f1", enabled = false)
               )
             )
             .withWebhooks(
@@ -926,21 +1071,42 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
-        .withUsers(TestUser("testuHookRead", rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))))
-        .withUsers(TestUser("testuHookWrite", rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))))
-        .withUsers(TestUser("testuHookAdmin", rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Admin")))))
-        .withUsers(TestUser("testuTenantAdmin", rights = TestRights(Map("tenant" -> TestTenantRight("tenant", level = "Admin")))))
+        .withUsers(
+          TestUser(
+            "testuHookRead",
+            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))
+          )
+        )
+        .withUsers(
+          TestUser(
+            "testuHookWrite",
+            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))
+          )
+        )
+        .withUsers(
+          TestUser(
+            "testuHookAdmin",
+            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Admin")))
+          )
+        )
+        .withUsers(
+          TestUser("testuTenantAdmin", rights = TestRights(Map("tenant" -> TestTenantRight("tenant", level = "Admin"))))
+        )
         .withUsers(TestUser("testuAdmin", admin = true))
         .build()
 
-      val response = situation.fetchWebhookUser("tenant", webhook = situation.findWebhookId(tenant="tenant", webhook="my-hook").get)
+      val response = situation.fetchWebhookUser(
+        "tenant",
+        webhook = situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
+      )
 
       response.status mustBe OK
 
       val array = response.json.get.as[JsArray].value
       array must have length 6
 
-      def findUser(username: String): JsObject = array.find(js => (js \ "username").as[String] == username).get.as[JsObject]
+      def findUser(username: String): JsObject =
+        array.find(js => (js \ "username").as[String] == username).get.as[JsObject]
 
       val defaultUser = findUser("RESERVED_ADMIN_USER")
       (defaultUser \ "right").as[String] mustEqual "Admin"
@@ -980,7 +1146,7 @@ class WebhookAPISpec extends BaseAPISpec {
           TestTenant("tenant")
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false),
+                TestFeature("f1", enabled = false)
               )
             )
             .withWebhooks(
@@ -990,7 +1156,13 @@ class WebhookAPISpec extends BaseAPISpec {
                 features = Set(("tenant", "project", "f1"))
               )
             )
-        ).withUsers(TestUser("testu", rights=TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))))
+        )
+        .withUsers(
+          TestUser(
+            "testu",
+            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))
+          )
+        )
         .loggedAs("testu")
         .build()
 
@@ -1007,7 +1179,7 @@ class WebhookAPISpec extends BaseAPISpec {
           TestTenant("tenant")
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false),
+                TestFeature("f1", enabled = false)
               )
             )
             .withWebhooks(
@@ -1017,14 +1189,20 @@ class WebhookAPISpec extends BaseAPISpec {
                 features = Set(("tenant", "project", "f1"))
               )
             )
-        ).withUsers(TestUser("testu", rights=TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))))
+        )
+        .withUsers(
+          TestUser(
+            "testu",
+            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))
+          )
+        )
         .build()
 
       val response = situation.updateUserRightForWebhook(
-        tenant="tenant",
-        webhook=situation.findWebhookId("tenant", "my-hook").get,
-        user="testu",
-        right=Some("Admin")
+        tenant = "tenant",
+        webhook = situation.findWebhookId("tenant", "my-hook").get,
+        user = "testu",
+        right = Some("Admin")
       )
 
       response.status mustBe NO_CONTENT
@@ -1042,7 +1220,7 @@ class WebhookAPISpec extends BaseAPISpec {
           TestTenant("tenant")
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false),
+                TestFeature("f1", enabled = false)
               )
             )
             .withWebhooks(
@@ -1052,7 +1230,8 @@ class WebhookAPISpec extends BaseAPISpec {
                 features = Set(("tenant", "project", "f1"))
               )
             )
-        ).withUsers(TestUser("testu"))
+        )
+        .withUsers(TestUser("testu"))
         .build()
 
       val response = situation.updateUserRightForWebhook(
@@ -1077,7 +1256,7 @@ class WebhookAPISpec extends BaseAPISpec {
           TestTenant("tenant")
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false),
+                TestFeature("f1", enabled = false)
               )
             )
             .withWebhooks(
@@ -1088,7 +1267,12 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
-        .withUsers(TestUser("testu", rights=TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))))
+        .withUsers(
+          TestUser(
+            "testu",
+            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))
+          )
+        )
         .withUsers(TestUser("testu2"))
         .build()
 
