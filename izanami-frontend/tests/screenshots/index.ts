@@ -9,6 +9,7 @@ import { generate as multiConditionFeatureGenerate } from "./multi-condition-fea
 import { generate as queryBuilderGenerate } from "./query-builder";
 import { generate as remoteWasmoGenerate } from "./remote-wasmo";
 import { generate as userInvitationGenerate } from "./user-invitation";
+import { generate as webhookGenerate } from "./webhooks";
 
 async function generateAll() {
   await apiKeyGenerate();
@@ -22,6 +23,7 @@ async function generateAll() {
   await userInvitationGenerate();
   await base64Wasm();
   await remoteWasmoGenerate();
+  await webhookGenerate();
 }
 
 generateAll();

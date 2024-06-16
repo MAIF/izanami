@@ -112,6 +112,7 @@ function Editor(props: { value: string; onChange: (v: string) => void }) {
         </Tooltip>
       </label>
       <CodeMirror
+        aria-label="Handlebar template"
         id="handlebar-editor"
         value={value}
         height="450px"
@@ -128,21 +129,66 @@ events.set(
   "FEATURE_UPDATED",
   JSON.stringify(
     {
-      _id: 1794867116702171100,
-      timestamp: "2024-05-26T23:04:02.297187Z",
+      _id: 1802464900523491300,
+      timestamp: "2024-06-16T22:14:55.120227Z",
       payload: {
-        name: "f1",
-        active: true,
-        project: "project",
+        name: "summer-sales",
+        active: false,
+        project: "website",
         conditions: {
           "": {
             enabled: true,
+            conditions: [
+              {
+                period: {
+                  begin: "2024-06-16T22:00:00Z",
+                  end: "2024-06-21T06:00:00Z",
+                  hourPeriods: [
+                    {
+                      startTime: "08:00:00",
+                      endTime: "23:00:00",
+                    },
+                    {
+                      startTime: "14:00:00",
+                      endTime: "15:00:00",
+                    },
+                  ],
+                  activationDays: {
+                    days: [
+                      "MONDAY",
+                      "FRIDAY",
+                      "TUESDAY",
+                      "THURSDAY",
+                      "WEDNESDAY",
+                    ],
+                  },
+                  timezone: "Europe/Paris",
+                },
+                rule: {
+                  percentage: 25,
+                },
+              },
+              {
+                period: null,
+                rule: {
+                  users: ["foo", "bar"],
+                },
+              },
+            ],
+          },
+        },
+        previousConditions: {
+          "": {
+            enabled: false,
             conditions: [],
           },
         },
       },
+      metadata: {
+        user: "RESERVED_ADMIN_USER",
+      },
       type: "FEATURE_UPDATED",
-      id: "08cc3224-cfd0-4159-8d8c-8fd6cffa3e37",
+      id: "73a2ef9e-aade-4eb7-8e12-6145b5e6ef7a",
     },
     null,
     2
@@ -259,8 +305,7 @@ function EventPicker(props: {
       </div>
       <CodeMirror
         id="event-value"
-        //value={value}
-        value={`{ "foo": "bar" }`}
+        value={value}
         onChange={(str) => {
           setValue(str);
           onChange(str);
