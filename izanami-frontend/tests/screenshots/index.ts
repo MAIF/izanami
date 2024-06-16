@@ -12,7 +12,7 @@ import { generate as userInvitationGenerate } from "./user-invitation";
 import { generate as webhookGenerate } from "./webhooks";
 
 async function generateAll() {
-  /*await apiKeyGenerate();
+  await apiKeyGenerate();
   await bulkGenerate();
   await contextGenerate();
   await gettingStarted();
@@ -21,7 +21,7 @@ async function generateAll() {
   await multiConditionFeatureGenerate();
   await queryBuilderGenerate();
   await userInvitationGenerate();
-  await base64Wasm();*/
+  await base64Wasm();
   await remoteWasmoGenerate();
   await webhookGenerate();
 }
