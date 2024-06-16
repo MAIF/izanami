@@ -735,12 +735,9 @@ function Headers(props: {
       {arr.map(({ name, value }, index) => (
         <div className="row" key={`header-${index}`}>
           <div className="col-6 col-lg-3">
-            <label hidden htmlFor={`header-${index}-name`}>
-              Header {index} name
-            </label>
             <input
+              aria-label={`header-${index}-name`}
               className="form-control"
-              id={`header-${index}-name`}
               value={name}
               onChange={(e) => {
                 const v = e.target.value;
@@ -754,12 +751,9 @@ function Headers(props: {
             />
           </div>
           <div className="col">
-            <label hidden htmlFor={`header-${index}-value`}>
-              Header {index} value
-            </label>
             <input
               className="form-control"
-              id={`header-${index}-value`}
+              aria-label={`header-${index}-value`}
               value={value}
               onChange={(e) => {
                 const v = e.target.value;
