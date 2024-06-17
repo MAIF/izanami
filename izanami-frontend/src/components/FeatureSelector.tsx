@@ -7,7 +7,7 @@ import { customStyles } from "../styles/reactSelect";
 import { Loader } from "./Loader";
 
 export function FeatureSelector(props: {
-  id: string;
+  id?: string;
   value?: string;
   onChange?: (v: string[]) => void;
 }) {
@@ -28,7 +28,7 @@ export function FeatureSelector(props: {
 
     return (
       <Select
-        inputId={props.id}
+        inputId={props.id ?? undefined}
         isMulti
         value={
           value
