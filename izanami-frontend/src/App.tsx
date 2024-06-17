@@ -600,17 +600,18 @@ export class App extends Component {
       setUser: (user: TUser) => {
         this.setState({ user: user });
         if (user.admin) {
-          Promise.all([queryConfiguration(), queryStats()]).then(
-            ([configuration, stats]) => {
-              if (
-                !configuration.anonymousReporting &&
-                (!configuration.anonymousReportingLastAsked ||
-                  differenceInMonths(
-                    new Date(),
-                    configuration.anonymousReportingLastAsked
-                  ) > 3)
-              ) {
-                return this.state.askConfirmation(
+          queryConfiguration().then((configuration) => {
+            if (
+              !configuration.anonymousReporting &&
+              (!configuration.anonymousReportingLastAsked ||
+                differenceInMonths(
+                  new Date(),
+                  configuration.anonymousReportingLastAsked
+                ) > 3)
+            ) {
+              console.log("querying stats");
+              return queryStats().then((stats) => {
+                this.state.askConfirmation(
                   <>
                     As you may know, Izanami is an open-source project. As such,
                     we don't have much feedback from our users. But this
@@ -651,9 +652,9 @@ export class App extends Component {
                   "Keep reporting disabled",
                   "Enable anonymous reporting"
                 );
-              }
+              });
             }
-          );
+          });
         }
       },
       logout: () => {
