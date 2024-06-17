@@ -235,7 +235,7 @@ export function Tags(props: { tenant: string }) {
                   const name = info.getValue();
                   return (
                     <>
-                      <div key={name}>
+                      <div key={String(name)}>
                         <NavLink
                           className={() => ""}
                           to={`/tenants/${tenant}/tags/${name}`}
