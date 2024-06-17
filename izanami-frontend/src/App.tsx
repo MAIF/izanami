@@ -63,8 +63,8 @@ import { Swagger } from "./pages/swagger";
 import { Tags } from "./pages/tags";
 import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
-import { WebHooks } from "./pages/webhooks";
 import { SearchModal } from "./components/SearchComponant/SearchModal";
+import { WebHooks } from "./pages/webhooks";
 
 function Wrapper({
   element,
