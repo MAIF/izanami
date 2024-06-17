@@ -69,18 +69,20 @@ export function WasmScripts(props: { tenant: string }) {
               cell: (info) => {
                 return (
                   <>
-                    {info.getValue().map(({ name, project, id }: any) => {
-                      return (
-                        <div key={id}>
-                          <NavLink
-                            className={() => ""}
-                            to={`/tenants/${tenant}/projects/${project}`}
-                          >
-                            {name}({project})
-                          </NavLink>
-                        </div>
-                      );
-                    })}
+                    {(info.getValue() as any).map(
+                      ({ name, project, id }: any) => {
+                        return (
+                          <div key={id}>
+                            <NavLink
+                              className={() => ""}
+                              to={`/tenants/${tenant}/projects/${project}`}
+                            >
+                              {name}({project})
+                            </NavLink>
+                          </div>
+                        );
+                      }
+                    )}
                   </>
                 );
               },

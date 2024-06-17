@@ -203,7 +203,7 @@ export default function Keys(props: { tenant: string }) {
         if (!filterValue || filterValue?.length === 0) {
           return true;
         }
-        const value = row.getValue(columnId);
+        const value: any = row.getValue(columnId);
 
         return filterValue.some((v: string) => value.includes(v));
       },
