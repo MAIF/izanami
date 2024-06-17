@@ -123,7 +123,7 @@ export function Users() {
           if (!filterValue || filterValue?.length === 0) {
             return true;
           }
-          const value = row.getValue(columnId);
+          const value: any = row.getValue(columnId);
 
           return (
             row.original.admin ||
