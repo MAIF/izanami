@@ -6,7 +6,7 @@ import {
   queryTenants,
   tenantQueryKey,
 } from "../utils/queries";
-import { matchPath, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { matchPath, NavLink, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import {
@@ -92,6 +92,7 @@ export function Menu(props: {
                   placeholder="Select tenant..."
                   onChange={(v) => {
                     selectTenant(v!.value);
+                    selectProject("");
                     navigate(`/tenants/${v!.value}`);
                   }}
                 />
