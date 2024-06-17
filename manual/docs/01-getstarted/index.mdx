@@ -45,7 +45,7 @@ Alternatively, you can run following docker-compose file
 
 ```yml
 # Use postgres/example user/password credentials
-version: '3.1'
+version: "3.1"
 
 services:
   db:
@@ -57,7 +57,7 @@ services:
     ports:
       - 5432:5432
   izanami:
-    image: maif/izanami:2.0.0
+    image: maif/izanami:2.3.0
     environment:
       IZANAMI_PG_URI: postgresql://postgres:postgres@host.docker.internal:5432/postgres
     ports:
