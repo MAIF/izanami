@@ -298,8 +298,10 @@ function Rights(): JSX.Element {
     <>
       {admin && (
         <div className="mt-3">
-          <h4>For izanami</h4>
-          <i className="bi bi-shield-check me-1" aria-hidden></i>Admin
+          <h5>
+            <i className="bi bi-shield-check me-1" aria-hidden></i>&nbsp;Global
+            admin
+          </h5>
         </div>
       )}
       {Object.entries(tenants || {}).map(([key, value], index, array) => {
@@ -307,7 +309,7 @@ function Rights(): JSX.Element {
           <>
             {Object.entries(value.projects).length > 0 && (
               <>
-                <h4 className="mt-3">For projects</h4>
+                <h4 className="mt-3">Projects</h4>
                 {Object.entries(value.projects).map(
                   ([projectName, projectRight]) => {
                     return (
@@ -326,7 +328,7 @@ function Rights(): JSX.Element {
 
             {Object.entries(value.keys).length > 0 && (
               <>
-                <h4 className="mt-3">For keys</h4>
+                <h4 className="mt-3">Keys</h4>
                 {Object.entries(value.keys).map(([keyName, keyRight]) => {
                   return (
                     <div key={`${key}-${keyName}`}>
@@ -340,9 +342,29 @@ function Rights(): JSX.Element {
               </>
             )}
 
+            {Object.entries(value.webhooks).length > 0 && (
+              <>
+                <h4 className="mt-3">Webhooks</h4>
+                {Object.entries(value.webhooks).map(
+                  ([webhookName, webhookRight]) => {
+                    return (
+                      <div key={`${key}-${webhookName}`}>
+                        <Link to={`/tenants/${key}/webhooks`}>
+                          <i className="fas fa-plug" aria-hidden />{" "}
+                          {webhookName}
+                        </Link>{" "}
+                        : <span>{webhookRight.level}</span>
+                      </div>
+                    );
+                  }
+                )}
+              </>
+            )}
+
             {Object.entries(value.keys).length === 0 &&
-              Object.entries(value.projects).length === 0 && (
-                <span>No specific rights for this tenant</span>
+              Object.entries(value.projects).length === 0 &&
+              Object.entries(value.webhooks).length === 0 && (
+                <div>No specific rights for this tenant</div>
               )}
           </>
         );
@@ -350,12 +372,15 @@ function Rights(): JSX.Element {
         if (array.length === 1) {
           return (
             <>
-              <h4 className="mt-3">For tenant</h4>
-              <Link to={`/tenants/${key}`}>
-                <i className="fas fa-cloud" aria-hidden /> {key}
-              </Link>{" "}
-              : {value.level}
-              {body}
+              <h3 className="mt-3">
+                Tenant&nbsp;
+                <Link to={`/tenants/${key}`}>
+                  <i className="fas fa-cloud" aria-hidden />
+                  &nbsp;{key}
+                </Link>{" "}
+                ({value.level})
+              </h3>
+              <div className="ms-4">{body}</div>
             </>
           );
         } else {

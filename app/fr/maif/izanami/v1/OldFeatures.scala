@@ -1,6 +1,6 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.{AbstractFeature, ActivationCondition, ActivationRule, All, DateRangeActivationCondition, Feature, FeaturePeriod, HourPeriod, SingleConditionFeature, UserList, UserPercentage, WasmFeature, ZonedHourPeriod}
+import fr.maif.izanami.models.{AbstractFeature, ActivationCondition, ActivationRule, All, CompleteFeature, CompleteWasmFeature, DateRangeActivationCondition, Feature, FeaturePeriod, HourPeriod, LightWeightWasmFeature, SingleConditionFeature, UserList, UserPercentage, ZonedHourPeriod}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldFeatureType.{CUSTOMERS_LIST, DATE_RANGE, GLOBAL_SCRIPT, HOUR_RANGE, NO_STRATEGY, PERCENTAGE, RELEASE_DATE, SCRIPT}
 import fr.maif.izanami.wasm.WasmConfig
@@ -21,7 +21,7 @@ sealed trait OldFeature {
   def enabled: Boolean
   def description: Option[String]
   def tags: Set[String]
-  def toFeature(project: String, zone: ZoneId, globalScriptById: Map[String, OldGlobalScript]): Either[String, (AbstractFeature, Option[OldScript])] = {
+  def toFeature(project: String, zone: ZoneId, globalScriptById: Map[String, OldGlobalScript]): Either[String, (CompleteFeature, Option[OldScript])] = {
     this match {
       case OldDefaultFeature(id, name, enabled, description, tags, _) => Right((SingleConditionFeature(id=id, name=Option(name).getOrElse(id), enabled=enabled, project=project, condition=All, description=description.getOrElse(""), tags=tags), None))
       case OldDateRangeFeature(id, name, enabled, description, tags, from, to, _) => Right((SingleConditionFeature(id=id, name=Option(name).getOrElse(id), enabled=enabled, project=project, condition=DateRangeActivationCondition(begin = Option(from.atZone(zone).toInstant), end = Option(to.atZone(zone).toInstant), timezone = zone
@@ -33,7 +33,7 @@ sealed trait OldFeature {
       case OldCustomersFeature(id, name, enabled, description, tags, customers) => Right((SingleConditionFeature(id = id, name = Option(name).getOrElse(id), enabled = enabled, project = project, condition = UserList(users=customers.toSet), description = description.getOrElse(""), tags=tags), None))
       case OldScriptFeature(id, name, enabled, description, tags, script) =>
           Right((
-            WasmFeature(
+            CompleteWasmFeature(
               id = id,
               name = Option(name).getOrElse(id),
               project = project,
@@ -54,7 +54,7 @@ sealed trait OldFeature {
         globalScriptById.get(scriptIdToNodeCompatibleName(ref)) match {
           case None => Left(s"Can't find referenced global script ${ref}")
           case Some(OldGlobalScript(scriptId, scriptName, scriptDescription, source)) => {
-            Right((WasmFeature(
+            Right((CompleteWasmFeature(
               id = id,
               name = Option(name).getOrElse(id),
               project = project,
@@ -165,7 +165,11 @@ object OldFeature {
     }
   }
 
-  def fromScriptFeature(f: WasmFeature): OldFeature = {
+  def fromScriptFeature(f: LightWeightWasmFeature): OldFeature = {
+    OldGlobalScriptFeature(f.id, name = f.name, enabled = f.enabled, description = Some(f.description), tags = f.tags, ref = f.wasmConfigName)
+  }
+
+  def fromScriptFeature(f: CompleteWasmFeature): OldFeature = {
     OldGlobalScriptFeature(f.id, name = f.name, enabled = f.enabled, description = Some(f.description), tags = f.tags, ref = f.wasmConfig.name)
   }
 

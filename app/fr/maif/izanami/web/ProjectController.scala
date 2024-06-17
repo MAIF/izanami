@@ -73,7 +73,7 @@ class ProjectController(
   def deleteProject(tenant: String, project: String): Action[AnyContent] = projectAuthAction(tenant, project, RightLevels.Admin).async {
     implicit request =>
       env.datastores.projects
-        .deleteProject(tenant, project).map {
+        .deleteProject(tenant, project, request.user).map {
         case Left(err) => err.toHttpResponse
         case Right(value) => NoContent
       }

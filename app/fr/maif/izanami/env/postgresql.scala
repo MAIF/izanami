@@ -122,7 +122,6 @@ class Postgresql(env: Env) {
     config.setMaximumPoolSize(10)
     val dataSource = new HikariDataSource(config)
     val password = defaultPassword
-    logger.info(s"Password $password")
     val flyway     =
       Flyway.configure
         .dataSource(dataSource)

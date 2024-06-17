@@ -5,6 +5,7 @@ import akka.stream.Materializer
 import com.typesafe.config.ConfigFactory
 import fr.maif.izanami.datastores._
 import fr.maif.izanami.events.EventService
+import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
@@ -30,6 +31,7 @@ class Datastores(env: Env) {
   val featureContext: FeatureContextDatastore = new FeatureContextDatastore(env)
   val users: UsersDatastore                   = new UsersDatastore(env)
   val configuration: ConfigurationDatastore   = new ConfigurationDatastore(env)
+  val webhook: WebhooksDatastore   = new WebhooksDatastore(env)
   val stats: StatsDatastore   = new StatsDatastore(env)
   val searchQueries : SearchDatastore = new SearchDatastore(env)
 
@@ -83,6 +85,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
 
   // init subsystems
   val eventService = new EventService(this)
+  val webhookListener = new WebhookListener(this, eventService)
   val postgresql = new Postgresql(this)
   val datastores = new Datastores(this)
   val mails      = new Mails(this)
@@ -98,6 +101,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
       _ <- datastores.onStart()
       _ <- jobs.onStart()
       _ <- wasmIntegration.startF()
+      _ <- webhookListener.onStart()
     } yield ()
   }
 

@@ -15,9 +15,7 @@ import { GenericTable } from "../components/GenericTable";
 import { customStyles } from "../styles/reactSelect";
 import { Modal } from "../components/Modal";
 import { IzanamiContext, useTenantRight } from "../securityContext";
-import { useState } from "react";
 import { KEY_NAME_REGEXP } from "../utils/patterns";
-import { CopyButton } from "../components/CopyButton";
 import { Loader } from "../components/Loader";
 
 function editionSchema(tenant: string, key?: TKey) {

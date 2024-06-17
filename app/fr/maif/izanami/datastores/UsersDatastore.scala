@@ -1,12 +1,12 @@
 package fr.maif.izanami.datastores
 
 import akka.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, rightRead}
+import fr.maif.izanami.datastores.userImplicits.{dbUserTypeToUserType, rightRead, UserRow}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
+import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
 import fr.maif.izanami.models.Rights.TenantRightDiff
 import fr.maif.izanami.models.User.{rightLevelReads, tenantRightReads}
 import fr.maif.izanami.models._
@@ -108,7 +108,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       .recover {
         case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
           Left(UserAlreadyExist(updateRequest.name, updateRequest.email))
-        case ex                                              =>
+        case ex                                                  =>
           logger.error("Failed to user", ex)
           Left(InternalServerError())
       }
@@ -232,7 +232,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                            |AND tenant=$$2
                            |RETURNING username
                            |""".stripMargin,
-                List(name, tenant),
+                List(name, r.name),
                 conn = Some(conn)
               ) { _ => Some(()) }
             })
@@ -259,6 +259,16 @@ class UsersDatastore(val env: Env) extends Datastore {
                                |RETURNING username
                                |""".stripMargin,
                     List(name, diff.removedKeyRights.map(_.name).toArray),
+                    conn = Some(conn)
+                  ) { _ => Some(()) },
+                  env.postgresql.queryOne(
+                    s"""
+                       |DELETE FROM users_webhooks_rights
+                       |WHERE username=$$1
+                       |AND webhook=ANY($$2)
+                       |RETURNING username
+                       |""".stripMargin,
+                    List(name, diff.removedWebhookRights.map(_.name).toArray),
                     conn = Some(conn)
                   ) { _ => Some(()) }
                 )
@@ -310,6 +320,19 @@ class UsersDatastore(val env: Env) extends Datastore {
                           name,
                           diff.addedKeyRights.map(flatten => flatten.name).toArray,
                           diff.addedKeyRights.map(flatten => flatten.level.toString.toUpperCase).toArray
+                        ),
+                        conn = Some(conn)
+                      ) { _ => Some(()) },
+                      env.postgresql.queryOne(
+                        s"""
+                           |INSERT INTO users_webhooks_rights(username, webhook, level)
+                           |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                           |RETURNING username
+                           |""".stripMargin,
+                        List(
+                          name,
+                          diff.addedWebhookRights.map(flatten => flatten.name).toArray,
+                          diff.addedWebhookRights.map(flatten => flatten.level.toString.toUpperCase).toArray
                         ),
                         conn = Some(conn)
                       ) { _ => Some(()) }
@@ -397,6 +420,25 @@ class UsersDatastore(val env: Env) extends Datastore {
                       }
                     })
                     .flatMap(_ => {
+                      diff.removedWebhookRights.foldLeft(Future.successful(())) { case (f, (tenant, rights)) =>
+                        f.flatMap(_ => env.postgresql.updateSearchPath(tenant, conn))
+                          .flatMap(_ =>
+                            env.postgresql
+                              .queryOne(
+                                s"""
+                                   |DELETE FROM users_webhooks_rights
+                                   |WHERE username=$$1
+                                   |AND webhook=ANY($$2)
+                                   |RETURNING username
+                                   |""".stripMargin,
+                                List(name, rights.map(_.name).toArray),
+                                conn = Some(conn)
+                              ) { _ => Some(()) }
+                              .map(_ => ())
+                          )
+                      }
+                    })
+                    .flatMap(_ => {
                       env.postgresql
                         .queryOne(
                           s"""
@@ -455,6 +497,28 @@ class UsersDatastore(val env: Env) extends Datastore {
                               )
                           }
                         })
+                        .flatMap(_ => {
+                          diff.addedWebhookRights.foldLeft(Future.successful(())) { case (f, (tenantName, rights)) =>
+                            f.flatMap(_ => env.postgresql.updateSearchPath(tenantName, conn))
+                              .flatMap(_ =>
+                                env.postgresql
+                                  .queryOne(
+                                    s"""
+                                       |INSERT INTO users_webhooks_rights(username, webhook, level)
+                                       |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                                       |RETURNING username
+                                       |""".stripMargin,
+                                    List(
+                                      name,
+                                      rights.map(_.name).toArray,
+                                      rights.map(_.level.toString.toUpperCase).toArray
+                                    ),
+                                    conn = Some(conn)
+                                  ) { _ => Some(()) }
+                                  .map(_ => ())
+                              )
+                          }
+                        })
                     })
                     .map(_ => Right(()))
                 }
@@ -470,19 +534,17 @@ class UsersDatastore(val env: Env) extends Datastore {
       conn: SqlConnection,
       importConflictStrategy: ImportConflictStrategy = Fail
   ): Future[Either[IzanamiError, Unit]] = {
-    if(users.isEmpty) {
+    if (users.isEmpty) {
       Future.successful(Right(()))
     } else {
       val eventualErrorOrUnit: Future[Either[InternalServerError, Unit]] = env.postgresql
         .queryRaw(
           s"""insert into izanami.users (username, password, admin, email, user_type, legacy)
-             |values (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::BOOLEAN[]), unnest($$4::TEXT[]), unnest($$5::izanami.user_type[]), unnest($$6::BOOLEAN[])) ${
-            importConflictStrategy match {
-              case Fail => ""
-              case MergeOverwrite => s" ON CONFLICT(username) DO UPDATE SET admin=COALESCE(users.admin, excluded.admin)"
-              case Skip => " ON CONFLICT(username) DO NOTHING"
-            }
-          } returning *""".stripMargin,
+             |values (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::BOOLEAN[]), unnest($$4::TEXT[]), unnest($$5::izanami.user_type[]), unnest($$6::BOOLEAN[])) ${importConflictStrategy match {
+            case Fail           => ""
+            case MergeOverwrite => s" ON CONFLICT(username) DO UPDATE SET admin=COALESCE(users.admin, excluded.admin)"
+            case Skip           => " ON CONFLICT(username) DO NOTHING"
+          }} returning *""".stripMargin,
           List(
             users.map(_.username).toArray,
             users.map(user => Option(user.password).map(pwd => HashUtils.bcryptHash(pwd)).orNull).toArray,
@@ -503,39 +565,67 @@ class UsersDatastore(val env: Env) extends Datastore {
                   (tenant, username, project, right.level)
                 }
               }
-            }.groupBy(_._1).view.mapValues(seq => seq.map { case (_, username, project, level) => (username, project, level) })
-            .foldLeft(Future.successful(())) { case (future, (tenant, values)) => {
-              future.flatMap(_ => createProjectRights(tenant, values, conn, importConflictStrategy))
             }
-            }.flatMap(_ => {
-            base
-              .filter { case (_, _, r) => r.keys.nonEmpty }
-              .flatMap {
-                case (tenant, username, tenantRight) => {
-                  tenantRight.keys.map { case (key, right) =>
-                    (tenant, username, key, right.level)
+            .groupBy(_._1)
+            .view
+            .mapValues(seq => seq.map { case (_, username, project, level) => (username, project, level) })
+            .foldLeft(Future.successful(())) {
+              case (future, (tenant, values)) => {
+                future.flatMap(_ => createProjectRights(tenant, values, conn, importConflictStrategy))
+              }
+            }
+            .flatMap(_ => {
+              base
+                .filter { case (_, _, r) => r.keys.nonEmpty }
+                .flatMap {
+                  case (tenant, username, tenantRight) => {
+                    tenantRight.keys.map { case (key, right) =>
+                      (tenant, username, key, right.level)
+                    }
                   }
                 }
-              }.groupBy(_._1).view.mapValues(seq => seq.map { case (_, username, key, level) => (username, key, level) })
-              .foldLeft(Future.successful(())) { case (future, (tenant, values)) => {
-                future.flatMap(_ => createKeyRights(tenant, values, conn, importConflictStrategy))
-              }
-              }
-          }).flatMap(_ => {
-            val (usernames, tenants, levels) = users
-              .flatMap(u => {
-                u.rights.tenants.map { case (tenant, TenantRight(level, _, _)) => (u.username, tenant, level) }
-              })
-              .toArray
-              .unzip3
+                .groupBy(_._1)
+                .view
+                .mapValues(seq => seq.map { case (_, username, key, level) => (username, key, level) })
+                .foldLeft(Future.successful(())) {
+                  case (future, (tenant, values)) => {
+                    future.flatMap(_ => createKeyRights(tenant, values, conn, importConflictStrategy))
+                  }
+                }
+            })
+            .flatMap(_ => {
+              base
+                .filter { case (_, _, r) => r.webhooks.nonEmpty }
+                .flatMap {
+                  case (tenant, username, tenantRight) => {
+                    tenantRight.webhooks.map { case (key, right) =>
+                      (tenant, username, key, right.level)
+                    }
+                  }
+                }
+                .groupBy(_._1)
+                .view
+                .mapValues(seq => seq.map { case (_, username, key, level) => (username, key, level) })
+                .foldLeft(Future.successful(())) {
+                  case (future, (tenant, values)) => {
+                    future.flatMap(_ => createWebhookRights(tenant, values, conn))
+                  }
+                }
+            })
+            .flatMap(_ => {
+              val (usernames, tenants, levels) = users
+                .flatMap(u => {
+                  u.rights.tenants.map { case (tenant, TenantRight(level, _, _, _)) => (u.username, tenant, level) }
+                })
+                .toArray
+                .unzip3
 
-            env.postgresql.queryRaw(
-              s"""
+              env.postgresql.queryRaw(
+                s"""
                  |INSERT INTO izanami.users_tenants_rights (username, tenant, level)
                  |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
-                 |${
-                importConflictStrategy match {
-                  case Fail => ""
+                 |${importConflictStrategy match {
+                  case Fail           => ""
                   case MergeOverwrite =>
                     """
                  | ON CONFLICT(username, tenant) DO UPDATE SET level = CASE
@@ -545,24 +635,22 @@ class UsersDatastore(val env: Env) extends Datastore {
                  | ELSE users_keys_rights.level
                  | END
                  |""".stripMargin
-                  case Skip => " ON CONFLICT(username, tenant) DO NOTHING "
-                }
-              }
+                  case Skip           => " ON CONFLICT(username, tenant) DO NOTHING "
+                }}
                  |returning username
                  |""".stripMargin,
-              List(usernames, tenants, levels.map(l => l.toString.toUpperCase())),
-              conn = Some(conn)
-            ) { _ => Some(()) }
-          })
+                List(usernames, tenants, levels.map(l => l.toString.toUpperCase())),
+                conn = Some(conn)
+              ) { _ => Some(()) }
+            })
         })
         .map(_ => Right(()))
-        .recover {
-          case _ => Left(InternalServerError())
+        .recover { case _ =>
+          Left(InternalServerError())
         }
       eventualErrorOrUnit
     }
   }
-
 
   def createUser(user: UserWithRights): Future[Either[IzanamiError, Unit]] = {
     env.postgresql.executeInTransaction(conn => {
@@ -584,6 +672,43 @@ class UsersDatastore(val env: Env) extends Datastore {
         }
       }
       .map(o => o.getOrElse(()))
+  }
+
+  def hasRightForWebhook(
+      session: String,
+      tenant: String,
+      webhook: String,
+      level: RightLevel
+  ): Future[Either[IzanamiError, Option[(String, String)]]] = {
+    env.postgresql
+      .queryOne(
+        s"""
+           |SELECT u.username, w.name
+           |FROM izanami.sessions s
+           |LEFT JOIN izanami.users u ON u.username=s.username
+           |LEFT JOIN izanami.users_tenants_rights utr ON u.username = utr.username AND utr.tenant=$$2
+           |LEFT JOIN webhooks w ON w.id=$$3
+           |LEFT JOIN users_webhooks_rights uwr ON u.username = uwr.username AND uwr.webhook=w.name
+           |WHERE s.id=$$1
+           |AND (
+           |  u.admin=true
+           |  OR utr.level='ADMIN'
+           |  OR uwr.level=ANY($$4)
+           |)
+           |""".stripMargin,
+        List(session, tenant, webhook, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
+        schemas = Set(tenant)
+      ) { r => {
+        for(
+          username <- r.optString("username");
+          hookname <- r.optString("name")
+        ) yield (username, hookname)
+      } }
+      .map(Right(_))
+      .recover {
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
+        case _                                                           => Left(InternalServerError())
+      }
   }
 
   def hasRightForKey(
@@ -613,7 +738,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(Right(_))
       .recover {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case _                                                       => Left(InternalServerError())
+        case _                                                           => Left(InternalServerError())
       }
   }
 
@@ -623,7 +748,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       tenant: String,
       project: String,
       level: RightLevel
-  ): Future[Either[IzanamiError, Boolean]] = {
+  ): Future[Either[IzanamiError, Option[String]]] = {
     env.postgresql
       .queryOne(
         s"""
@@ -641,12 +766,11 @@ class UsersDatastore(val env: Env) extends Datastore {
            |""".stripMargin,
         List(session, tenant, project, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
         schemas = Set(tenant)
-      ) { _ => Some(true) }
-      .map(maybeBoolean => maybeBoolean.getOrElse(false))
-      .map(Right(_))
+      ) { r => r.optString("username") }
+      .map(maybeUser => Right(maybeUser))
       .recover {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case _                                                       => Left(InternalServerError())
+        case _                                                           => Left(InternalServerError())
       }
   }
 
@@ -871,18 +995,17 @@ class UsersDatastore(val env: Env) extends Datastore {
       conn: SqlConnection,
       conflictStrategy: ImportConflictStrategy = Fail
   ): Future[Unit] = {
-    val (usernames, projects, levels) = rights
-      .toArray
-      .map{case (username, project, right) => (username, project, right.toString.toUpperCase)}
-      .unzip3
+    val (usernames, projects, levels) = rights.toArray.map { case (username, project, right) =>
+      (username, project, right.toString.toUpperCase)
+    }.unzip3
 
-      env.postgresql.queryRaw(
-        s"""
+    env.postgresql.queryRaw(
+      s"""
            |INSERT INTO users_projects_rights(username, project, level)
            |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
            |${conflictStrategy match {
-              case Fail => ""
-              case MergeOverwrite => """
+        case Fail           => ""
+        case MergeOverwrite => """
                | ON CONFLICT(username, project) DO UPDATE SET level=CASE
                |  WHEN users_keys_rights.level='READ' THEN excluded.level
                |  WHEN (users_keys_rights.level='WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
@@ -890,35 +1013,55 @@ class UsersDatastore(val env: Env) extends Datastore {
                |  ELSE users_keys_rights.level
                |END
                |""".stripMargin
-              case Skip => " ON CONFLICT(username, project) DO NOTHING "
-            }}
+        case Skip           => " ON CONFLICT(username, project) DO NOTHING "
+      }}
            |RETURNING username
            |""".stripMargin,
-        List(usernames, projects, levels),
-        schemas=Set(tenant),
-        conn=Some(conn)
-      ){_ => Some(())}
+      List(usernames, projects, levels),
+      schemas = Set(tenant),
+      conn = Some(conn)
+    ) { _ => Some(()) }
+  }
+
+  def createWebhookRights(
+      tenant: String,
+      rights: Seq[(String, String, RightLevel)],
+      conn: SqlConnection
+  ): Future[Unit] = {
+    val (usernames, projects, levels) = rights.toArray.map { case (username, project, right) =>
+      (username, project, right.toString.toUpperCase)
+    }.unzip3
+
+    env.postgresql.queryRaw(
+      s"""
+         |INSERT INTO users_webhooks_rights(username, webhook, level)
+         |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+         |RETURNING username
+         |""".stripMargin,
+      List(usernames, projects, levels),
+      schemas = Set(tenant),
+      conn = Some(conn)
+    ) { _ => () }
   }
 
   def createKeyRights(
-       tenant: String,
-       rights: Seq[(String, String, RightLevel)],
-       conn: SqlConnection,
-       conflictStrategy: ImportConflictStrategy = Fail
+      tenant: String,
+      rights: Seq[(String, String, RightLevel)],
+      conn: SqlConnection,
+      conflictStrategy: ImportConflictStrategy = Fail
   ): Future[Unit] = {
-    val (usernames, projects, levels) = rights
-      .toArray
-      .map { case (username, project, right) => (username, project, right.toString.toUpperCase) }
-      .unzip3
+    val (usernames, projects, levels) = rights.toArray.map { case (username, project, right) =>
+      (username, project, right.toString.toUpperCase)
+    }.unzip3
 
     env.postgresql.queryRaw(
       s"""
          |INSERT INTO users_keys_rights(username, apikey, level)
          |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
          |${conflictStrategy match {
-            case Fail => ""
-            case MergeOverwrite =>
-              """
+        case Fail           => ""
+        case MergeOverwrite =>
+          """
               | ON CONFLICT(username, project) DO UPDATE SET level = CASE
               | WHEN users_keys_rights.level = 'READ' THEN excluded.level
               | WHEN (users_keys_rights.level = 'WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
@@ -926,8 +1069,8 @@ class UsersDatastore(val env: Env) extends Datastore {
               | ELSE users_keys_rights.level
               | END
               |""".stripMargin
-            case Skip => " ON CONFLICT(username, project) DO NOTHING "
-          }}
+        case Skip           => " ON CONFLICT(username, project) DO NOTHING "
+      }}
          |RETURNING username
          |""".stripMargin,
       List(usernames, projects, levels),
@@ -947,7 +1090,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           .optString("password")
           .filter(hashed => {
             row.optBoolean("legacy").exists {
-              case true => HashUtils.bcryptCheck(HashUtils.hexSha512(password), hashed)
+              case true  => HashUtils.bcryptCheck(HashUtils.hexSha512(password), hashed)
               case false => HashUtils.bcryptCheck(password, hashed)
             }
           })
@@ -1139,7 +1282,42 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def findUsersForProject(tenant: String, project: String): Future[List[UserWithSingleProjectRight]] = {
+  def findUsersForWebhook(tenant: String, webhook: String): Future[List[UserWithSingleScopedRight]] = {
+    env.postgresql.queryAll(
+      s"""
+         |SELECT
+         |    wr.level as level,
+         |    utr.level as tenant_right,
+         |    u.admin,
+         |    u.user_type,
+         |    u.default_tenant,
+         |    u.username,
+         |    u.email
+         |FROM izanami.users u
+         |LEFT JOIN webhooks w ON w.id=$$2
+         |LEFT JOIN users_webhooks_rights wr ON wr.webhook=w.name AND wr.username=u.username
+         |LEFT JOIN izanami.users_tenants_rights utr ON utr.username = u.username AND utr.tenant=$$1
+         |WHERE wr.level IS NOT NULL
+         |OR utr.level='ADMIN'
+         |OR u.admin=true
+         |""".stripMargin,
+      List(tenant, webhook),
+      schemas = Set(tenant)
+    ) { r =>
+      {
+        r.optUser()
+          .map(u => {
+            val maybeTenantRight = r.optRightLevel("tenant_right")
+            u.withSingleTenantScopedRightLevel(
+              r.optRightLevel("level").orNull,
+              maybeTenantRight.contains(RightLevels.Admin)
+            )
+          })
+      }
+    }
+  }
+
+  def findUsersForProject(tenant: String, project: String): Future[List[UserWithSingleScopedRight]] = {
     env.postgresql.queryAll(
       s"""
          |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, r.level, tr.level as tenant_right
@@ -1156,7 +1334,10 @@ class UsersDatastore(val env: Env) extends Datastore {
       r.optUser()
         .map(u => {
           val maybeTenantRight = r.optRightLevel("tenant_right")
-          u.withSingleProjectRightLevel(r.optRightLevel("level").orNull, maybeTenantRight.contains(RightLevels.Admin))
+          u.withSingleTenantScopedRightLevel(
+            r.optRightLevel("level").orNull,
+            maybeTenantRight.contains(RightLevels.Admin)
+          )
         })
     }
   }
@@ -1182,7 +1363,8 @@ class UsersDatastore(val env: Env) extends Datastore {
              |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, json_build_object(
              |    'level', utr.level,
              |    'projects', COALESCE((select json_object_agg(p.project, json_build_object('level', p.level)) from users_projects_rights p where p.username=$$1), '{}'),
-             |    'keys', COALESCE((select json_object_agg(k.apikey, json_build_object('level', k.level)) from users_keys_rights k where k.username=$$1), '{}')
+             |    'keys', COALESCE((select json_object_agg(k.apikey, json_build_object('level', k.level)) from users_keys_rights k where k.username=$$1), '{}'),
+             |    'webhooks', COALESCE((select json_object_agg(w.webhook, json_build_object('level', w.level)) from users_webhooks_rights w where w.username=$$1), '{}')
              |)::jsonb as rights
              |from izanami.users u, izanami.users_tenants_rights utr
              |WHERE u.username=$$1 AND utr.username=$$1 AND utr.tenant=$$2;
@@ -1300,7 +1482,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(o => o.toRight(SessionNotFound(session)))
       .recover {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case _                                                       => Left(InternalServerError())
+        case _                                                           => Left(InternalServerError())
       }
   }
 }

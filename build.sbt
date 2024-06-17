@@ -44,6 +44,8 @@ libraryDependencies += "com.squareup.okhttp3"  % "okhttp"                     % 
 libraryDependencies += "fr.maif"              %% "wasm4s"                     % "3.4.0" classifier "bundle"
 libraryDependencies += "com.auth0"             % "java-jwt"                   % "4.4.0" excludeAll (excludesJackson: _*) // needed by wasm4s
 libraryDependencies += "com.typesafe.akka"    %% "akka-http"                  % "10.2.10"
+libraryDependencies += "com.github.jknack"     % "handlebars"                 % "4.4.0"
+libraryDependencies += "com.github.jknack"     % "handlebars-jackson"         % "4.4.0" excludeAll (excludesJackson: _*)
 
 libraryDependencies += "org.scalatestplus.play"       %% "scalatestplus-play"   % "5.0.0"    % Test
 libraryDependencies += "org.scalatest"                %% "scalatest-flatspec"   % "3.2.12"   % "test"

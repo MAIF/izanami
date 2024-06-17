@@ -6,7 +6,8 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError, TenantAlreadyExists, TenantDoesNotExists}
-import fr.maif.izanami.events.TenantDeleted
+import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
+import fr.maif.izanami.events.{SourceTenantCreated, SourceTenantDeleted}
 import fr.maif.izanami.models.{RightLevels, Tenant, TenantCreationRequest}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
@@ -116,6 +117,12 @@ class TenantsDatastore(val env: Env) extends Datastore {
             conn=Some(conn)
           ){_ => Some(value)}
           .map(maybeFeature => maybeFeature.toRight(InternalServerError()))
+        }.flatMap {
+          case Left(value) => Left(value).future
+          case r@Right(tenant) => {
+            env.eventService.emitEvent(channel = IZANAMI_CHANNEL, event = SourceTenantCreated(tenant.name, user = user))(conn)
+              .map(_ => r)
+          }
         }
     })
 
@@ -167,7 +174,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
       .map { _.toRight(TenantDoesNotExists(name)) }
   }
 
-  def deleteTenant(name: String): Future[Either[IzanamiError, Unit]] = {
+  def deleteTenant(name: String, user: String): Future[Either[IzanamiError, Unit]] = {
 
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
@@ -186,7 +193,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
         ){_ => Some(())}
           .map(_ => Right(()))
       }.flatMap(r => {
-          env.eventService.emitEvent(channel=name, event=TenantDeleted(name))(conn)
+          env.eventService.emitEvent(channel=IZANAMI_CHANNEL, event=SourceTenantDeleted(name, user = user))(conn)
             .map(_ => r)
         })
     })

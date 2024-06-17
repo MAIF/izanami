@@ -8,11 +8,12 @@ import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 import java.time.{Instant, LocalDateTime}
 
 object V2FeatureEvents {
-  private def baseJson(feature: JsObject): JsObject = {
+  private def baseJson(feature: JsObject, user: String): JsObject = {
     Json.obj(
       "_id"       -> V1FeatureEvents.gen.nextId(),
       "timestamp" -> Instant.now(),
-      "payload"   -> feature
+      "payload"   -> feature,
+      "metadata" -> Json.obj("user" -> user)
     )
   }
 
@@ -34,14 +35,14 @@ object V2FeatureEvents {
     )
   }
 
-  def updateEventV2(feature: JsObject): JsObject = {
-    baseJson(feature) ++ Json.obj(
-      "type" -> "FEATURE_UPDATED"
+  def updateEventV2(feature: JsObject, user: String): JsObject = {
+    baseJson(feature, user) ++ Json.obj(
+      "type" -> "FEATURE_UPDATED",
     )
   }
 
-  def createEventV2(feature: JsObject): JsObject = {
-    baseJson(feature) ++ Json.obj(
+  def createEventV2(feature: JsObject, user: String): JsObject = {
+    baseJson(feature, user) ++ Json.obj(
       "type" -> "FEATURE_CREATED"
     )
   }
@@ -50,16 +51,17 @@ object V2FeatureEvents {
     Json.obj(
       "_id"       -> gen.nextId(),
       "type"      -> "KEEP_ALIVE",
-      "timestamp" -> Instant.now(),
+      "timestamp" -> Instant.now()
     )
   }
 
-  def deleteEventV2(id: String): JsObject = {
+  def deleteEventV2(id: String, user: String): JsObject = {
     Json.obj(
       "_id"       -> gen.nextId(),
       "timestamp" -> Instant.now(),
       "type"      -> "FEATURE_DELETED",
-      "payload"   -> id
+      "payload"   -> id,
+      "metadata" -> Json.obj("user" -> user)
     )
   }
 }

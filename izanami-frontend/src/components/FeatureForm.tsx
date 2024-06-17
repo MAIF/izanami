@@ -3,8 +3,9 @@ import {
   ClassicalFeature,
   DAYS,
   SingleConditionFeature,
+  TCompleteFeature,
   TCondition,
-  TFeature,
+  TLightFeature,
   isPercentageRule,
   isSingleConditionFeature,
   isSingleCustomerConditionFeature,
@@ -30,7 +31,7 @@ import { useState } from "react";
 import { customStyles } from "../styles/reactSelect";
 import { useQuery } from "react-query";
 import { useParams } from "react-router-dom";
-import { queryTags, tagsQueryKey } from "../utils/queries";
+import { queryTags, tagsQueryKey, toCompleteFeature } from "../utils/queries";
 import { FeatureTestForm } from "./FeatureTable";
 import CreatableSelect from "react-select/creatable";
 import { FEATURE_NAME_REGEXP, LEGACY_ID_REGEXP } from "../utils/patterns";
@@ -741,12 +742,18 @@ function LegacyFeatureForm(props: {
 
 export function FeatureForm(props: {
   cancel: () => void;
-  submit: (overload: TFeature) => void;
-  defaultValue?: TFeature;
+  submit: (overload: TCompleteFeature) => void;
+  defaultValue?: TLightFeature;
   additionalFields?: () => JSX.Element;
 }) {
+  const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
-  console.log("default", defaultValue);
+
+  const completeFeatureQuery = useQuery(
+    "",
+    () => toCompleteFeature(tenant!, defaultValue!),
+    { enabled: !!defaultValue }
+  );
 
   const [legacy, setLegacy] = useState<boolean>(
     defaultValue !== undefined && isSingleConditionFeature(defaultValue)
@@ -756,88 +763,95 @@ export function FeatureForm(props: {
     ClassicalFeature | undefined
   >(undefined);
 
-  let form = undefined;
-  if (legacy) {
-    form = (
-      <LegacyFeatureForm
-        defaultValue={toLegacyFeatureFormat(
-          defaultValue as SingleConditionFeature
-        )}
-        submit={(f) => {
-          submit(toSingleConditionFeatureFormat(f));
-        }}
-        {...rest}
-      />
-    );
-  } else {
-    const { defaultValue, ...rest } = props;
-    form = (
-      <V2FeatureForm
-        {...rest}
-        defaultValue={convertedValue ? convertedValue : defaultValue}
-      />
-    );
-  }
+  if (completeFeatureQuery.isError) {
+    return <div>Failed to load feature details</div>;
+  } else if (completeFeatureQuery.data || completeFeatureQuery.isIdle) {
+    const defaultValue = completeFeatureQuery.data;
+    let form = undefined;
+    if (legacy) {
+      form = (
+        <LegacyFeatureForm
+          defaultValue={toLegacyFeatureFormat(
+            defaultValue as SingleConditionFeature
+          )}
+          submit={(f) => {
+            submit(toSingleConditionFeatureFormat(f));
+          }}
+          {...rest}
+        />
+      );
+    } else {
+      const { defaultValue: df, ...rest } = props;
+      form = (
+        <V2FeatureForm
+          {...rest}
+          defaultValue={convertedValue ? convertedValue : defaultValue}
+        />
+      );
+    }
 
-  return (
-    <>
-      {defaultValue && legacy ? (
-        <label>
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              setConvertedValue(
-                toModernFeature(
-                  defaultValue as SingleConditionFeature
-                ) as ClassicalFeature
-              );
-              setLegacy(false);
+    return (
+      <>
+        {defaultValue && legacy ? (
+          <label>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setConvertedValue(
+                  toModernFeature(
+                    defaultValue as SingleConditionFeature
+                  ) as ClassicalFeature
+                );
+                setLegacy(false);
+              }}
+            >
+              Convert to modern feature
+            </button>
+            <Tooltip id="modern-conversion">
+              Convert this feature from modern to legacy.
+              <br />
+              ⚠️ This will beak v1 client calls.
+            </Tooltip>
+          </label>
+        ) : !defaultValue ? (
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginTop: "10px",
+              marginBottom: "10px",
             }}
           >
-            Convert to modern feature
-          </button>
-          <Tooltip id="modern-conversion">
-            Convert this feature from modern to legacy.
-            <br />
-            ⚠️ This will beak v1 client calls.
-          </Tooltip>
-        </label>
-      ) : !defaultValue ? (
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginTop: "10px",
-            marginBottom: "10px",
-          }}
-        >
-          Create legacy feature&nbsp;
-          <input
-            type="checkbox"
-            className="izanami-checkbox"
-            style={{ display: "inline-flex", marginTop: 0 }}
-            onChange={(e) => {
-              setLegacy(e.target.checked);
-            }}
-          />
-        </label>
-      ) : (
-        <></>
-      )}
-      <hr />
-      {form}
-    </>
-  );
+            Create legacy feature&nbsp;
+            <input
+              type="checkbox"
+              className="izanami-checkbox"
+              style={{ display: "inline-flex", marginTop: 0 }}
+              onChange={(e) => {
+                setLegacy(e.target.checked);
+              }}
+            />
+          </label>
+        ) : (
+          <></>
+        )}
+        <hr />
+        {form}
+      </>
+    );
+  } else {
+    return <div>Loading...</div>;
+  }
 }
 
 export function V2FeatureForm(props: {
   cancel: () => void;
-  submit: (overload: TFeature) => void;
-  defaultValue?: TFeature;
+  submit: (overload: TCompleteFeature) => void;
+  defaultValue?: TCompleteFeature;
   additionalFields?: () => JSX.Element;
 }) {
   const { cancel, submit, defaultValue, additionalFields } = props;
-  const methods = useForm<TFeature>({ defaultValues: defaultValue });
+  const methods = useForm<TCompleteFeature>({ defaultValues: defaultValue });
   const { tenant } = useParams();
   const isWasm = defaultValue && isWasmFeature(defaultValue);
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
@@ -1065,7 +1079,7 @@ export function V2FeatureForm(props: {
                 width: "170px",
                 borderRadius: "10px",
                 alignSelf: "end",
-                backgroundColor:"var(--bg-color_level2)"
+                backgroundColor: "var(--bg-color_level2)",
               }}
             >
               <button
@@ -1090,7 +1104,7 @@ export function V2FeatureForm(props: {
 }
 
 function CustomTestForm() {
-  const { getValues } = useFormContext<TFeature>();
+  const { getValues } = useFormContext<TCompleteFeature>();
   useWatch();
   return (
     <div className="sub_container sub_container-bglighter ">

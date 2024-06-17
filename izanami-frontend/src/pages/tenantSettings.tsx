@@ -36,17 +36,6 @@ import { customStyles } from "../styles/reactSelect";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "../components/TimeZoneSelect";
 import { Loader } from "../components/Loader";
 
-const loadOptions = (
-  inputValue: string,
-  callback: (options: string[]) => void
-) => {
-  fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
-    .then((resp) => resp.json())
-    .then((data) =>
-      callback(data.map((d: string) => ({ label: d, value: d })))
-    );
-};
-
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
   const [inviting, setInviting] = React.useState(false);
@@ -110,7 +99,6 @@ export function TenantSettings(props: { tenant: string }) {
                 .mutateAsync({ users, level })
                 .then(() => setInviting(false))
             }
-            loadOptions={loadOptions as any} // FIXME TS
             cancel={() => setInviting(false)}
           />
         )}
@@ -671,7 +659,7 @@ function IzanamiV1ImportForm(props: {
           >
             <div
               style={{
-                backgroundColor:"var(--bg-color_level2)",
+                backgroundColor: "var(--bg-color_level2)",
                 width: "185px",
                 height: "55px",
                 position: "absolute",

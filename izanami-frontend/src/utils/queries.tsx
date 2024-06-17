@@ -1,23 +1,29 @@
 import { format } from "date-fns";
 import {
   Configuration,
+  isLightWasmFeature,
   IzanamiV1ImportRequest,
+  LightWebhook,
   Mailer,
   MailerConfiguration,
   ProjectInCreationType,
   ProjectType,
   TagType,
+  TCompleteFeature,
   TCondition,
   TContext,
   TenantInCreationType,
   TenantType,
-  TFeature,
   TKey,
   TLevel,
+  TLightFeature,
   TRights,
+  TSingleRightForTenantUser,
   TTenantRight,
   TUser,
   TWasmConfig,
+  WasmFeature,
+  Webhook,
   SearchEntityResponse,
 } from "./types";
 import { isArray } from "lodash";
@@ -28,6 +34,10 @@ export enum MutationNames {
   TENANTS = "TENANTS",
   USERS = "USER",
   CONFIGURATION = "CONFIGURATION",
+}
+
+export function webhookQueryKey(tenant: string): string {
+  return `${tenant}-webhooks`;
 }
 
 export function tenantScriptKey(tenant: string): string {
@@ -99,6 +109,10 @@ export function searchQueryByTenant(tenant: string, query: string): string {
   return `ENTITIES-${tenant}-${query}`;
 }
 
+export function webhookUserQueryKey(tenant: string, webhook: string) {
+  return `USERS-${tenant}-${webhook}`;
+}
+
 export function queryTenantUsers(tenant: string): Promise<
   {
     username: string;
@@ -111,7 +125,10 @@ export function queryTenantUsers(tenant: string): Promise<
   return handleFetchJsonResponse(fetch(`/api/admin/tenants/${tenant}/users`));
 }
 
-export function findFeatures(tenant: string, search = ""): Promise<TFeature[]> {
+export function findFeatures(
+  tenant: string,
+  search = ""
+): Promise<TLightFeature[]> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/features?search=${search}`)
   );
@@ -123,7 +140,7 @@ export function searchFeatures(
   allTagsIn: string[] = [],
   oneTagIn: string[] = [],
   noTagIn: string[] = []
-): Promise<TFeature[]> {
+): Promise<TLightFeature[]> {
   return handleFetchJsonResponse(
     fetch(
       `/api/admin/tenants/${tenant}/features?allTagsIn=${allTagsIn.join(
@@ -133,18 +150,19 @@ export function searchFeatures(
   );
 }
 
+export function queryWebhookUsers(
+  tenant: string,
+  webhook: string
+): Promise<TSingleRightForTenantUser[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/webhooks/${webhook}/users`)
+  );
+}
+
 export function queryProjectUsers(
   tenant: string,
   project: string
-): Promise<
-  {
-    username: string;
-    email: string;
-    admin: boolean;
-    userType: "INTERNAL" | "OIDC" | "OTOROSHI";
-    right: TLevel;
-  }[]
-> {
+): Promise<TSingleRightForTenantUser[]> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/users`)
   );
@@ -319,8 +337,8 @@ export function queryProject(tenant: string, id: string): Promise<ProjectType> {
 export function updateFeature(
   tenant: string,
   id: string,
-  feature: TFeature
-): Promise<TFeature> {
+  feature: TCompleteFeature
+): Promise<TCompleteFeature> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/features/${id}`, {
       method: "PUT",
@@ -434,7 +452,7 @@ export function createFeature(
   tenant: string,
   project: string,
   feature: any
-): Promise<TFeature> {
+): Promise<TCompleteFeature> {
   console.log("creating", feature);
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/features`, {
@@ -447,9 +465,31 @@ export function createFeature(
   );
 }
 
+export function toCompleteFeature(
+  tenant: string,
+  feature: TLightFeature
+): Promise<TCompleteFeature> {
+  console.log("toCompleteFeature", feature);
+  if (isLightWasmFeature(feature)) {
+    return fetchWasmConfig(tenant, feature.wasmConfig).then((wasmConfig) => {
+      return { ...feature, wasmConfig } as WasmFeature;
+    });
+  } else {
+    return Promise.resolve(feature);
+  }
+}
+
+function fetchWasmConfig(tenant: string, script: string): Promise<TWasmConfig> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/local-scripts/${script}`, {
+      method: "GET",
+    })
+  );
+}
+
 export function testFeature(
   tenant: string,
-  feature: TFeature,
+  feature: TCompleteFeature,
   user: string,
   date: Date,
   context?: string
@@ -722,6 +762,26 @@ export function updateUserRightsForProject(
   );
 }
 
+export function updateUserRightsForWebhook(
+  username: string,
+  tenant: string,
+  webhook: string,
+  right?: TLevel
+): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(
+      `/api/admin/tenants/${tenant}/webhook/${webhook}/users/${username}/rights`,
+      {
+        method: "PUT",
+        body: right ? JSON.stringify({ level: right }) : "{}",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
+  );
+}
+
 export function inviteUsersToProject(
   tenant: string,
   project: string,
@@ -802,10 +862,10 @@ export function createUser(
 export function queryTagFeatures(
   tenant: string,
   name: string
-): Promise<TFeature[]> {
+): Promise<TLightFeature[]> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/features?tag=${name}`)
-  ).then((features: TFeature[]) => {
+  ).then((features: TLightFeature[]) => {
     features?.forEach((feat) => castDateIfNeeded(feat));
     return features;
   });
@@ -896,7 +956,7 @@ function _handleFetchResponse<T>(
         >
           {msg}
           <button
-            onClick={(e) => toast.dismiss(id)}
+            onClick={() => toast.dismiss(id)}
             className="btn btn-sm ms-3 me-0"
           >
             X
@@ -953,8 +1013,82 @@ export function createInvitation(
   });
 }
 
+export function fetchWebhooks(tenant: string): Promise<Webhook[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/webhooks`)
+  );
+}
+
+export function deleteWebhook(tenant: string, id: string): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/webhooks/${id}`, {
+      method: "DELETE",
+    })
+  );
+}
+
+export function updateWebhook(
+  tenant: string,
+  id: string,
+  webhook: LightWebhook
+): Promise<void> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/webhooks/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(webhook),
+    })
+  );
+}
+
+export function createWebhook(
+  tenant: string,
+  webhook: LightWebhook
+): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/webhooks`, {
+      method: "POST",
+      body: JSON.stringify(webhook),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+  );
+}
+
+export function fetchWebhookUsers(
+  tenant: string,
+  webhook: string
+): Promise<TSingleRightForTenantUser[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/webhooks/${webhook}/users`)
+  );
+}
+
 export function usersQuery(): Promise<TUser[]> {
   return handleFetchJsonResponse(fetch(`/api/admin/users`));
+}
+
+export function updateWebhookRightsFor(
+  tenant: string,
+  webhook: string,
+  user: string,
+  right?: TLevel
+): Promise<void> {
+  return handleFetchWithoutResponse(
+    fetch(
+      `/api/admin/tenants/${tenant}/webhooks/${webhook}/users/${user}/rights`,
+      {
+        method: "PUT",
+        body: right ? JSON.stringify({ level: right }) : "{}",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
+  );
 }
 
 export function importIzanamiV1Data(

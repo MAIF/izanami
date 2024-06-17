@@ -1,6 +1,12 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestSituationBuilder, TestTenant, TestWasmConfig, disabledFeatureBase64, enabledFeatureBase64}
+import fr.maif.izanami.api.BaseAPISpec.{
+  disabledFeatureBase64,
+  enabledFeatureBase64,
+  TestSituationBuilder,
+  TestTenant,
+  TestWasmConfig
+}
 import play.api.http.Status.{BAD_REQUEST, NO_CONTENT}
 import play.api.libs.json.{JsArray, Json}
 
@@ -43,6 +49,36 @@ class PluginAPISpec extends BaseAPISpec {
 
       val response = situation.fetchTenantScripts("tenant")
       (response.json.get \\ "name").map(jsv => jsv.as[String]) must contain theSameElementsAs Seq("wasmScript")
+    }
+  }
+
+  "Tenant single script endpoint" should {
+    "retrieve existing script for a givent tenant" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("foo"))
+        .loggedInWithAdminRights()
+        .build()
+
+      situation.createFeature(
+        "feature",
+        enabled = true,
+        project = "foo",
+        tenant = "tenant",
+        wasmConfig = TestWasmConfig(
+          name = "wasmScript",
+          source = Json.obj(
+            "kind" -> "Base64",
+            "path" -> disabledFeatureBase64,
+            "opts" -> Json.obj()
+          )
+        )
+      )
+
+      val response = situation.fetchTenantScript("tenant", "wasmScript")
+      val json     = response.json.get
+      (json \ "name").as[String] mustEqual "wasmScript"
+      (json \ "source" \ "kind").as[String] mustEqual "Base64"
+      (json \ "source" \ "path").as[String] must not be null
     }
   }
 
@@ -142,7 +178,7 @@ class PluginAPISpec extends BaseAPISpec {
       updateScriptResponse.status mustBe NO_CONTENT
       val response = situation.fetchProject("tenant", "foo")
 
-      (response.json.get \\ "wasmConfig").map(js => (js \ "name").as[String]).head mustEqual "wasmScript2"
+      (response.json.get \\ "wasmConfig").map(js => js.as[String]).head mustEqual "wasmScript2"
     }
 
     "allow to update script configuration" in {
@@ -198,7 +234,9 @@ class PluginAPISpec extends BaseAPISpec {
       updateScriptResponse.status mustBe NO_CONTENT
       val response = situation.fetchProject("tenant", "foo")
 
-      (response.json.get \\ "wasmConfig").map(js => (js \ "source" \ "path").as[String]).head mustEqual enabledFeatureBase64
+      (response.json.get \\ "wasmConfig")
+        .map(js => js.as[String])
+        .head mustEqual "wasmScript"
     }
   }
 

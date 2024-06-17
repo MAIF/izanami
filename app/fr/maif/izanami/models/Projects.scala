@@ -9,7 +9,7 @@ import scala.util.matching.Regex
 
 trait ProjectQueryResult
 
-case class Project(id: UUID, name: String, features: List[AbstractFeature] = List(), description: String) extends ProjectQueryResult
+case class Project(id: UUID, name: String, features: List[LightWeightFeature] = List(), description: String) extends ProjectQueryResult
 
 case class EmptyProjectRow() extends ProjectQueryResult
 

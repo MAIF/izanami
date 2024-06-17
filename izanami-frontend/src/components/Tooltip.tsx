@@ -13,6 +13,7 @@ export function Tooltip(
         className="ms-1 bi bi-question-circle"
         data-tooltip-id={props.id}
         data-tooltip-place={props.position || "top"}
+        aria-hidden={true}
       ></i>
       <ReactTooltip id={props.id}>{props.children}</ReactTooltip>
     </>
