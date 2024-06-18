@@ -485,4 +485,5 @@ export interface SearchEntityResponse {
   origin_table : string;
   origin_tenant: string;
   name: string;
+  project: string;
 }

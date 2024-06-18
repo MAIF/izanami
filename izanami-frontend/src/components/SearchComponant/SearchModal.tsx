@@ -1,5 +1,5 @@
 import React from "react";
-import { SearchDropDown } from "./SearchDropDown";
+import { SearchModalContent } from "./SearchModalContent";
 import { Modal } from "./Modal";
 
 export function SearchModal(props: {
@@ -10,9 +10,14 @@ export function SearchModal(props: {
 }) {
   const { tenant, user, isOpenModal, onClose } = props;
   if (!isOpenModal) return null;
+
   return (
     <Modal visible={isOpenModal} onClose={() => onClose()}>
-      <SearchDropDown tenant={tenant} user={user} />
+      <SearchModalContent
+        tenant={tenant}
+        user={user}
+        onClose={() => onClose()}
+      />
     </Modal>
   );
 }

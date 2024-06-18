@@ -19,7 +19,7 @@ class SearchDatastore(val env: Env) extends Datastore {
   def searchEntities(user: String, query: String): Future[List[SearchEntity]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT origin_table, id , name_search as name, origin_tenant FROM izanami.search_all_byusers($$1, $$2);""".stripMargin,
+         |SELECT origin_table, id, name_search as name, origin_tenant, project FROM izanami.search_all_byusers($$1, $$2);""".stripMargin,
       List(query, user),
     ) { r => r.optSearchEntity() }
   }
@@ -33,16 +33,6 @@ class SearchDatastore(val env: Env) extends Datastore {
     ) { r => r.optSearchEntityByTenant(tenant) }
 
   }
-
-  def findProjectWithFeatureId(tenant: String, id: UUID): Future[String] = {
-    env.postgresql
-      .queryOne(s"""SELECT project FROM features WHERE id=$$1""",
-        List(id),
-        schemas = Set(tenant)) { row =>
-        row.optString("project")
-      }
-      .map(maybeString => maybeString.getOrElse(throw new RuntimeException("Failed to get project")).toString)
-  }
 }
 object searchEntityImplicits {
   implicit class SearchEntityRow(val row: Row) extends AnyVal {
@@ -51,15 +41,17 @@ object searchEntityImplicits {
         name <- row.optString("name");
         origin_table <- row.optString("origin_table");
         origin_tenant <- row.optString("origin_tenant");
-        id <- row.optString("id")
-      ) yield SearchEntity(id = id, name = name, origin_table = origin_table, origin_tenant = origin_tenant)
+        id <- row.optString("id");
+        project<- Some(row.optString("project"))
+      ) yield SearchEntity(id = id, name = name, origin_table = origin_table, origin_tenant = origin_tenant, project=project)
     }
     def optSearchEntityByTenant(tenant: String): Option[SearchEntity] = {
       for (
         name <- row.optString("name");
         origin_table <- row.optString("origin_table");
-        id <- row.optString("id")
-      ) yield SearchEntity(id = id, name = name, origin_table = origin_table, origin_tenant = tenant)
+        id <- row.optString("id");
+        project<- Some(row.optString("project"))
+      ) yield SearchEntity(id = id, name = name, origin_table = origin_table, origin_tenant = tenant, project=project)
     }
   }
 }

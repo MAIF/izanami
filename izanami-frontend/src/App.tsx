@@ -64,7 +64,6 @@ import { Tags } from "./pages/tags";
 import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
 import { WebHooks } from "./pages/webhooks";
-import { SearchDropDown } from "./components/SearchDropDown";
 import { SearchModal } from "./components/SearchComponant/SearchModal";
 
 function Wrapper({
@@ -492,7 +491,6 @@ function Layout() {
             <li className="me-2">
               <button
                 className="btn btn-secondary"
-                aria-label="Search"
                 id="btnSearch"
                 type="button"
                 onClick={() => setIsOpenModal(true)}

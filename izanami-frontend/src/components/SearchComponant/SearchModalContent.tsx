@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useDebounce } from "../useDebounce";
+import { useDebounce } from "./useDebounce";
+import { Link } from "react-router-dom";
+import { groupBy } from "lodash";
 import {
   searchEntitiesByTenant,
   searchQueryEntities,
@@ -10,11 +12,13 @@ import { searchQueryByTenant, searchEntities } from "../../utils/queries";
 interface ISearchProps {
   tenant: string | undefined;
   user: string;
+  onClose: () => void;
 }
 
-export function SearchDropDown(props: ISearchProps) {
-  const { tenant, user } = props;
+export function SearchModalContent(props: ISearchProps) {
+  const { tenant, user, onClose } = props;
   const [searchQuery, setSearchQuery] = useState("");
+  const [showDocuments, setShowDocuments] = useState(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const iconMapping = new Map([
     ["features", "fa-rocket"],
@@ -49,7 +53,6 @@ export function SearchDropDown(props: ISearchProps) {
     isSuccess,
     isError,
   } = useSearchEntitiesByTenant(debouncedSearchQuery);
-  const [showDocuments, setShowDocuments] = useState(false);
 
   const handleSearchInput = (event: any) => {
     setSearchQuery(event.target.value);
@@ -64,20 +67,16 @@ export function SearchDropDown(props: ISearchProps) {
     }
   }, [debouncedSearchQuery]);
 
-  const groupedItems = SearchItems?.reduce((acc: any, item: any) => {
-    if (!acc[item.origin_table]) {
-      acc[item.origin_table] = [];
-    }
-    acc[item.origin_table].push(item);
-    return acc;
-  }, {});
-
+  const groupedItems = groupBy(SearchItems, (item) => item.origin_table);
   return (
     <>
       <div className="search-container">
-        <i className="fas fa-search search-icon" />
+        <i className="fas fa-search search-icon" aria-hidden />
         <input
           type="text"
+          id="search-input"
+          name="search-form"
+          title="Search in tenants"
           value={searchQuery}
           onChange={handleSearchInput}
           placeholder={`Search in ${
@@ -94,10 +93,10 @@ export function SearchDropDown(props: ISearchProps) {
           {isError && <div>There was an error for fetching data.</div>}
           {isSuccess &&
             (Object.keys(groupedItems).length > 0 ? (
-              Object.keys(groupedItems).map((originTable) => (
-                <>
-                  <ul className="search-ul nav flex-column">
-                    <li className="search-ul-item" key={originTable}>
+              <ul className="search-ul nav flex-column">
+                {Object.keys(groupedItems).map((originTable, index) => (
+                  <>
+                    <li className="search-ul-item" key={index}>
                       <span>
                         {originTable.charAt(0).toUpperCase() +
                           originTable.slice(1)}
@@ -106,9 +105,14 @@ export function SearchDropDown(props: ISearchProps) {
                       {groupedItems[originTable].map((item: any) => (
                         <>
                           <ol className="search-ul nav flex-column">
-                            <li className="search-ul-item" key={item.id}>
-                              <a
-                                href={`/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`}
+                            <li
+                              className="search-ul-item"
+                              key={item.id}
+                              aria-label={`View details for ${item.name} in ${item.origin_tenant}`}
+                              onClick={() => onClose()}
+                            >
+                              <Link
+                                to={`/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`}
                               >
                                 <i className="fas fa-cloud me-2" aria-hidden />
                                 {item.origin_tenant} /{" "}
@@ -119,17 +123,17 @@ export function SearchDropDown(props: ISearchProps) {
                                   aria-hidden
                                 />
                                 {item.name}
-                              </a>
+                              </Link>
                             </li>
                           </ol>
                         </>
                       ))}
                     </li>
-                  </ul>
-                </>
-              ))
+                  </>
+                ))}
+              </ul>
             ) : (
-              <div>No results found</div>
+              <div style={{ margin: "10px" }}>No results found</div>
             ))}
         </div>
       )}

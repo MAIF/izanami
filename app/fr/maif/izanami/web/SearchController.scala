@@ -25,8 +25,4 @@ class SearchController(
     env.datastores.searchQueries.searchEntitiesByTenant(tenant, query).map(names => Ok(Json.toJson(names)))
   }
 
-  def findProjectWithFeatureId(tenant: String , id: String): Action[AnyContent] =tenantAuthAction(tenant, RightLevels.Read).async { implicit request =>
-    env.datastores.searchQueries.findProjectWithFeatureId(tenant, UUID.fromString(id)).map(projects => Ok(Json.toJson(projects)))
-  }
-
 }

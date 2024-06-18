@@ -1,4 +1,4 @@
-import React, { ReactElement } from "react";
+import React, { ReactElement, useEffect } from "react";
 export function Modal(props: {
   visible: boolean;
   onClose: () => void;
@@ -9,11 +9,11 @@ export function Modal(props: {
 }) {
   const { visible, onClose, children, closeButtonText } = props;
 
-  React.useEffect(() => {
+  useEffect(() => {
     const close = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        props.onClose();
+        onClose();
       }
     };
     window.addEventListener("keydown", close);
@@ -37,9 +37,10 @@ export function Modal(props: {
             <div className="modal-body">{children}</div>
             <div className="modal-footer">
               <button
+                id="escape-button"
+                tabIndex={0}
                 type="button"
                 className="btn btn-secondary"
-                data-bs-dismiss="modal"
                 onClick={() => onClose()}
               >
                 {closeButtonText ? closeButtonText : "Esc"}
