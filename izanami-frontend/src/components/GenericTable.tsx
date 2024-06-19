@@ -15,7 +15,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import Select from "react-select";
 import { IzanamiContext } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";
@@ -269,6 +269,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
       onRowSelectionChange?.(rows as any);
     }
   }, [rowSelection]);
+
   return (
     <div className="overflow-auto">
       <table className="table table-borderless table-striped mt-2">

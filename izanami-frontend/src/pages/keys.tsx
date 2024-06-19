@@ -94,7 +94,6 @@ export default function Keys(props: { tenant: string }) {
       },
     }
   );
-
   const keyUpdateMutation = useMutation(
     tenantKeyQueryKey(tenant),
     (params: { oldName: string; newKey: TKey }) =>
