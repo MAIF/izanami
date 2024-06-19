@@ -1385,11 +1385,12 @@ export function FeatureDetails({ feature }: { feature: TLightFeature }) {
 export function FeatureTable(props: {
   features: TLightFeature[];
   fields: FeatureFields[];
+  selectedSearchRow: string;
   actions: (t: TLightFeature) => FeatureActionNames[];
   refresh: () => any;
 }) {
   const { tenant } = useParams();
-  const { fields, features, actions, refresh } = props;
+  const { fields, features, actions, refresh, selectedSearchRow } = props;
   const [selectedRows, setSelectedRows] = useState<TLightFeature[]>([]);
 
   const columns: ColumnDef<TLightFeature>[] = [];
@@ -1778,6 +1779,7 @@ export function FeatureTable(props: {
       )}
       <GenericTable
         selectableRows={selectableRows}
+        selectedSearchRow={selectedSearchRow}
         idAccessor={(datum: TLightFeature | TContextOverload) => {
           return datum.name;
         }}

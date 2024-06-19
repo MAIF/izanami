@@ -488,7 +488,7 @@ function Layout() {
             </button>
           </div>
           <ul className="navbar-nav ms-auto">
-            <li className="me-2">
+            <li className="me-2 d-flex align-items-center justify-content-end my-2">
               <button
                 className="btn btn-secondary"
                 id="btnSearch"
@@ -496,8 +496,10 @@ function Layout() {
                 onClick={() => setIsOpenModal(true)}
               >
                 <span className="fa fa-search"></span>
-                <span className="text-searchbutton">Type to search ...</span>
-                <span className="span-kbd-searchbutton">
+                <span className="text-searchbutton d-none d-md-inline">
+                  Type to search ...
+                </span>
+                <span className="span-kbd-searchbutton  d-none d-md-inline">
                   <kbd className="kbd-searchbutton">⌘</kbd>
                   <kbd className="kbd-searchbutton">K</kbd>
                 </span>
@@ -513,7 +515,7 @@ function Layout() {
                 style={{ color: "var(--color_level2)", cursor: "pointer" }}
               />
             </li>
-            <li className="nav-item dropdown userManagement me-2">
+            <li className="nav-item dropdown userManagement d-flex align-items-center align-items-center m-2">
               <a
                 className="nav-link"
                 href="#"

@@ -15,7 +15,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Select from "react-select";
 import { IzanamiContext } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";
@@ -32,6 +32,7 @@ interface TProps<T extends RowData> {
     [x: string]: TCustomAction<T>;
   };
   isRowSelectable?: (feature: T) => boolean;
+  selectedSearchRow: string;
 }
 
 export type TCustomAction<T> =
@@ -91,6 +92,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
     selectableRows,
     onRowSelectionChange,
     isRowSelectable,
+    selectedSearchRow,
   } = props;
   const [sorting, setSorting] = React.useState<SortingState>(
     defaultSort
@@ -104,9 +106,8 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
   );
   const [rowSelection, setRowSelection] = React.useState({});
 
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
+  const [columnFilters, setColumnFilters] =
+    React.useState<ColumnFiltersState>();
   const hasActionColumn =
     customRowActions && Object.keys(customRowActions).length > 0;
 
@@ -267,7 +268,6 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
       onRowSelectionChange?.(rows as any);
     }
   }, [rowSelection]);
-
   return (
     <div className="overflow-auto">
       <table className="table table-borderless table-striped mt-2">
@@ -342,48 +342,64 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <>
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map((cell, index, arr) => {
-                      if (selectableRows ? index == 1 : index === 0) {
-                        return (
-                          <th
-                            scope="row"
-                            key={cell.id}
-                            style={
-                              selectableRows ? { verticalAlign: "middle" } : {}
-                            }
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </th>
-                        );
-                      } else if (hasActionColumn && index === arr.length - 1) {
-                        return (
-                          <td
-                            scope="row"
-                            key={cell.id}
-                            style={{ paddingLeft: "0" }}
-                          >
-                            <div className="d-flex flex-row justify-content-end align-items-center">
+                  <tr
+                    key={row.id}
+                    style={{
+                      background:
+                        row.id === selectedSearchRow
+                          ? "var(--color_level2)"
+                          : "inherit",
+                    }}
+                  >
+                    {row
+                      .getVisibleCells()
+                      //.filter((r) => r.row.id === selectedSearchRow)
+                      .map((cell, index, arr) => {
+                        if (selectableRows ? index == 1 : index === 0) {
+                          return (
+                            <th
+                              scope="row"
+                              key={cell.id}
+                              style={
+                                selectableRows
+                                  ? { verticalAlign: "middle" }
+                                  : {}
+                              }
+                            >
                               {flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext()
                               )}
-                            </div>
+                            </th>
+                          );
+                        } else if (
+                          hasActionColumn &&
+                          index === arr.length - 1
+                        ) {
+                          return (
+                            <td
+                              scope="row"
+                              key={cell.id}
+                              style={{ paddingLeft: "0" }}
+                            >
+                              <div className="d-flex flex-row justify-content-end align-items-center">
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext()
+                                )}
+                              </div>
+                            </td>
+                          );
+                        }
+                        return (
+                          <td key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
                           </td>
                         );
-                      }
-                      return (
-                        <td key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </td>
-                      );
-                    })}
+                      })}
                   </tr>
                   {activeCustomAction.has(idAccessor(row.original!)) && (
                     <tr

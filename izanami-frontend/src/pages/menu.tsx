@@ -36,12 +36,12 @@ export function Menu(props: {
   let { tenant, project } = props;
   const [selectedTenant, selectTenant] = React.useState<string | undefined>();
   const [selectedProject, selectProject] = React.useState<string | undefined>();
-  const tenantsQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
-  const navigate = useNavigate();
-  const isAdmin = useAdmin();
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   const { user } = React.useContext(IzanamiContext);
+  const tenantsQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
+  const navigate = useNavigate();
+  const isAdmin = useAdmin();
   let projects;
 
   if (
