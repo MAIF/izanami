@@ -53,7 +53,7 @@ export function WebhookTransformationEditor(props: {
           />
         </div>
       </div>
-      <div>
+      <div className="mt-2">
         {result ? (
           <>
             <label htmlFor="body-transform-result">Result</label>
@@ -77,7 +77,7 @@ export function WebhookTransformationEditor(props: {
           >
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-primary"
               style={{
                 marginRight: "2%",
                 marginLeft: "2%",
@@ -88,7 +88,7 @@ export function WebhookTransformationEditor(props: {
                 setResult(compiled(json));
               }}
             >
-              Test template
+              Test the template
             </button>
           </div>
         )}
