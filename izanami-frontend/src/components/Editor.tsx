@@ -105,9 +105,9 @@ function Editor(props: { value: string; onChange: (v: string) => void }) {
       <label htmlFor="handlebar-editor">
         Template
         <Tooltip id="handlebar-editor-tooltip">
-          This template will be applied on incomming event
+          This template will be applied to an incoming event
           <br />
-          to craft webhook body. Make sure that you have a
+          to craft a webhook body. Make sure that you have a
           <br /> content-type header that matches template output.
         </Tooltip>
       </label>
@@ -280,7 +280,7 @@ function EventPicker(props: {
       <label htmlFor="event-value">
         Sample payload
         <Tooltip id="event-value-tooltip">
-          This field can be used to test you template and make sure
+          This field can be used to test your template and make sure
           <br /> it works as expected on various events.
         </Tooltip>
       </label>
