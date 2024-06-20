@@ -409,7 +409,7 @@ function WebHookCreationForm(props: {
                   <Tooltip id="webhook-name">
                     Name of the webhook.
                     <br />
-                    Use something meaningfull, it can be modified without
+                    Use something meaningful, it can be modified without
                     impact.
                   </Tooltip>
                 </>
@@ -528,7 +528,7 @@ function WebHookCreationForm(props: {
                   </label>
                   <Tooltip id="webhooks-features">
                     Update of selected features will trigger calls on provided
-                    url.
+                    URL.
                   </Tooltip>
                 </>
               ),
@@ -564,9 +564,9 @@ function WebHookCreationForm(props: {
                 <>
                   <label htmlFor="webhook-projects-select">Projects</label>
                   <Tooltip id="webhook-projects">
-                    Update of on of these projects features
+                    Update of one of these projects features
                     <br />
-                    will trigger calls on provided url.
+                    will trigger calls on provided URL.
                   </Tooltip>
                 </>
               ),
@@ -622,9 +622,9 @@ function WebHookCreationForm(props: {
                   <>
                     User
                     <Tooltip id="webhook-context">
-                      User used to compute user based activation conditions
+                      User used to compute user-based activation conditions
                       <br />
-                      such as percentage and user list features.
+                      such as percentages and user list features.
                     </Tooltip>
                   </>
                 );
@@ -637,7 +637,7 @@ function WebHookCreationForm(props: {
                 <>
                   Custom body
                   <Tooltip id="webhook-body-format-customization-tooltip">
-                    Allow replacing built-in webhook call body with custom body.
+                    Allow replacing the built-in webhook call body with a custom body.
                   </Tooltip>
                 </>
               ),
@@ -669,7 +669,7 @@ function WebHookCreationForm(props: {
                   <>
                     Body format
                     <Tooltip id="webhook-body-format">
-                      Customize call body using an handlebar template.
+                      Customize the call body using a handlebar template.
                     </Tooltip>
                   </>
                 );
