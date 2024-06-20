@@ -315,10 +315,10 @@ function Rights(): JSX.Element {
                     return (
                       <div key={`${key}-${projectName}`}>
                         <Link to={`/tenants/${key}/projects/${projectName}`}>
-                          <i className="fas fa-building" aria-hidden />{" "}
-                          {projectName}
+                        <button className="btn btn-sm btn-primary my-1"><i className="fas fa-building" aria-hidden />{" "}
+                          {projectName}</button>
                         </Link>{" "}
-                        : <span>{projectRight.level}</span>
+                        {projectRight.level}
                       </div>
                     );
                   }
@@ -373,13 +373,13 @@ function Rights(): JSX.Element {
           return (
             <>
               <h3 className="mt-3">
-                Tenant&nbsp;
+                Tenant&nbsp;</h3>
                 <Link to={`/tenants/${key}`}>
-                  <i className="fas fa-cloud" aria-hidden />
-                  &nbsp;{key}
+                  <button className="btn btn-sm btn-primary"><i className="fas fa-cloud" aria-hidden />
+                  &nbsp;{key}</button>
                 </Link>{" "}
-                ({value.level})
-              </h3>
+                {value.level}
+              
               <div className="ms-4">{body}</div>
             </>
           );
