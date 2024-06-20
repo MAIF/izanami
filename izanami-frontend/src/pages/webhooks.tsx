@@ -727,13 +727,13 @@ function Headers(props: {
   return (
     <div className="container-fluid row-gap-3">
       {arr.length > 0 && (
-        <div className="row">
+        <div className="row my-1">
           <label className="col-6 col-lg-3">Header name</label>
           <label className="col">Header value</label>
         </div>
       )}
       {arr.map(({ name, value }, index) => (
-        <div className="row" key={`header-${index}`}>
+        <div className="row my-1" key={`header-${index}`}>
           <div className="col-6 col-lg-3">
             <input
               aria-label={`header-${index}-name`}
