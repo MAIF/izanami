@@ -488,7 +488,7 @@ function Layout() {
             </button>
           </div>
           <ul className="navbar-nav ms-auto">
-            <li className="me-2 d-flex align-items-center justify-content-end my-2">
+            <li className="me-2 d-flex align-items-center justify-content-end my-1">
               <button
                 className="btn btn-secondary"
                 id="btnSearch"
@@ -507,7 +507,7 @@ function Layout() {
             </li>
             <li
               onClick={() => switchLightMode()}
-              className="me-2 d-flex align-items-center justify-content-end my-2"
+              className="me-2 d-flex align-items-center justify-content-end my-1"
             >
               <i
                 id="lightMode"

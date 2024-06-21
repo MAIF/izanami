@@ -1,13 +1,13 @@
-import React, { useState, useEffect, ChangeEvent } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
 import { useDebounce } from "./useDebounce";
 import { Link, useNavigate } from "react-router-dom";
 import { groupBy } from "lodash";
 import { useQuery } from "react-query";
 import {
-  searchEntitiesByTenant,
-  searchQueryEntities,
-  searchQueryByTenant,
   searchEntities,
+  searchEntitiesByTenant,
+  searchQueryByTenant,
+  searchQueryEntities,
 } from "../../utils/queries";
 
 interface ISearchProps {
@@ -22,6 +22,7 @@ interface SearchResult {
   origin_table: string;
   origin_tenant: string;
   project?: string;
+  description: string;
 }
 
 const iconMapping = new Map<string, string>([
@@ -34,17 +35,19 @@ const iconMapping = new Map<string, string>([
 ]);
 
 export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
+  const [selectedTenant, setSelectedTenant] = useState<string | null>(tenant!);
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showDocuments, setShowDocuments] = useState<boolean>(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const navigate = useNavigate();
 
-  const useSearchEntitiesByTenant = (query: string) => {
+  const useSearchEntitiesByTenant = (query: string, selectedTenant: string) => {
     const enabled = !!query;
-    if (tenant) {
+    if (selectedTenant && selectedTenant !== "all") {
       return useQuery(
-        searchQueryByTenant(tenant, query),
-        () => searchEntitiesByTenant(tenant, query),
+        searchQueryByTenant(selectedTenant, query),
+        () => searchEntitiesByTenant(selectedTenant, query),
         { enabled }
       );
     }
@@ -60,7 +63,7 @@ export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
     isLoading,
     isSuccess,
     isError,
-  } = useSearchEntitiesByTenant(debouncedSearchQuery);
+  } = useSearchEntitiesByTenant(debouncedSearchQuery, selectedTenant!);
 
   const handleSearchInput = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -92,72 +95,107 @@ export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
     onClose();
   };
 
-  return (
-    <div className="search-container">
-      <div className="d-flex flex-row align-items-start my-1">
-        <button className="btn btn-secondary">All tenants </button>
-        <button className="btn btn-secondary">{tenant} </button>
-      </div>
+  const handleTenantClick = (tenant: string) => {
+    setSelectedTenant(tenant);
+  };
 
-      <i className="fas fa-search search-icon" aria-hidden="true" />
-      <input
-        type="text"
-        id="search-input"
-        name="search-form"
-        title="Search in tenants"
-        value={searchQuery}
-        onChange={handleSearchInput}
-        placeholder={`Search in ${
-          tenant ? `this tenant: ${tenant}` : "all tenants"
-        }`}
-        className="form-control"
-        style={{ padding: ".375rem 1.85rem" }}
-      />
-      {showDocuments && (
-        <div className="search-result">
-          {isLoading && <div>Search something...</div>}
-          {isError && <div>There was an error fetching data.</div>}
-          {isSuccess &&
-            (Object.keys(groupedItems).length > 0 ? (
-              <ul className="search-ul nav flex-column">
-                {Object.keys(groupedItems).map((originTable) => (
-                  <li className="search-ul-item" key={originTable}>
-                    <span>
-                      {originTable.charAt(0).toUpperCase() +
-                        originTable.slice(1)}
-                    </span>
-                    {groupedItems[originTable].map((item: SearchResult) => (
-                      <ol className="search-ul nav flex-column" key={item.id}>
-                        <li
-                          className="search-ul-item"
-                          aria-label={`View details for ${item.name} in ${item.origin_tenant}`}
-                          onClick={() => handleItemClick(item)}
-                        >
-                          <Link to={getLinkPath(item)}>
-                            <i
-                              className="fas fa-cloud me-2"
-                              aria-hidden="true"
-                            />
-                            {item.origin_tenant} /{" "}
-                            <i
-                              className={`fas ${iconMapping.get(
-                                originTable
-                              )} me-2`}
-                              aria-hidden="true"
-                            />
-                            {item.name}
-                          </Link>
-                        </li>
-                      </ol>
-                    ))}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="search-result">No results found</div>
-            ))}
+  return (
+    <>
+      {tenant && (
+        <div
+          className="d-flex flex-row align-items-start my-1"
+          role="group"
+          aria-label="Tenant selection"
+        >
+          <button
+            onClick={() => handleTenantClick("all")}
+            className={`btn ${
+              selectedTenant === "all" ? "btn-primary" : "btn-secondary"
+            }`}
+            value="all"
+            aria-pressed={selectedTenant === "all"}
+          >
+            All tenants
+          </button>
+
+          <button
+            onClick={() => handleTenantClick(tenant)}
+            className={`btn ${
+              selectedTenant === tenant ? "btn-primary" : "btn-secondary"
+            }`}
+            value={tenant}
+            aria-pressed={selectedTenant === tenant}
+          >
+            {tenant}
+          </button>
         </div>
       )}
-    </div>
+      <div className="search-container">
+        <i className="fas fa-search search-icon" aria-hidden="true" />
+        <input
+          type="text"
+          id="search-input"
+          name="search-form"
+          title="Search in tenants"
+          value={searchQuery}
+          onChange={handleSearchInput}
+          placeholder={`Search in ${
+            tenant ? `this tenant: ${selectedTenant}` : "all tenants"
+          }`}
+          aria-label={`Search in ${
+            tenant ? `this tenant: ${selectedTenant}` : "all tenants"
+          }`}
+          className="form-control"
+          style={{ padding: ".375rem 1.85rem" }}
+        />
+        {showDocuments && (
+          <div className="search-result">
+            {isLoading && <div>Search something...</div>}
+            {isError && <div>There was an error fetching data.</div>}
+            {isSuccess &&
+              (Object.keys(groupedItems).length > 0 ? (
+                <ul className="search-ul nav flex-column">
+                  {Object.keys(groupedItems).map((originTable) => (
+                    <li className="search-ul-item" key={originTable}>
+                      <span>
+                        {originTable.charAt(0).toUpperCase() +
+                          originTable.slice(1)}
+                      </span>
+                      {groupedItems[originTable].map((item: SearchResult) => (
+                        <ol className="search-ul nav flex-column" key={item.id}>
+                          <li
+                            className="search-ul-item"
+                            aria-label={`View details for ${item.name} in ${item.origin_tenant}`}
+                            onClick={() => handleItemClick(item)}
+                          >
+                            <Link to={getLinkPath(item)}>
+                              <i
+                                className="fas fa-cloud me-2"
+                                aria-hidden="true"
+                              />
+                              {item.origin_tenant} /{" "}
+                              <i
+                                className={`fas ${iconMapping.get(
+                                  originTable
+                                )} me-2`}
+                                aria-hidden="true"
+                              />
+                              {item.name.includes(searchQuery)
+                                ? item.name
+                                : `${item.name} / description : ${item.description}`}
+                            </Link>
+                          </li>
+                        </ol>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="search-result">No results found</div>
+              ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

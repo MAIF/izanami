@@ -482,8 +482,9 @@ export interface Webhook {
 
 export interface SearchEntityResponse {
   id: string;
-  origin_table : string;
+  origin_table: string;
   origin_tenant: string;
   name: string;
   project: string;
+  description: string;
 }
