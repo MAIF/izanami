@@ -2,7 +2,7 @@ package fr.maif.izanami.api
 
 import fr.maif.izanami.api.BaseAPISpec._
 import play.api.http.Status._
-import play.api.libs.json.{JsArray, JsObject}
+import play.api.libs.json.{JsArray, JsObject, JsUndefined, Json}
 
 import java.time.LocalDateTime
 
@@ -105,29 +105,24 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
   "Context POST endpoint" should {
     "Allow to recreate deleted local context" in {
-      val situation      = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext(
-              "prod",
-              subContext = Set(
-                TestFeatureContext(
-                  "mobile")))
-            )
+            .withGlobalContext(TestFeatureContext("prod", subContext = Set(TestFeatureContext("mobile"))))
             .withProjects(TestProject("project"))
         )
         .loggedInWithAdminRights()
         .build()
-      val response = situation.createContext("tenant", "project", name="localsubmobile", parents = "prod/mobile")
-      val response2 = situation.createContext("tenant", "project", name="localsubprod", parents = "prod")
+      val response  = situation.createContext("tenant", "project", name = "localsubmobile", parents = "prod/mobile")
+      val response2 = situation.createContext("tenant", "project", name = "localsubprod", parents = "prod")
       response.status mustBe CREATED
       response2.status mustBe CREATED
 
       val deleteResponse = situation.deleteGlobalContext("tenant", "prod")
       deleteResponse.status mustBe NO_CONTENT
 
-      val response3  = situation.createGlobalContext("tenant", name = "prod")
-      val response4  = situation.createGlobalContext("tenant", name = "mobile", parents = "prod")
+      val response3 = situation.createGlobalContext("tenant", name = "prod")
+      val response4 = situation.createGlobalContext("tenant", name = "mobile", parents = "prod")
       val response5 = situation.createContext("tenant", "project", "localsubmobile", parents = "prod/mobile")
       val response6 = situation.createContext("tenant", "project", "localsubprod", parents = "prod")
 
@@ -498,6 +493,47 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context feature PUT endpoint" should {
+    "Allow to overload a base script feature to classical feature" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("prod"))
+            .withTagNames("t1", "t2")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "F1",
+                    wasmConfig = TestWasmConfig(
+                      name = "wasmScript",
+                      source = Json.obj(
+                        "kind" -> "Base64",
+                        "path" -> enabledFeatureBase64,
+                        "opts" -> Json.obj()
+                      )
+                    )
+                  )
+                )
+            )
+        )
+        .build()
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        contextPath = "prod",
+        feature = "F1",
+        enabled = false
+      )
+
+      val response = situation.fetchContexts("tenant", "project")
+
+      val json         = response.json.get
+      val jsonOverload = json \ 0 \ "overloads" \ 0
+      jsonOverload.as[JsObject].keys must not contain "wasmConfig"
+    }
+
     "Allow modifying enabling of a feature for this context" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
