@@ -263,7 +263,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
     env.postgresql.queryAll(
       s"""
          |SELECT c.name, c.parent, c.id, NULL as project, COALESCE(
-         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'project', f.project, 'description', f.description , 'wasm', f.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
+         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'project', f.project, 'description', f.description , 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM global_feature_contexts c
          |LEFT JOIN feature_contexts_strategies s ON s.global_context=c.id
@@ -298,7 +298,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
     env.postgresql.queryAll(
       s"""
          |SELECT c.name, COALESCE(c.parent, c.global_parent) as parent, c.id, c.project, COALESCE(
-         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', f.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
+         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM feature_contexts c
          |LEFT JOIN feature_contexts_strategies s ON s.context=c.id
@@ -307,7 +307,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |GROUP BY (c.name, parent, c.id, c.project)
          |UNION ALL
          |SELECT c.name, c.parent, c.id, NULL as project, COALESCE(
-         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', f.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
+         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM global_feature_contexts c
          |LEFT JOIN feature_contexts_strategies s ON s.global_context=c.id
