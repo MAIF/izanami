@@ -942,7 +942,7 @@ object Feature {
     case u: UserPercentage                                  => activationRuleWrite.writes(u)
   }
 
-  val NAME_REGEXP_PATTERN: Regex = "^[a-zA-Z0-9:_-]+$".r
+  val NAME_REGEXP_PATTERN: Regex = "^[ a-zA-Z0-9:_-]+$".r
 
   implicit val activationPeriodRead: Reads[FeaturePeriod] = json => {
     val maybeHourPeriod     = (json \ "hourPeriods").asOpt[Set[HourPeriod]].getOrElse(Set())

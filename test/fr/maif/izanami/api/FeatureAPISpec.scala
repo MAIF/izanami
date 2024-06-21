@@ -337,6 +337,22 @@ class FeatureAPISpec extends BaseAPISpec {
       result.status mustBe CREATED
     }
 
+    "allow feature creation with spaces in name" in {
+      val tenantName                               = "my-tenant"
+      val projectName                              = "my-project"
+      val testSituation: BaseAPISpec.TestSituation = TestSituationBuilder()
+        .withTenants(TestTenant(tenantName).withProjectNames(projectName))
+        .loggedInWithAdminRights()
+        .build()
+      val response                                 = testSituation.createFeature(name = "feature name", project = projectName, tenant = tenantName)
+
+      response.status mustBe CREATED
+      val feature = response.json.get
+      (feature \ "project").as[String] mustEqual projectName
+      (feature \ "enabled").as[Boolean] mustBe true
+      (feature \ "name").as[String] mustEqual "feature name"
+    }
+
     "allow feature creation in normal format" in {
       val tenantName                               = "my-tenant"
       val projectName                              = "my-project"
