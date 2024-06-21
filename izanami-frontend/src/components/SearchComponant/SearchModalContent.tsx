@@ -1,13 +1,13 @@
-import React, { ChangeEvent, useEffect, useState } from "react";
+import React, { useState, useEffect, ChangeEvent } from "react";
 import { useDebounce } from "./useDebounce";
 import { Link, useNavigate } from "react-router-dom";
 import { groupBy } from "lodash";
 import { useQuery } from "react-query";
 import {
-  searchEntities,
   searchEntitiesByTenant,
-  searchQueryByTenant,
   searchQueryEntities,
+  searchQueryByTenant,
+  searchEntities,
 } from "../../utils/queries";
 
 interface ISearchProps {
