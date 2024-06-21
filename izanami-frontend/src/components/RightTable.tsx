@@ -82,7 +82,7 @@ export function RightTable(props: {
           },
           {
             accessorKey: "userType",
-            header: () => "User Type",
+            header: () => "User type",
             meta: {
               valueType: "discrete",
             },

@@ -220,7 +220,7 @@ function ProjectUsers(props: { tenant: string; project: string }) {
             },
             {
               accessorKey: "userType",
-              header: () => "User Type",
+              header: () => "User type",
               meta: {
                 valueType: "discrete",
               },
