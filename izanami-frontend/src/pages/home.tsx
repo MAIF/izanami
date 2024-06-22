@@ -1,4 +1,5 @@
-import { Form, constraints, format, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
+import { constraints, format, type } from "@maif/react-forms";
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
@@ -77,30 +78,12 @@ export function HomePage() {
                     <Form
                       schema={tenantCreationSchema}
                       onSubmit={(tenant: TenantInCreationType) => {
-                        tenantCreationMutation
+                        return tenantCreationMutation
                           .mutateAsync(tenant)
                           .then(() => setCreating(false))
                           .then(() => navigate(`/tenants/${tenant.name}`));
                       }}
-                      footer={({ valid }: { valid: () => void }) => {
-                        return (
-                          <div className="d-flex justify-content-end pt-3">
-                            <button
-                              type="button"
-                              className="btn btn-danger"
-                              onClick={() => setCreating(false)}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="btn btn-success ms-2"
-                              onClick={valid}
-                            >
-                              Save
-                            </button>
-                          </div>
-                        );
-                      }}
+                      onClose={() => setCreating(false)}
                     />
                   </div>
                 </div>
