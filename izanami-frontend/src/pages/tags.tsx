@@ -11,7 +11,8 @@ import {
 } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
 import { NavLink } from "react-router-dom";
-import { Form, constraints, format, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
+import { constraints, format, type } from "@maif/react-forms";
 import { TAG_NAME_REGEXP } from "../utils/patterns";
 import queryClient from "../queryClient";
 import { TLevel, TagType, TUser } from "../utils/types";
@@ -105,11 +106,11 @@ export function Tags(props: { tenant: string }) {
                   label: "Name",
                   type: type.string,
                   defaultValue: "",
+                  required: true,
                   props: {
                     autoFocus: true,
                   },
                   constraints: [
-                    constraints.required("Name is required"),
                     constraints.matches(
                       TAG_NAME_REGEXP,
                       `Key name must match regex ${TAG_NAME_REGEXP.toString()}`
@@ -124,7 +125,7 @@ export function Tags(props: { tenant: string }) {
                 },
               }}
               onSubmit={(tag: TagType) => {
-                tagCreateMutation
+                return tagCreateMutation
                   .mutateAsync(tag)
                   .then(() => setCreating(false));
               }}
