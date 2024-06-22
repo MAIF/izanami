@@ -1,4 +1,5 @@
-import { Form, constraints, format, type } from "@maif/react-forms";
+import { constraints, format, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import * as React from "react";
 import { useState } from "react";
 import { useMutation, useQuery } from "react-query";
@@ -143,7 +144,7 @@ function ProjectList(props: { tenant: TenantType }) {
                 <Form
                   schema={projectCreationSchema}
                   onSubmit={(project: any) => {
-                    projectCreationMutation
+                    return projectCreationMutation
                       .mutateAsync(project)
                       .then(() => setCreating(false))
                       .then(() => navigate(`projects/${project.name}`));
@@ -223,11 +224,11 @@ const projectCreationSchema = {
   name: {
     type: type.string,
     label: "Project name",
+    required: true,
     props: {
       autoFocus: true,
     },
     constraints: [
-      constraints.required("Project name is required"),
       constraints.matches(
         PROJECT_NAME_REGEXP,
         `Project name must match ${PROJECT_NAME_REGEXP.toString()}`
