@@ -4,6 +4,8 @@ import {
   Option,
   FormRef,
   TBaseObject,
+  SchemaEntry,
+  constraints,
 } from "@maif/react-forms";
 import { MutableRefObject } from "react";
 import { Form as MaifReactForm } from "@maif/react-forms";
@@ -11,7 +13,11 @@ import * as React from "react";
 import { Loader } from "./Loader";
 
 type FormProps<DataType> = {
-  schema: Schema;
+  schema: {
+    [key: string]: Omit<SchemaEntry, "label"> & { required?: boolean } & {
+      label?: string;
+    };
+  };
   flow?: Array<string | FlowObject>;
   value?: DataType;
   inputWrapper?: (props: object) => JSX.Element;
@@ -28,10 +34,44 @@ type FormProps<DataType> = {
 
 export function Form<T extends TBaseObject>(props: FormProps<T>) {
   const [loading, setLoading] = React.useState(false);
-  const { onSubmit, ...rest } = props;
+  const { onSubmit, schema, ...rest } = props;
+
+  const newSchema = Object.entries(schema ?? {})
+    .map(([key, value]) => {
+      if (value.required) {
+        let newLabel = value.label ?? key;
+        if (newLabel.slice(-1) !== "*") {
+          newLabel = `${newLabel}*`;
+        }
+        return [
+          key,
+          {
+            ...value,
+            label: newLabel,
+            constraints: [
+              ...(value.constraints ?? []),
+              constraints.required(`${value.label} is required`),
+            ],
+          },
+        ];
+      }
+      return [key, value];
+    })
+    .reduce((acc: any, [key, value]) => {
+      acc[key as string] = value;
+      return acc;
+    }, {});
+
   return (
     <MaifReactForm
-      footer={({ valid, ...rest }: { valid: () => void }) => {
+      schema={newSchema}
+      footer={({
+        valid,
+
+        ...rest
+      }: {
+        valid: () => void;
+      }) => {
         console.log("rest", rest);
         return (
           <div className="d-flex justify-content-end pt-3">
@@ -39,7 +79,7 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
               <button
                 type="button"
                 className="btn btn-danger"
-                onClick={() => props?.onClose()}
+                onClick={() => props?.onClose?.()}
               >
                 Cancel
               </button>

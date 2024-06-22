@@ -121,11 +121,11 @@ const tenantCreationSchema = {
   name: {
     type: type.string,
     label: "Tenant name",
+    required: true,
     props: {
       autoFocus: true,
     },
     constraints: [
-      constraints.required("Tenant name is required"),
       constraints.matches(
         TENANT_NAME_REGEXP,
         `Tenant name must match ${TENANT_NAME_REGEXP} regex`

@@ -10,7 +10,8 @@ import {
 } from "../utils/queries";
 import { ProjectType, TKey, TLevel } from "../utils/types";
 import queryClient from "../queryClient";
-import { Form, constraints, format, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
+import { constraints, format, type } from "@maif/react-forms";
 import { GenericTable } from "../components/GenericTable";
 import { customStyles } from "../styles/reactSelect";
 import { Modal } from "../components/Modal";
@@ -24,11 +25,11 @@ function editionSchema(tenant: string, key?: TKey) {
       label: "Name",
       type: type.string,
       defaultValue: key?.name || "",
+      required: true,
       props: {
         autoFocus: true,
       },
       constraints: [
-        constraints.required("Name is required"),
         constraints.matches(
           KEY_NAME_REGEXP,
           `Key name must match regex ${KEY_NAME_REGEXP.toString()}`
@@ -241,7 +242,7 @@ export default function Keys(props: { tenant: string }) {
             <Form
               schema={editionSchema(tenant)}
               onSubmit={(key) => {
-                keyCreateMutation
+                return keyCreateMutation
                   .mutateAsync({ tenant, key: key as TKey })
                   .then((resp: any) => {
                     setSecret(resp.clientSecret);
