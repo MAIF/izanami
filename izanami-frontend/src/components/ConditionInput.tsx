@@ -192,6 +192,15 @@ function ConditionInput(props: { index: number }) {
                 type="number"
                 className="form-control"
                 {...register(`conditions.${index}.rule.percentage`, {
+                  required: "Percentage must be defined",
+                  min: {
+                    value: 0,
+                    message: "Percentage can't be negative",
+                  },
+                  max: {
+                    value: 100,
+                    message: "Percentage can't be greater than 100",
+                  },
                   valueAsNumber: true,
                 })}
               />
