@@ -39,6 +39,7 @@ import { format, isBefore, parse } from "date-fns";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
 import { Tooltip } from "./Tooltip";
 import { Loader } from "./Loader";
+import { execFile } from "child_process";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -362,7 +363,7 @@ function LegacyFeatureForm(props: {
             style={{ marginRight: "32px" }}
           >
             <label>
-              ID
+              ID*
               <Tooltip id="legacy-id">
                 Legacy features let you define id.
                 <br />
@@ -384,8 +385,8 @@ function LegacyFeatureForm(props: {
               />
               <ErrorDisplay error={errors.id} />
             </label>
-            <label>
-              Name
+            <label className="mt-3">
+              Name*
               <Tooltip id="legacy-name">
                 Feature name, use something meaningfull, it can be modified
                 later without impacts.
@@ -423,7 +424,7 @@ function LegacyFeatureForm(props: {
                 )}
               />
             </label>
-            <label>
+            <label className="mt-3">
               Enabled
               <Tooltip id="legacy-enabled">
                 Whether feature is enabled or disabled. The disabled feature is
@@ -435,7 +436,7 @@ function LegacyFeatureForm(props: {
                 {...register("enabled")}
               />
             </label>
-            <label>
+            <label className="mt-3">
               Description
               <input
                 type="text"
@@ -468,13 +469,14 @@ function LegacyFeatureForm(props: {
               />
             </label>
             {strategy === "PERCENTAGE" && (
-              <label className="mt-2">
-                Percentage of users that should activate feature
+              <label className="mt-3">
+                Percentage of users that should activate feature*
                 <input
                   type="number"
                   className="form-control"
                   {...register("parameters.percentage", {
                     valueAsNumber: true,
+                    required: "Percentage must be defined",
                     min: {
                       value: 0,
                       message: "Percentage can't be negative",
@@ -494,7 +496,7 @@ function LegacyFeatureForm(props: {
               </label>
             )}
             {strategy === "CUSTOMERS_LIST" && (
-              <label className="mt-2">
+              <label className="mt-3">
                 Users that should activate feature
                 <Controller
                   name="parameters.customers"
@@ -515,84 +517,14 @@ function LegacyFeatureForm(props: {
             )}
             {strategy === "RELEASE_DATE" && (
               <>
-                <label>
-                  Release date
+                <label className="mt-3">
+                  Release date*
                   <Controller
                     name="parameters.date"
                     control={control}
-                    render={({ field: { onChange, value } }) => {
-                      return (
-                        <input
-                          value={
-                            value && !isNaN(value.getTime())
-                              ? format(value, "yyyy-MM-dd'T'HH:mm")
-                              : ""
-                          }
-                          onChange={(e) => {
-                            onChange(
-                              parse(
-                                e.target.value,
-                                "yyyy-MM-dd'T'HH:mm",
-                                new Date()
-                              )
-                            );
-                          }}
-                          className="form-control"
-                          type="datetime-local"
-                        />
-                      );
+                    rules={{
+                      required: "Release date must be defined",
                     }}
-                  />
-                </label>
-                <label className="mt-3">
-                  Timezone
-                  <Controller
-                    name="parameters.timezone"
-                    defaultValue={DEFAULT_TIMEZONE}
-                    control={control}
-                    render={({ field: { onChange, value } }) => (
-                      <TimeZoneSelect onChange={onChange} value={value} />
-                    )}
-                  />
-                </label>
-              </>
-            )}
-            {strategy === "DATE_RANGE" && (
-              <>
-                <label>
-                  Start date
-                  <Controller
-                    name="parameters.from"
-                    control={control}
-                    render={({ field: { onChange, value } }) => {
-                      return (
-                        <input
-                          value={
-                            value && !isNaN(value.getTime())
-                              ? format(value, "yyyy-MM-dd'T'HH:mm")
-                              : ""
-                          }
-                          onChange={(e) => {
-                            onChange(
-                              parse(
-                                e.target.value,
-                                "yyyy-MM-dd'T'HH:mm",
-                                new Date()
-                              )
-                            );
-                          }}
-                          className="form-control"
-                          type="datetime-local"
-                        />
-                      );
-                    }}
-                  />
-                </label>
-                <label>
-                  End date
-                  <Controller
-                    name="parameters.to"
-                    control={control}
                     render={({ field: { onChange, value } }) => {
                       return (
                         <input
@@ -619,6 +551,98 @@ function LegacyFeatureForm(props: {
                 </label>
                 <ErrorDisplay
                   error={
+                    (errors as FieldErrors<ReleaseDateFeature>)?.parameters
+                      ?.date
+                  }
+                />
+                <label className="mt-3">
+                  Timezone
+                  <Controller
+                    name="parameters.timezone"
+                    defaultValue={DEFAULT_TIMEZONE}
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <TimeZoneSelect onChange={onChange} value={value} />
+                    )}
+                  />
+                </label>
+              </>
+            )}
+            {strategy === "DATE_RANGE" && (
+              <>
+                <div className="mt-3">
+                  <label>
+                    Start date*
+                    <Controller
+                      name="parameters.from"
+                      control={control}
+                      rules={{
+                        required: "Start date must be defined",
+                      }}
+                      render={({ field: { onChange, value } }) => {
+                        return (
+                          <input
+                            value={
+                              value && !isNaN(value.getTime())
+                                ? format(value, "yyyy-MM-dd'T'HH:mm")
+                                : ""
+                            }
+                            onChange={(e) => {
+                              onChange(
+                                parse(
+                                  e.target.value,
+                                  "yyyy-MM-dd'T'HH:mm",
+                                  new Date()
+                                )
+                              );
+                            }}
+                            className="form-control"
+                            type="datetime-local"
+                          />
+                        );
+                      }}
+                    />
+                  </label>
+                  <label className="mx-2">
+                    End date*
+                    <Controller
+                      name="parameters.to"
+                      control={control}
+                      rules={{
+                        required: "End date must be defined",
+                      }}
+                      render={({ field: { onChange, value } }) => {
+                        return (
+                          <input
+                            value={
+                              value && !isNaN(value.getTime())
+                                ? format(value, "yyyy-MM-dd'T'HH:mm")
+                                : ""
+                            }
+                            onChange={(e) => {
+                              onChange(
+                                parse(
+                                  e.target.value,
+                                  "yyyy-MM-dd'T'HH:mm",
+                                  new Date()
+                                )
+                              );
+                            }}
+                            className="form-control"
+                            type="datetime-local"
+                          />
+                        );
+                      }}
+                    />
+                  </label>
+                </div>
+                <ErrorDisplay
+                  error={
+                    (errors as FieldErrors<DateRangeFeature>)?.parameters?.from
+                  }
+                />
+                <ErrorDisplay
+                  error={
                     (errors as FieldErrors<DateRangeFeature>)?.parameters?.to
                   }
                 />
@@ -637,68 +661,82 @@ function LegacyFeatureForm(props: {
             )}
             {strategy === "HOUR_RANGE" && (
               <>
-                <label className="me-2">
-                  From
-                  <Controller
-                    name="parameters.startAt"
-                    control={control}
-                    render={({ field: { onChange, value } }) => {
-                      return (
-                        <input
-                          className="form-control"
-                          type="time"
-                          value={
-                            value
-                              ? format(
-                                  parse(value, "HH:mm:ss", new Date()),
-                                  "HH:mm"
+                <div className="mt-3">
+                  <label className="me-2">
+                    From*
+                    <Controller
+                      name="parameters.startAt"
+                      control={control}
+                      rules={{
+                        required: "Start time must be defined",
+                      }}
+                      render={({ field: { onChange, value } }) => {
+                        return (
+                          <input
+                            className="form-control"
+                            type="time"
+                            value={
+                              value
+                                ? format(
+                                    parse(value, "HH:mm:ss", new Date()),
+                                    "HH:mm"
+                                  )
+                                : ""
+                            }
+                            onChange={(e) => {
+                              onChange(
+                                format(
+                                  parse(e.target.value, "HH:mm", new Date()),
+                                  "HH:mm:ss"
                                 )
-                              : ""
-                          }
-                          onChange={(e) => {
-                            onChange(
-                              format(
-                                parse(e.target.value, "HH:mm", new Date()),
-                                "HH:mm:ss"
-                              )
-                            );
-                          }}
-                        />
-                      );
-                    }}
-                  />
-                </label>
-                <label className="mx-2">
-                  To
-                  <Controller
-                    name="parameters.endAt"
-                    control={control}
-                    render={({ field: { onChange, value } }) => {
-                      return (
-                        <input
-                          className="form-control"
-                          type="time"
-                          value={
-                            value
-                              ? format(
-                                  parse(value, "HH:mm:ss", new Date()),
-                                  "HH:mm"
+                              );
+                            }}
+                          />
+                        );
+                      }}
+                    />
+                  </label>
+                  <label className="mx-2">
+                    To*
+                    <Controller
+                      name="parameters.endAt"
+                      control={control}
+                      rules={{
+                        required: "End time must be defined",
+                      }}
+                      render={({ field: { onChange, value } }) => {
+                        return (
+                          <input
+                            className="form-control"
+                            type="time"
+                            value={
+                              value
+                                ? format(
+                                    parse(value, "HH:mm:ss", new Date()),
+                                    "HH:mm"
+                                  )
+                                : ""
+                            }
+                            onChange={(e) => {
+                              onChange(
+                                format(
+                                  parse(e.target.value, "HH:mm", new Date()),
+                                  "HH:mm:ss"
                                 )
-                              : ""
-                          }
-                          onChange={(e) => {
-                            onChange(
-                              format(
-                                parse(e.target.value, "HH:mm", new Date()),
-                                "HH:mm:ss"
-                              )
-                            );
-                          }}
-                        />
-                      );
-                    }}
-                  />
-                </label>
+                              );
+                            }}
+                          />
+                        );
+                      }}
+                    />
+                  </label>
+                </div>
+                <ErrorDisplay
+                  error={
+                    (errors as FieldErrors<HourRangeFeature>)?.parameters
+                      ?.startAt
+                  }
+                />
                 <ErrorDisplay
                   error={
                     (errors as FieldErrors<HourRangeFeature>)?.parameters?.endAt
@@ -748,7 +786,6 @@ export function FeatureForm(props: {
 }) {
   const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
-  console.log("defaultValue", defaultValue);
 
   const completeFeatureQuery = useQuery(
     defaultValue ? JSON.stringify(defaultValue) : "",
@@ -968,7 +1005,7 @@ export function V2FeatureForm(props: {
             style={{ marginRight: "32px" }}
           >
             <label>
-              Name
+              Name*
               <Tooltip id="modern-name">
                 Feature name, use something meaningfull, it can be modified
                 later without impacts.

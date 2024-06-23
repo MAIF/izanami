@@ -19,7 +19,7 @@ export function WasmInput() {
   return (
     <>
       <label className="mt-3">
-        Script name
+        Script name*
         <Tooltip id="script-name">
           Script name, use something meaningfull
         </Tooltip>
@@ -93,7 +93,7 @@ function KindOptions() {
         opts = (
           <>
             <label className="mt-3">
-              Script path on wasm manager
+              Script path on wasm manager*
               <Controller
                 name="wasmConfig.source.path"
                 control={control}
@@ -207,7 +207,7 @@ function KindOptions() {
       opts = (
         <>
           <label className="mt-3">
-            Base64 encoded plugin
+            Base64 encoded plugin*
             <input
               type="text"
               className="form-control"
@@ -222,7 +222,7 @@ function KindOptions() {
   return (
     <>
       <label className="mt-3">
-        Kind
+        Kind*
         <Tooltip id="wasm-kind">
           WASMO will reference a script from a running WASMO instance.
           <br />
