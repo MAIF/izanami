@@ -904,6 +904,8 @@ export function V2FeatureForm(props: {
     setError,
   } = methods;
 
+  console.log("errors", errors);
+
   React.useEffect(() => {
     if (type === "Existing WASM script") {
       setValue("wasmConfig.source.kind", "Local");
@@ -918,6 +920,7 @@ export function V2FeatureForm(props: {
         <div className="d-flex justify-content-between">
           <form
             onSubmit={handleSubmit((data) => {
+              console.log("data", data);
               let error = false;
 
               if (!isWasmFeature(data) && !isSingleConditionFeature(data)) {
@@ -978,7 +981,10 @@ export function V2FeatureForm(props: {
                 });
               }
 
-              if (isWasmFeature(data)) {
+              if (
+                isWasmFeature(data) &&
+                data?.wasmConfig?.source?.kind !== "Local"
+              ) {
                 if (!data?.wasmConfig?.source?.path) {
                   setError("wasmConfig.source.path", {
                     type: "custom",

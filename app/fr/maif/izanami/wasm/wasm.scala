@@ -56,6 +56,7 @@ object WasmConfigWithFeatures {
   }
 }
 
+
 case class WasmConfig(
     name: String,
     source: WasmSource = WasmSource(WasmSourceKind.Unknown, "", Json.obj()),
@@ -97,14 +98,14 @@ object WasmConfig {
       val rawSource      = json.select("raw_source").asOpt[String]
       val sourceOpt      = json.select("source").asOpt[JsObject]
 
-      json
+      (json
         .select("name")
         .asOpt[String]
-        .map(name => {
-          val source = if (sourceOpt.isDefined) {
-            WasmSource.format.reads(sourceOpt.get).get
+        .flatMap(name => {
+          val maybeSource = if (sourceOpt.isDefined) {
+            WasmSource.format.reads(sourceOpt.get).asOpt
           } else {
-            compilerSource match {
+            Some(compilerSource match {
               case Some(source) => WasmSource(WasmSourceKind.Wasmo, source, Json.obj("name" -> name))
               case None         =>
                 rawSource match {
@@ -123,10 +124,10 @@ object WasmConfig {
                   case Some(source)                                   => WasmSource(WasmSourceKind.Base64, source, Json.obj("name" -> name))
                   case _                                              => WasmSource(WasmSourceKind.Unknown, "", Json.obj("name" -> name))
                 }
-            }
+            })
           }
 
-          WasmConfig(
+          maybeSource.map(source => WasmConfig(
             name = name,
             source = source,
             memoryPages = (json \ "memoryPages").asOpt[Int].getOrElse(100),
@@ -148,9 +149,23 @@ object WasmConfig {
               .asOpt[JsValue]
               .flatMap(v => WasmVmKillOptions.format.reads(v).asOpt)
               .getOrElse(WasmVmKillOptions.default)
-          )
+          )).orElse({
+            (for(
+              name <- (json \ "name").asOpt[String];
+              kind <- (json \ "source" \ "kind").asOpt[String]
+            ) yield {
+              if(kind == "Local") {
+                Some(WasmConfig(
+                  name = name,
+                  source = WasmSource(WasmSourceKind.Local, null, Json.obj("name" -> name))
+                ))
+              } else {
+                None
+              }
+            }).flatten
+          })
         })
-
+      )
     } match {
       case Failure(ex)          => JsError(ex.getMessage)
       case Success(Some(value)) => JsSuccess(value)

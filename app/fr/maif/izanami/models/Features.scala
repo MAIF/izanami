@@ -14,7 +14,6 @@ import fr.maif.izanami.v1.{OldFeature, OldGlobalScriptFeature, OldScript}
 import fr.maif.izanami.v1.OldFeature.{oldFeatureReads, oldFeatureWrites}
 import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
-import play.api.libs.json.MapWrites.mapWrites
 import play.api.libs.json.Reads.{instantReads, mapReads}
 import play.api.libs.json._
 import play.api.mvc.QueryStringBindable
