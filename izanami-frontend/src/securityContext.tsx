@@ -88,10 +88,6 @@ export function useProjectRight(
   project: string | undefined,
   level: TLevel
 ) {
-  if (!tenant || !project) {
-    return false;
-  }
-
   const { user } = useContext(IzanamiContext);
   const tenantAdmin = useTenantRight(tenant, TLevel.Admin);
 
@@ -186,8 +182,11 @@ export function hasRightForWebhook(
 export function findProjectRight(
   rights: TRights,
   tenant: string,
-  project: string
+  project?: string
 ): TLevel | undefined {
+  if (!project) {
+    return undefined;
+  }
   return rights.tenants?.[tenant]?.projects?.[project]?.level;
 }
 

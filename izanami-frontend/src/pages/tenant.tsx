@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "react-query";
 import { NavLink, useNavigate } from "react-router-dom";
 import queryClient from "../queryClient";
-import { useTenantRight } from "../securityContext";
+import { IzanamiContext, useTenantRight } from "../securityContext";
 import { createProject, queryTenant, tenantQueryKey } from "../utils/queries";
 import {
   ProjectInCreationType,
@@ -49,11 +49,14 @@ function ProjectList(props: { tenant: TenantType }) {
     TenantProjectType[] | undefined
   >();
 
+  const { refreshUser } = React.useContext(IzanamiContext);
+
   const projectCreationMutation = useMutation(
     (data: ProjectInCreationType) => createProject(tenant.name, data),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(queryKey);
+        refreshUser();
       },
     }
   );

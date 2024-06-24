@@ -42,23 +42,16 @@ export function Menu(props: {
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   const { user } = React.useContext(IzanamiContext);
-  let projects;
-
-  if (
-    matchPath({ path: "/home" }, props?.location?.pathname || "") &&
-    selectedTenant
-  ) {
-    selectTenant(undefined);
-  } else if (!tenant && user && selectedTenant) {
-    tenant = selectedTenant;
-  } else if (tenant && user && !selectedTenant) {
-    selectTenant(tenant);
-  }
-
-  if (tenant && user) {
-    isTenantAdmin =
-      isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
-  }
+  React.useEffect(() => {
+    if (
+      matchPath({ path: "/home" }, props?.location?.pathname || "") &&
+      selectedTenant
+    ) {
+      selectTenant(undefined);
+    } else if (tenant && user && !selectedTenant) {
+      selectTenant(tenant);
+    }
+  }, [selectedTenant, tenant, user, props?.location?.pathname]);
 
   const tenantQuery = useQuery(
     tenantQueryKey(tenant!),
@@ -68,6 +61,7 @@ export function Menu(props: {
 
   if (tenantsQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
+    let projects;
     if (tenantQuery.isSuccess) {
       projects = tenantQuery.data?.projects;
       project = project ?? selectedProject;
@@ -389,7 +383,10 @@ export function Menu(props: {
                   : "inactive"
               }
             >
-              <NavLink to={`/users`} onClick={() => hideSidebar()}>
+              <NavLink
+                to={`/users?tenant=${selectedTenant}`}
+                onClick={() => hideSidebar()}
+              >
                 <i className="ms-2 fas fa-user" aria-hidden></i> Users
               </NavLink>
             </li>
@@ -403,7 +400,10 @@ export function Menu(props: {
                   : "inactive"
               }
             >
-              <NavLink to={`/settings`} onClick={() => hideSidebar()}>
+              <NavLink
+                to={`/settings?tenant=${selectedTenant}`}
+                onClick={() => hideSidebar()}
+              >
                 <i className="ms-2 fas fa-cog" aria-hidden></i> Global settings
               </NavLink>
             </li>
