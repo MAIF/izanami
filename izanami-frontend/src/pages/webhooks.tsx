@@ -1,4 +1,5 @@
-import { Form, constraints, format, type } from "@maif/react-forms";
+import { constraints, format, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import * as React from "react";
 import { WEBHOOK_NAME_REGEXP } from "../utils/patterns";
 import { useMutation, useQuery } from "react-query";
@@ -405,14 +406,13 @@ function WebHookCreationForm(props: {
             name: {
               deps: [],
               defaultValue: maybeDefault?.name ?? "",
-              label: () => (
+              label: "Name",
+              required: true,
+              tooltip: () => (
                 <>
-                  Name*
-                  <Tooltip id="webhook-name">
-                    Name of the webhook.
-                    <br />
-                    Use something meaningful, it can be modified without impact.
-                  </Tooltip>
+                  Name of the webhook.
+                  <br />
+                  Use something meaningful, it can be modified without impact.
                 </>
               ),
               type: type.string,
@@ -420,7 +420,6 @@ function WebHookCreationForm(props: {
                 autoFocus: true,
               },
               constraints: [
-                constraints.required("Name is required"),
                 constraints.matches(
                   WEBHOOK_NAME_REGEXP,
                   `Key name must match regex ${WEBHOOK_NAME_REGEXP.toString()}`
@@ -442,20 +441,18 @@ function WebHookCreationForm(props: {
             },
             url: {
               deps: [],
-              label: () => (
+              label: "URL",
+              required: true,
+              tooltip: () => (
                 <>
-                  URL*
-                  <Tooltip id="webhook-url">
-                    URL to call.
-                    <br />
-                    This will be called each time related features are modified.
-                  </Tooltip>
+                  URL to call.
+                  <br />
+                  This will be called each time related features are modified.
                 </>
               ),
               type: type.string,
               defaultValue: maybeDefault?.url ?? "",
               constraints: [
-                constraints.required("URL is required"),
                 constraints.test(
                   "url",
                   "Should be a valid http/https url",

@@ -9,12 +9,7 @@ import {
 import { matchPath, NavLink, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import {
-  findTenantRight,
-  useAdmin,
-  useProjectRight,
-  useTenantRight,
-} from "../securityContext";
+import { useAdmin, useProjectRight, useTenantRight } from "../securityContext";
 import { TLevel } from "../utils/types";
 import { IzanamiContext } from "../securityContext";
 import { GlobalContextIcon } from "../utils/icons";

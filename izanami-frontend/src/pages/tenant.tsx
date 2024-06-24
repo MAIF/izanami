@@ -142,25 +142,7 @@ function ProjectList(props: { tenant: TenantType }) {
                       .then(() => setCreating(false))
                       .then(() => navigate(`projects/${project.name}`));
                   }}
-                  footer={({ valid }: { valid: () => void }) => {
-                    return (
-                      <div className="d-flex justify-content-end pt-3">
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          onClick={() => setCreating(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          className="btn btn-success ms-2"
-                          onClick={valid}
-                        >
-                          Save
-                        </button>
-                      </div>
-                    );
-                  }}
+                  onClose={() => setCreating(false)}
                 />
               </div>
             </div>

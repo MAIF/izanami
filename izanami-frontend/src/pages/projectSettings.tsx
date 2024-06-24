@@ -13,7 +13,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { IzanamiContext, useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
-import { Form, constraints, format, type } from "@maif/react-forms";
+import { constraints, format, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import { useState } from "react";
 import { TLevel } from "../utils/types";
 import { GenericTable } from "../components/GenericTable";
@@ -325,11 +326,11 @@ function ProjectModification(props: {
             type: type.string,
             label: "Project name",
             defaultValue: project.name,
+            required: true,
             props: {
               autoFocus: true,
             },
             constraints: [
-              constraints.required("Project name is required"),
               constraints.matches(
                 PROJECT_NAME_REGEXP,
                 `Project name must match regex ${PROJECT_NAME_REGEXP.toString()}`
@@ -346,32 +347,7 @@ function ProjectModification(props: {
         onSubmit={(data: any) =>
           updateMutation.mutateAsync(data).then(() => props.onDone())
         }
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <>
-              <div
-                style={{ color: "red", fontSize: "20px" }}
-                className="d-flex justify-content-end mt-3"
-              >
-                <i className="bi bi-exclamation-triangle"></i>&nbsp;Changing
-                project name may break client URLs, for more details&nbsp;
-                <a href="#">check the documentation</a>
-              </div>
-              <div className="d-flex justify-content-end">
-                <button
-                  type="button"
-                  className="btn btn-danger m-2"
-                  onClick={() => props.onDone()}
-                >
-                  Cancel
-                </button>
-                <button className="btn btn-success m-2" onClick={valid}>
-                  Save
-                </button>
-              </div>
-            </>
-          );
-        }}
+        onClose={() => props.onDone()}
       />
     </div>
   );

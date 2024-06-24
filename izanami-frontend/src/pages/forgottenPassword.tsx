@@ -1,7 +1,8 @@
 import * as React from "react";
 import { NavLink } from "react-router-dom";
 import Logo from "../../izanami.png";
-import { Form, constraints } from "@maif/react-forms";
+import { constraints } from "@maif/react-forms";
+import { Form } from "../components/Form";
 
 function resetPassword(email: string): Promise<Response> {
   return fetch("/api/admin/password/_reset", {
@@ -56,10 +57,10 @@ export function ForgottenPassword() {
               <Form
                 schema={{
                   email: {
+                    required: true,
                     type: "string",
                     label: "Email",
                     constraints: [
-                      constraints.required("Email is required"),
                       constraints.email("Email format is incorrect"),
                     ],
                     props: {

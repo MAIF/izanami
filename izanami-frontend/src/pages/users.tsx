@@ -24,7 +24,8 @@ import {
 } from "../components/RightSelector";
 import { TLevel, TRights, TTenantRight, TUser, UserType } from "../utils/types";
 import { Modal } from "../components/Modal";
-import { Form, constraints } from "@maif/react-forms";
+import { constraints } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
 
 export function Users() {
@@ -165,8 +166,8 @@ export function Users() {
                     label: "Email to invite",
                     type: "string",
                     format: "email",
+                    required: true,
                     constraints: [
-                      constraints.required("An email must be specified"),
                       constraints.email("Email format is incorrect"),
                     ],
                     props: {
@@ -178,6 +179,7 @@ export function Users() {
                     type: "bool",
                   },
                   rights: {
+                    label: () => "",
                     type: "object",
                     array: true,
                     render: ({ onChange }) => {
@@ -209,22 +211,8 @@ export function Users() {
                     })
                     .then(() => setCreating(false));
                 }}
-                footer={({ valid }: { valid: () => void }) => {
-                  return (
-                    <div className="d-flex justify-content-end">
-                      <button
-                        type="button"
-                        className="btn btn-danger m-2"
-                        onClick={() => setCreating(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button className="btn btn-success m-2" onClick={valid}>
-                        Send invitation
-                      </button>
-                    </div>
-                  );
-                }}
+                onClose={() => setCreating(false)}
+                submitText="Send invitation"
               />
             </div>
           </>
@@ -379,8 +367,8 @@ export function UserEdition(props: {
   const adminTenants: string[] = Object.entries(
     context.user?.rights.tenants || {}
   )
-    .filter(([_, tenantRight]) => tenantRight.level == TLevel.Admin)
-    .map(([name, _]) => name);
+    .filter(([, tenantRight]) => tenantRight.level == TLevel.Admin)
+    .map(([name]) => name);
 
   const userQuery = useQuery(
     props.tenant
@@ -438,22 +426,8 @@ export function UserEdition(props: {
 
             return submit(payload, userQuery.data);
           }}
-          footer={({ valid }: { valid: () => void }) => {
-            return (
-              <div className="d-flex justify-content-end">
-                <button
-                  type="button"
-                  className="btn btn-danger m-2"
-                  onClick={() => cancel()}
-                >
-                  Cancel
-                </button>
-                <button className="btn btn-success m-2" onClick={valid}>
-                  Update rights
-                </button>
-              </div>
-            );
-          }}
+          onClose={() => cancel()}
+          submitText="Update rights"
         />
       </div>
     );

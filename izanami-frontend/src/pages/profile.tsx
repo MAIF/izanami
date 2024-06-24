@@ -9,7 +9,8 @@ import {
   updateUserInformation,
   updateUserPassword,
 } from "../utils/queries";
-import { Form, constraints } from "@maif/react-forms";
+import { constraints } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import { customStyles } from "../styles/reactSelect";
 import { PASSWORD_REGEXP, USERNAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
@@ -156,8 +157,8 @@ function EditionForm(props: {
             label: "Username",
             type: "string",
             defaultValue: name,
+            required: true,
             constraints: [
-              constraints.required("Username is required"),
               constraints.matches(
                 USERNAME_REGEXP,
                 `Username must match regex ${USERNAME_REGEXP.toString()}`
@@ -170,6 +171,7 @@ function EditionForm(props: {
           email: {
             label: "Email",
             type: "string",
+            required: true,
             format: "email",
             defaultValue: email,
             constraints: [constraints.email("Email format is incorrect")],
@@ -187,30 +189,17 @@ function EditionForm(props: {
           },
           password: {
             label: "Your password is required for these modifications",
+            required: true,
             type: "string",
             format: "password",
             defaultValue: "",
           },
         }}
         onSubmit={({ name, email, defaultTenant, password }) => {
-          onSubmit(name, email, password, defaultTenant);
+          return onSubmit(name, email, password, defaultTenant);
         }}
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <div className="d-flex justify-content-end pt-3">
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={() => onCancel()}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-success ms-2" onClick={valid}>
-                Update informations
-              </button>
-            </div>
-          );
-        }}
+        onClose={() => onCancel()}
+        submitText="Update informations"
       />
     );
   } else {
@@ -234,14 +223,14 @@ function PasswordEditionForm(props: {
           props: {
             autoFocus: true,
           },
-          constraints: [constraints.required("Current password is required")],
+          required: true,
         },
         newPassword: {
           label: "New password",
           type: "string",
           format: "password",
+          required: true,
           constraints: [
-            constraints.required("New password is required"),
             constraints.matches(
               PASSWORD_REGEXP,
               `Password must match regex ${PASSWORD_REGEXP.toString()}`
@@ -263,25 +252,11 @@ function PasswordEditionForm(props: {
           ],
         },
       }}
-      onSubmit={({ currentPassword, newPassword }) => {
-        onSubmit(currentPassword, newPassword);
-      }}
-      footer={({ valid }: { valid: () => void }) => {
-        return (
-          <div className="d-flex justify-content-end pt-3">
-            <button
-              type="button"
-              className="btn btn-danger"
-              onClick={() => onCancel()}
-            >
-              Cancel
-            </button>
-            <button className="btn btn-success ms-2" onClick={valid}>
-              Update password
-            </button>
-          </div>
-        );
-      }}
+      onSubmit={({ currentPassword, newPassword }) =>
+        onSubmit(currentPassword, newPassword)
+      }
+      onClose={() => onCancel()}
+      submitText="Update password"
     />
   );
 }

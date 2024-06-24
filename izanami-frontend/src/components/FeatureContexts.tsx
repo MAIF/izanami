@@ -1,4 +1,5 @@
-import { constraints, Form, type } from "@maif/react-forms";
+import { constraints, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import * as React from "react";
 import { useState } from "react";
 import { IzanamiContext } from "../securityContext";
@@ -97,10 +98,10 @@ export function FeatureContexts(props: {
               schema={{
                 name: {
                   type: type.string,
+                  required: true,
                   label: "Name",
                   placeholder: "Context name",
                   constraints: [
-                    constraints.required("Context name is required"),
                     constraints.matches(
                       FEATURE_NAME_REGEXP,
                       `Context name must match ${FEATURE_NAME_REGEXP} regex`
@@ -111,22 +112,7 @@ export function FeatureContexts(props: {
                   },
                 },
               }}
-              footer={({ valid }: { valid: () => void }) => {
-                return (
-                  <div className="d-flex justify-content-end">
-                    <button
-                      type="button"
-                      className="btn btn-danger m-2"
-                      onClick={() => setCreating(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button className="btn btn-success m-2" onClick={valid}>
-                      Save
-                    </button>
-                  </div>
-                );
-              }}
+              onClose={() => setCreating(false)}
               onSubmit={({ name }) =>
                 createSubContext("", name).then(() => setCreating(false))
               }
@@ -272,8 +258,8 @@ function FeatureContextTree(props: {
                             type: type.string,
                             label: "Name",
                             placeholder: "Context name",
+                            required: true,
                             constraints: [
-                              constraints.required("Context name is required"),
                               constraints.matches(
                                 FEATURE_NAME_REGEXP,
                                 `Context name must match ${FEATURE_NAME_REGEXP} regex`
@@ -284,25 +270,7 @@ function FeatureContextTree(props: {
                             },
                           },
                         }}
-                        footer={({ valid }: { valid: () => void }) => {
-                          return (
-                            <div className="d-flex justify-content-end">
-                              <button
-                                type="button"
-                                className="btn btn-danger m-2"
-                                onClick={() => cancel()}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                className="btn btn-success m-2"
-                                onClick={valid}
-                              >
-                                Save
-                              </button>
-                            </div>
-                          );
-                        }}
+                        onClose={() => cancel()}
                         onSubmit={({ name }) =>
                           createSubContextCallback(
                             `${path}/${ctx.name}`,
