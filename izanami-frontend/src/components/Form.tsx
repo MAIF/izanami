@@ -71,7 +71,6 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
       }: {
         valid: () => void;
       }) => {
-        console.log("rest", rest);
         return (
           <div className="d-flex justify-content-end pt-3">
             {props.onClose && (

@@ -1587,7 +1587,6 @@ export function FeatureTable(props: {
         return actions(feature).includes("edit");
       },
       customForm: (datum: TLightFeature, cancel: () => void) => {
-        console.log("datum", datum);
         return (
           <>
             <h4>Edit feature</h4>

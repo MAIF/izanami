@@ -609,7 +609,6 @@ export class App extends Component {
                   configuration.anonymousReportingLastAsked
                 ) > 3)
             ) {
-              console.log("querying stats");
               return queryStats().then((stats) => {
                 this.state.askConfirmation(
                   <>

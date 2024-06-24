@@ -918,7 +918,6 @@ export function V2FeatureForm(props: {
         <div className="d-flex justify-content-between">
           <form
             onSubmit={handleSubmit((data) => {
-              console.log("data", data);
               let error = false;
 
               if (!isWasmFeature(data) && !isSingleConditionFeature(data)) {
