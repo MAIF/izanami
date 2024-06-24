@@ -83,13 +83,14 @@ export default function Keys(props: { tenant: string }) {
   const keyQuery = useQuery(tenantKeyQueryKey(tenant), () => queryKeys(tenant));
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, refreshUser } = React.useContext(IzanamiContext);
   const keyDeleteMutation = useMutation(
     tenantKeyQueryKey(tenant),
     (name: string) => deleteKey(tenant, name),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(tenantKeyQueryKey(tenant));
+        refreshUser();
       },
     }
   );

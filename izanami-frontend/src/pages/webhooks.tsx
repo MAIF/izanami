@@ -39,13 +39,16 @@ import { Row } from "@tanstack/react-table";
 export function WebHooks(props: { tenant: string }) {
   const tenant = props.tenant;
   const [creating, setCreating] = React.useState(false);
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, refreshUser } = React.useContext(IzanamiContext);
   const hasTenantWriteLevel = useTenantRight(tenant, TLevel.Write);
 
   const webhookCreationMutation = useMutation(
     (data: { webhook: LightWebhook }) => createWebhook(tenant!, data.webhook),
     {
-      onSuccess: () => queryClient.invalidateQueries(webhookQueryKey(tenant)),
+      onSuccess: () => {
+        queryClient.invalidateQueries(webhookQueryKey(tenant));
+        refreshUser();
+      },
     }
   );
 
