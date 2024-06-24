@@ -2,7 +2,9 @@ import React from "react";
 import { useMutation } from "react-query";
 import Logo from "../../izanami.png";
 import { createUser } from "../utils/queries";
-import { Form, constraints } from "@maif/react-forms";
+import { constraints } from "@maif/react-forms";
+import { Form } from "../components/Form";
+
 import { PASSWORD_REGEXP, USERNAME_REGEXP } from "../utils/patterns";
 
 export function Invitation(props: { token: string }) {
@@ -34,8 +36,8 @@ export function Invitation(props: { token: string }) {
                 username: {
                   type: "string",
                   label: "Username",
+                  required: true,
                   constraints: [
-                    constraints.required("Username is required"),
                     constraints.matches(
                       USERNAME_REGEXP,
                       `Username must match regex ${USERNAME_REGEXP.toString()}`
@@ -46,8 +48,8 @@ export function Invitation(props: { token: string }) {
                   type: "string",
                   label: "Password",
                   format: "password",
+                  required: true,
                   constraints: [
-                    constraints.required("Password is required"),
                     constraints.matches(
                       PASSWORD_REGEXP,
                       `Password must match regex ${PASSWORD_REGEXP.toString()}`
@@ -69,15 +71,7 @@ export function Invitation(props: { token: string }) {
                   ],
                 },
               }}
-              footer={({ valid }: { valid: () => void }) => {
-                return (
-                  <div className="d-flex justify-content-end pt-3">
-                    <button className="btn btn-success ms-2" onClick={valid}>
-                      Create user
-                    </button>
-                  </div>
-                );
-              }}
+              submitText="Create user"
               onSubmit={function (data: { [x: string]: any }): Promise<any> {
                 const { username, password } = data;
                 return userCreationMutation

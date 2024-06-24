@@ -679,14 +679,16 @@ export class App extends Component {
         closeButtonText?: string,
         confirmButtonText?: string
       ) => {
-        this.setState({
-          confirmation: {
-            message: msg,
-            callback: callback,
-            onCancel: onCancel,
-            closeButtonText,
-            confirmButtonText,
-          },
+        return new Promise((resolve) => {
+          this.setState({
+            confirmation: {
+              message: msg,
+              callback: () => callback?.().finally(() => resolve()),
+              onCancel: () => onCancel?.().finally(() => resolve()),
+              closeButtonText,
+              confirmButtonText,
+            },
+          });
         });
       },
       setExpositionUrl: (url) => {

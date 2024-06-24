@@ -57,9 +57,10 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
-import { Form } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
+import { constraints } from "@maif/react-forms";
 
 type FeatureFields =
   | "id"
@@ -400,21 +401,22 @@ function OperationTransferForm(props: {
         schema={{
           project: {
             className: "form-margin",
-            label: null,
+            label: () => "",
             type: "string",
             format: "select",
             props: { styles: customStyles },
-            defaultValue: "Select target project...",
+            placeholder: "Select target project...",
             options: projectQuery.data?.projects
               ?.filter(({ name }) => selectedRowProject.indexOf(name) === -1)
               ?.map(({ name }) => ({
                 label: name,
                 value: name,
               })),
+            constraints: [constraints.required("Target project is required")],
           },
         }}
         onSubmit={(data: { project: string }) => {
-          askConfirmation(
+          return askConfirmation(
             `Transferring ${selectedRows.length} feature${
               selectedRows.length > 1 ? "s" : ""
             }  will delete existing local overloads (if any), are you sure ?`,
@@ -570,10 +572,15 @@ function TransferForm(props: {
       <Form
         schema={{
           project: {
+            required: true,
             label: "Target project",
             type: "string",
             format: "select",
-            props: { "aria-label": "projects", styles: customStyles },
+            props: {
+              "aria-label": "projects",
+              styles: customStyles,
+              menuPlacement: "top",
+            },
             options: projectQuery.data?.projects
               ?.filter(({ name }) => name !== project)
               ?.map(({ name }) => ({
@@ -583,27 +590,13 @@ function TransferForm(props: {
           },
         }}
         onSubmit={(data) => {
-          askConfirmation(
+          return askConfirmation(
             "Transferring this feature will delete existing local overloads (if any), are you sure ?",
             () => featureUpdateMutation.mutateAsync(data as any)
           );
         }}
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <div className="d-flex justify-content-end">
-              <button
-                type="button"
-                className="btn btn-danger m-2"
-                onClick={() => cancel()}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-success m-2" onClick={valid}>
-                Transfer feature
-              </button>
-            </div>
-          );
-        }}
+        onClose={() => cancel()}
+        submitText="Transfer feature"
       />
     );
   }

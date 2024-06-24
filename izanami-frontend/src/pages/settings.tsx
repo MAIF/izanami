@@ -22,8 +22,8 @@ import {
 } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { IzanamiContext } from "../securityContext";
-import { Form, constraints } from "@maif/react-forms";
-import { config } from "process";
+import { constraints } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
 
 const MAILER_OPTIONS = [
@@ -47,7 +47,6 @@ export function yupValidationToStringError(
 }
 
 export function Settings() {
-  const { askConfirmation } = useContext(IzanamiContext);
   const [selectedMailer, setSelectedMailer] = useState();
 
   const configurationQuery = useQuery(MutationNames.CONFIGURATION, () =>
@@ -157,15 +156,7 @@ export function Settings() {
                     queryClient.invalidateQueries(MutationNames.CONFIGURATION);
                   });
               }}
-              footer={({ valid }: { valid: () => void }) => {
-                return (
-                  <div className="d-flex justify-content-end">
-                    <button className="btn btn-success m-2" onClick={valid}>
-                      Update settings
-                    </button>
-                  </div>
-                );
-              }}
+              submitText="Update settings"
             />
           </div>
           <div className="col">
@@ -331,6 +322,7 @@ function MailJetForm(props: {
             label: "API key",
             type: "string",
             defaultValue: apiKey,
+            required: true,
             props: {
               autoFocus: true,
             },
@@ -338,19 +330,12 @@ function MailJetForm(props: {
           secret: {
             label: "Secret",
             type: "string",
+            required: true,
             defaultValue: secret,
           },
         }}
         onSubmit={onSubmit}
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <div className="d-flex justify-content-end">
-              <button className="btn btn-success m-2" onClick={valid}>
-                Update MailJet configuration
-              </button>
-            </div>
-          );
-        }}
+        submitText="Update MailJet configuration"
       />
     </>
   );
@@ -370,6 +355,7 @@ function MailGunForm(props: {
             label: "API key",
             type: "string",
             defaultValue: apiKey,
+            required: true,
           },
           region: {
             label: "Region",
@@ -390,15 +376,7 @@ function MailGunForm(props: {
           },
         }}
         onSubmit={onSubmit}
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <div className="d-flex justify-content-end">
-              <button className="btn btn-success m-2" onClick={valid}>
-                Update MailGun configuration
-              </button>
-            </div>
-          );
-        }}
+        submitText="Update MailGun configuration"
       />
     </>
   );
@@ -422,13 +400,15 @@ function SMTPForm(props: {
         schema={{
           host: {
             type: "string",
-            label: "Host*",
+            label: "Host",
             defaultValue: host,
+            required: true,
           },
           port: {
             label: "Port",
             type: "number",
             defaultValue: port || "",
+            required: true,
           },
           user: {
             label: "User",
@@ -457,15 +437,7 @@ function SMTPForm(props: {
           },
         }}
         onSubmit={onSubmit}
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <div className="d-flex justify-content-end">
-              <button className="btn btn-success m-2" onClick={valid}>
-                Update SMTP configuration
-              </button>
-            </div>
-          );
-        }}
+        submitText="Update SMTP configuration"
       />
     </>
   );

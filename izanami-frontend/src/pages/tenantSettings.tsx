@@ -1,4 +1,5 @@
-import { Form, constraints, format, type } from "@maif/react-forms";
+import { constraints, format, type } from "@maif/react-forms";
+import { Form } from "../components/Form";
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -346,11 +347,11 @@ function TenantModification(props: { tenant: TenantType; onDone: () => void }) {
             label: "Tenant name",
             defaultValue: props.tenant.name,
             disabled: true,
+            required: true,
             props: {
               autoFocus: true,
             },
             constraints: [
-              constraints.required("Tenant name is required"),
               constraints.matches(
                 TENANT_NAME_REGEXP,
                 `Password must match regex ${TENANT_NAME_REGEXP.toString()}`
@@ -367,24 +368,8 @@ function TenantModification(props: { tenant: TenantType; onDone: () => void }) {
         onSubmit={(data: any) =>
           updateMutation.mutateAsync(data).then(() => props.onDone())
         }
-        footer={({ valid }: { valid: () => void }) => {
-          return (
-            <>
-              <div className="d-flex justify-content-end">
-                <button
-                  type="button"
-                  className="btn btn-danger m-2"
-                  onClick={() => props.onDone()}
-                >
-                  Cancel
-                </button>
-                <button className="btn btn-success m-2" onClick={valid}>
-                  Update
-                </button>
-              </div>
-            </>
-          );
-        }}
+        onClose={() => props.onDone()}
+        submitText="Update"
       />
     </div>
   );

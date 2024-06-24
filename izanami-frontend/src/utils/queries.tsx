@@ -454,7 +454,6 @@ export function createFeature(
   project: string,
   feature: any
 ): Promise<TCompleteFeature> {
-  console.log("creating", feature);
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/features`, {
       method: "POST",
@@ -470,7 +469,6 @@ export function toCompleteFeature(
   tenant: string,
   feature: TLightFeature
 ): Promise<TCompleteFeature> {
-  console.log("toCompleteFeature", feature);
   if (isLightWasmFeature(feature)) {
     return fetchWasmConfig(tenant, feature.wasmConfig).then((wasmConfig) => {
       return { ...feature, wasmConfig } as WasmFeature;
