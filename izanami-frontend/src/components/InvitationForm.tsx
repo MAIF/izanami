@@ -35,8 +35,6 @@ export function InvitationForm(props: {
     formState: { errors },
   } = methods;
 
-  console.log("errors", errors);
-
   return (
     <FormProvider {...methods}>
       <form
