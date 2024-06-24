@@ -61,6 +61,8 @@ function ProjectList(props: { tenant: TenantType }) {
 
   const { refreshUser } = React.useContext(IzanamiContext);
 
+  const { refreshUser } = React.useContext(IzanamiContext);
+
   const projectCreationMutation = useMutation(
     (data: ProjectInCreationType) => createProject(tenant.name, data),
     {

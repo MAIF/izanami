@@ -83,7 +83,6 @@ export function Menu(props: {
                   onChange={(v) => {
                     selectProject(undefined);
                     selectTenant(v!.value);
-                    selectProject("");
                     navigate(`/tenants/${v!.value}`);
                   }}
                 />
