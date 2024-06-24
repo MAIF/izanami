@@ -251,20 +251,7 @@ export default function Keys(props: { tenant: string }) {
                   })
                   .then(() => setCreating(false));
               }}
-              footer={({ valid }: { valid: () => void }) => (
-                <div className="d-flex justify-content-end mt-3">
-                  <button
-                    type="button"
-                    className="btn btn-danger m-2"
-                    onClick={() => setCreating(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button className="btn btn-success m-2" onClick={valid}>
-                    Save
-                  </button>
-                </div>
-              )}
+              onClose={() => setCreating(false)}
             />
           </div>
         )}
@@ -302,25 +289,8 @@ export default function Keys(props: { tenant: string }) {
                   return (
                     <Form
                       schema={editionSchema(tenant, key)}
-                      footer={({ valid }: { valid: () => void }) => {
-                        return (
-                          <div className="d-flex justify-content-end">
-                            <button
-                              type="button"
-                              className="btn btn-danger m-2"
-                              onClick={() => cancel()}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="btn btn-success m-2"
-                              onClick={valid}
-                            >
-                              Update key
-                            </button>
-                          </div>
-                        );
-                      }}
+                      onClose={() => cancel()}
+                      submitText="Update key"
                       onSubmit={(formResult: any) => {
                         return keyUpdateMutation
                           .mutateAsync({

@@ -13,7 +13,7 @@ export interface TIzanamiContext {
     onCancel?: () => Promise<any>,
     closeButtonText?: string,
     confirmButtonText?: string
-  ) => void;
+  ) => Promise<void>;
   refreshUser: () => void;
   integrations?: {
     wasmo: boolean;
@@ -30,7 +30,7 @@ export const IzanamiContext = React.createContext<TIzanamiContext>({
     /**/
   },
   askConfirmation: () => {
-    /* */
+    return Promise.resolve();
   },
   refreshUser: () => {
     /* */

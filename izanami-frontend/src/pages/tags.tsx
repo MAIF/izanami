@@ -129,20 +129,7 @@ export function Tags(props: { tenant: string }) {
                   .mutateAsync(tag)
                   .then(() => setCreating(false));
               }}
-              footer={({ valid }: { valid: () => void }) => (
-                <div className="d-flex justify-content-end mt-3">
-                  <button
-                    type="button"
-                    className="btn btn-danger m-2"
-                    onClick={() => setCreating(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button className="btn btn-success m-2" onClick={valid}>
-                    Save
-                  </button>
-                </div>
-              )}
+              onClose={() => setCreating(false)}
             />
           </div>
         )}
@@ -288,15 +275,14 @@ export function Tags(props: { tenant: string }) {
                           props: {
                             autoFocus: true,
                           },
+                          required: true,
                           constraints: [
-                            constraints.required("Name is required"),
                             constraints.matches(
                               TAG_NAME_REGEXP,
                               `Key name must match regex ${TAG_NAME_REGEXP.toString()}`
                             ),
                           ],
                         },
-
                         description: {
                           label: "Description",
                           type: type.string,
@@ -304,25 +290,8 @@ export function Tags(props: { tenant: string }) {
                           defaultValue: key?.description || "",
                         },
                       }}
-                      footer={({ valid }: { valid: () => void }) => {
-                        return (
-                          <div className="d-flex justify-content-end">
-                            <button
-                              type="button"
-                              className="btn btn-danger m-2"
-                              onClick={() => cancel()}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="btn btn-success m-2"
-                              onClick={valid}
-                            >
-                              Update tag
-                            </button>
-                          </div>
-                        );
-                      }}
+                      onClose={() => cancel()}
+                      submitText="Update tag"
                       onSubmit={(formResult: any) => {
                         return tagUpdateMutation
                           .mutateAsync({

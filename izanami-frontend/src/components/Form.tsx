@@ -10,12 +10,17 @@ import { MutableRefObject } from "react";
 import { Form as MaifReactForm } from "@maif/react-forms";
 import * as React from "react";
 import { Loader } from "./Loader";
+import { Tooltip } from "./Tooltip";
 
 type FormProps<DataType> = {
   schema: {
-    [key: string]: Omit<SchemaEntry, "label"> & { required?: boolean } & {
-      label?: string;
-    };
+    [key: string]:
+      | SchemaEntry
+      | (Omit<SchemaEntry, "label"> & {
+          required: true;
+          label?: string | (() => string);
+          tooltip?: () => React.ReactNode;
+        });
   };
   flow?: Array<string | FlowObject>;
   value?: DataType;
@@ -29,6 +34,8 @@ type FormProps<DataType> = {
   // specific
   onSubmit: (obj: DataType) => Promise<void>;
   onClose?: () => void;
+  submitText?: string;
+  htmlFor?: string;
 };
 
 export function Form<T extends TBaseObject>(props: FormProps<T>) {
@@ -37,16 +44,32 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
 
   const newSchema = Object.entries(schema ?? {})
     .map(([key, value]) => {
-      if (value.required) {
-        let newLabel = value.label ?? key;
+      if ("required" in value && value.required) {
+        let newLabel;
+        if (typeof value.label === "function") {
+          newLabel = value.label();
+        } else {
+          newLabel = value.label ?? key;
+        }
+
         if (newLabel.slice(-1) !== "*") {
           newLabel = `${newLabel}*`;
+        }
+
+        let finalLabel: string | (() => React.ReactNode) = newLabel;
+        if (value?.tooltip) {
+          finalLabel = () => (
+            <>
+              {newLabel}
+              <Tooltip id={key}>{value.tooltip?.()}</Tooltip>
+            </>
+          );
         }
         return [
           key,
           {
             ...value,
-            label: newLabel,
+            label: finalLabel,
             constraints: [
               ...(value.constraints ?? []),
               constraints.required(`${value.label} is required`),
@@ -64,13 +87,7 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
   return (
     <MaifReactForm
       schema={newSchema}
-      footer={({
-        valid,
-
-        ...rest
-      }: {
-        valid: () => void;
-      }) => {
+      footer={({ valid }: { valid: () => void }) => {
         return (
           <div className="d-flex justify-content-end pt-3">
             {props.onClose && (
@@ -97,7 +114,7 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
               </div>
             ) : (
               <button className="btn btn-success ms-2" onClick={valid}>
-                Save
+                {props.submitText ?? "Save"}
               </button>
             )}
           </div>
