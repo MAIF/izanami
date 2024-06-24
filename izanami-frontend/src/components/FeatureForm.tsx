@@ -904,8 +904,6 @@ export function V2FeatureForm(props: {
     setError,
   } = methods;
 
-  console.log("errors", errors);
-
   React.useEffect(() => {
     if (type === "Existing WASM script") {
       setValue("wasmConfig.source.kind", "Local");

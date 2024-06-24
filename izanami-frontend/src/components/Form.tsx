@@ -1,6 +1,5 @@
 import {
   FlowObject,
-  Schema,
   Option,
   FormRef,
   TBaseObject,

@@ -266,6 +266,7 @@ function ProjectRightLevelModification(props: {
         Right level on project {name} for {username}
       </h3>
       <Select
+        menuPlacement="top"
         styles={customStyles}
         defaultValue={{
           label: level ?? "No rights",
