@@ -110,7 +110,7 @@ export function Users() {
             (tenantName: string) => (
               <div key={`${user.username}-${tenantName}`}>
                 <Link to={`/tenants/${tenantName}`}>
-                  <button className="btn btn-primary btn-sm">
+                  <button className="btn btn-primary btn-sm my-1">
                     <i className="fas fa-cloud me-2" aria-hidden="true"></i>
                     {`${tenantName}`}
                   </button>
