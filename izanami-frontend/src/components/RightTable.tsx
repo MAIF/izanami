@@ -121,6 +121,7 @@ function RightLevelModification(props: {
     <div className="sub_container">
       <h3>{title}</h3>
       <Select
+        menuPlacement="top"
         styles={customStyles}
         defaultValue={{
           label: level ?? "No rights",

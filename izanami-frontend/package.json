@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.1",
+    "@hookform/error-message": "^2.0.1",
     "@maif/react-forms": "1.6.3",
     "@mui/material": "^5.13.6",
     "@tanstack/react-table": "^8.1.3",
