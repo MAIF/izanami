@@ -51,11 +51,9 @@ export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
         { enabled }
       );
     }
-    return useQuery(
-      searchQueryEntities(query),
-      () => searchEntities(user, query),
-      { enabled }
-    );
+    return useQuery(searchQueryEntities(query), () => searchEntities(query), {
+      enabled,
+    });
   };
 
   const {

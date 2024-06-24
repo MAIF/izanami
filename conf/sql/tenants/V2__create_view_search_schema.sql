@@ -27,7 +27,7 @@ FROM
     features
 UNION ALL
 SELECT
-    text 'projects' AS origin_table, id::text as id,  name, ts AS searchable_name, NULL as project, description
+    text 'projects' AS origin_table, id::text as id,  name, ts AS searchable_name, name as project, description
 FROM
     projects
 UNION ALL
