@@ -17,11 +17,12 @@ export function HomePage() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(MutationNames.TENANTS);
+        refreshUser();
       },
     }
   );
 
-  const { user } = React.useContext(IzanamiContext);
+  const { user, refreshUser } = React.useContext(IzanamiContext);
 
   const [creating, setCreating] = React.useState<boolean>(false);
   const navigate = useNavigate();
