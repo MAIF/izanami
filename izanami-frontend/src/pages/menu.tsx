@@ -91,6 +91,7 @@ export function Menu(props: {
                   value={tenant ? { value: tenant, label: tenant } : null}
                   placeholder="Select tenant..."
                   onChange={(v) => {
+                    selectProject(undefined);
                     selectTenant(v!.value);
                     selectProject("");
                     navigate(`/tenants/${v!.value}`);
