@@ -184,7 +184,6 @@ export function WebHooks(props: { tenant: string }) {
                   if (!filterValue || filterValue?.length === 0) {
                     return true;
                   }
-                  console.log("filterValue", filterValue);
                   const featureMatch = Boolean(
                     row.original?.features?.find(({ name }) =>
                       name.includes(filterValue)
@@ -409,8 +408,7 @@ function WebHookCreationForm(props: {
                   <Tooltip id="webhook-name">
                     Name of the webhook.
                     <br />
-                    Use something meaningful, it can be modified without
-                    impact.
+                    Use something meaningful, it can be modified without impact.
                   </Tooltip>
                 </>
               ),
@@ -637,7 +635,8 @@ function WebHookCreationForm(props: {
                 <>
                   Custom body
                   <Tooltip id="webhook-body-format-customization-tooltip">
-                    Allow replacing the built-in webhook call body with a custom body.
+                    Allow replacing the built-in webhook call body with a custom
+                    body.
                   </Tooltip>
                 </>
               ),
@@ -665,14 +664,7 @@ function WebHookCreationForm(props: {
               visible: ({ rawValues: { bodyOverloadedActive } }) =>
                 bodyOverloadedActive,
               label: () => {
-                return (
-                  <>
-                    Body format
-                    <Tooltip id="webhook-body-format">
-                      Customize the call body using a handlebar template.
-                    </Tooltip>
-                  </>
-                );
+                return "";
               },
               type: type.string,
               defaultValue:
