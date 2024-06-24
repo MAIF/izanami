@@ -74,24 +74,25 @@ export function WebhookTransformationEditor(props: {
               marginTop: "8px",
               flexDirection: "column",
             }}
-          >
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{
-                marginRight: "2%",
-                marginLeft: "2%",
-              }}
-              onClick={() => {
-                const compiled = Handlebars.compile(template);
-                const json = JSON.parse(event);
-                setResult(compiled(json));
-              }}
-            >
-              Test the template
-            </button>
-          </div>
+          ></div>
         )}
+        <div className="d-flex flex-column mt-2">
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{
+              marginRight: "2%",
+              marginLeft: "2%",
+            }}
+            onClick={() => {
+              const compiled = Handlebars.compile(template);
+              const json = JSON.parse(event);
+              setResult(compiled(json));
+            }}
+          >
+            Test the template
+          </button>
+        </div>
       </div>
     </>
   );
