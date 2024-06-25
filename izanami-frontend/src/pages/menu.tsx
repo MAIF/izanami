@@ -379,7 +379,9 @@ export function Menu(props: {
               }
             >
               <NavLink
-                to={`/users?tenant=${selectedTenant}`}
+                to={
+                  selectedTenant ? `/users?tenant=${selectedTenant}` : "/users"
+                }
                 onClick={() => hideSidebar()}
               >
                 <i className="ms-2 fas fa-user" aria-hidden></i> Users
@@ -396,7 +398,11 @@ export function Menu(props: {
               }
             >
               <NavLink
-                to={`/settings?tenant=${selectedTenant}`}
+                to={
+                  selectedTenant
+                    ? `/settings?tenant=${selectedTenant}`
+                    : "/settings"
+                }
                 onClick={() => hideSidebar()}
               >
                 <i className="ms-2 fas fa-cog" aria-hidden></i> Global settings
