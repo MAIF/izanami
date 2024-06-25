@@ -61,8 +61,6 @@ function ProjectList(props: { tenant: TenantType }) {
 
   const { refreshUser } = React.useContext(IzanamiContext);
 
-  const { refreshUser } = React.useContext(IzanamiContext);
-
   const projectCreationMutation = useMutation(
     (data: ProjectInCreationType) => createProject(tenant.name, data),
     {
@@ -77,6 +75,7 @@ function ProjectList(props: { tenant: TenantType }) {
   const navigate = useNavigate();
 
   const noProjects = tenant?.projects?.length === 0;
+
   return (
     <>
       <div className="d-flex align-items-center">
