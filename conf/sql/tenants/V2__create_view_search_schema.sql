@@ -37,6 +37,6 @@ FROM
     tags
 UNION ALL
 SELECT
-    text 'apikeys' AS origin_table, clientid as id, name, ts AS searchable_name, NULL as project, description
+    text 'apikeys' AS origin_table, clientid as id, name, ts AS searchable_name, (SELECT project FROM apikeys_projects WHERE apikey=name) as project, description
 FROM
     apikeys;
