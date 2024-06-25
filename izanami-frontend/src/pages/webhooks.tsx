@@ -258,7 +258,7 @@ export function WebHooks(props: { tenant: string }) {
                     tenant={tenant}
                     cancel={() => cancel()}
                     submit={(hook) => {
-                      webhookUpdateMutation
+                      return webhookUpdateMutation
                         .mutateAsync({
                           id: data.id,
                           webhook: {
@@ -385,7 +385,7 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
 function WebHookCreationForm(props: {
   tenant: string;
   cancel: () => void;
-  submit: (data: any) => void;
+  submit: (data: any) => Promise<void>;
   defaultValue?: Webhook;
 }) {
   const tenant = props.tenant;
@@ -684,9 +684,9 @@ function WebHookCreationForm(props: {
           }}
           onSubmit={(webhook: any) => {
             if (webhook.global) {
-              props.submit({ ...webhook, features: [], projects: [] });
+              return props.submit({ ...webhook, features: [], projects: [] });
             } else {
-              props.submit(webhook);
+              return props.submit(webhook);
             }
           }}
           footer={({ valid }: { valid: () => void }) => (

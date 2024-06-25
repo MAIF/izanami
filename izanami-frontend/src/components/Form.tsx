@@ -45,7 +45,7 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
   const newSchema = Object.entries(schema ?? {})
     .map(([key, value]) => {
       if ("required" in value && value.required) {
-        let newLabel;
+        let newLabel: string;
         if (typeof value.label === "function") {
           newLabel = value.label();
         } else {
