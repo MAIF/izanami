@@ -24,8 +24,8 @@ class SearchDatastore(val env: Env) extends Datastore {
           project,
           description,
           ts_rank_cd(searchable_name, websearch_to_tsquery('english', '${query}')) AS rank
-        FROM $tenantName.search_entities
-        WHERE project = ANY (ARRAY[$projectsList]::TEXT[])
+        FROM "$tenantName".search_entities
+        WHERE (project = ANY (ARRAY[$projectsList]::TEXT[]) OR project IS NULL)
           AND searchable_name @@ websearch_to_tsquery('english', '${query}')
       """
       }.mkString(" UNION ALL ") + " ORDER BY rank DESC"

@@ -87,6 +87,15 @@ export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
         return `/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`;
     }
   };
+  const getItemDisplay = (item: SearchResult, searchQuery: string) => {
+    if (item.name.includes(searchQuery)) {
+      return item.name;
+    } else item.description.includes(searchQuery);
+    {
+      return `${item.name} / description : ${item.description}`;
+    }
+  };
+
   const handleItemClick = (item: SearchResult) => {
     const linkPath = getLinkPath(item);
     navigate(linkPath, { state: { item } });
@@ -178,9 +187,7 @@ export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
                                 )} me-2`}
                                 aria-hidden="true"
                               />
-                              {item.name.includes(searchQuery)
-                                ? item.name
-                                : `${item.name} / description : ${item.description}`}
+                              {getItemDisplay(item, searchQuery)}
                             </Link>
                           </li>
                         </ol>
