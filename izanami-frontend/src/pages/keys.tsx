@@ -18,6 +18,7 @@ import { IzanamiContext, useTenantRight } from "../securityContext";
 import { KEY_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 import { useLocation } from "react-router-dom";
+import { ColumnFilter } from "@tanstack/table-core/src/features/ColumnFiltering";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -293,7 +294,11 @@ export default function Keys(props: { tenant: string }) {
             columns={columns}
             data={keyQuery.data}
             idAccessor={(key) => key.name}
-            selectedSearchRow={selectedSearchRow}
+            filters={
+              selectedSearchRow
+                ? [{ id: "name", value: selectedSearchRow }]
+                : []
+            }
             customRowActions={{
               edit: {
                 icon: (

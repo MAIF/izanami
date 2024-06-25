@@ -83,6 +83,8 @@ export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
         return `/tenants/${item.origin_tenant}/projects/${item.project}`;
       case "apikeys":
         return `/tenants/${item.origin_tenant}/keys`;
+      case "projects":
+        return `/tenants/${item.origin_tenant}`;
       default:
         return `/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`;
     }

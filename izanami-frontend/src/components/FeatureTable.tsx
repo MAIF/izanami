@@ -1779,7 +1779,6 @@ export function FeatureTable(props: {
       )}
       <GenericTable
         selectableRows={selectableRows}
-        selectedSearchRow={selectedSearchRow}
         idAccessor={(datum: TLightFeature | TContextOverload) => {
           return datum.name;
         }}
@@ -1792,6 +1791,9 @@ export function FeatureTable(props: {
         }}
         isRowSelectable={(feature) =>
           hasRightForProject(user!, TLevel.Read, feature.project!, tenant!)
+        }
+        filters={
+          selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []
         }
       />
     </div>
