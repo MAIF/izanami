@@ -1771,7 +1771,6 @@ export function FeatureTable(props: {
       )}
       <GenericTable
         selectableRows={selectableRows}
-        selectedSearchRow={selectedSearchRow}
         idAccessor={(datum: TLightFeature | TContextOverload) => {
           return datum.name;
         }}
