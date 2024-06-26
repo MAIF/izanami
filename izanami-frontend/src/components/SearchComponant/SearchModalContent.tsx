@@ -12,7 +12,6 @@ import {
 
 interface ISearchProps {
   tenant?: string;
-  user: string;
   onClose: () => void;
 }
 
@@ -34,7 +33,7 @@ const iconMapping = new Map<string, string>([
   ["users", "fa-user"],
 ]);
 
-export function SearchModalContent({ tenant, user, onClose }: ISearchProps) {
+export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   const [selectedTenant, setSelectedTenant] = useState<string | null>(tenant!);
 
   const [searchQuery, setSearchQuery] = useState<string>("");

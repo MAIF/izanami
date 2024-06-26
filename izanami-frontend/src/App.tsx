@@ -402,6 +402,7 @@ const router = createBrowserRouter([
     element: (
       <div className="d-flex flex-column justify-content-center align-items-center">
         <img
+          alt="Logo Izanami"
           src={Logo}
           style={{
             marginBottom: 48,
@@ -575,7 +576,6 @@ function Layout() {
       {/*Add Search Modal*/}
       <SearchModal
         tenant={tenant!}
-        user={user.username}
         isOpenModal={isOpenModal}
         onClose={() => setIsOpenModal(false)}
       />
@@ -729,7 +729,7 @@ export class App extends Component {
   render() {
     const callback = this.state.confirmation?.callback;
     const modalProps = {
-      visible: this.state.confirmation ? true : false,
+      visible: !!this.state.confirmation,
       onClose: () => {
         this.state.confirmation?.onCancel?.();
         this.setState({ confirmation: undefined });
