@@ -480,6 +480,42 @@ export interface Webhook {
   global: boolean;
 }
 
+export interface LightWebhook {
+  name: string;
+  description: string;
+  url: string;
+  features: string[];
+  projects: string[];
+  context: string;
+  user: string;
+  headers: { [x: string]: string };
+  enabled: boolean;
+  bodyTemplate?: string;
+  global: boolean;
+}
+
+export interface Webhook {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  context: string;
+  user: string;
+  features: {
+    id: string;
+    name: string;
+    project: string;
+  }[];
+  projects: {
+    name: string;
+    id: string;
+  }[];
+  headers: { [x: string]: string };
+  enabled: boolean;
+  bodyTemplate?: string;
+  global: boolean;
+}
+
 export interface SearchEntityResponse {
   id: string;
   origin_table: string;

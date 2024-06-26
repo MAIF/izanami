@@ -31,24 +31,22 @@ export function Menu(props: {
   let { tenant, project } = props;
   const [selectedTenant, selectTenant] = React.useState<string | undefined>();
   const [selectedProject, selectProject] = React.useState<string | undefined>();
-  let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
-  const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
-  const { user } = React.useContext(IzanamiContext);
   const tenantsQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
   const navigate = useNavigate();
   const isAdmin = useAdmin();
-  let projects;
-
-  if (
-    matchPath({ path: "/home" }, props?.location?.pathname || "") &&
-    selectedTenant
-  ) {
-    selectTenant(undefined);
-  } else if (!tenant && user && selectedTenant) {
-    tenant = selectedTenant;
-  } else if (tenant && user && !selectedTenant) {
-    selectTenant(tenant);
-  }
+  let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
+  const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
+  const { user } = React.useContext(IzanamiContext);
+  React.useEffect(() => {
+    if (
+      matchPath({ path: "/home" }, props?.location?.pathname || "") &&
+      selectedTenant
+    ) {
+      selectTenant(undefined);
+    } else if (tenant && user && !selectedTenant) {
+      selectTenant(tenant);
+    }
+  }, [selectedTenant, tenant, user, props?.location?.pathname]);
 
   const tenantQuery = useQuery(
     tenantQueryKey(tenant!),
@@ -58,6 +56,7 @@ export function Menu(props: {
 
   if (tenantsQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
+    let projects;
     if (tenantQuery.isSuccess) {
       projects = tenantQuery.data?.projects;
       project = project ?? selectedProject;
@@ -83,7 +82,6 @@ export function Menu(props: {
                   onChange={(v) => {
                     selectProject(undefined);
                     selectTenant(v!.value);
-                    selectProject("");
                     navigate(`/tenants/${v!.value}`);
                   }}
                 />
@@ -380,7 +378,12 @@ export function Menu(props: {
                   : "inactive"
               }
             >
-              <NavLink to={`/users`} onClick={() => hideSidebar()}>
+              <NavLink
+                to={
+                  selectedTenant ? `/users?tenant=${selectedTenant}` : "/users"
+                }
+                onClick={() => hideSidebar()}
+              >
                 <i className="ms-2 fas fa-user" aria-hidden></i> Users
               </NavLink>
             </li>
@@ -394,7 +397,14 @@ export function Menu(props: {
                   : "inactive"
               }
             >
-              <NavLink to={`/settings`} onClick={() => hideSidebar()}>
+              <NavLink
+                to={
+                  selectedTenant
+                    ? `/settings?tenant=${selectedTenant}`
+                    : "/settings"
+                }
+                onClick={() => hideSidebar()}
+              >
                 <i className="ms-2 fas fa-cog" aria-hidden></i> Global settings
               </NavLink>
             </li>

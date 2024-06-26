@@ -12,7 +12,7 @@ import { Loader } from "../components/Loader";
 
 export function HomePage() {
   const [creating, setCreating] = React.useState<boolean>(false);
-  const { user } = React.useContext(IzanamiContext);
+  const { user, refreshUser } = React.useContext(IzanamiContext);
   const navigate = useNavigate();
   const isAdmin = useAdmin();
   const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
@@ -21,6 +21,7 @@ export function HomePage() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(MutationNames.TENANTS);
+        refreshUser();
       },
     }
   );

@@ -1378,8 +1378,8 @@ export function FeatureDetails({ feature }: { feature: TLightFeature }) {
 export function FeatureTable(props: {
   features: TLightFeature[];
   fields: FeatureFields[];
-  selectedSearchRow?: string;
   actions: (t: TLightFeature) => FeatureActionNames[];
+  selectedSearchRow?: string;
   refresh: () => any;
 }) {
   const { tenant } = useParams();
