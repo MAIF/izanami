@@ -50,11 +50,6 @@ export function Menu(props: {
     selectTenant(tenant);
   }
 
-  if (tenant && user) {
-    isTenantAdmin =
-      isAdmin || findTenantRight(user?.rights, tenant) === TLevel.Admin;
-  }
-
   const tenantQuery = useQuery(
     tenantQueryKey(tenant!),
     () => queryTenant(tenant!),

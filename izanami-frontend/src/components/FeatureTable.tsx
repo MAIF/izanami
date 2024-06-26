@@ -1378,7 +1378,7 @@ export function FeatureDetails({ feature }: { feature: TLightFeature }) {
 export function FeatureTable(props: {
   features: TLightFeature[];
   fields: FeatureFields[];
-  selectedSearchRow: string;
+  selectedSearchRow?: string;
   actions: (t: TLightFeature) => FeatureActionNames[];
   refresh: () => any;
 }) {
