@@ -22,7 +22,7 @@ import { FeatureSelector } from "../components/FeatureSelector";
 import { ProjectSelector } from "../components/ProjectSelector";
 import { LightWebhook, TLevel, Webhook } from "../utils/types";
 import { GenericTable } from "../components/GenericTable";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import {
   IzanamiContext,
   hasRightForWebhook,
@@ -175,10 +175,9 @@ export function WebHooks(props: { tenant: string }) {
                 size: 25,
               },
               {
-                header: () => "Scope",
+                header: () => "Features / projects",
                 id: "scope",
                 minSize: 200,
-                accessorKey: "features",
                 size: 25,
                 filterFn: (
                   row: Row<Webhook>,
@@ -215,28 +214,27 @@ export function WebHooks(props: { tenant: string }) {
                   ) : (
                     <>
                       {projects.map(({ name, id }) => (
-                        <div key={id}>
-                          <NavLink
-                            className="white-link"
-                            to={`/tenants/${tenant}/projects/${name}`}
-                          >
-                            <i className="fas fa-building" aria-hidden />
-                            &nbsp;
-                            {name}
-                          </NavLink>
+                        <div key={id} className="mt-1">
+                          <Link to={`/tenants/${tenant}/projects/${name}`}>
+                            <button className="btn btn-sm btn-primary mr-0">
+                              <i className="fas fa-building" aria-hidden />{" "}
+                              {name}
+                            </button>
+                          </Link>
                         </div>
                       ))}
                       {features.map(({ project, name, id }) => (
-                        <div key={id}>
-                          {name} (
-                          <NavLink
-                            className="white-link"
-                            to={`/tenants/${tenant}/projects/${project}`}
-                          >
-                            <i className="fas fa-building" aria-hidden />
-                            &nbsp;{project}
-                          </NavLink>
-                          )
+                        <div key={id} className="mt-1">
+                          <Link to={`/tenants/${tenant}/projects/${project}`}>
+                            <button
+                              className="btn btn-sm btn-primary"
+                              style={{ marginRight: 0 }}
+                            >
+                              {name}&nbsp; (
+                              <i className="fas fa-building" aria-hidden />{" "}
+                              {project})
+                            </button>
+                          </Link>
                         </div>
                       ))}
                     </>
