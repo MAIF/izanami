@@ -11,30 +11,42 @@ import io.vertx.sqlclient.Row
 import scala.concurrent.Future
 
 class SearchDatastore(val env: Env) extends Datastore {
-  def searchEntities(tenants: Map[String, TenantRight], query: String): Future[Either[IzanamiError, List[SearchEntity]]] = {
+  def searchEntities(
+      tenants: Map[String, TenantRight],
+      query: String
+  ): Future[Either[IzanamiError, List[SearchEntity]]] = {
     val unionQueries = tenants
       .map { case (tenantName, tenantRight) =>
         val projectsList = tenantRight.projects.keys.map(p => s"'$p'").mkString(", ")
+        val webhooksList = tenantRight.webhooks.keys.map(p => s"'$p'").mkString(", ")
+        val apikeysList = tenantRight.keys.keys.map(p => s"'$p'").mkString(", ")
         s"""
-        SELECT
-          origin_table,
-          id,
-          name,
-          '$tenantName'::TEXT AS origin_tenant,
-          project,
-          description,
-          ts_rank_cd(searchable_name, websearch_to_tsquery('english', '${query}')) AS rank
-        FROM "$tenantName".search_entities
-        WHERE (project = ANY (ARRAY[$projectsList]::TEXT[]) OR project IS NULL)
-          AND searchable_name @@ websearch_to_tsquery('english', '${query}')
-      """
+           |SELECT
+           |  origin_table,
+           |  id,
+           |  name,
+           |  '$tenantName'::TEXT AS origin_tenant,
+           |  project,
+           |  description,
+           |  ts_rank_cd(searchable_name, websearch_to_tsquery('english', '$query')) AS rank
+           |FROM "$tenantName".search_entities
+           |WHERE (
+           |  (project = ANY (ARRAY[$projectsList]::TEXT[]) AND origin_table IN ('projects', 'features'))
+           |  OR (origin_table='webhooks' AND name = ANY (ARRAY[$webhooksList]::TEXT[]))
+           |  OR (origin_table='apikeys' AND name = ANY (ARRAY[$apikeysList]::TEXT[]))
+           |  OR (origin_table='tags' AND project IS NULL)
+           |)
+           |AND searchable_name @@ websearch_to_tsquery('english', '$query')
+        """.stripMargin
       }.mkString(" UNION ALL ") + " ORDER BY rank DESC"
 
-    env.postgresql.queryAll(unionQueries.stripMargin) { r => r.optSearchEntity() }.map{entities => Right (entities)}
+    env.postgresql
+      .queryAll(unionQueries) { r => r.optSearchEntity() }
+      .map { entities => Right(entities) }
       .recover { case ex =>
-      logger.error("Error while searching entities", ex)
-      Right(List.empty[SearchEntity])
-    }
+        logger.error("Error while searching entities", ex)
+        Right(List.empty[SearchEntity])
+      }
 
   }
 }

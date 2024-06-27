@@ -60,7 +60,6 @@ function ProjectList(props: { tenant: TenantType }) {
   }, [location?.state?.item]);
 
   const { refreshUser } = React.useContext(IzanamiContext);
-  console.log("selectedProject", selectedProject);
   const projectCreationMutation = useMutation(
     (data: ProjectInCreationType) => createProject(tenant.name, data),
     {

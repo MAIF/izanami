@@ -31,6 +31,7 @@ const iconMapping = new Map<string, string>([
   ["tags", "fa-tag"],
   ["tenants", "fa-cloud"],
   ["users", "fa-user"],
+  ["webhooks", "fa-plug"],
 ]);
 
 export function SearchModalContent({ tenant, onClose }: ISearchProps) {
@@ -75,13 +76,14 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     SearchItems,
     (item: SearchResult) => item.origin_table
   );
-
   const getLinkPath = (item: SearchResult) => {
     switch (item.origin_table) {
       case "features":
         return `/tenants/${item.origin_tenant}/projects/${item.project}`;
       case "apikeys":
         return `/tenants/${item.origin_tenant}/keys`;
+      case "webhooks":
+        return `/tenants/${item.origin_tenant}/webhooks`;
       case "projects":
         return `/tenants/${item.origin_tenant}`;
       default:
@@ -89,12 +91,10 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     }
   };
   const getItemDisplay = (item: SearchResult, searchQuery: string) => {
-    if (item.name.includes(searchQuery)) {
+    if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return item.name;
-    } else item.description.includes(searchQuery);
-    {
-      return `${item.name} / description : ${item.description}`;
     }
+    return `${item.name} / description : ${item.description}`;
   };
 
   const handleItemClick = (item: SearchResult) => {
