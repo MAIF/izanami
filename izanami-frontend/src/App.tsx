@@ -203,7 +203,7 @@ const router = createBrowserRouter([
         handle: {
           crumb: () => (
             <NavLink className={() => ""} to={`/profile`}>
-              Profile
+              <i className="fa fa-user"></i> Profile
             </NavLink>
           ),
         },
