@@ -87,7 +87,7 @@ export function TenantSettings(props: { tenant: string }) {
           Tenant users
           <button
             type="button"
-            className="btn btn-primary btn-sm mb-2 ms-3"
+            className="btn btn-secondary btn-sm mb-2 ms-3"
             onClick={() => setInviting(true)}
           >
             Invite new users
@@ -154,7 +154,7 @@ export function TenantSettings(props: { tenant: string }) {
         <h2>Import data from V1</h2>
         {!v1ImportDisplayed ? (
           <button
-            className="btn btn-primary"
+            className="btn btn-secondary"
             type="button"
             onClick={() => setV1ImportDisplayed(true)}
           >
@@ -667,7 +667,7 @@ function IzanamiV1ImportForm(props: {
               </div>
             ) : (
               <>
-                <button type="submit" className="btn btn-success m-2">
+                <button type="submit" className="btn btn-primary m-2">
                   Import
                 </button>
               </>

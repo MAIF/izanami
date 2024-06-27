@@ -52,7 +52,7 @@ export function Modal(props: {
             <div className="modal-footer">
               <button
                 type="button"
-                className="btn btn-danger"
+                className={`btn ${!closeButtonText && !onConfirm ? 'btn-danger' : 'btn-danger-light'}`}
                 data-bs-dismiss="modal"
                 onClick={() => onClose()}
               >
@@ -65,7 +65,7 @@ export function Modal(props: {
               {onConfirm && (
                 <button
                   type="button"
-                  className="btn btn-success"
+                  className="btn btn-primary"
                   onClick={onConfirm}
                 >
                   {confirmButtonText ? confirmButtonText : "Confirm"}

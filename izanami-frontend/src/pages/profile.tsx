@@ -89,7 +89,7 @@ export function Profile() {
           {!isOIDC && !informationEdition && (
             <button
               type="button"
-              className="btn btn-primary my-2 btn-sm"
+              className="btn btn-secondary my-2 btn-sm"
               onClick={() => setInformationEdition(true)}
             >
               Update informations
@@ -114,7 +114,7 @@ export function Profile() {
           {!isOIDC && !passwordEdition && (
             <button
               type="button"
-              className="btn btn-primary my-2 btn-sm"
+              className="btn btn-secondary my-2 btn-sm"
               onClick={() => setPasswordEdition(true)}
             >
               Update password
