@@ -66,7 +66,7 @@ export function Tag(prop: { tag: string; tenant: string }) {
 
           {creationRight && (
             <button
-              className="btn btn-primary btn-sm mb-2 ms-3"
+              className="btn btn-secondary btn-sm mb-2 ms-3"
               type="button"
               onClick={() => setCreating(true)}
             >

@@ -88,7 +88,7 @@ export function ForgottenPassword() {
                             <button className="btn btn-danger">Cancel</button>
                           </NavLink>
                           <button
-                            className="btn btn-success ms-2"
+                            className="btn btn-primary ms-2"
                             onClick={valid}
                           >
                             Reset password

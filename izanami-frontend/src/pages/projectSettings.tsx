@@ -63,7 +63,7 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
           Project users{" "}
           <button
             type="button"
-            className="btn btn-primary btn-sm mb-2 ms-3"
+            className="btn btn-secondary btn-sm mb-2 ms-3"
             onClick={() => setInviting(true)}
           >
             Invite new users
@@ -290,7 +290,7 @@ function ProjectRightLevelModification(props: {
           Cancel
         </button>
         <button
-          className="btn btn-success m-2"
+          className="btn btn-primary m-2"
           onClick={() => submit({ username }, { level: newLevel })}
         >
           Save

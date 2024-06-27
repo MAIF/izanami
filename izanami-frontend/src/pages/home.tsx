@@ -41,7 +41,7 @@ export function HomePage() {
           {isAdmin && !empty && !creating && (
             <button
               type="button"
-              className="btn btn-primary btn-sm mb-2 ms-3"
+              className="btn btn-secondary btn-sm mb-2 ms-3"
               onClick={() => setCreating(true)}
             >
               Create new tenant
@@ -58,7 +58,7 @@ export function HomePage() {
                   </div>
                   <button
                     type="button"
-                    className="btn btn-primary btn-lg"
+                    className="btn btn-secondary btn-lg"
                     onClick={() => setCreating(true)}
                   >
                     Create new tenant

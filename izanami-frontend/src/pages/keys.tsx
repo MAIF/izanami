@@ -388,7 +388,7 @@ function KeyModal(props: {
           />
           <div className="ms-2 input-group-append">
             <button
-              className="btn btn-primary"
+              className="btn btn-secondary"
               type="button"
               onClick={() => {
                 navigator.clipboard.writeText(secret!);

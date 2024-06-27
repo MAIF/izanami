@@ -341,7 +341,7 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
         <h4>
           Authorized users for {webhook.name}
           <button
-            className="btn btn-primary btn-sm ms-3"
+            className="btn btn-secondary btn-sm ms-3"
             type="button"
             onClick={() => setCreating(true)}
           >
@@ -691,12 +691,12 @@ function WebHookCreationForm(props: {
             <div className="d-flex justify-content-end mt-3">
               <button
                 type="button"
-                className="btn btn-danger m-2"
+                className="btn btn-danger-light m-2"
                 onClick={() => props.cancel()}
               >
                 Cancel
               </button>
-              <button className="btn btn-success m-2" onClick={valid}>
+              <button className="btn btn-primary m-2" onClick={valid}>
                 Save
               </button>
             </div>

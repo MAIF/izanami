@@ -124,7 +124,7 @@ export function OverloadCreationForm(props: {
             >
               Cancel
             </button>
-            <button className="btn btn-success m-2">Save</button>
+            <button className="btn btn-primary m-2">Save</button>
           </div>
         </form>
       </FormProvider>

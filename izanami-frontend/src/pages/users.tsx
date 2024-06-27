@@ -109,14 +109,15 @@ export function Users() {
           const user = props.row.original!;
           return Object.keys(user?.tenantRights || {}).map(
             (tenantName: string) => (
-              <div key={`${user.username}-${tenantName}`}>
-                <Link to={`/tenants/${tenantName}`}>
-                  <button className="btn btn-primary btn-sm my-1">
-                    <i className="fas fa-cloud me-2" aria-hidden="true"></i>
-                    {`${tenantName}`}
-                  </button>
-                </Link>
-              </div>
+              <Link
+                to={`/tenants/${tenantName}`}
+                key={`${user.username}-${tenantName}`}
+              >
+                <button className="btn btn-secondary btn-sm my-1">
+                  <i className="fas fa-cloud me-2" aria-hidden="true"></i>
+                  {`${tenantName}`}
+                </button>
+              </Link>
             )
           );
         },
@@ -148,7 +149,7 @@ export function Users() {
           <h1>Users</h1>
           {(isAdmin || isTenantAdmin) && (
             <button
-              className="btn btn-primary btn-sm mb-2 ms-3"
+              className="btn btn-secondary btn-sm mb-2 ms-3"
               type="button"
               onClick={() => setCreating(true)}
             >

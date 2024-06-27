@@ -83,7 +83,7 @@ export function FeatureContexts(props: {
           <h1>Contexts</h1>
           {modificationRight && !creating && contextQuery.data.length > 0 && (
             <button
-              className="btn btn-primary btn-sm mb-2 ms-3"
+              className="btn btn-secondary btn-sm mb-2 ms-3"
               type="button"
               onClick={() => setCreating(true)}
             >
@@ -270,7 +270,25 @@ function FeatureContextTree(props: {
                             },
                           },
                         }}
-                        onClose={() => cancel()}
+                        footer={({ valid }: { valid: () => void }) => {
+                          return (
+                            <div className="d-flex justify-content-end">
+                              <button
+                                type="button"
+                                className="btn btn-danger-light m-2"
+                                onClick={() => cancel()}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="btn btn-primary m-2"
+                                onClick={valid}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          );
+                        }}
                         onSubmit={({ name }) =>
                           createSubContextCallback(
                             `${path}/${ctx.name}`,

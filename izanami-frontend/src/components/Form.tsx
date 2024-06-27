@@ -93,7 +93,7 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
             {props.onClose && (
               <button
                 type="button"
-                className="btn btn-danger"
+                className="btn btn-danger-light m-2"
                 onClick={() => props?.onClose?.()}
               >
                 Cancel
@@ -113,7 +113,7 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
                 </div>
               </div>
             ) : (
-              <button className="btn btn-success ms-2" onClick={valid}>
+              <button className="btn btn-primary m-2" onClick={valid}>
                 {props.submitText ?? "Save"}
               </button>
             )}

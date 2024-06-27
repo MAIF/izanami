@@ -144,7 +144,7 @@ function RightLevelModification(props: {
           Cancel
         </button>
         <button
-          className="btn btn-success m-2"
+          className="btn btn-primary m-2"
           onClick={() => submit(newLevel)}
         >
           Save

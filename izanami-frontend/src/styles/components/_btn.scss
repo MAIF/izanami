@@ -49,8 +49,29 @@
     border-bottom-right-radius: 4px;
   }
 }
-
 .btn-primary {
+  color: #fff;
+  border: 1px solid;
+  border-color: var(--color-primary);
+  &:hover,
+  &.active,
+  &.active:hover {
+    color: #fff;
+    border: 1px solid;
+    border-color: var(--color-primary);
+    background-color: var(--color-primary);
+  }
+
+  &:disabled,
+  &.disabled {
+    color: #fff;
+    border: 1px solid;
+    border-color: var(--color-primary);
+    background-color: transparent;
+  }
+}
+
+.btn-secondary {
   color: #fff;
   border: 1px solid;
   border-color: var(--color-blue);
@@ -84,38 +105,50 @@
   }
 }
 
-.btn-success {
+.btn-danger-light {
   color: #fff;
-  border: 1px solid;
-  border-color: var(--color-green);
+  border: none;
+  border-color:none;
   &:hover {
     color: #fff;
-    border: 1px solid;
-    border-color: var(--color-green);
-    background-color: var(--color-green);
-  }
-  // &[disabled] {
-  //   color: $color-dark-1;
-  //   text-shadow: none;
-  //   background-color: transparent;
-  //   border-color: var(--color-green);
-  // }
-  &.disabled {
-    color: $color-dark-1;
-    text-shadow: none;
-    background-color: transparent;
-    border-color: $color-dark-1;
-  }
-  &.active {
-    background: var(--color-green) !important;
+    border:none;
+    border-color: var(--color-red);
+    background-color: var(--color-red);
   }
 }
+
+// .btn-primary {
+//   color: #fff;
+//   border: 1px solid;
+//   border-color: var(--color-green);
+//   &:hover {
+//     color: #fff;
+//     border: 1px solid;
+//     border-color: var(--color-green);
+//     background-color: var(--color-green);
+//   }
+//   // &[disabled] {
+//   //   color: $color-dark-1;
+//   //   text-shadow: none;
+//   //   background-color: transparent;
+//   //   border-color: var(--color-green);
+//   // }
+//   &.disabled {
+//     color: $color-dark-1;
+//     text-shadow: none;
+//     background-color: transparent;
+//     border-color: $color-dark-1;
+//   }
+//   &.active {
+//     background: var(--color-green) !important;
+//   }
+// }
 
 .input-group-btn.crud {
   .btn:disabled {
     cursor: not-allowed;
   }
-  .btn-success:not(.active) {
+  .btn-primary:not(.active) {
     background: none;
   }
 }
