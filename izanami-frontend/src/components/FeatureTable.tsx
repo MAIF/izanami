@@ -650,7 +650,7 @@ export function CopyButton(props: { value: any; title?: any }) {
 
   return (
     <button
-      className="btn btn-secondary"
+      className="btn btn-secondary btn-sm"
       onClick={() => {
         navigator.clipboard.writeText(value);
         if (timeRef.current) {
@@ -665,23 +665,23 @@ export function CopyButton(props: { value: any; title?: any }) {
     >
       {validCheckMark && idCheckMark === value ? (
         <>
-          <div className="row justify-content-center">
+          <>
             <i
               aria-label="copy feature id"
-              className="bi bi-clipboard"
+              className="bi bi-clipboard me-2"
               data-tooltip-id="copy_id"
               data-tooltip-content="Copied to clipboard !"
               data-tooltip-place="top"
             ></i>
             {title ? title : ""}
             <Tooltip id="copy_id" isOpen={validCheckMark} />
-          </div>
+          </>
         </>
       ) : (
-        <div className="row justify-content-center">
-          <i className="bi bi-clipboard" aria-label="copy feature id"></i>
+        <>
+          <i className="bi bi-clipboard me-2" aria-label="copy feature id"></i>
           {title ? title : ""}
-        </div>
+        </>
       )}
     </button>
   );
