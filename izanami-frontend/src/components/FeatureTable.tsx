@@ -668,7 +668,9 @@ export function CopyButton(props: { value: any; title?: any }) {
           <>
             <i
               aria-label="copy feature id"
-              className="bi bi-clipboard me-2"
+              className={`${
+                title ? "bi bi-clipboard me-2" : "bi bi-clipboard"
+              }`}
               data-tooltip-id="copy_id"
               data-tooltip-content="Copied to clipboard !"
               data-tooltip-place="top"
@@ -679,7 +681,10 @@ export function CopyButton(props: { value: any; title?: any }) {
         </>
       ) : (
         <>
-          <i className="bi bi-clipboard me-2" aria-label="copy feature id"></i>
+          <i
+            className={`${title ? "bi bi-clipboard me-2" : "bi bi-clipboard"}`}
+            aria-label="copy feature id"
+          ></i>
           {title ? title : ""}
         </>
       )}
