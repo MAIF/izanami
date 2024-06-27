@@ -275,6 +275,7 @@ function loadWasmManagerScripts() {
   })
     .then((r) => r.json())
     .then((plugins) => {
+      console.log("plugins", plugins);
       return (
         plugins
           .map(
@@ -286,6 +287,7 @@ function loadWasmManagerScripts() {
           .flat()
           // FIXME TS
           .map((plugin: any) => {
+            console.log("plugin", plugin);
             const wasmName = (isAString(plugin) ? plugin : plugin.name) || "";
             const parts = wasmName.split(".wasm");
             return {

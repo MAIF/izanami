@@ -1,6 +1,6 @@
 export default [
-  require("/home/runner/work/izanami/izanami/manual/node_modules/infima/dist/css/default/default.css"),
-  require("/home/runner/work/izanami/izanami/manual/node_modules/@docusaurus/theme-classic/lib/prism-include-languages"),
-  require("/home/runner/work/izanami/izanami/manual/node_modules/@docusaurus/theme-classic/lib/nprogress"),
-  require("/home/runner/work/izanami/izanami/manual/src/css/custom.css"),
+  require("/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/infima/dist/css/default/default.css"),
+  require("/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/@docusaurus/theme-classic/lib/prism-include-languages"),
+  require("/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/@docusaurus/theme-classic/lib/nprogress"),
+  require("/Users/77199M/workspace/oss/izanami-v2/manual/src/css/custom.css"),
 ];

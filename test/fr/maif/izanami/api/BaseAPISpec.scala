@@ -499,6 +499,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     val response = await(ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects").withCookies(cookies: _*).get())
     RequestResult(json = Try { response.json }, status = response.status)
   }
+  def fetchSearchEntities(searchQuery: String,  cookies: Seq[WSCookie] = Seq()): RequestResult ={
+    val response = await(ws.url(s"${ADMIN_BASE_URL}/search?query=${searchQuery}").withCookies(cookies: _*).get())
+    RequestResult(json = Try { response.json }, status = response.status)
+  }
 
   def updateFeature(tenant: String, id: String, json: JsValue, cookies: Seq[WSCookie] = Seq()): RequestResult = {
     val response = await(
@@ -2079,6 +2083,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     def fetchProjects(tenant: String): RequestResult = {
       BaseAPISpec.this.fetchProjects(tenant, cookies)
+    }
+
+    def fetchSearchEntities (searchQuery: String): RequestResult = {
+      BaseAPISpec.this.fetchSearchEntities(searchQuery, cookies)
     }
 
     def evaluateFeaturesAsLoggedInUser(

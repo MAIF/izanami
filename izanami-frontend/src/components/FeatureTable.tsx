@@ -57,7 +57,7 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
-import { Form } from "../components/Form";
+import { Form } from "./Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
 import { constraints } from "@maif/react-forms";
@@ -1384,10 +1384,11 @@ export function FeatureTable(props: {
   features: TLightFeature[];
   fields: FeatureFields[];
   actions: (t: TLightFeature) => FeatureActionNames[];
+  selectedSearchRow?: string;
   refresh: () => any;
 }) {
   const { tenant } = useParams();
-  const { fields, features, actions, refresh } = props;
+  const { fields, features, actions, refresh, selectedSearchRow } = props;
   const [selectedRows, setSelectedRows] = useState<TLightFeature[]>([]);
 
   const columns: ColumnDef<TLightFeature>[] = [];
@@ -1787,6 +1788,9 @@ export function FeatureTable(props: {
         }}
         isRowSelectable={(feature) =>
           hasRightForProject(user!, TLevel.Read, feature.project!, tenant!)
+        }
+        filters={
+          selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []
         }
       />
     </div>

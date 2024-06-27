@@ -4,6 +4,7 @@ import React, {
   FunctionComponent,
   useContext,
   useEffect,
+  useState,
 } from "react";
 
 import {
@@ -62,6 +63,7 @@ import { Swagger } from "./pages/swagger";
 import { Tags } from "./pages/tags";
 import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
+import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 
 function Wrapper({
@@ -400,6 +402,7 @@ const router = createBrowserRouter([
     element: (
       <div className="d-flex flex-column justify-content-center align-items-center">
         <img
+          alt="Logo Izanami"
           src={Logo}
           style={{
             marginBottom: 48,
@@ -433,6 +436,8 @@ function RedirectToFirstTenant(): JSX.Element {
 function Layout() {
   const { user, setUser, logout, expositionUrl } = useContext(IzanamiContext);
   const loading = !user?.username || !expositionUrl;
+  const [isOpenModal, setIsOpenModal] = useState(false);
+  const { tenant } = useParams();
   useEffect(() => {
     if (!user?.username) {
       fetch("/api/admin/users/rights")
@@ -441,6 +446,20 @@ function Layout() {
         .catch(console.error);
     }
   }, [user?.username]);
+
+  //Handle command k to show Search Modal
+  useEffect(() => {
+    const open = (e: any) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setIsOpenModal(true);
+      }
+    };
+    window.addEventListener("keydown", open);
+    return () => {
+      window.removeEventListener("keydown", open);
+    };
+  }, []);
 
   if (loading) {
     return <Loader message="Loading..." />;
@@ -471,9 +490,26 @@ function Layout() {
             </button>
           </div>
           <ul className="navbar-nav ms-auto">
+            <li className="me-2 d-flex align-items-center justify-content-end my-1">
+              <button
+                className="btn btn-secondary"
+                id="btnSearch"
+                type="button"
+                onClick={() => setIsOpenModal(true)}
+              >
+                <span className="fa fa-search"></span>
+                <span className="text-searchbutton d-none d-md-inline">
+                  Type to search ...
+                </span>
+                <span className="span-kbd-searchbutton  d-none d-md-inline">
+                  <kbd className="kbd-searchbutton">⌘</kbd>
+                  <kbd className="kbd-searchbutton">K</kbd>
+                </span>
+              </button>
+            </li>
             <li
               onClick={() => switchLightMode()}
-              className="me-2 d-flex align-items-center justify-content-end my-2"
+              className="me-2 d-flex align-items-center justify-content-end my-1"
             >
               <i
                 id="lightMode"
@@ -481,7 +517,7 @@ function Layout() {
                 style={{ color: "var(--color_level2)", cursor: "pointer" }}
               />
             </li>
-            <li className="nav-item dropdown userManagement me-2">
+            <li className="nav-item dropdown userManagement d-flex align-items-center align-items-center m-2">
               <a
                 className="nav-link"
                 href="#"
@@ -537,6 +573,12 @@ function Layout() {
           <Outlet />
         </main>
       </div>
+      {/*Add Search Modal*/}
+      <SearchModal
+        tenant={tenant!}
+        isOpenModal={isOpenModal}
+        onClose={() => setIsOpenModal(false)}
+      />
     </div>
   );
 }
@@ -687,7 +729,7 @@ export class App extends Component {
   render() {
     const callback = this.state.confirmation?.callback;
     const modalProps = {
-      visible: this.state.confirmation ? true : false,
+      visible: !!this.state.confirmation,
       onClose: () => {
         this.state.confirmation?.onCancel?.();
         this.setState({ confirmation: undefined });
