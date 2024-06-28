@@ -1,27 +1,27 @@
 
 ALTER TABLE projects ADD COLUMN ts tsvector GENERATED ALWAYS AS (
-	SETWEIGHT(to_tsvector('simple', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('simple', description), 'B') :: tsvector
+	SETWEIGHT(to_tsvector('english', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('english', description), 'B') :: tsvector
 ) STORED;
 CREATE INDEX ts_idx_project ON projects USING GIN (ts);
 
 ALTER TABLE features ADD COLUMN ts tsvector GENERATED ALWAYS AS (
-    SETWEIGHT(to_tsvector('simple', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('simple', description), 'B') :: tsvector
+    SETWEIGHT(to_tsvector('english', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('english', description), 'B') :: tsvector
 ) STORED;
 CREATE INDEX ts_idx_features ON features USING GIN (ts);
 
 ALTER TABLE tags ADD COLUMN ts tsvector GENERATED ALWAYS AS (
-    SETWEIGHT(to_tsvector('simple', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('simple', description), 'B') :: tsvector
+    SETWEIGHT(to_tsvector('english', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('english', description), 'B') :: tsvector
 ) STORED;
 CREATE INDEX ts_idx_tags ON tags USING GIN (ts);
 
 ALTER TABLE apikeys ADD COLUMN ts tsvector GENERATED ALWAYS AS (
-    SETWEIGHT(to_tsvector('simple', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('simple', description), 'B') :: tsvector
+    SETWEIGHT(to_tsvector('english', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('english', description), 'B') :: tsvector
 ) STORED;
 
 CREATE INDEX ts_idx_apiKeys ON apikeys USING GIN (ts);
 
 ALTER TABLE webhooks ADD COLUMN ts tsvector GENERATED ALWAYS AS (
-    SETWEIGHT(to_tsvector('simple', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('simple', description), 'B') :: tsvector
+    SETWEIGHT(to_tsvector('english', name), 'A') || ' ' ||  SETWEIGHT(to_tsvector('english', description), 'B') :: tsvector
 ) STORED;
 
 CREATE INDEX ts_idx_webhooks ON webhooks USING GIN (ts);
