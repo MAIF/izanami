@@ -268,7 +268,10 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
 
   React.useEffect(() => {
     if (selectableRows) {
-      const rows = table.getSelectedRowModel().rows.map((r) => r.original);
+      const rows = table
+        .getSelectedRowModel()
+        .rows.map((r) => r.original)
+        .filter((r) => isRowSelectable && isRowSelectable(r));
       onRowSelectionChange?.(rows as any);
     }
   }, [rowSelection]);
