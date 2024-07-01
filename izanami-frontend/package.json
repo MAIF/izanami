@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.1",
+    "@fortawesome/fontawesome-free": "^6.6.0",
     "@hookform/error-message": "^2.0.1",
     "@maif/react-forms": "1.6.3",
     "@mui/material": "^5.13.6",
@@ -18,7 +19,7 @@
     "@textea/json-viewer": "^3.1.1",
     "@uiw/react-codemirror": "^4.22.1",
     "@xiechao/codemirror-lang-handlebars": "^1.0.4",
-    "bootstrap": "^5.0.0",
+    "bootstrap": "5.2.0",
     "bootstrap-icons": "^1.8.2",
     "classnames": "^2.3.0",
     "date-fns": "^2.28.0",

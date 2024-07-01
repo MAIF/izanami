@@ -499,7 +499,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     val response = await(ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects").withCookies(cookies: _*).get())
     RequestResult(json = Try { response.json }, status = response.status)
   }
-  def fetchSearchEntities(searchQuery: String,  cookies: Seq[WSCookie] = Seq()): RequestResult ={
+  def fetchSearchEntities(searchQuery: String, cookies: Seq[WSCookie] = Seq()): RequestResult = {
     val response = await(ws.url(s"${ADMIN_BASE_URL}/search?query=${searchQuery}").withCookies(cookies: _*).get())
     RequestResult(json = Try { response.json }, status = response.status)
   }
@@ -2085,7 +2085,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       BaseAPISpec.this.fetchProjects(tenant, cookies)
     }
 
-    def fetchSearchEntities (searchQuery: String): RequestResult = {
+    def fetchSearchEntities(searchQuery: String): RequestResult = {
       BaseAPISpec.this.fetchSearchEntities(searchQuery, cookies)
     }
 
@@ -2644,7 +2644,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
       val response = await(
         ws.url(
-          s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?timezone=${timezone}&conflict=${conflictStrategy}&deduceProject=${deduceProject}${Option(project)
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=1&timezone=${timezone}&conflict=${conflictStrategy}&deduceProject=${deduceProject}${Option(project)
             .map(p => s"&project=${p}")
             .getOrElse("")}${projectPartSize.map(p => s"&projectPartSize=${p}").getOrElse("")}&inlineScript=${inlineScript}"
         ).withCookies(cookies: _*)
