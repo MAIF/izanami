@@ -1471,6 +1471,9 @@ export function FeatureTable(props: {
                 <button
                   className="top-10 translate-middle badge rounded-pill bg-primary-outline"
                   role="button"
+                  aria-label={`${maybeContexts.length} Overload${
+                    maybeContexts.length > 1 ? "s" : ""
+                  }`}
                   data-tooltip-id="paste_url"
                   data-tooltip-content="Overloads"
                   data-tooltip-place="top"
@@ -1482,7 +1485,6 @@ export function FeatureTable(props: {
                 >
                   <Tooltip id="paste_url" />
                   {maybeContexts.length}
-                  <span className="visually-hidden">Overloads</span>
                 </button>
               </div>
             );

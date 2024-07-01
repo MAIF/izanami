@@ -1,7 +1,8 @@
 package fr.maif.izanami.errors
 
+import fr.maif.izanami.models.ExportedType
 import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, NOT_FOUND, UNAUTHORIZED}
-import play.api.libs.json.{Json, Writes}
+import play.api.libs.json.{JsObject, Json, Writes}
 import play.api.mvc.{Result, Results}
 
 import java.util.Objects
@@ -39,7 +40,7 @@ case class MissingFeatureFields()
     extends IzanamiError(message = "Some fields are missing for feature object", status = BAD_REQUEST)
 case class FeatureNotFound(id: String)
     extends IzanamiError(message = s"Feature ${id} does not exists", status = NOT_FOUND)
-case class KeyNotFound(name: String) extends IzanamiError(message = s"Key ${name} does not exists", status = NOT_FOUND)
+case class KeyNotFound(name: String)                                     extends IzanamiError(message = s"Key ${name} does not exists", status = NOT_FOUND)
 case class ProjectContextOrFeatureDoesNotExist(project: String, context: String, feature: String)
     extends IzanamiError(
       message = s"Project ${project}, context ${context} or feature ${feature} does not exist",
@@ -124,9 +125,30 @@ case class WebhookCreationFailed(
 case class WebhookDoesNotExists(id: String)
     extends IzanamiError(message = s"No webhook with id $id", status = NOT_FOUND)
 
-case class WebhookCallError(callStatus: Int, body: Option[String], hookName: String) extends IzanamiError(message = s"Webhook $hookName call failed with status $callStatus and response body ${body.getOrElse("No body")}", status = callStatus)
-case class EventNotFound(tenant: String, event: Long) extends IzanamiError(message = s"Event $event not found", status = 500)
-case class WebhookRetryCountExceeded() extends IzanamiError(message = s"Exceeded webhook retry count", status = 500)
+case class WebhookCallError(callStatus: Int, body: Option[String], hookName: String)
+    extends IzanamiError(
+      message = s"Webhook $hookName call failed with status $callStatus and response body ${body.getOrElse("No body")}",
+      status = callStatus
+    )
+case class EventNotFound(tenant: String, event: Long)
+    extends IzanamiError(message = s"Event $event not found", status = 500)
+case class WebhookRetryCountExceeded()                     extends IzanamiError(message = s"Exceeded webhook retry count", status = 500)
+case class TableDoesNotExist(tenant: String, table: String)
+    extends IzanamiError(message = s"Table $table does not exist for tenant $tenant", status = 500)
+case class ConflictingName(tenant: String, entityTpe: String, row: JsObject)
+    extends IzanamiError(
+      message =
+        s"An entity of type $entityTpe already exists in tenant $tenant with the same unique values but with different id. Row is ${row
+          .toString()}",
+      status = 400
+    )
+case class GenericBadRequest(override val message: String) extends IzanamiError(message = message, status = 400)
+case class PartialImportFailure(failedElements: Map[ExportedType, Seq[JsObject]]) extends IzanamiError(message= s"Some element couldn't be imported", status = 400)
+case class ImportError(table: String, json: String, errorMessage: String)
+    extends IzanamiError(
+      message = s"Error key while inserting into table $table with error $errorMessage values $json : ",
+      status = 400
+    )
 object IzanamiError {
   implicit val errorWrite: Writes[IzanamiError] = { err =>
     Json.obj(

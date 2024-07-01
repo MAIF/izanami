@@ -98,10 +98,12 @@ function redirectToLoginIfNotAuthenticated({
 let mode = "";
 
 function setupLightMode() {
-  mode = window.localStorage.getItem("izanami-dark-light-mode");
-  if (!mode) {
+  const maybeMode = window.localStorage.getItem("izanami-dark-light-mode");
+  if (!maybeMode) {
     mode = "dark";
     window.localStorage.setItem("izanami-dark-light-mode", mode);
+  } else {
+    mode = maybeMode;
   }
   applyLightMode();
 }

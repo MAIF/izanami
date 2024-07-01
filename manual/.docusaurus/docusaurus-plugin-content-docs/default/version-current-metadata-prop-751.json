@@ -156,6 +156,13 @@
             "href": "/izanami/docs/guides/webhooks",
             "docId": "guides/webhooks",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Data transfer",
+            "href": "/izanami/docs/guides/transfer-data",
+            "docId": "guides/transfer-data",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/guides/"
@@ -314,6 +321,12 @@
       "id": "guides/remote-script",
       "title": "Remote script features",
       "description": "To use remote script feature (in opposition to local script features, that we've seen previously), you'll need to instantiate WASMO in alongside Izanami.",
+      "sidebar": "tutorialSidebar"
+    },
+    "guides/transfer-data": {
+      "id": "guides/transfer-data",
+      "title": "Data transfer",
+      "description": "This page covers features available only from 2.5.0",
       "sidebar": "tutorialSidebar"
     },
     "guides/user-invitation": {
