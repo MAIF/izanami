@@ -90,6 +90,7 @@ class IzanamiComponentsInstances(
   lazy val eventController          = wire[EventController]
   lazy val webhookController        = wire[WebhookController]
   lazy val frontendController       = wire[FrontendController]
+  lazy val exportController         = wire[ExportController]
 
   override lazy val assets: Assets = wire[Assets]
   lazy val router: Router = {

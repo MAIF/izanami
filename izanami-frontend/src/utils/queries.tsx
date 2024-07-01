@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import {
   Configuration,
   isLightWasmFeature,
+  IzanamiTenantExportRequest,
   IzanamiV1ImportRequest,
   LightWebhook,
   Mailer,
@@ -104,6 +105,28 @@ export function projectUserQueryKey(tenant: string, project: string) {
 
 export function webhookUserQueryKey(tenant: string, webhook: string) {
   return `USERS-${tenant}-${webhook}`;
+}
+
+export function requestExport(
+  tenant: string,
+  exportRequest: IzanamiTenantExportRequest
+) {
+  fetch(`/api/admin/tenants/${tenant}/_export`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(exportRequest),
+  })
+    .then((resp) => resp.blob())
+    .then((blob) => {
+      const objectUrl = URL.createObjectURL(blob);
+      const link: HTMLAnchorElement = document.createElement("a");
+      link.href = objectUrl;
+      link.download = "export.ndjson"; // the default filename when the user saves the file
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+    });
 }
 
 export function queryTenantUsers(tenant: string): Promise<

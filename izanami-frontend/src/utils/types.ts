@@ -480,3 +480,12 @@ export interface Webhook {
   bodyTemplate?: string;
   global: boolean;
 }
+
+export type IzanamiTenantExportRequest = {
+  allProjects: boolean;
+  allKeys: boolean;
+  allWebhooks: boolean;
+  projects?: string[];
+  keys?: string[];
+  webhooks?: string[];
+};

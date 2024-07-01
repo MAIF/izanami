@@ -33,6 +33,7 @@ class Datastores(env: Env) {
   val configuration: ConfigurationDatastore   = new ConfigurationDatastore(env)
   val webhook: WebhooksDatastore   = new WebhooksDatastore(env)
   val stats: StatsDatastore   = new StatsDatastore(env)
+  val exportDatastore: ExportDatastore = new ExportDatastore(env)
 
   def onStart(): Future[Unit] = {
     for {

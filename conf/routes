@@ -105,6 +105,8 @@ GET           /api/admin/tenants/:tenant/webhooks/:id/users                     
 PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights                      fr.maif.izanami.web.UserController.updateUserRightsForWebhook(tenant: String, webhook: String, user: String)
 
 
+POST          /api/admin/tenants/:tenant/_export                                                  fr.maif.izanami.web.ExportController.exportTenantData(tenant: String)
+
 # Client application endpoints
 GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
 POST          /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
