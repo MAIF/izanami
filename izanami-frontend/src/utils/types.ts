@@ -481,6 +481,21 @@ export interface Webhook {
   global: boolean;
 }
 
+export type IzanamiTenantExportRequest = {
+  allProjects: boolean;
+  allKeys: boolean;
+  allWebhooks: boolean;
+  projects?: string[];
+  keys?: string[];
+  webhooks?: string[];
+  userRights: boolean;
+};
+
+export type ImportRequest = {
+  file: FileList;
+  conflictStrategy: string;
+};
+
 export interface LightWebhook {
   name: string;
   description: string;

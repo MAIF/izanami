@@ -90,7 +90,7 @@ PUT           /api/admin/tenants/:tenant/local-scripts/:script                  
 DELETE        /api/admin/local-scripts/_cache                                                      fr.maif.izanami.web.PluginController.clearWasmCache()
 DELETE        /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.deleteScript(tenant: String, script: String)
 
-POST          /api/admin/tenants/:tenant/_import                                                   fr.maif.izanami.web.ImportController.importData(tenant: String, conflict: String, timezone: String, deduceProject: Boolean, create: Option[Boolean], project: Option[String], projectPartSize: Option[Int], inlineScript: Option[Boolean])
+POST          /api/admin/tenants/:tenant/_import                                                   fr.maif.izanami.web.ImportController.importData(version: Int, tenant: String, conflict: String, timezone: Option[String], deduceProject: Boolean ?= false, create: Option[Boolean], project: Option[String], projectPartSize: Option[Int], inlineScript: Option[Boolean])
 GET           /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.readImportStatus(tenant: String, id: String)
 DELETE        /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.deleteImportStatus(tenant: String, id: String)
 
@@ -107,6 +107,9 @@ PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights   
 # Search application endpoints
 GET           /api/admin/search                                                                    fr.maif.izanami.web.SearchController.search(query: String)
 GET           /api/admin/tenants/:tenant/search                                                    fr.maif.izanami.web.SearchController.searchForTenant(tenant: String, query: String)
+
+POST          /api/admin/tenants/:tenant/_export                                                  fr.maif.izanami.web.ExportController.exportTenantData(tenant: String)
+
 
 # Client application endpoints
 GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)

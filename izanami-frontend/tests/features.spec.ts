@@ -12,8 +12,21 @@ test.use({
 });
 
 async function featureAction(page: Page, name: string) {
-  await page.getByLabel("actions").click();
-  await page.getByRole("link", { name: name }).click({ force: true });
+  const dropdownLocator = page.getByLabel("actions");
+  const locator = page.getByRole("link", { name: name, exact: true });
+
+  await dropdownLocator.click();
+  try {
+    await locator.waitFor();
+  } catch {
+    try {
+      await dropdownLocator.click();
+      await locator.waitFor();
+    } catch {
+      await dropdownLocator.click();
+    }
+  }
+  await locator.click({ force: true });
 }
 
 test.describe("Project screen should", () => {

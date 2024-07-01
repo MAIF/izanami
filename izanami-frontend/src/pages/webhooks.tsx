@@ -36,6 +36,7 @@ import { InvitationForm } from "../components/InvitationForm";
 import { WebhookTransformationEditor } from "../components/Editor";
 import Handlebars from "handlebars";
 import { Row } from "@tanstack/react-table";
+import { ObjectInput } from "../components/ObjectInput";
 
 export function WebHooks(props: { tenant: string }) {
   const [searchParams] = useSearchParams();
@@ -491,7 +492,7 @@ function WebHookCreationForm(props: {
               array: true,
               render: ({ value, onChange }) => {
                 return (
-                  <Headers
+                  <ObjectInput
                     value={value}
                     onChange={(newArray) => {
                       onChange?.(newArray);
@@ -714,83 +715,4 @@ function WebHookCreationForm(props: {
   } else {
     return <Loader message="Loading projects..." />;
   }
-}
-
-function Headers(props: {
-  value: { name: string; value: string }[];
-  onChange: (newValue: { name: string; value: string }[]) => void;
-}) {
-  const arr = props.value;
-  return (
-    <div className="container-fluid row-gap-3">
-      {arr.length > 0 && (
-        <div className="row my-1">
-          <label className="col-6 col-lg-3">Header name</label>
-          <label className="col">Header value</label>
-        </div>
-      )}
-      {arr.map(({ name, value }, index) => (
-        <div className="row my-1" key={`header-${index}`}>
-          <div className="col-6 col-lg-3">
-            <input
-              aria-label={`header-${index}-name`}
-              className="form-control"
-              value={name}
-              onChange={(e) => {
-                const v = e.target.value;
-                props.onChange([
-                  ...arr
-                    .slice(0, index)
-                    .concat([{ name: v, value }])
-                    .concat(arr.slice(index + 1)),
-                ]);
-              }}
-            />
-          </div>
-          <div className="col">
-            <input
-              className="form-control"
-              aria-label={`header-${index}-value`}
-              value={value}
-              onChange={(e) => {
-                const v = e.target.value;
-                props.onChange([
-                  ...arr
-                    .slice(0, index)
-                    .concat([{ name, value: v }])
-                    .concat(arr.slice(index + 1)),
-                ]);
-              }}
-            />
-          </div>
-          <div className="col-1 d-flex justify-content-end">
-            <button
-              className="btn btn-danger"
-              type="button"
-              onClick={() => {
-                props.onChange([
-                  ...arr.slice(0, index).concat(arr.slice(index + 1)),
-                ]);
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      ))}
-      <div className="row justify-content-end mt-3">
-        <div className="col-auto">
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => {
-              props.onChange([...arr, { name: "", value: "" }]);
-            }}
-          >
-            Add header
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }

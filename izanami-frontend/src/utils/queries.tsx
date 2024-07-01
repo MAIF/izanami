@@ -1,7 +1,9 @@
 import { format } from "date-fns";
 import {
   Configuration,
+  ImportRequest,
   isLightWasmFeature,
+  IzanamiTenantExportRequest,
   IzanamiV1ImportRequest,
   LightWebhook,
   Mailer,
@@ -105,6 +107,49 @@ export function projectUserQueryKey(tenant: string, project: string) {
 
 export function webhookUserQueryKey(tenant: string, webhook: string) {
   return `USERS-${tenant}-${webhook}`;
+}
+
+export function importData(
+  tenant: string,
+  importRequest: ImportRequest
+): Promise<object[]> {
+  const data = new FormData();
+  data.append("export", importRequest.file.item(0)!);
+  return fetch(
+    `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}`,
+    {
+      method: "POST",
+      body: data,
+    }
+  ).then((resp) => {
+    if (resp.status >= 400) {
+      return resp.json();
+    } else {
+      return null;
+    }
+  });
+}
+
+export function requestExport(
+  tenant: string,
+  exportRequest: IzanamiTenantExportRequest
+) {
+  return fetch(`/api/admin/tenants/${tenant}/_export`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(exportRequest),
+  })
+    .then((resp) => resp.blob())
+    .then((blob) => {
+      const objectUrl = URL.createObjectURL(blob);
+      const link: HTMLAnchorElement = document.createElement("a");
+      link.href = objectUrl;
+      link.download = "export.ndjson"; // the default filename when the user saves the file
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+    });
 }
 
 export function queryTenantUsers(tenant: string): Promise<
@@ -970,7 +1015,7 @@ export function handleFetchJsonResponse(
   return _handleFetchResponse(request, (response) => response.json());
 }
 
-function handleFetchWithoutResponse(
+export function handleFetchWithoutResponse(
   request: Promise<Response>
 ): Promise<undefined> {
   return _handleFetchResponse(request, () => Promise.resolve(undefined));

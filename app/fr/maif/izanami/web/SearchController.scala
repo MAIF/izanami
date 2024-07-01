@@ -112,7 +112,7 @@ class SearchController(
 
                 // We look for shortes local context parent, since before him all contexts will be global
                 env.datastores.featureContext
-                  .findLocalContexts(tenant, generateParentCandidates(parts.drop(1)).map(s => s"${project}_${s}"))
+                  .findLocalContexts(tenant, generateParentCandidates(parts.toSeq.drop(1)).map(s => s"${project}_${s}"))
                   .map(ctxs => {
                     val parentLocalContext      = ctxs.sortBy(_.length).headOption
                     val parts: Seq[PathElement] = parentLocalContext
@@ -120,7 +120,7 @@ class SearchController(
                         val shortestLocalContextParts = lc.split("_")
                         val parentLocalContextName    = shortestLocalContextParts.last
                         val globalContextParts        =
-                          generateParentCandidates(shortestLocalContextParts.dropRight(1).drop(1))
+                          generateParentCandidates(shortestLocalContextParts.toSeq.dropRight(1).drop(1))
                             .map(name => GlobalContextPathElement(name))
                             .toSeq
                             .appended(ProjectPathElement(project))

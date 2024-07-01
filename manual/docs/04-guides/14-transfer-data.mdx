@@ -1,0 +1,61 @@
+---
+title: Data transfer
+---
+
+import { Note } from "@site/src/components/Note";
+import exportButton from "@site/static/img/screenshots/export-import-v2/export-button-hover.png";
+import exportForm from "@site/static/img/screenshots/export-import-v2/export-form.png";
+import importedProject from "@site/static/img/screenshots/export-import-v2/imported-project.png";
+import importButton from "@site/static/img/screenshots/export-import-v2/import-button-hover.png";
+import importForm from "@site/static/img/screenshots/export-import-v2/import-form.png";
+
+<Note>This page covers features available only from 2.5.0</Note>
+
+Izanami allows you to export and import data from one instance to another.
+
+<Note>
+  To import data from an Izanami v1 instance, check [this
+  page](./import-from-v1)
+</Note>
+
+## Exporting data
+
+Izanami allows to export data at tenant scope, you'll need admin right on tenant to export data.
+Go to tenant setting page and click "Export data" button.
+
+<img src={exportButton} />
+
+You can either export everything from the tenant, or choose only some projects / webhooks / apikeys.
+
+<Note>
+  By default, Izanami won't export users rights, since some users may be missing
+  on target instance, which could fail your import completely when using "fail"
+  conflict startegy "see below". You can however check "Include user rights" if
+  your users are the same on both instance or if you don't care about a few
+  importing error (with skip / overwrite startegy, Izanami will import whatever
+  it can).
+</Note>
+
+<img src={exportForm} />
+
+After clicking "Export" button, data will be downloaded in an ndjson file.
+
+## Importing data
+
+Once you've got your ndjson file, you can transfer your data to another Izanami instance.
+
+To do so, go to target tenant setting page on your other Izanami instance, and click "Import data" button.
+
+<img src={importButton} />
+
+Indicate exported file in form, and choose a conflict handling strategy:
+
+- Fail : will fail and import nothing on conflict / error (for instance in case of missing user)
+- Skip : Izanami will import everything that can be without conflict, and skip the rest
+- Overwrite : Izanami will attempt to update conflicting elements with ndjson file data.
+
+<img src={importForm} />
+
+Once import is finished, browse your tenant to see imported data.
+
+<img src={importedProject} />

@@ -1,10 +1,5 @@
 import { openActions, screenshotBuilder, setup } from "./utils";
-import {
-  testBuilder,
-  testFeature,
-  testTenant,
-  testproject,
-} from "../testBuilder";
+import { testBuilder, testTenant } from "../testBuilder";
 
 export async function generate() {
   const { page, browser } = await setup(true);
