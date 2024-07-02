@@ -275,7 +275,7 @@ export function WebHooks(props: { tenant: string }) {
               rights: {
                 icon: (
                   <>
-                    <i className="fa-solid fa-lock"></i> Rights
+                    <i className="fa-solid fa-lock" aria-hidden></i> Rights
                   </>
                 ),
                 hasRight: (user, webhook) =>
