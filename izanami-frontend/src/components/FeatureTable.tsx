@@ -1725,7 +1725,12 @@ export function FeatureTable(props: {
         return actions(feature).includes("url");
       },
       action: (feature: TLightFeature) =>
-        askConfirmation(<FeatureUrl tenant={tenant!} feature={feature} />),
+        askConfirmation(
+          <FeatureUrl tenant={tenant!} feature={feature} />,
+          () => Promise.resolve(),
+          () => Promise.resolve(),
+          "Close"
+        ),
     },
   };
 

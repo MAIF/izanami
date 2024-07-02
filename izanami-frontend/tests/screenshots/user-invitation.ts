@@ -55,7 +55,7 @@ export async function generate() {
   await newPage.goto(url);
 
   await newPage.getByLabel("Username").fill(`foobar`);
-  await newPage.getByLabel("Password", { exact: true }).fill(`foobarbar`);
+  await newPage.getByLabel("Password*", { exact: true }).fill(`foobarbar`);
   await newPage.getByLabel("Confirm password").fill("foobarbar");
   const userCreationLocator = newPage.getByRole("button", {
     name: "Create user",

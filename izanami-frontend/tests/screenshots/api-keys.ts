@@ -29,7 +29,7 @@ export async function generate() {
   await screenshot("key-empty-form");
   await page.getByRole("button", { name: "Create new key" }).click();
 
-  await page.getByLabel("Name", { exact: true }).fill("website-key");
+  await page.getByLabel("Name*", { exact: true }).fill("website-key");
   await page
     .locator("div")
     .filter({ hasText: /^Enabled$/ })

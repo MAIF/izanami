@@ -59,7 +59,7 @@ export async function generate() {
   await screenshot("key-screen");
   await page.getByRole("button", { name: "Create new key" }).click();
 
-  await page.getByLabel("Name", { exact: true }).fill("test-key");
+  await page.getByLabel("Name*", { exact: true }).fill("test-key");
 
   await page.locator(".react-form-select__input-container").click();
   await page.getByText("demo-project", { exact: true }).click();
