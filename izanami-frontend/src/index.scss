@@ -73,7 +73,7 @@ main a.white-link:focus {
 
 input,
 textarea {
-  color: $color-dark-1 !important;
+  color: var(--color_level3) !important;
   border-color: $color-dark-6 !important;
   border-radius: 4px;
   border: none;
@@ -82,7 +82,7 @@ textarea {
 input:not([role="combobox"]):not([type="checkbox"]),
 textarea {
   /* buggy on react-select */
-  background-color: var(--bg-color_level3);
+  background-color:  var(--bg-color_level3);
 }
 
 ::placeholder {

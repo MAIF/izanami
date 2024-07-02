@@ -15,12 +15,12 @@ export const customStyles: object = {
           : isSelected
           ? "var(--bg-color_level1)  !important"
           : isFocused
-          ? "red !important"
+          ? "var(--bg-color_level1) !important"
           : null,
         color: isSelected
           ? "var(--color_level1) !important"
           : isFocused
-          ? "#FFF !important"
+          ? "var(--color_level1) !important"
           : "8C8C8B !important",
       };
     } else {
@@ -34,9 +34,9 @@ export const customStyles: object = {
           ? "var(--bg-color_level2)  !important"
           : null,
         color: isSelected
-          ? "#FFF !important"
+          ? "var(--color_level1) !important"
           : isFocused
-          ? "#FFF !important"
+          ? "var(--color_level1) !important"
           : "8C8C8B !important",
       };
     }
@@ -46,13 +46,13 @@ export const customStyles: object = {
   control: (styles: object) => ({
     ...styles,
     backgroundColor: "var(--bg-color_level3) !important",
-    color: "#FFF !important",
+    color: "var(--color_level3) !important",
     border: "none",
   }),
   menu: (styles: object) => ({
     ...styles,
     backgroundColor: "var(--bg-color_level3) !important",
-    color: "#FFF !important",
+    color: "var(--color_level3) !important",
     zIndex: 110,
     border: "1px solid #545452",
   }),
@@ -66,7 +66,7 @@ export const customStyles: object = {
   }),
   singleValue: (provided: object) => ({
     ...provided,
-    color: "#FFF !important",
+    color: "var(--color_level3) !important",
     backgroundColor: null,
   }),
   multiValue: (styles: object) => {
