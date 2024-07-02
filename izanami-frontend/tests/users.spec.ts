@@ -36,7 +36,7 @@ test("User invitation flow should work", async ({
   await page1.goto(url);
   await page1.getByLabel("Username").fill(`foobar${browserName}`);
   await page1
-    .getByLabel("Password", { exact: true })
+    .getByLabel("Password*", { exact: true })
     .fill(`foobarbar${browserName}`);
   await page1.getByLabel("Confirm password").fill("foobarbar");
   await page1.getByRole("button", { name: "Create user" }).click();
