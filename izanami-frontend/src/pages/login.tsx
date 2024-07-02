@@ -53,12 +53,31 @@ function TokenWaitScreen({ code }: { code: string }) {
   }
 }
 
+
 function LoginForm(props: { req?: string }) {
   const navigate = useNavigate();
   const req = props.req;
   const { setUser, integrations, expositionUrl } = useContext(IzanamiContext);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [lightMode, setLightMode] = useState<boolean>(false)  
+  
+  React.useEffect(() => {
+    let mode = window.localStorage.getItem("izanami-dark-light-mode");
+    setLightMode(mode !== "dark");
+    if (mode === "light") {document.documentElement.setAttribute("data-theme", "light")}
+  },[])
+
+  const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setLightMode(event.target.checked);
+    if (lightMode) {
+      document.documentElement.setAttribute("data-theme", "dark")
+      window.localStorage.setItem("izanami-dark-light-mode", "dark");
+    }else{
+      document.documentElement.setAttribute("data-theme", "light");
+      window.localStorage.setItem("izanami-dark-light-mode", "light");
+    }
+  };
 
   return (
     <div className="d-flex flex-column justify-content-center align-items-center">
@@ -176,6 +195,25 @@ function LoginForm(props: { req?: string }) {
                 </button>
               </>
             )}
+            <div className="d-flex align-items-center justify-content-center mt-3">
+              <i className="fa fa-moon" />
+              <div className="form-check form-switch mx-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id="flexSwitchCheckChecked"
+                  checked={lightMode}
+                  onChange={handleCheckboxChange}
+                />
+                <label
+                  className="form-check-label"
+                  htmlFor="flexSwitchCheckChecked"
+                >
+                </label>
+              </div>
+                  <i className="fa fa-lightbulb" />
+            </div>
           </>
         )}
       </form>
