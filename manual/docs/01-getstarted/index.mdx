@@ -57,7 +57,7 @@ services:
     ports:
       - 5432:5432
   izanami:
-    image: maif/izanami:2.3.0
+    image: maif/izanami:2.4.0
     environment:
       IZANAMI_PG_URI: postgresql://postgres:postgres@host.docker.internal:5432/postgres
     ports:
