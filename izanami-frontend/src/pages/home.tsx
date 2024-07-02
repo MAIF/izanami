@@ -35,7 +35,7 @@ export function HomePage() {
     }
     const empty = !creating && tenantQuery.data.length === 0;
     return (
-      <>
+      <div className="container">
         <div className="d-flex align-items-center">
           <h1>Welcome to Izanami</h1>
           {isAdmin && !empty && !creating && (
@@ -58,7 +58,7 @@ export function HomePage() {
                   </div>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-lg"
+                    className="btn btn-primary btn-lg"
                     onClick={() => setCreating(true)}
                   >
                     Create new tenant
@@ -109,7 +109,7 @@ export function HomePage() {
             ))}
           </div>
         </div>
-      </>
+      </div>
     );
   } else if (tenantQuery.isLoading) {
     return <Loader message="Loading tenants ..." />;

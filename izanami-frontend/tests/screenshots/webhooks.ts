@@ -50,9 +50,9 @@ export async function generate() {
   await page.getByLabel("Handlebar template").click();
   await screenshot("webhook-handlebar-form");
   await page
-    .getByRole("button", { name: "Test template" })
+    .getByRole("button", { name: "Test the template" })
     .scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: "Test template" }).click();
+  await page.getByRole("button", { name: "Test the template" }).click();
   await screenshot("webhook-completed-form");
   await page.getByRole("button", { name: "Save" }).click();
 
