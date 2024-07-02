@@ -76,7 +76,7 @@ function editionSchema(tenant: string, key?: TKey) {
 
 export default function Keys(props: { tenant: string }) {
   const location = useLocation();
-  const selectedSearchRow = location?.state?.item.name;
+  const selectedSearchRow = location?.state?.name;
   const { tenant } = props;
   const [secret, setSecret] = React.useState<string | undefined>(undefined);
   const [clientid, setClientId] = React.useState<string | undefined>(undefined);

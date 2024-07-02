@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ChangeEvent } from "react";
+import React, { useState } from "react";
 import { useDebounce } from "./useDebounce";
 import { Link, useNavigate } from "react-router-dom";
 import { groupBy } from "lodash";
@@ -33,13 +33,22 @@ const iconMapping = new Map<string, string>([
   ["users", "fa-user"],
   ["webhooks", "fa-plug"],
 ]);
-
+const getLinkPath = (item: SearchResult) => {
+  switch (item.origin_table) {
+    case "features":
+      return `/tenants/${item.origin_tenant}/projects/${item.project}`;
+    case "apikeys":
+      return `/tenants/${item.origin_tenant}/keys`;
+    case "webhooks":
+      return `/tenants/${item.origin_tenant}/webhooks`;
+    default:
+      return `/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`;
+  }
+};
 export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   const [selectedTenant, setSelectedTenant] = useState<string | null>(tenant!);
-
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showDocuments, setShowDocuments] = useState<boolean>(false);
-  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const navigate = useNavigate();
 
   const useSearchEntitiesByTenant = (query: string, selectedTenant: string) => {
@@ -61,50 +70,23 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     isLoading,
     isSuccess,
     isError,
-  } = useSearchEntitiesByTenant(debouncedSearchQuery, selectedTenant!);
-
-  const handleSearchInput = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
-    setShowDocuments(false);
-  };
-
-  useEffect(() => {
-    setShowDocuments(debouncedSearchQuery.trim() !== "");
-  }, [debouncedSearchQuery]);
+  } = useSearchEntitiesByTenant(
+    useDebounce(searchQuery, 500).trim(),
+    selectedTenant!
+  );
 
   const groupedItems = groupBy(
     SearchItems,
     (item: SearchResult) => item.origin_table
   );
-  const getLinkPath = (item: SearchResult) => {
-    switch (item.origin_table) {
-      case "features":
-        return `/tenants/${item.origin_tenant}/projects/${item.project}`;
-      case "apikeys":
-        return `/tenants/${item.origin_tenant}/keys`;
-      case "webhooks":
-        return `/tenants/${item.origin_tenant}/webhooks`;
-      case "projects":
-        return `/tenants/${item.origin_tenant}`;
-      default:
-        return `/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`;
-    }
-  };
-  const getItemDisplay = (item: SearchResult, searchQuery: string) => {
-    if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return item.name;
-    }
-    return `${item.name} / description : ${item.description}`;
-  };
 
   const handleItemClick = (item: SearchResult) => {
     const linkPath = getLinkPath(item);
-    navigate(linkPath, { state: { item } });
+    navigate(
+      { pathname: linkPath },
+      { state: { name: item.origin_table !== "projects" ? item.name : null } }
+    );
     onClose();
-  };
-
-  const handleTenantClick = (tenant: string) => {
-    setSelectedTenant(tenant);
   };
 
   return (
@@ -116,7 +98,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
           aria-label="Tenant selection"
         >
           <button
-            onClick={() => handleTenantClick("all")}
+            onClick={() => setSelectedTenant("all")}
             className={`btn ${
               selectedTenant === "all" ? "btn-primary" : "btn-secondary"
             }`}
@@ -127,14 +109,15 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
           </button>
 
           <button
-            onClick={() => handleTenantClick(tenant)}
+            onClick={() => setSelectedTenant(tenant)}
             className={`btn ${
               selectedTenant === tenant ? "btn-primary" : "btn-secondary"
             }`}
             value={tenant}
             aria-pressed={selectedTenant === tenant}
           >
-            {tenant}
+            <span className="fas fa-cloud" aria-hidden></span>
+            <span> {tenant}</span>
           </button>
         </div>
       )}
@@ -146,7 +129,10 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
           name="search-form"
           title="Search in tenants"
           value={searchQuery}
-          onChange={handleSearchInput}
+          onChange={(event) => {
+            setSearchQuery(event.target.value);
+            setShowDocuments(true);
+          }}
           placeholder={`Search in ${
             tenant ? `this tenant: ${selectedTenant}` : "all tenants"
           }`}
@@ -155,6 +141,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
           }`}
           className="form-control"
           style={{ padding: ".375rem 1.85rem" }}
+          autoFocus
         />
         {showDocuments && (
           <div className="search-result">
@@ -188,7 +175,9 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                 )} me-2`}
                                 aria-hidden="true"
                               />
-                              {getItemDisplay(item, searchQuery)}
+                              {item.description
+                                ? `${item.name} / description : ${item.description}`
+                                : item.name}
                             </Link>
                           </li>
                         </ol>

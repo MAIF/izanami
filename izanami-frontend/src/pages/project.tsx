@@ -17,7 +17,7 @@ export function Project({
   tenant: string;
 }) {
   const location = useLocation();
-  const selectedSearchRow = location?.state?.item.name;
+  const selectedSearchRow = location?.state?.name ?? "";
   const [error, setError] = useState<string>("");
   const clearError = () => setError("");
   const queryKey = projectQueryKey(tenant, project);

@@ -437,7 +437,11 @@ function Layout() {
   const { user, setUser, logout, expositionUrl } = useContext(IzanamiContext);
   const loading = !user?.username || !expositionUrl;
   const [isOpenModal, setIsOpenModal] = useState(false);
-  const { tenant } = useParams();
+  let { tenant } = useParams();
+  const searchParamsTenant = useSearchParams()[0].get("tenant");
+  if (searchParamsTenant) {
+    tenant = searchParamsTenant;
+  }
   useEffect(() => {
     if (!user?.username) {
       fetch("/api/admin/users/rights")
@@ -489,24 +493,23 @@ function Layout() {
               <span className="navbar-toggler-icon"></span>
             </button>
           </div>
+
           <ul className="navbar-nav ms-auto">
-            <li className="me-2 d-flex align-items-center justify-content-end my-1">
-              <button
-                className="btn btn-secondary"
-                id="btnSearch"
-                type="button"
-                onClick={() => setIsOpenModal(true)}
-              >
-                <span className="fa fa-search"></span>
-                <span className="text-searchbutton d-none d-md-inline">
-                  Type to search ...
-                </span>
-                <span className="span-kbd-searchbutton  d-none d-md-inline">
-                  <kbd className="kbd-searchbutton">⌘</kbd>
-                  <kbd className="kbd-searchbutton">K</kbd>
-                </span>
-              </button>
-            </li>
+            {tenant && (
+              <li className="me-2 d-flex align-items-center justify-content-end my-1">
+                <button
+                  className="btn btn-secondary"
+                  id="btnSearch"
+                  type="button"
+                  onClick={() => setIsOpenModal(true)}
+                >
+                  <span className="fa fa-search"></span>
+                  <span className="text-searchbutton d-none d-md-inline">
+                    Type to search ...
+                  </span>
+                </button>
+              </li>
+            )}
             <li
               onClick={() => switchLightMode()}
               className="me-2 d-flex align-items-center justify-content-end my-1"
@@ -574,11 +577,13 @@ function Layout() {
         </main>
       </div>
       {/*Add Search Modal*/}
-      <SearchModal
-        tenant={tenant!}
-        isOpenModal={isOpenModal}
-        onClose={() => setIsOpenModal(false)}
-      />
+      {tenant && (
+        <SearchModal
+          tenant={tenant}
+          isOpenModal={isOpenModal}
+          onClose={() => setIsOpenModal(false)}
+        />
+      )}
     </div>
   );
 }

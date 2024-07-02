@@ -43,7 +43,7 @@ export function Modal(props: {
                 className="btn btn-secondary"
                 onClick={() => onClose()}
               >
-                {closeButtonText ? closeButtonText : "Esc"}
+                {closeButtonText ? closeButtonText : "Close"}
               </button>
             </div>
           </div>

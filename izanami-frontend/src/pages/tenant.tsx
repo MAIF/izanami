@@ -43,21 +43,12 @@ export function Tenant({ tenant }: { tenant: string }) {
 
 function ProjectList(props: { tenant: TenantType }) {
   const { tenant } = props;
-  const location = useLocation();
   const queryKey = tenantQueryKey(tenant.name);
   const [creating, setCreating] = useState<boolean>(false);
   const [selectedProject, selectProject] = useState<
     TenantProjectType[] | undefined
   >([]);
   const [defaultProjectName, setDefaultProjectName] = useState("");
-
-  useEffect(() => {
-    if (location?.state?.item) {
-      const { id, name, description } = location.state.item;
-      selectProject([{ id, name, description }]);
-      setDefaultProjectName(name);
-    }
-  }, [location?.state?.item]);
 
   const { refreshUser } = React.useContext(IzanamiContext);
   const projectCreationMutation = useMutation(
@@ -96,17 +87,19 @@ function ProjectList(props: { tenant: TenantType }) {
           </button>
         )}
       </div>
-      <div className="d-flex flex-column">
-        <input
-          value={defaultProjectName}
-          placeholder="Search project"
-          onChange={handleProjectSearch}
-          className="form-control"
-          type="text"
-          name="search-form-project"
-          id="search-form-project"
-        />
-      </div>
+      {!noProjects && (
+        <div className="d-flex flex-column">
+          <input
+            value={defaultProjectName}
+            placeholder="Search project"
+            onChange={handleProjectSearch}
+            className="form-control"
+            type="text"
+            name="search-form-project"
+            id="search-form-project"
+          />
+        </div>
+      )}
       {noProjects && !creating && (
         <div className="item-block">
           <div className="item-text">

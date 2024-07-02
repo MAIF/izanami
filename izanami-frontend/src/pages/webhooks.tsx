@@ -39,7 +39,7 @@ import { Row } from "@tanstack/react-table";
 
 export function WebHooks(props: { tenant: string }) {
   const location = useLocation();
-  const selectedSearchRow = location?.state?.item.name;
+  const selectedSearchRow = location?.state?.name;
   const tenant = props.tenant;
   const [creating, setCreating] = React.useState(false);
   const { askConfirmation, refreshUser } = React.useContext(IzanamiContext);
