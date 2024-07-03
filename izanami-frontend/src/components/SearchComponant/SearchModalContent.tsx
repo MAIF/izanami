@@ -88,7 +88,10 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     );
     onClose();
   };
-
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setShowDocuments(false);
+  };
   return (
     <>
       {tenant && (
@@ -122,27 +125,39 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
         </div>
       )}
       <div className="search-container">
-        <i className="fas fa-search search-icon" aria-hidden="true" />
-        <input
-          type="text"
-          id="search-input"
-          name="search-form"
-          title="Search in tenants"
-          value={searchQuery}
-          onChange={(event) => {
-            setSearchQuery(event.target.value);
-            setShowDocuments(true);
-          }}
-          placeholder={`Search in ${
-            tenant ? `this tenant: ${selectedTenant}` : "all tenants"
-          }`}
-          aria-label={`Search in ${
-            tenant ? `this tenant: ${selectedTenant}` : "all tenants"
-          }`}
-          className="form-control"
-          style={{ padding: ".375rem 1.85rem" }}
-          autoFocus
-        />
+        <div className="search-container-input">
+          <i className="fas fa-search search-icon" aria-hidden="true" />
+          <input
+            type="text"
+            id="search-input"
+            name="search-form"
+            title="Search in tenants"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setShowDocuments(true);
+            }}
+            placeholder={`Search in ${
+              tenant ? `this tenant: ${selectedTenant}` : "all tenants"
+            }`}
+            aria-label={`Search in ${
+              tenant ? `this tenant: ${selectedTenant}` : "all tenants"
+            }`}
+            className="form-control"
+            style={{ padding: ".375rem 1.85rem" }}
+            autoFocus
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              aria-label="Clear search"
+              className="clear-search-btn"
+            >
+              <i className="fa-regular fa-circle-xmark" />
+            </button>
+          )}
+        </div>
         {showDocuments && (
           <div className="search-result">
             {isLoading && <div>Search something...</div>}
