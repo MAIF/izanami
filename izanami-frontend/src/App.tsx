@@ -498,18 +498,17 @@ function Layout() {
                 className="dropdown-menu dropdown-menu-right"
                 aria-labelledby="navbarDarkDropdownMenuLink"
               >
-                <li className="dropdown-item">
+                <li>
                   <NavLink
-                    className={() => ""}
-                    style={{ display: "block" }}
+                    className="dropdown-item"
                     to={`/profile`}
                   >
                     <i className="fas fa-user me-2" aria-hidden />
                     Profile
                   </NavLink>
                 </li>
-                <li className="dropdown-item">
-                  <a href="#" style={{ display: "block" }} onClick={logout}>
+                <li>
+                  <a href="#" className="dropdown-item" onClick={logout}>
                     <i className="fas fa-power-off me-2" aria-hidden />
                     Logout
                   </a>

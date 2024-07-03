@@ -4,8 +4,10 @@
     > a:focus,
     > a:hover,
     > div:focus,
-    > div:hover {
-      background-image: none;
+    > div:hover,
+    > a.active 
+    {
+      background-color: var(--bg-color_level2);
     }
   }
 
