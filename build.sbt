@@ -3,8 +3,6 @@ import ReleaseTransformations._
 name := """izanami-v2"""
 organization := "fr.maif"
 
-version := "1.0-SNAPSHOT"
-
 lazy val root = (project in file(".")).enablePlugins(PlayScala).enablePlugins(BuildInfoPlugin)
 
 lazy val excludesJackson = Seq(
@@ -12,6 +10,8 @@ lazy val excludesJackson = Seq(
   ExclusionRule(organization = "com.fasterxml.jackson.datatype"),
   ExclusionRule(organization = "com.fasterxml.jackson.dataformat")
 )
+
+version := (ThisBuild / version).value
 
 scalaVersion := "2.13.12"
 
