@@ -439,9 +439,7 @@ function Layout() {
   const [isOpenModal, setIsOpenModal] = useState(false);
   let { tenant } = useParams();
   const searchParamsTenant = useSearchParams()[0].get("tenant");
-  if (searchParamsTenant) {
-    tenant = searchParamsTenant;
-  }
+  tenant = searchParamsTenant || tenant;
   useEffect(() => {
     if (!user?.username) {
       fetch("/api/admin/users/rights")
@@ -495,7 +493,7 @@ function Layout() {
           </div>
 
           <ul className="navbar-nav ms-auto">
-            {tenant && (
+            {(tenant || user?.admin) && (
               <li className="me-2 d-flex align-items-center justify-content-end my-1">
                 <button
                   className="btn btn-secondary"
@@ -577,9 +575,9 @@ function Layout() {
         </main>
       </div>
       {/*Add Search Modal*/}
-      {tenant && (
+      {(tenant || user?.admin) && (
         <SearchModal
-          tenant={tenant}
+          tenant={tenant ? tenant : "all"}
           isOpenModal={isOpenModal}
           onClose={() => setIsOpenModal(false)}
         />

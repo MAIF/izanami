@@ -12,42 +12,57 @@ import scala.concurrent.Future
 
 class SearchDatastore(val env: Env) extends Datastore {
   def searchEntities(
-      tenants: Map[String, TenantRight],
+      tenantRights: Map[String, TenantRight],
       query: String
   ): Future[Either[IzanamiError, List[SearchEntity]]] = {
-    val unionQueries = tenants
-      .map { case (tenantName, tenantRight) =>
-        val projectsList = tenantRight.projects.keys.map(p => s"'$p'").mkString(", ")
-        val webhooksList = tenantRight.webhooks.keys.map(p => s"'$p'").mkString(", ")
-        val apikeysList = tenantRight.keys.keys.map(p => s"'$p'").mkString(", ")
-        s"""
-           |SELECT
-           |  origin_table,
-           |  id,
-           |  name,
-           |  '$tenantName'::TEXT AS origin_tenant,
-           |  project,
-           |  description,
-           |  ts_rank_cd(searchable_name, websearch_to_tsquery('english', '$query')) AS rank
-           |FROM "$tenantName".search_entities
-           |WHERE (
-           |  (project = ANY (ARRAY[$projectsList]::TEXT[]) AND origin_table IN ('projects', 'features'))
-           |  OR (origin_table='webhooks' AND name = ANY (ARRAY[$webhooksList]::TEXT[]))
-           |  OR (origin_table='apikeys' AND name = ANY (ARRAY[$apikeysList]::TEXT[]))
-           |  OR (origin_table='tags' AND project IS NULL)
-           |)
-           |AND searchable_name @@ websearch_to_tsquery('english', '$query')
-        """.stripMargin
-      }.mkString(" UNION ALL ") + " ORDER BY rank DESC"
+
+    val searchQuery = tenantRights.zipWithIndex.map { case ((tenant,_),index) =>
+      val tenantPlaceholder = s"$$${index * 4 + 7}"
+      val projectPlaceholder = s"$$${index * 4 + 8}"
+      val webhookPlaceholder = s"$$${index * 4 + 9}"
+      val keyPlaceholder = s"$$${index * 4 + 10}"
+      s"""
+         |SELECT
+         |  origin_table,
+         |  id,
+         |  name,
+         |  $tenantPlaceholder::TEXT AS origin_tenant,
+         |  project,
+         |  description,
+         |  ts_rank_cd(searchable_name, to_tsquery('english', $$1 || ':*')) AS rank
+         |FROM $tenant.search_entities
+         |WHERE (
+         |  (project = ANY ($projectPlaceholder::TEXT[]) AND origin_table IN ($$2, $$3))
+         |  OR (origin_table=$$4 AND name = ANY ($webhookPlaceholder::TEXT[]))
+         |  OR (origin_table=$$5 AND name = ANY ($keyPlaceholder::TEXT[]))
+         |  OR (origin_table=$$6 AND project IS NULL)
+         |)
+         |AND searchable_name @@ to_tsquery('english', $$1 || ':*')
+     """.stripMargin
+    }.mkString(" UNION ALL ") + "ORDER BY rank DESC"
+
+    val params = List.newBuilder[AnyRef]
+    params += query
+    params +="projects"
+    params +="features"
+    params +="webhooks"
+    params +="apikeys"
+    params +="tags"
+    tenantRights.foreach { case (tenant, tenantRight) =>
+      params += tenant
+      params += tenantRight.projects.keys.toArray
+      params += tenantRight.webhooks.keys.toArray
+      params += tenantRight.keys.keys.toArray
+    }
 
     env.postgresql
-      .queryAll(unionQueries) { r => r.optSearchEntity() }
+      .queryAll(searchQuery, params.result())
+      { r => r.optSearchEntity() }
       .map { entities => Right(entities) }
       .recover { case ex =>
         logger.error("Error while searching entities", ex)
         Right(List.empty[SearchEntity])
       }
-
   }
 }
 object searchEntityImplicits {

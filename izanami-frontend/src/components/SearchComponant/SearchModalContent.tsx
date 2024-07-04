@@ -94,7 +94,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   };
   return (
     <>
-      {tenant && (
+      {tenant && tenant !== "all" && (
         <div
           className="d-flex flex-row align-items-start my-1"
           role="group"
