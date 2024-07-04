@@ -954,7 +954,6 @@ function _handleFetchResponse<T>(
           </button>
         </div>,
         {
-          duration: Infinity,
           id: id,
           icon: <i className="fa-solid fa-circle-exclamation" aria-hidden></i>,
         }
