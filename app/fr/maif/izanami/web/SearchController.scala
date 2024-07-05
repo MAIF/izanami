@@ -17,7 +17,22 @@ class SearchController(
   def searchEntities(query: String): Action[AnyContent] = userDetailedAuthAction.async {
     implicit request: UserRequestWithCompleteRights[AnyContent] =>
       val userTenants = request.user.rights.tenants
-      if (userTenants.nonEmpty) {
+
+      if (request.user.admin) {
+        env.datastores.tenants
+          .readTenants()
+          .flatMap(tenants =>
+            env.datastores.searchQueries
+              .searchEntitiesForAdmin(tenants.map(tenant => tenant.name), query)
+              .map(entities =>
+                entities.fold(
+                  err => Results.Status(err.status)(Json.toJson(err)),
+                  entities => Ok(Json.toJson(entities))
+                )
+              )
+          )
+
+      } else if (userTenants.nonEmpty) {
         env.datastores.searchQueries
           .searchEntities(userTenants, query)
           .map(entities =>
@@ -26,7 +41,6 @@ class SearchController(
               entities => Ok(Json.toJson(entities))
             )
           )
-
       } else {
         Future.successful(Forbidden(Json.obj("message" -> "User has no tenants rights ")))
       }
@@ -37,7 +51,16 @@ class SearchController(
     implicit request: UserRequestWithCompleteRights[AnyContent] =>
       val userTenants = request.user.rights.tenants
 
-      if (userTenants.nonEmpty && userTenants.contains(tenant)) {
+      if (request.user.admin) {
+        env.datastores.searchQueries
+          .searchEntitiesForAdmin(List(tenant), query)
+          .map(entities =>
+            entities.fold(
+              err => Results.Status(err.status)(Json.toJson(err)),
+              entities => Ok(Json.toJson(entities))
+            )
+          )
+      } else if (userTenants.nonEmpty && userTenants.contains(tenant)) {
         val filteredTenants = userTenants.filter { case (t, _) => t == tenant }
         env.datastores.searchQueries
           .searchEntities(filteredTenants, query)
