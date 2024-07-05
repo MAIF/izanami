@@ -1,6 +1,7 @@
 import ReleaseTransformations._
+import xerial.sbt.Sonatype.sonatype01
 
-name := """izanami-v2"""
+name := """izanami"""
 organization := "fr.maif"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala).enablePlugins(BuildInfoPlugin)
@@ -104,6 +105,9 @@ releaseProcess := Seq[ReleaseStep](
   //commitNextVersion,         // : ReleaseStep
   //pushChanges                // : ReleaseStep, also checks that an upstream branch is properly configured
 )
+
+ThisBuild / sonatypeCredentialHost := sonatype01
+publishTo := sonatypePublishToBundle.value
 
 // Adds additional packages into Twirl
 //TwirlKeys.templateImports += "fr.maif.controllers._"
