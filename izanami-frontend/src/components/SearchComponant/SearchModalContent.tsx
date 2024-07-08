@@ -25,26 +25,33 @@ interface SearchResult {
 }
 
 const iconMapping = new Map<string, string>([
-  ["features", "fa-rocket"],
-  ["projects", "fa-building"],
-  ["apikeys", "fa-key"],
-  ["tags", "fa-tag"],
-  ["tenants", "fa-cloud"],
-  ["users", "fa-user"],
-  ["webhooks", "fa-plug"],
+  ["Features", "fa-rocket"],
+  ["Projects", "fa-building"],
+  ["Apikeys", "fa-key"],
+  ["Tags", "fa-tag"],
+  ["Tenants", "fa-cloud"],
+  ["Users", "fa-user"],
+  ["Webhooks", "fa-plug"],
+  ["Global contexts", "fa-filter"],
+  ["Projects contexts", "fa-filter"],
 ]);
 const getLinkPath = (item: SearchResult) => {
   switch (item.origin_table) {
-    case "features":
+    case "Features":
       return `/tenants/${item.origin_tenant}/projects/${item.project}`;
-    case "apikeys":
+    case "Apikeys":
       return `/tenants/${item.origin_tenant}/keys`;
-    case "webhooks":
+    case "Webhooks":
       return `/tenants/${item.origin_tenant}/webhooks`;
+    case "Global contexts":
+      return `/tenants/${item.origin_tenant}/contexts`;
+    case "Projects contexts":
+      return `/tenants/${item.origin_tenant}/projects/${item.project}/contexts`;
     default:
       return `/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`;
   }
 };
+
 export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   const [selectedTenant, setSelectedTenant] = useState<string | null>(tenant!);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -167,10 +174,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                 <ul className="search-ul nav flex-column">
                   {Object.keys(groupedItems).map((originTable) => (
                     <li className="search-ul-item" key={originTable}>
-                      <span>
-                        {originTable.charAt(0).toUpperCase() +
-                          originTable.slice(1)}
-                      </span>
+                      <span>{originTable}</span>
                       {groupedItems[originTable].map((item: SearchResult) => (
                         <ol className="search-ul nav flex-column" key={item.id}>
                           <li
@@ -179,20 +183,38 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                             onClick={() => handleItemClick(item)}
                           >
                             <Link to={getLinkPath(item)}>
-                              <i
-                                className="fas fa-cloud me-2"
-                                aria-hidden="true"
-                              />
-                              {item.origin_tenant} /{" "}
-                              <i
-                                className={`fas ${iconMapping.get(
-                                  originTable
-                                )} me-2`}
-                                aria-hidden="true"
-                              />
-                              {item.description
-                                ? `${item.name} / description : ${item.description}`
-                                : item.name}
+                              <ul
+                                className="breadcrumb"
+                                style={{ marginBottom: "0rem" }}
+                              >
+                                <li className="breadcrumb-item">
+                                  <i
+                                    className="fas fa-cloud me-2"
+                                    aria-hidden="true"
+                                  />
+                                  {item.origin_tenant}
+                                </li>
+                                {item.project && (
+                                  <li className="breadcrumb-item">
+                                    <i
+                                      className="fas fa-building me-2"
+                                      aria-hidden="true"
+                                    />
+                                    {item.project}
+                                  </li>
+                                )}
+                                <li className="breadcrumb-item">
+                                  <i
+                                    className={`fas ${iconMapping.get(
+                                      originTable
+                                    )} me-2`}
+                                    aria-hidden="true"
+                                  />
+                                  {item.description
+                                    ? `${item.name} / description : ${item.description}`
+                                    : item.name}
+                                </li>
+                              </ul>
                             </Link>
                           </li>
                         </ol>

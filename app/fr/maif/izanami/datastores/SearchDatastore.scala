@@ -26,9 +26,9 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  $tenantPlaceholder::TEXT AS origin_tenant,
            |  project,
            |  description,
-           |  ts_rank_cd(searchable_name, to_tsquery('english', $$1 || ':*')) AS rank
+           |  SIMILARITY(name, $$1) AS rank
            |FROM $tenant.search_entities
-           |WHERE searchable_name @@ to_tsquery('english', $$1 || ':*')
+           |WHERE SIMILARITY(name, $$1)> 0.2
      """.stripMargin
 
       }
@@ -67,7 +67,7 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  $tenantPlaceholder::TEXT AS origin_tenant,
            |  project,
            |  description,
-           |  ts_rank_cd(searchable_name, to_tsquery('english', $$1 || ':*')) AS rank
+           |  SIMILARITY(name, $$1) AS rank AS rank
            |FROM $tenant.search_entities
            |WHERE (
            |  (project = ANY ($projectPlaceholder::TEXT[]) AND origin_table IN ($$2, $$3))
@@ -75,7 +75,7 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  OR (origin_table=$$5 AND name = ANY ($keyPlaceholder::TEXT[]))
            |  OR (origin_table=$$6 AND project IS NULL)
            |)
-           |AND searchable_name @@ to_tsquery('english', $$1 || ':*')
+           |AND SIMILARITY(name, $$1) AS rank
      """.stripMargin
 
       }
@@ -114,7 +114,7 @@ object searchEntityImplicits {
         origin_tenant <- row.optString("origin_tenant");
         id            <- row.optString("id");
         project       <- Some(row.optString("project"));
-        description   <- row.optString("description")
+        description   <- Some(row.optString("description"))
       )
         yield SearchEntity(
           id = id,

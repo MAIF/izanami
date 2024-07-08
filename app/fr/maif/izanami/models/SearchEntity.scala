@@ -8,7 +8,7 @@ case class SearchEntity(
     origin_table: String,
     origin_tenant: String,
     project: Option[String],
-    description: String
+    description: Option[String]
 )
 
 object SearchEntity {
