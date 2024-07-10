@@ -8,7 +8,8 @@ case class SearchEntity(
     origin_table: String,
     origin_tenant: String,
     project: Option[String],
-    description: Option[String]
+    description: Option[String],
+    parent: Option[String]
 )
 
 object SearchEntity {
@@ -19,7 +20,8 @@ object SearchEntity {
       "origin_table"  -> searchEntity.origin_table,
       "origin_tenant" -> searchEntity.origin_tenant,
       "project"       -> searchEntity.project,
-      "description"   -> searchEntity.description
+      "description"   -> searchEntity.description,
+      "parent"        -> searchEntity.parent
     )
   }
 

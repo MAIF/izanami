@@ -26,13 +26,17 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  $tenantPlaceholder::TEXT AS origin_tenant,
            |  project,
            |  description,
-           |  SIMILARITY(name, $$1) AS rank
+           |  parent,
+           |  GREATEST(
+           |    SIMILARITY(name, $$1),
+           |    SIMILARITY(description, $$1)
+           |  ) AS match_score
            |FROM $tenant.search_entities
-           |WHERE SIMILARITY(name, $$1)> 0.2
+           |WHERE SIMILARITY(name, $$1) > 0.2
+           |   OR SIMILARITY(description, $$1) > 0.2
      """.stripMargin
-
       }
-      .mkString(" UNION ALL ") + "ORDER BY rank DESC"
+      .mkString(" UNION ALL ") + "ORDER BY match_score DESC"
 
     val params = List.newBuilder[AnyRef]
     params += query
@@ -67,7 +71,11 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  $tenantPlaceholder::TEXT AS origin_tenant,
            |  project,
            |  description,
-           |  SIMILARITY(name, $$1) AS rank AS rank
+           |  parent,
+           |  GREATEST(
+           |    SIMILARITY(name, $$1),
+           |    SIMILARITY(description, $$1)
+           |  ) AS match_score
            |FROM $tenant.search_entities
            |WHERE (
            |  (project = ANY ($projectPlaceholder::TEXT[]) AND origin_table IN ($$2, $$3))
@@ -75,11 +83,12 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  OR (origin_table=$$5 AND name = ANY ($keyPlaceholder::TEXT[]))
            |  OR (origin_table=$$6 AND project IS NULL)
            |)
-           |AND SIMILARITY(name, $$1) AS rank
+           |AND SIMILARITY(name, $$1) > 0.2
+           |   OR SIMILARITY(description, $$1) > 0.2
      """.stripMargin
 
       }
-      .mkString(" UNION ALL ") + "ORDER BY rank DESC"
+      .mkString(" UNION ALL ") + "ORDER BY match_score DESC"
 
     val params = List.newBuilder[AnyRef]
     params += query
@@ -114,7 +123,8 @@ object searchEntityImplicits {
         origin_tenant <- row.optString("origin_tenant");
         id            <- row.optString("id");
         project       <- Some(row.optString("project"));
-        description   <- Some(row.optString("description"))
+        description   <- Some(row.optString("description"));
+        parent        <- Some(row.optString("parent"))
       )
         yield SearchEntity(
           id = id,
@@ -122,7 +132,8 @@ object searchEntityImplicits {
           origin_table = origin_table,
           origin_tenant = origin_tenant,
           project = project,
-          description = description
+          description = description,
+          parent = parent,
         )
     }
   }

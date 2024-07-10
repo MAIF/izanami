@@ -16,6 +16,7 @@ import { FeatureContexts } from "../components/FeatureContexts";
 import queryClient from "../queryClient";
 import { OverloadTable } from "../components/FeatureTable";
 import { Loader } from "../components/Loader";
+import { useLocation } from "react-router-dom";
 
 export function GlobalContexts(props: { tenant: string }) {
   const { tenant } = props;
@@ -25,7 +26,8 @@ export function GlobalContexts(props: { tenant: string }) {
 
 function GlobalFeatureContexts(props: { tenant: string }) {
   const { tenant } = props;
-
+  const location = useLocation();
+  const selectedSearchRow = location?.state?.name;
   const modificationRight = useTenantRight(tenant, TLevel.Write);
   const contextQuery = useQuery(globalContextKey(tenant), () =>
     queryGlobalContexts(tenant)
@@ -62,7 +64,7 @@ function GlobalFeatureContexts(props: { tenant: string }) {
     return (
       <FeatureContexts
         allowGlobalContextDelete={true}
-        open={[]}
+        open={[selectedSearchRow ?? ""]}
         modificationRight={modificationRight || false}
         deleteContext={(path: string) =>
           deleteContextMutation.mutateAsync({ tenant, path })

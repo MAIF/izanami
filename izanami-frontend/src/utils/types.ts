@@ -523,4 +523,5 @@ export interface SearchEntityResponse {
   name: string;
   project: string;
   description: string;
+  parent: string;
 }

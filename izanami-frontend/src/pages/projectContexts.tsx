@@ -21,7 +21,7 @@ import {
 import { useProjectRight } from "../securityContext";
 import { OverloadTable } from "../components/FeatureTable";
 import { OverloadCreationForm } from "../components/OverloadCreationForm";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { useState } from "react";
 import { Loader } from "../components/Loader";
 
@@ -30,8 +30,9 @@ export function ProjectContexts(props: {
   project: string;
   open?: string;
 }) {
+  const location = useLocation();
+  const selectedSearchRow = location?.state?.name;
   const { tenant, project, open } = props;
-
   const deleteContextMutation = useMutation(
     (data: { tenant: string; project: string; path: string }) => {
       const { tenant, project, path } = data;
@@ -61,7 +62,7 @@ export function ProjectContexts(props: {
     <>
       <FeatureContexts
         allowGlobalContextDelete={false}
-        open={open ? JSON.parse(open) : []}
+        open={open ? JSON.parse(open) : [selectedSearchRow ?? ""]}
         deleteContext={(path) =>
           deleteContextMutation.mutateAsync({ tenant, project, path })
         }

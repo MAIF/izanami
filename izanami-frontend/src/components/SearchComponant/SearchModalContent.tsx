@@ -9,6 +9,7 @@ import {
   searchQueryByTenant,
   searchEntities,
 } from "../../utils/queries";
+import { GlobalContextIcon } from "../../utils/icons";
 
 interface ISearchProps {
   tenant?: string;
@@ -22,6 +23,7 @@ interface SearchResult {
   origin_tenant: string;
   project?: string;
   description: string;
+  parent: string;
 }
 
 const iconMapping = new Map<string, string>([
@@ -86,13 +88,29 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     SearchItems,
     (item: SearchResult) => item.origin_table
   );
-
   const handleItemClick = (item: SearchResult) => {
     const linkPath = getLinkPath(item);
-    navigate(
-      { pathname: linkPath },
-      { state: { name: item.origin_table !== "projects" ? item.name : null } }
-    );
+    if (
+      item.origin_table === "Global contexts" ||
+      item.origin_table === "Projects contexts"
+    ) {
+      navigate(
+        { pathname: linkPath },
+        {
+          state: {
+            name: item.id
+              .slice(item.id.indexOf("_") + 1)
+              .split("_")
+              .join("/"),
+          },
+        }
+      );
+    } else {
+      navigate(
+        { pathname: linkPath },
+        { state: { name: item.origin_table !== "projects" ? item.name : null } }
+      );
+    }
     onClose();
   };
   const handleClearSearch = () => {
@@ -175,7 +193,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                   {Object.keys(groupedItems).map((originTable) => (
                     <li className="search-ul-item" key={originTable}>
                       <span>{originTable}</span>
-                      {groupedItems[originTable].map((item: SearchResult) => (
+                      {groupedItems[originTable].map((item) => (
                         <ol className="search-ul nav flex-column" key={item.id}>
                           <li
                             className="search-ul-item"
@@ -194,13 +212,24 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                   />
                                   {item.origin_tenant}
                                 </li>
-                                {item.project && (
+
+                                {item.project &&
+                                  item.origin_table !== "Projects" && (
+                                    <li className="breadcrumb-item">
+                                      <i
+                                        className="fas fa-building me-2"
+                                        aria-hidden="true"
+                                      />
+                                      {item.project}
+                                    </li>
+                                  )}
+                                {item.parent && (
                                   <li className="breadcrumb-item">
-                                    <i
-                                      className="fas fa-building me-2"
-                                      aria-hidden="true"
-                                    />
-                                    {item.project}
+                                    <GlobalContextIcon className="me-2" />
+                                    {item.parent
+                                      .slice(item.parent.indexOf("_") + 1)
+                                      .split("_")
+                                      .join(" / ")}
                                   </li>
                                 )}
                                 <li className="breadcrumb-item">
