@@ -239,7 +239,9 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                     )} me-2`}
                                     aria-hidden="true"
                                   />
-                                  {item.description
+                                  {item.description &&
+                                  item.similarity_description >=
+                                    item.similarity_name
                                     ? `${item.name} / description : ${item.description}`
                                     : item.name}
                                 </li>

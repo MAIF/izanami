@@ -27,16 +27,18 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  project,
            |  description,
            |  parent,
+           |  izanami.SIMILARITY(name, $$1) as similarity_name,
+           |  izanami.SIMILARITY(description, $$1) as similarity_description,
            |  GREATEST(
            |    izanami.SIMILARITY(name, $$1),
            |    izanami.SIMILARITY(description, $$1)
            |  ) AS match_score
            |FROM $tenant.search_entities
-           |WHERE izanami.SIMILARITY(name, $$1) > 0.2
-           |   OR izanami.SIMILARITY(description, $$1) > 0.2
+           |WHERE izanami.SIMILARITY(name, $$1) > 0.4
+           |   OR izanami.SIMILARITY(description, $$1) > 0.4
      """.stripMargin
       }
-      .mkString(" UNION ALL ") + "ORDER BY match_score DESC"
+      .mkString(" UNION ALL ") + "ORDER BY match_score DESC LIMIT 10"
 
     val params = List.newBuilder[AnyRef]
     params += query
@@ -72,6 +74,8 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  project,
            |  description,
            |  parent,
+           |  izanami.SIMILARITY(name, $$1) as similarity_name,
+           |  izanami.SIMILARITY(description, $$1) as similarity_description,
            |  GREATEST(
            |    izanami.SIMILARITY(name, $$1),
            |    izanami.SIMILARITY(description, $$1)
@@ -83,12 +87,12 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  OR (origin_table=$$5 AND name = ANY ($keyPlaceholder::TEXT[]))
            |  OR (origin_table=$$6 AND project IS NULL)
            |)
-           |AND izanami.SIMILARITY(name, $$1) > 0.2
-           |   OR izanami.SIMILARITY(description, $$1) > 0.2
+           |AND izanami.SIMILARITY(name, $$1) > 0.4
+           |   OR izanami.SIMILARITY(description, $$1) > 0.4
      """.stripMargin
 
       }
-      .mkString(" UNION ALL ") + "ORDER BY match_score DESC"
+      .mkString(" UNION ALL ") + "ORDER BY match_score DESC LIMIT 10"
 
     val params = List.newBuilder[AnyRef]
     params += query
@@ -124,7 +128,9 @@ object searchEntityImplicits {
         id            <- row.optString("id");
         project       <- Some(row.optString("project"));
         description   <- Some(row.optString("description"));
-        parent        <- Some(row.optString("parent"))
+        parent        <- Some(row.optString("parent"));
+        similarity_name <- row.optDouble("similarity_name");
+        similarity_description <- row.optDouble("similarity_description")
       )
         yield SearchEntity(
           id = id,
@@ -134,6 +140,8 @@ object searchEntityImplicits {
           project = project,
           description = description,
           parent = parent,
+          similarity_name = similarity_name,
+          similarity_description = similarity_description
         )
     }
   }

@@ -9,7 +9,9 @@ case class SearchEntity(
     origin_tenant: String,
     project: Option[String],
     description: Option[String],
-    parent: Option[String]
+    parent: Option[String],
+    similarity_name: Double,
+    similarity_description: Double
 )
 
 object SearchEntity {
@@ -21,7 +23,9 @@ object SearchEntity {
       "origin_tenant" -> searchEntity.origin_tenant,
       "project"       -> searchEntity.project,
       "description"   -> searchEntity.description,
-      "parent"        -> searchEntity.parent
+      "parent"        -> searchEntity.parent,
+      "similarity_name" -> searchEntity.similarity_name,
+      "similarity_description" -> searchEntity.similarity_description
     )
   }
 

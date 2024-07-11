@@ -524,4 +524,6 @@ export interface SearchEntityResponse {
   project: string;
   description: string;
   parent: string;
+  similarity_name: number;
+  similarity_description: number;
 }
