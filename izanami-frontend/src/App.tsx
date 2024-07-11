@@ -430,117 +430,153 @@ function RedirectToFirstTenant(): JSX.Element {
   }
 }
 
+type AppLoadingState = "Loading" | "Error" | "Success";
+
 function Layout() {
   const { user, setUser, logout, expositionUrl } = useContext(IzanamiContext);
-  const loading = !user?.username || !expositionUrl;
+  const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
+    !user?.username || !expositionUrl ? "Loading" : "Success"
+  );
+
   useEffect(() => {
     if (!user?.username) {
+      console.log("calling");
+      setLoadingState("Loading");
       fetch("/api/admin/users/rights")
         .then((response) => {
           if (response.status === 401) {
             logout();
+          } else if (response.status > 400) {
+            throw new Error(
+              `Failed to fetch rights, something is wrong with Izanami backend (status code ${response.status})`
+            );
           } else {
             return response.json();
           }
         })
-        .then((user) => setUser(user))
-        .catch(console.error);
+        .then((user) => {
+          setLoadingState("Success");
+          setUser(user);
+        })
+        .catch((error) => {
+          setLoadingState("Error");
+          console.error(error);
+        });
     }
   }, [user?.username]);
 
-  if (loading) {
-    return <Loader message="Loading..." />;
-  }
-
-  return (
-    <div className="container-fluid">
-      {/*TOOD externalsier la navbar*/}
-      <div className="row">
-        <nav className="navbar navbar-expand-lg fixed-top p-0">
-          <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
-            <NavLink className="navbar-brand" to="/home">
-              <div className="d-flex flex-column justify-content-center align-items-center">
-                Izanami
+  switch (loadingState) {
+    case "Loading":
+      return <Loader message="Loading..." />;
+    case "Error":
+      return (
+        <div
+          className="text-danger"
+          style={{
+            width: "100%",
+            height: "30vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "end",
+            fontSize: "1.4rem",
+            textAlign: "center",
+          }}
+        >
+          Something went wrong while loading Izanami.
+          <br /> Please check browser / backend logs
+        </div>
+      );
+    case "Success":
+      return (
+        <div className="container-fluid">
+          {/*TOOD externalsier la navbar*/}
+          <div className="row">
+            <nav className="navbar navbar-expand-lg fixed-top p-0">
+              <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
+                <NavLink className="navbar-brand" to="/home">
+                  <div className="d-flex flex-column justify-content-center align-items-center">
+                    Izanami
+                  </div>
+                </NavLink>
+                <button
+                  id="btnToggler"
+                  className="navbar-toggler collapsed"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#navbarToggler"
+                  aria-controls="navbarToggler"
+                  aria-expanded="false"
+                  aria-label="Toggle navigation"
+                >
+                  <span className="navbar-toggler-icon"></span>
+                </button>
               </div>
-            </NavLink>
-            <button
-              id="btnToggler"
-              className="navbar-toggler collapsed"
-              type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#navbarToggler"
-              aria-controls="navbarToggler"
-              aria-expanded="false"
-              aria-label="Toggle navigation"
-            >
-              <span className="navbar-toggler-icon"></span>
-            </button>
-          </div>
-          <ul className="navbar-nav ms-auto">
-            <li
-              onClick={() => switchLightMode()}
-              className="me-2 d-flex align-items-center justify-content-end my-2"
-            >
-              <i
-                id="lightMode"
-                className="fa fa-lightbulb"
-                style={{ color: "var(--color_level2)", cursor: "pointer" }}
-              />
-            </li>
-            <li className="nav-item dropdown userManagement me-2">
-              <a
-                className="nav-link"
-                href="#"
-                id="navbarDarkDropdownMenuLink"
-                data-toggle="dropdown"
-                role="button"
-                aria-expanded="false"
-                data-bs-toggle="dropdown"
-              >
-                {user?.username}
-                <i className="bi bi-caret-down-fill" aria-hidden="true" />
-              </a>
-              <ul
-                className="dropdown-menu dropdown-menu-right"
-                aria-labelledby="navbarDarkDropdownMenuLink"
-              >
-                <li>
-                  <NavLink className="dropdown-item" to={`/profile`}>
-                    <i className="fas fa-user me-2" aria-hidden />
-                    Profile
-                  </NavLink>
+              <ul className="navbar-nav ms-auto">
+                <li
+                  onClick={() => switchLightMode()}
+                  className="me-2 d-flex align-items-center justify-content-end my-2"
+                >
+                  <i
+                    id="lightMode"
+                    className="fa fa-lightbulb"
+                    style={{ color: "var(--color_level2)", cursor: "pointer" }}
+                  />
                 </li>
-                <li>
-                  <a href="#" className="dropdown-item" onClick={logout}>
-                    <i className="fas fa-power-off me-2" aria-hidden />
-                    Logout
+                <li className="nav-item dropdown userManagement me-2">
+                  <a
+                    className="nav-link"
+                    href="#"
+                    id="navbarDarkDropdownMenuLink"
+                    data-toggle="dropdown"
+                    role="button"
+                    aria-expanded="false"
+                    data-bs-toggle="dropdown"
+                  >
+                    {user?.username}
+                    <i className="bi bi-caret-down-fill" aria-hidden="true" />
                   </a>
+                  <ul
+                    className="dropdown-menu dropdown-menu-right"
+                    aria-labelledby="navbarDarkDropdownMenuLink"
+                  >
+                    <li>
+                      <NavLink className="dropdown-item" to={`/profile`}>
+                        <i className="fas fa-user me-2" aria-hidden />
+                        Profile
+                      </NavLink>
+                    </li>
+                    <li>
+                      <a href="#" className="dropdown-item" onClick={logout}>
+                        <i className="fas fa-power-off me-2" aria-hidden />
+                        Logout
+                      </a>
+                    </li>
+                  </ul>
                 </li>
               </ul>
-            </li>
-          </ul>
-        </nav>
-      </div>
-      <div className="row">
-        <div id="navbarToggler" className="navbar-collapse collapse">
-          <aside className="col-lg-2 sidebar d-flex flex-column justify-content-between">
-            <Wrapper element={Menu} />
-          </aside>
+            </nav>
+          </div>
+          <div className="row">
+            <div id="navbarToggler" className="navbar-collapse collapse">
+              <aside className="col-lg-2 sidebar d-flex flex-column justify-content-between">
+                <Wrapper element={Menu} />
+              </aside>
+            </div>
+            <main className="col-lg-10 offset-lg-2 main">
+              <header>
+                <Wrapper element={Topbar} />
+              </header>
+              <Toaster
+                toastOptions={{
+                  className: "toast-error",
+                }}
+              />
+              <Outlet />
+            </main>
+          </div>
         </div>
-        <main className="col-lg-10 offset-lg-2 main">
-          <header>
-            <Wrapper element={Topbar} />
-          </header>
-          <Toaster
-            toastOptions={{
-              className: "toast-error",
-            }}
-          />
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  );
+      );
+  }
 }
 
 export class App extends Component {
