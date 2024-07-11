@@ -436,7 +436,13 @@ function Layout() {
   useEffect(() => {
     if (!user?.username) {
       fetch("/api/admin/users/rights")
-        .then((response) => response.json())
+        .then((response) => {
+          if (response.status === 401) {
+            logout();
+          } else {
+            return response.json();
+          }
+        })
         .then((user) => setUser(user))
         .catch(console.error);
     }
@@ -499,10 +505,7 @@ function Layout() {
                 aria-labelledby="navbarDarkDropdownMenuLink"
               >
                 <li>
-                  <NavLink
-                    className="dropdown-item"
-                    to={`/profile`}
-                  >
+                  <NavLink className="dropdown-item" to={`/profile`}>
                     <i className="fas fa-user me-2" aria-hidden />
                     Profile
                   </NavLink>
