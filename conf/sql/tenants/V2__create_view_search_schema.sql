@@ -1,3 +1,6 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+
 
 CREATE INDEX trgm_idx_feature ON features USING gist (name gist_trgm_ops, description gist_trgm_ops);
 CREATE INDEX trgm_idx_projects ON projects USING gist (name gist_trgm_ops, description gist_trgm_ops);
