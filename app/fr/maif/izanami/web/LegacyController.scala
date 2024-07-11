@@ -14,7 +14,23 @@ class LegacyController(val controllerComponents: ControllerComponents, val clien
   implicit val ec: ExecutionContext = env.executionContext
 
   def healthcheck(): Action[AnyContent] = Action.async {
-    Ok("").future
+    env.postgresql
+      .queryOne(
+        s"""
+         |SELECT 1
+         |""".stripMargin
+      ) { r =>
+        {
+          Some(true)
+        }
+      }
+      .recoverWith(_ => {
+        Future.successful(Some(false))
+      })
+      .map {
+        case Some(true) => Ok(Json.obj("database" -> true))
+        case _          => InternalServerError(Json.obj("database" -> false))
+      }
   }
 
   def legacyFeature(pattern: String): Action[AnyContent] = clientKeyAction.async { implicit request =>
