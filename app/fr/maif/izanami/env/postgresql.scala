@@ -28,7 +28,8 @@ class Postgresql(env: Env) {
 
   import scala.jdk.CollectionConverters._
 
-  private val logger           = Logger("izanami")
+  private val logger = Logger("izanami")
+
   lazy val connectOptions      = if (configuration.has("app.pg.uri")) {
     logger.info(s"Postgres URI : ${configuration.get[String]("app.pg.uri")}")
     val opts = PgConnectOptions.fromUri(configuration.get[String]("app.pg.uri"))
@@ -93,7 +94,10 @@ class Postgresql(env: Env) {
   lazy val vertx               = Vertx.vertx()
   private lazy val poolOptions = new PoolOptions()
     .setMaxSize(configuration.getOptional[Int]("app.pg.pool-size").getOrElse(100))
-  private lazy val pool        = PgPool.pool(connectOptions, poolOptions)
+    .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))
+    .applyOnWithOpt(configuration.getOptional[Int]("max-lifetime"))((p, v) => p.setMaxLifetime(v))
+
+  private lazy val pool = PgPool.pool(connectOptions, poolOptions)
 
   private val configuration = env.configuration
 

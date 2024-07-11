@@ -20,19 +20,20 @@ You can either set the `IZANAMI_SECRET` env variable or use the `app.secret` par
 
 You can either provide a connection URI, or indicate database name, user, host, port and so on separately.
 
-|                     | Environnement variable      | Program argument        | Default        |
-| ------------------- | --------------------------- | ----------------------- | -------------- |
-| Uri                 | IZANAMI_PG_URI              | app.pg.uri              |
-| Port                | IZANAMI_PG_PORT             | app.pg.port             | 5432           |
-| Host                | IZANAMI_PG_HOST             | app.pg.host             |
-| Database name       | IZANAMI_PG_DATABASE         | app.pg.database         |
-| User                | IZANAMI_PG_USER             | app.pg.user             |
-| Password            | IZANAMI_PG_PASSWORD         | app.pg.password         |
-| Pool size           | IZANAMI_PG_POOL_SIZE        | app.pg.pool-size        | 20             |
-| Connect timeout(ms) | IZANAMI_PG_CONNECT_TIMEOUT  | app.pg.connect-timeout  | 60000          |
-| IDLE timeout(s)     | IZANAMI_PG_IDLE_TIMEOUT     | app.pg.idle-timeout     | 0 (no timeout) |
-| Log activity        | IZANAMI_PG_LOG_ACTIVITY     | app.pg.log-activity     | false          |
-| Pipelining limit    | IZANAMI_PG_PIPELINING_LIMIT | app.pg.pipelining-limit | 256            |
+|                         | Environnement variable      | Program argument        | Default        |
+| ----------------------- | --------------------------- | ----------------------- | -------------- |
+| Uri                     | IZANAMI_PG_URI              | app.pg.uri              |
+| Port                    | IZANAMI_PG_PORT             | app.pg.port             | 5432           |
+| Host                    | IZANAMI_PG_HOST             | app.pg.host             |
+| Database name           | IZANAMI_PG_DATABASE         | app.pg.database         |
+| User                    | IZANAMI_PG_USER             | app.pg.user             |
+| Password                | IZANAMI_PG_PASSWORD         | app.pg.password         |
+| Pool size               | IZANAMI_PG_POOL_SIZE        | app.pg.pool-size        | 20             |
+| Connect timeout(ms)     | IZANAMI_PG_CONNECT_TIMEOUT  | app.pg.connect-timeout  | 60000          |
+| Connection max lifetime | IZANAMI_PG_MAX_LIFETIME     | app.pg.max-lifetime     | 0 (no maximum) |
+| IDLE timeout(s)         | IZANAMI_PG_IDLE_TIMEOUT     | app.pg.idle-timeout     | 0 (no timeout) |
+| Log activity            | IZANAMI_PG_LOG_ACTIVITY     | app.pg.log-activity     | false          |
+| Pipelining limit        | IZANAMI_PG_PIPELINING_LIMIT | app.pg.pipelining-limit | 256            |
 
 ### Admin account
 
