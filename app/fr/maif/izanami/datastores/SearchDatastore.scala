@@ -28,12 +28,12 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  description,
            |  parent,
            |  GREATEST(
-           |    SIMILARITY(name, $$1),
-           |    SIMILARITY(description, $$1)
+           |    izanami.SIMILARITY(name, $$1),
+           |    izanami.SIMILARITY(description, $$1)
            |  ) AS match_score
            |FROM $tenant.search_entities
-           |WHERE SIMILARITY(name, $$1) > 0.2
-           |   OR SIMILARITY(description, $$1) > 0.2
+           |WHERE izanami.SIMILARITY(name, $$1) > 0.2
+           |   OR izanami.SIMILARITY(description, $$1) > 0.2
      """.stripMargin
       }
       .mkString(" UNION ALL ") + "ORDER BY match_score DESC"
@@ -73,8 +73,8 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  description,
            |  parent,
            |  GREATEST(
-           |    SIMILARITY(name, $$1),
-           |    SIMILARITY(description, $$1)
+           |    izanami.SIMILARITY(name, $$1),
+           |    izanami.SIMILARITY(description, $$1)
            |  ) AS match_score
            |FROM $tenant.search_entities
            |WHERE (
@@ -83,8 +83,8 @@ class SearchDatastore(val env: Env) extends Datastore {
            |  OR (origin_table=$$5 AND name = ANY ($keyPlaceholder::TEXT[]))
            |  OR (origin_table=$$6 AND project IS NULL)
            |)
-           |AND SIMILARITY(name, $$1) > 0.2
-           |   OR SIMILARITY(description, $$1) > 0.2
+           |AND izanami.SIMILARITY(name, $$1) > 0.2
+           |   OR izanami.SIMILARITY(description, $$1) > 0.2
      """.stripMargin
 
       }
