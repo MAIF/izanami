@@ -28,6 +28,8 @@ docker image push maif/izanami:<YOUR VERSION>
 
 ## Maven central
 
+First, you'll need to indicate target version in version.sbt file.
+
 ```shell
 # Generate signed bundle
 sbt publishSigned
@@ -38,7 +40,7 @@ sbt sonatypeBundleUpload
 
 ... and then go to sonatype UI and close then release staging repostory
 
-Alternatively (not tested yet), this should remove the need to manually close and release :
+Alternatively, this removes the need to manually close and release :
 
 ```shell
 # Generate signed bundle
