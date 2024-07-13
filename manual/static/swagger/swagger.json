@@ -220,22 +220,29 @@
     },
     "/api/_health": {
       "get": {
-        "summary": "respond when application is started",
+        "summary": "Indicate wether application is healthy",
         "tags": [
           "Health"
         ],
         "operationId": "healthcheck",
-        "description": "This endpoint returns 200 with an empty body whenever Izanami is running.",
+        "description": "This endpoint returns both  a body and status code that indicate application health. If status code if 200, Izanami is healthy, if status code is 500 there is something wrong (unreachable database, ...).",
         "responses": {
           "200": {
-            "description": "success",
+            "description": "Healthy",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string",
-                  "enum": [
-                    ""
-                  ]
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
                 }
               }
             }
@@ -554,6 +561,14 @@
           "payload": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "HealthStatus": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "boolean"
           }
         }
       },
