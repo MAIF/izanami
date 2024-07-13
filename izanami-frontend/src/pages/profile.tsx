@@ -274,8 +274,8 @@ function Rights(): JSX.Element {
       {admin && (
         <div className="mt-3">
           <h5>
-            <i className="bi bi-shield-check me-2" aria-hidden></i>You are the
-            global admin
+            <i className="bi bi-shield-check me-2" aria-hidden></i>You are
+            global admin of this Izanami instance
           </h5>
         </div>
       )}
@@ -289,7 +289,7 @@ function Rights(): JSX.Element {
                   ([projectName, projectRight]) => {
                     return (
                       <div key={`${key}-${projectName}`}>
-                        You are {projectRight.level} of the project
+                        You have {projectRight.level} right of the project
                         <Link to={`/tenants/${key}/projects/${projectName}`}>
                           <button className="btn btn-sm btn-primary m-1">
                             <i className="fas fa-building" aria-hidden />{" "}
@@ -309,7 +309,7 @@ function Rights(): JSX.Element {
                 {Object.entries(value.keys).map(([keyName, keyRight]) => {
                   return (
                     <div key={`${key}-${keyName}`}>
-                      You are {keyRight.level} for the key
+                      You have {keyRight.level} right for the key
                       <Link to={`/tenants/${key}/keys/`}>
                         <button className="btn btn-sm btn-primary m-1">
                           <i className="fas fa-key me-1" aria-hidden />
@@ -329,7 +329,7 @@ function Rights(): JSX.Element {
                   ([webhookName, webhookRight]) => {
                     return (
                       <div key={`${key}-${webhookName}`}>
-                        You are {webhookRight.level} for the webhook
+                        You have {webhookRight.level} right for the webhook
                         <Link to={`/tenants/${key}/webhooks`}>
                           <button className="btn btn-sm btn-primary m-1">
                             <i className="fas fa-plug me-1" aria-hidden />
@@ -355,7 +355,7 @@ function Rights(): JSX.Element {
           return (
             <>
               <h3 className="mt-3">Tenant&nbsp;</h3>
-              You are {value.level} for the tenant
+              You have {value.level} right for the tenant
               <Link to={`/tenants/${key}`}>
                 <button className="btn btn-sm btn-primary m-1">
                   <i className="fas fa-cloud me-1" aria-hidden />
