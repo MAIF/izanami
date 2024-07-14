@@ -101,9 +101,11 @@ releaseProcess := Seq[ReleaseStep](
   commitReleaseVersion,      // : ReleaseStep, performs the initial git checks
   tagRelease,                // : ReleaseStep
   //publishArtifacts,          // : ReleaseStep, checks whether `publishTo` is properly set up
-  setNextVersion             // : ReleaseStep
-  //commitNextVersion,         // : ReleaseStep
-  //pushChanges                // : ReleaseStep, also checks that an upstream branch is properly configured
+  setNextVersion,             // : ReleaseStep
+  releaseStepCommand("publishSigned"),
+  releaseStepCommand("sonatypeBundleRelease"),
+  commitNextVersion,         // : ReleaseStep
+  pushChanges                // : ReleaseStep, also checks that an upstream branch is properly configured
 )
 
 ThisBuild / sonatypeCredentialHost := sonatype01
