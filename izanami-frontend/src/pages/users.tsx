@@ -57,9 +57,7 @@ export function Users() {
       },
     }
   );
-  const checkUserName = (rowUser: TUser) => {
-    return rowUser.username !== user?.username;
-  };
+
   const userUpdateMutation = useMutation(
     (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
@@ -286,12 +284,12 @@ export function Users() {
           )}
         </div>
         <GenericTable
-          selectableRows={user?.admin || isTenantAdmin}
+          selectableRows={user?.admin}
           data={users}
           onRowSelectionChange={(rows) => {
-            setSelectedRows(rows.filter((r) => checkUserName(r)));
+            setSelectedRows(rows);
           }}
-          isRowSelectable={(row) => checkUserName(row)}
+          isRowSelectable={(row) => row.username !== user?.username}
           columns={columns}
           idAccessor={(u) => u.username}
           customRowActions={{
