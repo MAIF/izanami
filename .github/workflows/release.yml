@@ -61,6 +61,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           cache-from: |
-            type=local,src=target/scala-2.13/izanami.jar
+            type=local,src=target/scala-2.13
           push: true
           tags: maif/izanami:${{ github.event.inputs.releaseVersion }}
