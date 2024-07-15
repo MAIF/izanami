@@ -1,12 +1,13 @@
 package fr.maif.izanami.web
 
+import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMailProvider, MailerTypes, SMTPMailProvider}
 import fr.maif.izanami.models.IzanamiConfiguration
-import fr.maif.izanami.models.IzanamiConfiguration.{mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads, SMTPConfigurationWrites}
+import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsString, JsSuccess, JsValue, Json}
+import play.api.libs.json.{JsError, JsObject, JsString, JsSuccess, JsValue, Json}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -38,7 +39,10 @@ class ConfigurationController(
       .readConfiguration()
       .map {
         case Left(error)          => error.toHttpResponse
-        case Right(configuration) => Ok(Json.toJson(configuration))
+        case Right(configuration) => {
+          val configurationWithVersion:JsObject = (Json.toJson(configuration).as[JsObject]) + ("version" -> JsString(BuildInfo.version))
+          Ok(configurationWithVersion)
+        }
       }
   }
 
