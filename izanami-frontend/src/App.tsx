@@ -433,7 +433,8 @@ function RedirectToFirstTenant(): JSX.Element {
 type AppLoadingState = "Loading" | "Error" | "Success";
 
 function Layout() {
-  const { user, setUser, logout, expositionUrl } = useContext(IzanamiContext);
+  const { user, setUser, logout, expositionUrl, version } =
+    useContext(IzanamiContext);
   const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
     !user?.username || !expositionUrl ? "Loading" : "Success"
   );
@@ -493,9 +494,10 @@ function Layout() {
           <div className="row">
             <nav className="navbar navbar-expand-lg fixed-top p-0">
               <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
-                <NavLink className="navbar-brand" to="/home">
-                  <div className="d-flex flex-column justify-content-center align-items-center">
+                <NavLink className="navbar-brand w-100" to="/home">
+                  <div className="d-flex flex-column justify-content-center align-items-center  w-100">
                     Izanami
+                    <span style={{ fontSize: "0.7rem" }}>{version}</span>
                   </div>
                 </NavLink>
                 <button
@@ -593,11 +595,13 @@ export class App extends Component {
     super(props);
 
     this.state = {
+      version: undefined,
       user: undefined,
       setUser: (user: TUser) => {
         this.setState({ user: user });
         if (user.admin) {
           queryConfiguration().then((configuration) => {
+            this.setState({ version: configuration.version });
             if (
               !configuration.anonymousReporting &&
               (!configuration.anonymousReportingLastAsked ||

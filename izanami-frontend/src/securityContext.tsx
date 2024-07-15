@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { TLevel, TRights, TUser } from "./utils/types";
 
 export interface TIzanamiContext {
+  version?: string;
   expositionUrl?: string;
   user?: TUser;
   setUser: (user: TUser) => void;
