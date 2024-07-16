@@ -15,7 +15,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Select from "react-select";
 import { IzanamiContext } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";
@@ -105,10 +105,13 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
       : []
   );
   const [rowSelection, setRowSelection] = React.useState({});
-
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     filters || []
   );
+  useEffect(() => {
+    setColumnFilters(filters!);
+  }, [filters]);
+
   const hasActionColumn =
     customRowActions && Object.keys(customRowActions).length > 0;
 

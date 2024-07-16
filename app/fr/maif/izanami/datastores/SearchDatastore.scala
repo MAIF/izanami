@@ -4,7 +4,7 @@ import fr.maif.izanami.datastores.searchEntityImplicits.SearchEntityRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
-import fr.maif.izanami.models.{SearchEntity, TenantRight, User}
+import fr.maif.izanami.models.{RightLevels, SearchEntity, TenantRight, User}
 import fr.maif.izanami.utils.Datastore
 import io.vertx.sqlclient.Row
 
@@ -34,8 +34,8 @@ class SearchDatastore(val env: Env) extends Datastore {
            |    izanami.SIMILARITY(description, $$1)
            |  ) AS match_score
            |FROM $tenant.search_entities
-           |WHERE izanami.SIMILARITY(name, $$1) > 0.4
-           |   OR izanami.SIMILARITY(description, $$1) > 0.4
+           |WHERE  (izanami.SIMILARITY(name, $$1) > 0.4
+           |   OR izanami.SIMILARITY(description, $$1) > 0.4)
      """.stripMargin
       }
       .mkString(" UNION ALL ") + "ORDER BY match_score DESC LIMIT 10"
@@ -54,59 +54,89 @@ class SearchDatastore(val env: Env) extends Datastore {
       }
 
   }
+
   def searchEntities(
-      tenantRights: Map[String, TenantRight],
-      query: String
-  ): Future[Either[IzanamiError, List[SearchEntity]]] = {
+                      tenantRights: Map[String, TenantRight],
+                      query: String
+                    ): Future[Either[IzanamiError, List[SearchEntity]]] = {
 
-    val searchQuery = tenantRights.zipWithIndex
-      .map { case ((tenant, _), index) =>
-        val tenantPlaceholder  = s"$$${index * 4 + 7}"
-        val projectPlaceholder = s"$$${index * 4 + 8}"
-        val webhookPlaceholder = s"$$${index * 4 + 9}"
-        val keyPlaceholder     = s"$$${index * 4 + 10}"
-        s"""
-           |SELECT
-           |  origin_table,
-           |  id,
-           |  name,
-           |  $tenantPlaceholder::TEXT AS origin_tenant,
-           |  project,
-           |  description,
-           |  parent,
-           |  izanami.SIMILARITY(name, $$1) as similarity_name,
-           |  izanami.SIMILARITY(description, $$1) as similarity_description,
-           |  GREATEST(
-           |    izanami.SIMILARITY(name, $$1),
-           |    izanami.SIMILARITY(description, $$1)
-           |  ) AS match_score
-           |FROM $tenant.search_entities
-           |WHERE (
-           |  (project = ANY ($projectPlaceholder::TEXT[]) AND origin_table IN ($$2, $$3))
-           |  OR (origin_table=$$4 AND name = ANY ($webhookPlaceholder::TEXT[]))
-           |  OR (origin_table=$$5 AND name = ANY ($keyPlaceholder::TEXT[]))
-           |  OR (origin_table=$$6 AND project IS NULL)
-           |)
-           |AND izanami.SIMILARITY(name, $$1) > 0.4
-           |   OR izanami.SIMILARITY(description, $$1) > 0.4
-     """.stripMargin
 
+    val adminQuery = (index: Int, tenant: String) =>
+      s"""
+    SELECT
+      origin_table,
+      id,
+      name,
+      $$${index + 1}::TEXT AS origin_tenant,
+      project,
+      description,
+      parent,
+      izanami.SIMILARITY(name, $$${index}) as similarity_name,
+      izanami.SIMILARITY(description, $$${index}) as similarity_description,
+      GREATEST(
+        izanami.SIMILARITY(name, $$${index}),
+        izanami.SIMILARITY(description, $$${index})
+      ) AS match_score
+    FROM $tenant.search_entities
+    WHERE (izanami.SIMILARITY(name, $$${index}) > 0.4
+      OR izanami.SIMILARITY(description, $$${index}) > 0.4)
+  """
+
+    val nonAdminQuery = (index: Int, tenant: String) =>
+      s"""
+    SELECT
+      origin_table,
+      id,
+      name,
+      $$${index + 1}::TEXT AS origin_tenant,
+      project,
+      description,
+      parent,
+      izanami.SIMILARITY(name, $$${index}) as similarity_name,
+      izanami.SIMILARITY(description, $$${index}) as similarity_description,
+      GREATEST(
+        izanami.SIMILARITY(name, $$${index}),
+        izanami.SIMILARITY(description, $$${index})
+      ) AS match_score
+    FROM $tenant.search_entities
+    WHERE
+      ((project = ANY ($$${index + 2}::TEXT[]) AND origin_table IN ($$${index + 3}, $$${index + 4}))
+      OR (origin_table=$$${index + 5} AND name = ANY ($$${index + 6}::TEXT[]))
+      OR (origin_table=$$${index + 7} AND name = ANY ($$${index + 8}::TEXT[]))
+      OR (origin_table=$$${index + 9} AND project IS NULL))
+      AND (izanami.SIMILARITY(name, $$${index}) > 0.4
+      OR izanami.SIMILARITY(description, $$${index}) > 0.4)
+  """
+
+    var currentIndex = 1
+
+    val searchQuery = tenantRights.zipWithIndex.map { case ((tenant, right), _) =>
+      val queryPart = if (right.level == RightLevels.Admin) {
+        val q = adminQuery(currentIndex, tenant)
+        currentIndex += 2
+        q
+      } else {
+        val q = nonAdminQuery(currentIndex, tenant)
+        currentIndex += 10
+        q
       }
-      .mkString(" UNION ALL ") + "ORDER BY match_score DESC LIMIT 10"
+      queryPart
+    }.mkString(" UNION ALL ") + " ORDER BY match_score DESC LIMIT 10"
 
     val params = List.newBuilder[AnyRef]
-    params += query
-    params += "projects"
-    params += "features"
-    params += "webhooks"
-    params += "apikeys"
-    params += "tags"
     tenantRights.foreach { case (tenant, tenantRight) =>
+      params += query
       params += tenant
-      params += tenantRight.projects.keys.toArray
-      params += tenantRight.webhooks.keys.toArray
-      params += tenantRight.keys.keys.toArray
-
+      if (tenantRight.level != RightLevels.Admin) {
+        params += tenantRight.projects.keys.toArray
+        params += "Projects"
+        params += "Features"
+        params += "Webhooks"
+        params += tenantRight.webhooks.keys.toArray
+        params += "Apikeys"
+        params += tenantRight.keys.keys.toArray
+        params += "Tags"
+      }
     }
 
     env.postgresql
@@ -118,7 +148,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       }
   }
 }
-object searchEntityImplicits {
+ object searchEntityImplicits {
   implicit class SearchEntityRow(val row: Row) extends AnyVal {
     def optSearchEntity(): Option[SearchEntity] = {
       for (
@@ -129,8 +159,8 @@ object searchEntityImplicits {
         project       <- Some(row.optString("project"));
         description   <- Some(row.optString("description"));
         parent        <- Some(row.optString("parent"));
-        similarity_name <- row.optDouble("similarity_name");
-        similarity_description <- row.optDouble("similarity_description")
+        similarity_name <-  Some(row.optDouble("similarity_name"));
+        similarity_description <-  Some(row.optDouble("similarity_description"))
       )
         yield SearchEntity(
           id = id,

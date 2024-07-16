@@ -10,8 +10,8 @@ case class SearchEntity(
     project: Option[String],
     description: Option[String],
     parent: Option[String],
-    similarity_name: Double,
-    similarity_description: Double
+    similarity_name: Option[Double],
+    similarity_description: Option[Double],
 )
 
 object SearchEntity {

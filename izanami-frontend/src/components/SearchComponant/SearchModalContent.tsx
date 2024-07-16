@@ -34,7 +34,6 @@ const iconMapping = new Map<string, string>([
   ["Tenants", "fa-cloud"],
   ["Users", "fa-user"],
   ["Webhooks", "fa-plug"],
-  ["Global contexts", "fa-filter"],
   ["Projects contexts", "fa-filter"],
 ]);
 const getLinkPath = (item: SearchResult) => {
@@ -163,10 +162,14 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
               setShowDocuments(true);
             }}
             placeholder={`Search in ${
-              tenant ? `this tenant: ${selectedTenant}` : "all tenants"
+              selectedTenant === "all"
+                ? "all tenants"
+                : `this tenant: ${selectedTenant}`
             }`}
             aria-label={`Search in ${
-              tenant ? `this tenant: ${selectedTenant}` : "all tenants"
+              selectedTenant === "all"
+                ? "all tenants"
+                : `this tenant: ${selectedTenant}`
             }`}
             className="form-control"
             style={{ padding: ".375rem 1.85rem" }}
@@ -225,7 +228,14 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                   )}
                                 {item.parent && (
                                   <li className="breadcrumb-item">
-                                    <GlobalContextIcon className="me-2" />
+                                    {item.origin_table === "Global contexts" ? (
+                                      <GlobalContextIcon className="me-2" />
+                                    ) : (
+                                      <i
+                                        className="fas fa-filter me-2"
+                                        aria-hidden="true"
+                                      />
+                                    )}
                                     {item.parent
                                       .slice(item.parent.indexOf("_") + 1)
                                       .split("_")
@@ -233,12 +243,16 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                   </li>
                                 )}
                                 <li className="breadcrumb-item">
-                                  <i
-                                    className={`fas ${iconMapping.get(
-                                      originTable
-                                    )} me-2`}
-                                    aria-hidden="true"
-                                  />
+                                  {item.origin_table === "Global contexts" ? (
+                                    <GlobalContextIcon className="me-2" />
+                                  ) : (
+                                    <i
+                                      className={`fas ${iconMapping.get(
+                                        originTable
+                                      )} me-2`}
+                                      aria-hidden="true"
+                                    />
+                                  )}
                                   {item.description &&
                                   item.similarity_description >=
                                     item.similarity_name

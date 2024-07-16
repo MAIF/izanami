@@ -493,7 +493,9 @@ function Layout() {
           </div>
 
           <ul className="navbar-nav ms-auto">
-            {(tenant || user?.admin) && (
+            {(tenant ||
+              user?.admin ||
+              Object.keys(user?.rights.tenants || {}).length > 0) && (
               <li className="me-2 d-flex align-items-center justify-content-end my-1">
                 <button
                   className="btn btn-secondary"
@@ -503,7 +505,7 @@ function Layout() {
                 >
                   <span className="fa fa-search"></span>
                   <span className="text-searchbutton d-none d-md-inline">
-                    Type to search ...
+                    Click to search ...
                   </span>
                 </button>
               </li>
@@ -575,7 +577,9 @@ function Layout() {
         </main>
       </div>
       {/*Add Search Modal*/}
-      {(tenant || user?.admin) && (
+      {(tenant ||
+        user?.admin ||
+        Object.keys(user?.rights.tenants || {}).length > 0) && (
         <SearchModal
           tenant={tenant ? tenant : "all"}
           isOpenModal={isOpenModal}
