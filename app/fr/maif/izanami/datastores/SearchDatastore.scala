@@ -3,7 +3,7 @@ package fr.maif.izanami.datastores
 import fr.maif.izanami.datastores.searchEntityImplicits.SearchEntityRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
+import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.{RightLevels, SearchEntity, TenantRight, User}
 import fr.maif.izanami.utils.Datastore
 import io.vertx.sqlclient.Row
@@ -34,8 +34,10 @@ class SearchDatastore(val env: Env) extends Datastore {
            |    izanami.SIMILARITY(description, $$1)
            |  ) AS match_score
            |FROM $tenant.search_entities
-           |WHERE  (izanami.SIMILARITY(name, $$1) > 0.4
-           |   OR izanami.SIMILARITY(description, $$1) > 0.4)
+           |WHERE  izanami.SIMILARITY(name, $$1) > 0.4
+           |   OR izanami.SIMILARITY(description, $$1) > 0.4
+           |   OR izanami.SOUNDEX(name) = izanami.SOUNDEX($$1)
+           |   OR izanami.SOUNDEX(description) = izanami.SOUNDEX($$1)
      """.stripMargin
       }
       .mkString(" UNION ALL ") + "ORDER BY match_score DESC LIMIT 10"
@@ -78,8 +80,10 @@ class SearchDatastore(val env: Env) extends Datastore {
         izanami.SIMILARITY(description, $$${index})
       ) AS match_score
     FROM $tenant.search_entities
-    WHERE (izanami.SIMILARITY(name, $$${index}) > 0.4
-      OR izanami.SIMILARITY(description, $$${index}) > 0.4)
+    WHERE izanami.SIMILARITY(name, $$${index}) > 0.4
+      OR izanami.SIMILARITY(description, $$${index}) > 0.4
+      OR izanami.SOUNDEX(name) = izanami.SOUNDEX($$${index})
+      OR izanami.SOUNDEX(description) = izanami.SOUNDEX($$${index})
   """
 
     val nonAdminQuery = (index: Int, tenant: String) =>
@@ -104,8 +108,10 @@ class SearchDatastore(val env: Env) extends Datastore {
       OR (origin_table=$$${index + 5} AND name = ANY ($$${index + 6}::TEXT[]))
       OR (origin_table=$$${index + 7} AND name = ANY ($$${index + 8}::TEXT[]))
       OR (origin_table=$$${index + 9} AND project IS NULL))
-      AND (izanami.SIMILARITY(name, $$${index}) > 0.4
-      OR izanami.SIMILARITY(description, $$${index}) > 0.4)
+      AND izanami.SIMILARITY(name, $$${index}) > 0.4
+      OR izanami.SIMILARITY(description, $$${index}) > 0.4
+      OR izanami.SOUNDEX(name) = izanami.SOUNDEX($$${index})
+      OR izanami.SOUNDEX(description) = izanami.SOUNDEX($$${index})
   """
 
     var currentIndex = 1
