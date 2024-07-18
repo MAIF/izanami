@@ -66,6 +66,7 @@ PUT           /api/admin/tenants/:tenant/projects/:project/users/:user/rights   
 GET           /api/admin/:tenant/users/:user                                                       fr.maif.izanami.web.UserController.readUserForTenant(tenant: String, user: String)
 PUT           /api/admin/:tenant/users/:user/rights                                                fr.maif.izanami.web.UserController.updateUserRightsForTenant(tenant: String, user: String)
 PUT           /api/admin/users/:user/rights                                                        fr.maif.izanami.web.UserController.updateUserRights(user: String)
+PUT           /api/admin/users/:user/role                                                          fr.maif.izanami.web.UserController.updateUserAdminRole(user: String)
 PUT           /api/admin/users/:user/password                                                      fr.maif.izanami.web.UserController.updateUserPassword(user: String)
 PUT           /api/admin/users/:user                                                               fr.maif.izanami.web.UserController.updateUser(user: String)
 GET           /api/admin/users                                                                     fr.maif.izanami.web.UserController.readUsers()

@@ -346,6 +346,18 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(_ => ())
   }
 
+  def updateUserAdminRole(name: String, updateRequest : UserAdminRightUpdateRequest ): Future[Either[IzanamiError, Unit]] = {
+    updateRequest.admin
+      .map(admin =>
+    env.postgresql
+      .queryOne(
+        s"""UPDATE izanami.users SET admin=$$1 WHERE username=$$2 RETURNING username""",
+        List(java.lang.Boolean.valueOf(admin), name),
+      ) {_ => Some(())}
+      ).getOrElse(Future(Some(())))
+    .map(_.toRight(InternalServerError()))
+  }
+
   def updateUserRights(
       name: String,
       updateRequest: UserRightsUpdateRequest

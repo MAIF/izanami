@@ -718,6 +718,23 @@ export function updateUserRights(
   );
 }
 
+export function updateUserRightsRole(
+  name: string,
+  user: {
+    admin: boolean;
+  }
+): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/users/${name}/role`, {
+      method: "PUT",
+      body: JSON.stringify(user),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+  );
+}
+
 export function patchFeatures(
   tenant: string,
   patches: { op: string; path: string; value?: any }[]
@@ -811,6 +828,7 @@ export function updateUserRightsForTenant(
   tenant: string,
   right: TTenantRight
 ): Promise<undefined> {
+  console.log("nameeee", name);
   return handleFetchWithoutResponse(
     fetch(`/api/admin/${tenant}/users/${name}/rights`, {
       method: "PUT",

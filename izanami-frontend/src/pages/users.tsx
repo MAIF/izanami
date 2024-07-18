@@ -15,6 +15,7 @@ import {
   queryUserForTenants,
   updateUserRights,
   updateUserRightsForTenant,
+  updateUserRightsRole,
   userQueryKey,
   userQueryKeyForTenant,
   usersQuery,
@@ -34,12 +35,16 @@ import { Loader } from "../components/Loader";
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);
   const { askConfirmation, user } = useContext(IzanamiContext);
-  const [selectedRows, setSelectedRows] = useState<UserType[]>([]);
+  const [selectedRows, setSelectedRows] = useState<TUser[]>([]);
   const hasSelectedRows = selectedRows.length > 0;
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
     undefined
   );
-  const BULK_OPERATIONS = ["Delete"] as const;
+  const BULK_OPERATIONS = [
+    "Delete",
+    "Enabled Admin Role",
+    "Disabled Admin Role",
+  ] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
   const isTenantAdmin = Boolean(
@@ -58,6 +63,19 @@ export function Users() {
     }
   );
 
+  const updateUserRightsRoleMutation = useMutation(
+    (user: { username: string; admin: boolean }) => {
+      const { username, ...rest } = user;
+
+      return updateUserRightsRole(username, rest);
+    },
+    {
+      onSuccess: (_, { username }) => {
+        queryClient.invalidateQueries(MutationNames.USERS);
+        queryClient.invalidateQueries(userQueryKey(username));
+      },
+    }
+  );
   const userUpdateMutation = useMutation(
     (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
@@ -274,6 +292,46 @@ export function Users() {
                         }
                       );
                       break;
+                    case "Enabled Admin Role":
+                      askConfirmation(
+                        `Are you sure you want to enable admin role for ${
+                          selectedRows.length
+                        } user${selectedRows.length > 1 ? "s" : ""} ?`,
+                        () => {
+                          return Promise.all(
+                            selectedRows.map((row) => {
+                              updateUserRightsRoleMutation
+                                .mutateAsync({
+                                  username: row.username,
+                                  admin: true,
+                                })
+                                .then(() => setBulkOperation(undefined));
+                            })
+                          );
+                        }
+                      );
+                      break;
+                    case "Disabled Admin Role":
+                      askConfirmation(
+                        `Are you sure you want to disable admin role for ${
+                          selectedRows.length
+                        } user${selectedRows.length > 1 ? "s" : ""} ?`,
+                        () => {
+                          return Promise.all(
+                            selectedRows.map((row) => {
+                              if (isAdmin) {
+                                updateUserRightsRoleMutation
+                                  .mutateAsync({
+                                    username: row.username,
+                                    admin: false,
+                                  })
+                                  .then(() => setBulkOperation(undefined));
+                              }
+                            })
+                          );
+                        }
+                      );
+                      break;
                   }
                 }}
               >
@@ -456,7 +514,6 @@ export function UserEdition(props: {
       }
     }
   );
-
   if (userQuery.isLoading) {
     return <Loader message="Loading..." />;
   } else if (userQuery.data) {
@@ -489,12 +546,10 @@ export function UserEdition(props: {
           }}
           onSubmit={(ctx) => {
             const backendRights = rightStateArrayToBackendMap(ctx.rights);
-
             const payload = {
               rights: backendRights,
               admin: ctx.admin,
             };
-
             return submit(payload, userQuery.data);
           }}
           onClose={() => cancel()}

@@ -199,6 +199,16 @@ class UserController(
         })
     }
 
+  def updateUserAdminRole (user: String): Action[JsValue] = adminAction.async(parse.json) { implicit request =>
+    User.userAdminRightUpdateReads.reads(request.body) match {
+      case JsSuccess(modificationRequest, _) =>
+        env.datastores.users.updateUserAdminRole(user, modificationRequest).map {
+          case Left(err) => err.toHttpResponse
+          case Right(_)  => NoContent
+        }
+      case JsError(_)                        => BadBodyFormat().toHttpResponse.future
+    }
+  }
   def updateUserRights(user: String): Action[JsValue] = adminAction.async(parse.json) { implicit request =>
     User.userRightsUpdateReads.reads(request.body) match {
       case JsSuccess(modificationRequest, _) =>
@@ -209,6 +219,7 @@ class UserController(
       case JsError(_)                        => BadBodyFormat().toHttpResponse.future
     }
   }
+
 
   def updateUserRightsForTenant(tenant: String, user: String): Action[JsValue] = {
     // TODO use tenantActionRight ?

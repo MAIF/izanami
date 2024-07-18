@@ -56,6 +56,10 @@ case class UserRightsUpdateRequest(
     admin: Option[Boolean] = None
 )
 
+case class UserAdminRightUpdateRequest(
+    admin: Option[Boolean] = None
+)
+
 case class UserInformationUpdateRequest(
     name: String,
     email: String,
@@ -492,6 +496,9 @@ object User {
 
   implicit val userRightsUpdateReads: Reads[UserRightsUpdateRequest] = ((__ \ "rights").read[Rights] and
     (__ \ "admin").readNullable[Boolean])((rights, admin) => UserRightsUpdateRequest(rights = rights, admin = admin))
+
+  implicit val userAdminRightUpdateReads: Reads[UserAdminRightUpdateRequest] =
+    ((__ \ "admin").readNullable[Boolean]).map(admin => UserAdminRightUpdateRequest(admin = admin))
 
   implicit val userUpdateReads: Reads[UserInformationUpdateRequest] =
     ((__ \ "username").read[String].filter(name => NAME_REGEXP.pattern.matcher(name).matches()) and

@@ -2327,6 +2327,21 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
+    def updateUserRole(name: String, admin: Boolean): RequestResult = {
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/users/${name}/role")
+          .withCookies(cookies: _*)
+          .put(
+            Json.obj(
+              "admin" -> admin,
+            )
+          )
+      )
+      RequestResult(json = Try {
+        response.json
+      }, status = response.status)
+    }
+
     def updateUserPassword(user: String, oldPassword: String, newPassword: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/users/${user}/password")
