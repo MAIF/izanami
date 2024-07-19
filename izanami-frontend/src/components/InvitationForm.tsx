@@ -6,15 +6,22 @@ import { customStyles } from "../styles/reactSelect";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { ErrorMessage } from "../components/HookFormErrorMessage";
 
+export interface Option {
+  label: string;
+  value: string;
+}
+
 const loadOptions = (
   inputValue: string,
   callback: (options: string[]) => void
 ) => {
   fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
     .then((resp) => resp.json())
-    .then((data) =>
-      callback(data.map((d: string) => ({ label: d, value: d })))
-    );
+    .then((data) => callback(data.map((d: string) => ({ label: d, value: d }))))
+    .catch((error) => {
+      console.error("Error loading options", error);
+      callback([]);
+    });
 };
 
 const LEVEL_OPTIONS = Object.values(TLevel).map((n) => ({
@@ -26,7 +33,7 @@ export function InvitationForm(props: {
   submit: (p: { users: string[]; level: TLevel }) => void;
   cancel: () => void;
 }) {
-  const methods = useForm<{ users: string[]; level: TLevel }>({
+  const methods = useForm<{ users: Option[]; level: TLevel }>({
     defaultValues: {},
   });
   const {
@@ -38,7 +45,12 @@ export function InvitationForm(props: {
   return (
     <FormProvider {...methods}>
       <form
-        onSubmit={handleSubmit((data) => props?.submit?.(data))}
+        onSubmit={handleSubmit((data) =>
+          props?.submit?.({
+            users: data.users.map((user) => user.value),
+            level: data.level,
+          })
+        )}
         className="d-flex flex-column sub_container anim__rightToLeft mb-2"
       >
         <h4>Invite new users</h4>
@@ -50,8 +62,10 @@ export function InvitationForm(props: {
             rules={{
               required: "At least one user must be selected",
             }}
-            render={({ field: { onChange, value } }) => (
+            defaultValue={[]}
+            render={({ field }) => (
               <AsyncSelect
+                {...field}
                 loadOptions={loadOptions as any} // FIXME TS
                 styles={customStyles}
                 cacheOptions
@@ -62,8 +76,7 @@ export function InvitationForm(props: {
                     : "Start typing to search users";
                 }}
                 placeholder="Start typing to search users"
-                onChange={(vs) => onChange(vs?.map((v) => v?.value))}
-                value={value ? { label: value, value: value } : []}
+                onChange={(selected) => field.onChange(selected)}
               />
             )}
           />
