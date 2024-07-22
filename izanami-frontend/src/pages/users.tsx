@@ -4,6 +4,9 @@ import { useMutation, useQuery } from "react-query";
 import { GenericTable } from "../components/GenericTable";
 import queryClient from "../queryClient";
 import { IzanamiContext, useAdmin } from "../securityContext";
+import Select from "react-select";
+import { customStyles } from "../styles/reactSelect";
+
 import {
   createInvitation,
   deleteUser,
@@ -30,7 +33,14 @@ import { Loader } from "../components/Loader";
 
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);
-  const { askConfirmation } = useContext(IzanamiContext);
+  const { askConfirmation, user } = useContext(IzanamiContext);
+  const [selectedRows, setSelectedRows] = useState<UserType[]>([]);
+  const hasSelectedRows = selectedRows.length > 0;
+  const [bulkOperation, setBulkOperation] = useState<string | undefined>(
+    undefined
+  );
+
+  const BULK_OPERATIONS = ["Delete"] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
   const isTenantAdmin = Boolean(
@@ -45,9 +55,11 @@ export function Users() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(MutationNames.USERS);
+        setSelectedRows([]);
       },
     }
   );
+
   const userUpdateMutation = useMutation(
     (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
@@ -218,8 +230,69 @@ export function Users() {
             </div>
           </>
         )}
+        <div
+          className={`d-flex align-items-center ${
+            hasSelectedRows ? "" : "invisible"
+          }`}
+        >
+          <Select
+            options={BULK_OPERATIONS.map((op) => ({
+              label: op,
+              value: op,
+            }))}
+            value={
+              bulkOperation
+                ? { label: bulkOperation, value: bulkOperation }
+                : null
+            }
+            onChange={(e) => setBulkOperation(e?.value)}
+            styles={customStyles}
+            isClearable={true}
+            isDisabled={selectedRows?.length === 0}
+            placeholder="Bulk action"
+            aria-label="Bulk action"
+          />
+          &nbsp;
+          {bulkOperation && (
+            <>
+              <button
+                className="ms-2 btn btn-primary"
+                type="button"
+                disabled={!hasSelectedRows || !bulkOperation}
+                onClick={() => {
+                  switch (bulkOperation) {
+                    case "Delete":
+                      askConfirmation(
+                        `Are you sure you want to delete ${
+                          selectedRows.length
+                        } user${selectedRows.length > 1 ? "s" : ""} ?`,
+                        () => {
+                          return Promise.all(
+                            selectedRows.map((row) =>
+                              userDeleteMutation
+                                .mutateAsync(row.username)
+                                .then(() => setBulkOperation(undefined))
+                            )
+                          );
+                        }
+                      );
+                      break;
+                  }
+                }}
+              >
+                {bulkOperation} {selectedRows.length} user
+                {selectedRows.length > 1 ? "s" : ""}
+              </button>
+            </>
+          )}
+        </div>
         <GenericTable
+          selectableRows={user?.admin}
           data={users}
+          onRowSelectionChange={(rows) => {
+            setSelectedRows(rows);
+          }}
+          isRowSelectable={(row) => row.username !== user?.username}
           columns={columns}
           idAccessor={(u) => u.username}
           customRowActions={{
