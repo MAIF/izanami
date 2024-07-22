@@ -39,6 +39,7 @@ export function Users() {
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
     undefined
   );
+
   const BULK_OPERATIONS = ["Delete"] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
@@ -54,6 +55,7 @@ export function Users() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(MutationNames.USERS);
+        setSelectedRows([]);
       },
     }
   );
