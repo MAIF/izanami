@@ -17,7 +17,7 @@ SELECT
     name,
     project,
     description,
-    NULL as parent
+    NULL AS parent
 FROM
     features
 UNION ALL
@@ -25,58 +25,67 @@ SELECT
     text 'Projects' AS origin_table,
     id::text as id,
     name,
-    name as project,
+    name AS project,
     description,
-    NULL as parent
+    NULL AS parent
 FROM
     projects
 UNION ALL
 SELECT
     text 'Tags' AS origin_table,
-    id::text as id,
+    id::text AS id,
     name,
-    NULL as project,
+    NULL AS project,
     description,
-    NULL as parent
+    NULL AS parent
 FROM
     tags
 UNION ALL
 SELECT
     text 'Apikeys' AS origin_table,
-        clientid as id,
+    clientid AS id,
     name,
-    ap.project as project,
+    NULL AS project,
     description,
-    NULL as parent
+    NULL AS parent
 FROM
-   apikeys f
-        left join apikeys_projects ap on f.name = ap.apikey
+   apikeys
 UNION ALL
 SELECT
     text 'Webhooks' AS origin_table,
-    id::text as id,
+    id::text AS id,
     name,
-    (SELECT name from projects where id=(SELECT project from webhooks_projects WHERE project=id)) as project,
+    NULL AS parent,
     description, NULL as parent
 FROM
     webhooks
 UNION ALL
 SELECT
-    text 'Global contexts' AS origin_table,
-    id::text as id,
+    text 'Contexts' AS origin_table,
+    id::text AS id,
     name,
-    NULL as project,
-    NULL as description,
+    NULL AS project,
+    text 'Global' AS description,
     parent
 FROM
     global_feature_contexts
 UNION ALL
 SELECT
-    text 'Projects contexts' AS origin_table,
-    id::text as id,
+    text 'Contexts' AS origin_table,
+    id::text AS id,
     name,
     project,
-    NULL as description,
-    COALESCE(parent , global_parent) as parent
+    text 'Projects' AS description,
+    COALESCE(parent , global_parent) AS parent
 FROM
-    feature_contexts;
+    feature_contexts
+UNION ALL
+SELECT
+   text 'Wasm Scripts' AS origin_table,
+   id::text AS id,
+   id::text AS name,
+   NULL AS project,
+   NULL AS description,
+   NULL AS parent
+FROM wasm_script_configurations;
+

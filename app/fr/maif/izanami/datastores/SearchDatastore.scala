@@ -34,8 +34,8 @@ class SearchDatastore(val env: Env) extends Datastore {
            |    izanami.SIMILARITY(description, $$1)
            |  ) AS match_score
            |FROM $tenant.search_entities
-           |WHERE  izanami.SIMILARITY(name, $$1) > 0.4
-           |   OR izanami.SIMILARITY(description, $$1) > 0.4
+           |WHERE  izanami.SIMILARITY(name, $$1) > 0.1
+           |   OR izanami.SIMILARITY(description, $$1) > 0.1
            |   OR izanami.SOUNDEX(name) = izanami.SOUNDEX($$1)
            |   OR izanami.SOUNDEX(description) = izanami.SOUNDEX($$1)
      """.stripMargin

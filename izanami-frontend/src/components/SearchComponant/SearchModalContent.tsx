@@ -34,7 +34,8 @@ const iconMapping = new Map<string, string>([
   ["Tenants", "fa-cloud"],
   ["Users", "fa-user"],
   ["Webhooks", "fa-plug"],
-  ["Projects contexts", "fa-filter"],
+  ["Contexts", "fa-filter"],
+  ["Wasm Scripts", "fa-code"],
 ]);
 const getLinkPath = (item: SearchResult) => {
   switch (item.origin_table) {
@@ -44,12 +45,16 @@ const getLinkPath = (item: SearchResult) => {
       return `/tenants/${item.origin_tenant}/keys`;
     case "Webhooks":
       return `/tenants/${item.origin_tenant}/webhooks`;
-    case "Global contexts":
-      return `/tenants/${item.origin_tenant}/contexts`;
-    case "Projects contexts":
-      return `/tenants/${item.origin_tenant}/projects/${item.project}/contexts`;
+    case "Contexts":
+      return `/tenants/${item.origin_tenant}/${
+        item.description === "Projects" ? `projects/${item.project}/` : ""
+      }contexts`;
+    case "Wasm Scripts":
+      return `/tenants/${item.origin_tenant}/scripts`;
     default:
-      return `/tenants/${item.origin_tenant}/${item.origin_table}/${item.name}`;
+      return `/tenants/${
+        item.origin_tenant
+      }/${item.origin_table.toLowerCase()}/${item.name}`;
   }
 };
 
@@ -89,10 +94,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   );
   const handleItemClick = (item: SearchResult) => {
     const linkPath = getLinkPath(item);
-    if (
-      item.origin_table === "Global contexts" ||
-      item.origin_table === "Projects contexts"
-    ) {
+    if (item.origin_table === "Global") {
       navigate(
         { pathname: linkPath },
         {
@@ -107,7 +109,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     } else {
       navigate(
         { pathname: linkPath },
-        { state: { name: item.origin_table !== "projects" ? item.name : null } }
+        { state: { name: item.origin_table !== "Projects" ? item.name : null } }
       );
     }
     onClose();
@@ -208,13 +210,15 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                 className="breadcrumb"
                                 style={{ marginBottom: "0rem" }}
                               >
-                                <li className="breadcrumb-item">
-                                  <i
-                                    className="fas fa-cloud me-2"
-                                    aria-hidden="true"
-                                  />
-                                  {item.origin_tenant}
-                                </li>
+                                {selectedTenant === "all" && (
+                                  <li className="breadcrumb-item">
+                                    <i
+                                      className="fas fa-cloud me-2"
+                                      aria-hidden="true"
+                                    />
+                                    {item.origin_tenant}
+                                  </li>
+                                )}
 
                                 {item.project &&
                                   item.origin_table !== "Projects" && (
@@ -228,7 +232,8 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                   )}
                                 {item.parent && (
                                   <li className="breadcrumb-item">
-                                    {item.origin_table === "Global contexts" ? (
+                                    {item.origin_table === "Context" &&
+                                    item.description === "Global" ? (
                                       <GlobalContextIcon className="me-2" />
                                     ) : (
                                       <i
@@ -243,7 +248,8 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                   </li>
                                 )}
                                 <li className="breadcrumb-item">
-                                  {item.origin_table === "Global contexts" ? (
+                                  {item.origin_table === "Contexts" &&
+                                  item.description === "Global" ? (
                                     <GlobalContextIcon className="me-2" />
                                   ) : (
                                     <i
