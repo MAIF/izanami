@@ -52,8 +52,8 @@ export function Settings() {
     queryConfiguration()
   );
 
-  const configurationMutationQuery = useMutation((data: Configuration) =>
-    updateConfiguration(data)
+  const configurationMutationQuery = useMutation(
+    (data: Omit<Configuration, "version">) => updateConfiguration(data)
   );
 
   if (configurationQuery.isLoading) {

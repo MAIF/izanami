@@ -598,7 +598,7 @@ export function queryStats(): Promise<object> {
 }
 
 export function updateConfiguration(
-  configuration: Configuration
+  configuration: Omit<Configuration, "version">
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch("/api/admin/configuration", {
