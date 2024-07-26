@@ -8,12 +8,7 @@ lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
   .enablePlugins(BuildInfoPlugin)
   .settings(
-    // enable publishing the jar produced by `Test/package`
     Compile / packageBin / publishArtifact := false,
-    // enable publishing the test API jar
-    Compile / packageDoc / publishArtifact := false,
-    // enable publishing the test sources jar
-    Compile / packageSrc / publishArtifact := false,
     addArtifact(Artifact("izanami", "jar", "jar"), assembly)
   )
 
