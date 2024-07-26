@@ -1,10 +1,25 @@
-import ReleaseTransformations._
-import xerial.sbt.Sonatype.sonatype01
+import ReleaseTransformations.*
+import xerial.sbt.Sonatype.{sonatype01}
 
 name := """izanami"""
 organization := "fr.maif"
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala).enablePlugins(BuildInfoPlugin)
+lazy val root = (project in file("."))
+  .enablePlugins(PlayScala)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    // enable publishing the jar produced by `Test/package`
+    Compile / packageBin / publishArtifact := false,
+    // enable publishing the test API jar
+    Compile / packageDoc / publishArtifact := false,
+    // enable publishing the test sources jar
+    Compile / packageSrc / publishArtifact := false,
+    addArtifact(Artifact("izanami", "jar", "jar"), assembly)
+  )
+
+/*packagedArtifacts in publish := {
+  Map.empty
+}*/
 
 lazy val excludesJackson = Seq(
   ExclusionRule(organization = "com.fasterxml.jackson.core"),
@@ -61,6 +76,7 @@ libraryDependencies += "com.github.mifmif"             % "generex"              
 
 routesImport += "fr.maif.izanami.models.CustomBinders._"
 
+assembly / test := {}
 assembly / mainClass := Some("play.core.server.ProdServerStart")
 assembly / fullClasspath += Attributed.blank(PlayKeys.playPackageAssets.value)
 assembly / assemblyJarName := "izanami.jar"
@@ -91,6 +107,16 @@ assembly / assemblyMergeStrategy := {
     oldStrategy(x)
 }
 
+crossPaths := false
+
+/*publish / packagedArtifacts := {
+  val log = streams.value.log
+  Map(Artifact(moduleName.value, "jar", "jar") -> assembly.value)
+}*/
+
+val sonatypeCentralDeploymentName =
+  settingKey[String](s"fr.maif-izanami")
+
 releaseVersionBump := sbtrelease.Version.Bump.Bugfix
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies, // : ReleaseStep
@@ -103,7 +129,7 @@ releaseProcess := Seq[ReleaseStep](
   //publishArtifacts,          // : ReleaseStep, checks whether `publishTo` is properly set up
   releaseStepCommand("publishSigned"),
   releaseStepCommand("sonatypeBundleRelease"),
-  setNextVersion,             // : ReleaseStep
+  setNextVersion,            // : ReleaseStep
   commitNextVersion,         // : ReleaseStep
   pushChanges                // : ReleaseStep, also checks that an upstream branch is properly configured
 )
