@@ -3,21 +3,56 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
+    path: '/izanami/__docusaurus/debug',
+    component: ComponentCreator('/izanami/__docusaurus/debug', 'ab4'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/config',
+    component: ComponentCreator('/izanami/__docusaurus/debug/config', '71e'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/content',
+    component: ComponentCreator('/izanami/__docusaurus/debug/content', '7bd'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/globalData',
+    component: ComponentCreator('/izanami/__docusaurus/debug/globalData', '1a4'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/metadata',
+    component: ComponentCreator('/izanami/__docusaurus/debug/metadata', 'd94'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/registry',
+    component: ComponentCreator('/izanami/__docusaurus/debug/registry', '49c'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/routes',
+    component: ComponentCreator('/izanami/__docusaurus/debug/routes', '108'),
+    exact: true
+  },
+  {
     path: '/izanami/search',
-    component: ComponentCreator('/izanami/search', '67a'),
+    component: ComponentCreator('/izanami/search', 'b82'),
     exact: true
   },
   {
     path: '/izanami/docs',
-    component: ComponentCreator('/izanami/docs', '77d'),
+    component: ComponentCreator('/izanami/docs', 'a11'),
     routes: [
       {
         path: '/izanami/docs',
-        component: ComponentCreator('/izanami/docs', '53e'),
+        component: ComponentCreator('/izanami/docs', '084'),
         routes: [
           {
             path: '/izanami/docs',
-            component: ComponentCreator('/izanami/docs', 'ec2'),
+            component: ComponentCreator('/izanami/docs', '598'),
             routes: [
               {
                 path: '/izanami/docs/clients/',
@@ -75,13 +110,19 @@ export default [
               },
               {
                 path: '/izanami/docs/guides/configuration',
-                component: ComponentCreator('/izanami/docs/guides/configuration', '91e'),
+                component: ComponentCreator('/izanami/docs/guides/configuration', '84e'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
                 path: '/izanami/docs/guides/env-contexts',
                 component: ComponentCreator('/izanami/docs/guides/env-contexts', '3a6'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/izanami/docs/guides/http-calls-in-scripts',
+                component: ComponentCreator('/izanami/docs/guides/http-calls-in-scripts', 'd9d'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -93,7 +134,7 @@ export default [
               },
               {
                 path: '/izanami/docs/guides/key-configuration',
-                component: ComponentCreator('/izanami/docs/guides/key-configuration', 'e58'),
+                component: ComponentCreator('/izanami/docs/guides/key-configuration', 'fb7'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -105,7 +146,7 @@ export default [
               },
               {
                 path: '/izanami/docs/guides/mailer-configuration',
-                component: ComponentCreator('/izanami/docs/guides/mailer-configuration', 'ae4'),
+                component: ComponentCreator('/izanami/docs/guides/mailer-configuration', 'b6c'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -129,13 +170,13 @@ export default [
               },
               {
                 path: '/izanami/docs/guides/user-invitation',
-                component: ComponentCreator('/izanami/docs/guides/user-invitation', 'eba'),
+                component: ComponentCreator('/izanami/docs/guides/user-invitation', 'af4'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
                 path: '/izanami/docs/guides/webhooks',
-                component: ComponentCreator('/izanami/docs/guides/webhooks', '724'),
+                component: ComponentCreator('/izanami/docs/guides/webhooks', '821'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -177,7 +218,7 @@ export default [
   },
   {
     path: '/izanami/v1',
-    component: ComponentCreator('/izanami/v1', '433'),
+    component: ComponentCreator('/izanami/v1', 'b1a'),
     routes: [
       {
         path: '/izanami/v1',
@@ -441,7 +482,7 @@ export default [
   },
   {
     path: '/izanami/',
-    component: ComponentCreator('/izanami/', 'a38'),
+    component: ComponentCreator('/izanami/', '89a'),
     exact: true
   },
   {
