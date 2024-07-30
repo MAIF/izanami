@@ -117,6 +117,13 @@
           },
           {
             "type": "link",
+            "label": "Http calls in scripts",
+            "href": "/izanami/docs/guides/http-calls-in-scripts",
+            "docId": "guides/http-calls-in-scripts",
+            "unlisted": false
+          },
+          {
+            "type": "link",
             "label": "User invitation",
             "href": "/izanami/docs/guides/user-invitation",
             "docId": "guides/user-invitation",
@@ -253,6 +260,12 @@
       "id": "guides/env-contexts",
       "title": "Handling environnements",
       "description": "When working with multiple environments (dev, QA, production, ...) it's often necessary to have a different feature activation strategy for each of them.",
+      "sidebar": "tutorialSidebar"
+    },
+    "guides/http-calls-in-scripts": {
+      "id": "guides/http-calls-in-scripts",
+      "title": "Http calls in scripts",
+      "description": "This page covers features availble from Izanami 2.5.0.",
       "sidebar": "tutorialSidebar"
     },
     "guides/import-from-v1": {
