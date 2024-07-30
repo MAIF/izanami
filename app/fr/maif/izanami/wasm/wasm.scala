@@ -56,23 +56,23 @@ object WasmConfigWithFeatures {
   }
 }
 
-
 case class WasmConfig(
     name: String,
     source: WasmSource = WasmSource(WasmSourceKind.Unknown, "", Json.obj()),
     memoryPages: Int = 100,
     functionName: Option[String] = None,
     config: Map[String, String] = Map.empty,
-    allowedHosts: Seq[String] = Seq.empty,
     allowedPaths: Map[String, String] = Map.empty,
     ////
     // lifetime: WasmVmLifetime = WasmVmLifetime.Forever,
     wasi: Boolean = false,
     opa: Boolean = false,
     instances: Int = 1,
-    killOptions: WasmVmKillOptions = WasmVmKillOptions.default,
-    authorizations: WasmAuthorizations = WasmAuthorizations()
+    killOptions: WasmVmKillOptions = WasmVmKillOptions.default
 ) extends WasmConfiguration {
+  def allowedHosts: Seq[String]          = if (authorizations.httpAccess) Seq("*") else Seq()
+  def authorizations: WasmAuthorizations = WasmAuthorizations(httpAccess = true)
+
   // still here for compat reason
   def json: JsValue = Json.obj(
     "name"           -> name,
@@ -98,73 +98,73 @@ object WasmConfig {
       val rawSource      = json.select("raw_source").asOpt[String]
       val sourceOpt      = json.select("source").asOpt[JsObject]
 
-      (json
-        .select("name")
-        .asOpt[String]
-        .flatMap(name => {
-          val maybeSource = if (sourceOpt.isDefined) {
-            WasmSource.format.reads(sourceOpt.get).asOpt
-          } else {
-            Some(compilerSource match {
-              case Some(source) => WasmSource(WasmSourceKind.Wasmo, source, Json.obj("name" -> name))
-              case None         =>
-                rawSource match {
-                  case Some(source) if source.startsWith("http://")   =>
-                    WasmSource(WasmSourceKind.Http, source, Json.obj("name" -> name))
-                  case Some(source) if source.startsWith("https://")  =>
-                    WasmSource(WasmSourceKind.Http, source, Json.obj("name" -> name))
-                  case Some(source) if source.startsWith("file://")   =>
-                    WasmSource(WasmSourceKind.File, source.replace("file://", ""), Json.obj("name" -> name))
-                  case Some(source) if source.startsWith("base64://") =>
-                    WasmSource(WasmSourceKind.Base64, source.replace("base64://", ""), Json.obj("name" -> name))
-                  case Some(source) if source.startsWith("entity://") =>
-                    WasmSource(WasmSourceKind.Local, source.replace("entity://", ""), Json.obj("name" -> name))
-                  case Some(source) if source.startsWith("local://")  =>
-                    WasmSource(WasmSourceKind.Local, source.replace("local://", ""), Json.obj("name" -> name))
-                  case Some(source)                                   => WasmSource(WasmSourceKind.Base64, source, Json.obj("name" -> name))
-                  case _                                              => WasmSource(WasmSourceKind.Unknown, "", Json.obj("name" -> name))
-                }
-            })
-          }
+      (
+        json
+          .select("name")
+          .asOpt[String]
+          .flatMap(name => {
+            val maybeSource = if (sourceOpt.isDefined) {
+              WasmSource.format.reads(sourceOpt.get).asOpt
+            } else {
+              Some(compilerSource match {
+                case Some(source) => WasmSource(WasmSourceKind.Wasmo, source, Json.obj("name" -> name))
+                case None         =>
+                  rawSource match {
+                    case Some(source) if source.startsWith("http://")   =>
+                      WasmSource(WasmSourceKind.Http, source, Json.obj("name" -> name))
+                    case Some(source) if source.startsWith("https://")  =>
+                      WasmSource(WasmSourceKind.Http, source, Json.obj("name" -> name))
+                    case Some(source) if source.startsWith("file://")   =>
+                      WasmSource(WasmSourceKind.File, source.replace("file://", ""), Json.obj("name" -> name))
+                    case Some(source) if source.startsWith("base64://") =>
+                      WasmSource(WasmSourceKind.Base64, source.replace("base64://", ""), Json.obj("name" -> name))
+                    case Some(source) if source.startsWith("entity://") =>
+                      WasmSource(WasmSourceKind.Local, source.replace("entity://", ""), Json.obj("name" -> name))
+                    case Some(source) if source.startsWith("local://")  =>
+                      WasmSource(WasmSourceKind.Local, source.replace("local://", ""), Json.obj("name" -> name))
+                    case Some(source)                                   => WasmSource(WasmSourceKind.Base64, source, Json.obj("name" -> name))
+                    case _                                              => WasmSource(WasmSourceKind.Unknown, "", Json.obj("name" -> name))
+                  }
+              })
+            }
 
-          maybeSource.map(source => WasmConfig(
-            name = name,
-            source = source,
-            memoryPages = (json \ "memoryPages").asOpt[Int].getOrElse(100),
-            functionName = (json \ "functionName").asOpt[String].filter(_.nonEmpty),
-            config = (json \ "config").asOpt[Map[String, String]].getOrElse(Map.empty),
-            allowedHosts = (json \ "allowedHosts").asOpt[Seq[String]].getOrElse(Seq.empty),
-            allowedPaths = (json \ "allowedPaths").asOpt[Map[String, String]].getOrElse(Map.empty),
-            wasi = (json \ "wasi").asOpt[Boolean].getOrElse(true),
-            opa = (json \ "opa").asOpt[Boolean].getOrElse(false),
-            authorizations = (json \ "authorizations")
-              .asOpt[WasmAuthorizations](WasmAuthorizations.format.reads)
-              .orElse((json \ "accesses").asOpt[WasmAuthorizations](WasmAuthorizations.format.reads))
-              .getOrElse {
-                WasmAuthorizations()
-              },
-            instances = json.select("instances").asOpt[Int].getOrElse(1),
-            killOptions = json
-              .select("killOptions")
-              .asOpt[JsValue]
-              .flatMap(v => WasmVmKillOptions.format.reads(v).asOpt)
-              .getOrElse(WasmVmKillOptions.default)
-          )).orElse({
-            (for(
-              name <- (json \ "name").asOpt[String];
-              kind <- (json \ "source" \ "kind").asOpt[String]
-            ) yield {
-              if(kind == "Local") {
-                Some(WasmConfig(
+            maybeSource
+              .map(source =>
+                WasmConfig(
                   name = name,
-                  source = WasmSource(WasmSourceKind.Local, null, Json.obj("name" -> name))
-                ))
-              } else {
-                None
+                  source = source,
+                  memoryPages = (json \ "memoryPages").asOpt[Int].getOrElse(100),
+                  functionName = (json \ "functionName").asOpt[String].filter(_.nonEmpty),
+                  config = (json \ "config").asOpt[Map[String, String]].getOrElse(Map.empty),
+                  allowedPaths = (json \ "allowedPaths").asOpt[Map[String, String]].getOrElse(Map.empty),
+                  wasi = (json \ "wasi").asOpt[Boolean].getOrElse(true),
+                  opa = (json \ "opa").asOpt[Boolean].getOrElse(false),
+                  instances = json.select("instances").asOpt[Int].getOrElse(1),
+                  killOptions = json
+                    .select("killOptions")
+                    .asOpt[JsValue]
+                    .flatMap(v => WasmVmKillOptions.format.reads(v).asOpt)
+                    .getOrElse(WasmVmKillOptions.default)
+                )
+              )
+              .orElse {
+                (for (
+                  name <- (json \ "name").asOpt[String];
+                  kind <- (json \ "source" \ "kind").asOpt[String]
+                ) yield {
+                  if (kind == "Local") {
+                    Some(
+                      WasmConfig(
+                        name = name,
+                        source = WasmSource(WasmSourceKind.Local, null, Json.obj("name" -> name))
+                      )
+                    )
+                  } else {
+                    None
+                  }
+                }).flatten
               }
-            }).flatten
           })
-        })
       )
     } match {
       case Failure(ex)          => JsError(ex.getMessage)
