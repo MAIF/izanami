@@ -8,12 +8,13 @@ import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.wasm.WasmConfig
 import io.otoroshi.wasm4s.scaladsl.{EmptyUserData, EnvUserData, HostFunctionWithAuthorization}
 import org.extism.sdk.{ExtismCurrentPlugin, ExtismFunction, HostFunction, HostUserData, LibExtism}
-import org.extism.sdk.wasmotoroshi._
 import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.typedmap.TypedMap
 
 import java.nio.charset.StandardCharsets
+import fr.maif.izanami.utils.RegexPool
+
 import java.util.Optional
 import java.util.concurrent.TimeUnit
 import scala.collection.Seq
@@ -139,75 +140,80 @@ object Logging {
 
 object HttpCall {
   def proxyHttpCall(config: WasmConfig)(implicit env: Env, executionContext: ExecutionContext, mat: Materializer) = {
-    HFunction.defineContextualFunction("proxy_http_call", config) {
-      (
-          plugin: ExtismCurrentPlugin,
-          params: Array[LibExtism.ExtismVal],
-          returns: Array[LibExtism.ExtismVal],
-          hostData: EnvUserData
-      ) =>
-        {
-          val context = Json.parse(Utils.contextParamsToString(plugin, params.toIndexedSeq: _*))
-
-          val url          = (context \ "url").asOpt[String].getOrElse("https://mirror.otoroshi.io") // TODO
-          val allowedHosts = hostData.config.allowedHosts                                            // TODO handle valutaion from UI
-          val urlHost      = Uri(url).authority.host.toString()
-          val allowed      = allowedHosts.isEmpty || allowedHosts.contains("*")
-          if (allowed) {
-            val builder = env.Ws
-              .url(url)
-              .withMethod((context \ "method").asOpt[String].getOrElse("GET"))
-              .withHttpHeaders((context \ "headers").asOpt[Map[String, String]].getOrElse(Map.empty).toSeq: _*)
-              .withRequestTimeout(
-                Duration(
-                  (context \ "request_timeout").asOpt[Long].getOrElse(30000L), // TODO
-                  TimeUnit.MILLISECONDS
-                )
-              )
-              .withFollowRedirects((context \ "follow_redirects").asOpt[Boolean].getOrElse(false))
-              .withQueryStringParameters((context \ "query").asOpt[Map[String, String]].getOrElse(Map.empty).toSeq: _*)
-            val bodyAsBytes              = context.select("body_bytes").asOpt[Array[Byte]].map(bytes => ByteString(bytes))
-            val bodyBase64               = context.select("body_base64").asOpt[String].map(str => ByteString(str).decodeBase64)
-            val bodyJson                 = context.select("body_json").asOpt[JsValue].map(str => ByteString(str.stringify))
-            val bodyStr                  = context
-              .select("body_str")
-              .asOpt[String]
-              .orElse(context.select("body").asOpt[String])
-              .map(str => ByteString(str))
-            val body: Option[ByteString] = bodyStr.orElse(bodyJson).orElse(bodyBase64).orElse(bodyAsBytes)
-            val request                  = body match {
-              case Some(bytes) => builder.withBody(bytes)
-              case None        => builder
-            }
-            val out                      = Await.result(
-              request
-                .execute()
-                .map { res =>
-                  val body    = res.bodyAsBytes.encodeBase64.utf8String
-                  val headers = res.headers.view.mapValues(_.head)
-                  Json.obj(
-                    "status"      -> res.status,
-                    "headers"     -> headers,
-                    "body_base64" -> body
+    HFunction
+      .defineContextualFunction("proxy_http_call", config) {
+        (
+            plugin: ExtismCurrentPlugin,
+            params: Array[LibExtism.ExtismVal],
+            returns: Array[LibExtism.ExtismVal],
+            hostData: EnvUserData
+        ) =>
+          {
+            val context      = Json.parse(Utils.contextParamsToString(plugin, params.toIndexedSeq: _*))
+            val url          = (context \ "url").asOpt[String].getOrElse("https://request.otoroshi.io")
+            val allowedHosts = hostData.config.allowedHosts
+            val urlHost      = Uri(url).authority.host.toString()
+            val allowed      = allowedHosts.isEmpty || allowedHosts.contains("*") || allowedHosts.exists(h =>
+              RegexPool(h).matches(urlHost)
+            )
+            if (allowed) {
+              val builder = env.Ws
+                .url(url)
+                .withMethod((context \ "method").asOpt[String].getOrElse("GET"))
+                .withHttpHeaders((context \ "headers").asOpt[Map[String, String]].getOrElse(Map.empty).toSeq: _*)
+                .withRequestTimeout(
+                  Duration(
+                    (context \ "request_timeout").asOpt[Long].getOrElse(30000L), // TODO
+                    TimeUnit.MILLISECONDS
                   )
-                },
-              Duration(1, TimeUnit.MINUTES) // TODO
-            )
-            plugin.returnString(returns(0), Json.stringify(out))
-          } else {
-            plugin.returnString(
-              returns(0),
-              Json.stringify(
-                Json.obj(
-                  "status"      -> 403,
-                  "headers"     -> Json.obj("content-type" -> "text/plain"),
-                  "body_base64" -> ByteString(s"you cannot access host: ${urlHost}").encodeBase64.utf8String
+                )
+                .withFollowRedirects((context \ "follow_redirects").asOpt[Boolean].getOrElse(false))
+                .withQueryStringParameters(
+                  (context \ "query").asOpt[Map[String, String]].getOrElse(Map.empty).toSeq: _*
+                )
+              val bodyAsBytes              = context.select("body_bytes").asOpt[Array[Byte]].map(bytes => ByteString(bytes))
+              val bodyBase64               = context.select("body_base64").asOpt[String].map(str => ByteString(str).decodeBase64)
+              val bodyJson                 = context.select("body_json").asOpt[JsValue].map(str => ByteString(str.stringify))
+              val bodyStr                  = context
+                .select("body_str")
+                .asOpt[String]
+                .orElse(context.select("body").asOpt[String])
+                .map(str => ByteString(str))
+              val body: Option[ByteString] = bodyStr.orElse(bodyJson).orElse(bodyBase64).orElse(bodyAsBytes)
+              val request                  = body match {
+                case Some(bytes) => builder.withBody(bytes)
+                case None        => builder
+              }
+              val out                      = Await.result(
+                request
+                  .execute()
+                  .map { res =>
+                    val body    = res.bodyAsBytes.encodeBase64.utf8String
+                    val headers = res.headers.view.mapValues(_.head)
+                    Json.obj(
+                      "status"      -> res.status,
+                      "headers"     -> headers,
+                      "body_base64" -> body
+                    )
+                  },
+                Duration(1, TimeUnit.MINUTES) // TODO
+              )
+              plugin.returnString(returns(0), Json.stringify(out))
+            } else {
+              plugin.returnString(
+                returns(0),
+                Json.stringify(
+                  Json.obj(
+                    "status"      -> 403,
+                    "headers"     -> Json.obj("content-type" -> "text/plain"),
+                    "body_base64" -> ByteString(s"you cannot access host: ${urlHost}").encodeBase64.utf8String
+                  )
                 )
               )
-            )
+            }
           }
-        }
-    }
+      }
+      .withNamespace("env")
   }
 
   def getFunctions(config: WasmConfig, attrs: Option[TypedMap])(implicit
