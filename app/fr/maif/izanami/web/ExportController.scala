@@ -4,22 +4,25 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
-import fr.maif.izanami.models.LightWeightFeature
+import fr.maif.izanami.models.{LightWeightFeature, RightLevels}
 import fr.maif.izanami.web.ExportController.exportResultWrites
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc.{Action, BaseController, ControllerComponents, ResponseHeader, Result}
 
+import java.net.URI
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Source
+import scala.util.Try
 
 class ExportController(
     val env: Env,
     val controllerComponents: ControllerComponents,
-    val authAction: DetailledAuthAction
+    val authAction: TenantAuthActionFactory
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
-  def exportTenantData(tenant: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
+  def exportTenantData(tenant: String): Action[JsValue] = authAction(tenant, RightLevels.Admin).async(parse.json) { implicit request =>
     {
       ExportController.tenantExportRequestReads
         .reads(request.body)
@@ -42,6 +45,25 @@ class ExportController(
             })
         )
     }
+  }
+
+  def importTenantData(tenant: String): Action[JsValue] = authAction(tenant, RightLevels.Admin).async(parse.multipartFormData) { implicit request =>
+    val files: Map[String, URI] = request.body.files.map(f => (f.key, f.ref.path.toUri)).toMap
+    files.get("export").toRight().map(uri => {
+      Try(scala.io.Source.fromFile(uri)).map(bf => {
+        bf.getLines()
+          .map(line => {
+            val result = Json.parse(line).as[JsObject]
+            val objectType = (result \ "_type").asOpt[String]
+            (objectType, result)
+          })
+          .toSeq
+          .collect{
+            case (Some(t), json) => (t, json)
+          }
+          .toMap
+      }).toEither
+    })
   }
 }
 
@@ -106,4 +128,5 @@ object ExportController {
   )
 
   case class ProjectExportResult(features: List[LightWeightFeature])
+
 }

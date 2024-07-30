@@ -48,6 +48,7 @@ export function TenantSettings(props: { tenant: string }) {
   const [inviting, setInviting] = React.useState(false);
   const [v1ImportDisplayed, setV1ImportDisplayed] = React.useState(false);
   const [exportDisplayed, setExportDisplayed] = React.useState(false);
+  const [importDisplayed, setImportDisplayed] = React.useState(false);
 
   const tenantQuery = useQuery(tenantQueryKey(tenant), () =>
     queryTenant(tenant)
@@ -221,6 +222,13 @@ export function TenantSettings(props: { tenant: string }) {
               }
             />
           </div>
+        ) : importDisplayed ? (
+          <div>
+            <ImportForm
+              cancel={() => setImportDisplayed(false)}
+              submit={(request) => Promise.resolve(1)}
+            />
+          </div>
         ) : (
           <>
             <div className="d-flex align-items-center justify-content-between p-2">
@@ -241,11 +249,15 @@ export function TenantSettings(props: { tenant: string }) {
             </div>
             <div className="d-flex align-items-center justify-content-between p-2">
               <span>Import data from another Izanami instance</span>
-
               <button
                 type="button"
                 className="btn btn-secondary m-2 btn-sm"
-                onClick={() => {}}
+                onClick={() => {
+                  setImportDisplayed(true);
+                  requestAnimationFrame(() => {
+                    formTitleRef?.current?.scrollIntoView(true);
+                  });
+                }}
               >
                 Import data
               </button>
@@ -272,6 +284,115 @@ export function TenantSettings(props: { tenant: string }) {
   } else {
     return <div>Failed to fetch tenant query</div>;
   }
+}
+
+type ImportRequest = {
+  file: FileList;
+  conflictStrategy: string;
+};
+
+function ImportForm(props: {
+  cancel: () => void;
+  submit: (request: ImportRequest) => Promise<any>;
+}) {
+  const { cancel, submit } = props;
+
+  const methods = useForm<ImportRequest>({
+    defaultValues: {},
+  });
+  const {
+    handleSubmit,
+    register,
+    control,
+    formState: { isSubmitting },
+  } = methods;
+
+  return (
+    <FormProvider {...methods}>
+      <form
+        className="sub_container d-flex flex-column"
+        onSubmit={handleSubmit((data) => submit(data))}
+      >
+        <h3 className="mt-3">Import data</h3>
+        <label className="mt-3">
+          On conflict{" "}
+          <Tooltip id="import-conflict-tooltip">
+            Conflict strategy.
+            <ul>
+              <li>
+                Skip will ignore conflictual elements (they won't be overriden)
+              </li>
+              <li>Fail will fail on any conflict (except on projects)</li>
+              <li>Overwrite will write imported version over existing</li>
+            </ul>
+          </Tooltip>
+          <Controller
+            name="conflictStrategy"
+            defaultValue="skip"
+            control={control}
+            render={({ field: { onChange, value } }) => (
+              <Select
+                value={CONFLICT_STRATEGIES_OPTIONS.find(
+                  ({ value: aValue }) => value === aValue
+                )}
+                onChange={(value) => {
+                  onChange(value?.value);
+                }}
+                styles={customStyles}
+                options={CONFLICT_STRATEGIES_OPTIONS}
+              />
+            )}
+          />
+        </label>
+        <label className="mt-3">
+          Exported file (ndjson)
+          <Tooltip id="exported-file">
+            Exported ndjson file from another v2 instance
+          </Tooltip>
+          <input className="form-control" type="file" {...register("file")} />
+        </label>
+        <div
+          className="d-flex justify-content-end align-items-center align-self-end"
+          style={{
+            position: "sticky",
+            bottom: "0",
+            zIndex: "1",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--bg-color_level2)",
+              width: "185px",
+              height: "55px",
+              position: "absolute",
+              top: "0",
+              right: "0",
+              zIndex: "-1",
+              borderRadius: "10px",
+            }}
+          ></div>
+          <button
+            type="button"
+            className="btn btn-danger m-2"
+            onClick={() => cancel()}
+          >
+            Cancel
+          </button>
+          {isSubmitting ? (
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          ) : (
+            <>
+              <button type="submit" className="btn btn-success m-2">
+                Export
+              </button>
+            </>
+          )}
+        </div>
+      </form>
+    </FormProvider>
+  );
 }
 
 function TenantUsers(props: { tenant: string }) {
@@ -437,7 +558,7 @@ const CONFLICT_STRATEGIES_OPTIONS = [
 
 function ExportForm(props: {
   cancel: () => void;
-  submit: (request: IzanamiTenantExportRequest) => Promise<void>;
+  submit: (request: IzanamiTenantExportRequest) => Promise<any>;
 }) {
   const { tenant } = useParams();
   const { cancel, submit } = props;
@@ -483,7 +604,6 @@ function ExportForm(props: {
 
   return (
     <>
-      <h3 className="ms-2 mt-3">Export data</h3>
       <FormProvider {...methods}>
         <form
           onSubmit={handleSubmit((data) => submit(data))}
@@ -492,6 +612,7 @@ function ExportForm(props: {
             paddingLeft: "12px",
           }}
         >
+          <h3 className="mt-3">Export data</h3>
           <label className="mt-3">
             Export all projects
             <Tooltip id="export-projects-list">

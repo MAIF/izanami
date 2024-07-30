@@ -111,7 +111,7 @@ export function requestExport(
   tenant: string,
   exportRequest: IzanamiTenantExportRequest
 ) {
-  fetch(`/api/admin/tenants/${tenant}/_export`, {
+  return fetch(`/api/admin/tenants/${tenant}/_export`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
