@@ -217,7 +217,7 @@
               "id": "guides/configuration",
               "title": "Configuring Izanami",
               "description": "Mandatory parameters",
-              "source": "@site/docs/04-guides/11-configuration.mdx",
+              "source": "@site/docs/04-guides/12-configuration.mdx",
               "sourceDirName": "04-guides",
               "slug": "/guides/configuration",
               "permalink": "/izanami/docs/guides/configuration",
@@ -225,7 +225,7 @@
               "unlisted": false,
               "tags": [],
               "version": "current",
-              "sidebarPosition": 11,
+              "sidebarPosition": 12,
               "frontMatter": {
                 "title": "Configuring Izanami"
               },
@@ -263,6 +263,32 @@
               "next": {
                 "title": "Multi-condition feature",
                 "permalink": "/izanami/docs/guides/multi-conditions-feature"
+              }
+            },
+            {
+              "id": "guides/http-calls-in-scripts",
+              "title": "Http calls in scripts",
+              "description": "This page covers features availble from Izanami 2.5.0.",
+              "source": "@site/docs/04-guides/08-http-calls-in-scripts.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/http-calls-in-scripts",
+              "permalink": "/izanami/docs/guides/http-calls-in-scripts",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 8,
+              "frontMatter": {
+                "title": "Http calls in scripts"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Remote script features",
+                "permalink": "/izanami/docs/guides/remote-script"
+              },
+              "next": {
+                "title": "User invitation",
+                "permalink": "/izanami/docs/guides/user-invitation"
               }
             },
             {
@@ -320,7 +346,7 @@
               "id": "guides/key-configuration",
               "title": "Creating API key",
               "description": "API keys allow client application to call Izanami endpoints.",
-              "source": "@site/docs/04-guides/09-key-configuration.mdx",
+              "source": "@site/docs/04-guides/10-key-configuration.mdx",
               "sourceDirName": "04-guides",
               "slug": "/guides/key-configuration",
               "permalink": "/izanami/docs/guides/key-configuration",
@@ -328,7 +354,7 @@
               "unlisted": false,
               "tags": [],
               "version": "current",
-              "sidebarPosition": 9,
+              "sidebarPosition": 10,
               "frontMatter": {
                 "title": "Creating API key"
               },
@@ -372,7 +398,7 @@
               "id": "guides/mailer-configuration",
               "title": "Configuring mailer",
               "description": "Izanami can send email, for example, for user invitations or password reset.",
-              "source": "@site/docs/04-guides/10-mailer-configuration.mdx",
+              "source": "@site/docs/04-guides/11-mailer-configuration.mdx",
               "sourceDirName": "04-guides",
               "slug": "/guides/mailer-configuration",
               "permalink": "/izanami/docs/guides/mailer-configuration",
@@ -380,7 +406,7 @@
               "unlisted": false,
               "tags": [],
               "version": "current",
-              "sidebarPosition": 10,
+              "sidebarPosition": 11,
               "frontMatter": {
                 "title": "Configuring mailer"
               },
@@ -468,15 +494,15 @@
                 "permalink": "/izanami/docs/guides/local-scripts"
               },
               "next": {
-                "title": "User invitation",
-                "permalink": "/izanami/docs/guides/user-invitation"
+                "title": "Http calls in scripts",
+                "permalink": "/izanami/docs/guides/http-calls-in-scripts"
               }
             },
             {
               "id": "guides/user-invitation",
               "title": "User invitation",
               "description": "To invite new users, you must be an Izanami admin.",
-              "source": "@site/docs/04-guides/08-user-invitation.mdx",
+              "source": "@site/docs/04-guides/09-user-invitation.mdx",
               "sourceDirName": "04-guides",
               "slug": "/guides/user-invitation",
               "permalink": "/izanami/docs/guides/user-invitation",
@@ -484,14 +510,14 @@
               "unlisted": false,
               "tags": [],
               "version": "current",
-              "sidebarPosition": 8,
+              "sidebarPosition": 9,
               "frontMatter": {
                 "title": "User invitation"
               },
               "sidebar": "tutorialSidebar",
               "previous": {
-                "title": "Remote script features",
-                "permalink": "/izanami/docs/guides/remote-script"
+                "title": "Http calls in scripts",
+                "permalink": "/izanami/docs/guides/http-calls-in-scripts"
               },
               "next": {
                 "title": "Creating API key",
@@ -502,7 +528,7 @@
               "id": "guides/webhooks",
               "title": "Webhooks",
               "description": "This page covers features available only from 2.3.0",
-              "source": "@site/docs/04-guides/12-webhooks.mdx",
+              "source": "@site/docs/04-guides/13-webhooks.mdx",
               "sourceDirName": "04-guides",
               "slug": "/guides/webhooks",
               "permalink": "/izanami/docs/guides/webhooks",
@@ -510,7 +536,7 @@
               "unlisted": false,
               "tags": [],
               "version": "current",
-              "sidebarPosition": 12,
+              "sidebarPosition": 13,
               "frontMatter": {
                 "title": "Webhooks"
               },
@@ -728,6 +754,10 @@
                   {
                     "type": "doc",
                     "id": "guides/remote-script"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/http-calls-in-scripts"
                   },
                   {
                     "type": "doc",
