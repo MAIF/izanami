@@ -489,3 +489,8 @@ export type IzanamiTenantExportRequest = {
   keys?: string[];
   webhooks?: string[];
 };
+
+export type ImportRequest = {
+  file: FileList;
+  conflictStrategy: string;
+};

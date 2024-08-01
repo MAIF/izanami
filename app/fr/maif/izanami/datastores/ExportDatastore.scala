@@ -6,18 +6,15 @@ import fr.maif.izanami.datastores.projectImplicits.ProjectRow
 import fr.maif.izanami.datastores.tagImplicits.TagRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.models.{ApiKey, LightWeightFeature, Project, Tag}
-import fr.maif.izanami.utils.Datastore
+import fr.maif.izanami.utils.{Datastore, Helpers}
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.web.ExportController
-import fr.maif.izanami.web.ExportController.{
-  ExportRequest,
-  ProjectExportResult,
-  TenantExportRequest,
-  TenantExportResult
-}
-import io.vertx.sqlclient.Tuple
+import fr.maif.izanami.web.ExportController.{ExportRequest, ExportedType, ProjectExportResult, ProjectType, TenantExportRequest, TenantExportResult}
+import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import io.vertx.sqlclient.{SqlConnection, Tuple}
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -25,7 +22,54 @@ import scala.concurrent.Future
 
 class ExportDatastore(val env: Env) extends Datastore {
 
-  def tenantData(tenant: String, request: TenantExportRequest): Future[List[JsObject]] = {
+  def importTenantData(
+      tenant: String,
+      entries: Map[ExportedType, Seq[JsObject]],
+      conflictStrategy: ImportConflictStrategy
+  ): Future[Either[IzanamiError, Unit]] = {
+    env.postgresql.executeInTransaction(conn => {
+      Future
+        .sequence(
+          entries.toSeq
+            .sortBy { case (t, _) =>
+              t.order
+            }
+            .map { case (t, rows) =>
+              genericImport(tenant, t.table, rows, conn, conflictStrategy)
+            }
+        )
+        .map(eitherSeq => Helpers.sequence(eitherSeq).map(_ => ()))
+    })
+  }
+
+  def genericImport(
+      tenant: String,
+      table: String,
+      rows: Seq[JsObject],
+      conn: SqlConnection,
+      conflictStrategy: ImportConflictStrategy
+  ): Future[Either[IzanamiError, Unit]] = {
+    env.postgresql
+      .queryOne(
+        s"""
+         |INSERT INTO $table SELECT * FROM json_populate_recordset(null::$table, $$1)
+         |ON CONFLICT ${conflictStrategy match {
+          case Fail           => ""
+          case MergeOverwrite => "" // TODO
+          case Skip           => "DO NOTHING"
+        }}
+         |""".stripMargin,
+        List(JsArray(rows).vertxJsValue),
+        schemas = Set(tenant),
+        conn = Some(conn)
+      ) { r => Some(()) }
+      .map(o => o.toRight(InternalServerError("")))
+  }
+
+  def exportTenantData(
+      tenant: String,
+      request: TenantExportRequest
+  ): Future[List[JsObject]] = {
     val paramIndex    = new AtomicInteger(1)
     val projectFilter = request.projects match {
       case ExportController.ExportItemList(projects) => Some(projects)
@@ -45,50 +89,80 @@ class ExportDatastore(val env: Env) extends Datastore {
     env.postgresql.queryAll(
       s"""
          |WITH project_results AS (
-         |    SELECT p.name as pname, (jsonb_build_object('_type', 'project', 'row', to_jsonb(p.*)::jsonb)) as result
+         |    SELECT DISTINCT p.name as pname, p.id, (jsonb_build_object('_type', 'project', 'row', to_jsonb(p.*)::jsonb)) as result
          |    FROM projects p
          |    ${projectFilter.map(_ => s"WHERE p.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
          |), feature_results AS (
-         |    SELECT f.script_config, f.id as fid, f.name as fname, jsonb_build_object('_type', 'feature' , 'row', to_jsonb(f.*)) as result
+         |    SELECT DISTINCT f.script_config, f.id as fid, f.name as fname, jsonb_build_object('_type', 'feature' , 'row', to_jsonb(f.*)) as result
          |    FROM project_results, features f
          |    WHERE f.project=project_results.pname
          |), tag_results AS (
-         |    SELECT jsonb_build_object('_type', 'tag', 'row', row_to_json(t.*)::jsonb) as result
-         |    FROM tags t, features_tags ft, feature_results
+         |    SELECT DISTINCT jsonb_build_object('_type', 'tag', 'row', row_to_json(t.*)::jsonb) as result
+         |    FROM tags t ${projectFilter
+        .map(_ => """
+                              |, features_tags ft, feature_results
+                              |    WHERE ft.feature=feature_results.fid
+                              |    AND t.name=ft.tag""".stripMargin)
+        .getOrElse("")}
+         |), features_tags_results AS (
+         |    SELECT DISTINCT jsonb_build_object('_type', 'feature_tag', 'row', to_jsonb(ft.*)) as result
+         |    FROM features_tags ft, feature_results
          |    WHERE ft.feature=feature_results.fid
-         |    AND t.name=ft.tag
          |), overload_results AS (
-         |    SELECT fcs.project, fcs.local_context, fcs.global_context, jsonb_build_object('_type', 'overload', 'row', to_jsonb(fcs.*)) as result
+         |    SELECT DISTINCT fcs.project, fcs.local_context, fcs.global_context, jsonb_build_object('_type', 'overload', 'row', to_jsonb(fcs.*)) as result
          |    FROM feature_contexts_strategies fcs, feature_results f, project_results p
          |    WHERE fcs.feature=f.fname
          |    AND fcs.project=p.pname
          |), local_context_results AS (
-         |    SELECT jsonb_build_object('_type', 'local_context', 'row', to_jsonb(fc.*)) as result
-         |    FROM feature_contexts fc, overload_results ors
-         |    WHERE fc.id = ors.local_context
-         |    AND fc.project = ors.project
+         |    SELECT DISTINCT jsonb_build_object('_type', 'local_context', 'row', to_jsonb(fc.*)) as result
+         |    FROM feature_contexts fc${projectFilter
+        .map(_ => """
+                    |    , overload_results ors
+                    |    WHERE fc.id = ors.local_context
+                    |    AND fc.project = ors.project""".stripMargin)
+        .getOrElse("")}
          |), global_context_results AS (
-         |    SELECT jsonb_build_object('_type', 'global_context', 'row', to_jsonb(fc.*)) as result
-         |    FROM global_feature_contexts fc, overload_results ors
-         |    WHERE fc.id = ors.global_context
+         |    SELECT DISTINCT jsonb_build_object('_type', 'global_context', 'row', to_jsonb(fc.*)) as result
+         |    FROM global_feature_contexts fc${projectFilter
+        .map(_ => """
+           |    , overload_results ors
+           |    WHERE fc.id = ors.global_context
+           |""".stripMargin)
+        .getOrElse("")}
          |), key_results AS (
-         |    SELECT k.name, jsonb_build_object('_type', 'key', 'row', to_jsonb(k.*)) as result
+         |    SELECT DISTINCT k.name, jsonb_build_object('_type', 'key', 'row', to_jsonb(k.*)) as result
          |    FROM apikeys k
          |    ${keyFilter.map(_ => s"WHERE k.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
+         |), apikeys_projects_result AS (
+         |    SELECT DISTINCT jsonb_build_object('_type', 'apikey_project', 'row', to_jsonb(ap.*)) as result
+         |    FROM apikeys_projects ap, key_results kr
+         |    WHERE ap.apikey=kr.name
          |), webhook_results AS (
-         |    SELECT jsonb_build_object('_type', 'webhook', 'row', to_jsonb(w.*)) as result
+         |    SELECT DISTINCT w.id, w.name, jsonb_build_object('_type', 'webhook', 'row', to_jsonb(w.*)) as result
          |    FROM webhooks w
          |     ${webhookFilter.map(_ => s"WHERE w.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
+         |), webhooks_features_result AS (
+         |    SELECT DISTINCT jsonb_build_object('_type', 'webhook_feature', 'row', to_jsonb(wf.*)) as result
+         |    FROM webhooks_features wf, webhook_results w, feature_results
+         |    WHERE wf.webhook=w.id
+         |), webhooks_projects_result AS (
+         |    SELECT DISTINCT jsonb_build_object('_type', 'webhook_project', 'row', to_jsonb(wp.*)) as result
+         |    FROM webhooks_projects wp, webhook_results w, project_results
+         |    WHERE wp.webhook=w.id
+         |), users_webhooks_rights_result AS (
+         |    SELECT DISTINCT jsonb_build_object('_type', 'user_webhook_right', 'row', to_jsonb(uwr.*)) as result
+         |    FROM users_webhooks_rights uwr, webhook_results
+         |    WHERE uwr.webhook=webhook_results.name
          |), project_rights AS (
-         |    SELECT jsonb_build_object('type', 'project_right', 'row', to_jsonb(upr.*)) as result
+         |    SELECT DISTINCT jsonb_build_object('_type', 'project_right', 'row', to_jsonb(upr.*)) as result
          |    FROM users_projects_rights upr, project_results pr
          |    WHERE upr.project = pr.pname
          |), key_rights AS (
-         |    SELECT jsonb_build_object('type', 'key_right', 'row', to_jsonb(ukr.*)) as result
+         |    SELECT DISTINCT jsonb_build_object('_type', 'key_right', 'row', to_jsonb(ukr.*)) as result
          |    FROM users_keys_rights ukr, key_results kr
          |    WHERE ukr.apikey=kr.name
          |), script_resuls AS (
-         |    SELECT jsonb_build_object('type', 'script', 'row', to_jsonb(wsc.*)) as result
+         |    SELECT DISTINCT jsonb_build_object('_type', 'script', 'row', to_jsonb(wsc.*)) as result
          |    FROM wasm_script_configurations wsc, feature_results fr
          |    WHERE wsc.id = fr.script_config
          |)
@@ -106,11 +180,21 @@ class ExportDatastore(val env: Env) extends Datastore {
          |UNION ALL
          |SELECT result FROM key_results
          |UNION ALL
-         |SELECT result FROM webhook_results
-         |UNION ALL
          |SELECT result FROM project_rights
          |UNION ALL
          |SELECT result FROM key_rights
+         |UNION ALL
+         |SELECT result FROM features_tags_results
+         |UNION ALL
+         |SELECT result FROM apikeys_projects_result
+         |UNION ALL
+         |SELECT result FROM webhook_results
+         |UNION ALL
+         |SELECT result FROM webhooks_projects_result
+         |UNION ALL
+         |SELECT result FROM webhooks_features_result
+         |UNION ALL
+         |SELECT result FROM users_webhooks_rights_result
          |""".stripMargin,
       List(projectFilter, keyFilter, webhookFilter).flatMap(_.toList).map(s => s.toArray),
       schemas = Set(tenant)
@@ -121,121 +205,4 @@ class ExportDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def readFeatures(tenant: String, projects: Set[String]): Future[JsObject] = {
-    env.postgresql
-      .queryAll(
-        s"""
-         |SELECT f.project, json_build_object('feature', f.*,  'overloads', json_arrayagg(row_to_json(fcs.*))) as json_result
-         |FROM features f
-         |LEFT JOIN feature_contexts_strategies fcs ON (f.name=fcs.feature AND f.project=fcs.project)
-         |WHERE f.project=ANY($$1)
-         |GROUP BY f.id
-         |""".stripMargin,
-        List(projects.toArray),
-        schemas = Set(tenant)
-      ) { r =>
-        {
-          val json                   = r.optJsObject("json_result").get
-          val overloadJsArray        = (json \ "overloads").as[JsArray].value
-          val localContextsByProject = overloadJsArray
-            .map(overload => {
-              for (
-                localCtx <- (overload \ "local_context").asOpt[String];
-                project  <- (overload \ "project").asOpt[String]
-              ) yield (localCtx, project)
-            })
-            .flatMap(_.toList)
-
-          val globalContexts = overloadJsArray.flatMap(overload => (overload \ "global_context").asOpt[String].toList)
-
-          val maybeFeature =
-            for (
-              project <- r.optString("project");
-              json    <- r.optJsObject("json_result")
-            ) yield (project, json)
-
-          maybeFeature.map(f => (globalContexts, localContextsByProject, f))
-        }
-      }
-      .flatMap(featuresAndOverloads => {
-
-        val featureProjects: List[(String, JsObject)] = featuresAndOverloads.map(l => l._3)
-        val featureMap: Map[String, List[JsObject]]   = featureProjects.groupMap(_._1)(_._2)
-
-        val projects                  = featuresAndOverloads.map(_._3).map(_._1).toSet
-        val globalContexts            = featuresAndOverloads.flatMap(_._1).toSet
-        val localContextsWithProjects = featuresAndOverloads.flatMap(_._2).toSet
-        for (
-          globalContextsJson           <- readGlobalContexts(tenant, globalContexts);
-          localContextJsonWithProjects <- readLocalContexts(tenant, localContextsWithProjects);
-          localContextsByProject        = localContextJsonWithProjects.groupMap(_._1)(_._2)
-        ) yield {
-          val projectMap = featureMap.map {
-            case (project, features) => {
-              val contexts = localContextsByProject.getOrElse(project, List())
-              Json.obj("features" -> features, "contexts" -> contexts)
-            }
-          }
-          Json.obj(
-            "projects" -> projectMap,
-            "globalContexts" -> globalContextsJson
-          )
-        }
-      })
-  }
-
-  private def readTags(tenant: String, features: Set[String]): Future[List[JsObject]] = {
-    env.postgresql.queryAll(
-      s"""
-         |SELECT (row_to_json(t.*)::jsonb || json_build_object('features', json_arrayagg(ft.feature))::jsonb) as result
-         |FROM tags t, features_tags ft
-         |WHERE ft.feature=ANY($$1)
-         |AND t.name=ft.tag
-         |GROUP BY t.id
-         |""".stripMargin,
-      List(features.toArray),
-      schemas = Set(tenant)
-    ) { r =>
-      {
-        r.optJsObject("result")
-      }
-    }
-  }
-
-  private def readGlobalContexts(tenant: String, contexts: Set[String]): Future[List[JsObject]] = {
-    env.postgresql.queryAll(
-      s"""
-         |SELECT row_to_json(c.*) as result
-         |FROM global_feature_contexts c
-         |WHERE c.id=ANY($$1)
-         |""".stripMargin,
-      List(contexts.toArray),
-      schemas = Set(tenant)
-    ) { r => r.optJsObject("result") }
-  }
-
-  private def readLocalContexts(tenant: String, contexts: Set[(String, String)]): Future[List[(String, JsObject)]] = {
-    if (contexts.isEmpty) {
-      Future.successful(List())
-    } else {
-      env.postgresql.queryAll(
-        s"""
-           |SELECT c.project, row_to_json(c.*) as result
-           |FROM feature_contexts c
-           |WHERE (c.id, c.project) IN (${contexts
-          .map { case (context, project) => s"('$context', '$project')" }
-          .mkString(", ")})
-           |""".stripMargin,
-        List(),
-        schemas = Set(tenant)
-      ) { r =>
-        {
-          for (
-            project <- r.optString("project");
-            json    <- r.optJsObject("result")
-          ) yield (project, json)
-        }
-      }
-    }
-  }
 }

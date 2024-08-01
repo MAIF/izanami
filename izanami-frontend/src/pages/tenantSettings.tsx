@@ -10,6 +10,7 @@ import Select from "react-select";
 import {
   deleteTenant,
   fetchWebhooks,
+  importData,
   importIzanamiV1Data,
   inviteUsersToTenant,
   MutationNames,
@@ -27,6 +28,7 @@ import {
   webhookQueryKey,
 } from "../utils/queries";
 import {
+  ImportRequest,
   IzanamiTenantExportRequest,
   IzanamiV1ImportRequest,
   TenantType,
@@ -218,7 +220,9 @@ export function TenantSettings(props: { tenant: string }) {
             <ExportForm
               cancel={() => setExportDisplayed(false)}
               submit={(request: IzanamiTenantExportRequest) =>
-                requestExport(tenant, request)
+                requestExport(tenant, request).then(() =>
+                  setExportDisplayed(false)
+                )
               }
             />
           </div>
@@ -226,7 +230,7 @@ export function TenantSettings(props: { tenant: string }) {
           <div>
             <ImportForm
               cancel={() => setImportDisplayed(false)}
-              submit={(request) => Promise.resolve(1)}
+              submit={(request) => importData(tenant, request)}
             />
           </div>
         ) : (
@@ -285,11 +289,6 @@ export function TenantSettings(props: { tenant: string }) {
     return <div>Failed to fetch tenant query</div>;
   }
 }
-
-type ImportRequest = {
-  file: FileList;
-  conflictStrategy: string;
-};
 
 function ImportForm(props: {
   cancel: () => void;
@@ -385,7 +384,7 @@ function ImportForm(props: {
           ) : (
             <>
               <button type="submit" className="btn btn-success m-2">
-                Export
+                Import
               </button>
             </>
           )}

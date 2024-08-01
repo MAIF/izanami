@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import {
   Configuration,
+  ImportRequest,
   isLightWasmFeature,
   IzanamiTenantExportRequest,
   IzanamiV1ImportRequest,
@@ -105,6 +106,18 @@ export function projectUserQueryKey(tenant: string, project: string) {
 
 export function webhookUserQueryKey(tenant: string, webhook: string) {
   return `USERS-${tenant}-${webhook}`;
+}
+
+export function importData(tenant: string, importRequest: ImportRequest) {
+  const data = new FormData();
+  data.append("export", importRequest.file.item(0)!);
+  return fetch(
+    `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}`,
+    {
+      method: "POST",
+      body: data,
+    }
+  );
 }
 
 export function requestExport(
