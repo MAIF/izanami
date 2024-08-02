@@ -53,7 +53,7 @@ export function Project({
           </div>
           {hasCreationRight && !creating && projectData.features.length > 0 && (
             <button
-              className="btn btn-primary btn-sm mt-sm-2 ms-sm-2 align-self-start align-self-sm-baseline"
+              className="btn btn-secondary btn-sm mt-sm-2 ms-sm-2 align-self-start align-self-sm-baseline"
               type="button"
               onClick={() => setCreating(true)}
             >

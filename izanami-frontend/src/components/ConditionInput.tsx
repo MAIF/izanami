@@ -42,11 +42,10 @@ export function ConditionsInput() {
         </fieldset>
       ))}
       <div
-        className="d-flex flex-row justify-content-end"
-        style={{ marginTop: "8px" }}
+        className="d-flex align-items-center justify-content-end mb-2 ms-3 mt-3"
       >
         <button
-          className="btn btn-secondary btn-sm mb-2 ms-3"
+          className="btn btn-secondary btn-sm"
           type="button"
           onClick={() => append({})}
         >

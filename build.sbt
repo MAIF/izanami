@@ -1,17 +1,28 @@
-import ReleaseTransformations._
+import ReleaseTransformations.*
+import xerial.sbt.Sonatype.{sonatype01}
 
-name := """izanami-v2"""
+name := """izanami"""
 organization := "fr.maif"
 
-version := "1.0-SNAPSHOT"
+lazy val root = (project in file("."))
+  .enablePlugins(PlayScala)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    Compile / packageBin / publishArtifact := false,
+    addArtifact(Artifact("izanami", "jar", "jar"), assembly)
+  )
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala).enablePlugins(BuildInfoPlugin)
+/*packagedArtifacts in publish := {
+  Map.empty
+}*/
 
 lazy val excludesJackson = Seq(
   ExclusionRule(organization = "com.fasterxml.jackson.core"),
   ExclusionRule(organization = "com.fasterxml.jackson.datatype"),
   ExclusionRule(organization = "com.fasterxml.jackson.dataformat")
 )
+
+version := (ThisBuild / version).value
 
 scalaVersion := "2.13.12"
 
@@ -41,7 +52,7 @@ libraryDependencies += "commons-codec"         % "commons-codec"              % 
 libraryDependencies += "io.dropwizard.metrics" % "metrics-json"               % "4.2.23" excludeAll (excludesJackson: _*)
 libraryDependencies += "org.mozilla"           % "rhino"                      % "1.7.14"
 libraryDependencies += "com.squareup.okhttp3"  % "okhttp"                     % "4.12.0" excludeAll (excludesJackson: _*)
-libraryDependencies += "fr.maif"              %% "wasm4s"                     % "3.4.0" classifier "bundle"
+libraryDependencies += "fr.maif"              %% "wasm4s"                     % "3.5.0" classifier "bundle"
 libraryDependencies += "com.auth0"             % "java-jwt"                   % "4.4.0" excludeAll (excludesJackson: _*) // needed by wasm4s
 libraryDependencies += "com.typesafe.akka"    %% "akka-http"                  % "10.2.10"
 libraryDependencies += "com.github.jknack"     % "handlebars"                 % "4.4.0"
@@ -60,6 +71,7 @@ libraryDependencies += "com.github.mifmif"             % "generex"              
 
 routesImport += "fr.maif.izanami.models.CustomBinders._"
 
+assembly / test := {}
 assembly / mainClass := Some("play.core.server.ProdServerStart")
 assembly / fullClasspath += Attributed.blank(PlayKeys.playPackageAssets.value)
 assembly / assemblyJarName := "izanami.jar"
@@ -90,6 +102,16 @@ assembly / assemblyMergeStrategy := {
     oldStrategy(x)
 }
 
+crossPaths := false
+
+/*publish / packagedArtifacts := {
+  val log = streams.value.log
+  Map(Artifact(moduleName.value, "jar", "jar") -> assembly.value)
+}*/
+
+val sonatypeCentralDeploymentName =
+  settingKey[String](s"fr.maif-izanami")
+
 releaseVersionBump := sbtrelease.Version.Bump.Bugfix
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies, // : ReleaseStep
@@ -100,13 +122,12 @@ releaseProcess := Seq[ReleaseStep](
   commitReleaseVersion,      // : ReleaseStep, performs the initial git checks
   tagRelease,                // : ReleaseStep
   //publishArtifacts,          // : ReleaseStep, checks whether `publishTo` is properly set up
-  setNextVersion             // : ReleaseStep
-  //commitNextVersion,         // : ReleaseStep
-  //pushChanges                // : ReleaseStep, also checks that an upstream branch is properly configured
+  releaseStepCommand("publishSigned"),
+  releaseStepCommand("sonatypeBundleRelease"),
+  setNextVersion,            // : ReleaseStep
+  commitNextVersion,         // : ReleaseStep
+  pushChanges                // : ReleaseStep, also checks that an upstream branch is properly configured
 )
 
-// Adds additional packages into Twirl
-//TwirlKeys.templateImports += "fr.maif.controllers._"
-
-// Adds additional packages into conf/routes
-// play.sbt.routes.RoutesKeys.routesImport += "fr.maif.binders._"
+ThisBuild / sonatypeCredentialHost := sonatype01
+publishTo := sonatypePublishToBundle.value

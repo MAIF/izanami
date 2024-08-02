@@ -356,6 +356,7 @@ export type Mailer = "Console" | "MailJet" | "MailGun" | "SMTP";
 export type InvitationMode = "Response" | "Mail";
 
 export interface Configuration {
+  version: string;
   mailer: Mailer;
   invitationMode: InvitationMode;
   originEmail: string;

@@ -763,7 +763,7 @@ function LegacyFeatureForm(props: {
               >
                 Cancel
               </button>
-              <button className="btn btn-success m-2" type="submit">
+              <button className="btn btn-primary m-2" type="submit">
                 Save
               </button>
             </div>
@@ -1125,12 +1125,12 @@ export function V2FeatureForm(props: {
             >
               <button
                 type="button"
-                className="btn btn-danger m-2"
+                className="btn btn-danger-light m-2"
                 onClick={() => cancel()}
               >
                 Cancel
               </button>
-              <button className="btn btn-success m-2">Save</button>
+              <button className="btn btn-primary m-2">Save</button>
             </div>
           </form>
           <div className="col-4">

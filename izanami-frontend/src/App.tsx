@@ -205,7 +205,7 @@ const router = createBrowserRouter([
         handle: {
           crumb: () => (
             <NavLink className={() => ""} to={`/profile`}>
-              Profile
+              <i className="fa fa-user"></i> Profile
             </NavLink>
           ),
         },
@@ -433,161 +433,199 @@ function RedirectToFirstTenant(): JSX.Element {
   }
 }
 
+type AppLoadingState = "Loading" | "Error" | "Success";
+
 function Layout() {
-  const { user, setUser, logout, expositionUrl } = useContext(IzanamiContext);
-  const loading = !user?.username || !expositionUrl;
-  const [isOpenModal, setIsOpenModal] = useState(false);
-  let { tenant } = useParams();
-  const searchParamsTenant = useSearchParams()[0].get("tenant");
-  tenant = searchParamsTenant || tenant;
+  const { user, setUser, logout, expositionUrl, version } =
+    useContext(IzanamiContext);
+    const [isOpenModal, setIsOpenModal] = useState(false);
+  const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
+    !user?.username || !expositionUrl ? "Loading" : "Success"
+  );
+    let { tenant } = useParams();
+    const searchParamsTenant = useSearchParams()[0].get("tenant");
+    tenant = searchParamsTenant || tenant;
+
   useEffect(() => {
     if (!user?.username) {
+      console.log("calling");
+      setLoadingState("Loading");
       fetch("/api/admin/users/rights")
-        .then((response) => response.json())
-        .then((user) => setUser(user))
-        .catch(console.error);
+        .then((response) => {
+          if (response.status === 401) {
+            logout();
+          } else if (response.status > 400) {
+            throw new Error(
+              `Failed to fetch rights, something is wrong with Izanami backend (status code ${response.status})`
+            );
+          } else {
+            return response.json();
+          }
+        })
+        .then((user) => {
+          setLoadingState("Success");
+          setUser(user);
+        })
+        .catch((error) => {
+          setLoadingState("Error");
+          console.error(error);
+        });
     }
   }, [user?.username]);
 
-  //Handle command k to show Search Modal
-  useEffect(() => {
-    const open = (e: any) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setIsOpenModal(true);
-      }
-    };
-    window.addEventListener("keydown", open);
-    return () => {
-      window.removeEventListener("keydown", open);
-    };
-  }, []);
+    //Handle command k to show Search Modal
+    useEffect(() => {
+        const open = (e: any) => {
+            if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                setIsOpenModal(true);
+            }
+        };
+        window.addEventListener("keydown", open);
+        return () => {
+            window.removeEventListener("keydown", open);
+        };
+    }, []);
 
-  if (loading) {
-    return <Loader message="Loading..." />;
-  }
-
-  return (
-    <div className="container-fluid">
-      {/*TOOD externalsier la navbar*/}
-      <div className="row">
-        <nav className="navbar navbar-expand-lg fixed-top p-0">
-          <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
-            <NavLink className="navbar-brand" to="/home">
-              <div className="d-flex flex-column justify-content-center align-items-center">
-                Izanami
-              </div>
-            </NavLink>
-            <button
-              id="btnToggler"
-              className="navbar-toggler collapsed"
-              type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#navbarToggler"
-              aria-controls="navbarToggler"
-              aria-expanded="false"
-              aria-label="Toggle navigation"
-            >
-              <span className="navbar-toggler-icon"></span>
-            </button>
-          </div>
-
-          <ul className="navbar-nav ms-auto">
-            {(tenant ||
-              user?.admin ||
-              Object.keys(user?.rights.tenants || {}).length > 0) && (
-              <li className="me-2 d-flex align-items-center justify-content-end my-1">
+  switch (loadingState) {
+    case "Loading":
+      return <Loader message="Loading..." />;
+    case "Error":
+      return (
+        <div
+          className="text-danger"
+          style={{
+            width: "100%",
+            height: "30vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "end",
+            fontSize: "1.4rem",
+            textAlign: "center",
+          }}
+        >
+          Something went wrong while loading Izanami.
+          <br /> Please check browser / backend logs
+        </div>
+      );
+    case "Success":
+      return (
+        <div className="container-fluid">
+          {/*TOOD externalsier la navbar*/}
+          <div className="row">
+            <nav className="navbar navbar-expand-lg fixed-top p-0">
+              <div className="navbar-header justify-content-between justify-content-lg-center col-12 col-lg-2 d-flex px-3">
+                <NavLink className="navbar-brand w-100" to="/home">
+                  <div className="d-flex flex-column justify-content-center align-items-center  w-100">
+                    Izanami
+                    <span style={{ fontSize: "0.7rem" }}>{version}</span>
+                  </div>
+                </NavLink>
                 <button
-                  className="btn btn-secondary"
-                  id="btnSearch"
+                  id="btnToggler"
+                  className="navbar-toggler collapsed"
                   type="button"
-                  onClick={() => setIsOpenModal(true)}
+                  data-bs-toggle="collapse"
+                  data-bs-target="#navbarToggler"
+                  aria-controls="navbarToggler"
+                  aria-expanded="false"
+                  aria-label="Toggle navigation"
                 >
-                  <span className="fa fa-search"></span>
-                  <span className="text-searchbutton d-none d-md-inline">
+                  <span className="navbar-toggler-icon"></span>
+                </button>
+              </div>
+              <ul className="navbar-nav ms-auto">
+                  {(tenant ||
+                      user?.admin ||
+                      Object.keys(user?.rights.tenants || {}).length > 0) && (
+                      <li className="me-2 d-flex align-items-center justify-content-end my-1">
+                          <button
+                              className="btn btn-secondary"
+                              id="btnSearch"
+                              type="button"
+                              onClick={() => setIsOpenModal(true)}
+                          >
+                              <span className="fa fa-search"></span>
+                              <span className="text-searchbutton d-none d-md-inline">
                     Click to search ...
                   </span>
-                </button>
-              </li>
-            )}
-            <li
-              onClick={() => switchLightMode()}
-              className="me-2 d-flex align-items-center justify-content-end my-1"
-            >
-              <i
-                id="lightMode"
-                className="fa fa-lightbulb"
-                style={{ color: "var(--color_level2)", cursor: "pointer" }}
-              />
-            </li>
-            <li className="nav-item dropdown userManagement d-flex align-items-center align-items-center m-2">
-              <a
-                className="nav-link"
-                href="#"
-                id="navbarDarkDropdownMenuLink"
-                data-toggle="dropdown"
-                role="button"
-                aria-expanded="false"
-                data-bs-toggle="dropdown"
-              >
-                {user?.username}
-                <i className="bi bi-caret-down-fill" aria-hidden="true" />
-              </a>
-              <ul
-                className="dropdown-menu dropdown-menu-right"
-                aria-labelledby="navbarDarkDropdownMenuLink"
-              >
-                <li className="dropdown-item">
-                  <NavLink
-                    className={() => ""}
-                    style={{ display: "block" }}
-                    to={`/profile`}
-                  >
-                    <i className="fas fa-user me-2" aria-hidden />
-                    Profile
-                  </NavLink>
+                          </button>
+                      </li>
+                  )}
+                <li
+                  onClick={() => switchLightMode()}
+                  className="me-2 d-flex align-items-center justify-content-end my-2"
+                >
+                  <i
+                    id="lightMode"
+                    className="fa fa-lightbulb"
+                    style={{ color: "var(--color_level2)", cursor: "pointer" }}
+                  />
                 </li>
-                <li className="dropdown-item">
-                  <a href="#" style={{ display: "block" }} onClick={logout}>
-                    <i className="fas fa-power-off me-2" aria-hidden />
-                    Logout
+                <li className="nav-item dropdown userManagement me-2">
+                  <a
+                    className="nav-link"
+                    href="#"
+                    id="navbarDarkDropdownMenuLink"
+                    data-toggle="dropdown"
+                    role="button"
+                    aria-expanded="false"
+                    data-bs-toggle="dropdown"
+                  >
+                    {user?.username}
+                    <i className="bi bi-caret-down-fill" aria-hidden="true" />
                   </a>
+                  <ul
+                    className="dropdown-menu dropdown-menu-right"
+                    aria-labelledby="navbarDarkDropdownMenuLink"
+                  >
+                    <li>
+                      <NavLink className="dropdown-item" to={`/profile`}>
+                        <i className="fas fa-user me-2" aria-hidden />
+                        Profile
+                      </NavLink>
+                    </li>
+                    <li>
+                      <a href="#" className="dropdown-item" onClick={logout}>
+                        <i className="fas fa-power-off me-2" aria-hidden />
+                        Logout
+                      </a>
+                    </li>
+                  </ul>
                 </li>
               </ul>
-            </li>
-          </ul>
-        </nav>
-      </div>
-      <div className="row">
-        <div id="navbarToggler" className="navbar-collapse collapse">
-          <aside className="col-lg-2 sidebar d-flex flex-column justify-content-between">
-            <Wrapper element={Menu} />
-          </aside>
+            </nav>
+          </div>
+          <div className="row">
+            <div id="navbarToggler" className="navbar-collapse collapse">
+              <aside className="col-lg-2 sidebar d-flex flex-column justify-content-between">
+                <Wrapper element={Menu} />
+              </aside>
+            </div>
+            <main className="col-lg-10 offset-lg-2 main">
+              <header>
+                <Wrapper element={Topbar} />
+              </header>
+              <Toaster
+                toastOptions={{
+                  className: "toast-error",
+                }}
+              />
+              <Outlet />
+            </main>
+          </div>
+            {(tenant ||
+                user?.admin ||
+                Object.keys(user?.rights.tenants || {}).length > 0) && (
+                <SearchModal
+                    tenant={tenant ? tenant : "all"}
+                    isOpenModal={isOpenModal}
+                    onClose={() => setIsOpenModal(false)}
+                />
+            )}
         </div>
-        <main className="col-lg-10 offset-lg-2 main">
-          <header>
-            <Wrapper element={Topbar} />
-          </header>
-          <Toaster
-            toastOptions={{
-              className: "toast-error",
-            }}
-          />
-          <Outlet />
-        </main>
-      </div>
-      {/*Add Search Modal*/}
-      {(tenant ||
-        user?.admin ||
-        Object.keys(user?.rights.tenants || {}).length > 0) && (
-        <SearchModal
-          tenant={tenant ? tenant : "all"}
-          isOpenModal={isOpenModal}
-          onClose={() => setIsOpenModal(false)}
-        />
-      )}
-    </div>
-  );
+      );
+  }
 }
 
 export class App extends Component {
@@ -604,11 +642,13 @@ export class App extends Component {
     super(props);
 
     this.state = {
+      version: undefined,
       user: undefined,
       setUser: (user: TUser) => {
         this.setState({ user: user });
         if (user.admin) {
           queryConfiguration().then((configuration) => {
+            this.setState({ version: configuration.version });
             if (
               !configuration.anonymousReporting &&
               (!configuration.anonymousReportingLastAsked ||

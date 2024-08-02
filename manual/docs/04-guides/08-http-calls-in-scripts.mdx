@@ -1,0 +1,138 @@
+---
+title: Http calls in scripts
+---
+
+import { Note } from "@site/src/components/Note";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+<Note>This page covers features availble from Izanami 2.5.0.</Note>
+
+In some cases, you may want to reach external resources in ordre to decide whether a feature is active or not.
+
+For such cases, you can perform an HTTP(s) call inside a WASM script.
+
+<Note>
+  While this may prove very usefull in some cases, keep in mind that an HTTP
+  call is not free and that WASM features are note cached client side. This
+  means that a script performing an http call may slow down client applications
+  that rely on this feature.
+</Note>
+
+Http call is not possible for OPA, therefore you'll have to use either Go, Rust, JavaScript or TypeScript.
+
+## JavaScript / TypeScript : using extism Http
+
+For JavaScript / TypeScript, you may use [extism Http.request](https://github.com/extism/js-pdk?tab=readme-ov-file#http).
+
+Here is a JavaScript example that calls `https://mirror.otoroshi.io/` and activate feature flag is status code 200, and false otherwise.
+
+```js
+export function execute() {
+  const request = {
+    method: "GET",
+    url: "https://mirror.otoroshi.io/",
+  };
+  const response = Http.request(request);
+
+  Host.outputString(
+    JSON.stringify({
+      active: response.status === 200,
+    })
+  );
+
+  return 0;
+}
+```
+
+The main point here is the `Http.request` function call, here we use two parameters: `method` (http method: GET, POST, ...) and `url` (url to call).
+Additionally, you may set `headers` parameters, a Map that contains headers to send in query. Moreover, `Http.request` can take a second parameters that represents body to send.
+
+This function returns an object with following entries:
+
+- `status`: resulting status code from the call
+- `body`: response body as string
+
+## Go / Rust : using host function
+
+For Go and Rust, we recommend using `ProxyHttpCall` host function, since this offers more possibilites than native extism function, such as reading response headers, following redirects, ...
+
+Here is an exemple for Go, that calls `https://mirror.otoroshi.io/` and activate feature flag is status code 200, and false otherwise.
+
+```go
+package main
+
+import (
+    "github.com/extism/go-pdk"
+    "github.com/buger/jsonparser"
+    "strconv"
+)
+
+//export proxy_http_call
+func ProxyHttpCall(context uint64, contextSize uint64) uint64
+
+func StringBytePtr(msg string) uint64 {
+  mem := pdk.AllocateString(msg)
+  return mem.Offset()
+}
+
+func ByteArrPtr(arr []byte) uint64 {
+  mem := pdk.AllocateBytes(arr)
+  return mem.Offset()
+}
+
+func pointerToString(p uint64) string {
+  responseMemory := pdk.FindMemory(p)
+
+  buf := make([]byte, int(responseMemory.Length()))
+  responseMemory.Load(buf)
+
+  return string(buf[:])
+}
+
+//export execute
+func execute() int32 {
+  context := []byte(`{
+    "url": "https://mirror.otoroshi.io/"
+  }`)
+
+  res := ProxyHttpCall(ByteArrPtr(context), uint64(len(context)))
+  resAsBytes := []byte(pointerToString(res))
+
+  status, err := jsonparser.GetInt(resAsBytes, "status")
+
+  if err != nil {
+    pdk.SetError(err)
+    return 1
+  }
+
+  mem := pdk.AllocateString(`{
+    "active": ` + strconv.FormatBool(status == 200) + `
+  }`)
+
+  pdk.OutputMemory(mem)
+
+  return 0
+}
+
+func main() {}
+```
+
+The main point here is the ProxyHttpCall function call, here we use a parameter that only contains "url".
+
+Other entries are possible for this object:
+
+- `method` a string containing http method to use (GET, POST, ...) (default is GET)
+- `headers` a Map that contains headers to send
+- `request_timeout` request timeout in milliseconds (default is 30000)
+- `follow_redirects` whether http client should follow redirects (default is false)
+- `query` a Map containing query parameters to pass in query
+- `body` or `body_str` a string containing body to send
+- `body_base64` body to send encoded as base64 (will be used if `body` / `body_str` are not defined)
+- `body_bytes` body to send as bytes (will be used if `body` / `body_str` / `body_base64` are not defined)
+
+This function returns an object with following entries:
+
+- `status`: resulting status code from the call
+- `headers`: Map containg response headers from the call
+- `body_base64`: base64 encoded bytes of response body

@@ -31,7 +31,7 @@ label {
   color: var(--color_level2);
 }
 
-.sub_container-bglighter label, .sub_container-bglighter .btn{
+.sub_container-bglighter label{
   color: var(--color_level3) !important;
   border-color: var(--color_level2) !important;
 }
@@ -78,7 +78,7 @@ input[readonly] {
 
 form .error-message {
   border: 1px solid red;
-  color: white;
+  color: var(--color_level2);
   flex-grow: 0;
   align-self: flex-start;
   border-radius: 0.25rem;

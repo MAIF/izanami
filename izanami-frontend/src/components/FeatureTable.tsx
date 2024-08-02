@@ -438,7 +438,7 @@ function OperationTransferForm(props: {
             <div className="d-flex justify-content-end">
               <button
                 type="button"
-                className="btn btn-danger m-2"
+                className="btn btn-danger-light m-2"
                 onClick={cancel}
               >
                 Cancel
@@ -650,7 +650,7 @@ export function CopyButton(props: { value: any; title?: any }) {
 
   return (
     <button
-      className="btn btn-secondary"
+      className="btn btn-secondary btn-sm"
       onClick={() => {
         navigator.clipboard.writeText(value);
         if (timeRef.current) {
@@ -665,23 +665,28 @@ export function CopyButton(props: { value: any; title?: any }) {
     >
       {validCheckMark && idCheckMark === value ? (
         <>
-          <div className="row justify-content-center">
+          <>
             <i
               aria-label="copy feature id"
-              className="bi bi-clipboard"
+              className={`${
+                title ? "bi bi-clipboard me-2" : "bi bi-clipboard"
+              }`}
               data-tooltip-id="copy_id"
               data-tooltip-content="Copied to clipboard !"
               data-tooltip-place="top"
             ></i>
             {title ? title : ""}
             <Tooltip id="copy_id" isOpen={validCheckMark} />
-          </div>
+          </>
         </>
       ) : (
-        <div className="row justify-content-center">
-          <i className="bi bi-clipboard" aria-label="copy feature id"></i>
+        <>
+          <i
+            className={`${title ? "bi bi-clipboard me-2" : "bi bi-clipboard"}`}
+            aria-label="copy feature id"
+          ></i>
           {title ? title : ""}
-        </div>
+        </>
       )}
     </button>
   );
@@ -1024,13 +1029,13 @@ function ExistingFeatureTestForm(props: {
           {props.cancel && (
             <button
               type="button"
-              className="btn btn-danger m-2"
+              className="btn btn-danger-light m-2"
               onClick={() => props.cancel?.()}
             >
               Cancel
             </button>
           )}
-          <button type="submit" className="btn btn-success m-2">
+          <button type="submit" className="btn btn-primary m-2">
             Test feature
           </button>
         </div>
@@ -1333,7 +1338,7 @@ export function FeatureTestForm(props: {
         {props.cancel && (
           <button
             type="button"
-            className="btn btn-danger m-2"
+            className="btn btn-danger-light m-2"
             onClick={() => props.cancel?.()}
           >
             Cancel
@@ -1721,7 +1726,12 @@ export function FeatureTable(props: {
         return actions(feature).includes("url");
       },
       action: (feature: TLightFeature) =>
-        askConfirmation(<FeatureUrl tenant={tenant!} feature={feature} />),
+        askConfirmation(
+          <FeatureUrl tenant={tenant!} feature={feature} />,
+          () => Promise.resolve(),
+          () => Promise.resolve(),
+          "Close"
+        ),
     },
   };
 

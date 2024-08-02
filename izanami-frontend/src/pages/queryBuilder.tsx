@@ -105,7 +105,7 @@ export function QueryBuilder() {
         <div className="container">
           <div className="row mt-4">
             <button
-              className="ms-2 my-3 d-flex btn btn-primary btn-sm"
+              className="ms-2 my-3 d-flex btn btn-secondary btn-sm"
               style={{ flexBasis: "fit-content" }}
               onClick={handleToggleImport}
             >

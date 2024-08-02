@@ -61,6 +61,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "guides/http-calls-in-scripts",
+              "path": "/izanami/docs/guides/http-calls-in-scripts",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "guides/import-from-v1",
               "path": "/izanami/docs/guides/import-from-v1",
               "sidebar": "tutorialSidebar"

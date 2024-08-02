@@ -178,7 +178,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                 aria-expanded="false"
                 aria-label="actions"
               >
-                <i className="bi bi-three-dots-vertical"></i>
+                <i className="bi bi-three-dots-vertical" aria-label="actions"></i>
               </button>
               <ul className="dropdown-menu">{actionList}</ul>
             </div>
@@ -287,11 +287,11 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                 let sortIcon = <></>;
                 const sorted = header.column.getIsSorted();
                 if (sorted === "desc") {
-                  sortIcon = <i className="bi bi-arrow-down ms-2"></i>;
+                  sortIcon = <i className="bi bi-arrow-down ms-2" aria-label="move down"></i>;
                 } else if (sorted === "asc") {
-                  sortIcon = <i className="bi bi-arrow-up ms-2"></i>;
+                  sortIcon = <i className="bi bi-arrow-up ms-2" aria-label="move up"></i>;
                 } else if (header.column.getCanSort()) {
-                  sortIcon = <i className="bi bi-arrow-down-up ms-2"></i>;
+                  sortIcon = <i className="bi bi-arrow-down-up ms-2" aria-label="move"></i>;
                 }
                 return (
                   <th

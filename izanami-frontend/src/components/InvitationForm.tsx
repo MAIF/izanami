@@ -93,12 +93,12 @@ export function InvitationForm(props: {
         <div className="d-flex justify-content-end">
           <button
             type="button"
-            className="btn btn-danger m-2"
+            className="btn btn-danger-light m-2"
             onClick={() => props.cancel()}
           >
             Cancel
           </button>
-          <button className="btn btn-success m-2" type="submit">
+          <button className="btn btn-primary m-2" type="submit">
             Invite users
           </button>
         </div>

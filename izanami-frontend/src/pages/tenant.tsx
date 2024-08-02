@@ -80,7 +80,7 @@ function ProjectList(props: { tenant: TenantType }) {
         {hasTenantWriteRight && !noProjects && !creating && (
           <button
             type="button"
-            className="btn btn-primary btn-sm mb-2 ms-3"
+            className="btn btn-secondary btn-sm mb-2 ms-3"
             onClick={() => setCreating(true)}
           >
             Create new project
@@ -121,7 +121,7 @@ function ProjectList(props: { tenant: TenantType }) {
               </button>
               <button
                 type="button"
-                className="btn btn-secondary btn-lg"
+                className="btn btn-secondary"
                 style={{
                   width: "215px",
                 }}

@@ -1,18 +1,19 @@
 .dropdown-menu {
-  background-color: $color-dark-6;
-
+  background-color: var(--bg-color_level25);
   > li {
     > a:focus,
     > a:hover,
     > div:focus,
-    > div:hover {
-      background-image: none;
+    > div:hover,
+    > a.active 
+    {
+      background-color: var(--bg-color_level2);
     }
   }
 
   > li > a,
   > li > div {
-    color: $color-dark-1;
+    color: var(--color_level3) !important;
   }
 }
 

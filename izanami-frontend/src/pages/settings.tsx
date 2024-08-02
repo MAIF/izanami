@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useMutation, useQuery } from "react-query";
 import queryClient from "../queryClient";
 import { string } from "yup";
@@ -21,7 +21,6 @@ import {
   SMTPConfigurationDetails,
 } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
-import { IzanamiContext } from "../securityContext";
 import { constraints } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
@@ -53,8 +52,8 @@ export function Settings() {
     queryConfiguration()
   );
 
-  const configurationMutationQuery = useMutation((data: Configuration) =>
-    updateConfiguration(data)
+  const configurationMutationQuery = useMutation(
+    (data: Omit<Configuration, "version">) => updateConfiguration(data)
   );
 
   if (configurationQuery.isLoading) {
