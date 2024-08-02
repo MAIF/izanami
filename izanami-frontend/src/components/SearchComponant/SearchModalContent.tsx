@@ -1,29 +1,13 @@
-import React, { ReactElement, useState } from "react";
-import { useDebounce } from "./useDebounce";
-import { Link, useNavigate } from "react-router-dom";
-import { useQuery } from "react-query";
-import {
-  searchEntitiesByTenant,
-  searchQueryEntities,
-  searchQueryByTenant,
-  searchEntities,
-} from "../../utils/queries";
+import React, { ReactElement, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { searchEntitiesByTenant, searchEntities } from "../../utils/queries";
 import { GlobalContextIcon } from "../../utils/icons";
-import { SearchResultV2 } from "../../utils/types";
+import { SearchResult } from "../../utils/types";
+import { debounce } from "lodash";
 
 interface ISearchProps {
   tenant?: string;
   onClose: () => void;
-}
-
-interface SearchResult {
-  id: string;
-  name: string;
-  origin_table: string;
-  origin_tenant: string;
-  project?: string;
-  description: string;
-  parent: string;
 }
 
 const typeDisplayInformation = new Map<
@@ -102,12 +86,7 @@ const typeDisplayInformation = new Map<
   ],
 ]);
 
-/*
-
-        pathname: linkPath,
-        ...(filterValue ? { search: `filter=${filterValue}` } : {}),
-      }*/
-const getLinkPath = (item: SearchResultV2) => {
+const getLinkPath = (item: SearchResult) => {
   const { tenant } = item;
   switch (item.type) {
     case "feature": {
@@ -129,7 +108,6 @@ const getLinkPath = (item: SearchResultV2) => {
       const open = [...maybeOpen, item.name].join("/");
       return `/tenants/${tenant}/contexts?open=["${open}"]`;
     }
-
     case "local_context": {
       const projectName = item.path.find((p) => p.type === "project")?.name;
       const maybeOpen = item.path
@@ -146,81 +124,33 @@ const getLinkPath = (item: SearchResultV2) => {
   }
 };
 
-const useSearchEntitiesByTenant = (query: string, selectedTenant: string) => {
-  const enabled = !!query;
-  if (selectedTenant && selectedTenant !== "all") {
-    return useQuery(
-      searchQueryByTenant(selectedTenant, query),
-      () => searchEntitiesByTenant(selectedTenant, query),
-      { enabled }
-    );
-  }
-  return useQuery(searchQueryEntities(query), () => searchEntities(query), {
-    enabled,
-  });
-};
+type SearchModalStatus = { all: true } | { all: false; tenant: string };
+type SearchResultStatus =
+  | { state: "SUCCESS"; results: SearchResult[] }
+  | { state: "ERROR"; error: string }
+  | { state: "PENDING" }
+  | { state: "INITIAL" };
 
 export function SearchModalContent({ tenant, onClose }: ISearchProps) {
-  const [selectedTenant, setSelectedTenant] = useState<string | null>(tenant!);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [showDocuments, setShowDocuments] = useState<boolean>(false);
-  const navigate = useNavigate();
-
-  const {
-    data: searchItems,
-    isLoading,
-    isSuccess,
-    isError,
-  } = useSearchEntitiesByTenant(
-    useDebounce(searchQuery, 500).trim(),
-    selectedTenant!
+  const [modalStatus, setModalStatus] = useState<SearchModalStatus>(
+    tenant ? { all: false, tenant } : { all: true }
   );
+  const [resultStatus, setResultStatus] = useState<SearchResultStatus>({
+    state: "INITIAL",
+  });
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const groupedItems =
-    searchItems?.reduce((acc, next) => {
-      const type = next.type;
-      if (!acc.has(type)) {
-        acc.set(type, []);
-      }
-      acc.get(type)?.push(next);
-      return acc;
-    }, new Map<string, SearchResultV2[]>()) ??
-    new Map<string, SearchResultV2[]>();
-
-  console.log("groupedItems", groupedItems);
-
-  const handleItemClick = (item: SearchResultV2) => {
-    const navigationTarget = getLinkPath(item);
-    navigate(navigationTarget);
-
-    /*if (item.origin_table === "Contexts") {
-      const contextPath = item.id.split("_").slice(1).join("/");
-      navigate({
-        pathname: linkPath,
-        search: `open=["${contextPath}"]`,
-      });
-    } else {
-      let filterValue = null;
-      if (item.origin_table === "Global") {
-        filterValue = item.id
-          .slice(item.id.indexOf("_") + 1)
-          .split("_")
-          .join("/");
-      } else {
-        filterValue = item.origin_table !== "Projects" ? item.name : null;
-      }
-      navigate({
-        pathname: linkPath,
-        ...(filterValue ? { search: `filter=${filterValue}` } : {}),
-      });
-    }*/
-
-    onClose();
-  };
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    setShowDocuments(false);
-  };
+    resultStatus.state === "SUCCESS"
+      ? resultStatus.results.reduce((acc, next) => {
+          const type = next.type;
+          if (!acc.has(type)) {
+            acc.set(type, []);
+          }
+          acc.get(type)?.push(next);
+          return acc;
+        }, new Map<string, SearchResult[]>())
+      : new Map<string, SearchResult[]>();
   return (
     <>
       {tenant && tenant !== "all" && (
@@ -230,24 +160,26 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
           aria-label="Tenant selection"
         >
           <button
-            onClick={() => setSelectedTenant("all")}
+            onClick={() => setModalStatus({ all: true })}
             className={`btn btn-secondary${
-              selectedTenant === "all" ? " search-form-button-selected" : ""
+              modalStatus.all ? " search-form-button-selected" : ""
             }`}
             style={{ backgroundColor: "var(--color-blue) !important" }}
             value="all"
-            aria-pressed={selectedTenant === "all"}
+            aria-pressed={modalStatus.all}
           >
             All tenants
           </button>
 
           <button
-            onClick={() => setSelectedTenant(tenant)}
+            onClick={() => setModalStatus({ all: false, tenant })}
             className={`btn btn-secondary${
-              selectedTenant === tenant ? " search-form-button-selected" : ""
+              !modalStatus.all && modalStatus.tenant === tenant
+                ? " search-form-button-selected"
+                : ""
             }`}
             value={tenant}
-            aria-pressed={selectedTenant === tenant}
+            aria-pressed={!modalStatus.all && modalStatus.tenant === tenant}
           >
             <span className="fas fa-cloud" aria-hidden></span>
             <span> {tenant}</span>
@@ -258,33 +190,62 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
         <div className="search-container-input">
           <i className="fas fa-search search-icon" aria-hidden="true" />
           <input
+            ref={inputRef}
             type="text"
             id="search-input"
             name="search-form"
             title="Search in tenants"
-            value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
-              setShowDocuments(true);
-            }}
+            onChange={debounce((event) => {
+              if (event.target.value) {
+                setResultStatus({ state: "PENDING" });
+                if (modalStatus.all) {
+                  searchEntities(event.target.value)
+                    .then((r) =>
+                      setResultStatus({ state: "SUCCESS", results: r })
+                    )
+                    .catch(() => {
+                      setResultStatus({
+                        state: "ERROR",
+                        error: "There was an error fetching data",
+                      });
+                    });
+                } else {
+                  searchEntitiesByTenant(modalStatus.tenant, event.target.value)
+                    .then((r) =>
+                      setResultStatus({ state: "SUCCESS", results: r })
+                    )
+                    .catch(() =>
+                      setResultStatus({
+                        state: "ERROR",
+                        error: "There was an error fetching data",
+                      })
+                    );
+                }
+              }
+            }, 200)}
             placeholder={`Search in ${
-              selectedTenant === "all"
+              modalStatus.all
                 ? "all tenants"
-                : `this tenant: ${selectedTenant}`
+                : `this tenant: ${modalStatus.tenant}`
             }`}
             aria-label={`Search in ${
-              selectedTenant === "all"
+              modalStatus.all
                 ? "all tenants"
-                : `this tenant: ${selectedTenant}`
+                : `this tenant: ${modalStatus.tenant}`
             }`}
             className="form-control"
             style={{ padding: ".375rem 1.85rem" }}
             autoFocus
           />
-          {searchQuery && (
+          {inputRef?.current?.value && (
             <button
               type="button"
-              onClick={handleClearSearch}
+              onClick={() => {
+                if (inputRef?.current?.value) {
+                  inputRef.current.value = "";
+                  setResultStatus({ state: "INITIAL" });
+                }
+              }}
               aria-label="Clear search"
               className="clear-search-btn"
             >
@@ -292,11 +253,14 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
             </button>
           )}
         </div>
-        {showDocuments && (
+        {resultStatus.state !== "INITIAL" && (
           <div className="search-result">
-            {isLoading && <div>Search something...</div>}
-            {isError && <div>There was an error fetching data.</div>}
-            {isSuccess &&
+            {resultStatus.state === "ERROR" ? (
+              <div>{resultStatus.error}</div>
+            ) : resultStatus.state === "PENDING" ? (
+              <div>Searching...</div>
+            ) : (
+              resultStatus.state === "SUCCESS" &&
               (groupedItems?.size > 0 ? (
                 <ul className="search-ul nav flex-column">
                   {[...groupedItems.keys()].map((originTable) => (
@@ -310,12 +274,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                           className="search-ul nav flex-column"
                           key={item.name}
                         >
-                          <li
-                            className="search-ul-item"
-                            onClick={() => {
-                              //handleItemClick(item)}
-                            }}
-                          >
+                          <li className="search-ul-item">
                             <Link
                               to={getLinkPath(item)}
                               onClick={() => onClose()}
@@ -344,62 +303,6 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                     ?.icon() ?? ""}
                                   {item.name}
                                 </li>
-                                {/*
-                                {selectedTenant === "all" && (
-                                  <li className="breadcrumb-item">
-                                    <i
-                                      className="fas fa-cloud me-2"
-                                      aria-hidden="true"
-                                    />
-                                    {item.origin_tenant}
-                                  </li>
-                                )}
-
-                                {item.project &&
-                                  item.origin_table !== "Projects" && (
-                                    <li className="breadcrumb-item">
-                                      <i
-                                        className="fas fa-building me-2"
-                                        aria-hidden="true"
-                                      />
-                                      {item.project}
-                                    </li>
-                                  )}
-                                {item.parent && (
-                                  <li className="breadcrumb-item">
-                                    {item.origin_table === "Context" &&
-                                    item.description === "Global" ? (
-                                      <GlobalContextIcon className="me-2" />
-                                    ) : (
-                                      <i
-                                        className="fas fa-filter me-2"
-                                        aria-hidden="true"
-                                      />
-                                    )}
-                                    {item.parent
-                                      .slice(item.parent.indexOf("_") + 1)
-                                      .split("_")
-                                      .join(" / ")}
-                                  </li>
-                                )}
-                                <li className="breadcrumb-item">
-                                  {item.origin_table === "Contexts" &&
-                                  item.description === "Global" ? (
-                                    <GlobalContextIcon className="me-2" />
-                                  ) : (
-                                    <i
-                                      className={`fas ${iconMapping.get(
-                                        originTable
-                                      )} me-2`}
-                                      aria-hidden="true"
-                                    />
-                                  )}
-                                  {item.description &&
-                                  item.similarity_description >=
-                                    item.similarity_name
-                                    ? `${item.name} / description : ${item.description}`
-                                    : item.name}
-                                </li>*/}
                               </ul>
                             </Link>
                           </li>
@@ -410,7 +313,8 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                 </ul>
               ) : (
                 <div className="search-result">No results found</div>
-              ))}
+              ))
+            )}
           </div>
         )}
       </div>

@@ -19,67 +19,6 @@ class SearchController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
-  def searchEntities(query: String): Action[AnyContent] = userDetailedAuthAction.async {
-    implicit request: UserRequestWithCompleteRights[AnyContent] =>
-      val userTenants = request.user.rights.tenants
-
-      if (request.user.admin) {
-        env.datastores.tenants
-          .readTenants()
-          .flatMap(tenants =>
-            env.datastores.searchQueries
-              .searchEntitiesForAdmin(tenants.map(tenant => tenant.name), query)
-              .map(entities =>
-                entities.fold(
-                  err => Results.Status(err.status)(Json.toJson(err)),
-                  entities => Ok(Json.toJson(entities))
-                )
-              )
-          )
-
-      } else if (userTenants.nonEmpty) {
-        env.datastores.searchQueries
-          .searchEntities(userTenants, query)
-          .map(entities =>
-            entities.fold(
-              err => Results.Status(err.status)(Json.toJson(err)),
-              entities => Ok(Json.toJson(entities))
-            )
-          )
-      } else {
-        Future.successful(Forbidden(Json.obj("message" -> "User has no tenants rights ")))
-      }
-
-  }
-
-  def searchEntitiesByTenant(tenant: String, query: String): Action[AnyContent] = userDetailedAuthAction.async {
-    implicit request: UserRequestWithCompleteRights[AnyContent] =>
-      val userTenants = request.user.rights.tenants
-
-      if (request.user.admin) {
-        env.datastores.searchQueries
-          .searchEntitiesForAdmin(List(tenant), query)
-          .map(entities =>
-            entities.fold(
-              err => Results.Status(err.status)(Json.toJson(err)),
-              entities => Ok(Json.toJson(entities))
-            )
-          )
-      } else if (userTenants.nonEmpty && userTenants.contains(tenant)) {
-        val filteredTenants = userTenants.filter { case (t, _) => t == tenant }
-        env.datastores.searchQueries
-          .searchEntities(filteredTenants, query)
-          .map(entities =>
-            entities.fold(
-              err => Results.Status(err.status)(Json.toJson(err)),
-              entities => Ok(Json.toJson(entities))
-            )
-          )
-      } else {
-        Future.successful(Forbidden(Json.obj("message" -> s"User has no rights for this tenant ${tenant}")))
-      }
-  }
-
   def search(query: String): Action[AnyContent] = tenantRightAction.async {
     implicit request: UserRequestWithTenantRights[AnyContent] =>
       {

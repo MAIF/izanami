@@ -529,7 +529,7 @@ export interface SearchEntityResponse {
   similarity_description: number;
 }
 
-export type SearchResultV2 = {
+export type SearchResult = {
   type:
     | "feature"
     | "project"

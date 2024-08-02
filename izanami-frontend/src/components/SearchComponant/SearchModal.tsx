@@ -3,7 +3,7 @@ import { SearchModalContent } from "./SearchModalContent";
 import { Modal } from "./Modal";
 
 export function SearchModal(props: {
-  tenant: string;
+  tenant?: string;
   isOpenModal: boolean;
   onClose: () => void;
 }) {

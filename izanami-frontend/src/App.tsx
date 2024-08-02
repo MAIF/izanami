@@ -618,7 +618,7 @@ function Layout() {
             user?.admin ||
             Object.keys(user?.rights.tenants || {}).length > 0) && (
             <SearchModal
-              tenant={tenant ? tenant : "all"}
+              tenant={tenant}
               isOpenModal={isOpenModal}
               onClose={() => setIsOpenModal(false)}
             />
