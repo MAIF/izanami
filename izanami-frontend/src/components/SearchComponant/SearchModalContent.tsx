@@ -58,28 +58,28 @@ const getLinkPath = (item: SearchResult) => {
   }
 };
 
+const useSearchEntitiesByTenant = (query: string, selectedTenant: string) => {
+  const enabled = !!query;
+  if (selectedTenant && selectedTenant !== "all") {
+    return useQuery(
+      searchQueryByTenant(selectedTenant, query),
+      () => searchEntitiesByTenant(selectedTenant, query),
+      { enabled }
+    );
+  }
+  return useQuery(searchQueryEntities(query), () => searchEntities(query), {
+    enabled,
+  });
+};
+
 export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   const [selectedTenant, setSelectedTenant] = useState<string | null>(tenant!);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showDocuments, setShowDocuments] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const useSearchEntitiesByTenant = (query: string, selectedTenant: string) => {
-    const enabled = !!query;
-    if (selectedTenant && selectedTenant !== "all") {
-      return useQuery(
-        searchQueryByTenant(selectedTenant, query),
-        () => searchEntitiesByTenant(selectedTenant, query),
-        { enabled }
-      );
-    }
-    return useQuery(searchQueryEntities(query), () => searchEntities(query), {
-      enabled,
-    });
-  };
-
   const {
-    data: SearchItems,
+    data: searchItems,
     isLoading,
     isSuccess,
     isError,
@@ -89,29 +89,36 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   );
 
   const groupedItems = groupBy(
-    SearchItems,
+    searchItems,
     (item: SearchResult) => item.origin_table
   );
   const handleItemClick = (item: SearchResult) => {
+    console.log("item", item);
+
     const linkPath = getLinkPath(item);
-    if (item.origin_table === "Global") {
-      navigate(
-        { pathname: linkPath },
-        {
-          state: {
-            name: item.id
-              .slice(item.id.indexOf("_") + 1)
-              .split("_")
-              .join("/"),
-          },
-        }
-      );
+
+    if (item.origin_table === "Contexts") {
+      const contextPath = item.id.split("_").slice(1).join("/");
+      navigate({
+        pathname: linkPath,
+        search: `open=["${contextPath}"]`,
+      });
     } else {
-      navigate(
-        { pathname: linkPath },
-        { state: { name: item.origin_table !== "Projects" ? item.name : null } }
-      );
+      let filterValue = "";
+      if (item.origin_table === "Global") {
+        filterValue = item.id
+          .slice(item.id.indexOf("_") + 1)
+          .split("_")
+          .join("/");
+      } else {
+        filterValue = item.origin_table !== "Projects" ? item.name : null;
+      }
+      navigate({
+        pathname: linkPath,
+        search: `filter=${filterValue}`,
+      });
     }
+
     onClose();
   };
   const handleClearSearch = () => {

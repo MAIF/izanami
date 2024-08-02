@@ -7,7 +7,7 @@ import {
   updateScript,
 } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useSearchParams } from "react-router-dom";
 import { TLevel, TUser, TWasmConfig } from "../utils/types";
 import { IzanamiContext, hasRightForTenant } from "../securityContext";
 import queryClient from "../queryClient";
@@ -29,8 +29,8 @@ export function WasmScripts(props: { tenant: string }) {
       },
     }
   );
-  const location = useLocation();
-  const selectedSearchRow = location?.state?.name;
+  const [searchParams] = useSearchParams();
+  const selectedSearchRow = searchParams.get("filter");
   const { askConfirmation } = React.useContext(IzanamiContext);
 
   if (scriptQuery.error) {

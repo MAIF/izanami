@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, NavLink, useParams } from "react-router-dom";
 import {
   ClassicalFeature,
   DAYS,
@@ -1107,11 +1107,11 @@ export function OverloadTable(props: {
       header: () => "Overload path",
       cell: (info: any) =>
         hasLinkedPath ? (
-          <a
-            href={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
+          <NavLink
+            to={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
           >
             {info.getValue()}
-          </a>
+          </NavLink>
         ) : (
           info.getValue()
         ),

@@ -7,7 +7,7 @@ import { TLevel } from "../utils/types";
 import { useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { FeatureForm } from "../components/FeatureForm";
-import { useLocation } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 export function Project({
   project,
@@ -16,8 +16,8 @@ export function Project({
   project: string;
   tenant: string;
 }) {
-  const location = useLocation();
-  const selectedSearchRow = location?.state?.name ?? "";
+  const [searchParams] = useSearchParams();
+  const selectedSearchRow = searchParams.get("filter") ?? "";
   const [error, setError] = useState<string>("");
   const clearError = () => setError("");
   const queryKey = projectQueryKey(tenant, project);
