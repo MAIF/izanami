@@ -4,7 +4,7 @@ import fr.maif.izanami.datastores.apiKeyImplicites.ApiKeyRow
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.datastores.projectImplicits.ProjectRow
 import fr.maif.izanami.datastores.tagImplicits.TagRow
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.env.{Env, PostgresqlErrors}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.models.{ApiKey, LightWeightFeature, Project, Tag}
@@ -14,13 +14,33 @@ import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.web.ExportController
 import fr.maif.izanami.web.ExportController.{ExportRequest, ExportedType, ProjectExportResult, ProjectType, TenantExportRequest, TenantExportResult}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{SqlConnection, Tuple}
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
+import scala.util.Try
 
 class ExportDatastore(val env: Env) extends Datastore {
+
+  private def unicityOrPrimaryConstraintsFor(tenant: String, table: String): Future[Set[String]] = {
+    /*
+SELECT ccu.constraint_name, json_agg(ccu.column_name)
+FROM pg_constraint co, information_schema.constraint_column_usage ccu, pg_namespace n
+WHERE (co.contype='p' OR co.contype='u')
+AND ccu.constraint_name=co.conname
+AND ccu.table_name='features'
+AND ccu.table_schema='foo'
+AND co.connamespace=n.oid
+AND n.nspname='foo'
+GROUP BY ccu.constraint_name
+     */
+    env.postgresql.queryAll(
+      s"""
+         |
+         |""".stripMargin)
+  }
 
   def importTenantData(
       tenant: String,
@@ -49,21 +69,53 @@ class ExportDatastore(val env: Env) extends Datastore {
       conn: SqlConnection,
       conflictStrategy: ImportConflictStrategy
   ): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql
-      .queryOne(
-        s"""
-         |INSERT INTO $table SELECT * FROM json_populate_recordset(null::$table, $$1)
-         |ON CONFLICT ${conflictStrategy match {
-          case Fail           => ""
-          case MergeOverwrite => "" // TODO
-          case Skip           => "DO NOTHING"
-        }}
-         |""".stripMargin,
-        List(JsArray(rows).vertxJsValue),
-        schemas = Set(tenant),
-        conn = Some(conn)
-      ) { r => Some(()) }
-      .map(o => o.toRight(InternalServerError("")))
+    if (conflictStrategy == MergeOverwrite) {
+      // json_populate_record
+      Future.sequence(rows
+        .map(_.asOpt[JsObject])
+        .flatMap(_.toSeq)
+        .map(r => {
+        val updateFieldList = r.keys.map(str => s"\"$str\"").mkString(",")
+          // ON CONFLICT DO UPDATE SET($updateFieldList)=((SELECT * FROM json_populate_record(null::$table,$$1)))
+          env.postgresql.queryOne(
+              s"""
+                 |INSERT INTO $table SELECT * FROM json_populate_record(null::$table, $$1)
+                 |""".stripMargin,
+              List(r.vertxJsValue),
+              schemas = Set(tenant),
+              conn = Some(conn)
+            ) { r => Some(()) }
+            .recover {
+              case (e: PgException) if e.getSqlState == PostgresqlErrors.UNIQUE_VIOLATION => {
+                val constraint = e.getConstraint
+                env.postgresql.queryOne(
+                  s"""
+                     |INSERT INTO $table SELECT * FROM json_populate_record(null::$table, $$1)
+                     |ON CONFLICT $constraint DO UPDATE SET($updateFieldList)=((select * from json_populate_record(NULL::$table, $$1)))
+                     |""".stripMargin,
+                  List(r.vertxJsValue),
+                  schemas = Set(tenant),
+                  conn = Some(conn)
+                ) { r => Some(()) }
+              }
+            }
+        })).map(_ => Right(()))
+    } else {
+      env.postgresql
+        .queryOne(
+          s"""
+             |INSERT INTO $table SELECT * FROM json_populate_recordset(null::$table, $$1)
+             |ON CONFLICT ${conflictStrategy match {
+            case Skip => "DO NOTHING"
+            case _    => ""
+          }}
+             |""".stripMargin,
+          List(JsArray(rows).vertxJsValue),
+          schemas = Set(tenant),
+          conn = Some(conn)
+        ) { r => Some(()) }
+        .map(o => o.toRight(InternalServerError("")))
+    }
   }
 
   def exportTenantData(
