@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { ReactElement, useState } from "react";
 import { useDebounce } from "./useDebounce";
 import { Link, useNavigate } from "react-router-dom";
-import { groupBy } from "lodash";
 import { useQuery } from "react-query";
 import {
   searchEntitiesByTenant,
@@ -10,6 +9,7 @@ import {
   searchEntities,
 } from "../../utils/queries";
 import { GlobalContextIcon } from "../../utils/icons";
+import { SearchResultV2 } from "../../utils/types";
 
 interface ISearchProps {
   tenant?: string;
@@ -26,35 +26,123 @@ interface SearchResult {
   parent: string;
 }
 
-const iconMapping = new Map<string, string>([
-  ["Features", "fa-rocket"],
-  ["Projects", "fa-building"],
-  ["Apikeys", "fa-key"],
-  ["Tags", "fa-tag"],
-  ["Tenants", "fa-cloud"],
-  ["Users", "fa-user"],
-  ["Webhooks", "fa-plug"],
-  ["Contexts", "fa-filter"],
-  ["Wasm Scripts", "fa-code"],
+const typeDisplayInformation = new Map<
+  string,
+  {
+    icon: () => ReactElement<any, any>;
+    displayName: string;
+  }
+>([
+  [
+    "tenant",
+    {
+      icon: () => <i className="fas fa-cloud me-2" aria-hidden="true" />,
+      displayName: "Tenants",
+    },
+  ],
+  [
+    "feature",
+    {
+      icon: () => <i className="fas fa-rocket me-2" aria-hidden="true" />,
+      displayName: "Features",
+    },
+  ],
+  [
+    "project",
+    {
+      icon: () => <i className="fas fa-building me-2" aria-hidden="true" />,
+      displayName: "Projects",
+    },
+  ],
+  [
+    "key",
+    {
+      icon: () => <i className="fas fa-key me-2" aria-hidden="true" />,
+      displayName: "Keys",
+    },
+  ],
+  [
+    "tag",
+    {
+      icon: () => <i className="fas fa-tag me-2" aria-hidden="true" />,
+      displayName: "Tags",
+    },
+  ],
+  [
+    "script",
+    {
+      icon: () => <i className="fas fa-code me-2" aria-hidden="true" />,
+      displayName: "WASM scripts",
+    },
+  ],
+  [
+    "global_context",
+    {
+      icon: () => (
+        <span aria-hidden="true" className="me-2">
+          <GlobalContextIcon />
+        </span>
+      ),
+      displayName: "Global contexts",
+    },
+  ],
+  [
+    "local_context",
+    {
+      icon: () => <i className="fas fa-filter me-2" aria-hidden="true" />,
+      displayName: "Local contexts",
+    },
+  ],
+  [
+    "webhook",
+    {
+      icon: () => <i className="fas fa-plug me-2" aria-hidden="true" />,
+      displayName: "Webhooks",
+    },
+  ],
 ]);
-const getLinkPath = (item: SearchResult) => {
-  switch (item.origin_table) {
-    case "Features":
-      return `/tenants/${item.origin_tenant}/projects/${item.project}`;
-    case "Apikeys":
-      return `/tenants/${item.origin_tenant}/keys`;
-    case "Webhooks":
-      return `/tenants/${item.origin_tenant}/webhooks`;
-    case "Contexts":
-      return `/tenants/${item.origin_tenant}/${
-        item.description === "Projects" ? `projects/${item.project}/` : ""
-      }contexts`;
-    case "Wasm Scripts":
-      return `/tenants/${item.origin_tenant}/scripts`;
-    default:
-      return `/tenants/${
-        item.origin_tenant
-      }/${item.origin_table.toLowerCase()}/${item.name}`;
+
+/*
+
+        pathname: linkPath,
+        ...(filterValue ? { search: `filter=${filterValue}` } : {}),
+      }*/
+const getLinkPath = (item: SearchResultV2) => {
+  const { tenant } = item;
+  switch (item.type) {
+    case "feature": {
+      const projectName = item.path.find((p) => p.type === "project")?.name;
+      return `/tenants/${tenant}/projects/${projectName}?filter=${item.name}`;
+    }
+    case "project":
+      return `/tenants/${tenant}/projects/${item.name}`;
+    case "key":
+      return `/tenants/${tenant}/keys?filter=${item.name}`;
+    case "tag":
+      return `/tenants/${tenant}/tags/${item.name}`;
+    case "script":
+      return `/tenants/${tenant}/scripts?filter=${item.name}`;
+    case "global_context": {
+      const maybeOpen = item.path
+        .filter((p) => p.type === "global_context")
+        .map((p) => p.name);
+      const open = [...maybeOpen, item.name].join("/");
+      return `/tenants/${tenant}/contexts?open=["${open}"]`;
+    }
+
+    case "local_context": {
+      const projectName = item.path.find((p) => p.type === "project")?.name;
+      const maybeOpen = item.path
+        .filter(
+          (p) => p.type === "global_context" || p.type === "local_context"
+        )
+        .map((p) => p.name);
+      const open = [...maybeOpen, item.name].join("/");
+
+      return `/tenants/${tenant}/projects/${projectName}/contexts?open=["${open}"]`;
+    }
+    case "webhook":
+      return `/tenants/${tenant}/webhooks`;
   }
 };
 
@@ -88,14 +176,24 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     selectedTenant!
   );
 
-  const groupedItems = groupBy(
-    searchItems,
-    (item: SearchResult) => item.origin_table
-  );
-  const handleItemClick = (item: SearchResult) => {
-    const linkPath = getLinkPath(item);
+  const groupedItems =
+    searchItems?.reduce((acc, next) => {
+      const type = next.type;
+      if (!acc.has(type)) {
+        acc.set(type, []);
+      }
+      acc.get(type)?.push(next);
+      return acc;
+    }, new Map<string, SearchResultV2[]>()) ??
+    new Map<string, SearchResultV2[]>();
 
-    if (item.origin_table === "Contexts") {
+  console.log("groupedItems", groupedItems);
+
+  const handleItemClick = (item: SearchResultV2) => {
+    const navigationTarget = getLinkPath(item);
+    navigate(navigationTarget);
+
+    /*if (item.origin_table === "Contexts") {
       const contextPath = item.id.split("_").slice(1).join("/");
       navigate({
         pathname: linkPath,
@@ -115,7 +213,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
         pathname: linkPath,
         ...(filterValue ? { search: `filter=${filterValue}` } : {}),
       });
-    }
+    }*/
 
     onClose();
   };
@@ -199,23 +297,54 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
             {isLoading && <div>Search something...</div>}
             {isError && <div>There was an error fetching data.</div>}
             {isSuccess &&
-              (Object.keys(groupedItems).length > 0 ? (
+              (groupedItems?.size > 0 ? (
                 <ul className="search-ul nav flex-column">
-                  {Object.keys(groupedItems).map((originTable) => (
+                  {[...groupedItems.keys()].map((originTable) => (
                     <li className="search-ul-item" key={originTable}>
-                      <span>{originTable}</span>
-                      {groupedItems[originTable].map((item) => (
-                        <ol className="search-ul nav flex-column" key={item.id}>
+                      <span>
+                        {typeDisplayInformation.get(originTable)?.displayName ??
+                          ""}
+                      </span>
+                      {groupedItems.get(originTable)?.map((item) => (
+                        <ol
+                          className="search-ul nav flex-column"
+                          key={item.name}
+                        >
                           <li
                             className="search-ul-item"
-                            aria-label={`View details for ${item.name} in ${item.origin_tenant}`}
-                            onClick={() => handleItemClick(item)}
+                            onClick={() => {
+                              //handleItemClick(item)}
+                            }}
                           >
-                            <Link to={getLinkPath(item)}>
+                            <Link
+                              to={getLinkPath(item)}
+                              onClick={() => onClose()}
+                            >
                               <ul
                                 className="breadcrumb"
                                 style={{ marginBottom: "0rem" }}
                               >
+                                {item.path.map((pathElement, index) => (
+                                  <li
+                                    className="breadcrumb-item"
+                                    key={`${item.name}-${index}`}
+                                  >
+                                    {typeDisplayInformation
+                                      .get(pathElement.type)
+                                      ?.icon() ?? ""}
+                                    {pathElement.name}
+                                  </li>
+                                ))}
+                                <li
+                                  className="breadcrumb-item"
+                                  key={`${item.name}-name`}
+                                >
+                                  {typeDisplayInformation
+                                    .get(item.type)
+                                    ?.icon() ?? ""}
+                                  {item.name}
+                                </li>
+                                {/*
                                 {selectedTenant === "all" && (
                                   <li className="breadcrumb-item">
                                     <i
@@ -270,7 +399,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                     item.similarity_name
                                     ? `${item.name} / description : ${item.description}`
                                     : item.name}
-                                </li>
+                                </li>*/}
                               </ul>
                             </Link>
                           </li>

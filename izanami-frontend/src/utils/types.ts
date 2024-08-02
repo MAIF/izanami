@@ -528,3 +528,23 @@ export interface SearchEntityResponse {
   similarity_name: number;
   similarity_description: number;
 }
+
+export type SearchResultV2 = {
+  type:
+    | "feature"
+    | "project"
+    | "key"
+    | "tag"
+    | "script"
+    | "global_context"
+    | "local_context"
+    | "webhook";
+  name: string;
+  path: SearchResultPathElement[];
+  tenant: string;
+};
+
+export type SearchResultPathElement = {
+  type: "global_context" | "local_context" | "project" | "tenant";
+  name: string;
+};

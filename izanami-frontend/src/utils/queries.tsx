@@ -25,6 +25,7 @@ import {
   WasmFeature,
   Webhook,
   SearchEntityResponse,
+  SearchResultV2,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -1161,14 +1162,14 @@ export function importUsersFile(tenant: string, file: FileList): Promise<any> {
   });
 }
 
-export function searchEntities(query: string): Promise<SearchEntityResponse[]> {
-  return handleFetchJsonResponse(fetch(`/api/admin/search?query=${query}`));
+export function searchEntities(query: string): Promise<SearchResultV2[]> {
+  return handleFetchJsonResponse(fetch(`/api/admin/search2?query=${query}`));
 }
 export function searchEntitiesByTenant(
   tenant: string,
   query: string
-): Promise<SearchEntityResponse[]> {
+): Promise<SearchResultV2[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/search?query=${query}`)
+    fetch(`/api/admin/tenants/${tenant}/search2?query=${query}`)
   );
 }
