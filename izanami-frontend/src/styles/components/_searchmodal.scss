@@ -2,6 +2,11 @@
   position: relative;
 }
 
+.search-form-button-selected {
+  background-color: var(--color-blue) !important;
+  color: white !important;
+}
+
 .search-container-input {
   position: relative;
   display: flex;

@@ -93,8 +93,6 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     (item: SearchResult) => item.origin_table
   );
   const handleItemClick = (item: SearchResult) => {
-    console.log("item", item);
-
     const linkPath = getLinkPath(item);
 
     if (item.origin_table === "Contexts") {
@@ -104,7 +102,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
         search: `open=["${contextPath}"]`,
       });
     } else {
-      let filterValue = "";
+      let filterValue = null;
       if (item.origin_table === "Global") {
         filterValue = item.id
           .slice(item.id.indexOf("_") + 1)
@@ -115,7 +113,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
       }
       navigate({
         pathname: linkPath,
-        search: `filter=${filterValue}`,
+        ...(filterValue ? { search: `filter=${filterValue}` } : {}),
       });
     }
 
@@ -135,9 +133,10 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
         >
           <button
             onClick={() => setSelectedTenant("all")}
-            className={`btn ${
-              selectedTenant === "all" ? "btn-primary" : "btn-secondary"
+            className={`btn btn-secondary${
+              selectedTenant === "all" ? " search-form-button-selected" : ""
             }`}
+            style={{ backgroundColor: "var(--color-blue) !important" }}
             value="all"
             aria-pressed={selectedTenant === "all"}
           >
@@ -146,8 +145,8 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
 
           <button
             onClick={() => setSelectedTenant(tenant)}
-            className={`btn ${
-              selectedTenant === tenant ? "btn-primary" : "btn-secondary"
+            className={`btn btn-secondary${
+              selectedTenant === tenant ? " search-form-button-selected" : ""
             }`}
             value={tenant}
             aria-pressed={selectedTenant === tenant}
