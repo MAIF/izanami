@@ -22,7 +22,7 @@ import { FeatureSelector } from "../components/FeatureSelector";
 import { ProjectSelector } from "../components/ProjectSelector";
 import { LightWebhook, TLevel, Webhook } from "../utils/types";
 import { GenericTable } from "../components/GenericTable";
-import { Link, useSearchParams } from "react-router-dom";
+import { NavLink, Link, useSearchParams } from "react-router-dom";
 import {
   IzanamiContext,
   hasRightForWebhook,

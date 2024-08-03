@@ -54,11 +54,7 @@ export function Modal(props: {
             <div className="modal-footer">
               <button
                 type="button"
-                className={`btn ${
-                  !closeButtonText && !onConfirm
-                    ? "btn-danger"
-                    : "btn-danger-light"
-                }`}
+                className={`btn ${!closeButtonText && !onConfirm ? 'btn-danger' : 'btn-danger-light'}`}
                 data-bs-dismiss="modal"
                 onClick={() => onClose()}
               >
