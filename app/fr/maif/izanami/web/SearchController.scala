@@ -12,8 +12,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class SearchController(
     val env: Env,
     val controllerComponents: ControllerComponents,
-    val tenantAuthAction: TenantAuthActionFactory,
-    val userDetailedAuthAction: DetailledAuthAction,
     val simpleAuthAction: AuthenticatedAction,
     val tenantRightAction: TenantRightsAction
 ) extends BaseController {
@@ -26,29 +24,33 @@ class SearchController(
         Future
           .sequence(
             tenants
-              .map(tenant => {
-                env.datastores.searchQueries
+              .map(tenant =>
+                env.datastores.search
                   .tenantSearch(tenant, request.user.username, query)
-                  .flatMap(results => {
-                    Future.sequence(results.map { case (rowType, rowJson) =>
-                      buildPath(rowType, rowJson, tenant)
-                        .map(pathElements => {
-                          val name     = (rowJson \ "name").asOpt[String].getOrElse("")
-                          val jsonPath =
-                            Json.toJson(pathElements.prepended(TenantPathElement(tenant)))(Writes.seq(pathElementWrite))
-                          Json.obj(
-                            "type"   -> rowType,
-                            "name"   -> name,
-                            "path"   -> jsonPath,
-                            "tenant" -> tenant
-                          )
-                        })
+                  .map(l =>
+                    l.map(t => {
+                      (t._1, t._2, t._3, tenant)
                     })
-                  })
-              })
-              .toSeq
+                  )
+              )
           )
-          .map(_.flatten.toList)
+          .map(l => l.flatten.toList.sortBy(_._3)(Ordering.Double.TotalOrdering.reverse).take(10))
+          .flatMap(results => {
+            Future.sequence(results.map { case (rowType, rowJson, _, tenant) =>
+              buildPath(rowType, rowJson, tenant)
+                .map(pathElements => {
+                  val name     = (rowJson \ "name").asOpt[String].getOrElse("")
+                  val jsonPath =
+                    Json.toJson(pathElements.prepended(TenantPathElement(tenant)))(Writes.seq(pathElementWrite))
+                  Json.obj(
+                    "type"   -> rowType,
+                    "name"   -> name,
+                    "path"   -> jsonPath,
+                    "tenant" -> tenant
+                  )
+                })
+            })
+          })
           .map(r => Ok(Json.toJson(r)))
       }
   }
@@ -56,10 +58,10 @@ class SearchController(
   def searchForTenant(tenant: String, query: String): Action[AnyContent] = simpleAuthAction.async {
     implicit request: UserNameRequest[AnyContent] =>
       {
-        env.datastores.searchQueries
+        env.datastores.search
           .tenantSearch(tenant, request.user, query)
           .flatMap(results => {
-            Future.sequence(results.map { case (rowType, rowJson) =>
+            Future.sequence(results.map { case (rowType, rowJson, _) =>
               buildPath(rowType, rowJson, tenant)
                 .map(pathElements => {
                   val jsonPath = Json.toJson(pathElements)(Writes.seq(pathElementWrite))
@@ -108,6 +110,7 @@ class SearchController(
                 val parts   = parent.split("_")
                 val project = parts.head
 
+                // We look for shortes local context parent, since before him all contexts will be global
                 env.datastores.featureContext
                   .findLocalContexts(tenant, generateParentCandidates(parts.drop(1)).map(s => s"${project}_${s}"))
                   .map(ctxs => {

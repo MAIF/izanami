@@ -3,12 +3,12 @@ package fr.maif.izanami.datastores
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.utils.Datastore
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsObject}
 
 import scala.concurrent.Future
 
 class SearchDatastore(val env: Env) extends Datastore {
-  def tenantSearch(tenant: String, username: String, query: String): Future[List[(String, JsObject)]] = {
+  def tenantSearch(tenant: String, username: String, query: String): Future[List[(String, JsObject, Double)]] = {
     env.postgresql.queryAll(
       s"""
          |WITH scored_projects AS (
@@ -140,10 +140,11 @@ class SearchDatastore(val env: Env) extends Datastore {
     ) { r =>
       {
         for (
-          t    <- r.optString("_type");
-          json <- r.optJsObject("json")
+          t     <- r.optString("_type");
+          json  <- r.optJsObject("json");
+          score <- r.optDouble("match_score")
         ) yield {
-          (t, json)
+          (t, json, score)
         }
       }
     }

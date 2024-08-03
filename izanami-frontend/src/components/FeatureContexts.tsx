@@ -54,8 +54,6 @@ export function FeatureContexts(props: {
     allowGlobalContextDelete,
   } = props;
 
-  console.log("open", open);
-
   const [creating, setCreating] = useState(false);
   const contextQuery = useQuery(refreshKey, () => fetchContexts());
 
