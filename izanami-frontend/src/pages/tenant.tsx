@@ -1,9 +1,9 @@
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "react-query";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import queryClient from "../queryClient";
 import { IzanamiContext, useTenantRight } from "../securityContext";
 import { createProject, queryTenant, tenantQueryKey } from "../utils/queries";
@@ -45,10 +45,6 @@ function ProjectList(props: { tenant: TenantType }) {
   const { tenant } = props;
   const queryKey = tenantQueryKey(tenant.name);
   const [creating, setCreating] = useState<boolean>(false);
-  const [selectedProject, selectProject] = useState<
-    TenantProjectType[] | undefined
-  >([]);
-  const [defaultProjectName, setDefaultProjectName] = useState("");
 
   const { refreshUser } = React.useContext(IzanamiContext);
   const projectCreationMutation = useMutation(
@@ -63,14 +59,6 @@ function ProjectList(props: { tenant: TenantType }) {
 
   const hasTenantWriteRight = useTenantRight(tenant.name, TLevel.Write);
   const navigate = useNavigate();
-  const handleProjectSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const searchValue = e.target.value.toLowerCase();
-    const filteredProjects = tenant?.projects?.filter((project) =>
-      project.name.toLowerCase().startsWith(searchValue)
-    );
-    selectProject(filteredProjects);
-    setDefaultProjectName(searchValue);
-  };
   const noProjects = tenant?.projects?.length === 0;
 
   return (
@@ -87,19 +75,6 @@ function ProjectList(props: { tenant: TenantType }) {
           </button>
         )}
       </div>
-      {!noProjects && (
-        <div className="d-flex flex-column">
-          <input
-            value={defaultProjectName}
-            placeholder="Search project"
-            onChange={handleProjectSearch}
-            className="form-control"
-            type="text"
-            name="search-form-project"
-            id="search-form-project"
-          />
-        </div>
-      )}
       {noProjects && !creating && (
         <div className="item-block">
           <div className="item-text">
@@ -152,21 +127,13 @@ function ProjectList(props: { tenant: TenantType }) {
             </div>
           </div>
         )}
-        {selectedProject && selectedProject.length > 0
-          ? selectedProject.map((selectedProject) => (
-              <ProjectCard
-                key={selectedProject.id}
-                project={selectedProject}
-                tenantName={tenant.name}
-              />
-            ))
-          : tenant?.projects?.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                tenantName={tenant.name}
-              />
-            ))}
+        {tenant?.projects?.map((project) => (
+          <ProjectCard
+            key={project.id}
+            project={project}
+            tenantName={tenant.name}
+          />
+        ))}
       </div>
     </>
   );
