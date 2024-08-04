@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, NavLink, useParams } from "react-router-dom";
 import {
   ClassicalFeature,
   DAYS,
@@ -57,7 +57,7 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
-import { Form } from "../components/Form";
+import { Form } from "./Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
 import { constraints } from "@maif/react-forms";
@@ -1107,11 +1107,11 @@ export function OverloadTable(props: {
       header: () => "Overload path",
       cell: (info: any) =>
         hasLinkedPath ? (
-          <a
-            href={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
+          <NavLink
+            to={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
           >
             {info.getValue()}
-          </a>
+          </NavLink>
         ) : (
           info.getValue()
         ),
@@ -1384,10 +1384,11 @@ export function FeatureTable(props: {
   features: TLightFeature[];
   fields: FeatureFields[];
   actions: (t: TLightFeature) => FeatureActionNames[];
+  selectedSearchRow?: string;
   refresh: () => any;
 }) {
   const { tenant } = useParams();
-  const { fields, features, actions, refresh } = props;
+  const { fields, features, actions, refresh, selectedSearchRow } = props;
   const [selectedRows, setSelectedRows] = useState<TLightFeature[]>([]);
 
   const columns: ColumnDef<TLightFeature>[] = [];
@@ -1792,6 +1793,9 @@ export function FeatureTable(props: {
         }}
         isRowSelectable={(feature) =>
           hasRightForProject(user!, TLevel.Read, feature.project!, tenant!)
+        }
+        filters={
+          selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []
         }
       />
     </div>

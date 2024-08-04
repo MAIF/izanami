@@ -11,6 +11,10 @@ import { TENANT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 
 export function HomePage() {
+  const [creating, setCreating] = React.useState<boolean>(false);
+  const { user, refreshUser } = React.useContext(IzanamiContext);
+  const navigate = useNavigate();
+  const isAdmin = useAdmin();
   const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
   const tenantCreationMutation = useMutation(
     (data: TenantInCreationType) => createTenant(data),
@@ -21,14 +25,6 @@ export function HomePage() {
       },
     }
   );
-
-  const { user, refreshUser } = React.useContext(IzanamiContext);
-
-  const [creating, setCreating] = React.useState<boolean>(false);
-  const navigate = useNavigate();
-
-  const isAdmin = useAdmin();
-
   if (tenantQuery.isSuccess) {
     if (!isAdmin && tenantQuery.data.length === 1) {
       return <Navigate to={`/tenants/${tenantQuery.data[0].name}`} />;

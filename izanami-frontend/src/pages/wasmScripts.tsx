@@ -7,7 +7,7 @@ import {
   updateScript,
 } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useSearchParams } from "react-router-dom";
 import { TLevel, TUser, TWasmConfig } from "../utils/types";
 import { IzanamiContext, hasRightForTenant } from "../securityContext";
 import queryClient from "../queryClient";
@@ -29,7 +29,8 @@ export function WasmScripts(props: { tenant: string }) {
       },
     }
   );
-
+  const [searchParams] = useSearchParams();
+  const selectedSearchRow = searchParams.get("filter");
   const { askConfirmation } = React.useContext(IzanamiContext);
 
   if (scriptQuery.error) {
@@ -41,6 +42,9 @@ export function WasmScripts(props: { tenant: string }) {
         <GenericTable
           idAccessor={(script) => script.config.name}
           data={scriptQuery.data}
+          filters={
+            selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []
+          }
           columns={[
             {
               id: "name",

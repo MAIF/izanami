@@ -18,6 +18,7 @@ import { Modal } from "../components/Modal";
 import { IzanamiContext, useTenantRight } from "../securityContext";
 import { KEY_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
+import { useSearchParams } from "react-router-dom";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -73,6 +74,8 @@ function editionSchema(tenant: string, key?: TKey) {
 }
 
 export default function Keys(props: { tenant: string }) {
+  const [searchParams] = useSearchParams();
+  const selectedSearchRow = searchParams.get("filter");
   const { tenant } = props;
   const [secret, setSecret] = React.useState<string | undefined>(undefined);
   const [clientid, setClientId] = React.useState<string | undefined>(undefined);
@@ -276,8 +279,13 @@ export default function Keys(props: { tenant: string }) {
         ) : (
           <GenericTable
             columns={columns}
-            data={keyQuery.data ?? []}
+            data={keyQuery.data}
             idAccessor={(key) => key.name}
+            filters={
+              selectedSearchRow
+                ? [{ id: "name", value: selectedSearchRow }]
+                : []
+            }
             customRowActions={{
               edit: {
                 icon: (
