@@ -17,15 +17,14 @@ import queryClient from "../queryClient";
 import { OverloadTable } from "../components/FeatureTable";
 import { Loader } from "../components/Loader";
 
-export function GlobalContexts(props: { tenant: string }) {
-  const { tenant } = props;
+export function GlobalContexts(props: { tenant: string; open: string }) {
+  const { tenant, open } = props;
 
-  return <GlobalFeatureContexts tenant={tenant} />;
+  return <GlobalFeatureContexts tenant={tenant} open={open} />;
 }
 
-function GlobalFeatureContexts(props: { tenant: string }) {
-  const { tenant } = props;
-
+function GlobalFeatureContexts(props: { tenant: string; open: string }) {
+  const { tenant, open } = props;
   const modificationRight = useTenantRight(tenant, TLevel.Write);
   const contextQuery = useQuery(globalContextKey(tenant), () =>
     queryGlobalContexts(tenant)
@@ -62,7 +61,7 @@ function GlobalFeatureContexts(props: { tenant: string }) {
     return (
       <FeatureContexts
         allowGlobalContextDelete={true}
-        open={[]}
+        open={open ? JSON.parse(open) : []}
         modificationRight={modificationRight || false}
         deleteContext={(path: string) =>
           deleteContextMutation.mutateAsync({ tenant, path })

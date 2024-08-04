@@ -480,3 +480,71 @@ export interface Webhook {
   bodyTemplate?: string;
   global: boolean;
 }
+
+export interface LightWebhook {
+  name: string;
+  description: string;
+  url: string;
+  features: string[];
+  projects: string[];
+  context: string;
+  user: string;
+  headers: { [x: string]: string };
+  enabled: boolean;
+  bodyTemplate?: string;
+  global: boolean;
+}
+
+export interface Webhook {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  context: string;
+  user: string;
+  features: {
+    id: string;
+    name: string;
+    project: string;
+  }[];
+  projects: {
+    name: string;
+    id: string;
+  }[];
+  headers: { [x: string]: string };
+  enabled: boolean;
+  bodyTemplate?: string;
+  global: boolean;
+}
+
+export interface SearchEntityResponse {
+  id: string;
+  origin_table: string;
+  origin_tenant: string;
+  name: string;
+  project: string;
+  description: string;
+  parent: string;
+  similarity_name: number;
+  similarity_description: number;
+}
+
+export type SearchResult = {
+  type:
+    | "feature"
+    | "project"
+    | "key"
+    | "tag"
+    | "script"
+    | "global_context"
+    | "local_context"
+    | "webhook";
+  name: string;
+  path: SearchResultPathElement[];
+  tenant: string;
+};
+
+export type SearchResultPathElement = {
+  type: "global_context" | "local_context" | "project" | "tenant";
+  name: string;
+};
