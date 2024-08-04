@@ -5,7 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.events.{FeatureUpdated, SourceFeatureUpdated}
+import fr.maif.izanami.events.{SourceFeatureUpdated}
 import fr.maif.izanami.models.Feature.{activationConditionRead, activationConditionWrite}
 import fr.maif.izanami.models.FeatureContext.generateSubContextId
 import fr.maif.izanami.models._
@@ -544,6 +544,18 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           )
         }
       }
+  }
+
+  def findLocalContexts(tenant: String, idCandidates: Set[String]): Future[List[String]] = {
+    env.postgresql.queryAll(
+      s"""
+         |SELECT id
+         |FROM feature_contexts
+         |WHERE id=ANY($$1)
+         |""".stripMargin,
+      List(idCandidates.toArray),
+      schemas=Set(tenant)
+    ){r => r.optString("id")}
   }
 }
 

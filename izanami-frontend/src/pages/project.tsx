@@ -7,6 +7,7 @@ import { TLevel } from "../utils/types";
 import { useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { FeatureForm } from "../components/FeatureForm";
+import { useSearchParams } from "react-router-dom";
 
 export function Project({
   project,
@@ -15,6 +16,8 @@ export function Project({
   project: string;
   tenant: string;
 }) {
+  const [searchParams] = useSearchParams();
+  const selectedSearchRow = searchParams.get("filter") ?? "";
   const [error, setError] = useState<string>("");
   const clearError = () => setError("");
   const queryKey = projectQueryKey(tenant, project);
@@ -127,6 +130,7 @@ export function Project({
         ) : (
           <FeatureTable
             features={projectData.features}
+            selectedSearchRow={selectedSearchRow}
             fields={[
               "id",
               "name",

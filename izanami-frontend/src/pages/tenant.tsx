@@ -45,12 +45,8 @@ function ProjectList(props: { tenant: TenantType }) {
   const { tenant } = props;
   const queryKey = tenantQueryKey(tenant.name);
   const [creating, setCreating] = useState<boolean>(false);
-  const [selectedProject, selectProject] = useState<
-    TenantProjectType[] | undefined
-  >();
 
   const { refreshUser } = React.useContext(IzanamiContext);
-
   const projectCreationMutation = useMutation(
     (data: ProjectInCreationType) => createProject(tenant.name, data),
     {
@@ -63,7 +59,6 @@ function ProjectList(props: { tenant: TenantType }) {
 
   const hasTenantWriteRight = useTenantRight(tenant.name, TLevel.Write);
   const navigate = useNavigate();
-
   const noProjects = tenant?.projects?.length === 0;
 
   return (
@@ -79,22 +74,6 @@ function ProjectList(props: { tenant: TenantType }) {
             Create new project
           </button>
         )}
-      </div>
-      <div className="d-flex flex-column">
-        <input
-          placeholder="Search project"
-          onChange={(e) => {
-            selectProject(
-              tenant?.projects?.filter((f) =>
-                f.name.toLowerCase().startsWith(e.target.value.toLowerCase())
-              )
-            );
-          }}
-          className="form-control"
-          type="search-form"
-          name="search-form"
-          id="search-form"
-        />
       </div>
       {noProjects && !creating && (
         <div className="item-block">
@@ -148,21 +127,13 @@ function ProjectList(props: { tenant: TenantType }) {
             </div>
           </div>
         )}
-        {selectedProject
-          ? selectedProject.map((selectedProject) => (
-              <ProjectCard
-                key={selectedProject.id}
-                project={selectedProject}
-                tenantName={tenant.name}
-              />
-            ))
-          : tenant?.projects?.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                tenantName={tenant.name}
-              />
-            ))}
+        {tenant?.projects?.map((project) => (
+          <ProjectCard
+            key={project.id}
+            project={project}
+            tenantName={tenant.name}
+          />
+        ))}
       </div>
     </>
   );

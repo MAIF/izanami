@@ -4,6 +4,7 @@ import React, {
   FunctionComponent,
   useContext,
   useEffect,
+  useState,
 } from "react";
 
 import {
@@ -62,6 +63,7 @@ import { Swagger } from "./pages/swagger";
 import { Tags } from "./pages/tags";
 import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
+import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 
 function Wrapper({
@@ -400,6 +402,7 @@ const router = createBrowserRouter([
     element: (
       <div className="d-flex flex-column justify-content-center align-items-center">
         <img
+          alt="Logo Izanami"
           src={Logo}
           style={{
             marginBottom: 48,
@@ -435,13 +438,16 @@ type AppLoadingState = "Loading" | "Error" | "Success";
 function Layout() {
   const { user, setUser, logout, expositionUrl, version } =
     useContext(IzanamiContext);
+  const [isOpenModal, setIsOpenModal] = useState(false);
   const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
     !user?.username || !expositionUrl ? "Loading" : "Success"
   );
+  let { tenant } = useParams();
+  const searchParamsTenant = useSearchParams()[0].get("tenant");
+  tenant = searchParamsTenant || tenant;
 
   useEffect(() => {
     if (!user?.username) {
-      console.log("calling");
       setLoadingState("Loading");
       fetch("/api/admin/users/rights")
         .then((response) => {
@@ -514,6 +520,23 @@ function Layout() {
                 </button>
               </div>
               <ul className="navbar-nav ms-auto">
+                {(tenant ||
+                  user?.admin ||
+                  Object.keys(user?.rights.tenants || {}).length > 0) && (
+                  <li className="me-2 d-flex align-items-center justify-content-end my-1">
+                    <button
+                      className="btn btn-secondary"
+                      id="btnSearch"
+                      type="button"
+                      onClick={() => setIsOpenModal(true)}
+                    >
+                      <span className="fa fa-search"></span>
+                      <span className="text-searchbutton d-none d-md-inline">
+                        &nbsp;Click to search
+                      </span>
+                    </button>
+                  </li>
+                )}
                 <li
                   onClick={() => switchLightMode()}
                   className="me-2 d-flex align-items-center justify-content-end my-2"
@@ -576,6 +599,15 @@ function Layout() {
               <Outlet />
             </main>
           </div>
+          {(tenant ||
+            user?.admin ||
+            Object.keys(user?.rights.tenants || {}).length > 0) && (
+            <SearchModal
+              tenant={tenant}
+              isOpenModal={isOpenModal}
+              onClose={() => setIsOpenModal(false)}
+            />
+          )}
         </div>
       );
   }
@@ -729,7 +761,7 @@ export class App extends Component {
   render() {
     const callback = this.state.confirmation?.callback;
     const modalProps = {
-      visible: this.state.confirmation ? true : false,
+      visible: !!this.state.confirmation,
       onClose: () => {
         this.state.confirmation?.onCancel?.();
         this.setState({ confirmation: undefined });

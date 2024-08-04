@@ -15,7 +15,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Select from "react-select";
 import { IzanamiContext } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";
@@ -32,6 +32,7 @@ interface TProps<T extends RowData> {
     [x: string]: TCustomAction<T>;
   };
   isRowSelectable?: (feature: T) => boolean;
+  filters?: ColumnFiltersState | undefined;
 }
 
 export type TCustomAction<T> =
@@ -91,6 +92,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
     selectableRows,
     onRowSelectionChange,
     isRowSelectable,
+    filters,
   } = props;
   const [sorting, setSorting] = React.useState<SortingState>(
     defaultSort
@@ -103,10 +105,13 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
       : []
   );
   const [rowSelection, setRowSelection] = React.useState({});
-
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
+    filters || []
   );
+  useEffect(() => {
+    setColumnFilters(filters!);
+  }, [filters]);
+
   const hasActionColumn =
     customRowActions && Object.keys(customRowActions).length > 0;
 
@@ -534,6 +539,7 @@ function Filter({ column }: { column: Column<any>; table: Table<any> }) {
   }
   return (
     <input
+      value={column.getFilterValue() as string}
       type="text"
       className="table-filter"
       onChange={(e) => column.setFilterValue(e.target.value)}

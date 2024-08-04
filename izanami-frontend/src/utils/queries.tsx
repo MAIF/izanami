@@ -24,6 +24,7 @@ import {
   TWasmConfig,
   WasmFeature,
   Webhook,
+  SearchResult,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -1151,4 +1152,16 @@ export function importUsersFile(tenant: string, file: FileList): Promise<any> {
     method: "POST",
     body: data,
   });
+}
+
+export function searchEntities(query: string): Promise<SearchResult[]> {
+  return handleFetchJsonResponse(fetch(`/api/admin/search?query=${query}`));
+}
+export function searchEntitiesByTenant(
+  tenant: string,
+  query: string
+): Promise<SearchResult[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/search?query=${query}`)
+  );
 }

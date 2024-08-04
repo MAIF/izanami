@@ -22,7 +22,7 @@ import { FeatureSelector } from "../components/FeatureSelector";
 import { ProjectSelector } from "../components/ProjectSelector";
 import { LightWebhook, TLevel, Webhook } from "../utils/types";
 import { GenericTable } from "../components/GenericTable";
-import { Link, NavLink } from "react-router-dom";
+import { NavLink, Link, useSearchParams } from "react-router-dom";
 import {
   IzanamiContext,
   hasRightForWebhook,
@@ -38,6 +38,8 @@ import Handlebars from "handlebars";
 import { Row } from "@tanstack/react-table";
 
 export function WebHooks(props: { tenant: string }) {
+  const [searchParams] = useSearchParams();
+  const selectedSearchRow = searchParams.get("filter");
   const tenant = props.tenant;
   const [creating, setCreating] = React.useState(false);
   const { askConfirmation, refreshUser } = React.useContext(IzanamiContext);
@@ -137,6 +139,11 @@ export function WebHooks(props: { tenant: string }) {
           <GenericTable
             idAccessor={(hook) => hook.id}
             data={webhookQuery.data}
+            filters={
+              selectedSearchRow
+                ? [{ id: "name", value: selectedSearchRow }]
+                : []
+            }
             columns={[
               {
                 accessorKey: "name",

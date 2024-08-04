@@ -8,6 +8,7 @@ export function Modal(props: {
   closeButtonText?: string;
   confirmButtonText?: string;
   children: ReactElement | ReactElement[] | string;
+  position?: "top" | "center";
 }) {
   const {
     visible,
@@ -17,6 +18,7 @@ export function Modal(props: {
     title,
     closeButtonText,
     confirmButtonText,
+    position,
   } = props;
 
   React.useEffect(() => {
@@ -38,9 +40,9 @@ export function Modal(props: {
         style={visible ? { display: "block", backgroundColor: "#0008" } : {}}
       >
         <div
-          className={`modal-dialog modal-dialog-centered modal-lg ${
-            visible ? "anim__upToBottom" : ""
-          }`}
+          className={`modal-dialog ${
+            position === "top" ? "modal-dialog-start" : "modal-dialog-centered"
+          } modal-lg ${visible ? "anim__upToBottom" : ""}`}
         >
           <div className="modal-content">
             {title && (
