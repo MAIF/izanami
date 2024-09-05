@@ -95,10 +95,11 @@ function redirectToLoginIfNotAuthenticated({
     return redirect(`/login?req=${encodeURI(`${pathname}${search}`)}`);
   }
 }
-
-let mode = window.localStorage.getItem("izanami-dark-light-mode");
-
-function setupLightMode() {
+let mode=""
+ 
+ function setupLightMode() {
+ 
+  mode = window.localStorage.getItem("izanami-dark-light-mode");
   if (!mode) {
     mode = "dark";
     window.localStorage.setItem("izanami-dark-light-mode", mode);
