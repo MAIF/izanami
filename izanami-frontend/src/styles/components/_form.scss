@@ -85,3 +85,7 @@ form .error-message {
   padding: 5px 12px 4px 12px;
   margin-top: 4px;
 }
+
+.form-check-input:checked{
+  background-color: $primaryColor;
+}
