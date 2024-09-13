@@ -848,6 +848,11 @@ function OverloadDetails(props: {
     }
   );
   const [selectedContext, selectContext] = useState<string>();
+  const modificationRight = useProjectRight(
+    tenant,
+    feature.project!,
+    TLevel.Write
+  );
 
   if (contextQuery.error) {
     return <div>Failed to fetch contexts</div>;
@@ -862,13 +867,15 @@ function OverloadDetails(props: {
       <>
         <h4>
           Feature overloads{" "}
-          <button
-            className="btn btn-primary btn-sm mb-2 ms-3"
-            type="button"
-            onClick={() => setCreating(true)}
-          >
-            Create new overload
-          </button>
+          {modificationRight && (
+            <button
+              className="btn btn-primary btn-sm mb-2 ms-3"
+              type="button"
+              onClick={() => setCreating(true)}
+            >
+              Create new overload
+            </button>
+          )}
         </h4>
         {creating && (
           <OverloadCreationForm
