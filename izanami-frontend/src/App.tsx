@@ -95,10 +95,9 @@ function redirectToLoginIfNotAuthenticated({
     return redirect(`/login?req=${encodeURI(`${pathname}${search}`)}`);
   }
 }
-let mode=""
- 
- function setupLightMode() {
- 
+let mode = "";
+
+function setupLightMode() {
   mode = window.localStorage.getItem("izanami-dark-light-mode");
   if (!mode) {
     mode = "dark";
@@ -548,7 +547,7 @@ function Layout() {
                     style={{ color: "var(--color_level2)", cursor: "pointer" }}
                   />
                 </li>
-                <li className="nav-item dropdown userManagement me-2">
+                <li className="nav-item dropdown d-flex align-items-center userManagement me-2">
                   <a
                     className="nav-link"
                     href="#"
