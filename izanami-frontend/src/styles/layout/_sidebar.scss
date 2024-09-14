@@ -10,6 +10,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   border-right: none;
+  height: calc(100vh - 50px);
   @media screen and (max-width: $screen-lg) {
     display: none;
     top: 110px;
