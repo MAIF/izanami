@@ -14,11 +14,6 @@ test.use({
 
 async function webhookAction(page: Page, name: string) {
   await page.getByLabel("actions").click();
-  /*if (
-    (await page.getByRole("link", { name: name, exact: true }).count()) === 0
-  ) {
-    await page.getByLabel("actions").click();
-  }*/
   await page
     .getByRole("link", { name: name, exact: true })
     .click({ force: true });

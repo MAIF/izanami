@@ -13,9 +13,6 @@ test.use({
 
 async function featureAction(page: Page, name: string) {
   await page.getByLabel("actions").click();
-  /*if ((await page.getByRole("link", { name: name }).count()) === 0) {
-    await page.getByLabel("actions").click();
-  }*/
   await page.getByRole("link", { name: name }).click({ force: true });
 }
 
