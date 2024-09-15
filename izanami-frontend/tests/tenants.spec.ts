@@ -6,10 +6,7 @@ test.use({
 });
 
 async function createTenant(page: Page, tenant: string) {
-  Promise.race([
-    page.getByRole("button", { name: "create a new tenant" }).click(),
-    page.getByRole("button", { name: "Create new tenant" }).click(),
-  ]);
+  await page.getByRole("button", { name: "Create new tenant" }).click();
 
   await page.getByLabel("Tenant name").fill(tenant);
   await page.getByRole("button", { name: "Save" }).click();
