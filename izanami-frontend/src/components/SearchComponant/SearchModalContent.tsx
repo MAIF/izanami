@@ -151,6 +151,12 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
           return acc;
         }, new Map<string, SearchResult[]>())
       : new Map<string, SearchResult[]>();
+  const clearInput = () => {
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      setResultStatus({ state: "INITIAL" });
+    }
+  };
   return (
     <>
       {tenant && tenant !== "all" && (
@@ -221,9 +227,8 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                       })
                     );
                 }
-              } else if (inputRef.current) {
-                inputRef.current.value = "";
-                setResultStatus({ state: "INITIAL" });
+              } else {
+                clearInput();
               }
             }, 200)}
             placeholder={`Search in ${
@@ -244,10 +249,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
             <button
               type="button"
               onClick={() => {
-                if (inputRef?.current?.value) {
-                  inputRef.current.value = "";
-                  setResultStatus({ state: "INITIAL" });
-                }
+                clearInput();
               }}
               aria-label="Clear search"
               className="clear-search-btn"
