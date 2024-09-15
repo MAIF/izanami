@@ -12,7 +12,7 @@ class SearchDatastore(val env: Env) extends Datastore {
     env.postgresql.queryAll(
       s"""
          |WITH scored_projects AS (
-         |    SELECT
+         |    SELECT DISTINCT
          |        p.name,
          |        p.description,
          |        izanami.SIMILARITY(p.name, $$1) as name_score,
@@ -25,7 +25,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          |    OR upr.level is not null
          |    OR u.admin=true
          |), scored_features AS (
-         |    SELECT
+         |    SELECT DISTINCT
          |        f.project,
          |        f.name,
          |        f.description,
@@ -34,7 +34,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          |    FROM scored_projects p, features f
          |    WHERE f.project=p.name
          |), scored_keys AS (
-         |    SELECT
+         |    SELECT DISTINCT
          |        k.name,
          |        k.description,
          |        izanami.SIMILARITY(k.name, $$1) as name_score,
@@ -47,7 +47,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          |    OR ukr.level is not null
          |    OR u.admin=true
          |), scored_tags AS (
-         |    SELECT
+         |    SELECT DISTINCT
          |        t.name,
          |        t.description,
          |        izanami.SIMILARITY(t.name, $$1) as name_score,
@@ -58,7 +58,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          |    WHERE utr.level IS NOT NULL
          |    OR u.admin=true
          |), scored_scripts AS (
-         |    SELECT
+         |    SELECT DISTINCT
          |        s.id as name,
          |        izanami.SIMILARITY(s.id, $$1) as name_score
          |    FROM wasm_script_configurations s
@@ -67,7 +67,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          |    WHERE utr.level IS NOT NULL
          |    OR u.admin=true
          | ), scored_global_contexts AS (
-         |        SELECT
+         |        SELECT DISTINCT
          |        c.parent,
          |        c.name as name,
          |        izanami.SIMILARITY(c.name, $$1) as name_score
@@ -77,7 +77,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          |    WHERE utr.level IS NOT NULL
          |    OR u.admin=true
          | ), scored_local_contexts AS (
-         |    SELECT
+         |    SELECT DISTINCT
          |        c.parent,
          |        c.global_parent,
          |        c.project,
@@ -89,7 +89,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          |    WHERE utr.level IS NOT NULL
          |    OR u.admin=true
          | ), scored_webhooks AS (
-         |    SELECT
+         |    SELECT DISTINCT
          |        w.name,
          |        w.description,
          |        izanami.SIMILARITY(w.name, $$1) as name_score,
