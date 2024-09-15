@@ -221,6 +221,9 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                       })
                     );
                 }
+              } else if (inputRef.current) {
+                inputRef.current.value = "";
+                setResultStatus({ state: "INITIAL" });
               }
             }, 200)}
             placeholder={`Search in ${
