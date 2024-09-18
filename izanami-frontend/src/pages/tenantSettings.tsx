@@ -495,7 +495,7 @@ function TenantUsers(props: { tenant: string }) {
                     const rights = created?.rights?.tenants?.[tenant] as any;
                     return userUpdateMutationForTenant.mutateAsync(
                       {
-                        username: created.username,
+                        username: data.username,
                         tenant: tenant,
                         rights: rights,
                       },
