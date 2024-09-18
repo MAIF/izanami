@@ -41,6 +41,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "dev/index",
+              "path": "/izanami/docs/dev/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "getstarted/index",
               "path": "/izanami/docs/getstarted/",
               "sidebar": "tutorialSidebar"

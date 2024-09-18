@@ -1,90 +1,33 @@
 # Izanami
 
+<p align="center">
 <img src="./izanami-frontend/izanami.png" alt="image" width="300" height="auto">
+</p>
 
-This README is for anyone who would like to contribute to Izanami.
+Izanami is an open source centralized feature flag solution.
 
-If you're interested in Izanami documentation, [it's here](https://maif.github.io/izanami/).
+Feature flags are a software development pattern that allows turning a feature on or off without needing to modify or redeploy an application.
 
-## Start application locally
+Feature flags typically allow implementation of canary release, progressive rollout, A/B testing or even "panic buttons".
 
-### Izanami frontend
+Izanami is a centralized feature flag solution, which allows sharing flags between applications, having a fine-tuned right management and keeping a log of who modify or request flags.
 
-```sh
-cd izanami-frontend
-npm run dev
-```
+## Documentation
 
-### Local database & misc tools
+To get started with Izanami, follow [this guide](https://maif.github.io/izanami/docs/getstarted).
 
-```sh
-docker-compose rm -f && docker-compose up
-```
+Reference documentation is available [here](https://maif.github.io/izanami/docs/usages).
 
-### Izanami backend
+Some guides for common use cases [are also available](https://maif.github.io/izanami/docs/guides/).
 
-```sh
-sbt -jvm-debug 5005
-~run -Dconfig.resource=dev.conf
-```
+## Contribution
 
-Once everything is started, just browse to [localhost:3000](http://localhost:3000).
+Izanami contribution are welcome !
 
+If you see a bug or would like a specific feature, you can either open an issue, or show your interest by commenting an existing one.
 
-In a developement setup, it may be usefull to craft tokens with longer TTL
+If you feel like contributing by helping to write code or documentation, feel free to discuss it in a related issue or open a pull request.
 
-```
-sbt -jvm-debug 5005
-~run -Dconfig.resource=dev.conf -Dapp.sessions.TTL=604800
-```
+## Development
 
-### Backend tests
-
-To run test, you can either start Izanami and associated tooling (db, ...) with above commands or just run a suite / a test.
-
-In fact, an Izanami instance and docker containers will be started by tests if none is running. This could be usefull for coverage / debug.
-
-You'll need docker-compose installed locally to run tests like this, due to [this issue](https://github.com/testcontainers/testcontainers-java/issues/7239).
-
-#### Colima setup
-
-To run test without having starting docker-compose, you'll need these env variables to be set.
-
-```sh
-DOCKER_HOST=unix://${HOME}/.colima/default/docker.sock;
-RYUK_CONTAINER_PRIVILEGED=true;
-TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
-```
-
-
-## Package application
-
-To package frontend :
-
-```sh
-cd izanami-frontend
-npm run build
-```
-
-To package backend (make sure to package frontend first) : 
-
-```sh
-sbt "set test in assembly := {}" clean assembly
-```
-
-To start generated jar
-
-```sh
-java -Dconfig.resource=dev.conf -jar ./target/scala-2.13/izanami.jar
-```
-
-To build docker image (after packaging frontend and backends)
-
-```sh
-docker build -t izanami .
-```
-To test docker image 
-
-```sh
-docker run --env IZANAMI_PG_URI=postgresql://postgres:postgres@host.docker.internal:5432/postgres -p 9000:9000 izanami
-```
+To setup a dev Izanami instance, [read this page](https://maif.github.io/izanami/docs/dev/).

@@ -139,6 +139,10 @@
               "previous": {
                 "title": "Error handling",
                 "permalink": "/izanami/docs/clients/java/error-handling"
+              },
+              "next": {
+                "title": "Developing Izanami",
+                "permalink": "/izanami/docs/dev/"
               }
             },
             {
@@ -164,6 +168,27 @@
               "next": {
                 "title": "Concepts",
                 "permalink": "/izanami/docs/usages/"
+              }
+            },
+            {
+              "id": "dev/index",
+              "title": "Developing Izanami",
+              "description": "Here are some tips to help you get started with Izanami contribution.",
+              "source": "@site/docs/06-dev/index.mdx",
+              "sourceDirName": "06-dev",
+              "slug": "/dev/",
+              "permalink": "/izanami/docs/dev/",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "frontMatter": {
+                "title": "Developing Izanami"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Server Sent Events",
+                "permalink": "/izanami/docs/clients/java/sse"
               }
             },
             {
@@ -850,6 +875,11 @@
                   "type": "doc",
                   "id": "clients/index"
                 }
+              },
+              {
+                "type": "doc",
+                "label": "Developing Izanami",
+                "id": "dev/index"
               }
             ]
           }
