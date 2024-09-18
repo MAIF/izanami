@@ -3,7 +3,7 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed}
 import fr.maif.izanami.models.RightLevels.{Read, RightLevel}
-import fr.maif.izanami.models.Rights.{FlattenTenantRight, FlattenWebhookRight, TenantRightDiff}
+import fr.maif.izanami.models.Rights.{FlattenKeyRight, FlattenTenantRight, FlattenWebhookRight, TenantRightDiff}
 import fr.maif.izanami.models.User._
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -13,7 +13,7 @@ import play.api.mvc._
 
 import java.util.Objects
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Try}
+import scala.util.Try
 
 class UserController(
     val env: Env,
@@ -24,7 +24,8 @@ class UserController(
     val tenantRightsAction: TenantRightsAction,
     val tenantRightFilterAction: TenantAuthActionFactory,
     val projectAuthAction: ProjectAuthActionFactory,
-    val webhookAuthAction: WebhookAuthActionFactory
+    val webhookAuthAction: WebhookAuthActionFactory,
+    val keyAuthAction: KeyAuthActionFactory
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
@@ -143,8 +144,51 @@ class UserController(
               case None        => BadBodyFormat().toHttpResponse.future
               case Some(level) => {
                 val baseDiff = TenantRightDiff(
-                  removedWebhookRights = Set(FlattenWebhookRight(name = request.hookName, tenant = tenant, level = Read)),
+                  removedWebhookRights =
+                    Set(FlattenWebhookRight(name = request.hookName, tenant = tenant, level = Read)),
                   addedWebhookRights = Set(FlattenWebhookRight(name = request.hookName, tenant = tenant, level = level))
+                )
+
+                env.datastores.users.findUser(user).flatMap {
+                  case Some(userWithTenantRights) => {
+                    val tenantRightDiff = userWithTenantRights.tenantRights
+                      .get(tenant)
+                      .fold(baseDiff.copy(addedTenantRight = Some(FlattenTenantRight(tenant, RightLevels.Read))))(_ =>
+                        baseDiff
+                      )
+                    env.datastores.users
+                      .updateUserRightsForTenant(user, tenant, tenantRightDiff)
+                      .map(_ => NoContent)
+                  }
+                  case None                       => NotFound(Json.obj("message" -> "user not found")).future
+                }
+              }
+
+            }
+          }
+        }
+    }
+
+  def updateUserRightsForKey(tenant: String, name: String, user: String): Action[JsValue] =
+    keyAuthAction(tenant, name, RightLevels.Admin).async(parse.json) { implicit request =>
+      request.body
+        .asOpt[JsObject]
+        .fold(BadBodyFormat().toHttpResponse.future) {
+          case obj if obj.fields.isEmpty =>
+            env.datastores.users
+              .updateUserRightsForTenant(
+                user,
+                tenant,
+                TenantRightDiff(removedKeyRights = Set(FlattenKeyRight(name = name, tenant = tenant, level = Read)))
+              )
+              .map(_ => NoContent)
+          case obj                       => {
+            (obj \ "level").asOpt[RightLevel] match {
+              case None        => BadBodyFormat().toHttpResponse.future
+              case Some(level) => {
+                val baseDiff = TenantRightDiff(
+                  removedKeyRights = Set(FlattenKeyRight(name = name, tenant = tenant, level = Read)),
+                  addedKeyRights = Set(FlattenKeyRight(name = name, tenant = tenant, level = level))
                 )
 
                 env.datastores.users.findUser(user).flatMap {
@@ -455,6 +499,12 @@ class UserController(
   def readUsersForWebhook(tenant: String, id: String): Action[AnyContent] = {
     webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Admin).async { implicit request =>
       env.datastores.users.findUsersForWebhook(tenant, id).map(ws => Ok(Json.toJson(ws)))
+    }
+  }
+
+  def readUsersForKey(tenant: String, name: String): Action[AnyContent] = {
+    keyAuthAction(tenant = tenant, key = name, minimumLevel = RightLevels.Admin).async { implicit request =>
+      env.datastores.users.findUsersForKey(tenant, name).map(ws => Ok(Json.toJson(ws)))
     }
   }
 

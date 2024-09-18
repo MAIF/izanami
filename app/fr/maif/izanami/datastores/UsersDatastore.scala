@@ -1342,6 +1342,41 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
   }
 
+  def findUsersForKey(tenant: String, key: String): Future[List[UserWithSingleScopedRight]] = {
+    env.postgresql.queryAll(
+      s"""
+         |SELECT
+         |    kr.level as level,
+         |    utr.level as tenant_right,
+         |    u.admin,
+         |    u.user_type,
+         |    u.default_tenant,
+         |    u.username,
+         |    u.email
+         |FROM izanami.users u
+         |LEFT JOIN apikeys k ON k.name=$$2
+         |LEFT JOIN users_keys_rights kr ON kr.apikey=k.name AND kr.username=u.username
+         |LEFT JOIN izanami.users_tenants_rights utr ON utr.username = u.username AND utr.tenant=$$1
+         |WHERE kr.level IS NOT NULL
+         |OR utr.level='ADMIN'
+         |OR u.admin=true
+         |""".stripMargin,
+      List(tenant, key),
+      schemas = Set(tenant)
+    ) { r =>
+    {
+      r.optUser()
+        .map(u => {
+          val maybeTenantRight = r.optRightLevel("tenant_right")
+          u.withSingleTenantScopedRightLevel(
+            r.optRightLevel("level").orNull,
+            maybeTenantRight.contains(RightLevels.Admin)
+          )
+        })
+    }
+    }
+  }
+
   def findSessionWithCompleteRights(session: String): Future[Option[UserWithRights]] = {
     findSessionWithTenantRights(session).flatMap {
       case Some(user) if user.tenantRights.nonEmpty => {

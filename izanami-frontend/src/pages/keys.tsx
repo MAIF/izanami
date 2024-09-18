@@ -4,9 +4,12 @@ import { ColumnDef, Row } from "@tanstack/react-table";
 import {
   createKey,
   deleteKey,
+  fetchKeyUsers,
+  keyUserQueryKey,
   queryKeys,
   tenantKeyQueryKey,
   updateKey,
+  updateKeyRightsFor,
 } from "../utils/queries";
 import { ProjectType, TKey, TLevel } from "../utils/types";
 import queryClient from "../queryClient";
@@ -15,10 +18,16 @@ import { constraints, format, type } from "@maif/react-forms";
 import { GenericTable } from "../components/GenericTable";
 import { customStyles } from "../styles/reactSelect";
 import { Modal } from "../components/Modal";
-import { IzanamiContext, useTenantRight } from "../securityContext";
+import {
+  hasRightForKey,
+  IzanamiContext,
+  useTenantRight,
+} from "../securityContext";
 import { KEY_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 import { useSearchParams } from "react-router-dom";
+import { InvitationForm } from "../components/InvitationForm";
+import { RightTable } from "../components/RightTable";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -311,6 +320,27 @@ export default function Keys(props: { tenant: string }) {
                   );
                 },
               },
+              rights: {
+                icon: (
+                  <>
+                    <i className="fa-solid fa-lock" aria-hidden></i> Rights
+                  </>
+                ),
+                hasRight: (user, key) =>
+                  hasRightForKey(user, TLevel.Admin, key.name, tenant),
+                customForm: (key, cancel) => {
+                  return (
+                    <>
+                      <KeyRightTable tenant={tenant} apikey={key} />
+                      <div className="d-flex justify-content-end">
+                        <button className="btn btn-danger m-2" onClick={cancel}>
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  );
+                },
+              },
               delete: {
                 icon: (
                   <>
@@ -410,4 +440,68 @@ function KeyModal(props: {
       </>
     </Modal>
   );
+}
+
+function KeyRightTable(props: { tenant: string; apikey: TKey }) {
+  const { tenant, apikey: key } = props;
+  const [creating, setCreating] = React.useState(false);
+
+  const keyRightQuery = useQuery(keyUserQueryKey(tenant, key.name), () =>
+    fetchKeyUsers(tenant, key.name)
+  );
+
+  const keyRightUpdateMutation = useMutation(
+    (data: { user: string; right?: TLevel }) =>
+      updateKeyRightsFor(tenant, key.name, data.user, data.right),
+    {
+      onSuccess: () =>
+        queryClient.invalidateQueries(keyUserQueryKey(tenant, key.name)),
+    }
+  );
+
+  if (keyRightQuery.error) {
+    return <div>Failed to retrieve key users</div>;
+  } else if (keyRightQuery.data) {
+    return (
+      <>
+        <h4>
+          Authorized users for {key.name}
+          <button
+            className="btn btn-secondary btn-sm ms-3"
+            type="button"
+            onClick={() => setCreating(true)}
+          >
+            Invite user
+          </button>
+        </h4>
+        {creating && (
+          <InvitationForm
+            cancel={() => setCreating(false)}
+            submit={({ users, level }) => {
+              Promise.all(
+                users.map((user) => {
+                  keyRightUpdateMutation.mutateAsync({
+                    user,
+                    right: level,
+                  });
+                })
+              ).then(() => setCreating(false));
+            }}
+          />
+        )}
+        <RightTable
+          data={keyRightQuery.data}
+          canEdit={true}
+          onRightChange={(datum, level) =>
+            keyRightUpdateMutation.mutateAsync({
+              user: datum.username,
+              right: level,
+            })
+          }
+        />
+      </>
+    );
+  } else {
+    return <Loader message="Loading key users..." />;
+  }
 }

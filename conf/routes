@@ -42,6 +42,8 @@ POST          /api/admin/tenants/:tenant/keys                                   
 GET           /api/admin/tenants/:tenant/keys                                                      fr.maif.izanami.web.ApiKeyController.readApiKey(tenant: String)
 DELETE        /api/admin/tenants/:tenant/keys/:name                                                fr.maif.izanami.web.ApiKeyController.deleteApiKey(tenant: String, name: String)
 PUT           /api/admin/tenants/:tenant/keys/:name                                                fr.maif.izanami.web.ApiKeyController.updateApiKey(tenant: String, name: String)
+GET           /api/admin/tenants/:tenant/keys/:name/users                                          fr.maif.izanami.web.UserController.readUsersForKey(tenant: String, name: String)
+PUT           /api/admin/tenants/:tenant/keys/:name/users/:user/rights                             fr.maif.izanami.web.UserController.updateUserRightsForKey(tenant: String, name: String, user: String)
 
 
 POST          /api/admin/tenants/:tenant/projects/:project/contexts                                fr.maif.izanami.web.FeatureContextController.createFeatureContext(tenant: String, project: String)
