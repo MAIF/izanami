@@ -109,6 +109,12 @@ export function webhookUserQueryKey(tenant: string, webhook: string) {
   return `USERS-${tenant}-${webhook}`;
 }
 
+export function keyUserQueryKey(tenant: string, key: string) {
+  return `USERS-${tenant}-${key}`;
+}
+
+keyUserQueryKey;
+
 export function importData(
   tenant: string,
   importRequest: ImportRequest
@@ -1103,6 +1109,15 @@ export function fetchWebhookUsers(
   );
 }
 
+export function fetchKeyUsers(
+  tenant: string,
+  key: string
+): Promise<TSingleRightForTenantUser[]> {
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/tenants/${tenant}/keys/${key}/users`)
+  );
+}
+
 export function usersQuery(): Promise<TUser[]> {
   return handleFetchJsonResponse(fetch(`/api/admin/users`));
 }
@@ -1124,6 +1139,23 @@ export function updateWebhookRightsFor(
         },
       }
     )
+  );
+}
+
+export function updateKeyRightsFor(
+  tenant: string,
+  key: string,
+  user: string,
+  right?: TLevel
+): Promise<void> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/keys/${key}/users/${user}/rights`, {
+      method: "PUT",
+      body: right ? JSON.stringify({ level: right }) : "{}",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
   );
 }
 

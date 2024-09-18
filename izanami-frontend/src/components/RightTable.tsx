@@ -52,7 +52,7 @@ export function RightTable(props: {
               canEdit && datum.username !== user?.username,
             action: (d) =>
               askConfirmation(
-                `Are you sure you want to remove ${d.username} rights on this hook ?`,
+                `Are you sure you want to remove ${d.username} rights on this ?`,
                 () => onRightChange(d, undefined)
               ),
           },
