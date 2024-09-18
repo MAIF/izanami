@@ -205,6 +205,13 @@
           }
         ],
         "href": "/izanami/docs/clients/"
+      },
+      {
+        "type": "link",
+        "label": "Developing Izanami",
+        "href": "/izanami/docs/dev/",
+        "docId": "dev/index",
+        "unlisted": false
       }
     ]
   },
@@ -243,6 +250,12 @@
       "id": "concepts/index",
       "title": "Feature flags",
       "description": "A feature flag is a switch allowing to enable / disable application features.",
+      "sidebar": "tutorialSidebar"
+    },
+    "dev/index": {
+      "id": "dev/index",
+      "title": "Developing Izanami",
+      "description": "Here are some tips to help you get started with Izanami contribution.",
       "sidebar": "tutorialSidebar"
     },
     "getstarted/index": {

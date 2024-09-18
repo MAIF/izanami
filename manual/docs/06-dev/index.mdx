@@ -1,0 +1,138 @@
+---
+title: Developing Izanami
+---
+
+Here are some tips to help you get started with Izanami contribution.
+
+## Tools
+
+Here is what you'll need
+
+- git
+- SBT > 1.9.7
+- JDK >= 21
+- Node > 20
+- Docker / Colima / whatever allows you to run docker-compose
+
+## Clone remote repository
+
+```sh
+git clone git@github.com:MAIF/izanami.git
+cd izanami
+```
+
+## Install deps
+
+For backend
+
+```sh
+sbt compile
+```
+
+For frontend
+
+```sh
+cd izanami-frontend
+npm install
+```
+
+## Running project
+
+First let's start some containers, `docker-compose.yml` contains everything that may be needed by Izanami (mock SMTP server, WASMO, simple OIDC provider, postgres database, ...).
+You may delete some of these elements to reduce consumed resources, however you need to keep the Postgres database.
+
+```sh
+# In root directory
+docker-compose up
+```
+
+Now let's start the backend
+
+```sh
+# Opening 5005 port allows to plug in Izanami for debug
+sbt -jvm-debug 5005
+# You may add -Dapp.sessions.TTL=604800 to have longer login sessions
+~run -Dconfig.resource=dev.conf
+```
+
+And finally let's start frontend application
+
+```sh
+cd izanami-frontend
+npm run dev
+```
+
+After eveyrhing is started, browse to [http://localhost:3000](http://localhost:3000) (login form may take some time to respon since compilation is started on first backend request).
+
+## Running tests
+
+### Backend tests
+
+To run backend tests, you will need to start Izanami and associated containers independently.
+
+To do so, just start the backend and the docker containers with the above commands.
+
+Once backend and containers are started, just run
+
+```sh
+sbt test
+```
+
+#### Experimental direct test execution
+
+Alternatively, you can run one test suite directly (without Izanami and containers running). The suite will start everything for you, however this is way slower than above method and still highly experimental.
+
+If you're using Colima instead of docker, this method may require the following env variables to be set :
+
+```sh
+DOCKER_HOST=unix://${HOME}/.colima/default/docker.sock;
+RYUK_CONTAINER_PRIVILEGED=true;
+TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
+```
+
+### Frontend tests
+
+As for backend tests, you'll need backend and docker containers started to run frontend tests.
+
+You'll also need to start your frontend on localhost:3000 (using above commands).
+
+Once everything is running, just run
+
+```sh
+npm test
+```
+
+You may need to let playwright install browsers before executing tests.
+
+## Packaging
+
+To package frontend :
+
+```sh
+cd izanami-frontend
+npm run build
+```
+
+To package backend (make sure to package frontend first) :
+
+```sh
+sbt "set test in assembly := {}" clean assembly
+```
+
+To start generated jar
+
+```sh
+java -Dconfig.resource=dev.conf -jar ./target/scala-2.13/izanami.jar
+```
+
+To build docker image (after packaging frontend and backends)
+
+```sh
+docker build -t izanami .
+```
+
+To test docker image
+
+```sh
+docker run --env IZANAMI_PG_URI=postgresql://postgres:postgres@host.docker.internal:5432/postgres -p 9000:9000 izanami
+```
