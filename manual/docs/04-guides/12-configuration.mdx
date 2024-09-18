@@ -35,6 +35,16 @@ You can either provide a connection URI, or indicate database name, user, host, 
 | Log activity            | IZANAMI_PG_LOG_ACTIVITY     | app.pg.log-activity     | false          |
 | Pipelining limit        | IZANAMI_PG_PIPELINING_LIMIT | app.pg.pipelining-limit | 256            |
 
+### HTTP server
+
+Since Izanami uses play framework under the hood, http server configuration rely heavily on play configuration keys.
+
+Table above list essentials parameters, check [Play documentation](https://www.playframework.com/documentation/2.9.x/SettingsAkkaHttp) for more.
+
+|      | Environnement variable | Program argument      | Default |
+| ---- | ---------------------- | --------------------- | ------- |
+| Port | PLAY_HTTP_PORT         | play.server.http.port | 9000    |
+
 ### Admin account
 
 When creating on an empty database, Izanami will create a user for you.

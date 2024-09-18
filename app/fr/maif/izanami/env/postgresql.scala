@@ -131,7 +131,7 @@ class Postgresql(env: Env) {
         .baselineOnMigrate(true)
         .schemas("izanami")
         .placeholders(
-          java.util.Map.of("default_admin", "RESERVED_ADMIN_USER", "default_password", HashUtils.bcryptHash(password))
+          java.util.Map.of("default_admin", defaultUser, "default_password", HashUtils.bcryptHash(password))
         )
         .load()
 
@@ -166,6 +166,11 @@ class Postgresql(env: Env) {
   def defaultPassword: String = {
     val maybeUserProvidedPassword = configuration.getOptional[String]("app.admin.password")
     maybeUserProvidedPassword.getOrElse(IdGenerator.token(24))
+  }
+
+  def defaultUser: String = {
+    val maybeUserAdminUser = configuration.getOptional[String]("app.admin.username")
+    maybeUserAdminUser.getOrElse("RESERVED_ADMIN_USER")
   }
 
   def onStop(): Future[Unit] = {
