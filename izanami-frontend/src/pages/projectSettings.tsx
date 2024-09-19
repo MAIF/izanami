@@ -167,7 +167,7 @@ function ProjectUsers(props: { tenant: string; project: string }) {
                 (isProjectAdmin ?? false) && currentUser.username !== username,
               customForm: (data, cancel) => (
                 <ProjectRightLevelModification
-                  submit={(newItem, oldItem) => {
+                  submit={(oldItem, newItem) => {
                     let { level } = newItem;
                     if (!Object.values(TLevel).includes(level)) {
                       level = undefined;

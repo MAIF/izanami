@@ -698,12 +698,14 @@ class UsersDatastore(val env: Env) extends Datastore {
            |""".stripMargin,
         List(session, tenant, webhook, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
         schemas = Set(tenant)
-      ) { r => {
-        for(
-          username <- r.optString("username");
-          hookname <- r.optString("name")
-        ) yield (username, hookname)
-      } }
+      ) { r =>
+        {
+          for (
+            username <- r.optString("username");
+            hookname <- r.optString("name")
+          ) yield (username, hookname)
+        }
+      }
       .map(Right(_))
       .recover {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
@@ -1364,16 +1366,16 @@ class UsersDatastore(val env: Env) extends Datastore {
       List(tenant, key),
       schemas = Set(tenant)
     ) { r =>
-    {
-      r.optUser()
-        .map(u => {
-          val maybeTenantRight = r.optRightLevel("tenant_right")
-          u.withSingleTenantScopedRightLevel(
-            r.optRightLevel("level").orNull,
-            maybeTenantRight.contains(RightLevels.Admin)
-          )
-        })
-    }
+      {
+        r.optUser()
+          .map(u => {
+            val maybeTenantRight = r.optRightLevel("tenant_right")
+            u.withSingleTenantScopedRightLevel(
+              r.optRightLevel("level").orNull,
+              maybeTenantRight.contains(RightLevels.Admin)
+            )
+          })
+      }
     }
   }
 
@@ -1459,16 +1461,40 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   def addUserRightsToProject(tenant: String, project: String, users: Seq[(String, RightLevel)]): Future[Unit] = {
     env.postgresql
-      .queryOne(
+      .queryAll(
         s"""
-         |INSERT INTO users_projects_rights (project, username, level)
-         |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
-         |ON CONFLICT (username, project) DO NOTHING
+         |SELECT username FROM izanami.users_tenants_rights
+         |WHERE username = ANY($$1)
          |""".stripMargin,
-        List(project, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray),
-        schemas = Set(tenant)
-      ) { r => Some(()) }
-      .map(_ => ())
+        List(users.map { case (username, _) => username }.toArray)
+      ) { r => r.optString("username") }
+      .map(userWithRights => {
+        val userWithMissingRights = users.map { case (username, _) => username }.toSet.diff(userWithRights.toSet)
+          if(userWithMissingRights.isEmpty) {
+            Future.successful(())
+          } else {
+            env.postgresql.queryAll(
+              s"""
+                 |INSERT INTO izanami.users_tenants_rights(username, tenant, level)
+                 |VALUES (unnest($$1::text[]), $$2, 'READ')
+                 |RETURNING username
+                 |""".stripMargin,
+              List(userWithMissingRights.toArray, tenant)
+            ) { r => { Some(()) } }
+              .map(_ => ())
+          }
+      }).flatMap(_ => env.postgresql
+        .queryOne(
+          s"""
+             |INSERT INTO users_projects_rights (project, username, level)
+             |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+             |ON CONFLICT (username, project) DO NOTHING
+             |""".stripMargin,
+          List(project, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray),
+          schemas = Set(tenant)
+        ) { r => Some(()) }
+        .map(_ => ())
+      )
   }
 
   def findSessionWithRightForTenant(
