@@ -65,5 +65,3 @@ export async function generate() {
 
   await browser.close();
 }
-
-generate();
