@@ -17,7 +17,7 @@ test("User invitation flow should work", async ({
   await page
     .getByLabel("Email to invite")
     .fill(`benjamin.cavy.${browserName}@gmail.com`);
-  await page.getByRole("checkbox").check();
+  await page.getByRole("checkbox").nth(0).check(); // FIXME when react forms will pass labels
   await page.getByRole("button", { name: "Send invitation" }).click();
 
   let url = "";
