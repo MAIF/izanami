@@ -26,9 +26,8 @@ version := (ThisBuild / version).value
 
 scalaVersion := "2.13.12"
 
-resolvers ++= Seq(
-  "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib/master/repository/releases",
-  Resolver.jcenterRepo
+excludeDependencies ++= Seq(
+  ExclusionRule("org.reactivecouchbase.json", "json-lib")
 )
 
 libraryDependencies += guice
