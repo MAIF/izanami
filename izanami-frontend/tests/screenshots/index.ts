@@ -10,9 +10,10 @@ import { generate as queryBuilderGenerate } from "./query-builder";
 import { generate as remoteWasmoGenerate } from "./remote-wasmo";
 import { generate as userInvitationGenerate } from "./user-invitation";
 import { generate as webhookGenerate } from "./webhooks";
+import { generate as exportImportV2 } from "./export-import-v2";
 
 async function generateAll() {
-  await apiKeyGenerate();
+  /*await apiKeyGenerate();
   await bulkGenerate();
   await contextGenerate();
   await gettingStarted();
@@ -21,9 +22,10 @@ async function generateAll() {
   await multiConditionFeatureGenerate();
   await queryBuilderGenerate();
   await userInvitationGenerate();
-  await base64Wasm();
+  await base64Wasm();*/
   await remoteWasmoGenerate();
-  await webhookGenerate();
+  /*await webhookGenerate();
+  await exportImportV2();*/
 }
 
 generateAll();
