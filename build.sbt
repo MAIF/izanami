@@ -27,7 +27,7 @@ version := (ThisBuild / version).value
 scalaVersion := "2.13.12"
 
 resolvers ++= Seq(
-  "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib-javaslang/master/repository/releases",
+  "jsonlib-repo" at "https://raw.githubusercontent.com/mathieuancelin/json-lib/master/repository/releases",
   Resolver.jcenterRepo
 )
 
