@@ -624,6 +624,7 @@ export class App extends Component {
       onCancel?: () => Promise<any>;
       closeButtonText?: string;
       confirmButtonText?: string;
+      noFooter?: boolean;
     };
   };
   constructor(props: any) {
@@ -727,6 +728,23 @@ export class App extends Component {
           });
         });
       },
+      displayModal: (Component) => {
+        return new Promise((resolve) => {
+          this.setState({
+            confirmation: {
+              noFooter: true,
+              message: (
+                <Component
+                  close={() => {
+                    this.setState({ confirmation: undefined });
+                    resolve();
+                  }}
+                ></Component>
+              ),
+            },
+          });
+        });
+      },
       setExpositionUrl: (url) => {
         this.setState({ expositionUrl: url });
       },
@@ -765,6 +783,7 @@ export class App extends Component {
     const callback = this.state.confirmation?.callback;
     const modalProps = {
       visible: !!this.state.confirmation,
+      noFooter: !!this.state?.confirmation?.noFooter,
       onClose: () => {
         this.state.confirmation?.onCancel?.();
         this.setState({ confirmation: undefined });

@@ -131,10 +131,10 @@ case class SourceDescriptor(
 }
 
 object EventService {
-  val IZANAMI_CHANNEL                               = "izanami"
-  implicit val fWrite: Writes[FeatureWithOverloads] = featureWithOverloadWrite
+  val IZANAMI_CHANNEL = "izanami"
+  //implicit val fWrite: Writes[FeatureWithOverloads] = featureWithOverloadWrite
 
-  implicit val sourceEventWrites: Writes[SourceIzanamiEvent]       = {
+  implicit val sourceEventWrites: Writes[SourceIzanamiEvent]            = {
     case SourceFeatureCreated(id, project, tenant, user, feature)                  =>
       Json.obj(
         "id"      -> id,
@@ -142,7 +142,7 @@ object EventService {
         "tenant"  -> tenant,
         "user"    -> user,
         "type"    -> "FEATURE_CREATED",
-        "feature" -> feature
+        "feature" -> Json.toJson(feature)(featureWithOverloadWrite)
       )
     case SourceFeatureUpdated(id, project, tenant, user, previousFeature, feature) =>
       Json.obj(
@@ -151,8 +151,8 @@ object EventService {
         "tenant"   -> tenant,
         "user"     -> user,
         "type"     -> "FEATURE_UPDATED",
-        "feature"  -> feature,
-        "previous" -> previousFeature
+        "feature"  -> Json.toJson(feature)(featureWithOverloadWrite),
+        "previous" -> Json.toJson(previousFeature)(featureWithOverloadWrite)
       )
     case SourceFeatureDeleted(id, project, user, tenant)                           =>
       Json.obj(
@@ -166,7 +166,7 @@ object EventService {
     case SourceTenantCreated(tenant, user)                                         => Json.obj("tenant" -> tenant, "type" -> "TENANT_CREATED", "user" -> user)
   }
   implicit val lighweightFeatureWrites: Writes[LightWeightFeature] = lightweightFeatureWrite
-  implicit val eventFormat: Format[IzanamiEvent]                   = new Format[IzanamiEvent] {
+  implicit val eventFormat: Format[IzanamiEvent]                        = new Format[IzanamiEvent] {
     override def writes(o: IzanamiEvent): JsValue = {
       o match {
         case FeatureCreated(eventId, id, project, tenant, user, conditions)           =>
@@ -215,7 +215,8 @@ object EventService {
             tenant     <- (json \ "tenant").asOpt[String];
             user       <- (json \ "user").asOpt[String];
             project    <- (json \ "project").asOpt[String];
-            conditions <- (json \ "feature").asOpt[Map[String, LightWeightFeature]](Reads.map(lightweightFeatureRead))
+            conditions <-
+              (json \ "feature").asOpt[Map[String, LightWeightFeature]](Reads.map(lightweightFeatureRead))
           ) yield (eventId, id, tenant, project, user, conditions)).map {
             case (eventId, id, tenant, project, user, conditions) =>
               if (eventType == "FEATURE_CREATED") {
