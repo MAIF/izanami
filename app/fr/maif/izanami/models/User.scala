@@ -52,7 +52,7 @@ case class UserInvitation(
 )
 
 case class UserRightsUpdateRequest(
-    rights: Rights = Rights.EMPTY,
+    rights: Option[Rights] = None,
     admin: Option[Boolean] = None
 )
 
@@ -490,7 +490,7 @@ object User {
     UserInvitation(email = email, rights = rights, admin = admin)
   )
 
-  implicit val userRightsUpdateReads: Reads[UserRightsUpdateRequest] = ((__ \ "rights").read[Rights] and
+  implicit val userRightsUpdateReads: Reads[UserRightsUpdateRequest] = ((__ \ "rights").readNullable[Rights] and
     (__ \ "admin").readNullable[Boolean])((rights, admin) => UserRightsUpdateRequest(rights = rights, admin = admin))
 
   implicit val userUpdateReads: Reads[UserInformationUpdateRequest] =

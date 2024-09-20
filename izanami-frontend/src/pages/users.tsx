@@ -30,6 +30,7 @@ import { Modal } from "../components/Modal";
 import { constraints } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
+import MultiSelect, { Option } from "./../components/MultiSelect";
 
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);
@@ -40,7 +41,7 @@ export function Users() {
     undefined
   );
 
-  const BULK_OPERATIONS = ["Delete"] as const;
+  const BULK_OPERATIONS = ["Delete", "Toggle Admin Role"] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
   const isTenantAdmin = Boolean(
@@ -59,9 +60,8 @@ export function Users() {
       },
     }
   );
-
   const userUpdateMutation = useMutation(
-    (user: { username: string; admin: boolean; rights: TRights }) => {
+    (user: { username: string; admin: boolean; rights?: TRights }) => {
       const { username, ...rest } = user;
       return updateUserRights(username, rest);
     },
@@ -89,6 +89,97 @@ export function Users() {
     (data: { email: string; admin: boolean; rights: TRights }) =>
       createInvitation(data.email, data.admin, data.rights)
   );
+
+  function OperationToggleForm(props: {
+    bulkOperation: string;
+    selectedRows: UserType[];
+    cancel: () => void;
+  }) {
+    const { bulkOperation, selectedRows, cancel } = props;
+
+    switch (bulkOperation) {
+      case "Delete":
+        return (
+          <button
+            className="ms-2 btn btn-primary"
+            type="button"
+            disabled={!hasSelectedRows || !bulkOperation}
+            onClick={() =>
+              askConfirmation(
+                `Are you sure you want to delete ${selectedRows.length} user${
+                  selectedRows.length > 1 ? "s" : ""
+                } ?`,
+                () => {
+                  return Promise.all(
+                    selectedRows.map((row) =>
+                      userDeleteMutation
+                        .mutateAsync(row.username)
+                        .then(() => setBulkOperation(undefined))
+                    )
+                  );
+                }
+              )
+            }
+          >
+            {bulkOperation} {selectedRows.length} user
+            {selectedRows.length > 1 ? "s" : ""}
+          </button>
+        );
+      case "Toggle Admin Role": {
+        const [values, setSelectedValues] = React.useState<Option[] | null>();
+        const onSelected = (selectedOptions: Option[]) => {
+          setSelectedValues(selectedOptions);
+        };
+
+        const countRoles = selectedRows.filter((row) => row.admin).length;
+        console.log("countRoles", selectedRows.length == countRoles);
+        return (
+          <>
+            <MultiSelect
+              options={[
+                {
+                  label: "admin",
+                  value: "admin",
+                  checked: countRoles == selectedRows.length,
+                  indeterminate: countRoles == selectedRows.length,
+                },
+              ]}
+              value={values!}
+              defaultValue={[]}
+              onSelected={onSelected}
+              labelBy={"Select role..."}
+            />
+            <button
+              className="btn btn-primary m-2"
+              onClick={() =>
+                askConfirmation(
+                  `Are you sure you want to change admin role for ${
+                    selectedRows.length
+                  } user${selectedRows.length > 1 ? "s" : ""} ?`,
+                  () => {
+                    return Promise.all(
+                      selectedRows.map((row) =>
+                        userUpdateMutation
+                          .mutateAsync({
+                            username: row.username,
+                            admin: !row.admin,
+                          })
+                          .then(cancel)
+                      )
+                    );
+                  }
+                )
+              }
+            >
+              Update {selectedRows.length} User
+              {selectedRows.length > 1 ? "s" : ""}
+              Admin Role
+            </button>
+          </>
+        );
+      }
+    }
+  }
 
   if (userQuery.isLoading) {
     return <Loader message="Loading users..." />;
@@ -254,36 +345,11 @@ export function Users() {
           />
           &nbsp;
           {bulkOperation && (
-            <>
-              <button
-                className="ms-2 btn btn-primary"
-                type="button"
-                disabled={!hasSelectedRows || !bulkOperation}
-                onClick={() => {
-                  switch (bulkOperation) {
-                    case "Delete":
-                      askConfirmation(
-                        `Are you sure you want to delete ${
-                          selectedRows.length
-                        } user${selectedRows.length > 1 ? "s" : ""} ?`,
-                        () => {
-                          return Promise.all(
-                            selectedRows.map((row) =>
-                              userDeleteMutation
-                                .mutateAsync(row.username)
-                                .then(() => setBulkOperation(undefined))
-                            )
-                          );
-                        }
-                      );
-                      break;
-                  }
-                }}
-              >
-                {bulkOperation} {selectedRows.length} user
-                {selectedRows.length > 1 ? "s" : ""}
-              </button>
-            </>
+            <OperationToggleForm
+              bulkOperation={bulkOperation}
+              selectedRows={selectedRows}
+              cancel={() => setBulkOperation(undefined)}
+            />
           )}
         </div>
         <GenericTable
@@ -307,6 +373,7 @@ export function Users() {
                 rowUser.username !== user.username,
               customForm: (data, cancel) => {
                 const { username } = data;
+                console.log("data", data);
                 return (
                   <UserEdition
                     username={username}
