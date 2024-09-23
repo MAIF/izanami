@@ -98,7 +98,63 @@ export function Users() {
     const { bulkOperation, selectedRows, cancel } = props;
 
     switch (bulkOperation) {
-      case "Delete":
+      case "Toggle Admin Role": {
+        const [values, setSelectedValues] = React.useState<Option[] | null>();
+        const onSelected = (selectedOptions: Option[]) => {
+          setSelectedValues(selectedOptions);
+        };
+        const OnSubmit = (selectedRows: UserType[], values: Option[]) => {
+          askConfirmation(
+            `Are you sure you want to change admin role for ${
+              selectedRows.length
+            } user${selectedRows.length > 1 ? "s" : ""} ?`,
+            () => {
+              return Promise.all(
+                selectedRows.map((row) =>
+                  userUpdateMutation
+                    .mutateAsync({
+                      username: row.username,
+                      admin: values.length > 0,
+                    })
+                    .then(cancel)
+                )
+              );
+            }
+          );
+        };
+
+        const adminCount = selectedRows.filter((row) => row.admin).length;
+        const isAllAdmin = adminCount > 0 && adminCount === selectedRows.length;
+        const isNotAllAdmin =
+          adminCount > 0 && adminCount < selectedRows.length;
+        const adminOption = {
+          label: "Admin",
+          value: "Admin",
+          checked: isAllAdmin,
+          indeterminate: isNotAllAdmin,
+        };
+
+        return (
+          <>
+            <MultiSelect
+              options={[adminOption]}
+              value={values!}
+              defaultValue={adminCount > 0 ? [adminOption] : []}
+              onSelected={onSelected}
+              labelBy={"Select role..."}
+            />
+            <button
+              className="btn btn-primary m-2"
+              onClick={() => OnSubmit(selectedRows, values || [adminOption])}
+            >
+              Update {selectedRows.length} User
+              {selectedRows.length > 1 ? "s" : ""}
+              Admin Role
+            </button>
+          </>
+        );
+      }
+      default:
         return (
           <button
             className="ms-2 btn btn-primary"
@@ -125,59 +181,6 @@ export function Users() {
             {selectedRows.length > 1 ? "s" : ""}
           </button>
         );
-      case "Toggle Admin Role": {
-        const [values, setSelectedValues] = React.useState<Option[] | null>();
-        const onSelected = (selectedOptions: Option[]) => {
-          setSelectedValues(selectedOptions);
-        };
-
-        const countRoles = selectedRows.filter((row) => row.admin).length;
-        console.log("countRoles", selectedRows.length == countRoles);
-        return (
-          <>
-            <MultiSelect
-              options={[
-                {
-                  label: "admin",
-                  value: "admin",
-                  checked: countRoles == selectedRows.length,
-                  indeterminate: countRoles == selectedRows.length,
-                },
-              ]}
-              value={values!}
-              defaultValue={[]}
-              onSelected={onSelected}
-              labelBy={"Select role..."}
-            />
-            <button
-              className="btn btn-primary m-2"
-              onClick={() =>
-                askConfirmation(
-                  `Are you sure you want to change admin role for ${
-                    selectedRows.length
-                  } user${selectedRows.length > 1 ? "s" : ""} ?`,
-                  () => {
-                    return Promise.all(
-                      selectedRows.map((row) =>
-                        userUpdateMutation
-                          .mutateAsync({
-                            username: row.username,
-                            admin: !row.admin,
-                          })
-                          .then(cancel)
-                      )
-                    );
-                  }
-                )
-              }
-            >
-              Update {selectedRows.length} User
-              {selectedRows.length > 1 ? "s" : ""}
-              Admin Role
-            </button>
-          </>
-        );
-      }
     }
   }
 
@@ -373,7 +376,6 @@ export function Users() {
                 rowUser.username !== user.username,
               customForm: (data, cancel) => {
                 const { username } = data;
-                console.log("data", data);
                 return (
                   <UserEdition
                     username={username}
