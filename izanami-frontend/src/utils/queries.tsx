@@ -756,7 +756,7 @@ export function updateUserRights(
   name: string,
   user: {
     admin: boolean;
-    rights?: TRights;
+    rights: TRights;
   }
 ): Promise<undefined> {
   return handleFetchWithoutResponse(

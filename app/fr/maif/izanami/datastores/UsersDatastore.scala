@@ -350,11 +350,10 @@ class UsersDatastore(val env: Env) extends Datastore {
       name: String,
       updateRequest: UserRightsUpdateRequest
   ): Future[Either[IzanamiError, Unit]] = {
-    if(updateRequest.rights.isDefined) {
       findUserWithCompleteRights(name)
         .flatMap {
           case Some(UserWithRights(_, _, _, _, _, rights, _, _)) => {
-            val diff = Rights.compare(base = rights, modified = updateRequest.rights.get)
+            val diff = Rights.compare(base = rights, modified = updateRequest.rights)
             // TODO externalize this
             env.postgresql.executeInTransaction(conn => {
               updateRequest.admin
@@ -528,20 +527,6 @@ class UsersDatastore(val env: Env) extends Datastore {
           }
           case None                                              => Left(UserNotFound(name)).future
         }
-    } else {
-      env.postgresql.executeInTransaction(conn => {
-        updateRequest.admin
-        .map(admin =>
-          env.postgresql
-            .queryOne(
-              s"""UPDATE izanami.users SET admin=$$1 WHERE username=$$2 RETURNING username""",
-              List(java.lang.Boolean.valueOf(admin), name),
-              conn = Some(conn)
-            ) { _ => Some(()) }
-        )
-        .getOrElse(Future(Some(())))
-        .map(_.toRight(InternalServerError())) })
-    }
   }
 
   def createUserWithConn(

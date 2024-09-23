@@ -40,7 +40,6 @@ export function Users() {
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
     undefined
   );
-
   const BULK_OPERATIONS = ["Delete", "Toggle Admin Role"] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
@@ -61,7 +60,7 @@ export function Users() {
     }
   );
   const userUpdateMutation = useMutation(
-    (user: { username: string; admin: boolean; rights?: TRights }) => {
+    (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
       return updateUserRights(username, rest);
     },
@@ -96,7 +95,6 @@ export function Users() {
     cancel: () => void;
   }) {
     const { bulkOperation, selectedRows, cancel } = props;
-
     switch (bulkOperation) {
       case "Toggle Admin Role": {
         const [values, setSelectedValues] = React.useState<Option[] | null>();
@@ -107,18 +105,23 @@ export function Users() {
           askConfirmation(
             `Are you sure you want to change admin role for ${
               selectedRows.length
-            } user${selectedRows.length > 1 ? "s" : ""} ?`,
+            } user${selectedRows.length > 1 ? "s" : ""}?`,
             () => {
               return Promise.all(
-                selectedRows.map((row) =>
-                  userUpdateMutation
-                    .mutateAsync({
-                      username: row.username,
-                      admin: values.length > 0,
+                selectedRows.map((row) => {
+                  return fetch(`/api/admin/users/${row.username}`)
+                    .then((response) => {
+                      return response.json();
                     })
-                    .then(cancel)
-                )
-              );
+                    .then((data) => {
+                      return userUpdateMutation.mutateAsync({
+                        username: row.username,
+                        admin: values.length > 0,
+                        rights: data.rights,
+                      });
+                    });
+                })
+              ).then(cancel);
             }
           );
         };
