@@ -2318,19 +2318,35 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def updateUserRights(
         name: String,
         admin: Boolean,
-        rights: TestRights = null
+        rights: TestRights
     ): RequestResult = {
-
-      val payload  =
-        if (Objects.isNull(rights)) Json.obj()
-        else
-          Json.obj(
-            "rights" -> Option(rights).getOrElse(TestRights()).json
-          )
-      val response = await(
+      val jsonRights = Option(rights).getOrElse(TestRights()).json
+      val response   = await(
         ws.url(s"${ADMIN_BASE_URL}/users/${name}/rights")
           .withCookies(cookies: _*)
-          .put(Json.obj("admin" -> admin) ++ payload)
+          .put(
+            Json.obj(
+              "admin"  -> admin,
+              "rights" -> jsonRights
+            )
+          )
+      )
+
+      RequestResult(json = Try { response.json }, status = response.status)
+    }
+
+    def updateAdminRights(
+                          name: String,
+                          admin: Boolean,
+                        ): RequestResult = {
+      val response   = await(
+        ws.url(s"${ADMIN_BASE_URL}/users/${name}/rights")
+          .withCookies(cookies: _*)
+          .put(
+            Json.obj(
+              "admin"  -> admin,
+            )
+          )
       )
       RequestResult(json = Try { response.json }, status = response.status)
     }

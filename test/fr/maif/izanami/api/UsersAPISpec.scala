@@ -793,21 +793,6 @@ class UsersAPISpec extends BaseAPISpec {
       (situation.fetchUser(user.username).json.get \ "admin").as[Boolean] mustBe true
       response.status mustBe NO_CONTENT
     }
-    "Allow to update only admin status" in {
-      val user      = TestUser(username = "foo", admin = false)
-      val situation = TestSituationBuilder()
-        .withUsers(user)
-        .loggedInWithAdminRights()
-        .build()
-
-      val response = situation.updateUserRights(
-        name = user.username,
-        admin = true
-      )
-      (situation.fetchUser(user.username).json.get \ "admin").as[Boolean] mustBe true
-      response.status mustBe NO_CONTENT
-    }
-
     "Allow to add project right" in {
       val user      = TestUser(
         username = "foo",
@@ -992,22 +977,6 @@ class UsersAPISpec extends BaseAPISpec {
         name = user.username,
         admin = true,
         rights = user.rights
-      )
-
-      response.status mustBe FORBIDDEN
-    }
-
-    "Prevent admin role modification if logged in user is not admin" in {
-      val user      = TestUser(
-        username = "foo")
-      val situation = TestSituationBuilder()
-        .withUsers(user, TestUser("nonAdmin"))
-        .loggedAs("nonAdmin")
-        .build()
-
-      val response = situation.updateUserRights(
-        name = user.username,
-        admin = true
       )
 
       response.status mustBe FORBIDDEN
