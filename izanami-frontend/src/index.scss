@@ -38,7 +38,16 @@ main a.white-link:focus {
   }
 }
 
-.breadcrumb .active a {
+.breadcrumb a {
+  color: $primaryColor;
+  text-decoration: none;
+
+  &:hover {
+    color: #fff;
+  }
+}
+.breadcrumb .active a,
+.breadcrumb-item + .breadcrumb-item::before {
   color: var(--color_level1);
 }
 .breadcrumb svg .icon_context,
@@ -58,19 +67,6 @@ main a.white-link:focus {
   width: 100%;
 }
 
-.breadcrumb a {
-  color: $primaryColor;
-  text-decoration: none;
-
-  &:hover {
-    color: #fff;
-  }
-}
-
-// h1 {
-//   font-size: 2rem;
-// }
-
 input,
 textarea {
   color: var(--color_level3) !important;
@@ -82,7 +78,7 @@ textarea {
 input:not([role="combobox"]):not([type="checkbox"]),
 textarea {
   /* buggy on react-select */
-  background-color:  var(--bg-color_level3);
+  background-color: var(--bg-color_level3);
 }
 
 ::placeholder {
