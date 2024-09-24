@@ -1026,7 +1026,7 @@ function IzanamiV1ImportForm(props: {
                 </label>
                 {getValues("deduceProject") && (
                   <label>
-                    Number of ":" seprarated fields to keep as project name
+                    Number of ":" separated fields to keep as project name
                     <Tooltip id="project-name-size">
                       <div>When deducing project name from feature id,</div>
                       <div>this will indicate how many sections should</div>
