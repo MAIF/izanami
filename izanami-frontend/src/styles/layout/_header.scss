@@ -2,13 +2,12 @@
   background-color: var(--bg-color_level2) !important;
 
   .navbar-nav > li {
-    > a {
+    > a ,  .nav-link.show{
       color: var(--color_level2);
     }
 
     .dropdown-menu {
       position: absolute;
-      // margin-top: 15px;
       li:hover,
       li:focus {
         background-color: var(--bg-color_level3);
@@ -18,12 +17,6 @@
         text-decoration: none;
       }
     }
-
-    // > a:hover,
-    // > a:focus {
-    //   color: $primaryColor;
-    //   text-decoration: none;
-    // }
   }
 
   .navbar-nav > .active > a,
@@ -51,7 +44,6 @@
   color: #fff;
   font-size: 18px;
   line-height: 20px;
-  // margin-left: -0.75rem;
 }
 
 .navbar-inverse .navbar-nav > li > a {
@@ -104,11 +96,6 @@
     margin-top: 0;
     margin-bottom: 0;
   }
-
-  // .navbar-collapse.in {
-  //   overflow-y: inherit;
-  //   margin-top: 60px;
-  // }
 
   .menu {
     float: left;
