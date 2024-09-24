@@ -1,21 +1,23 @@
 .table {
   color: var(--color_level2) !important;
   background-color: var(--bg-color_level2) !important;
-
+  thead> * > * {
+    color: var(--color_level2) !important;
+    background-color: var(--bg-color_level2) !important;
+  }
   th,
   td {
     vertical-align: middle;
   }
-  tbody {
+  tbody, &> :not(caption)> * > * {
     background-color: var(--bg-color_level3);
+    color: var(--color_level3) !important;
     td,
     th {
       color: var(--color_level3) !important;
     }
   }
-  //   th {
-  //     color:var(--color_level2) !important;
-  //   }
+
   .btn {
     color: var(--color_level3) !important;
   }
@@ -24,7 +26,3 @@
     position: inherit;
   }
 }
-
-// .table-striped > tbody > tr:nth-of-type(2n+1) > * {
-//   color: var(--color_level2) !important;
-// }
