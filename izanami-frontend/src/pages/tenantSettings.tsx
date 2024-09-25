@@ -510,7 +510,7 @@ function TenantUsers(props: { tenant: string }) {
                     );
                   }}
                   cancel={cancel}
-                  username={data.username}
+                  user={{ username: data.username, right: data.right }}
                   tenant={tenant}
                 />
               );

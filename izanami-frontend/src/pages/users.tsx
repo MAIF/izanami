@@ -309,7 +309,7 @@ export function Users() {
                 const { username } = data;
                 return (
                   <UserEdition
-                    username={username}
+                    user={{ username }}
                     submit={(newItem: any, old: TUser) => {
                       if (isAdmin) {
                         return userUpdateMutation
@@ -430,12 +430,12 @@ function UrlModal(props: {
 }
 
 export function UserEdition(props: {
-  username: string;
+  user: { username: string; right?: string };
   submit: any;
   cancel: () => void;
   tenant?: string;
 }) {
-  const { username, submit, cancel } = props;
+  const { user, submit, cancel, tenant } = props;
   const context = useContext(IzanamiContext);
   const isAdmin = useAdmin();
   const adminTenants: string[] = Object.entries(
@@ -445,16 +445,16 @@ export function UserEdition(props: {
     .map(([name]) => name);
 
   const userQuery = useQuery(
-    props.tenant
-      ? userQueryKeyForTenant(username, props.tenant)
-      : userQueryKey(username),
+    tenant && typeof user.right !== "undefined"
+      ? userQueryKeyForTenant(user.username, tenant)
+      : userQueryKey(user.username),
     () => {
-      if (isAdmin && !props.tenant) {
-        return queryUser(username);
+      if (isAdmin && (!tenant || typeof user.right === "undefined")) {
+        return queryUser(user.username);
       } else {
         return queryUserForTenants(
-          username,
-          props.tenant ? [props.tenant] : adminTenants
+          user.username,
+          tenant ? [tenant] : adminTenants
         );
       }
     }
@@ -462,8 +462,29 @@ export function UserEdition(props: {
 
   if (userQuery.isLoading) {
     return <Loader message="Loading..." />;
-  } else if (userQuery.data) {
+  }
+  if (userQuery.isError) {
+    return <div>Error loading user information</div>;
+  }
+  if (userQuery.data) {
     let { rights, admin } = userQuery.data;
+
+    if (
+      tenant &&
+      typeof user.right === "undefined" &&
+      rights.tenants &&
+      !(tenant in rights.tenants)
+    ) {
+      rights.tenants = {
+        [tenant]: {
+          level: "Read",
+          projects: {},
+          keys: {},
+          webhooks: {},
+        },
+      };
+    }
+
     return (
       <div className="sub_container">
         <h4>User rights</h4>
@@ -473,7 +494,7 @@ export function UserEdition(props: {
               type: "bool",
               label: "Admin",
               defaultValue: admin,
-              visible: () => !props.tenant && isAdmin,
+              visible: () => !tenant && isAdmin,
             },
             rights: {
               label: () => "",
@@ -483,7 +504,7 @@ export function UserEdition(props: {
                 return (
                   <RightSelector
                     defaultValue={rights}
-                    tenant={props.tenant}
+                    tenant={tenant}
                     onChange={(v) => onChange?.(v)}
                   />
                 );
