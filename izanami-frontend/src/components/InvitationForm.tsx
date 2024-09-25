@@ -32,6 +32,7 @@ const LEVEL_OPTIONS = Object.values(TLevel).map((n) => ({
 export function InvitationForm(props: {
   submit: (p: { users: string[]; level: TLevel }) => void;
   cancel: () => void;
+  invitedUsers?: string[];
 }) {
   const methods = useForm<{ users: Option[]; level: TLevel }>({
     defaultValues: {},
@@ -67,6 +68,9 @@ export function InvitationForm(props: {
               <AsyncSelect
                 {...field}
                 loadOptions={loadOptions as any} // FIXME TS
+                filterOption={(options) =>
+                  !props.invitedUsers?.includes(options.data.value)
+                }
                 styles={customStyles}
                 cacheOptions
                 isMulti

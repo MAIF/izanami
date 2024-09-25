@@ -487,6 +487,7 @@ function KeyRightTable(props: { tenant: string; apikey: TKey }) {
                 })
               ).then(() => setCreating(false));
             }}
+            invitedUsers={keyRightQuery.data.map((key) => key.username)}
           />
         )}
         <RightTable

@@ -28,6 +28,10 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
   const queryKey = projectQueryKey(tenant, project);
   const projectQuery = useQuery(queryKey, () => queryProject(tenant, project));
+  const { data: usersData, isLoading } = useQuery(
+    projectUserQueryKey(tenant, project),
+    () => queryProjectUsers(tenant, project)
+  );
 
   const [modification, setModification] = useState(false);
   const { askConfirmation } = React.useContext(IzanamiContext);
@@ -77,9 +81,15 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
                 .then(() => setInviting(false))
             }
             cancel={() => setInviting(false)}
+            invitedUsers={usersData?.map((user) => user.username) || []}
           />
         )}
-        <ProjectUsers tenant={tenant} project={project} />
+        <ProjectUsers
+          tenant={tenant}
+          project={project}
+          isLoading={isLoading}
+          usersData={usersData}
+        />
         <hr />
         <h2 className="mt-4">Danger zone</h2>
         <div className="border border-danger rounded p-2 mt-3">
@@ -135,11 +145,13 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   }
 }
 
-function ProjectUsers(props: { tenant: string; project: string }) {
-  const { tenant, project } = props;
-  const userQuery = useQuery(projectUserQueryKey(tenant, project), () =>
-    queryProjectUsers(tenant, project)
-  );
+function ProjectUsers(props: {
+  tenant: string;
+  project: string;
+  isLoading: boolean;
+  usersData: any;
+}) {
+  const { tenant, project, isLoading, usersData } = props;
 
   const userUpdateMutationForProject = useMutation(
     (user: { username: string; right?: TLevel }) => {
@@ -149,13 +161,13 @@ function ProjectUsers(props: { tenant: string; project: string }) {
   );
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
 
-  if (userQuery.isLoading) {
+  if (isLoading) {
     return <Loader message="Loading users..." />;
-  } else if (userQuery.data) {
+  } else if (usersData) {
     return (
       <>
         <GenericTable
-          data={userQuery.data}
+          data={usersData}
           customRowActions={{
             edit: {
               icon: (

@@ -90,6 +90,10 @@ export function TenantSettings(props: { tenant: string }) {
       </>
     );
   } else if (tenantQuery.data) {
+    const { data: usersData, isLoading } = useQuery(
+      tenantUserQueryKey(tenant),
+      () => queryTenantUsers(tenant)
+    );
     return (
       <>
         <h1>Settings for tenant {tenant}</h1>
@@ -114,9 +118,14 @@ export function TenantSettings(props: { tenant: string }) {
                 .then(() => setInviting(false))
             }
             cancel={() => setInviting(false)}
+            invitedUsers={usersData?.map((user) => user.username) || []}
           />
         )}
-        <TenantUsers tenant={tenant} />
+        <TenantUsers
+          tenant={tenant}
+          isLoading={isLoading}
+          usersData={usersData}
+        />
         <hr />
         <h2 className="mt-4">Update tenant information</h2>
         <div className="d-flex align-items-center justify-content-between p-2">
@@ -456,11 +465,13 @@ function ImportForm(props: {
   );
 }
 
-function TenantUsers(props: { tenant: string }) {
-  const { tenant } = props;
-  const userQuery = useQuery(tenantUserQueryKey(tenant), () =>
-    queryTenantUsers(tenant)
-  );
+function TenantUsers(props: {
+  tenant: string;
+  isLoading: boolean;
+  usersData: any;
+}) {
+  const { tenant, isLoading, usersData } = props;
+
   const userUpdateMutationForTenant = useMutation(
     (user: { username: string; tenant: string; rights: TTenantRight }) => {
       const { username, tenant, rights } = user;
@@ -473,12 +484,12 @@ function TenantUsers(props: { tenant: string }) {
     }
   );
   const isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
-  if (userQuery.isLoading) {
+  if (isLoading) {
     return <Loader message="Loading users..." />;
-  } else if (userQuery.data) {
+  } else if (usersData) {
     return (
       <GenericTable
-        data={userQuery.data}
+        data={usersData}
         customRowActions={{
           edit: {
             icon: (
