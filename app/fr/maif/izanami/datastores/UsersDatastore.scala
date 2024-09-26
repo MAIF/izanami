@@ -1403,8 +1403,9 @@ class UsersDatastore(val env: Env) extends Datastore {
              |    'keys', COALESCE((select json_object_agg(k.apikey, json_build_object('level', k.level)) from users_keys_rights k where k.username=$$1), '{}'),
              |    'webhooks', COALESCE((select json_object_agg(w.webhook, json_build_object('level', w.level)) from users_webhooks_rights w where w.username=$$1), '{}')
              |)::jsonb as rights
-             |from izanami.users u, izanami.users_tenants_rights utr
-             |WHERE u.username=$$1 AND utr.username=$$1 AND utr.tenant=$$2;
+             |from izanami.users u
+             |left join izanami.users_tenants_rights utr on (utr.username = u.username AND utr.tenant=$$2)
+             |WHERE u.username=$$1;
              |""".stripMargin,
               List(username, tenant),
               schemas = Set(tenant)
