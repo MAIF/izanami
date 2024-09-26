@@ -140,7 +140,9 @@ class SearchController(
                   })
               })
           )
-          .getOrElse(Future.successful(Seq()))
+          .getOrElse( // If there is no parent nor global parents, this is a root local context
+            Future.successful(Seq(ProjectPathElement((rowJson \ "project").as[String])))
+          )
       }
       case _                => Seq.empty.future
     }
