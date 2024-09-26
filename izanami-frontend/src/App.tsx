@@ -531,6 +531,7 @@ function Layout() {
                       id="btnSearch"
                       type="button"
                       onClick={() => setIsOpenModal(true)}
+                      style={{opacity:"0.7"}}
                     >
                       <span className="fa fa-search"></span>
                       <span className="text-searchbutton d-none d-md-inline">
