@@ -30,7 +30,6 @@ import { Modal } from "../components/Modal";
 import { constraints } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
-import MultiSelect, { Option } from "./../components/MultiSelect";
 
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);
@@ -97,63 +96,74 @@ export function Users() {
     const { bulkOperation, selectedRows, cancel } = props;
     switch (bulkOperation) {
       case "Toggle Admin Role": {
-        const [values, setSelectedValues] = React.useState<Option[] | null>();
-        const onSelected = (selectedOptions: Option[]) => {
-          setSelectedValues(selectedOptions);
-        };
-        const OnSubmit = (selectedRows: UserType[], values: Option[]) => {
-          askConfirmation(
-            `Are you sure you want to change admin role for ${
-              selectedRows.length
-            } user${selectedRows.length > 1 ? "s" : ""}?`,
-            () => {
-              return Promise.all(
-                selectedRows.map((row) => {
-                  return fetch(`/api/admin/users/${row.username}`)
-                    .then((response) => {
-                      return response.json();
-                    })
-                    .then((data) => {
-                      return userUpdateMutation.mutateAsync({
-                        username: row.username,
-                        admin: values.length > 0,
-                        rights: data.rights,
-                      });
-                    });
-                })
-              ).then(cancel);
-            }
-          );
-        };
-
-        const adminCount = selectedRows.filter((row) => row.admin).length;
-        const isAllAdmin = adminCount > 0 && adminCount === selectedRows.length;
-        const isNotAllAdmin =
-          adminCount > 0 && adminCount < selectedRows.length;
-        const adminOption = {
-          label: "Admin",
-          value: "Admin",
-          checked: isAllAdmin,
-          indeterminate: isNotAllAdmin,
-        };
+        const adminOptions = [
+          {
+            label: "Add Admin right",
+            value: "true",
+          },
+          {
+            label: "Remove Admin right",
+            value: "false",
+          },
+        ];
 
         return (
           <>
-            <MultiSelect
-              options={[adminOption]}
-              value={values!}
-              defaultValue={adminCount > 0 ? [adminOption] : []}
-              onSelected={onSelected}
-              labelBy={"Select role..."}
+            <Form
+              className={"d-flex align-items-center"}
+              schema={{
+                admin: {
+                  className: "form-margin",
+                  label: () => "",
+                  type: "string",
+                  format: "select",
+                  props: { styles: customStyles },
+                  placeholder: "Select Admin Role...",
+                  options: adminOptions,
+                },
+              }}
+              onSubmit={(ctx) => {
+                return askConfirmation(
+                  `Are you sure you want to change admin role for ${
+                    selectedRows.length
+                  } user${selectedRows.length > 1 ? "s" : ""}?`,
+                  () => {
+                    return Promise.all(
+                      selectedRows.map((row) => {
+                        return fetch(`/api/admin/users/${row.username}`)
+                          .then((response) => {
+                            return response.json();
+                          })
+                          .then((data) => {
+                            return userUpdateMutation.mutateAsync({
+                              username: row.username,
+                              admin: ctx.admin === "true",
+                              rights: data.rights,
+                            });
+                          });
+                      })
+                    ).then(cancel);
+                  }
+                );
+              }}
+              footer={({ valid }: { valid: () => void }) => {
+                return (
+                  <div className="d-flex justify-content-end">
+                    <button
+                      type="button"
+                      className="btn btn-danger-light m-2"
+                      onClick={cancel}
+                    >
+                      Cancel
+                    </button>
+                    <button className="btn btn-primary m-2" onClick={valid}>
+                      Update {selectedRows.length} User
+                      {selectedRows.length > 1 ? "s" : ""}
+                    </button>
+                  </div>
+                );
+              }}
             />
-            <button
-              className="btn btn-primary m-2"
-              onClick={() => OnSubmit(selectedRows, values || [adminOption])}
-            >
-              Update {selectedRows.length} User
-              {selectedRows.length > 1 ? "s" : ""}
-              Admin Role
-            </button>
           </>
         );
       }
