@@ -28,9 +28,8 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
   const queryKey = projectQueryKey(tenant, project);
   const projectQuery = useQuery(queryKey, () => queryProject(tenant, project));
-  const { data: usersData, isLoading } = useQuery(
-    projectUserQueryKey(tenant, project),
-    () => queryProjectUsers(tenant, project)
+  const usersQuery = useQuery(projectUserQueryKey(tenant, project), () =>
+    queryProjectUsers(tenant, project)
   );
 
   const [modification, setModification] = useState(false);
@@ -57,9 +56,10 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   );
   const [inviting, setInviting] = useState(false);
 
-  if (projectQuery.isError) {
-    return <div>Failed to fetch project / project users</div>;
-  } else if (projectQuery.data) {
+  if (projectQuery.isLoading || usersQuery.isLoading) {
+    return <Loader message="Loading project / project users..." />;
+  }
+  if (projectQuery.isSuccess && usersQuery.isSuccess) {
     return (
       <>
         <h1>Settings</h1>
@@ -81,14 +81,14 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
                 .then(() => setInviting(false))
             }
             cancel={() => setInviting(false)}
-            invitedUsers={usersData?.map((user) => user.username) || []}
+            invitedUsers={usersQuery.data.map((user) => user.username) || []}
           />
         )}
+
         <ProjectUsers
           tenant={tenant}
           project={project}
-          isLoading={isLoading}
-          usersData={usersData}
+          usersData={usersQuery.data}
         />
         <hr />
         <h2 className="mt-4">Danger zone</h2>
@@ -141,17 +141,16 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
       </>
     );
   } else {
-    return <Loader message="Loading project / project users..." />;
+    return <div>Failed to fetch project / project users</div>;
   }
 }
 
 function ProjectUsers(props: {
   tenant: string;
   project: string;
-  isLoading: boolean;
   usersData: any;
 }) {
-  const { tenant, project, isLoading, usersData } = props;
+  const { tenant, project, usersData } = props;
 
   const userUpdateMutationForProject = useMutation(
     (user: { username: string; right?: TLevel }) => {
@@ -160,108 +159,101 @@ function ProjectUsers(props: {
     }
   );
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
-
-  if (isLoading) {
-    return <Loader message="Loading users..." />;
-  } else if (usersData) {
-    return (
-      <>
-        <GenericTable
-          data={usersData}
-          customRowActions={{
-            edit: {
-              icon: (
-                <>
-                  <i className="bi bi-pencil-square" aria-hidden></i> Edit
-                </>
-              ),
-              hasRight: (currentUser, { username }) =>
-                (isProjectAdmin ?? false) && currentUser.username !== username,
-              customForm: (data, cancel) => (
-                <ProjectRightLevelModification
-                  submit={(oldItem, newItem) => {
-                    let { level } = newItem;
-                    if (!Object.values(TLevel).includes(level)) {
-                      level = undefined;
-                    }
-                    return userUpdateMutationForProject.mutateAsync(
-                      {
-                        username: oldItem.username,
-                        right: level,
+  return (
+    <>
+      <GenericTable
+        data={usersData}
+        customRowActions={{
+          edit: {
+            icon: (
+              <>
+                <i className="bi bi-pencil-square" aria-hidden></i> Edit
+              </>
+            ),
+            hasRight: (currentUser, { username }) =>
+              (isProjectAdmin ?? false) && currentUser.username !== username,
+            customForm: (data, cancel) => (
+              <ProjectRightLevelModification
+                submit={(oldItem, newItem) => {
+                  let { level } = newItem;
+                  if (!Object.values(TLevel).includes(level)) {
+                    level = undefined;
+                  }
+                  return userUpdateMutationForProject.mutateAsync(
+                    {
+                      username: oldItem.username,
+                      right: level,
+                    },
+                    {
+                      onSuccess: () => {
+                        cancel();
+                        queryClient.invalidateQueries(
+                          projectUserQueryKey(tenant, project)
+                        );
                       },
-                      {
-                        onSuccess: () => {
-                          cancel();
-                          queryClient.invalidateQueries(
-                            projectUserQueryKey(tenant, project)
-                          );
-                        },
-                      }
-                    );
-                  }}
-                  cancel={cancel}
-                  username={data.username}
-                  name={project}
-                  level={data.right}
-                />
-              ),
+                    }
+                  );
+                }}
+                cancel={cancel}
+                username={data.username}
+                name={project}
+                level={data.right}
+              />
+            ),
+          },
+        }}
+        columns={[
+          {
+            accessorKey: "username",
+            header: () => "Username",
+            size: 25,
+          },
+          {
+            accessorKey: "admin",
+            header: () => "Admin",
+            meta: {
+              valueType: "boolean",
             },
-          }}
-          columns={[
-            {
-              accessorKey: "username",
-              header: () => "Username",
-              size: 25,
+            size: 20,
+          },
+          {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            accessorKey: "tenantAdmin", // FIXME divergent user types (project vs global)
+            header: () => "Tenant admin",
+            meta: {
+              valueType: "boolean",
             },
-            {
-              accessorKey: "admin",
-              header: () => "Admin",
-              meta: {
-                valueType: "boolean",
-              },
-              size: 20,
+            size: 20,
+          },
+          {
+            accessorKey: "userType",
+            header: () => "User type",
+            meta: {
+              valueType: "discrete",
             },
-            {
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              accessorKey: "tenantAdmin", // FIXME divergent user types (project vs global)
-              header: () => "Tenant admin",
-              meta: {
-                valueType: "boolean",
-              },
-              size: 20,
+            size: 15,
+          },
+          {
+            accessorKey: "right",
+            header: () => "Right level",
+            meta: {
+              valueType: "rights",
             },
-            {
-              accessorKey: "userType",
-              header: () => "User type",
-              meta: {
-                valueType: "discrete",
-              },
-              size: 15,
+            size: 25,
+            filterFn: (data, columndId, filterValue) => {
+              const right = data.getValue(columndId);
+              if (filterValue === TLevel.Admin) {
+                return right === TLevel.Admin || right === undefined;
+              }
+              return data && right === filterValue;
             },
-            {
-              accessorKey: "right",
-              header: () => "Right level",
-              meta: {
-                valueType: "rights",
-              },
-              size: 25,
-              filterFn: (data, columndId, filterValue) => {
-                const right = data.getValue(columndId);
-                if (filterValue === TLevel.Admin) {
-                  return right === TLevel.Admin || right === undefined;
-                }
-                return data && right === filterValue;
-              },
-            },
-          ]}
-          idAccessor={(u) => u.username}
-        />
-      </>
-    );
-  } else {
-    return <div>Failed to load tenant users</div>;
-  }
+          },
+        ]}
+        idAccessor={(u) => u.username}
+      />
+    </>
+  );
 }
 
 function ProjectRightLevelModification(props: {

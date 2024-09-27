@@ -45,7 +45,6 @@ import { Tooltip } from "../components/Tooltip";
 import { customStyles } from "../styles/reactSelect";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "../components/TimeZoneSelect";
 import { Loader } from "../components/Loader";
-import { ObjectInput } from "../components/ObjectInput";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
@@ -57,7 +56,9 @@ export function TenantSettings(props: { tenant: string }) {
   const tenantQuery = useQuery(tenantQueryKey(tenant), () =>
     queryTenant(tenant)
   );
-
+  const usersQuery = useQuery(tenantUserQueryKey(tenant), () =>
+    queryTenantUsers(tenant)
+  );
   const deleteMutation = useMutation(() => deleteTenant(tenant), {
     onSuccess: () => {
       queryClient.invalidateQueries(MutationNames.TENANTS);
@@ -82,24 +83,13 @@ export function TenantSettings(props: { tenant: string }) {
 
   const [modification, setModification] = React.useState(false);
 
-  if (tenantQuery.isLoading) {
-    return (
-      <>
-        <h1>Settings</h1>
-        <Loader message="Loading..." />
-      </>
-    );
-  } else if (tenantQuery.data) {
-    const { data: usersData, isLoading } = useQuery(
-      tenantUserQueryKey(tenant),
-      () => queryTenantUsers(tenant)
-    );
+  if (tenantQuery.isLoading || usersQuery.isLoading) {
+    return <Loader message="Loading tenant / tenant users..." />;
+  }
+  if (tenantQuery.isSuccess && usersQuery.isSuccess) {
     return (
       <>
         <h1>Settings for tenant {tenant}</h1>
-        {tenantQuery.data.description && (
-          <div>{tenantQuery.data.description}</div>
-        )}
         <h2 className="mt-5">
           Tenant users
           <button
@@ -118,14 +108,10 @@ export function TenantSettings(props: { tenant: string }) {
                 .then(() => setInviting(false))
             }
             cancel={() => setInviting(false)}
-            invitedUsers={usersData?.map((user) => user.username) || []}
+            invitedUsers={usersQuery.data?.map((user) => user.username) || []}
           />
         )}
-        <TenantUsers
-          tenant={tenant}
-          isLoading={isLoading}
-          usersData={usersData}
-        />
+        <TenantUsers tenant={tenant} usersData={usersQuery} />
         <hr />
         <h2 className="mt-4">Update tenant information</h2>
         <div className="d-flex align-items-center justify-content-between p-2">
@@ -312,7 +298,7 @@ export function TenantSettings(props: { tenant: string }) {
       </>
     );
   } else {
-    return <div>Failed to fetch tenant query</div>;
+    return <div>Failed to fetch tenant / tenant users</div>;
   }
 }
 
@@ -465,12 +451,8 @@ function ImportForm(props: {
   );
 }
 
-function TenantUsers(props: {
-  tenant: string;
-  isLoading: boolean;
-  usersData: any;
-}) {
-  const { tenant, isLoading, usersData } = props;
+function TenantUsers(props: { tenant: string; usersData: any }) {
+  const { tenant, usersData } = props;
 
   const userUpdateMutationForTenant = useMutation(
     (user: { username: string; tenant: string; rights: TTenantRight }) => {
@@ -484,84 +466,78 @@ function TenantUsers(props: {
     }
   );
   const isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
-  if (isLoading) {
-    return <Loader message="Loading users..." />;
-  } else if (usersData) {
-    return (
-      <GenericTable
-        data={usersData}
-        customRowActions={{
-          edit: {
-            icon: (
-              <>
-                <i className="bi bi-pencil-square" aria-hidden></i> Edit
-              </>
-            ),
-            hasRight: (currentUser, { username }) =>
-              (isTenantAdmin || false) && currentUser.username !== username,
-            customForm(data, cancel) {
-              return (
-                <UserEdition
-                  submit={(created: TUser) => {
-                    const rights = created?.rights?.tenants?.[tenant] as any;
-                    return userUpdateMutationForTenant.mutateAsync(
-                      {
-                        username: data.username,
-                        tenant: tenant,
-                        rights: rights,
+  return (
+    <GenericTable
+      data={usersData}
+      customRowActions={{
+        edit: {
+          icon: (
+            <>
+              <i className="bi bi-pencil-square" aria-hidden></i> Edit
+            </>
+          ),
+          hasRight: (currentUser, { username }) =>
+            (isTenantAdmin || false) && currentUser.username !== username,
+          customForm(data, cancel) {
+            return (
+              <UserEdition
+                submit={(created: TUser) => {
+                  const rights = created?.rights?.tenants?.[tenant] as any;
+                  return userUpdateMutationForTenant.mutateAsync(
+                    {
+                      username: data.username,
+                      tenant: tenant,
+                      rights: rights,
+                    },
+                    {
+                      onSuccess: () => {
+                        cancel();
+                        queryClient.invalidateQueries(
+                          tenantUserQueryKey(tenant)
+                        );
                       },
-                      {
-                        onSuccess: () => {
-                          cancel();
-                          queryClient.invalidateQueries(
-                            tenantUserQueryKey(tenant)
-                          );
-                        },
-                      }
-                    );
-                  }}
-                  cancel={cancel}
-                  username={data.username}
-                  tenant={tenant}
-                />
-              );
-            },
+                    }
+                  );
+                }}
+                cancel={cancel}
+                username={data.username}
+                tenant={tenant}
+              />
+            );
           },
-        }}
-        columns={[
-          {
-            accessorKey: "username",
-            header: () => "Username",
-            size: 15,
+        },
+      }}
+      columns={[
+        {
+          accessorKey: "username",
+          header: () => "Username",
+          size: 15,
+        },
+        {
+          accessorKey: "admin",
+          header: () => "Admin",
+          meta: {
+            valueType: "boolean",
           },
-          {
-            accessorKey: "admin",
-            header: () => "Admin",
-            meta: {
-              valueType: "boolean",
-            },
-            size: 10,
+          size: 10,
+        },
+        {
+          accessorKey: "userType",
+          header: () => "User type",
+          meta: {
+            valueType: "discrete",
           },
-          {
-            accessorKey: "userType",
-            header: () => "User type",
-            meta: {
-              valueType: "discrete",
-            },
-            size: 15,
-          },
-          {
-            accessorKey: "right",
-            header: () => "Right level",
-            size: 15,
-          },
-        ]}
-        idAccessor={(u) => u.username}
-      />
-    );
-  } else {
-    return <div>Failed to load tenant users</div>;
-  }
+          size: 15,
+        },
+        {
+          accessorKey: "right",
+          header: () => "Right level",
+          size: 15,
+        },
+      ]}
+      idAccessor={(u) => u.username}
+    />
+  );
 }
 
 function TenantModification(props: { tenant: TenantType; onDone: () => void }) {
