@@ -327,7 +327,7 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
   const { tenant, webhook } = props;
   const [creating, setCreating] = useState(false);
 
-  const webhookRighQuery = useQuery(
+  const webhookRightQuery = useQuery(
     webhookUserQueryKey(tenant, webhook.id),
     () => fetchWebhookUsers(tenant, webhook.id)
   );
@@ -341,9 +341,9 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
     }
   );
 
-  if (webhookRighQuery.error) {
+  if (webhookRightQuery.error) {
     return <div>Failed to retrieve webhook users</div>;
-  } else if (webhookRighQuery.data) {
+  } else if (webhookRightQuery.data) {
     return (
       <>
         <h4>
@@ -369,10 +369,13 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
                 })
               ).then(() => setCreating(false));
             }}
+            invitedUsers={webhookRightQuery.data.map(
+              (webhookRight) => webhookRight.username
+            )}
           />
         )}
         <RightTable
-          data={webhookRighQuery.data}
+          data={webhookRightQuery.data}
           canEdit={true}
           onRightChange={(datum, level) =>
             webhookRightUpdateMutation.mutateAsync({
