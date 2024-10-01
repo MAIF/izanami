@@ -468,23 +468,6 @@ export function UserEdition(props: {
   }
   if (userQuery.data) {
     let { rights, admin } = userQuery.data;
-
-    if (
-      tenant &&
-      typeof user.right === "undefined" &&
-      rights.tenants &&
-      !(tenant in rights.tenants)
-    ) {
-      rights.tenants = {
-        [tenant]: {
-          level: "Read",
-          projects: {},
-          keys: {},
-          webhooks: {},
-        },
-      };
-    }
-
     return (
       <div className="sub_container">
         <h4>User rights</h4>
