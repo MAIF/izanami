@@ -36,6 +36,7 @@ export interface ProjectType extends TenantProjectType {
 }
 
 export interface UserType {
+  admin : boolean;
   username: string;
 }
 

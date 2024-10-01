@@ -793,7 +793,6 @@ class UsersAPISpec extends BaseAPISpec {
       (situation.fetchUser(user.username).json.get \ "admin").as[Boolean] mustBe true
       response.status mustBe NO_CONTENT
     }
-
     "Allow to add project right" in {
       val user      = TestUser(
         username = "foo",
