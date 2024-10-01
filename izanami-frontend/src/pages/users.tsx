@@ -39,8 +39,7 @@ export function Users() {
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
     undefined
   );
-
-  const BULK_OPERATIONS = ["Delete"] as const;
+  const BULK_OPERATIONS = ["Delete", "Toggle Admin Role"] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
   const isTenantAdmin = Boolean(
@@ -59,7 +58,6 @@ export function Users() {
       },
     }
   );
-
   const userUpdateMutation = useMutation(
     (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
@@ -89,6 +87,115 @@ export function Users() {
     (data: { email: string; admin: boolean; rights: TRights }) =>
       createInvitation(data.email, data.admin, data.rights)
   );
+
+  function OperationToggleForm(props: {
+    bulkOperation: string;
+    selectedRows: UserType[];
+    cancel: () => void;
+  }) {
+    const { bulkOperation, selectedRows, cancel } = props;
+    switch (bulkOperation) {
+      case "Toggle Admin Role": {
+        const adminOptions = [
+          {
+            label: "Add Admin right",
+            value: "true",
+          },
+          {
+            label: "Remove Admin right",
+            value: "false",
+          },
+        ];
+
+        return (
+          <>
+            <Form
+              className={"d-flex align-items-center"}
+              schema={{
+                admin: {
+                  className: "form-margin",
+                  label: () => "",
+                  type: "string",
+                  format: "select",
+                  props: { styles: customStyles },
+                  placeholder: "Select Admin Role...",
+                  options: adminOptions,
+                },
+              }}
+              onSubmit={(ctx) => {
+                return askConfirmation(
+                  `Are you sure you want to change admin role for ${
+                    selectedRows.length
+                  } user${selectedRows.length > 1 ? "s" : ""}?`,
+                  () => {
+                    return Promise.all(
+                      selectedRows.map((row) => {
+                        return fetch(`/api/admin/users/${row.username}`)
+                          .then((response) => {
+                            return response.json();
+                          })
+                          .then((data) => {
+                            return userUpdateMutation.mutateAsync({
+                              username: row.username,
+                              admin: ctx.admin === "true",
+                              rights: data.rights,
+                            });
+                          });
+                      })
+                    ).then(cancel);
+                  }
+                );
+              }}
+              footer={({ valid }: { valid: () => void }) => {
+                return (
+                  <div className="d-flex justify-content-end">
+                    <button
+                      type="button"
+                      className="btn btn-danger-light m-2"
+                      onClick={cancel}
+                    >
+                      Cancel
+                    </button>
+                    <button className="btn btn-primary m-2" onClick={valid}>
+                      Update {selectedRows.length} User
+                      {selectedRows.length > 1 ? "s" : ""}
+                    </button>
+                  </div>
+                );
+              }}
+            />
+          </>
+        );
+      }
+      default:
+        return (
+          <button
+            className="ms-2 btn btn-primary"
+            type="button"
+            disabled={!hasSelectedRows || !bulkOperation}
+            onClick={() =>
+              askConfirmation(
+                `Are you sure you want to delete ${selectedRows.length} user${
+                  selectedRows.length > 1 ? "s" : ""
+                } ?`,
+                () => {
+                  return Promise.all(
+                    selectedRows.map((row) =>
+                      userDeleteMutation
+                        .mutateAsync(row.username)
+                        .then(() => setBulkOperation(undefined))
+                    )
+                  );
+                }
+              )
+            }
+          >
+            {bulkOperation} {selectedRows.length} user
+            {selectedRows.length > 1 ? "s" : ""}
+          </button>
+        );
+    }
+  }
 
   if (userQuery.isLoading) {
     return <Loader message="Loading users..." />;
@@ -254,36 +361,11 @@ export function Users() {
           />
           &nbsp;
           {bulkOperation && (
-            <>
-              <button
-                className="ms-2 btn btn-primary"
-                type="button"
-                disabled={!hasSelectedRows || !bulkOperation}
-                onClick={() => {
-                  switch (bulkOperation) {
-                    case "Delete":
-                      askConfirmation(
-                        `Are you sure you want to delete ${
-                          selectedRows.length
-                        } user${selectedRows.length > 1 ? "s" : ""} ?`,
-                        () => {
-                          return Promise.all(
-                            selectedRows.map((row) =>
-                              userDeleteMutation
-                                .mutateAsync(row.username)
-                                .then(() => setBulkOperation(undefined))
-                            )
-                          );
-                        }
-                      );
-                      break;
-                  }
-                }}
-              >
-                {bulkOperation} {selectedRows.length} user
-                {selectedRows.length > 1 ? "s" : ""}
-              </button>
-            </>
+            <OperationToggleForm
+              bulkOperation={bulkOperation}
+              selectedRows={selectedRows}
+              cancel={() => setBulkOperation(undefined)}
+            />
           )}
         </div>
         <GenericTable
