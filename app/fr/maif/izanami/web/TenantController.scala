@@ -75,11 +75,20 @@ class TenantController(
     }
   }
 
-  def deleteTenant(name: String): Action[AnyContent] = tenantAuthAction(name, RightLevels.Admin).async {
+  def deleteTenant(name: String): Action[JsValue] = tenantAuthAction(name, RightLevels.Admin).async(parse.json) {
     implicit request =>
-      env.datastores.tenants.deleteTenant(name, request.user).map {
-        case Left(err)    => err.toHttpResponse
-        case Right(value) => NoContent
+      User.userPasswordReads.reads(request.body) match {
+        case JsSuccess(updateRequest, _) => {
+          env.datastores.users
+            .isUserValid(request.user, updateRequest.password)
+            .flatMap {
+              case Some(user) => env.datastores.tenants.deleteTenant(name, request.user).map {
+                case Left(err) => err.toHttpResponse
+                case Right(value) => NoContent
+              }
+              case None => Unauthorized(Json.obj("message" -> "Wrong password")).future
+            }
+        }
       }
   }
 

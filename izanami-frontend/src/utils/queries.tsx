@@ -593,10 +593,17 @@ export function deleteProject(
   );
 }
 
-export function deleteTenant(name: string): Promise<undefined> {
+export function deleteTenant(
+  user: { password: string },
+  name: string
+): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${name}`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(user),
     })
   );
 }

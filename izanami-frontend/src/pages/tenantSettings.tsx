@@ -1,5 +1,6 @@
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
+import { Modal } from "../components/Modal";
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -48,22 +49,41 @@ import { Loader } from "../components/Loader";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
+  const { askConfirmation } = React.useContext(IzanamiContext);
   const [inviting, setInviting] = React.useState(false);
   const [v1ImportDisplayed, setV1ImportDisplayed] = React.useState(false);
   const [exportDisplayed, setExportDisplayed] = React.useState(false);
   const [importDisplayed, setImportDisplayed] = React.useState(false);
-
   const tenantQuery = useQuery(tenantQueryKey(tenant), () =>
     queryTenant(tenant)
   );
   const usersQuery = useQuery(tenantUserQueryKey(tenant), () =>
     queryTenantUsers(tenant)
   );
-  const deleteMutation = useMutation(() => deleteTenant(tenant), {
-    onSuccess: () => {
-      queryClient.invalidateQueries(MutationNames.TENANTS);
-    },
-  });
+  const [password, setPassword] = React.useState("");
+  const deleteMutation = useMutation(
+    () => deleteTenant({ password }, props.tenant),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(MutationNames.TENANTS);
+        setError("");
+        setPassword("");
+        setModalVisible(false);
+        navigate("/home");
+      },
+      onError: (err: any) => {
+        setError(err.message);
+      },
+    }
+  );
+
+  const handleDelete = () => {
+    if (password.length === 0) {
+      setError("Password must be specified.");
+      return;
+    }
+    deleteMutation.mutate();
+  };
 
   const inviteUsers = useMutation(
     (data: { users: string[]; level: TLevel }) => {
@@ -77,10 +97,10 @@ export function TenantSettings(props: { tenant: string }) {
     }
   );
 
-  const { askConfirmation } = React.useContext(IzanamiContext);
-  const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
+  const [error, setError] = React.useState("");
+  const [isVisible, setModalVisible] = React.useState(false);
   const navigate = useNavigate();
-
+  const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
   const [modification, setModification] = React.useState(false);
 
   if (tenantQuery.isLoading || usersQuery.isLoading) {
@@ -138,21 +158,36 @@ export function TenantSettings(props: { tenant: string }) {
         <div className="d-flex align-items-center justify-content-between p-2">
           <span>Delete this tenant</span>
           <button
-            type="button"
             className="btn btn-danger m-2 btn-sm"
-            onClick={() =>
-              askConfirmation(
-                <>
-                  Are you sure you wan't to delete tenant {props.tenant} ?
-                  <br />
-                  All projects and keys will be deleted, this cannot be undone.
-                </>,
-                () => deleteMutation.mutateAsync().then(() => navigate("/home"))
-              )
-            }
+            onClick={() => {
+              setModalVisible(true);
+              setError("");
+              setPassword("");
+            }}
           >
-            Delete tenant
+            Delete Tenant
           </button>
+          <Modal
+            visible={isVisible}
+            onClose={() => setModalVisible(false)}
+            onConfirm={() => handleDelete()}
+            position="center"
+          >
+            <>
+              Delete Tenant {props.tenant}?
+              <br />
+              All projects and keys will be deleted. This cannot be undone.
+              <br />
+              Please enter your password to confirm deletion:
+              <input
+                type="password"
+                className="form-control"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              {error && <div className="text-danger">{error}</div>}{" "}
+            </>
+          </Modal>
         </div>
         <hr />
         <h2 ref={formTitleRef}>Export / import data</h2>
