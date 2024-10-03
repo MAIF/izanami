@@ -4,6 +4,7 @@ import akka.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
 import fr.maif.izanami.models.ExportedType.parseExportedType
+import fr.maif.izanami.models.features.BooleanResultDescriptor
 import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, Feature, RightLevels, UserWithRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
@@ -378,7 +379,8 @@ class ImportController(
                           WasmConfig(scriptName, _, _, _, _, _, _, _, _, _),
                           tags,
                           metadata,
-                          description
+                          description,
+                          resultType
                         ) if !compatibleScripts.exists(s => s.id == scriptName) =>
                       Feature(
                         id = id,
@@ -388,7 +390,9 @@ class ImportController(
                         tags = tags,
                         metadata = metadata,
                         description = description,
-                        conditions = Set()
+                        resultDescriptor = BooleanResultDescriptor(
+                          conditions = Seq()
+                        )
                       )
                     case f @ _ => f
                   },
@@ -442,7 +446,8 @@ class ImportController(
                           ),
                           tags,
                           metadata,
-                          description
+                          description,
+                          resultType
                         ) =>
                       f.copy(wasmConfig =
                         w.copy(source =

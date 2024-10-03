@@ -1,7 +1,7 @@
 package fr.maif.izanami.api
 
 import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, disabledFeatureBase64, enabledFeatureBase64}
-import play.api.libs.json.{JsArray, JsBoolean, JsObject, JsString, Json}
+import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, Json}
 import play.api.test.Helpers._
 
 import java.time.{LocalDateTime, OffsetDateTime}
@@ -111,9 +111,12 @@ class FeatureAPISpec extends BaseAPISpec {
 
     "allow to delete features" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"))
-        ).loggedInWithAdminRights().build()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"))
+        )
+        .loggedInWithAdminRights()
+        .build()
 
       val response = situation.patchFeatures(
         "tenant",
@@ -125,7 +128,8 @@ class FeatureAPISpec extends BaseAPISpec {
           TestFeaturePatch(
             op = "remove",
             path = s"/${situation.findFeatureId("tenant", "project", "F3").get}"
-          ))
+          )
+        )
       )
 
       response.status mustEqual NO_CONTENT
@@ -136,9 +140,12 @@ class FeatureAPISpec extends BaseAPISpec {
 
     "allow to transfer features to a chosen project" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"), TestProject("new-project"))
-        ).loggedInWithAdminRights().build()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"), TestProject("new-project"))
+        )
+        .loggedInWithAdminRights()
+        .build()
 
       val response = situation.patchFeatures(
         "tenant",
@@ -152,7 +159,8 @@ class FeatureAPISpec extends BaseAPISpec {
             op = "replace",
             path = s"/${situation.findFeatureId("tenant", "project", "F2").get}/project",
             value = JsString("new-project")
-          ))
+          )
+        )
       )
 
       response.status mustEqual 204
@@ -186,12 +194,13 @@ class FeatureAPISpec extends BaseAPISpec {
             op = "replace",
             path = s"/${situation.findFeatureId("tenant", "project", "F2").get}/project",
             value = JsString("new-project")
-          ))
+          )
+        )
       )
       response.status mustBe FORBIDDEN
     }
     "allow to applying multiple tags to features " in {
-      val situation = TestSituationBuilder()
+      val situation     = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant("tenant")
@@ -199,34 +208,101 @@ class FeatureAPISpec extends BaseAPISpec {
               TestProject("project").withFeatures(
                 TestFeature("F1", tags = Seq("t1")),
                 TestFeature("F2"),
-                TestFeature("F3", tags = Seq("t2"))            ),
+                TestFeature("F3", tags = Seq("t2"))
+              )
             )
         )
         .build()
-      val response = situation.patchFeatures(
+      val response      = situation.patchFeatures(
         "tenant",
-        Seq(TestFeaturePatch(
-          op = "replace",
-          path = s"/${situation.findFeatureId("tenant", "project", "F1").get}/tags",
-          value = JsArray(Seq(JsString("t1"), JsString("t3"), JsString("t4")))
-
-        ),
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F1").get}/tags",
+            value = JsArray(Seq(JsString("t1"), JsString("t3"), JsString("t4")))
+          ),
           TestFeaturePatch(
             op = "replace",
             path = s"/${situation.findFeatureId("tenant", "project", "F2").get}/tags",
             value = JsArray(Seq(JsString("t2")))
-
-          ))
+          )
+        )
       )
       response.status mustEqual 204
       val fetchResponse = situation.fetchProject("tenant", "project").json.get
       ((fetchResponse \ "features").as[Seq[JsObject]].find(obj => (obj \ "name").as[String] == "F1").get \ "tags")
-        .as[JsArray].value.length mustBe 3
+        .as[JsArray]
+        .value
+        .length mustBe 3
     }
 
   }
 
   "Feature POST endpoint" should {
+    "reject string or number features if conditions don't have values" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var result = testSituation.createFeature(
+        "my-feature",
+        project = "bar",
+        tenant = "foo",
+        resultType = "number",
+        value = "1",
+        conditions = Set(TestCondition(rule = TestUserListRule(users = Set("me"))))
+      )
+      result.status mustBe BAD_REQUEST
+
+      result = testSituation.createFeature(
+        "my-feature",
+        project = "bar",
+        tenant = "foo",
+        resultType = "string",
+        value = "bar",
+        conditions = Set(TestCondition(rule = TestUserListRule(users = Set("me"))))
+      )
+      result.status mustBe BAD_REQUEST
+    }
+
+    "allow to create feature with number result type" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val result      =
+        testSituation.createFeature("my-feature", project = "bar", tenant = "foo", resultType = "number", value = "1.5")
+      result.status mustBe CREATED
+      val featureJson = testSituation.fetchProject("foo", "bar").json.get \ "features" \ 0
+      (featureJson \ "resultType").as[String] mustEqual "number"
+      (featureJson \ "value").as[BigDecimal] mustEqual 1.5
+    }
+
+    "allow to create feature with string result type" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val result      =
+        testSituation.createFeature("my-feature", project = "bar", tenant = "foo", resultType = "string", value = "foo")
+      result.status mustBe CREATED
+      val featureJson = testSituation.fetchProject("foo", "bar").json.get \ "features" \ 0
+      (featureJson \ "resultType").as[String] mustEqual "string"
+      (featureJson \ "value").as[String] mustEqual "foo"
+    }
+
     "allow to create wasm features using wasm manager script" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("foo"))
@@ -532,17 +608,76 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
-    "allow to update feature project" in {
+    "allow to update feature result type" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjects(
-            TestProject("foo").withFeatures(TestFeature("F1")),
-            TestProject("bar"))
-        ).loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1")))
+        )
+        .loggedInWithAdminRights()
         .build();
 
       val projectResponse = situation.fetchProject("tenant", "foo")
-      val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val newFeature = jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
+
+      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+
+      updateResponse.status mustBe OK
+
+      val feature = situation.fetchProject("tenant", "foo").json.get \ "features" \ 0
+      (feature \ "resultType").as[String] mustEqual "string"
+      (feature \ "value").as[String] mustEqual "bar"
+    }
+
+    "delete overloads on resultType update" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true)))
+            .withGlobalContext(TestFeatureContext("prod", overloads = Seq(TestFeature("F1", enabled = false))))
+        )
+        .loggedInWithAdminRights()
+        .build();
+
+      situation.changeFeatureStrategyForContext(
+        tenant = "tenant",
+        project = "foo",
+        contextPath = "prod",
+        feature = "F1",
+        enabled = false
+      )
+
+      def overloadCount: Int = {
+        val ctxResponse = situation.fetchContexts("tenant", "foo").json.get
+        (ctxResponse \ 0 \ "overloads").as[JsArray].value.length
+      }
+
+      overloadCount mustEqual 1
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val newFeature = jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
+
+      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+
+      updateResponse.status mustBe OK
+      overloadCount mustEqual 0
+    }
+
+    "allow to update feature project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1")), TestProject("bar"))
+        )
+        .loggedInWithAdminRights()
+        .build();
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
 
       val newFeature = jsonFeature ++ Json.obj("project" -> "bar")
 
@@ -559,22 +694,25 @@ class FeatureAPISpec extends BaseAPISpec {
 
     "delete associated local overloads when modifying feature project" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjects(
-            TestProject("foo").withFeatures(TestFeature("F1", enabled=true)).withContexts(TestFeatureContext("ctx", overloads = Seq(TestFeature("F1", enabled=false)))),
-            TestProject("bar"))
-        ).loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(TestFeatureContext("ctx", overloads = Seq(TestFeature("F1", enabled = false)))),
+              TestProject("bar")
+            )
+        )
+        .loggedInWithAdminRights()
         .build()
 
-
       val projectResponse = situation.fetchProject("tenant", "foo")
-      val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
-      val newFeature = jsonFeature ++ Json.obj("project" -> "bar")
-      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+      val newFeature      = jsonFeature ++ Json.obj("project" -> "bar")
+      val updateResponse  = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
       updateResponse.status mustBe OK
 
-
-      val newOldFeature = jsonFeature ++ Json.obj("project" -> "foo")
+      val newOldFeature        = jsonFeature ++ Json.obj("project" -> "foo")
       val secondUpdateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newOldFeature)
       secondUpdateResponse.status mustBe OK
 
@@ -586,25 +724,29 @@ class FeatureAPISpec extends BaseAPISpec {
 
     "not delete associated global overloads when modifying feature project" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withGlobalContext(TestFeatureContext("ctx"))
-          .withProjects(
-            TestProject("foo").withFeatures(TestFeature("F1", enabled = true)),
-            TestProject("bar"))
-        ).loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("ctx"))
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true)), TestProject("bar"))
+        )
+        .loggedInWithAdminRights()
         .build()
 
-      situation.changeFeatureStrategyForContext(tenant="tenant", project="foo", contextPath="ctx", feature="F1", enabled=false)
-
+      situation.changeFeatureStrategyForContext(
+        tenant = "tenant",
+        project = "foo",
+        contextPath = "ctx",
+        feature = "F1",
+        enabled = false
+      )
 
       val projectResponse = situation.fetchProject("tenant", "foo")
-      val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
-      val newFeature = jsonFeature ++ Json.obj("project" -> "bar")
-      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+      val newFeature      = jsonFeature ++ Json.obj("project" -> "bar")
+      val updateResponse  = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
       updateResponse.status mustBe OK
 
-
-      val newOldFeature = jsonFeature ++ Json.obj("project" -> "foo")
+      val newOldFeature        = jsonFeature ++ Json.obj("project" -> "foo")
       val secondUpdateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newOldFeature)
       secondUpdateResponse.status mustBe OK
 
@@ -616,18 +758,21 @@ class FeatureAPISpec extends BaseAPISpec {
 
     "not delete associated overloads when updating feature without changing its project" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjects(
-            TestProject("foo").withFeatures(TestFeature("F1", enabled = true)).withContexts(TestFeatureContext("ctx", overloads = Seq(TestFeature("F1", enabled = false)))),
-          )
-        ).loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(TestFeatureContext("ctx", overloads = Seq(TestFeature("F1", enabled = false))))
+            )
+        )
+        .loggedInWithAdminRights()
         .build()
 
-
       val projectResponse = situation.fetchProject("tenant", "foo")
-      val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
-      val newFeature = jsonFeature ++ Json.obj("enabled" -> false)
-      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+      val newFeature      = jsonFeature ++ Json.obj("enabled" -> false)
+      val updateResponse  = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
       updateResponse.status mustBe OK
 
       val res = situation.fetchContexts("tenant", "foo").json.get
@@ -649,7 +794,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": true}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": true, "resultType": "boolean"}"""
         )
       )
 
@@ -670,7 +815,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "tags": ["tag"]}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "tags": ["tag"], "resultType": "boolean"}"""
         )
       )
 
@@ -699,7 +844,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "conditions": [{"period": {"type": "DATETIME", "begin": "1993-09-19T01:12:01Z"}}]}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "resultType": "boolean", "conditions": [{"period": {"type": "DATETIME", "begin": "1993-09-19T01:12:01Z"}}]}"""
         )
       )
 
@@ -732,7 +877,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "conditions": [{"period": {"type": "DATETIME", "begin": "1992-08-19T00:10:00Z", "end": "2100-08-19T00:10:00Z"}}]}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "resultType": "boolean", "conditions": [{"period": {"type": "DATETIME", "begin": "1992-08-19T00:10:00Z", "end": "2100-08-19T00:10:00Z"}}]}"""
         )
       )
 
@@ -755,7 +900,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": true, "tags": ["my-tag"]}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "resultType": "boolean", "name": "feature-name", "enabled": true, "tags": ["my-tag"]}"""
         )
       )
 
@@ -784,7 +929,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"name": "feature-name", "enabled": true, "tags": ["my-tag"], "project": "${projectName}"}"""
+          s"""{"name": "feature-name", "enabled": true, "resultType": "boolean", "tags": ["my-tag"], "project": "${projectName}"}"""
         )
       )
 
@@ -812,7 +957,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": true, "tags": []}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "resultType": "boolean", "enabled": true, "tags": []}"""
         )
       )
 
@@ -928,6 +1073,20 @@ class FeatureAPISpec extends BaseAPISpec {
       (res.json.get \ "active").as[Boolean] mustBe true
     }
 
+    "return correct value for number result type" in {
+      val situation = TestSituationBuilder().withTenantNames("tenant").loggedInWithAdminRights().build()
+      val res       = situation.testFeature("tenant", TestFeature(enabled = true, name = "foo", resultType = "number", value = "1.5"), OffsetDateTime.now())
+
+      (res.json.get \ "active").as[BigDecimal] mustEqual 1.5
+    }
+
+    "return correct value for string result type" in {
+      val situation = TestSituationBuilder().withTenantNames("tenant").loggedInWithAdminRights().build()
+      val res       = situation.testFeature("tenant", TestFeature(enabled = true, name = "foo", resultType = "string", value = "bar"), OffsetDateTime.now())
+
+      (res.json.get \ "active").as[String] mustEqual "bar"
+    }
+
     "return active if feature is active for given user" in {
       val situation = TestSituationBuilder().withTenantNames("tenant").loggedInWithAdminRights().build()
       val res       = situation.testFeature(
@@ -988,7 +1147,95 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Existing feature test endpoint" should {
-    "return feature state for givent context" in {
+    "return correct feature value for number value" in {
+      val situation      = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withContextNames("ctx"))
+            .withAllRightsKey("my-key")
+        )
+        .build()
+
+      val featureReponse = situation.createFeature(
+        name = "f1",
+        project = "project",
+        tenant = "tenant",
+        enabled = false,
+        resultType = "number",
+        value = "1.4"
+      )
+      val id = featureReponse.id.get
+      val json = featureReponse.json.get.as[JsObject]
+
+      val checkResponse  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponse.status mustBe OK
+      (checkResponse.json.get \ "active").get mustBe JsNull
+
+      val updateResponse = situation.updateFeature("tenant", id, json ++ Json.obj("enabled" -> true))
+      updateResponse.status mustBe OK
+      val checkResponseEnabled  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponseEnabled.status mustBe OK
+      (checkResponseEnabled.json.get \ "active").as[BigDecimal] mustEqual 1.4
+
+      val overloadResult = situation.changeFeatureStrategyForContext("tenant", "project", "ctx", "f1", enabled=false, resultType="number", value="1.5")
+      overloadResult.status mustBe NO_CONTENT
+      val checkResponseCtx  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponseCtx.status mustBe OK
+      (checkResponseCtx.json.get \ "active").get mustBe JsNull
+
+      val overloadResult2 = situation.changeFeatureStrategyForContext("tenant", "project", "ctx", "f1", enabled=true, resultType="number", value="1.5")
+      overloadResult2.status mustBe NO_CONTENT
+      val checkResponseCtx2  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponseCtx2.status mustBe OK
+      (checkResponseCtx2.json.get \ "active").as[BigDecimal] mustEqual 1.5
+    }
+
+    "return correct feature value for string value" in {
+      val situation      = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withContextNames("ctx"))
+            .withAllRightsKey("my-key")
+        )
+        .build()
+
+      val featureReponse = situation.createFeature(
+        name = "f1",
+        project = "project",
+        tenant = "tenant",
+        enabled = false,
+        resultType = "string",
+        value = "foo"
+      )
+      val id = featureReponse.id.get
+      val json = featureReponse.json.get.as[JsObject]
+
+      val checkResponse  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponse.status mustBe OK
+      (checkResponse.json.get \ "active").get mustBe JsNull
+
+      val updateResponse = situation.updateFeature("tenant", id, json ++ Json.obj("enabled" -> true))
+      updateResponse.status mustBe OK
+      val checkResponseEnabled  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponseEnabled.status mustBe OK
+      (checkResponseEnabled.json.get \ "active").as[String] mustEqual "foo"
+
+      val overloadResult = situation.changeFeatureStrategyForContext("tenant", "project", "ctx", "f1", enabled=false, resultType="string", value="bar")
+      overloadResult.status mustBe NO_CONTENT
+      val checkResponseCtx  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponseCtx.status mustBe OK
+      (checkResponseCtx.json.get \ "active").get mustBe JsNull
+
+      val overloadResult2 = situation.changeFeatureStrategyForContext("tenant", "project", "ctx", "f1", enabled=true, resultType="string", value="bar")
+      overloadResult2.status mustBe NO_CONTENT
+      val checkResponseCtx2  = situation.testExistingFeature("tenant", id, context = "ctx")
+      checkResponseCtx2.status mustBe OK
+      (checkResponseCtx2.json.get \ "active").as[String] mustEqual "bar"
+    }
+
+    "return feature state for given context" in {
 
       val tenantName     = "my-tenant"
       val projectName    = "my-project"
@@ -1311,6 +1558,7 @@ class FeatureAPISpec extends BaseAPISpec {
         .values
         .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F1", "F3", "F21")
     }
+
     "return correct activation for resulting feature" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -1352,6 +1600,25 @@ class FeatureAPISpec extends BaseAPISpec {
                         "opts" -> Json.obj()
                       )
                     )
+                  ),
+                  TestFeature(
+                    "F4",
+                    enabled = true,
+                    resultType = "string",
+                    value = "foo"
+                  ),
+                  TestFeature(
+                    "F5",
+                    enabled = true,
+                    resultType = "number",
+                    value = "7"
+                  )
+                  ,
+                  TestFeature(
+                    "F6",
+                    enabled = false,
+                    resultType = "number",
+                    value = "7"
                   )
                 )
             )
@@ -1363,12 +1630,16 @@ class FeatureAPISpec extends BaseAPISpec {
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
-        ("F1", true),
-        ("F2", false),
-        ("F3", true)
+        .map(obj => ((obj \ "name").as[String], (obj \ "active").get)) must contain theSameElementsAs Seq(
+        ("F1", JsTrue),
+        ("F2", JsFalse),
+        ("F3", JsTrue),
+        ("F4", JsString("foo")),
+        ("F5", JsNumber(7)),
+        ("F6", JsNull)
       )
     }
+
     "return correct activation for resulting feature with overload and context" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -1402,6 +1673,24 @@ class FeatureAPISpec extends BaseAPISpec {
                   ),
                   TestFeature(
                     "F3"
+                  ),
+                  TestFeature(
+                    "F4",
+                    enabled = true,
+                    resultType = "string",
+                    value = "foo"
+                  ),
+                  TestFeature(
+                    "F5",
+                    enabled = true,
+                    resultType = "number",
+                    value = "2"
+                  ),
+                  TestFeature(
+                    "F6",
+                    enabled = false,
+                    resultType = "number",
+                    value = "6"
                   )
                 )
                 .withContexts(TestFeatureContext("context"))
@@ -1449,17 +1738,51 @@ class FeatureAPISpec extends BaseAPISpec {
         enabled = false
       )
 
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F4",
+        enabled = true,
+        resultType = "string",
+        value = "overload"
+      )
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F5",
+        enabled = false,
+        resultType = "number",
+        value = "2.5"
+      )
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F6",
+        enabled = true,
+        resultType = "number",
+        value = "7"
+      )
+
       val result = situation.evaluateFeaturesAsLoggedInUser("tenant", projects = Seq("project"), context = "context")
 
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
-        ("F1", false),
-        ("F2", true),
-        ("F3", false)
+        .map(obj => ((obj \ "name").as[String], (obj \ "active").get)) must contain theSameElementsAs Seq(
+        ("F1", JsFalse),
+        ("F2", JsTrue),
+        ("F3", JsFalse),
+        ("F4", JsString("overload")),
+        ("F5", JsNull),
+        ("F6", JsNumber(7))
       )
     }
+
     "return correct activation for resulting feature with multiple subcontexts" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -1472,6 +1795,12 @@ class FeatureAPISpec extends BaseAPISpec {
                   TestFeature(
                     "F1",
                     enabled = false
+                  ),
+                  TestFeature(
+                    "F2",
+                    enabled = false,
+                    resultType = "string",
+                    value = "foo"
                   )
                 )
             )
@@ -1505,18 +1834,29 @@ class FeatureAPISpec extends BaseAPISpec {
         enabled = true
       )
 
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "global",
+        "F2",
+        enabled = true,
+        resultType = "string",
+        value = "overload"
+      )
+
       val result =
         situation.evaluateFeaturesAsLoggedInUser("tenant", projects = Seq("project"), context = "global/local")
 
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
-        ("F1", true)
+        .map(obj => ((obj \ "name").as[String], (obj \ "active").get)) must contain theSameElementsAs Seq(
+        ("F1", JsTrue),
+        ("F2", JsString("overload"))
       )
     }
 
-    "return correct activation for resulting feature width provided user" in {
+    "return correct activation for resulting feature with provided user" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -1542,6 +1882,18 @@ class FeatureAPISpec extends BaseAPISpec {
                         rule = TestUserListRule(users = Set("bar"))
                       )
                     )
+                  ),
+                  TestFeature(
+                    "F3",
+                    enabled = true,
+                    resultType="string",
+                    value="base",
+                    conditions = Set(
+                      TestCondition(
+                        rule = TestUserListRule(users = Set("foo")),
+                        value = "forfoo"
+                      )
+                    )
                   )
                 )
             )
@@ -1553,9 +1905,10 @@ class FeatureAPISpec extends BaseAPISpec {
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
-        ("F1", true),
-        ("F2", false)
+        .map(obj => ((obj \ "name").as[String], (obj \ "active").get)) must contain theSameElementsAs Seq(
+        ("F1", JsTrue),
+        ("F2", JsFalse),
+        ("F3", JsString("forfoo"))
       )
     }
 

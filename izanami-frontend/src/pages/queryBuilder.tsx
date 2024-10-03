@@ -477,15 +477,18 @@ export function QueryBuilder() {
                       },
                       {
                         accessorKey: "active",
-                        header: () => "Status",
-                        cell: (info: any) =>
-                          info.getValue() ? (
-                            <span className="activation-status">Active</span>
+                        header: () => "Value",
+                        cell: (info: any) => {
+                          return info.getValue() ? (
+                            <span className="activation-status">
+                              {info.getValue()}
+                            </span>
                           ) : (
                             <span className="activation-status disabled-status">
-                              Inactive
+                              {"" + info.getValue()}
                             </span>
-                          ),
+                          );
+                        },
                         size: 20,
                         meta: {
                           valueType: "activation",

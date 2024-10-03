@@ -2,6 +2,8 @@ import * as React from "react";
 import {
   ClassicalFeature,
   DAYS,
+  FeatureType,
+  FeatureTypeName,
   SingleConditionFeature,
   TCompleteFeature,
   TCondition,
@@ -39,7 +41,7 @@ import { format, isBefore, parse } from "date-fns";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
 import { Tooltip } from "./Tooltip";
 import { Loader } from "./Loader";
-import { execFile } from "child_process";
+import { ResultTypeIcon } from "./ResultTypeIcon";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -882,6 +884,45 @@ export function FeatureForm(props: {
   }
 }
 
+function isValueValid(valueType: FeatureTypeName, value?: string): boolean {
+  if (valueType !== "boolean" && (value === undefined || value === null)) {
+    return false;
+  } else if (valueType === "number" && (value === "" || isNaN(Number(value)))) {
+    return false;
+  }
+  return true;
+}
+
+const resultTypeOptions = [
+  {
+    label: (
+      <div className="d-flex">
+        <ResultTypeIcon resultType="boolean" />
+        <span className="ps-1">boolean</span>
+      </div>
+    ),
+    value: "boolean",
+  },
+  {
+    label: (
+      <div className="d-flex">
+        <ResultTypeIcon resultType="string" />
+        <span className="ps-1">string</span>
+      </div>
+    ),
+    value: "string",
+  },
+  {
+    label: (
+      <div className="d-flex">
+        <ResultTypeIcon resultType="number" />
+        <span className="ps-1">number</span>
+      </div>
+    ),
+    value: "number",
+  },
+];
+
 export function V2FeatureForm(props: {
   cancel: () => void;
   submit: (overload: TCompleteFeature) => void;
@@ -889,7 +930,9 @@ export function V2FeatureForm(props: {
   additionalFields?: () => JSX.Element;
 }) {
   const { cancel, submit, defaultValue, additionalFields } = props;
-  const methods = useForm<TCompleteFeature>({ defaultValues: defaultValue });
+  const methods = useForm<TCompleteFeature>({
+    defaultValues: { resultType: "boolean", ...defaultValue },
+  });
   const { tenant } = useParams();
   const isWasm = defaultValue && isWasmFeature(defaultValue);
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
@@ -902,6 +945,7 @@ export function V2FeatureForm(props: {
     formState: { errors },
     setValue,
     setError,
+    watch,
   } = methods;
 
   React.useEffect(() => {
@@ -909,6 +953,8 @@ export function V2FeatureForm(props: {
       setValue("wasmConfig.source.kind", "Local");
     }
   }, [type]);
+
+  const resultType = watch("resultType");
 
   if (tagQuery.isError) {
     return <div>Error while fetching tags</div>;
@@ -921,7 +967,26 @@ export function V2FeatureForm(props: {
               let error = false;
 
               if (!isWasmFeature(data) && !isSingleConditionFeature(data)) {
+                const { resultType, value } = data;
+
+                // TODO improve typing
+                if (!isValueValid(resultType, value as string)) {
+                  setError("value", {
+                    type: "custom",
+                    message: "Base value is mandatory for non boolean type",
+                  });
+                  error = error || true;
+                }
                 data.conditions.forEach((cond, index) => {
+                  const value = cond.value;
+
+                  if (!isValueValid(resultType, value as string)) {
+                    setError(`conditions.${index}.value`, {
+                      type: "custom",
+                      message: "Base value is mandatory for non boolean type",
+                    });
+                    error = error || true;
+                  }
                   if (isPercentageRule(cond?.rule)) {
                     if (cond?.rule.percentage < 0) {
                       setError(`conditions.${index}.rule.percentage`, {
@@ -939,43 +1004,45 @@ export function V2FeatureForm(props: {
                     }
                   }
                 });
-                data.conditions.forEach((cond: TCondition, index: number) => {
-                  if (
-                    cond?.period?.begin &&
-                    cond?.period?.end &&
-                    isBefore(cond?.period.end, cond?.period.begin)
-                  ) {
-                    setError(`conditions.${index}.period.end`, {
-                      type: "custom",
-                      message: "End date can't be before begin date",
-                    });
-                    error = error || true;
-                  }
+                data.conditions.forEach(
+                  (cond: TCondition<any>, index: number) => {
+                    if (
+                      cond?.period?.begin &&
+                      cond?.period?.end &&
+                      isBefore(cond?.period.end, cond?.period.begin)
+                    ) {
+                      setError(`conditions.${index}.period.end`, {
+                        type: "custom",
+                        message: "End date can't be before begin date",
+                      });
+                      error = error || true;
+                    }
 
-                  cond?.period?.hourPeriods?.forEach(
-                    (hourPeriod, hourPeriodIndex) => {
-                      if (hourPeriod?.endTime && hourPeriod?.startTime) {
-                        const startNumber = Number(
-                          hourPeriod.startTime.replaceAll(":", "")
-                        );
-                        const endNumber = Number(
-                          hourPeriod.endTime.replaceAll(":", "")
-                        );
-
-                        if (endNumber < startNumber) {
-                          setError(
-                            `conditions.${index}.period.hourPeriods.${hourPeriodIndex}.endTime`,
-                            {
-                              type: "custom",
-                              message: "End hour can't be before start hour",
-                            }
+                    cond?.period?.hourPeriods?.forEach(
+                      (hourPeriod, hourPeriodIndex) => {
+                        if (hourPeriod?.endTime && hourPeriod?.startTime) {
+                          const startNumber = Number(
+                            hourPeriod.startTime.replaceAll(":", "")
                           );
-                          error = error || true;
+                          const endNumber = Number(
+                            hourPeriod.endTime.replaceAll(":", "")
+                          );
+
+                          if (endNumber < startNumber) {
+                            setError(
+                              `conditions.${index}.period.hourPeriods.${hourPeriodIndex}.endTime`,
+                              {
+                                type: "custom",
+                                message: "End hour can't be before start hour",
+                              }
+                            );
+                            error = error || true;
+                          }
                         }
                       }
-                    }
-                  );
-                });
+                    );
+                  }
+                );
               }
 
               if (
@@ -1002,79 +1069,129 @@ export function V2FeatureForm(props: {
               if (error) {
                 return;
               }
+
               submit(data);
             })}
             className="d-flex flex-column col-8 flex-shrink-1"
             style={{ marginRight: "32px" }}
           >
-            <label>
-              Name*
-              <Tooltip id="modern-name">
-                Feature name, use something meaningfull, it can be modified
-                later without impacts.
-              </Tooltip>
-              <input
-                autoFocus={true}
-                className="form-control"
-                type="text"
-                {...register("name", {
-                  required: "Feature name can't be empty",
-                  pattern: {
-                    value: FEATURE_NAME_REGEXP,
-                    message: `Feature name must match ${FEATURE_NAME_REGEXP}`,
-                  },
-                })}
-              />
-              <ErrorDisplay error={errors.name} />
-            </label>
+            <div className="row">
+              <label className="col-9">
+                Name*
+                <Tooltip id="modern-name">
+                  Feature name, use something meaningfull, it can be modified
+                  later without impacts.
+                </Tooltip>
+                <input
+                  autoFocus={true}
+                  className="form-control"
+                  type="text"
+                  {...register("name", {
+                    required: "Feature name can't be empty",
+                    pattern: {
+                      value: FEATURE_NAME_REGEXP,
+                      message: `Feature name must match ${FEATURE_NAME_REGEXP}`,
+                    },
+                  })}
+                />
+                <ErrorDisplay error={errors.name} />
+              </label>
+              <label className="col-3">
+                Enabled
+                <Tooltip id="modern-enabled">
+                  Whether feature is enabled or disabled. The disabled feature
+                  is an inactive event if its conditions match.
+                </Tooltip>
+                <input
+                  type="checkbox"
+                  className="izanami-checkbox"
+                  {...register("enabled")}
+                />
+              </label>
+            </div>
             {additionalFields && additionalFields()}
-            <label className="mt-3">
-              Tags
-              <Tooltip id="modern-tags">
-                Tags are a way to regroup related features even if they are in
-                different projects.
-              </Tooltip>
-              <Controller
-                name="tags"
-                control={control}
-                render={({ field: { onChange, value } }) => (
-                  <CreatableSelect
-                    value={value?.map((t) => ({ label: t, value: t }))}
-                    onChange={(values) => {
-                      onChange(values.map((v) => v.value));
-                    }}
-                    options={tagQuery.data.map((t) => ({
-                      label: t.name,
-                      value: t.name,
-                    }))}
-                    styles={customStyles}
-                    isMulti
-                    isClearable
+            <div className="row">
+              <label className="mt-3 col-6">
+                Feature result type
+                <Tooltip id="modern-result-type">
+                  Result type is result that will be returned by feature
+                  evaluation.
+                  <br /> It's usually boolean, but for some cases it can be
+                  string or number.
+                </Tooltip>
+                <Controller
+                  name="resultType"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <Select
+                      value={resultTypeOptions.find((o) => value === o.value)}
+                      onChange={(selected) => {
+                        onChange(selected?.value);
+                      }}
+                      options={resultTypeOptions}
+                      styles={customStyles}
+                    />
+                  )}
+                />
+              </label>
+              {resultType !== "boolean" && type === "Classic" && (
+                <label className="mt-3  col-6">
+                  Base value*
+                  {resultType === "string" ? (
+                    <input
+                      type="text"
+                      className="form-control"
+                      {...register("value")}
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      className="form-control"
+                      step="any"
+                      {...register("value")}
+                    />
+                  )}
+                  <ErrorDisplay
+                    error={(errors as FieldErrors<ClassicalFeature>).value}
                   />
-                )}
-              />
-            </label>
-
-            <label className="mt-3">
-              Enabled
-              <Tooltip id="modern-enabled">
-                Whether feature is enabled or disabled. The disabled feature is
-                an inactive event if its conditions match.
-              </Tooltip>
-              <input
-                type="checkbox"
-                className="izanami-checkbox"
-                {...register("enabled")}
-              />
-            </label>
-            <label className="mt-3">
-              Description
-              <input
-                className="form-control"
-                type="text"
-                {...register("description")}
-              />
-            </label>
+                </label>
+              )}
+            </div>
+            <div className="row">
+              <label className="mt-3 col-6">
+                Description
+                <textarea
+                  className="form-control"
+                  {...register("description")}
+                />
+              </label>
+              <label className="mt-3 col-6">
+                Tags
+                <Tooltip id="modern-tags">
+                  Tags are a way to regroup related features even if they are in
+                  different projects.
+                </Tooltip>
+                <Controller
+                  name="tags"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <CreatableSelect
+                      value={value?.map((t) => ({ label: t, value: t }))}
+                      onChange={(values) => {
+                        onChange(values.map((v) => v.value));
+                      }}
+                      options={tagQuery.data.map((t) => ({
+                        label: t.name,
+                        value: t.name,
+                      }))}
+                      styles={customStyles}
+                      isMulti
+                      isClearable
+                    />
+                  )}
+                />
+              </label>
+            </div>
             <label className="mt-3">
               Feature type
               <Tooltip id="feature-type">
@@ -1103,6 +1220,7 @@ export function V2FeatureForm(props: {
                   setValue("wasmConfig", undefined as any);
                   setType(e?.value || "");
                   if (e?.value === "Existing WASM script") {
+                    setValue("value", undefined);
                     setValue("wasmConfig.source.kind", "Local");
                   }
                 }}

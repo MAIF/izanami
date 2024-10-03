@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DAYS, TContextOverload, THourPeriod } from "../utils/types";
+import { DAYS, TClassicalContextOverload, THourPeriod } from "../utils/types";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 import { customStyles } from "../styles/reactSelect";
@@ -12,12 +12,14 @@ import { ErrorDisplay } from "./FeatureForm";
 import { Tooltip } from "./Tooltip";
 
 export function ConditionsInput() {
-  const { control } = useFormContext();
+  const { control, watch } = useFormContext();
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "conditions",
   });
+
+  const resultType = watch("resultType");
 
   return (
     <>
@@ -27,7 +29,10 @@ export function ConditionsInput() {
           key={`condition-${index}`}
         >
           <h5>
-            Activation condition #{index}{" "}
+            {resultType === "boolean"
+              ? "Activation condition"
+              : "Alternative value"}{" "}
+            #{index}{" "}
             <button
               className="btn btn-danger btn-sm m-2"
               type="button"
@@ -41,9 +46,7 @@ export function ConditionsInput() {
           <ConditionInput index={index} />
         </fieldset>
       ))}
-      <div
-        className="d-flex align-items-center justify-content-end mb-2 ms-3 mt-3"
-      >
+      <div className="d-flex align-items-center justify-content-end mb-2 ms-3 mt-3">
         <button
           className="btn btn-secondary btn-sm"
           type="button"
@@ -73,7 +76,7 @@ function ConditionInput(props: { index: number }) {
     setValue,
     watch,
     formState: { errors },
-  } = useFormContext<TContextOverload>();
+  } = useFormContext<TClassicalContextOverload>();
   useEffect(() => {
     const defaultPeriod = getValues(`conditions.${index}.period`);
     const hasSpecificPeriod =
@@ -87,6 +90,8 @@ function ConditionInput(props: { index: number }) {
 
   const users = watch(`conditions.${index}.rule.users`);
   const percentage = watch(`conditions.${index}.rule.percentage`);
+  const resultType = watch("resultType");
+
   const strategy =
     percentage !== undefined
       ? Strategy.percentage.id
@@ -97,6 +102,31 @@ function ConditionInput(props: { index: number }) {
   return (
     <>
       <fieldset style={{ border: "none" }}>
+        {resultType !== "boolean" && (
+          <>
+            <legend>
+              <h6>Result value</h6>
+            </legend>
+            <label>Value for this strategy</label>
+            <div className="mb-4">
+              {resultType === "string" ? (
+                <input
+                  type="text"
+                  className="form-control"
+                  {...register(`conditions.${index}.value`)}
+                />
+              ) : (
+                <input
+                  type="number"
+                  step="any"
+                  className="form-control"
+                  {...register(`conditions.${index}.value`)}
+                />
+              )}
+              <ErrorDisplay error={errors?.conditions?.[index]?.value as any} />
+            </div>
+          </>
+        )}
         <legend>
           <h6>Time rule</h6>
         </legend>
@@ -239,7 +269,7 @@ function Period(props: { index: number }) {
   const {
     control,
     formState: { errors },
-  } = useFormContext<TContextOverload>();
+  } = useFormContext<TClassicalContextOverload>();
 
   return (
     <>
@@ -342,7 +372,7 @@ function HourRanges(props: { index: number }) {
   const {
     control,
     formState: { errors },
-  } = useFormContext<TContextOverload>();
+  } = useFormContext<TClassicalContextOverload>();
   const { index: parentIndex } = props;
   const { fields, append, remove } = useFieldArray({
     control,

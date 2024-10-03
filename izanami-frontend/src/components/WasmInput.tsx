@@ -18,7 +18,7 @@ export function WasmInput() {
   } = useFormContext();
   return (
     <>
-      <label className="mt-3">
+      <label className="mt-3 col-6">
         Script name*
         <Tooltip id="script-name">
           Script name, use something meaningfull
@@ -38,33 +38,35 @@ export function WasmInput() {
       <KindOptions />
       <fieldset className="sub_container mt-2">
         <legend>WASM script parameters</legend>
-        <label className="mt-3">
-          Wasm function name
-          <Tooltip id="function-name">
-            Function to call inside your script.
-          </Tooltip>
-          <input
-            className="form-control"
-            defaultValue="execute"
-            {...register("wasmConfig.functionName")}
-          />
-        </label>
-        <ErrorDisplay error={(errors?.wasmConfig as any)?.functionName} />
-        <div className="d-flex">
-          <label className=" mt-3 d-flex  flex-column">
-            <span>
-              Open Policy Agent
-              <Tooltip id="opa">
-                Whether your script is an Open Policy Agent script.
-              </Tooltip>
-            </span>
+        <div className="row">
+          <label className="col-9">
+            Wasm function name
+            <Tooltip id="function-name">
+              Function to call inside your script.
+            </Tooltip>
             <input
-              type="checkbox"
-              className="izanami-checkbox ms-2"
-              defaultChecked={false}
-              {...register("wasmConfig.opa")}
+              className="form-control"
+              defaultValue="execute"
+              {...register("wasmConfig.functionName")}
             />
           </label>
+          <ErrorDisplay error={(errors?.wasmConfig as any)?.functionName} />
+          <div className="d-flex col-3">
+            <label className="d-flex  flex-column">
+              <span>
+                Open Policy Agent
+                <Tooltip id="opa">
+                  Whether your script is an Open Policy Agent script.
+                </Tooltip>
+              </span>
+              <input
+                type="checkbox"
+                className="izanami-checkbox ms-2"
+                defaultChecked={false}
+                {...register("wasmConfig.opa")}
+              />
+            </label>
+          </div>
         </div>
       </fieldset>
     </>
@@ -92,7 +94,7 @@ function KindOptions() {
       } else if (query.data) {
         opts = (
           <>
-            <label className="mt-3">
+            <label className="w-100">
               Script path on wasm manager*
               <Controller
                 name="wasmConfig.source.path"
@@ -206,7 +208,7 @@ function KindOptions() {
     case "Base64":
       opts = (
         <>
-          <label className="mt-3">
+          <label className="w-100">
             Base64 encoded plugin*
             <input
               type="text"
@@ -221,47 +223,49 @@ function KindOptions() {
 
   return (
     <>
-      <label className="mt-3">
-        Kind*
-        <Tooltip id="wasm-kind">
-          WASMO will reference a script from a running WASMO instance.
-          <br />
-          Base64 will embed a Base64 WASM script directly in this Izanami
-          instance.
-        </Tooltip>
-        <Controller
-          name="wasmConfig.source.kind"
-          control={control}
-          rules={{ required: "Wasm script kind must be specified" }}
-          render={({ field: { onChange, value } }) => (
-            <Select
-              value={{ value, label: value }}
-              onChange={(e) => {
-                setValue("wasmConfig.source.opts", {});
-                setValue("wasmConfig.source.path", "");
-                onChange(e?.value);
-              }}
-              styles={customStyles}
-              isOptionDisabled={(option: any) =>
-                option.value === "Wasmo" && !integrations?.wasmo
-              }
-              options={[
-                { label: "Base64", value: "Base64" },
-                {
-                  label: `Wasmo ${
-                    integrations?.wasmo
-                      ? ""
-                      : "(unavailable due to an incomplete or missing WASMO configuration)"
-                  }`,
-                  value: "Wasmo",
-                },
-              ]}
-            />
-          )}
-        />
-      </label>
-      <ErrorDisplay error={errors?.wasmConfig?.source?.kind} />
-      {opts}
+      <div className="row mt-3">
+        <label className="col-6">
+          Kind*
+          <Tooltip id="wasm-kind">
+            WASMO will reference a script from a running WASMO instance.
+            <br />
+            Base64 will embed a Base64 WASM script directly in this Izanami
+            instance.
+          </Tooltip>
+          <Controller
+            name="wasmConfig.source.kind"
+            control={control}
+            rules={{ required: "Wasm script kind must be specified" }}
+            render={({ field: { onChange, value } }) => (
+              <Select
+                value={{ value, label: value }}
+                onChange={(e) => {
+                  setValue("wasmConfig.source.opts", {});
+                  setValue("wasmConfig.source.path", "");
+                  onChange(e?.value);
+                }}
+                styles={customStyles}
+                isOptionDisabled={(option: any) =>
+                  option.value === "Wasmo" && !integrations?.wasmo
+                }
+                options={[
+                  { label: "Base64", value: "Base64" },
+                  {
+                    label: `Wasmo ${
+                      integrations?.wasmo
+                        ? ""
+                        : "(unavailable due to an incomplete or missing WASMO configuration)"
+                    }`,
+                    value: "Wasmo",
+                  },
+                ]}
+              />
+            )}
+          />
+        </label>
+        <ErrorDisplay error={errors?.wasmConfig?.source?.kind} />
+        <div className="col-6">{opts}</div>
+      </div>
     </>
   );
 }

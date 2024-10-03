@@ -17,8 +17,8 @@ import {
   TLevel,
   TLightFeature,
   TUser,
-  TWasmConfig,
   TCompleteFeature,
+  FeatureTypeName,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "react-query";
@@ -60,7 +60,8 @@ import { Tooltip } from "react-tooltip";
 import { Form } from "./Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
-import { constraints } from "@maif/react-forms";
+import { constraints, type } from "@maif/react-forms";
+import { ResultTypeIcon } from "./ResultTypeIcon";
 
 type FeatureFields =
   | "id"
@@ -227,7 +228,75 @@ function SingleConditionFeatureDetail({ feature }: { feature: LegacyFeature }) {
   }
 }
 
-function ConditionDetails({ conditions }: { conditions: TCondition[] }) {
+function NonBooleanConditionsDetails({
+  conditions,
+  resultDetail,
+}: {
+  conditions: TCondition<number | string>[];
+  resultDetail: {
+    resultType: "number" | "string";
+    value: number | string;
+  };
+}) {
+  const { value, resultType } = resultDetail;
+  return (
+    <>
+      <span className="fw-semibold">Base value is</span>&nbsp;
+      <span className="fst-italic">{value}</span>
+      {conditions.map((cond, idx) => {
+        return <NonBooleanConditionDetails key={idx} condition={cond} />;
+      })}
+    </>
+  );
+}
+
+function NonBooleanConditionDetails({
+  condition,
+}: {
+  condition: TCondition<number | string>;
+}) {
+  return (
+    <div>
+      <span className="fw-semibold mt-2">Value is</span>&nbsp;
+      <span className="fst-italic">{condition.value}</span>
+      <br />
+      {condition.rule && <Rule rule={condition.rule} />}{" "}
+      {condition.period && <Period period={condition.period} />}
+    </div>
+  );
+}
+
+function ConditionDetails({
+  conditions,
+  resultDetail,
+}: {
+  conditions: TCondition<number | string | boolean>[];
+  resultDetail:
+    | {
+        resultType: "boolean";
+      }
+    | {
+        resultType: "number" | "string";
+        value: number | string;
+      };
+}) {
+  if (resultDetail.resultType === "boolean") {
+    return <BooleanConditionsDetails conditions={conditions} />;
+  } else {
+    return (
+      <NonBooleanConditionsDetails
+        conditions={conditions}
+        resultDetail={resultDetail}
+      />
+    );
+  }
+}
+
+function BooleanConditionsDetails({
+  conditions,
+}: {
+  conditions: TCondition<number | string | boolean>[];
+}) {
   if (conditions.length === 0) {
     return (
       <>
@@ -822,22 +891,22 @@ function OverloadDetails(props: {
     () => queryContextsForProject(tenant!, feature.project!)
   );
   const updateStrategyMutation = useMutation(
-    (data: {
-      enabled: boolean;
-      conditions?: TCondition[];
-      feature: string;
-      path: string;
-      wasm?: TWasmConfig;
-      project: string;
-    }) => {
+    (
+      data: TContextOverload & {
+        feature: string;
+        project: string;
+      }
+    ) => {
       return updateFeatureActivationForContext(
         tenant!,
         data.project,
         data.path,
         data.feature,
         data.enabled,
-        data.conditions,
-        data.wasm
+        data.resultType,
+        "conditions" in data ? data.conditions : undefined,
+        "wasmConfig" in data ? data.wasmConfig : undefined,
+        "conditions" in data ? data.value : undefined
       );
     },
     {
@@ -879,21 +948,20 @@ function OverloadDetails(props: {
         </h4>
         {creating && (
           <OverloadCreationForm
+            resultType={feature.resultType}
             submit={(overload) =>
               updateStrategyMutation
                 .mutateAsync({
-                  enabled: overload.enabled,
-                  conditions: overload.conditions,
-                  feature: feature.name,
+                  ...overload,
                   path: selectedContext as string,
-                  wasm: overload.wasmConfig,
+                  feature: feature.name,
                   project: feature.project!,
                 })
                 .then(() => setCreating(false))
             }
             project={feature.project!}
             cancel={() => setCreating(false)}
-            defaultValue={feature as TContextOverload}
+            defaultValue={feature as unknown as TContextOverload}
             noName
             additionalFields={() => (
               <label className="mt-3">
@@ -963,13 +1031,22 @@ function ExistingFeatureTestForm(props: {
               date,
             })
             .then(({ active }) => {
-              setMessage(
-                `${feature.name} would be ${
+              let message = "";
+              if (feature.resultType === "boolean") {
+                message = `${feature.name} would be ${
                   active ? "active" : "inactive"
                 } on ${format(date, "yyyy-MM-dd")}${
                   user ? ` for user ${user}` : ""
-                }${context ? ` for context ${context}` : ""}`
-              );
+                }${context ? ` for context ${context}` : ""}`;
+              } else {
+                message = `${feature.name} value would be ${active} on ${format(
+                  date,
+                  "yyyy-MM-dd"
+                )}${user ? ` for user ${user}` : ""}${
+                  context ? ` for context ${context}` : ""
+                }`;
+              }
+              setMessage(message);
             });
         })}
         className="d-flex flex-column"
@@ -1064,22 +1141,22 @@ export function OverloadTable(props: {
   const { fields, overloads, actions, refresh, project } = props;
   const columns: ColumnDef<TContextOverload>[] = [];
   const updateStrategyMutation = useMutation(
-    (data: {
-      enabled: boolean;
-      conditions?: TCondition[];
-      feature: string;
-      path: string;
-      wasm?: TWasmConfig;
-      project: string;
-    }) => {
+    (
+      data: TContextOverload & {
+        feature: string;
+        project: string;
+      }
+    ) => {
       return updateFeatureActivationForContext(
         tenant!,
         data.project,
         data.path,
         data.feature,
         data.enabled,
-        data.conditions,
-        data.wasm
+        data.resultType,
+        "conditions" in data ? data.conditions : undefined,
+        "wasmConfig" in data ? data.wasmConfig : undefined,
+        "conditions" in data ? data.value : undefined
       );
     },
     {
@@ -1130,6 +1207,15 @@ export function OverloadTable(props: {
     columns.push({
       accessorKey: "name",
       header: () => "Feature name",
+      cell: (props: { row: Row<any> }) => {
+        const feature = props.row.original;
+        return (
+          <div className="d-flex justify-start align-items-center">
+            <ResultTypeIcon resultType={feature.resultType} />
+            <span className="px-1">{feature.name}</span>
+          </div>
+        );
+      },
       minSize: 150,
       size: 15,
     });
@@ -1175,13 +1261,13 @@ export function OverloadTable(props: {
           <>
             <h4>Edit overload</h4>
             <OverloadCreationForm
+              resultType={datum.resultType}
               project={datum.project!}
               defaultValue={datum}
               submit={(overload) =>
                 updateStrategyMutation.mutateAsync(
                   {
                     feature: overload.name,
-                    wasm: overload.wasmConfig,
                     ...overload,
                   } as any,
                   {
@@ -1286,13 +1372,22 @@ export function FeatureTestForm(props: {
             date,
           })
           .then(({ active }) => {
-            setMessage(
-              `feature ${props.feature.name} would be ${
-                active ? "active" : "inactive"
-              } on ${format(date, "yyyy-MM-dd")}${
-                user ? ` for user ${user}` : ""
-              }${context ? ` for context ${context}` : ""}`
-            );
+            if (props.feature.resultType === "boolean") {
+              setMessage(
+                `feature ${props.feature.name} would be ${
+                  active ? "active" : "inactive"
+                } on ${format(date, "yyyy-MM-dd")}${
+                  user ? ` for user ${user}` : ""
+                }${context ? ` for context ${context}` : ""}`
+              );
+            } else {
+              setMessage(
+                `feature ${props.feature.name} value would be ${active}
+                 on ${format(date, "yyyy-MM-dd")}${
+                  user ? ` for user ${user}` : ""
+                }${context ? ` for context ${context}` : ""}`
+              );
+            }
           });
       })}
       className="d-flex flex-column"
@@ -1382,11 +1477,16 @@ export function FeatureDetails({ feature }: { feature: TLightFeature }) {
         {feature.description && <div>{feature.description}</div>}
         <ConditionDetails
           conditions={(feature as ClassicalFeature).conditions}
+          resultDetail={{
+            resultType: (feature as ClassicalFeature).resultType,
+            value: feature.value,
+          }}
         />
       </>
     );
   }
 }
+
 export function FeatureTable(props: {
   features: TLightFeature[];
   fields: FeatureFields[];
@@ -1449,7 +1549,7 @@ export function FeatureTable(props: {
         const feature = props.row.original;
 
         if (contextQueries.some((q) => q.isError)) {
-          return <div>Failed to fetch overload cound</div>;
+          return <div>Failed to fetch overload count</div>;
         } else if (contextQueries.every((q) => q.isSuccess)) {
           const maybeContexts = contextQueries
             .map((q) => q.data)
@@ -1461,15 +1561,17 @@ export function FeatureTable(props: {
           if (!maybeContexts || maybeContexts.length === 0) {
             return (
               <div className="d-flex justify-start align-items-center">
-                <span className="px-3">{feature.name}</span>
+                <ResultTypeIcon resultType={feature.resultType} />
+                <span className="px-1">{feature.name}</span>
               </div>
             );
           } else {
             return (
-              <div className="d-flex justify-content-between align-items-start mt-2">
-                <span className="px-3">{feature.name}</span>
+              <div className="d-flex">
+                <ResultTypeIcon resultType={feature.resultType} />
+                <span className="px-1">{feature.name}</span>
                 <button
-                  className="top-10 translate-middle badge rounded-pill bg-primary-outline"
+                  className="top-10 translate-middle-y badge rounded-pill bg-primary-outline"
                   role="button"
                   aria-label={`${maybeContexts.length} Overload${
                     maybeContexts.length > 1 ? "s" : ""
@@ -1498,6 +1600,15 @@ export function FeatureTable(props: {
     columns.push({
       accessorKey: "name",
       header: () => "Feature name",
+      cell: (props: { row: Row<any> }) => {
+        const feature = props.row.original;
+        return (
+          <div className="d-flex justify-start align-items-center">
+            <ResultTypeIcon resultType={feature.resultType} />
+            <span className="px-1">{feature.name}</span>
+          </div>
+        );
+      },
       minSize: 150,
       size: 15,
     });
@@ -1600,18 +1711,53 @@ export function FeatureTable(props: {
             <FeatureForm
               defaultValue={datum}
               submit={(feature) => {
-                featureUpdateMutation.mutateAsync(
-                  {
-                    id: datum.id!,
-                    feature,
-                  },
-                  {
-                    onSuccess: () => {
-                      queryClient.invalidateQueries(tagsQueryKey(tenant!));
-                      cancel();
+                const contextsWithOverload = contextQueries
+                  .flatMap((queryResult) => {
+                    return queryResult?.data || [];
+                  })
+                  .filter((ctx) => {
+                    return ctx.overloads.some(
+                      (o) =>
+                        o.project === datum.project && o.name === datum.name
+                    );
+                  })
+                  .map((ctx) => {
+                    return ctx.name;
+                  });
+
+                const callback = () =>
+                  featureUpdateMutation.mutateAsync(
+                    {
+                      id: datum.id!,
+                      feature,
                     },
-                  }
-                );
+                    {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries(tagsQueryKey(tenant!));
+                        queryClient.invalidateQueries(
+                          projectContextKey(tenant!, datum.project!)
+                        );
+                        cancel();
+                      },
+                    }
+                  );
+                if (
+                  contextsWithOverload.length > 0 &&
+                  feature.resultType !== datum.resultType
+                ) {
+                  return askConfirmation(
+                    <>
+                      This feature has ${contextsWithOverload.length}{" "}
+                      overload(s) with ${datum.resultType} result type.
+                      <br />
+                      Updating result type to ${feature.resultType} will delete
+                      all overloads, are you sure that it is what you want ?
+                    </>,
+                    () => callback()
+                  );
+                } else {
+                  return callback();
+                }
               }}
               cancel={cancel}
             />
@@ -1808,5 +1954,42 @@ export function FeatureTable(props: {
         }
       />
     </div>
+  );
+}
+
+function OverloadTypeUpdateModalContent(props: {
+  oldResultType: FeatureTypeName;
+  newResultType: FeatureTypeName;
+  contextToUpdate: string[];
+  close: () => void;
+  submit: (newContextValues: object) => Promise<void>;
+}) {
+  const { newResultType } = props;
+  const schema = props.contextToUpdate.reduce((acc, next) => {
+    acc[next] = {
+      type: newResultType === "string" ? type.string : type.number,
+      constraints: [constraints.required("Value is required")],
+      label: `${next} new value`,
+    };
+
+    return acc;
+  }, {});
+
+  return (
+    <>
+      <h2>Overload update needed</h2>
+      This feature has {props.contextToUpdate.length} overloads with former
+      result type ({props.oldResultType}).
+      <br />
+      In order to update to the new result type ({props.newResultType}), you
+      have to provide a value of this result type for each of these overloads.
+      <Form
+        schema={schema}
+        onClose={() => props.close()}
+        onSubmit={(updatedOverloadValues) =>
+          props.submit(updatedOverloadValues)
+        }
+      />
+    </>
   );
 }

@@ -9,6 +9,7 @@ export function Modal(props: {
   confirmButtonText?: string;
   children: ReactElement | ReactElement[] | string;
   position?: "top" | "center";
+  noFooter?: boolean;
 }) {
   const {
     visible,
@@ -19,6 +20,7 @@ export function Modal(props: {
     closeButtonText,
     confirmButtonText,
     position,
+    noFooter,
   } = props;
 
   React.useEffect(() => {
@@ -80,10 +82,23 @@ export function Modal(props: {
                   onClick={onConfirm}
                   aria-label="Confirm"
                 >
-                  {confirmButtonText ? confirmButtonText : "Confirm"}
+                  {closeButtonText
+                    ? closeButtonText
+                    : onConfirm
+                    ? "Cancel"
+                    : "Close"}
                 </button>
-              )}
-            </div>
+                {onConfirm && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={onConfirm}
+                  >
+                    {confirmButtonText ? confirmButtonText : "Confirm"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
