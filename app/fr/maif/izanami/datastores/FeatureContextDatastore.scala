@@ -5,18 +5,33 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.events.{SourceFeatureUpdated}
-import fr.maif.izanami.models.Feature.{activationConditionRead, activationConditionWrite}
+import fr.maif.izanami.events.SourceFeatureUpdated
 import fr.maif.izanami.models.FeatureContext.generateSubContextId
 import fr.maif.izanami.models._
+import fr.maif.izanami.models.features.{
+  ActivationCondition,
+  BooleanActivationCondition,
+  BooleanResult,
+  BooleanResultDescriptor,
+  NumberActivationCondition,
+  NumberResult,
+  NumberResultDescriptor,
+  ResultType,
+  StringActivationCondition,
+  StringResult,
+  StringResultDescriptor,
+  ValuedActivationCondition,
+  ValuedResultDescriptor,
+  ValuedResultType
+}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.Row
-import play.api.libs.json.Json
+import io.vertx.sqlclient.{Row, SqlConnection}
+import play.api.libs.json.{JsArray, JsValue, Json, Reads, Writes}
 
 import java.util.Objects
 import scala.concurrent.Future
@@ -241,7 +256,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
 
     env.postgresql.queryOne(
       s"""
-         |SELECT gf.conditions, gf.enabled, ws.config
+         |SELECT gf.conditions, gf.enabled, gf.value, gf.result_type, ws.config
          |FROM feature_contexts_strategies gf
          |LEFT OUTER JOIN wasm_script_configurations ws ON gf.script_config=ws.id
          |WHERE gf.project = $$1
@@ -253,9 +268,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       List(feature.project, feature.name, possibleContextIds.toArray),
       schemas = Set(tenant)
     ) { row =>
-      {
-        row.optCompleteStrategy(feature.name)
-      }
+      row.optCompleteStrategy(feature.name).map(cs => cs.asInstanceOf[CompleteContextualStrategy])
     }
   }
 
@@ -298,7 +311,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
     env.postgresql.queryAll(
       s"""
          |SELECT c.name, COALESCE(c.parent, c.global_parent) as parent, c.id, c.project, COALESCE(
-         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
+         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config, 'value', s.value, 'resultType', s.result_type)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM feature_contexts c
          |LEFT JOIN feature_contexts_strategies s ON s.context=c.id
@@ -307,7 +320,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |GROUP BY (c.name, parent, c.id, c.project)
          |UNION ALL
          |SELECT c.name, c.parent, c.id, NULL as project, COALESCE(
-         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
+         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config, 'value', s.value, 'resultType', s.result_type)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM global_feature_contexts c
          |LEFT JOIN feature_contexts_strategies s ON s.global_context=c.id
@@ -316,7 +329,11 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |""".stripMargin,
       List(project),
       schemas = Set(tenant)
-    ) { row => row.optFeatureContext(global = row.optString("project").isEmpty) }
+    ) { row =>
+      {
+        row.optFeatureContext(global = row.optString("project").isEmpty)
+      }
+    }
   }
 
   def deleteContext(tenant: String, project: String, path: Seq[String]): Future[Either[IzanamiError, Unit]] = {
@@ -353,6 +370,20 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           }
         }
     })
+  }
+
+  def deleteFeatureStrategies(
+      tenant: String,
+      project: String,
+      feature: String,
+      conn: SqlConnection
+  ): Future[Unit] = {
+    env.postgresql.queryRaw(
+      s"""DELETE FROM feature_contexts_strategies WHERE project=$$1 AND feature=$$2""",
+      List(project, feature),
+      schemas = Set(tenant),
+      conn = Some(conn)
+    ) { _ => () }
   }
 
   def deleteFeatureStrategy(
@@ -464,34 +495,60 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           env.postgresql.executeInTransaction(
             implicit conn => {
               (strategy match {
-                case ClassicalFeatureStrategy(enabled, conditions, _) =>
+                case ClassicalFeatureStrategy(enabled, _, resultDescriptor) =>
                   env.postgresql
                     .queryRaw(
                       s"""
                          |INSERT INTO feature_contexts_strategies (project, ${if (local) "local_context"
-                      else "global_context"}, conditions, enabled, feature) VALUES($$1,$$2,$$3,$$4,$$5)
+                      else "global_context"}, conditions, enabled, feature, result_type ${if (
+                        resultDescriptor.resultType != BooleanResult
+                      ) ",value"
+                      else ""})
+                         |VALUES($$1,$$2,$$3,$$4,$$5, $$6 ${if (resultDescriptor.resultType != BooleanResult) s",$$7"
+                      else ""})
                          |ON CONFLICT(project, context, feature) DO UPDATE
-                         |SET conditions=EXCLUDED.conditions, enabled=EXCLUDED.enabled, script_config=NULL
+                         |SET conditions=EXCLUDED.conditions, enabled=EXCLUDED.enabled, script_config=NULL, value=EXCLUDED.value, result_type=EXCLUDED.result_type
                          |""".stripMargin,
-                      List(
-                        project,
-                        if (local) generateSubContextId(project, path.last, path.dropRight(1))
-                        else generateSubContextId(tenant, path.last, path.dropRight(1)),
-                        new JsonArray(Json.toJson(conditions).toString()),
-                        java.lang.Boolean.valueOf(enabled),
-                        feature
-                      ),
+                      resultDescriptor match {
+                        case descriptor: ValuedResultDescriptor  =>
+                          List(
+                            project,
+                            if (local) generateSubContextId(project, path.last, path.dropRight(1))
+                            else generateSubContextId(tenant, path.last, path.dropRight(1)),
+                            new JsonArray(Json.toJson(resultDescriptor.conditions).toString()),
+                            java.lang.Boolean.valueOf(enabled),
+                            feature,
+                            descriptor.resultType.toDatabaseName,
+                            descriptor.stringValue
+                          )
+                        case BooleanResultDescriptor(conditions) =>
+                          List(
+                            project,
+                            if (local) generateSubContextId(project, path.last, path.dropRight(1))
+                            else generateSubContextId(tenant, path.last, path.dropRight(1)),
+                            new JsonArray(
+                              Json
+                                .toJson(conditions)(Writes.seq(ActivationCondition.booleanConditionWrites))
+                                .toString()
+                            ),
+                            java.lang.Boolean.valueOf(enabled),
+                            feature,
+                            resultDescriptor.resultType.toDatabaseName
+                          )
+                      },
                       schemas = Set(tenant),
                       conn = Some(conn)
                     ) { _ => Right(oldFeature.id) }
                     .recover {
                       case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
                         Left(TenantDoesNotExists(tenant))
+                      case f: PgException if (f.getSqlState == FOREIGN_KEY_VIOLATION && f.getConstraint == "feature_contexts_strategies_feature_project_fkey") =>
+                        Left(NoFeatureMatchingOverloadDefinition(tenant = tenant, project = project, feature = feature, resultType = strategy.resultType.toDatabaseName))
                       case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION    =>
                         Left(FeatureContextDoesNotExist(path.mkString("/")))
                       case _                                                           => Left(InternalServerError())
                     }
-                case f @ (_: CompleteWasmFeatureStrategy)             => {
+                case f @ (_: CompleteWasmFeatureStrategy)                            => {
                   (f match {
                     case f: CompleteWasmFeatureStrategy if f.wasmConfig.source.kind != WasmSourceKind.Local =>
                       env.datastores.features.createWasmScriptIfNeeded(tenant, f.wasmConfig, Some(conn))
@@ -503,9 +560,9 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         .queryRaw(
                           s"""
                                |INSERT INTO feature_contexts_strategies (project, ${if (local) "local_context"
-                          else "global_context"}, script_config, enabled, feature) VALUES($$1,$$2,$$3,$$4,$$5)
+                          else "global_context"}, script_config, enabled, feature, result_type) VALUES($$1,$$2,$$3,$$4,$$5, $$6)
                                |ON CONFLICT(project, context, feature) DO UPDATE
-                               |SET script_config=EXCLUDED.script_config, enabled=EXCLUDED.enabled, conditions=NULL
+                               |SET script_config=EXCLUDED.script_config, enabled=EXCLUDED.enabled, conditions=NULL, result_type=EXCLUDED.result_type
                                |""".stripMargin,
                           List(
                             project,
@@ -513,7 +570,8 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                             else generateSubContextId(tenant, path.last, path.dropRight(1)),
                             id,
                             java.lang.Boolean.valueOf(f.enabled),
-                            feature
+                            feature,
+                            f.resultType.toDatabaseName
                           ),
                           schemas = Set(tenant),
                           conn = Some(conn)
@@ -554,31 +612,32 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |WHERE id=ANY($$1)
          |""".stripMargin,
       List(idCandidates.toArray),
-      schemas=Set(tenant)
-    ){r => r.optString("id")}
+      schemas = Set(tenant)
+    ) { r => r.optString("id") }
   }
 }
 
 object FeatureContextDatastore {
   implicit class FeatureContextRow(val row: Row) extends AnyVal {
     def optFeatureContext(global: Boolean): Option[FeatureContext] = {
-
       val features = row
         .optJsArray("overloads")
-        .toSeq
-        .flatMap(array =>
-          array.value.flatMap(jsObject => {
-            val maybeConditions   = (jsObject \ "conditions").asOpt[Set[ActivationCondition]]
-            val maybeScriptConfig = (jsObject \ "wasm").asOpt[String]
-
+        .getOrElse(JsArray.empty)
+        .value
+        .flatMap(jsObject => {
+          val maybeSeq: Option[Seq[LightWeightFeature]] =
             for (
               name        <- (jsObject \ "feature").asOpt[String];
               enabled     <- (jsObject \ "enabled").asOpt[Boolean];
               id          <- (jsObject \ "id").asOpt[String];
               description <- (jsObject \ "description").asOpt[String];
-              project     <- (jsObject \ "project").asOpt[String]
+              project     <- (jsObject \ "project").asOpt[String];
+              resultType  <- (jsObject \ "resultType").asOpt[ResultType](ResultType.resultTypeReads)
             )
               yield {
+                val maybeConditions   = (jsObject \ "conditions")
+                  .asOpt[JsArray]
+                val maybeScriptConfig = (jsObject \ "wasm").asOpt[String]
                 (maybeScriptConfig, maybeConditions) match {
                   case (Some(wasmConfig), _)    =>
                     Some(
@@ -588,56 +647,122 @@ object FeatureContextDatastore {
                         id = id,
                         project = project,
                         wasmConfigName = wasmConfig,
-                        description = description
+                        description = description,
+                        resultType = resultType
                       )
                     )
-                  case (None, Some(conditions)) =>
-                    Some(
-                      Feature(
-                        name = name,
-                        enabled = enabled,
-                        id = id,
-                        project = project,
-                        conditions = conditions,
-                        description = description
-                      )
-                    )
+                  case (None, Some(conditions)) => {
+                    resultType match {
+                      case resultType: ValuedResultType => {
+                        jsObject
+                          .asOpt[ValuedResultDescriptor](ValuedResultDescriptor.valuedDescriptorReads)
+                          .map(rd => {
+                            Feature(
+                              name = name,
+                              enabled = enabled,
+                              id = id,
+                              project = project,
+                              description = description,
+                              resultDescriptor = rd
+                            )
+                          })
+                      }
+                      case BooleanResult                => {
+                        val conds = conditions.value.flatMap(c =>
+                          c.asOpt[BooleanActivationCondition](ActivationCondition.booleanActivationConditionRead).toSeq
+                        )
+                        Some(
+                          Feature(
+                            name = name,
+                            enabled = enabled,
+                            id = id,
+                            project = project,
+                            description = description,
+                            resultDescriptor = BooleanResultDescriptor(conds.toSeq)
+                          )
+                        )
+                      }
+                    }
+                  }
                   case _                        => None
                 }
               }.toSeq
-          })
-        )
-        .flatMap(o => o.toSeq)
+          maybeSeq
+        })
+        .flatten
+
       Some(
         FeatureContext(
           id = row.getString("id"),
           name = row.getString("name"),
           parent = row.getString("parent"),
           project = if (global) None else row.optString("project"),
-          overloads = features,
+          overloads = features.toSeq,
           global = global
         )
       )
     }
 
     def optCompleteStrategy(feature: String): Option[CompleteContextualStrategy] = {
-      val maybeConditions = row
-        .optJsArray("conditions")
-        .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
-        .getOrElse(Set.empty)
-      val maybeConfig     = row.optJsObject("config").flatMap(obj => obj.asOpt(WasmConfig.format))
-
-      row
-        .optBoolean("enabled")
-        .map(enabled => {
-          (maybeConfig, maybeConditions) match {
-            case (Some(config), _) => CompleteWasmFeatureStrategy(enabled, config, feature)
-            case (_, conditions)   => ClassicalFeatureStrategy(enabled, conditions, feature)
+      (for (
+        enabled       <- row.optBoolean("enabled");
+        resultTypeStr <- row.optString("result_type");
+        resultType    <- ResultType.parseResultType(resultTypeStr)
+      ) yield {
+        val maybeConditions                     = row
+          .optJsArray("conditions")
+          .getOrElse(JsArray.empty)
+        val maybeConfig                         = row.optJsObject("config").flatMap(obj => obj.asOpt(WasmConfig.format))
+        (maybeConfig, maybeConditions) match {
+          case (Some(config), _) => Some(CompleteWasmFeatureStrategy(enabled, config, feature, resultType = resultType))
+          case (_, conditions)   => {
+            resultType match {
+              case resultType: ValuedResultType => {
+                resultType match {
+                  case StringResult => {
+                    val conds = conditions.value.flatMap(json =>
+                      json.asOpt[StringActivationCondition](ActivationCondition.stringActivationConditionRead).toSeq
+                    )
+                    row
+                      .optString("value")
+                      .map(value => {
+                        ClassicalFeatureStrategy(
+                          enabled,
+                          feature,
+                          StringResultDescriptor(value = value, conditions = conds.toSeq)
+                        )
+                      })
+                  }
+                  case NumberResult => {
+                    val conds = conditions.value.flatMap(json =>
+                      json.asOpt[NumberActivationCondition](ActivationCondition.numberActivationConditionRead).toSeq
+                    )
+                    row
+                      .optString("value")
+                      .map(str => BigDecimal(str))
+                      .map(value => {
+                        ClassicalFeatureStrategy(
+                          enabled,
+                          feature = feature,
+                          resultDescriptor = NumberResultDescriptor(value = value, conditions = conds.toSeq)
+                        )
+                      })
+                  }
+                }
+              }
+              case BooleanResult                => {
+                val conds = conditions.value.flatMap(json =>
+                  json.asOpt[BooleanActivationCondition](ActivationCondition.booleanActivationConditionRead).toSeq
+                )
+                Some(ClassicalFeatureStrategy(enabled, feature, BooleanResultDescriptor(conds.toSeq)))
+              }
+            }
           }
-        })
+        }
+      }).flatten
     }
 
-    def optStrategy(feature: String): Option[ContextualFeatureStrategy] = {
+    /*def optStrategy(feature: String): Option[ContextualFeatureStrategy] = {
       val maybeConditions = row
         .optJsArray("conditions")
         .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
@@ -652,7 +777,7 @@ object FeatureContextDatastore {
             case (_, conditions)   => ClassicalFeatureStrategy(enabled, conditions, feature)
           }
         })
-    }
+    }*/
   }
 
 }

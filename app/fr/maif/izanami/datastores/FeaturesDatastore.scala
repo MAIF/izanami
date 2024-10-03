@@ -11,13 +11,28 @@ import fr.maif.izanami.env.PostgresqlErrors.{
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.{EventService, SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
-import fr.maif.izanami.models.Feature.{
-  activationConditionRead,
-  activationConditionWrite,
-  legacyActivationConditionRead,
-  legacyCompatibleConditionWrites
-}
 import fr.maif.izanami.models._
+import fr.maif.izanami.models.features.{
+  ActivationCondition,
+  BooleanActivationCondition,
+  BooleanResult,
+  BooleanResultDescriptor,
+  EnabledFeaturePatch,
+  FeaturePatch,
+  LegacyCompatibleCondition,
+  NumberActivationCondition,
+  NumberResult,
+  NumberResultDescriptor,
+  ProjectFeaturePatch,
+  RemoveFeaturePatch,
+  ResultType,
+  StringActivationCondition,
+  StringResult,
+  StringResultDescriptor,
+  TagsFeaturePatch,
+  ValuedResultDescriptor,
+  ValuedResultType
+}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterListEither, BetterSyntax}
 import fr.maif.izanami.v1.V1FeatureEvents
@@ -29,7 +44,7 @@ import io.vertx.core.shareddata.ClusterSerializable
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 import org.postgresql.xml.LegacyInsecurePGXmlFactoryFactory
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json, Reads}
 
 import java.lang
 import java.util.UUID
@@ -73,13 +88,17 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    f.description,
          |    f.metadata,
          |    f.script_config as config,
+         |    f.value,
+         |    f.result_type,
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags,
          |    COALESCE(
          |        json_object_agg(
          |            fcs.context_path, json_build_object(
          |                'enabled', fcs.enabled,
          |                'conditions', fcs.conditions,
-         |                'config', fcs.script_config
+         |                'config', fcs.script_config,
+         |                'value', fcs.value,
+         |                'resultType', fcs.result_type
          |            )
          |        ) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json
          |    )
@@ -112,25 +131,54 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                             (json \ "enabled")
                               .asOpt[Boolean]
                               .map(enabled => {
-                                val maybeConditions                 = (json \ "conditions")
-                                  .asOpt[JsArray]
-                                  .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
+                                val maybeConditionsJson             = (json \ "conditions").asOpt[JsArray]
                                 val maybeScriptName                 = (json \ "config").asOpt[String]
                                 val r: (String, LightWeightFeature) = (
                                   context,
-                                  maybeConditions
-                                    .map(conditions =>
-                                      Feature(
-                                        id = feature.id,
-                                        name = feature.name,
-                                        project = feature.project,
-                                        conditions = conditions,
-                                        enabled = enabled,
-                                        tags = feature.tags,
-                                        metadata = feature.metadata,
-                                        description = feature.description
-                                      )
-                                    )
+                                  maybeConditionsJson
+                                    .flatMap(conditions => {
+                                      val maybeResultDescriptor = feature.resultType match {
+                                        case BooleanResult => {
+                                          val conds = conditions.asOpt[Seq[BooleanActivationCondition]](
+                                            Reads.seq(ActivationCondition.booleanActivationConditionRead)
+                                          )
+                                          conds.map(cs => BooleanResultDescriptor(cs))
+                                        }
+                                        case StringResult  => {
+                                          for (
+                                            conds <- conditions.asOpt[Seq[StringActivationCondition]](
+                                                       Reads.seq(ActivationCondition.stringActivationConditionRead)
+                                                     );
+                                            value <- (json \ "value").asOpt[String]
+                                          ) yield {
+                                            StringResultDescriptor(conditions = conds, value = value)
+                                          }
+                                        }
+                                        case NumberResult  => {
+                                          for (
+                                            conds <- conditions.asOpt[Seq[NumberActivationCondition]](
+                                                       Reads.seq(ActivationCondition.numberActivationConditionRead)
+                                                     );
+                                            value <- (json \ "value").asOpt[String].map(str => BigDecimal(str))
+                                          ) yield {
+                                            NumberResultDescriptor(conditions = conds, value = value)
+                                          }
+                                        }
+                                      }
+                                      maybeResultDescriptor.map(rs => {
+                                        Feature(
+                                          id = feature.id,
+                                          name = feature.name,
+                                          project = feature.project,
+                                          enabled = enabled,
+                                          tags = feature.tags,
+                                          metadata = feature.metadata,
+                                          description = feature.description,
+                                          resultDescriptor = rs
+                                        )
+                                      })
+
+                                    })
                                     .orElse(
                                       maybeScriptName.map(scriptConfig =>
                                         LightWeightWasmFeature(
@@ -141,7 +189,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                                           enabled = enabled,
                                           tags = feature.tags,
                                           metadata = feature.metadata,
-                                          description = feature.description
+                                          description = feature.description,
+                                          resultType = feature.resultType
                                         )
                                       )
                                     )
@@ -179,6 +228,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    f.description,
          |    f.metadata,
          |    f.script_config as config,
+         |    f.value,
+         |    f.result_type,
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags,
          |    COALESCE(
          |        json_object_agg(
@@ -209,46 +260,77 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     (overloads \ context)
                       .asOpt[JsObject]
                       .flatMap(json => {
-                        (json \ "enabled")
-                          .asOpt[Boolean]
-                          .map(enabled => {
-                            val maybeConditions                 = (json \ "conditions")
-                              .asOpt[JsArray]
-                              .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
-                            val maybeScriptName                 = (json \ "config").asOpt[String]
-                            val r: (String, LightWeightFeature) = (
-                              context,
-                              maybeConditions
-                                .map(conditions =>
+                        for (
+                          enabled    <- (json \ "enabled").asOpt[Boolean];
+                          resultType <- (json \ "result_type").asOpt[ResultType](ResultType.resultTypeReads)
+                        ) yield {
+                          val maybeConditionsJson             = (json \ "conditions").asOpt[JsArray]
+                          val maybeScriptName                 = (json \ "config").asOpt[String]
+                          val r: (String, LightWeightFeature) = (
+                            context,
+                            maybeConditionsJson
+                              .flatMap(conditions => {
+                                val maybeResultDescriptor = feature.resultType match {
+                                  case BooleanResult => {
+                                    val conds = conditions.asOpt[Seq[BooleanActivationCondition]](
+                                      Reads.seq(ActivationCondition.booleanActivationConditionRead)
+                                    )
+                                    conds.map(cs => BooleanResultDescriptor(cs))
+                                  }
+                                  case StringResult  => {
+                                    for (
+                                      conds <- conditions.asOpt[Seq[StringActivationCondition]](
+                                                 Reads.seq(ActivationCondition.stringActivationConditionRead)
+                                               );
+                                      value <- (json \ "value").asOpt[String]
+                                    ) yield {
+                                      StringResultDescriptor(conditions = conds, value = value)
+                                    }
+                                  }
+                                  case NumberResult  => {
+                                    for (
+                                      conds <- conditions.asOpt[Seq[NumberActivationCondition]](
+                                                 Reads.seq(ActivationCondition.numberActivationConditionRead)
+                                               );
+                                      value <- (json \ "value").asOpt[String].map(str => BigDecimal(str))
+                                    ) yield {
+                                      NumberResultDescriptor(conditions = conds, value = value)
+                                    }
+                                  }
+                                }
+                                maybeResultDescriptor.map(rs => {
                                   Feature(
                                     id = feature.id,
                                     name = feature.name,
                                     project = feature.project,
-                                    conditions = conditions,
                                     enabled = enabled,
                                     tags = feature.tags,
                                     metadata = feature.metadata,
-                                    description = feature.description
+                                    description = feature.description,
+                                    resultDescriptor = rs
+                                  )
+                                })
+
+                              })
+                              .orElse(
+                                maybeScriptName.map(scriptName =>
+                                  LightWeightWasmFeature(
+                                    id = feature.id,
+                                    name = feature.name,
+                                    project = feature.project,
+                                    wasmConfigName = scriptName,
+                                    enabled = enabled,
+                                    tags = feature.tags,
+                                    metadata = feature.metadata,
+                                    description = feature.description,
+                                    resultType = resultType
                                   )
                                 )
-                                .orElse(
-                                  maybeScriptName.map(scriptName =>
-                                    LightWeightWasmFeature(
-                                      id = feature.id,
-                                      name = feature.name,
-                                      project = feature.project,
-                                      wasmConfigName = scriptName,
-                                      enabled = enabled,
-                                      tags = feature.tags,
-                                      metadata = feature.metadata,
-                                      description = feature.description
-                                    )
-                                  )
-                                )
-                                .getOrElse(throw new RuntimeException("Bad feature format in DB"))
-                            )
-                            r
-                          })
+                              )
+                              .getOrElse(throw new RuntimeException("Bad feature format in DB"))
+                          )
+                          r
+                        }
                       })
                   })
                 })
@@ -475,12 +557,16 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    WHEN fcs.enabled IS NOT NULL THEN
          |    json_build_object(
          |      'enabled', fcs.enabled,
+         |      'resultType', fcs.result_type,
+         |      'value', fcs.value,
          |      'config', ow.config,
          |      'conditions', fcs.conditions
          |    )::jsonb
          |    ELSE""" else ""}
          |    json_build_object(
          |      'enabled', f.enabled,
+         |      'resultType', f.result_type,
+         |      'value', f.value,
          |      'config', w.config,
          |      'conditions', f.conditions
          |    )::jsonb
@@ -582,7 +668,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     ) { r => r.optString("project") }
   }
 
-  def findById(tenant: String, id: String): Future[Either[IzanamiError, Option[CompleteFeature]]] = {
+  def findById(tenant: String, id: String, conn: Option[SqlConnection] = None): Future[Either[IzanamiError, Option[CompleteFeature]]] = {
     env.postgresql
       .queryOne(
         s"""select f.*, s.config AS wasm, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
@@ -594,7 +680,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |where f.id = $$1
          |group by f.id, wasm""".stripMargin,
         List(id),
-        schemas = Set(tenant)
+        schemas = Set(tenant),
+        conn = conn
       ) { row => row.optCompleteFeature() }
       .map(o => Right(o))
       .recover {
@@ -684,6 +771,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |    f.description,
            |    f.script_config,
            |    f.metadata,
+           |    f.result_type,
+           |    f.value,
            |    w.config as wasm
            |    ${if (needContexts) """,
            |    COALESCE(json_object_agg(fcs.context_path, json_build_object(
@@ -691,6 +780,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |      'name', f.name,
            |      'project', f.project,
            |      'description', f.description,
+           |      'value', fcs.value,
+           |      'resultType', fcs.result_type,
            |      'enabled', fcs.enabled,
            |      'conditions', fcs.conditions,
            |      'context', fcs.context,
@@ -835,10 +926,14 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    f.conditions,
          |    f.script_config,
          |    f.description,
+         |    f.result_type,
+         |    f.value,
          |    w.config,
          |    fcs.enabled as overload_enabled,
          |    fcs.conditions as overload_conditions,
          |    fcs.context as overload_context,
+         |    fcs.value as overload_value,
+         |    fcs.result_type as overload_result_type,
          |    ow.config as overload_config,
          |    fcs.context_path,
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags
@@ -861,7 +956,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    OR (u.admin OR utr.level = 'ADMIN')
          |  )
          |  AND (p.id=ANY($$2) OR f.id=ANY($$3))
-         |  GROUP BY f.id, pid, w.config, ow.config, fcs.enabled, fcs.conditions, fcs.context, fcs.context_path
+         |  GROUP BY f.id, pid, w.config, ow.config, fcs.enabled, fcs.conditions, fcs.context, fcs.context_path, fcs.value, fcs.result_type
          |) SELECT filtered_features.pid AS project_id,
          |         COALESCE(json_agg(json_build_object(
          |           'name', filtered_features.name,
@@ -875,13 +970,17 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |            json_build_object(
          |              'enabled', filtered_features.overload_enabled,
          |              'config', filtered_features.overload_config,
-         |              'conditions', filtered_features.overload_conditions
+         |              'conditions', filtered_features.overload_conditions,
+         |              'resultType', filtered_features.overload_result_type,
+         |              'value', filtered_features.overload_value
          |            )::jsonb
          |            ELSE
          |            json_build_object(
          |              'enabled', filtered_features.enabled,
          |              'config', filtered_features.config,
-         |              'conditions', filtered_features.conditions
+         |              'conditions', filtered_features.conditions,
+         |              'resultType', filtered_features.result_type,
+         |              'value', filtered_features.value
          |            )::jsonb
          |           END)
          |         ) FILTER(WHERE filtered_features.name IS NOT NULL), '[]'::json) as features
@@ -987,18 +1086,20 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             Array[java.lang.Boolean],
             Array[T],
             Array[Object],
+            Array[String],
+            Array[String],
             Array[String]
         )
     ): Future[Either[InternalServerError, List[(String, String)]]] = {
       env.postgresql
         .queryAll(
-          s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description)
-               |VALUES (unnest($$1::text[]), unnest($$2::text[]), unnest($$3::text[]), unnest($$4::boolean[]), unnest($$5::jsonb[]), unnest($$6::jsonb[]), unnest($$7::text[]))
+          s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description, result_type, value)
+               |VALUES (unnest($$1::text[]), unnest($$2::text[]), unnest($$3::text[]), unnest($$4::boolean[]), unnest($$5::jsonb[]), unnest($$6::jsonb[]), unnest($$7::text[]), unnest($$8::RESULT_TYPE[]), unnest($$9::text[]))
                 ${conflictStrategy match {
             case Fail           => ""
             case Skip           => " ON CONFLICT DO NOTHING"
             case MergeOverwrite =>
-              """ ON CONFLICT (name, project) DO UPDATE SET id=excluded.id, name=excluded.name, project=excluded.project, enabled=excluded.enabled, conditions=excluded.conditions, metadata=excluded.metadata, description=excluded.description, script_config=null
+              """ ON CONFLICT (name, project) DO UPDATE SET id=excluded.id, name=excluded.name, project=excluded.project, enabled=excluded.enabled, conditions=excluded.conditions, metadata=excluded.metadata, description=excluded.description, script_config=null, result_type=excluded.result_type, value=excluded.value
                |""".stripMargin
           }}
                 returning id, project""".stripMargin,
@@ -1019,11 +1120,37 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
     }
 
+    def insertLegacyFeatures[T <: ClusterSerializable](
+        params: (
+            Array[String],
+            Array[String],
+            Array[String],
+            Array[java.lang.Boolean],
+            Array[T],
+            Array[Object],
+            Array[String]
+        )
+    ): Future[Either[InternalServerError, List[(String, String)]]] = {
+      insertFeatures(
+        Tuple9(
+          params._1,
+          params._2,
+          params._3,
+          params._4,
+          params._5,
+          params._6,
+          params._7,
+          params._1.map(_ => BooleanResult.toDatabaseName),
+          params._1.map(_ => null)
+        )
+      )
+    }
+
     val wasmConfigs = features
       .map {
-        case Feature(_, _, _, _, _, _, _, _)                      => None
-        case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _) => Some(wasmConfig)
-        case s: SingleConditionFeature                            => None
+        case Feature(_, _, _, _, _, _, _, _)                         => None
+        case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _) => Some(wasmConfig)
+        case s: SingleConditionFeature                               => None
       }
       .flatMap(o => o.toList)
 
@@ -1044,17 +1171,76 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       }
     }
 
+    def unzip8[A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag](
+        l: Iterable[(A, B, C, D, E, F, G, H)]
+    ): (Array[A], Array[B], Array[C], Array[D], Array[E], Array[F], Array[G], Array[H]) = {
+      l.foldLeft(
+        Tuple8(Array[A](), Array[B](), Array[C](), Array[D](), Array[E](), Array[F](), Array[G](), Array[H]())
+      ) { case (res, (e1, e2, e3, e4, e5, e6, e7, e8)) =>
+        (
+          res._1.appended(e1),
+          res._2.appended(e2),
+          res._3.appended(e3),
+          res._4.appended(e4),
+          res._5.appended(e5),
+          res._6.appended(e6),
+          res._7.appended(e7),
+          res._8.appended(e8)
+        )
+      }
+    }
+
+    def unzip9[
+        A: ClassTag,
+        B: ClassTag,
+        C: ClassTag,
+        D: ClassTag,
+        E: ClassTag,
+        F: ClassTag,
+        G: ClassTag,
+        H: ClassTag,
+        I: ClassTag
+    ](
+        l: Iterable[(A, B, C, D, E, F, G, H, I)]
+    ): (Array[A], Array[B], Array[C], Array[D], Array[E], Array[F], Array[G], Array[H], Array[I]) = {
+      l.foldLeft(
+        Tuple9(
+          Array[A](),
+          Array[B](),
+          Array[C](),
+          Array[D](),
+          Array[E](),
+          Array[F](),
+          Array[G](),
+          Array[H](),
+          Array[I]()
+        )
+      ) { case (res, (e1, e2, e3, e4, e5, e6, e7, e8, e9)) =>
+        (
+          res._1.appended(e1),
+          res._2.appended(e2),
+          res._3.appended(e3),
+          res._4.appended(e4),
+          res._5.appended(e5),
+          res._6.appended(e6),
+          res._7.appended(e7),
+          res._8.appended(e8),
+          res._9.appended(e9)
+        )
+      }
+    }
+
     val (modernFeatures, wasmFeatures, legacyFeatures): (
         ArrayBuffer[Feature],
         ArrayBuffer[CompleteWasmFeature],
         ArrayBuffer[SingleConditionFeature]
     ) = (ArrayBuffer(), ArrayBuffer(), ArrayBuffer())
     features.foreach {
-      case f @ Feature(_, _, _, _, _, _, _, _)              =>
+      case f @ Feature(_, _, _, _, _, _, _, _)                 =>
         modernFeatures.addOne(f)
-      case wf @ CompleteWasmFeature(_, _, _, _, _, _, _, _) =>
+      case wf @ CompleteWasmFeature(_, _, _, _, _, _, _, _, _) =>
         wasmFeatures.addOne(wf)
-      case s: SingleConditionFeature                        =>
+      case s: SingleConditionFeature                           =>
         legacyFeatures.addOne(s)
     }
 
@@ -1071,23 +1257,28 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         )
     })
 
-    val modernFeatureParams = unzip7(
-      modernFeatures.map { case Feature(id, name, project, conditions, enabled, tags, metadata, description) =>
+    val modernFeatureParams = unzip9(
+      modernFeatures.map { case Feature(id, name, project, enabled, tags, metadata, description, resultDescriptor) =>
         (
           Option(id).getOrElse(UUID.randomUUID().toString),
           name,
           project,
           java.lang.Boolean.valueOf(enabled),
-          new JsonArray(Json.toJson(conditions).toString()),
+          new JsonArray(Json.toJson(resultDescriptor.conditions).toString()),
           metadata.vertxJsValue,
-          description
+          description,
+          resultDescriptor.resultType.toDatabaseName,
+          resultDescriptor match {
+            case descriptor: ValuedResultDescriptor  => descriptor.stringValue
+            case BooleanResultDescriptor(conditions) => null
+          }
         )
       }
     )
 
-    val wasmFeatureParams = unzip7(
+    val wasmFeatureParams = unzip8(
       wasmFeatures.map {
-        case CompleteWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description) =>
+        case CompleteWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description, resultType) =>
           (
             Option(id).getOrElse(UUID.randomUUID().toString),
             name,
@@ -1095,7 +1286,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             java.lang.Boolean.valueOf(enabled),
             wasmConfig.name,
             metadata.vertxJsValue,
-            description
+            description,
+            resultType.toDatabaseName
           )
       }
     )
@@ -1108,11 +1300,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             .sequence(
               List(
                 insertFeatures(modernFeatureParams),
-                insertFeatures(legacyFeatureParams),
+                insertLegacyFeatures(legacyFeatureParams),
                 env.postgresql
                   .queryAll(
-                    s"""INSERT INTO features (id, name, project, enabled, script_config, metadata, description)
-                   |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::TEXT[]), unnest($$4::BOOLEAN[]), unnest($$5::TEXT[]), unnest($$6::JSONB[]), unnest($$7::TEXT[]))
+                    s"""INSERT INTO features (id, name, project, enabled, script_config, metadata, description, result_type)
+                   |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::TEXT[]), unnest($$4::BOOLEAN[]), unnest($$5::TEXT[]), unnest($$6::JSONB[]), unnest($$7::TEXT[]), unnest($$8::RESULT_TYPE[]))
                    |returning id, project""".stripMargin,
                     wasmFeatureParams.productIterator.toList.map(a => a.asInstanceOf[AnyRef]),
                     conn = conn.some,
@@ -1186,10 +1378,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       user: String
   ): Future[Either[IzanamiError, String]] = {
     (feature match {
-      case Feature(_, _, _, _, _, _, _, _)                      => Future(Right(()))
-      case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _) =>
+      case Feature(_, _, _, _, _, _, _, _)                         => Future(Right(()))
+      case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _) =>
         createWasmScriptIfNeeded(tenant, wasmConfig, conn = Some(conn))
-      case s: SingleConditionFeature                            => Future(Right(()))
+      case s: SingleConditionFeature                               => Future(Right(()))
     }).flatMap {
       case Left(err) => Left(err).future
       case Right(_)  => {
@@ -1399,10 +1591,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       conn: SqlConnection
   ): Future[Either[IzanamiError, String]] = {
     val (request, params) = feature match {
-      case SingleConditionFeature(id, name, project, conditions, enabled, _, metadata, description) =>
+      case SingleConditionFeature(id, name, project, conditions, enabled, _, metadata, description)      =>
         (
-          s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description)
-             |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7)
+          s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description, result_type)
+             |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8)
              |returning id""".stripMargin,
           List(
             Option(id).getOrElse(UUID.randomUUID().toString),
@@ -1411,28 +1603,34 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             java.lang.Boolean.valueOf(enabled),
             new JsonObject(Json.toJson(conditions).toString()),
             metadata.vertxJsValue,
-            description
+            description,
+            BooleanResult.toDatabaseName
           )
         )
-      case Feature(id, name, project, conditions, enabled, _, metadata, description)                =>
+      case Feature(id, name, project, enabled, _, metadata, description, resultDescriptor)               =>
         (
-          s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description)
-           |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7)
+          s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description, result_type, value)
+           |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9)
            |returning id""".stripMargin,
           List(
             Option(id).getOrElse(UUID.randomUUID().toString),
             name,
             project,
             java.lang.Boolean.valueOf(enabled),
-            new JsonArray(Json.toJson(conditions).toString()),
+            new JsonArray(Json.toJson(resultDescriptor.conditions).toString()),
             metadata.vertxJsValue,
-            description
+            description,
+            resultDescriptor.resultType.toDatabaseName,
+            resultDescriptor match {
+              case descriptor: ValuedResultDescriptor  => descriptor.stringValue
+              case BooleanResultDescriptor(conditions) => null
+            }
           )
         )
-      case CompleteWasmFeature(id, name, project, enabled, config, _, metadata, description)        =>
+      case CompleteWasmFeature(id, name, project, enabled, config, _, metadata, description, resultType) =>
         (
-          s"""INSERT INTO features (id, name, project, enabled, script_config, metadata, description)
-            |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7)
+          s"""INSERT INTO features (id, name, project, enabled, script_config, metadata, description, result_type)
+            |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8)
             |returning id""".stripMargin,
           List(
             Option(id).getOrElse(UUID.randomUUID().toString),
@@ -1441,7 +1639,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             java.lang.Boolean.valueOf(enabled),
             config.name,
             metadata.vertxJsValue,
-            description
+            description,
+            resultType.toDatabaseName
           )
         )
     }
@@ -1483,129 +1682,147 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       id: String,
       feature: CompleteFeature,
-      user: String
+      user: String,
+      conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, String]] = {
+
+    def act(conn: SqlConnection, oldFeature: FeatureWithOverloads): Future[Either[IzanamiError, String]] = {
+
+      val maybeDeleteFuture = if (oldFeature.baseFeature().resultType != feature.resultType) {
+        env.datastores.featureContext.deleteFeatureStrategies(tenant, feature.project, feature.name, conn = conn)
+      } else {
+        Future.successful(())
+      }
+      maybeDeleteFuture.flatMap(_ => {
+
+        val (request, params) = feature match {
+          case SingleConditionFeature(id, name, project, conditions, enabled, tags, metadata, description) =>
+            (
+              s"""update features
+                 |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type='boolean' WHERE id=$$4 returning id""".stripMargin,
+              List(
+                name,
+                java.lang.Boolean.valueOf(enabled),
+                new JsonObject(Json.toJson(conditions).toString()),
+                id,
+                description,
+                project
+              )
+            )
+          case Feature(_, name, project, enabled, _, _, description, resultDescriptor)                     =>
+            (
+              s"""update features
+                 |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type=$$7, value=$$8  WHERE id=$$4 returning id""".stripMargin,
+              List(
+                name,
+                java.lang.Boolean.valueOf(enabled),
+                new JsonArray(Json.toJson(resultDescriptor.conditions).toString()),
+                id,
+                description,
+                project,
+                resultDescriptor.resultType.toDatabaseName,
+                resultDescriptor match {
+                  case descriptor: ValuedResultDescriptor  => descriptor.stringValue
+                  case BooleanResultDescriptor(conditions) => null
+                }
+              )
+            )
+          case CompleteWasmFeature(_, name, project, enabled, wasmConfig, _, _, description, resultType)   =>
+            (
+              s"""update features
+                 |SET name=$$1, enabled=$$2, script_config=$$4, conditions=NULL, description=$$5, project=$$6, result_type=$$7  WHERE id=$$3 returning id""".stripMargin,
+              List(
+                name,
+                java.lang.Boolean.valueOf(enabled),
+                id,
+                wasmConfig.name,
+                description,
+                project,
+                resultType.toDatabaseName
+              )
+            )
+        }
+
+        (feature match {
+          case feat @ CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _)
+              if wasmConfig.source.kind != WasmSourceKind.Local =>
+            createWasmScriptIfNeeded(tenant, wasmConfig, Some(conn))
+          case _ => Future(())
+        })
+          .flatMap(_ =>
+            env.postgresql.queryRaw(
+              s"""
+                 |DELETE FROM feature_contexts_strategies fc USING features f
+                 |WHERE fc.feature=f.name
+                 |AND fc.project=f.project
+                 |AND f.id=$$1
+                 |AND f.project != $$2
+                 |AND fc.local_context IS NOT NULL
+                 |""".stripMargin,
+              List(id, feature.project),
+              conn = Some(conn)
+            ) { _ => Some(()) }
+          )
+          .flatMap(_ =>
+            env.postgresql
+              .queryOne(
+                request,
+                params,
+                conn = Some(conn)
+              ) { row => row.optString("id") }
+              .map(maybeId => maybeId.toRight(InternalServerError()))
+              .recover {
+                case f: PgException if f.getSqlState == NOT_NULL_VIOLATION => Left(MissingFeatureFields())
+                case _                                                     => Left(InternalServerError())
+              }
+              .flatMap(either => {
+                either.fold(
+                  err => Future.successful(Left(err)),
+                  id => {
+                    env.postgresql
+                      .queryOne(
+                        s"""delete from features_tags where feature=$$1""",
+                        List(id),
+                        conn = Some(conn)
+                      ) { _ => Some(id) }
+                      .flatMap(_ =>
+                        insertIntoFeatureTags(tenant, id, feature.tags, Some(conn))
+                          .map(either => either.map(_ => id))
+                      )
+                  }
+                )
+              })
+          )
+          .flatMap {
+            case Right(_) if !oldFeature.baseFeature().hasSameActivationStrategy(feature) =>
+              env.eventService
+                .emitEvent(
+                  channel = tenant,
+                  event = SourceFeatureUpdated(
+                    id = id,
+                    project = feature.project,
+                    tenant = tenant,
+                    user = user,
+                    previous = oldFeature,
+                    feature = oldFeature.setFeature(feature.toLightWeightFeature)
+                  )
+                )(conn)
+                .map(_ => Right(id))
+            case Right(_)                                                                 => Future.successful(Right(id))
+            case Left(err)                                                                => Future.successful(Left(err))
+          }
+      })
+    }
     // TODO allow updating metadata
     findActivationStrategiesForFeature(tenant = tenant, id = id)
       .map(o => o.map(f => FeatureWithOverloads(f)))
       .flatMap {
         case None             => Future.successful(Left(FeatureDoesNotExist(id)))
         case Some(oldFeature) => {
-          env.postgresql.executeInTransaction(
-            conn => {
-              val (request, params) = feature match {
-                case SingleConditionFeature(id, name, project, conditions, enabled, tags, metadata, description) =>
-                  (
-                    s"""update features
-                       |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6 WHERE id=$$4 returning id""".stripMargin,
-                    List(
-                      name,
-                      java.lang.Boolean.valueOf(enabled),
-                      new JsonObject(Json.toJson(conditions).toString()),
-                      id,
-                      description,
-                      project
-                    )
-                  )
-                case Feature(_, name, project, conditions, enabled, _, _, description)                           =>
-                  (
-                    s"""update features
-                       |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6 WHERE id=$$4 returning id""".stripMargin,
-                    List(
-                      name,
-                      java.lang.Boolean.valueOf(enabled),
-                      new JsonArray(Json.toJson(conditions).toString()),
-                      id,
-                      description,
-                      project
-                    )
-                  )
-                case CompleteWasmFeature(_, name, project, enabled, wasmConfig, _, _, description)               =>
-                  (
-                    s"""update features
-                       |SET name=$$1, enabled=$$2, script_config=$$4, conditions=NULL, description=$$5, project=$$6  WHERE id=$$3 returning id""".stripMargin,
-                    List(
-                      name,
-                      java.lang.Boolean.valueOf(enabled),
-                      id,
-                      wasmConfig.name,
-                      description,
-                      project
-                    )
-                  )
-              }
-
-              (feature match {
-                case feat @ CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _)
-                    if wasmConfig.source.kind != WasmSourceKind.Local =>
-                  createWasmScriptIfNeeded(tenant, wasmConfig, Some(conn))
-                case _ => Future(())
-              })
-                .flatMap(_ =>
-                  env.postgresql.queryRaw(
-                    s"""
-                       |DELETE FROM feature_contexts_strategies fc USING features f
-                       |WHERE fc.feature=f.name
-                       |AND fc.project=f.project
-                       |AND f.id=$$1
-                       |AND f.project != $$2
-                       |AND fc.local_context IS NOT NULL
-                       |""".stripMargin,
-                    List(id, feature.project),
-                    conn = Some(conn)
-                  ) { _ => Some(()) }
-                )
-                .flatMap(_ =>
-                  env.postgresql
-                    .queryOne(
-                      request,
-                      params,
-                      conn = Some(conn)
-                    ) { row => row.optString("id") }
-                    .map(maybeId => maybeId.toRight(InternalServerError()))
-                    .recover {
-                      case f: PgException if f.getSqlState == NOT_NULL_VIOLATION => Left(MissingFeatureFields())
-                      case _                                                     => Left(InternalServerError())
-                    }
-                    .flatMap(either => {
-                      either.fold(
-                        err => Future.successful(Left(err)),
-                        id => {
-                          env.postgresql
-                            .queryOne(
-                              s"""delete from features_tags where feature=$$1""",
-                              List(id),
-                              conn = Some(conn)
-                            ) { _ => Some(id) }
-                            .flatMap(_ =>
-                              insertIntoFeatureTags(tenant, id, feature.tags, Some(conn))
-                                .map(either => either.map(_ => id))
-                            )
-                        }
-                      )
-                    })
-                )
-                .flatMap {
-                  case Right(_) if !oldFeature.baseFeature().hasSameActivationStrategy(feature) =>
-                    env.eventService
-                      .emitEvent(
-                        channel = tenant,
-                        event = SourceFeatureUpdated(
-                          id = id,
-                          project = feature.project,
-                          tenant = tenant,
-                          user = user,
-                          previous = oldFeature,
-                          feature = oldFeature.setFeature(feature.toLightWeightFeature)
-                        )
-                      )(conn)
-                      .map(_ => Right(id))
-                  case Right(_)                                                                 => Future.successful(Right(id))
-                  case Left(err)                                                                => Future.successful(Left(err))
-                }
-            },
-            schemas = Set(tenant)
-          )
+          conn match {
+            case Some(c) => act(c, oldFeature)
+            case None    => env.postgresql.executeInTransaction(c => act(c, oldFeature))
+          }
         }
       }
   }
@@ -1680,83 +1897,124 @@ object featureImplicits {
       val tags =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
 
-      val maybeClassicalConditions = row
-        .optJsArray("contextual_conditions")
-        .orElse(row.optJsArray("conditions"))
-        .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
-
-      lazy val maybeLegacyConditions = row
-        .optJsObject("contextual_conditions")
-        .orElse(row.optJsObject("conditions"))
-        .map(v => v.as[LegacyCompatibleCondition])
-
-      lazy val maybeWasmConfig = row
-        .optJsObject("contextual_wasm")
-        .orElse(row.optJsObject("wasm"))
-        .map(jsObject => jsObject.as[WasmConfig](WasmConfig.format))
-
       for (
         name        <- row.optString("name");
         id          <- row.optString("id");
         description <- row.optString("description");
         project     <- row.optString("project");
         enabled     <- row.optBoolean("contextual_enabled").orElse(row.optBoolean("enabled"));
-        metadata    <- row.optJsObject("metadata")
+        metadata    <- row.optJsObject("metadata");
+        resultType  <- row.optString("result_type").flatMap(str => ResultType.parseResultType(str))
       )
-        yield (maybeClassicalConditions, maybeLegacyConditions, maybeWasmConfig) match {
-          case (Some(classicalConditions), _, _)       => {
-            Feature(
-              id = id,
-              name = name,
-              project = project,
-              enabled = enabled,
-              conditions = classicalConditions,
-              metadata = metadata,
-              tags = tags,
-              description = description
-            )
+        yield {
+          val maybeClassicalConditionsJson = row
+            .optJsArray("contextual_conditions")
+            .orElse(row.optJsArray("conditions"))
+
+          lazy val maybeLegacyConditions = row
+            .optJsObject("contextual_conditions")
+            .orElse(row.optJsObject("conditions"))
+            .map(v => v.as[LegacyCompatibleCondition])
+
+          lazy val maybeWasmConfig = row
+            .optJsObject("contextual_wasm")
+            .orElse(row.optJsObject("wasm"))
+            .map(jsObject => jsObject.as[WasmConfig](WasmConfig.format))
+
+          (maybeClassicalConditionsJson, maybeLegacyConditions, maybeWasmConfig) match {
+            case (Some(classicalConditions), _, _)       => {
+              resultType match {
+                case NumberResult  => {
+                  val conds = classicalConditions
+                    .asOpt[Seq[NumberActivationCondition]](Reads.seq(ActivationCondition.numberActivationConditionRead))
+                    .getOrElse(Seq())
+                  Feature(
+                    id = id,
+                    name = name,
+                    project = project,
+                    enabled = enabled,
+                    metadata = metadata,
+                    tags = tags,
+                    description = description,
+                    resultDescriptor = NumberResultDescriptor(
+                      value = row.optString("value").map(v => BigDecimal(v)).get,
+                      conditions = conds
+                    )
+                  )
+                }
+                case StringResult  => {
+                  val conds = classicalConditions
+                    .asOpt[Seq[StringActivationCondition]](Reads.seq(ActivationCondition.stringActivationConditionRead))
+                    .getOrElse(Seq())
+                  Feature(
+                    id = id,
+                    name = name,
+                    project = project,
+                    enabled = enabled,
+                    metadata = metadata,
+                    tags = tags,
+                    description = description,
+                    resultDescriptor = StringResultDescriptor(
+                      value = row.optString("value").get,
+                      conditions = conds
+                    )
+                  )
+                }
+                case BooleanResult => {
+                  val conds = classicalConditions
+                    .asOpt[Seq[BooleanActivationCondition]](
+                      Reads.seq(ActivationCondition.booleanActivationConditionRead)
+                    )
+                    .getOrElse(Seq())
+                  Feature(
+                    id = id,
+                    name = name,
+                    project = project,
+                    enabled = enabled,
+                    metadata = metadata,
+                    tags = tags,
+                    description = description,
+                    resultDescriptor = BooleanResultDescriptor(
+                      conditions = conds
+                    )
+                  )
+                }
+              }
+
+            }
+            case (_, Some(legacyCompatibleCondition), _) => {
+              SingleConditionFeature(
+                id = id,
+                name = name,
+                project = project,
+                enabled = enabled,
+                condition = legacyCompatibleCondition,
+                metadata = metadata,
+                tags = tags,
+                description = description
+              )
+            }
+            case (_, _, Some(wasmConfig))                => {
+              CompleteWasmFeature(
+                id = id,
+                name = name,
+                project = project,
+                enabled = enabled,
+                wasmConfig = wasmConfig,
+                metadata = metadata,
+                tags = tags,
+                description = description,
+                resultType = resultType
+              )
+            }
+            case _                                       => throw new RuntimeException("Failed to read feature " + id)
           }
-          case (_, Some(legacyCompatibleCondition), _) => {
-            SingleConditionFeature(
-              id = id,
-              name = name,
-              project = project,
-              enabled = enabled,
-              condition = legacyCompatibleCondition,
-              metadata = metadata,
-              tags = tags,
-              description = description
-            )
-          }
-          case (_, _, Some(wasmConfig))                => {
-            CompleteWasmFeature(
-              id = id,
-              name = name,
-              project = project,
-              enabled = enabled,
-              wasmConfig = wasmConfig,
-              metadata = metadata,
-              tags = tags,
-              description = description
-            )
-          }
-          case _                                       => throw new RuntimeException("Failed to read feature " + id)
         }
     }
 
     def optFeature(): Option[LightWeightFeature] = {
       val tags =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
-
-      val maybeClassicalConditions = row
-        .optJsArray("contextual_conditions")
-        .orElse(row.optJsArray("conditions"))
-        .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
-
-      lazy val maybeLegacyConditions = row
-        .optJsObject("contextual_conditions")
-        .orElse(row.optJsObject("conditions"))
-        .map(v => v.as[LegacyCompatibleCondition])
 
       lazy val maybeWasmName = row.optString("config")
 
@@ -1766,46 +2024,105 @@ object featureImplicits {
         description <- row.optString("description");
         project     <- row.optString("project");
         enabled     <- row.optBoolean("contextual_enabled").orElse(row.optBoolean("enabled"));
-        metadata    <- row.optJsObject("metadata")
+        metadata    <- row.optJsObject("metadata");
+        resultType  <- row.optString("result_type").flatMap(str => ResultType.parseResultType(str))
       )
-        yield (maybeClassicalConditions, maybeLegacyConditions, maybeWasmName) match {
-          case (Some(classicalConditions), _, _)       => {
-            Feature(
-              id = id,
-              name = name,
-              project = project,
-              enabled = enabled,
-              conditions = classicalConditions,
-              metadata = metadata,
-              tags = tags,
-              description = description
-            )
+        yield {
+          val maybeClassicalConditionsJson = row
+            .optJsArray("contextual_conditions")
+            .orElse(row.optJsArray("conditions"))
+
+          lazy val maybeLegacyConditions = row
+            .optJsObject("contextual_conditions")
+            .orElse(row.optJsObject("conditions"))
+            .map(v => v.as[LegacyCompatibleCondition])
+          (maybeClassicalConditionsJson, maybeLegacyConditions, maybeWasmName) match {
+            case (Some(classicalConditions), _, _)       => {
+              resultType match {
+                case NumberResult  => {
+                  val conds = classicalConditions
+                    .asOpt[Seq[NumberActivationCondition]](Reads.seq(ActivationCondition.numberActivationConditionRead))
+                    .getOrElse(Seq())
+                  Feature(
+                    id = id,
+                    name = name,
+                    project = project,
+                    enabled = enabled,
+                    metadata = metadata,
+                    tags = tags,
+                    description = description,
+                    resultDescriptor = NumberResultDescriptor(
+                      value = row.optString("value").map(v => BigDecimal(v)).get,
+                      conditions = conds
+                    )
+                  )
+                }
+                case StringResult  => {
+                  val conds = classicalConditions
+                    .asOpt[Seq[StringActivationCondition]](Reads.seq(ActivationCondition.stringActivationConditionRead))
+                    .getOrElse(Seq())
+                  Feature(
+                    id = id,
+                    name = name,
+                    project = project,
+                    enabled = enabled,
+                    metadata = metadata,
+                    tags = tags,
+                    description = description,
+                    resultDescriptor = StringResultDescriptor(
+                      value = row.optString("value").get,
+                      conditions = conds
+                    )
+                  )
+                }
+                case BooleanResult => {
+                  val conds = classicalConditions
+                    .asOpt[Seq[BooleanActivationCondition]](
+                      Reads.seq(ActivationCondition.booleanActivationConditionRead)
+                    )
+                    .getOrElse(Seq())
+                  Feature(
+                    id = id,
+                    name = name,
+                    project = project,
+                    enabled = enabled,
+                    metadata = metadata,
+                    tags = tags,
+                    description = description,
+                    resultDescriptor = BooleanResultDescriptor(
+                      conditions = conds
+                    )
+                  )
+                }
+              }
+            }
+            case (_, Some(legacyCompatibleCondition), _) => {
+              SingleConditionFeature(
+                id = id,
+                name = name,
+                project = project,
+                enabled = enabled,
+                condition = legacyCompatibleCondition,
+                metadata = metadata,
+                tags = tags,
+                description = description
+              )
+            }
+            case (_, _, Some(wasmConfig))                => {
+              LightWeightWasmFeature(
+                id = id,
+                name = name,
+                project = project,
+                enabled = enabled,
+                wasmConfigName = wasmConfig,
+                metadata = metadata,
+                tags = tags,
+                description = description,
+                resultType = resultType
+              )
+            }
+            case _                                       => throw new RuntimeException("Failed to read feature " + id)
           }
-          case (_, Some(legacyCompatibleCondition), _) => {
-            SingleConditionFeature(
-              id = id,
-              name = name,
-              project = project,
-              enabled = enabled,
-              condition = legacyCompatibleCondition,
-              metadata = metadata,
-              tags = tags,
-              description = description
-            )
-          }
-          case (_, _, Some(wasmConfig))                => {
-            LightWeightWasmFeature(
-              id = id,
-              name = name,
-              project = project,
-              enabled = enabled,
-              wasmConfigName = wasmConfig,
-              metadata = metadata,
-              tags = tags,
-              description = description
-            )
-          }
-          case _                                       => throw new RuntimeException("Failed to read feature " + id)
         }
     }
   }

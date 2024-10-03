@@ -2,10 +2,9 @@ package fr.maif.izanami.wasm
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, WasmError}
-import fr.maif.izanami.models.RequestContext
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import io.otoroshi.wasm4s.scaladsl._
 import fr.maif.izanami.models.RequestContext
+import fr.maif.izanami.models.features.ResultType
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import io.otoroshi.wasm4s.scaladsl._
 import play.api.libs.json._
@@ -176,10 +175,10 @@ object WasmConfig {
 }
 
 object WasmUtils {
-  def handle(config: WasmConfig, requestContext: RequestContext)(implicit
+  def handle[R](config: WasmConfig, requestContext: RequestContext, expectedType: ResultType)(implicit
       ec: ExecutionContext,
       env: Env
-  ): Future[Either[IzanamiError, Boolean]] = {
+  ): Future[Either[IzanamiError, JsValue]] = {
     val context = (requestContext.wasmJson.as[JsObject] ++ Json.obj(
       "id"               -> requestContext.user,
       "context"          -> requestContext.data,
@@ -193,13 +192,17 @@ object WasmUtils {
           case Right((rawResult, _)) => {
             val response = Json.parse(rawResult)
             val result   = response.asOpt[JsArray].getOrElse(Json.arr())
-            (result.value.head \ "result")
+            (result.value.head \ "result").asOpt[JsValue].toRight {
+              env.logger.error(s"Failed to parse wasm result (OPA), result is $result")
+              WasmError()
+            }
+            /* (result.value.head \ "result")
               .asOpt[Boolean]
               .orElse((result.value.head \ "result").asOpt[String].flatMap(s => s.toBooleanOption))
               .toRight {
                 env.logger.error(s"Failed to parse wasm result (OPA), result is $result")
                 WasmError()
-              }
+              }*/
           }
         }
       } else {
@@ -209,19 +212,26 @@ object WasmUtils {
           case Right(rawResult) => {
             if (rawResult.startsWith("{")) {
               val response = Json.parse(rawResult)
-
               (response \ "active")
+                .asOpt[JsValue]
+                .toRight {
+                  env.logger.error(s"Failed to parse wasm result, result is $response")
+                  WasmError()
+                }
+              /*(response \ "active")
                 .asOpt[Boolean]
                 .orElse((response \ "active").asOpt[String].flatMap(s => s.toBooleanOption))
                 .toRight {
                   env.logger.error(s"Failed to parse wasm result, result is $response")
                   WasmError()
-                }
+                }*/
             } else {
-              rawResult.toBooleanOption.toRight {
+              //rawResult.toBooleanOption.toRight {
+              //}
+              Try{Json.parse(rawResult)}.toEither.left.map(ex => {
                 env.logger.error(s"Failed to parse wasm result, result is $rawResult")
                 WasmError()
-              }
+              })
             }
           }
         }

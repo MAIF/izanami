@@ -625,6 +625,7 @@ export class App extends Component {
       onCancel?: () => Promise<any>;
       closeButtonText?: string;
       confirmButtonText?: string;
+      noFooter?: boolean;
     };
     passwordConfirmation?: {
       message: JSX.Element | JSX.Element[] | string;
@@ -787,6 +788,7 @@ export class App extends Component {
     const callback = this.state.confirmation?.callback;
     const modalProps = {
       visible: !!this.state.confirmation,
+      noFooter: !!this.state?.confirmation?.noFooter,
       onClose: () => {
         this.state.confirmation?.onCancel?.();
         this.setState({

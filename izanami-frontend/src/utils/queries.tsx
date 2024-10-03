@@ -27,6 +27,7 @@ import {
   WasmFeature,
   Webhook,
   SearchResult,
+  FeatureTypeName,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -401,15 +402,24 @@ export function updateFeatureActivationForContext(
   path: string,
   feature: string,
   enabled: boolean,
-  conditions?: TCondition[],
-  wasmConfig?: TWasmConfig
+  resultType: FeatureTypeName,
+  conditions?: TCondition<string | boolean | number>[],
+  wasmConfig?: TWasmConfig,
+  value?: string | boolean | number
 ) {
   return handleFetchWithoutResponse(
     fetch(
       `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}`,
       {
         method: "PUT",
-        body: JSON.stringify({ enabled, conditions, feature, wasmConfig }),
+        body: JSON.stringify({
+          enabled,
+          conditions,
+          feature,
+          wasmConfig,
+          value: value,
+          resultType,
+        }),
         headers: {
           "Content-Type": "application/json",
         },
@@ -498,6 +508,7 @@ export function createFeature(
   project: string,
   feature: any
 ): Promise<TCompleteFeature> {
+  console.log("creating", feature);
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/features`, {
       method: "POST",

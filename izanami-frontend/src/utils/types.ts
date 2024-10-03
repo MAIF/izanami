@@ -87,6 +87,7 @@ export interface SingleConditionFeature {
   tags: string[];
   project?: string;
   conditions: Record<string, any>;
+  resultType: "boolean";
 }
 
 export interface SinglePercentageConditionFeature
@@ -171,15 +172,29 @@ export function isSingleNoStrategyConditionFeature(
   );
 }
 
-export interface ClassicalFeature {
+export type FeatureType = boolean | number | string;
+export type FeatureTypeName = "number" | "string" | "boolean";
+
+interface ClassicalFeatureBase<
+  Type extends FeatureType,
+  TypeName extends FeatureTypeName
+> {
   id?: string;
   name: string;
   description: string;
   enabled: boolean;
   tags: string[];
   project?: string;
-  conditions: TCondition[];
+  conditions: TCondition<Type>[];
+  defaultResult: Type;
+  resultType: TypeName;
 }
+
+// There is probablyt a better way, but I suck a Typescript ;)
+export type ClassicalFeature =
+  | ClassicalFeatureBase<number, "number">
+  | ClassicalFeatureBase<string, "string">
+  | ClassicalFeatureBase<boolean, "boolean">;
 
 export interface WasmFeature {
   id?: string;
@@ -189,6 +204,7 @@ export interface WasmFeature {
   tags: string[];
   project?: string;
   wasmConfig: TWasmConfig;
+  resultType: FeatureTypeName;
 }
 
 export interface LightWasmFeature {
@@ -199,6 +215,7 @@ export interface LightWasmFeature {
   tags: string[];
   project?: string;
   wasmConfig: string;
+  resultType: FeatureTypeName;
 }
 
 export interface TWasmConfig {
@@ -220,9 +237,10 @@ export interface TWasmConfigSource {
   opts?: { [x: string]: any };
 }
 
-export interface TCondition {
+export interface TCondition<T extends FeatureType> {
   rule?: TFeatureRule;
   period?: TFeaturePeriod;
+  value: T;
 }
 
 export interface THourPeriod {
@@ -412,15 +430,35 @@ export type MailerConfiguration =
   | SMTPConfigurationDetails
   | Record<string, never>;
 
-export interface TContextOverload {
+export interface TContextOverloadBase {
   name: string;
   enabled: boolean;
   id: string;
-  conditions?: TCondition[];
-  path?: string;
-  wasmConfig?: TWasmConfig;
+  path: string;
   project?: string;
+  resultType: FeatureTypeName;
 }
+
+export interface TClassicalContextOverloadBase<
+  N extends FeatureTypeName,
+  T extends FeatureType
+> extends TContextOverloadBase {
+  conditions: TCondition<T>[];
+  resultType: N;
+  value: T;
+}
+
+export type TClassicalContextOverload =
+  | TClassicalContextOverloadBase<"number", number>
+  | TClassicalContextOverloadBase<"boolean", boolean>
+  | TClassicalContextOverloadBase<"string", string>;
+
+export interface TWasmContextOverload extends TContextOverloadBase {
+  wasmConfig: TWasmConfig;
+  resultType: FeatureTypeName;
+}
+
+export type TContextOverload = TClassicalContextOverload | TWasmContextOverload;
 
 export interface TContext {
   name: string;

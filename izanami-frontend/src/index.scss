@@ -78,7 +78,7 @@ textarea {
 input:not([role="combobox"]):not([type="checkbox"]),
 textarea {
   /* buggy on react-select */
-  background-color: var(--bg-color_level3);
+  background-color: var(--bg-color_level3) !important;
 }
 
 ::placeholder {

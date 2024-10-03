@@ -1,6 +1,16 @@
 import * as React from "react";
-import { TContextOverload, isWasmFeature } from "../utils/types";
-import { useForm, Controller, FormProvider } from "react-hook-form";
+import {
+  FeatureType,
+  FeatureTypeName,
+  TContextOverload,
+  TContextOverloadBase,
+} from "../utils/types";
+import {
+  useForm,
+  Controller,
+  FormProvider,
+  FieldErrors,
+} from "react-hook-form";
 import { ConditionsInput } from "./ConditionInput";
 import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
@@ -10,6 +20,9 @@ import { useQuery } from "react-query";
 import { useParams } from "react-router-dom";
 import { projectQueryKey, queryProject } from "../utils/queries";
 import { Loader } from "./Loader";
+import { ErrorDisplay } from "./FeatureForm";
+import { Tooltip } from "./Tooltip";
+import { ResultTypeIcon } from "./ResultTypeIcon";
 
 export function OverloadCreationForm(props: {
   project: string;
@@ -19,6 +32,7 @@ export function OverloadCreationForm(props: {
   defaultValue?: TContextOverload;
   noName?: boolean;
   additionalFields?: () => JSX.Element;
+  resultType?: FeatureTypeName;
 }) {
   const {
     cancel,
@@ -33,6 +47,9 @@ export function OverloadCreationForm(props: {
   const { tenant } = useParams();
   const isWasm = defaultValue && "wasmConfig" in defaultValue;
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
+  const [featureResultType, setFeatureResultType] = useState<
+    FeatureType | undefined
+  >(props.resultType);
   React.useEffect(() => {
     if (type === "Existing WASM script") {
       setValue("wasmConfig.source.kind", "Local");
@@ -56,40 +73,101 @@ export function OverloadCreationForm(props: {
     return (
       <FormProvider {...methods}>
         <form
-          onSubmit={handleSubmit((data) => submit(data))}
+          onSubmit={handleSubmit((data) =>
+            submit({ ...data, resultType: featureResultType })
+          )}
           className="d-flex flex-column anim__rightToLeft p-3 sub_container"
         >
-          <label>
-            Name
-            <Controller
-              name="name"
-              control={control}
-              render={({ field: { onChange, value } }) => (
-                <Select
-                  isDisabled={noName}
-                  value={{ value, label: value }}
-                  onChange={(e) => onChange(e?.value)}
-                  styles={customStyles}
-                  options={projectQuery.data.features
-                    .filter((f) => !excluded || !excluded.includes(f.name))
-                    .map((f) => ({
-                      label: f.name,
-                      value: f.name,
-                    }))}
-                />
-              )}
-            />
-            {errors.name && <p className="error-message">name is required</p>}
-          </label>
+          <div className="row">
+            <label className="col-9 col-lg-5 col-xl-4 col-xxl-3">
+              Name
+              <Controller
+                name="name"
+                control={control}
+                render={({ field: { onChange, value } }) => (
+                  <Select
+                    isDisabled={noName}
+                    value={{ value, label: value }}
+                    onChange={(e) => {
+                      const selectedFeature = projectQuery.data.features.find(
+                        (f) => f.name === e?.value
+                      );
+                      setFeatureResultType(selectedFeature?.resultType);
+                      onChange(e?.value);
+                    }}
+                    styles={customStyles}
+                    options={projectQuery.data.features
+                      .filter((f) => !excluded || !excluded.includes(f.name))
+                      .map((f) => ({
+                        label: f.name,
+                        value: f.name,
+                      }))}
+                  />
+                )}
+              />
+              {errors.name && <p className="error-message">name is required</p>}
+            </label>
+            <label className="col-3">
+              Enabled
+              <input
+                type="checkbox"
+                className="izanami-checkbox ms-2"
+                {...register("enabled")}
+              />
+            </label>
+          </div>
           {additionalFields?.()}
-          <label className="mt-3 d-flex">
-            <span className="mt-2">Enabled</span>
-            <input
-              type="checkbox"
-              className="izanami-checkbox ms-2"
-              {...register("enabled")}
-            />
-          </label>
+          <div className="row mt-3">
+            <label className="col-6 col-lg-5 col-xl-4 col-xxl-3">
+              Feature result type
+              <Tooltip id="modern-result-type">
+                Result type is result that will be returned by feature
+                evaluation.
+                <br /> It's usually boolean, but for some cases it can be string
+                or number.
+              </Tooltip>
+              <Select
+                placeholder="Select a feature to display its result type"
+                value={
+                  featureResultType
+                    ? {
+                        label: (
+                          <div className="d-flex">
+                            <ResultTypeIcon resultType={featureResultType} />
+                            <span className="ps-1">{featureResultType}</span>
+                          </div>
+                        ),
+                        value: featureResultType,
+                      }
+                    : null
+                }
+                isDisabled={true}
+                styles={customStyles}
+              />
+            </label>
+            {featureResultType && featureResultType !== "boolean" && (
+              <label className="col-6 col-lg-7 col-xl-8 col-xxl-9">
+                Base value*
+                {featureResultType === "string" ? (
+                  <input
+                    type="text"
+                    className="form-control"
+                    {...register("value")}
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    className="form-control"
+                    step="any"
+                    {...register("value")}
+                  />
+                )}
+                <ErrorDisplay
+                  error={(errors as FieldErrors<TContextOverloadBase>).value}
+                />
+              </label>
+            )}
+          </div>
           <label className="mt-3">
             Feature type
             <Select
