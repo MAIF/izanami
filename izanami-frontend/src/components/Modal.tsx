@@ -9,6 +9,7 @@ export function Modal(props: {
   confirmButtonText?: string;
   children: ReactElement | ReactElement[] | string;
   position?: "top" | "center";
+  noFooter?: boolean;
 }) {
   const {
     visible,
@@ -19,6 +20,7 @@ export function Modal(props: {
     closeButtonText,
     confirmButtonText,
     position,
+    noFooter,
   } = props;
 
   React.useEffect(() => {
@@ -51,29 +53,37 @@ export function Modal(props: {
               </div>
             )}
             <div className="modal-body">{children}</div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className={`btn ${!closeButtonText && !onConfirm ? 'btn-danger' : 'btn-danger-light'}`}
-                data-bs-dismiss="modal"
-                onClick={() => onClose()}
-              >
-                {closeButtonText
-                  ? closeButtonText
-                  : onConfirm
-                  ? "Cancel"
-                  : "Close"}
-              </button>
-              {onConfirm && (
+            {props.noFooter === true ? (
+              <></>
+            ) : (
+              <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-primary"
-                  onClick={onConfirm}
+                  className={`btn ${
+                    !closeButtonText && !onConfirm
+                      ? "btn-danger"
+                      : "btn-danger-light"
+                  }`}
+                  data-bs-dismiss="modal"
+                  onClick={() => onClose()}
                 >
-                  {confirmButtonText ? confirmButtonText : "Confirm"}
+                  {closeButtonText
+                    ? closeButtonText
+                    : onConfirm
+                    ? "Cancel"
+                    : "Close"}
                 </button>
-              )}
-            </div>
+                {onConfirm && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={onConfirm}
+                  >
+                    {confirmButtonText ? confirmButtonText : "Confirm"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

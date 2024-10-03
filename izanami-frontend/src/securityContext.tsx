@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { FunctionComponent, useContext } from "react";
 import { TLevel, TRights, TUser } from "./utils/types";
 
 export interface TIzanamiContext {
@@ -14,6 +14,11 @@ export interface TIzanamiContext {
     onCancel?: () => Promise<any>,
     closeButtonText?: string,
     confirmButtonText?: string
+  ) => Promise<void>;
+  displayModal: (
+    content: FunctionComponent<{
+      close: () => void;
+    }>
   ) => Promise<void>;
   refreshUser: () => void;
   integrations?: {
@@ -41,6 +46,9 @@ export const IzanamiContext = React.createContext<TIzanamiContext>({
     /* */
   },
   integrations: undefined,
+  displayModal: () => {
+    return Promise.resolve();
+  },
 });
 
 export function useAdmin() {

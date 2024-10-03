@@ -15,16 +15,8 @@ import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
-import fr.maif.izanami.api.BaseAPISpec.{
-  cleanUpDB,
-  eventKillSwitch,
-  login,
-  shouldCleanUpEvents,
-  shouldCleanUpMails,
-  shouldCleanUpWasmServer,
-  webhookServers,
-  ws
-}
+import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, login, shouldCleanUpEvents, shouldCleanUpMails, shouldCleanUpWasmServer, webhookServers, ws}
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.utils.{WasmManagerClient, WiremockResponseDefinitionTransformer}
 import org.awaitility.scala.AwaitilitySupport
 import org.postgresql.util.PSQLException
@@ -33,7 +25,7 @@ import org.scalatestplus.play.PlaySpec
 import play.api.libs.json._
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
-import play.api.test.Helpers.{await, OK}
+import play.api.test.Helpers.{OK, await}
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.test.DefaultAwaitTimeout
 
@@ -284,7 +276,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       conditions: Set[TestCondition] = Set(),
       wasmConfig: TestWasmConfig = null,
       id: String = null,
-      cookies: Seq[WSCookie] = Seq()
+      cookies: Seq[WSCookie] = Seq(),
+      resultType: String = "boolean",
+      value: String = null
   ): RequestResult = {
     createFeatureWithRawConditions(
       name,
@@ -296,7 +290,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       Json.toJson(conditions.map(c => c.json)).toString(),
       wasmConfig,
       id,
-      cookies
+      cookies,
+      resultType,
+      value
     )
   }
 
@@ -310,7 +306,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       conditions: Set[TestCondition] = Set(),
       wasmConfig: TestWasmConfig = null,
       id: String = null,
-      cookies: Seq[WSCookie] = Seq()
+      cookies: Seq[WSCookie] = Seq(),
+      resultType: String = "boolean",
+      value: String = null
   ): Future[WSResponse] = {
     createFeatureWithRawConditionsAsync(
       name,
@@ -322,7 +320,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       Json.toJson(conditions.map(c => c.json)).toString(),
       wasmConfig,
       id,
-      cookies
+      cookies,
+      resultType,
+      value
     )
   }
 
@@ -336,7 +336,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       conditions: String,
       wasmConfig: TestWasmConfig = null,
       id: String = null,
-      cookies: Seq[WSCookie] = Seq()
+      cookies: Seq[WSCookie] = Seq(),
+      resultType: String = "boolean",
+      value: String = null
   ): RequestResult = {
     val response = await(
       createFeatureWithRawConditionsAsync(
@@ -349,7 +351,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         conditions,
         wasmConfig,
         id,
-        cookies
+        cookies,
+        resultType,
+        value
       )
     )
 
@@ -369,7 +373,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       conditions: String,
       wasmConfig: TestWasmConfig = null,
       id: String,
-      cookies: Seq[WSCookie] = Seq()
+      cookies: Seq[WSCookie] = Seq(),
+      resultType: String = "boolean",
+      value: String = null
   ): Future[WSResponse] = {
     ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/features")
       .withCookies(cookies: _*)
@@ -378,11 +384,16 @@ object BaseAPISpec extends DefaultAwaitTimeout {
            |"tags": [${tags.map(name => s""""${name}"""").mkString(",")}],
            |"metadata": ${Json.stringify(metadata)},
            |"enabled": ${enabled},
+           |"resultType": "${resultType}",
+           |${if (value != null) {
+        if (resultType == "number") s""" "value": ${value},""" else s""" "value": "${value}", """
+      } else ""}
            |"conditions": ${Json.parse(conditions).as[JsArray]}
            |${if (Objects.nonNull(wasmConfig))
         s""" ,"wasmConfig": ${Json.stringify(wasmConfig.json)} """
       else ""}
            |${if (Objects.nonNull(id)) s""" ,"id": "$id" """ else s""}
+           |
            |}""".stripMargin))
   }
 
@@ -727,7 +738,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       })
       .flatMap(_ => {
         Future.sequence(context.overloads.map {
-          case TestFeature(name, enabled, _, _, conditions, wasmConfig, _) => {
+          case TestFeature(name, enabled, _, _, conditions, wasmConfig, _, resultType, value) => {
             changeFeatureStrategyForContextAsync(
               tenant,
               project,
@@ -736,7 +747,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
               enabled,
               conditions,
               wasmConfig,
-              cookies
+              cookies,
+              resultType,
+              value
             ).map(result => {
               if (result.status >= 400) {
                 throw new RuntimeException("Failed to create feature overload")
@@ -866,6 +879,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             |"tags": [${feature.tags.map(name => s""""${name}"""").mkString(",")}],
             |"metadata": ${Json.stringify(feature.metadata)},
             |"enabled": ${feature.enabled},
+            |"resultType": "${feature.resultType}",
+            |${if (feature.value != null) {
+          if (feature.resultType == "number") s""" "value": ${feature.value}, """ else s""" "value": "${feature.value}", """
+        } else ""}
             |"conditions": ${Json.toJson(feature.conditions.map(c => c.json))}
             |${if (Objects.nonNull(feature.wasmConfig)) s""" ,"wasmConfig": ${feature.wasmConfig.json} """ else ""}
             |}""".stripMargin))
@@ -1018,7 +1035,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       enabled: Boolean,
       conditions: Set[TestCondition] = Set(),
       wasmConfig: TestWasmConfig = null,
-      cookies: Seq[WSCookie] = Seq()
+      cookies: Seq[WSCookie] = Seq(),
+      resultType: String = "boolean",
+      value: String = null
   ) = {
     val response = await(
       changeFeatureStrategyForContextAsync(
@@ -1029,7 +1048,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         enabled,
         conditions,
         wasmConfig,
-        cookies
+        cookies,
+        resultType,
+        value
       )
     )
 
@@ -1047,13 +1068,18 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       enabled: Boolean,
       conditions: Set[TestCondition] = Set(),
       wasmConfig: TestWasmConfig = null,
-      cookies: Seq[WSCookie] = Seq()
+      cookies: Seq[WSCookie] = Seq(),
+      resultType: String = "boolean",
+      value: String = null
   ) = {
     ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts/${contextPath}/features/${feature}""")
       .withCookies(cookies: _*)
       .put(
         Json.parse(s"""
                |{
+               | "enabled": ${enabled},
+               | "resultType": "${resultType}",
+               | ${if(value != null){ if(resultType == "number") s""" "value": $value, """ else s""" "value": "$value", """ } else ""}
                | "enabled": ${enabled},
                | "conditions": [${conditions.map(c => c.json).mkString(",")}]
                | ${if (Objects.nonNull(wasmConfig)) s""" ,"wasmConfig": ${Json.stringify(wasmConfig.json)}"""
@@ -1180,7 +1206,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       metadata: JsObject = JsObject.empty,
       conditions: Set[TestCondition] = Set(),
       wasmConfig: TestWasmConfig = null,
-      id: String = null
+      id: String = null,
+      resultType: String = "boolean",
+      value: String = null
   ) {
     def withConditions(testCondition: TestCondition*): TestFeature = {
       copy(conditions = this.conditions ++ testCondition)
@@ -1210,12 +1238,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
   case class TestCondition(
       rule: TestRule = null,
-      period: TestPeriod = null
+      period: TestPeriod = null,
+      value: String = null
   ) {
     def json: JsObject = Json.obj(
       "rule"   -> Option(rule).map(r => r.json),
       "period" -> Option(period).map(p => p.json)
-    )
+    ).applyOnWithOpt(Option(value))((json, value) => json ++ Json.obj("value" -> value))
   }
 
   case class TestDateTimePeriod(
@@ -1862,7 +1891,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         metadata: JsObject = JsObject.empty,
         conditions: Set[TestCondition] = Set(),
         wasmConfig: TestWasmConfig = null,
-        id: String = null
+        id: String = null,
+        resultType: String = "boolean",
+        value: String = null
     ): RequestResult = {
       BaseAPISpec.this.createFeature(
         name,
@@ -1874,7 +1905,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         conditions,
         wasmConfig,
         id,
-        cookies
+        cookies,
+        resultType,
+        value
       )
     }
 
@@ -2006,7 +2039,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         feature: String,
         enabled: Boolean,
         conditions: Set[TestCondition] = Set(),
-        wasmConfig: TestWasmConfig = null
+        wasmConfig: TestWasmConfig = null,
+        resultType: String = "boolean",
+        value: String = null
     ) = {
       BaseAPISpec.this.changeFeatureStrategyForContext(
         tenant,
@@ -2016,7 +2051,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         enabled,
         conditions,
         wasmConfig,
-        cookies
+        cookies,
+        resultType,
+        value
       )
     }
 
@@ -2943,7 +2980,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                             conditions = feature.conditions,
                             wasmConfig = feature.wasmConfig,
                             id = feature.id,
-                            cookies = buildCookies
+                            cookies = buildCookies,
+                            resultType = feature.resultType,
+                            value = feature.value
                           ).map(res => {
                             if (res.status >= 400) {
                               throw new RuntimeException("Failed to create features")

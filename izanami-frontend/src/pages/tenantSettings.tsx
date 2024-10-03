@@ -111,7 +111,7 @@ export function TenantSettings(props: { tenant: string }) {
             invitedUsers={usersQuery.data?.map((user) => user.username) || []}
           />
         )}
-        <TenantUsers tenant={tenant} usersData={usersQuery} />
+        <TenantUsers tenant={tenant} usersData={usersQuery.data} />
         <hr />
         <h2 className="mt-4">Update tenant information</h2>
         <div className="d-flex align-items-center justify-content-between p-2">

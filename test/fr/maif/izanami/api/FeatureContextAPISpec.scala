@@ -493,6 +493,58 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context feature PUT endpoint" should {
+    "Reject overload creation with incorrect resultType" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("prod"))
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "F1"
+                  ),
+                  TestFeature(
+                    "F2",
+                    resultType = "string",
+                    value = "foo"
+                  )
+                )
+            )
+        )
+        .build()
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        contextPath = "prod",
+        feature = "F1",
+        enabled = true,
+        resultType = "string",
+        value = "foo"
+      ).status mustBe BAD_REQUEST
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        contextPath = "prod",
+        feature = "F2",
+        enabled = true,
+        resultType = "boolean"
+      ).status mustBe BAD_REQUEST
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        contextPath = "prod",
+        feature = "F2",
+        enabled = true,
+        resultType = "number",
+        value = "1.5"
+      ).status mustBe BAD_REQUEST
+    }
+
     "Allow to overload a base script feature to classical feature" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

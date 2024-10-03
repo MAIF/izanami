@@ -478,6 +478,8 @@ class TestFeature {
   name: string;
   enabled = false;
   overloads: TestOverload[] = [];
+  resultType: string = "boolean";
+  value: any = null;
 
   constructor(name: string, enabled = false, overloads: TestOverload[] = []) {
     this.name = name;

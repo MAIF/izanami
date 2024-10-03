@@ -49,6 +49,10 @@ case class ProjectContextOrFeatureDoesNotExist(project: String, context: String,
 case class FeatureContextDoesNotExist(context: String)
     extends IzanamiError(message = s"Context ${context} does not exist", status = NOT_FOUND)
 
+case class NoFeatureMatchingOverloadDefinition(tenant: String, project: String, feature: String, resultType: String)
+  extends IzanamiError(message = s"No feature $feature for project $project, tenant $tenant and resultType $resultType found", status = BAD_REQUEST)
+
+
 case class ConflictWithSameNameGlobalContext(name: String, parentCtx: String = null)
     extends IzanamiError(
       message =

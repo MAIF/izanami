@@ -2,12 +2,21 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.models.Feature.activationConditionRead
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.models.features.{
+  ActivationCondition,
+  BooleanActivationCondition,
+  BooleanResult,
+  BooleanResultDescriptor,
+  ResultDescriptor,
+  ResultType,
+  ValuedActivationCondition,
+  ValuedResultDescriptor,
+  ValuedResultType
+}
 import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
 import play.api.libs.json._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.matching.Regex
 
 case class FeatureContext(
@@ -23,11 +32,17 @@ case class FeatureContext(
 sealed trait LightweightContextualStrategy extends ContextualFeatureStrategy
 
 sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
-  def active(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, Boolean]]
+  def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]]
   def toLightWeightContextualStrategy: LightweightContextualStrategy = {
     this match {
-      case f:ClassicalFeatureStrategy => f
-      case CompleteWasmFeatureStrategy(enabled, wasmConfig, feature) => LightWeightWasmFeatureStrategy(enabled =  enabled, wasmConfigName = wasmConfig.name, feature = feature)
+      case f: ClassicalFeatureStrategy                                           => f
+      case CompleteWasmFeatureStrategy(enabled, wasmConfig, feature, resultType) =>
+        LightWeightWasmFeatureStrategy(
+          enabled = enabled,
+          wasmConfigName = wasmConfig.name,
+          feature = feature,
+          resultType = resultType
+        )
     }
   }
 }
@@ -35,31 +50,44 @@ sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
 sealed trait ContextualFeatureStrategy {
   val enabled: Boolean
   val feature: String
+  val resultType: ResultType
 }
 
 case class ClassicalFeatureStrategy(
     enabled: Boolean,
-    conditions: Set[ActivationCondition],
-    feature: String
-) extends CompleteContextualStrategy with LightweightContextualStrategy {
-  def active(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, Boolean]] = {
-    // TODO handle default as for features
-    Future(Right {
-      enabled && (conditions.isEmpty || conditions.exists(cond => cond.active(requestContext, feature)))
-    })(env.executionContext)
+    feature: String,
+    resultDescriptor: ResultDescriptor
+) extends CompleteContextualStrategy
+    with LightweightContextualStrategy {
+  def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]] = {
+    Future.successful(Right((enabled, resultDescriptor) match {
+      case (false, r: BooleanResultDescriptor)                  => JsFalse
+      case (false, _)                                           => JsNull
+      case (true, BooleanResultDescriptor(conditions))          =>
+        JsBoolean(conditions.isEmpty || conditions.exists(c => c.active(requestContext, feature)))
+      case (true, v:ValuedResultDescriptor) => {
+          v.conditions
+            .find(condition => condition.active(requestContext, feature))
+            .map(condition => condition.jsonValue)
+            .getOrElse(v.jsonValue)
+      }
+    }))
   }
+
+  override val resultType: ResultType = resultDescriptor.resultType
 }
 
 case class CompleteWasmFeatureStrategy(
     enabled: Boolean,
     wasmConfig: WasmConfig,
-    feature: String
+    feature: String,
+    resultType: ResultType
 ) extends CompleteContextualStrategy {
-  def active(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, Boolean]] = {
+  def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]] = {
     if (!enabled) {
-      Future { Right(false) }(env.executionContext)
+      Future { Right(null.asInstanceOf) }(env.executionContext)
     } else {
-      WasmUtils.handle(wasmConfig, requestContext)(env.executionContext, env)
+      WasmUtils.handle(wasmConfig, requestContext, resultType)(env.executionContext, env)
     }
   }
 }
@@ -67,7 +95,8 @@ case class CompleteWasmFeatureStrategy(
 case class LightWeightWasmFeatureStrategy(
     enabled: Boolean,
     wasmConfigName: String,
-    feature: String
+    feature: String,
+    resultType: ResultType
 ) extends LightweightContextualStrategy
 
 object FeatureContext {
@@ -85,19 +114,55 @@ object FeatureContext {
       .map(keyEnd => s"${project}_${keyEnd}")
   }
 
-  def readcontextualFeatureStrategyRead(json: JsValue, feature: String): JsResult[CompleteContextualStrategy] = {
-    val maybeConditions = (json \ "conditions").asOpt[Set[ActivationCondition]]
-    val maybeWasmConfig = (json \ "wasmConfig").asOpt[WasmConfig](WasmConfig.format)
-    val enabled         = (json \ "enabled").asOpt[Boolean].getOrElse(true)
+  def readcontextualFeatureStrategyRead(
+      json: JsValue,
+      feature: String
+  ): JsResult[CompleteContextualStrategy] = {
 
-    (maybeWasmConfig, maybeConditions) match {
-      case (Some(config), _)    => JsSuccess(CompleteWasmFeatureStrategy(enabled, config, feature))
-      case (_, maybeConditions) =>
-        JsSuccess(ClassicalFeatureStrategy(enabled, maybeConditions.getOrElse(Set(ActivationCondition())), feature))
-    }
+    val enabled         = (json \ "enabled").asOpt[Boolean].getOrElse(true)
+    val maybeWasmConfig = (json \ "wasmConfig").asOpt[WasmConfig](WasmConfig.format)
+    (json \ "resultType")
+      .asOpt[ResultType](ResultType.resultTypeReads)
+      .map {
+        case resultType: ValuedResultType => {
+          val maybeConditions = json
+            .asOpt[ValuedResultDescriptor](ValuedResultDescriptor.valuedDescriptorReads)
+          (maybeWasmConfig, maybeConditions) match {
+            case (Some(config), _)    => JsSuccess(CompleteWasmFeatureStrategy(enabled, config, feature, resultType))
+            case (_, Some(descriptor)) =>
+              JsSuccess(
+                ClassicalFeatureStrategy(
+                  enabled,
+                  feature,
+                  descriptor
+                )
+              )
+          }
+        }
+        case BooleanResult                => {
+          val maybeConditions = (json \ "conditions")
+            .asOpt[Seq[BooleanActivationCondition]](Reads.seq(ActivationCondition.booleanActivationConditionRead))
+          (maybeWasmConfig, maybeConditions) match {
+            case (Some(config), _)    => JsSuccess(CompleteWasmFeatureStrategy(enabled, config, feature, BooleanResult))
+            case (_, maybeConditions) => {
+              JsSuccess(
+                ClassicalFeatureStrategy(
+                  enabled,
+                  feature,
+                  BooleanResultDescriptor(
+                    maybeConditions.getOrElse(Seq())
+                  )
+                )
+              )
+            }
+          }
+
+        }
+      }
+      .getOrElse(JsError("Missing result type"))
   }
 
-  implicit val featureContextWrites: Writes[FeatureContext] = { context =>
+  implicit def featureContextWrites: Writes[FeatureContext] = { context =>
     Json.obj(
       "name"      -> context.name,
       "id"        -> context.id,

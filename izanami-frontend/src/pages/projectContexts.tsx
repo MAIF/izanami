@@ -12,6 +12,7 @@ import {
 } from "../utils/queries";
 import queryClient from "../queryClient";
 import {
+  FeatureTypeName,
   TCondition,
   TContext,
   TContextOverload,
@@ -112,18 +113,23 @@ function ProjectOverloadTable({
       project: string;
       name: string;
       enabled: boolean;
-      conditions: TCondition[];
+      conditions: TCondition<string | number | boolean>[];
       wasm: TWasmConfig;
+      value: string | number | boolean;
+      resultType: FeatureTypeName;
     }) => {
-      const { project, name, enabled, conditions, wasm } = data;
+      const { project, name, enabled, conditions, wasm, value, resultType } =
+        data;
       return updateFeatureActivationForContext(
         tenant,
         project,
         path,
         name,
         enabled,
+        resultType,
         conditions,
-        wasm
+        wasm,
+        value
       );
     }
   );
@@ -151,7 +157,15 @@ function ProjectOverloadTable({
             excluded={overloads.map((o) => o.name)}
             project={project!}
             cancel={() => setCreating(false)}
-            submit={({ name, enabled, conditions, wasmConfig }) => {
+            submit={({
+              name,
+              enabled,
+              conditions,
+              wasmConfig,
+              value,
+              resultType,
+            }) => {
+              console.log("resultType", resultType);
               updateOverload.mutateAsync(
                 {
                   project: project!,
@@ -159,6 +173,8 @@ function ProjectOverloadTable({
                   enabled,
                   conditions: conditions ?? [],
                   wasm: wasmConfig!,
+                  value: value,
+                  resultType,
                 },
                 {
                   onSuccess: () => {
