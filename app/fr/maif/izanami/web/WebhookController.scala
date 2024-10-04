@@ -60,11 +60,23 @@ class WebhookController(
       env.datastores.webhook.listWebhook(tenant, request.user).map(ws => Ok(Json.toJson(ws)))
   }
 
-  def deleteWebhook(tenant: String, id: String): Action[AnyContent] =
-    webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Admin).async { implicit request =>
-      env.datastores.webhook.deleteWebhook(tenant, id).map {
-        case Left(err) => err.toHttpResponse
-        case Right(_)  => NoContent
+  def deleteWebhook(tenant: String, id: String): Action[JsValue] =
+    webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Admin).async(parse.json) { implicit request =>
+      (request.body \ "password").asOpt[String] match {
+        case None => Future.successful(BadRequest(Json.obj("message" -> "Missing password")))
+        case Some(password) =>
+          env.datastores.users
+            .isUserValid(request.user, password)
+            .flatMap {
+              case Some(_) =>
+                env.datastores.webhook
+                  .deleteWebhook(tenant, id)
+                  .map {
+                    case Left(err) => err.toHttpResponse
+                    case Right(_) => NoContent
+                  }
+              case None => Future.successful(BadRequest(Json.obj("message" -> "Your password is invalid.")))
+            }
       }
     }
 
