@@ -1,6 +1,6 @@
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
-import { Modal } from "../components/Modal";
+import { PasswordModal } from "../components/PasswordModal";
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -60,30 +60,17 @@ export function TenantSettings(props: { tenant: string }) {
   const usersQuery = useQuery(tenantUserQueryKey(tenant), () =>
     queryTenantUsers(tenant)
   );
-  const [password, setPassword] = React.useState("");
+
   const deleteMutation = useMutation(
-    () => deleteTenant({ password }, props.tenant),
+    (password: string) => deleteTenant(password, props.tenant),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(MutationNames.TENANTS);
-        setError("");
-        setPassword("");
-        setModalVisible(false);
+        setModalOpen(false);
         navigate("/home");
-      },
-      onError: (err: any) => {
-        setError(err.message);
       },
     }
   );
-
-  const handleDelete = () => {
-    if (password.length === 0) {
-      setError("Password must be specified.");
-      return;
-    }
-    deleteMutation.mutate();
-  };
 
   const inviteUsers = useMutation(
     (data: { users: string[]; level: TLevel }) => {
@@ -97,8 +84,7 @@ export function TenantSettings(props: { tenant: string }) {
     }
   );
 
-  const [error, setError] = React.useState("");
-  const [isVisible, setModalVisible] = React.useState(false);
+  const [isModalOpen, setModalOpen] = React.useState(false);
   const navigate = useNavigate();
   const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
   const [modification, setModification] = React.useState(false);
@@ -159,35 +145,24 @@ export function TenantSettings(props: { tenant: string }) {
           <span>Delete this tenant</span>
           <button
             className="btn btn-danger m-2 btn-sm"
-            onClick={() => {
-              setModalVisible(true);
-              setError("");
-              setPassword("");
-            }}
+            onClick={() => setModalOpen(true)}
           >
             Delete Tenant
           </button>
-          <Modal
-            visible={isVisible}
-            onClose={() => setModalVisible(false)}
-            onConfirm={() => handleDelete()}
-            position="center"
+          <PasswordModal
+            isOpenModal={isModalOpen}
+            onClose={() => setModalOpen(false)}
+            onConfirm={(password: string) => {
+              deleteMutation.mutate(password);
+            }}
+            title={`Delete Tenant / ${tenant}`}
           >
             <>
-              Delete Tenant {props.tenant}?
-              <br />
-              All projects and keys will be deleted. This cannot be undone.
-              <br />
-              Please enter your password to confirm deletion:
-              <input
-                type="password"
-                className="form-control"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              {error && <div className="text-danger">{error}</div>}{" "}
+              <p>
+                All projects and keys will be deleted. This cannot be undone.
+              </p>
             </>
-          </Modal>
+          </PasswordModal>
         </div>
         <hr />
         <h2 ref={formTitleRef}>Export / import data</h2>

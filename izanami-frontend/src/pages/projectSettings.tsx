@@ -23,6 +23,7 @@ import { customStyles } from "../styles/reactSelect";
 import { InvitationForm } from "../components/InvitationForm";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
+import { PasswordModal } from "../components/PasswordModal";
 
 export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
@@ -33,13 +34,17 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   );
 
   const [modification, setModification] = useState(false);
-  const { askConfirmation } = React.useContext(IzanamiContext);
   const navigate = useNavigate();
+  const [isModalOpen, setModalOpen] = React.useState(false);
 
   const projectDelete = useMutation(
-    (data: { tenant: string; project: string }) => {
-      const { tenant, project } = data;
-      return deleteProject(tenant, project);
+    (data: { tenant: string; project: string; password: string }) =>
+      deleteProject(data.tenant, data.project, data.password),
+    {
+      onSuccess: () => {
+        setModalOpen(false);
+        navigate(`/tenants/${tenant}`);
+      },
     }
   );
 
@@ -120,22 +125,24 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
             <button
               type="button"
               className="btn btn-sm btn-danger"
-              onClick={() =>
-                askConfirmation(
-                  <>
-                    Are you sure you wan't to delete project {project} ?
-                    <br />
-                    All features will be deleted, this cannot be undone.
-                  </>,
-                  () =>
-                    projectDelete
-                      .mutateAsync({ project, tenant })
-                      .then(() => navigate(`/tenants/${tenant}`))
-                )
-              }
+              onClick={() => setModalOpen(true)}
             >
               Delete project
             </button>
+            <PasswordModal
+              title={`Delete project / ${project}`}
+              isOpenModal={isModalOpen}
+              onClose={() => {
+                setModalOpen(false);
+              }}
+              onConfirm={(password: string) => {
+                projectDelete.mutateAsync({ project, tenant, password });
+              }}
+            >
+              <>
+                <p>All features will be deleted, this cannot be undone.</p>
+              </>
+            </PasswordModal>
           </div>
         </div>
       </>

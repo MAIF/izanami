@@ -67,12 +67,6 @@ case class  UserPasswordUpdateRequest(
     password: String,
     oldPassword: String
 )
-
-case class  UserPasswordRequest(
- password: String
-)
-
-
 sealed trait UserType
 case object INTERNAL extends UserType
 case object OTOROSHI extends UserType
@@ -511,8 +505,4 @@ object User {
       (__ \ "oldPassword").read[String])((password, oldPassword) =>
       UserPasswordUpdateRequest(oldPassword = oldPassword, password = password)
     )
-  implicit val userPasswordReads: Reads[UserPasswordRequest] =
-    (__ \ "password").read[String].filter(password => PASSWORD_REGEXP.pattern.matcher(password).matches()).map { password: String =>
-      UserPasswordRequest(password = password)
-    }
 }
