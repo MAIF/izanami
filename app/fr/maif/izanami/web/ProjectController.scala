@@ -70,12 +70,23 @@ class ProjectController(
         })
   }
 
-  def deleteProject(tenant: String, project: String): Action[AnyContent] = projectAuthAction(tenant, project, RightLevels.Admin).async {
+  def deleteProject(tenant: String, project: String): Action[JsValue] = projectAuthAction(tenant, project, RightLevels.Admin).async(parse.json) {
     implicit request =>
-      env.datastores.projects
-        .deleteProject(tenant, project, request.user).map {
-        case Left(err) => err.toHttpResponse
-        case Right(value) => NoContent
+      (request.body \ "password").asOpt[String] match {
+        case Some(password) =>
+          env.datastores.users
+            .isUserValid(request.user, password)
+            .flatMap {
+              case Some(user) =>
+                env.datastores.projects
+                  .deleteProject(tenant, project, request.user).map {
+                    case Left(err) => err.toHttpResponse
+                    case Right(value) => NoContent
+                  }
+              case None => BadRequest(Json.obj("message" -> "Your password is invalid.")).future
+
+            }
+          case None => BadRequest(Json.obj("message" -> "Missing password.")).future
       }
   }
 }

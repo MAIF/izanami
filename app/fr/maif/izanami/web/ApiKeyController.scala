@@ -99,10 +99,20 @@ class ApiKeyController(
         .map(keys => Ok(Json.toJson(keys)))
   }
 
-  def deleteApiKey(tenant: String, name: String): Action[AnyContent] = keyAuthAction(tenant, name, RightLevels.Admin).async {
-    implicit request: Request[AnyContent] =>
-      env.datastores.apiKeys
-        .deleteApiKey(tenant, name)
-        .map(either => either.fold(err => Results.Status(err.status)(Json.toJson(err)), key => NoContent))
+  def deleteApiKey(tenant: String, name: String): Action[JsValue] = keyAuthAction(tenant, name, RightLevels.Admin).async(parse.json) {
+    implicit request =>
+      (request.body \ "password").asOpt[String] match {
+        case None => Future.successful(BadRequest(Json.obj("message" -> "Missing password.")))
+        case Some(password) =>
+          env.datastores.users
+            .isUserValid(request.user, password)
+            .flatMap {
+              case Some(_) =>
+                env.datastores.apiKeys
+                  .deleteApiKey(tenant, name)
+                  .map(either => either.fold(err => Results.Status(err.status)(Json.toJson(err)), key => NoContent))
+              case None => Future.successful(BadRequest(Json.obj("message" -> "Your password is invalid.")))
+            }
+      }
   }
 }

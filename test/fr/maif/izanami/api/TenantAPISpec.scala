@@ -14,7 +14,7 @@ class TenantAPISpec extends BaseAPISpec {
         .loggedAs("test-user")
         .build()
 
-      val response = testSituation.deleteTenant("foo")
+      val response = testSituation.deleteTenant("foo", "barbar123")
       response.status mustBe NO_CONTENT
 
       testSituation.fetchTenant("foo").status mustBe FORBIDDEN
@@ -28,7 +28,7 @@ class TenantAPISpec extends BaseAPISpec {
         .loggedAs("test-user")
         .build()
 
-      val response = testSituation.deleteTenant("foo")
+      val response = testSituation.deleteTenant("foo","barbar123" )
       response.status mustBe FORBIDDEN
 
       testSituation.fetchTenant("foo").status mustBe OK
@@ -40,7 +40,16 @@ class TenantAPISpec extends BaseAPISpec {
         .loggedAs("test-user")
         .build()
 
-      val response = testSituation.deleteTenant("foo")
+      val response = testSituation.deleteTenant("foo", "barbar123")
+      response.status mustBe FORBIDDEN
+    }
+    "prevent tenant suppression if user password in not valid" in {
+      val testSituation = TestSituationBuilder()
+        .withUsers(TestUser(username="test-user", password="barbar123"))
+        .loggedAs("test-user")
+        .build()
+
+      val response = testSituation.deleteTenant("foo", "barbar")
       response.status mustBe FORBIDDEN
     }
   }

@@ -28,6 +28,7 @@ import { Loader } from "../components/Loader";
 import { useSearchParams } from "react-router-dom";
 import { InvitationForm } from "../components/InvitationForm";
 import { RightTable } from "../components/RightTable";
+import { PasswordModal } from "../components/PasswordModal";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -91,14 +92,19 @@ export default function Keys(props: { tenant: string }) {
   const keyQuery = useQuery(tenantKeyQueryKey(tenant), () => queryKeys(tenant));
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
-  const { askConfirmation, refreshUser } = React.useContext(IzanamiContext);
+  const { refreshUser } = React.useContext(IzanamiContext);
+  const [isModalOpen, setModalOpen] = React.useState(false);
+  const [selectedKey, setSelectedKey] = React.useState<TKey>();
+
   const keyDeleteMutation = useMutation(
     tenantKeyQueryKey(tenant),
-    (name: string) => deleteKey(tenant, name),
+    (params: { name: string; password: string }) =>
+      deleteKey(tenant, params.name, params.password),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(tenantKeyQueryKey(tenant));
         refreshUser();
+        setModalOpen(false);
       },
     }
   );
@@ -348,20 +354,29 @@ export default function Keys(props: { tenant: string }) {
                   </>
                 ),
                 action: (key: TKey) => {
-                  return new Promise((resolve, reject) => {
-                    askConfirmation(
-                      `Are you sure you want to delete key ${key.name} ?`,
-                      () =>
-                        keyDeleteMutation
-                          .mutateAsync(key.name)
-                          .then((res) => resolve(res))
-                          .catch((err) => reject(err))
-                    );
-                  });
+                  setSelectedKey(key);
+                  setModalOpen(true);
                 },
               },
             }}
           />
+        )}
+        {isModalOpen && selectedKey && (
+          <PasswordModal
+            isOpenModal={isModalOpen}
+            onClose={() => {
+              setModalOpen(false);
+            }}
+            onConfirm={(password: string) => {
+              keyDeleteMutation.mutateAsync({
+                name: selectedKey.name,
+                password: password,
+              });
+            }}
+          >
+            <>Are you sure you want to delete key {selectedKey.name} ?</>
+            <br />
+          </PasswordModal>
         )}
         <KeyModal
           id={clientid}
