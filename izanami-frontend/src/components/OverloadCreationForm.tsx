@@ -77,83 +77,88 @@ export function OverloadCreationForm(props: {
           )}
           className="d-flex flex-column anim__rightToLeft p-3 sub_container"
         >
-          <label>
-            Name
-            <Controller
-              name="name"
-              control={control}
-              render={({ field: { onChange, value } }) => (
-                <Select
-                  isDisabled={noName}
-                  value={{ value, label: value }}
-                  onChange={(e) => {
-                    const selectedFeature = projectQuery.data.features.find(
-                      (f) => f.name === e?.value
-                    );
-                    setFeatureResultType(selectedFeature?.resultType);
-                    onChange(e?.value);
-                  }}
-                  styles={customStyles}
-                  options={projectQuery.data.features
-                    .filter((f) => !excluded || !excluded.includes(f.name))
-                    .map((f) => ({
-                      label: f.name,
-                      value: f.name,
-                    }))}
-                />
-              )}
-            />
-            {errors.name && <p className="error-message">name is required</p>}
-          </label>
-          {additionalFields?.()}
-          <label className="mt-3">
-            Feature result type
-            <Tooltip id="modern-result-type">
-              Result type is result that will be returned by feature evaluation.
-              <br /> It's usually boolean, but for some cases it can be string,
-              number or date.
-            </Tooltip>
-            <Select
-              placeholder="Select a feature to display its result type"
-              value={
-                featureResultType
-                  ? { label: featureResultType, value: featureResultType }
-                  : null
-              }
-              isDisabled={true}
-              styles={customStyles}
-            />
-          </label>
-          {featureResultType && featureResultType !== "boolean" && (
-            <label className="mt-3">
-              Base value*
-              {featureResultType === "string" ? (
-                <input
-                  type="text"
-                  className="form-control"
-                  {...register("value")}
-                />
-              ) : (
-                <input
-                  type="number"
-                  className="form-control"
-                  step="any"
-                  {...register("value")}
-                />
-              )}
-              <ErrorDisplay
-                error={(errors as FieldErrors<TContextOverloadBase>).value}
+          <div className="row">
+            <label className="col-9 col-lg-5 col-xl-4 col-xxl-3">
+              Name
+              <Controller
+                name="name"
+                control={control}
+                render={({ field: { onChange, value } }) => (
+                  <Select
+                    isDisabled={noName}
+                    value={{ value, label: value }}
+                    onChange={(e) => {
+                      const selectedFeature = projectQuery.data.features.find(
+                        (f) => f.name === e?.value
+                      );
+                      setFeatureResultType(selectedFeature?.resultType);
+                      onChange(e?.value);
+                    }}
+                    styles={customStyles}
+                    options={projectQuery.data.features
+                      .filter((f) => !excluded || !excluded.includes(f.name))
+                      .map((f) => ({
+                        label: f.name,
+                        value: f.name,
+                      }))}
+                  />
+                )}
+              />
+              {errors.name && <p className="error-message">name is required</p>}
+            </label>
+            <label className="col-3">
+              Enabled
+              <input
+                type="checkbox"
+                className="izanami-checkbox ms-2"
+                {...register("enabled")}
               />
             </label>
-          )}
-          <label className="mt-3 d-flex">
-            <span className="mt-2">Enabled</span>
-            <input
-              type="checkbox"
-              className="izanami-checkbox ms-2"
-              {...register("enabled")}
-            />
-          </label>
+          </div>
+          {additionalFields?.()}
+          <div className="row mt-3">
+            <label className="col-6 col-lg-5 col-xl-4 col-xxl-3">
+              Feature result type
+              <Tooltip id="modern-result-type">
+                Result type is result that will be returned by feature
+                evaluation.
+                <br /> It's usually boolean, but for some cases it can be
+                string, number or date.
+              </Tooltip>
+              <Select
+                placeholder="Select a feature to display its result type"
+                value={
+                  featureResultType
+                    ? { label: featureResultType, value: featureResultType }
+                    : null
+                }
+                isDisabled={true}
+                styles={customStyles}
+              />
+            </label>
+            {featureResultType && featureResultType !== "boolean" && (
+              <label className="col-6 col-lg-7 col-xl-8 col-xxl-9">
+                Base value*
+                {featureResultType === "string" ? (
+                  <input
+                    type="text"
+                    className="form-control"
+                    {...register("value")}
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    className="form-control"
+                    step="any"
+                    {...register("value")}
+                  />
+                )}
+                <ErrorDisplay
+                  error={(errors as FieldErrors<TContextOverloadBase>).value}
+                />
+              </label>
+            )}
+          </div>
           <label className="mt-3">
             Feature type
             <Select

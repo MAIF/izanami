@@ -1080,9 +1080,7 @@ export function V2FeatureForm(props: {
             </div>
             {additionalFields && additionalFields()}
             <div className="row">
-              <label
-                className={`mt-3 ${resultType !== "boolean" ? "col-6" : ""}`}
-              >
+              <label className="mt-3 col-6">
                 Feature result type
                 <Tooltip id="modern-result-type">
                   Result type is result that will be returned by feature
