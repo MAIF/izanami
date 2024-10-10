@@ -495,7 +495,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           env.postgresql.executeInTransaction(
             implicit conn => {
               (strategy match {
-                case ClassicalFeatureStrategy(enabled, conditions, resultDescriptor) =>
+                case ClassicalFeatureStrategy(enabled, _, resultDescriptor) =>
                   env.postgresql
                     .queryRaw(
                       s"""
@@ -515,7 +515,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                             project,
                             if (local) generateSubContextId(project, path.last, path.dropRight(1))
                             else generateSubContextId(tenant, path.last, path.dropRight(1)),
-                            new JsonArray(Json.toJson(conditions).toString()),
+                            new JsonArray(Json.toJson(resultDescriptor.conditions).toString()),
                             java.lang.Boolean.valueOf(enabled),
                             feature,
                             descriptor.resultType.toDatabaseName,
