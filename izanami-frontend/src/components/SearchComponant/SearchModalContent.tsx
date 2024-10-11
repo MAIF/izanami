@@ -4,7 +4,8 @@ import { searchEntitiesByTenant, searchEntities } from "../../utils/queries";
 import { GlobalContextIcon } from "../../utils/icons";
 import { SearchResult } from "../../utils/types";
 import { debounce } from "lodash";
-
+import Select from "react-select";
+import { customStyles } from "../../styles/reactSelect";
 interface ISearchProps {
   tenant?: string;
   onClose: () => void;
@@ -157,6 +158,22 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
       setResultStatus({ state: "INITIAL" });
     }
   };
+  interface Option {
+    value: string;
+    label: string;
+  }
+  const [filters, setFilters] = React.useState<Option[]>([]);
+
+  const filterOptions = [
+    { value: "Projects", label: "Projects" },
+    { value: "Tags", label: "Tags" },
+    { value: "Webhooks", label: "Webhooks" },
+    { value: "keys", label: "keys" },
+    { value: "Global Contexts", label: "Global Contexts" },
+    { value: "Local Contexts", label: "Local Contexts" },
+    { value: "WASM scripts", label: "WASM scripts" },
+    { value: "Features", label: "Features" },
+  ];
   return (
     <>
       {tenant && tenant !== "all" && (
@@ -190,6 +207,14 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
             <span className="fas fa-cloud" aria-hidden></span>
             <span> {tenant}</span>
           </button>
+          <Select
+            options={filterOptions}
+            onChange={(e) => setFilters(e as Option[])}
+            styles={customStyles}
+            isMulti
+            isClearable
+            placeholder="Apply filter"
+          />
         </div>
       )}
       <div className="search-container">
@@ -205,7 +230,10 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
               if (event.target.value) {
                 setResultStatus({ state: "PENDING" });
                 if (modalStatus.all) {
-                  searchEntities(event.target.value)
+                  searchEntities(
+                    event.target.value,
+                    filters?.map((v) => v.value)
+                  )
                     .then((r) =>
                       setResultStatus({ state: "SUCCESS", results: r })
                     )
@@ -216,7 +244,11 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                       });
                     });
                 } else {
-                  searchEntitiesByTenant(modalStatus.tenant, event.target.value)
+                  searchEntitiesByTenant(
+                    modalStatus.tenant,
+                    event.target.value,
+                    filters?.map((v) => v.value)
+                  )
                     .then((r) =>
                       setResultStatus({ state: "SUCCESS", results: r })
                     )
