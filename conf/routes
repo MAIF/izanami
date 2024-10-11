@@ -111,8 +111,8 @@ GET           /api/admin/tenants/:tenant/webhooks/:id/users                     
 PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights                      fr.maif.izanami.web.UserController.updateUserRightsForWebhook(tenant: String, webhook: String, user: String)
 
 # Search application endpoints
-GET           /api/admin/search                                                                    fr.maif.izanami.web.SearchController.search(query: String)
-GET           /api/admin/tenants/:tenant/search                                                    fr.maif.izanami.web.SearchController.searchForTenant(tenant: String, query: String)
+GET           /api/admin/search                                                                    fr.maif.izanami.web.SearchController.search(query: String, filter: List[String])
+GET           /api/admin/tenants/:tenant/search                                                    fr.maif.izanami.web.SearchController.searchForTenant(tenant: String, query: String, filter: List[String])
 
 POST          /api/admin/tenants/:tenant/_export                                                  fr.maif.izanami.web.ExportController.exportTenantData(tenant: String)
 
