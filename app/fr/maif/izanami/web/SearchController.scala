@@ -17,7 +17,7 @@ class SearchController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
-  def search(query: String): Action[AnyContent] = tenantRightAction.async {
+  def search(query: String, filter : List[String]): Action[AnyContent] = tenantRightAction.async {
     implicit request: UserRequestWithTenantRights[AnyContent] =>
       {
         val tenants = request.user.tenantRights.keySet
@@ -26,7 +26,7 @@ class SearchController(
             tenants
               .map(tenant =>
                 env.datastores.search
-                  .tenantSearch(tenant, request.user.username, query)
+                  .tenantSearch(tenant, request.user.username, query, filter)
                   .map(l =>
                     l.map(t => {
                       (t._1, t._2, t._3, tenant)
@@ -55,11 +55,11 @@ class SearchController(
       }
   }
 
-  def searchForTenant(tenant: String, query: String): Action[AnyContent] = simpleAuthAction.async {
+  def searchForTenant(tenant: String, query: String, filter: List[String]): Action[AnyContent] = simpleAuthAction.async {
     implicit request: UserNameRequest[AnyContent] =>
       {
         env.datastores.search
-          .tenantSearch(tenant, request.user, query)
+          .tenantSearch(tenant, request.user, query, filter)
           .flatMap(results => {
             Future.sequence(results.map { case (rowType, rowJson, _) =>
               buildPath(rowType, rowJson, tenant)
